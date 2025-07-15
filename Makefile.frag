@@ -1,21 +1,21 @@
 # Platform-specific configuration
 ifeq ($(shell uname),Darwin)
     INCLUDES += -I/opt/homebrew/include
-    VALKEY_GLIDE_SHARED_LIBADD = ../ffi/target/release/libglide_ffi.a -lresolv -lSystem -Wl,-rpath,/opt/homebrew/lib -L/opt/homebrew/lib
+    VALKEY_GLIDE_SHARED_LIBADD = valkey-glide/ffi/target/release/libglide_ffi.a -lresolv -lSystem -Wl,-rpath,/opt/homebrew/lib -L/opt/homebrew/lib
 else
     # Linux - check for target-specific build first, fallback to release
-    ifneq ($(wildcard ../ffi/target/x86_64-unknown-linux-gnu/release/libglide_ffi.a),)
-        VALKEY_GLIDE_SHARED_LIBADD = ../ffi/target/x86_64-unknown-linux-gnu/release/libglide_ffi.a -lresolv -lprotobuf-c
-    else ifneq ($(wildcard ../ffi/target/aarch64-unknown-linux-gnu/release/libglide_ffi.a),)
-        VALKEY_GLIDE_SHARED_LIBADD = ../ffi/target/aarch64-unknown-linux-gnu/release/libglide_ffi.a -lresolv -lprotobuf-c
+    ifneq ($(wildcard valkey-glide/ffi/target/x86_64-unknown-linux-gnu/release/libglide_ffi.a),)
+        VALKEY_GLIDE_SHARED_LIBADD = valkey-glide/ffi/target/x86_64-unknown-linux-gnu/release/libglide_ffi.a -lresolv -lprotobuf-c
+    else ifneq ($(wildcard valkey-glide/ffi/target/aarch64-unknown-linux-gnu/release/libglide_ffi.a),)
+        VALKEY_GLIDE_SHARED_LIBADD = valkey-glide/ffi/target/aarch64-unknown-linux-gnu/release/libglide_ffi.a -lresolv -lprotobuf-c
     else
-        VALKEY_GLIDE_SHARED_LIBADD = ../ffi/target/release/libglide_ffi.a -lresolv -lprotobuf-c
+        VALKEY_GLIDE_SHARED_LIBADD = valkey-glide/ffi/target/release/libglide_ffi.a -lresolv -lprotobuf-c
     endif
 endif
 INCLUDES += -Iinclude
 PROTOC = protoc
 PROTOC_C_PLUGIN := protoc-c
-PROTO_SRC_DIR = ../glide-core/src/protobuf
+PROTO_SRC_DIR = valkey-glide/core/src/protobuf
 GEN_INCLUDE_DIR = include/glide
 GEN_SRC_DIR = src
 
@@ -52,8 +52,8 @@ clean-proto:
 generate-bindings:
 	@echo "Generating C bindings from Rust code..."
 	@mkdir -p $(top_srcdir)/include
-	@cp $(top_srcdir)/../ffi/src/lib.rs $(top_srcdir)/include/lib.rs
-	@cd $(top_srcdir)/../ffi && $(CBINDGEN) --config cbindgen.toml --crate glide-ffi --output $(top_srcdir)/include/glide_bindings.h
+	@cp $(top_srcdir)/valkey-glide/ffi/src/lib.rs $(top_srcdir)/include/lib.rs
+	@cd $(top_srcdir)/valkey-glide/ffi && $(CBINDGEN) --config cbindgen.toml --crate glide-ffi --output $(top_srcdir)/include/glide_bindings.h
 
 valkey_glide_arginfo.h: valkey_glide.stub.php
 	@echo "Generating arginfo from valkey_glide.stub.php"
