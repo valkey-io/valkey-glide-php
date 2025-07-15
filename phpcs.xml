@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<ruleset name="ValkeyGlide">
+    <description>PHP CodeSniffer configuration for Valkey GLIDE PHP</description>
+    
+    <!-- Files to check -->
+    <file>tests/</file>
+    
+    <!-- Exclude generated files -->
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*.pb-c.c</exclude-pattern>
+    <exclude-pattern>*.pb-c.h</exclude-pattern>
+    <exclude-pattern>*/autom4te.cache/*</exclude-pattern>
+    <exclude-pattern>*/build/*</exclude-pattern>
+    <exclude-pattern>*/.libs/*</exclude-pattern>
+    
+    <!-- Use PSR-12 standard -->
+    <rule ref="PSR12"/>
+    
+    <!-- Additional rules -->
+    <rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
+    <rule ref="Generic.PHP.RequireStrictTypes"/>
+    
+    <!-- Customize some rules -->
+    <rule ref="Generic.Files.LineLength">
+        <properties>
+            <property name="lineLimit" value="120"/>
+            <property name="absoluteLineLimit" value="0"/>
+        </properties>
+    </rule>
+    
+    <!-- Allow underscores in test method names -->
+    <rule ref="PSR1.Methods.CamelCapsMethodName.NotCamelCaps">
+        <exclude-pattern>*/tests/*</exclude-pattern>
+    </rule>
+</ruleset>

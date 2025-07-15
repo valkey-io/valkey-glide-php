@@ -1,0 +1,4 @@
+php TestValkeyGlide.php --class valkeyglideclusterfeatures 
+php TestValkeyGlide.php --class valkeyglideclientfeatures 
+php TestValkeyGlide.php --class valkeyglide
+php TestValkeyGlide.php --class valkeyglidecluster

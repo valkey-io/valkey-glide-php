@@ -1,0 +1,19 @@
+parameters:
+    level: 6
+    paths:
+        - tests
+        - examples
+    excludePaths:
+        - tests/generated
+        - vendor
+        - autom4te.cache
+        - build
+        - .libs
+    ignoreErrors:
+        - '#Call to an undefined method#'
+        - '#Access to an undefined property#'
+        - '#Function [a-zA-Z0-9_]+\(\) should return [a-zA-Z0-9_|\\\]+but returns [a-zA-Z0-9_|\\\]+#'
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false
+    reportUnmatchedIgnoredErrors: false
+    tmpDir: %rootDir%/tmp/phpstan

@@ -1,0 +1,54 @@
+{
+    "name": "valkey-io/valkey-glide-php",
+    "description": "PHP client for Valkey",
+    "type": "library",
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "Valkey GLIDE contributors",
+            "homepage": "https://github.com/valkey-io/valkey-glide"
+        }
+    ],
+    "homepage": "https://github.com/valkey-io/valkey-glide",
+    "require": {
+        "php": ">=8.1"
+    },
+    "require-dev": {
+        "squizlabs/php_codesniffer": "^3.7",
+        "phpstan/phpstan": "^1.10"
+    },
+    "autoload": {
+        "psr-4": {
+            "ValkeyGlide\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ValkeyGlide\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "lint": [
+            "phpcs --standard=phpcs.xml"
+        ],
+        "lint:fix": [
+            "phpcbf --standard=phpcs.xml"
+        ],
+        "analyze": [
+            "phpstan analyze"
+        ],
+        "test": [
+            "php run-tests.php tests/"
+        ],
+        "check": [
+            "@lint",
+            "@analyze"
+        ]
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    }
+}

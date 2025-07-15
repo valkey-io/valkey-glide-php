@@ -1,0 +1,184 @@
+name: Build PHP wrapper
+description: Build PHP wrapper
+inputs:
+    os:
+        description: Target OS
+        required: true
+    target:
+        description: Target
+        required: true
+    php-version:
+        description: PHP version
+        required: true
+    github-token:
+        description: GitHub token
+        required: true
+    engine-version:
+        description: Engine version
+        required: true
+
+runs:
+    using: composite
+    steps:
+        - name: Setup PHP
+          uses: shivammathur/setup-php@v2
+          with:
+              php-version: ${{ inputs.php-version }}
+              extensions: tokenizer, json, ctype, iconv, mbstring
+              tools: none
+          env:
+              runner: self-hosted
+
+        - name: Install system dependencies (Ubuntu)
+          if: ${{ inputs.os == 'ubuntu' }}
+          shell: bash
+          run: |
+              sudo apt-get update
+              sudo apt-get install -y \
+                  php${{ inputs.php-version }}-dev \
+                  php${{ inputs.php-version }}-cli \
+                  build-essential \
+                  autoconf \
+                  automake \
+                  libtool \
+                  pkg-config \
+                  libssl-dev \
+                  unzip \
+                  clang-format \
+                  cppcheck \
+                  libprotobuf-c-dev \
+                  libprotobuf-c1
+
+        - name: Install system dependencies (macOS)
+          if: ${{ inputs.os == 'macos' }}
+          shell: bash
+          run: |
+              brew install autoconf automake libtool pkg-config protobuf@3 openssl clang-format cppcheck
+
+        - name: Install protobuf compiler (Ubuntu)
+          if: ${{ inputs.os == 'ubuntu' }}
+          shell: bash
+          run: |
+              PB_REL="https://github.com/protocolbuffers/protobuf/releases"
+              curl -LO $PB_REL/download/v3.20.3/protoc-3.20.3-linux-x86_64.zip
+              unzip protoc-3.20.3-linux-x86_64.zip -d $HOME/.local
+              echo "$HOME/.local/bin" >> $GITHUB_PATH
+              # Install protobuf-c-compiler
+              sudo apt-get install -y protobuf-c-compiler
+
+        - name: Install protobuf compiler (macOS)
+          if: ${{ inputs.os == 'macos' }}
+          shell: bash
+          run: |
+              echo 'export PATH="/opt/homebrew/opt/protobuf@3/bin:$PATH"' >> $GITHUB_ENV
+              # Install protobuf-c
+              brew install protobuf-c
+
+        - name: Install shared software dependencies
+          uses: ./.github/workflows/install-shared-dependencies
+          with:
+              os: ${{ inputs.os }}
+              target: ${{ inputs.target }}
+              github-token: ${{ inputs.github-token }}
+              engine-version: ${{ inputs.engine-version }}
+
+        - name: Install Rust and Cargo
+          uses: ./.github/workflows/install-rust-and-protoc
+          with:
+              github-token: ${{ inputs.github-token }}
+
+        - name: Install cbindgen
+          shell: bash
+          run: |
+              cargo install cbindgen
+
+        - name: Install ziglang (Ubuntu)
+          if: ${{ inputs.os == 'ubuntu' }}
+          shell: bash
+          run: |
+              pip3 install ziglang
+              cargo install --locked cargo-zigbuild
+
+        - name: Build FFI library
+          shell: bash
+          working-directory: ffi
+          run: |
+              # Check if ASAN flags are present - if so, use regular cargo build to avoid Zig linker issues
+              if [[ "$CFLAGS" == *"-fsanitize=address"* ]] || [[ "$CXXFLAGS" == *"-fsanitize=address"* ]]; then
+                  echo "ASAN flags detected, using regular cargo build to ensure proper ASAN runtime linking"
+                  cargo build --target ${{ inputs.target }} --release
+              elif [[ "${{ inputs.os }}" == "ubuntu" ]]; then
+                  cargo zigbuild --target ${{ inputs.target }} --release
+              else
+                  cargo build --target ${{ inputs.target }} --release
+              fi
+
+        - name: Debug FFI library location
+          shell: bash
+          working-directory: ffi
+          run: |
+              echo "=== FFI Target Directory Structure ==="
+              find target -name "libglide_ffi.a" -type f 2>/dev/null || echo "No libglide_ffi.a found"
+              echo "=== Target directory contents ==="
+              ls -la target/ || true
+              if [ -d "target/${{ inputs.target }}" ]; then
+                  echo "=== Target-specific directory ==="
+                  ls -la "target/${{ inputs.target }}/" || true
+                  if [ -d "target/${{ inputs.target }}/release" ]; then
+                      echo "=== Target release directory ==="
+                      ls -la "target/${{ inputs.target }}/release/" || true
+                  fi
+              fi
+
+        - name: Initialize PHP extension build system
+          shell: bash
+          working-directory: php
+          run: |
+              phpize
+
+        - name: Configure PHP extension
+          shell: bash
+          working-directory: php
+          run: |
+              ./configure --enable-valkey-glide
+
+        - name: Generate protobuf and bindings
+          shell: bash
+          working-directory: php
+          run: |
+              make build-modules-pre
+
+        - name: Debug PHP extension linking
+          shell: bash
+          working-directory: php
+          run: |
+              echo "=== Checking FFI library paths ==="
+              echo "Platform: $(uname)"
+              echo "Checking for target-specific paths:"
+              ls -la ../ffi/target/*/release/libglide_ffi.a 2>/dev/null || echo "No target-specific paths found"
+              echo "Checking for generic release path:"
+              ls -la ../ffi/target/release/libglide_ffi.a 2>/dev/null || echo "No generic release path found"
+              echo "=== Makefile.frag VALKEY_GLIDE_SHARED_LIBADD setting ==="
+              grep "VALKEY_GLIDE_SHARED_LIBADD" Makefile.frag || echo "VALKEY_GLIDE_SHARED_LIBADD not found"
+
+        - name: Build PHP extension
+          shell: bash
+          working-directory: php
+          run: |
+              make
+
+        - name: Verify extension build
+          shell: bash
+          working-directory: php
+          run: |
+              # Check if the extension was built successfully
+              if [ -f "modules/valkey_glide.so" ]; then
+                  echo "✓ Extension built successfully: modules/valkey_glide.so"
+                  ls -la modules/valkey_glide.so
+              else
+                  echo "✗ Extension build failed - modules/valkey_glide.so not found"
+                  exit 1
+              fi
+              
+              # Test loading the extension directly
+              php -n -d extension=modules/valkey_glide.so -m | grep valkey_glide && echo "✓ Extension loads correctly" || echo "✗ Extension failed to load"
