@@ -7,11 +7,11 @@ on:
             - release-*
             - v*
         paths:
-            - glide-core/src/**
-            - glide-core/redis-rs/redis/src/**
-            - ffi/src/**
-            - utils/cluster_manager.py
-            - php/**
+            - valkey-glide/glide-core/src/**
+            - valkey-glide/glide-core/redis-rs/redis/src/**
+            - valkey-glide/ffi/src/**
+            - valkey-glide/utils/cluster_manager.py
+            - **
             - .github/workflows/php.yml
             - .github/workflows/install-shared-dependencies/action.yml
             - .github/workflows/build-php-wrapper/action.yml
@@ -22,11 +22,11 @@ on:
             - .github/json_matrices/**
     pull_request:
         paths:
-            - glide-core/src/**
-            - glide-core/redis-rs/redis/src/**
-            - ffi/src/**
+            - valkey-glide/glide-core/src/**
+            - valkey-glide/glide-core/redis-rs/redis/src/**
+            - valkey-glide/ffi/src/**
             - utils/cluster_manager.py
-            - php/**
+            - **
             - .github/workflows/php.yml
             - .github/workflows/install-shared-dependencies/action.yml
             - .github/workflows/build-php-wrapper/action.yml
@@ -103,11 +103,11 @@ jobs:
             - uses: actions/cache@v4
               with:
                   path: |
-                      ffi/target
-                      glide-core/src/generated
-                      php/include/
-                      php/src/*.pb-c.c
-                      php/src/*.pb-c.h
+                      valkey-glide/ffi/target
+                      valkey-glide/glide-core/src/generated
+                      include/
+                      src/*.pb-c.c
+                      src/*.pb-c.h
                   key: ${{ matrix.host.TARGET }}-php-${{ matrix.php }}
                   restore-keys: |
                       ${{ matrix.host.TARGET }}-php
@@ -124,7 +124,7 @@ jobs:
                   engine-version: ${{ matrix.engine.version }}
 
             - name: Start Valkey servers
-              working-directory: php/tests
+              working-directory: tests
               run: |
                   set -e  # Exit on any error
                   
@@ -206,7 +206,7 @@ jobs:
                   pkill valkey-server || true
                   # Clean up data directories
                   rm -rf $HOME/valkey-cluster || true
-                  rm -rf php/tests/valkey_data || true
+                  rm -rf tests/valkey_data || true
 
             - uses: ./.github/workflows/test-benchmark
               if: ${{ matrix.engine.version == '8.0' && matrix.host.OS == 'ubuntu' && matrix.host.RUNNER == 'ubuntu-latest' && matrix.php == env.BASE_PHP_VERSION }}
@@ -222,10 +222,10 @@ jobs:
                   path: |
                       utils/clusters/**
                       benchmarks/results/**
-                      php/tests/**/*.diff
-                      php/tests/**/*.exp
-                      php/tests/**/*.log
-                      php/tests/**/*.out
+                      tests/**/*.diff
+                      tests/**/*.exp
+                      tests/**/*.log
+                      tests/**/*.out
 
     test-php-asan:
         name: PHP ASAN Tests - EngineVersion ${{ matrix.engine.version }} (macOS)
@@ -249,11 +249,11 @@ jobs:
             - uses: actions/cache@v4
               with:
                   path: |
-                      ffi/target
-                      glide-core/src/generated
-                      php/include/
-                      php/src/*.pb-c.c
-                      php/src/*.pb-c.h
+                      valkey-glide/ffi/target
+                      valkey-glide/glide-core/src/generated
+                      include/
+                      src/*.pb-c.c
+                      src/*.pb-c.h
                   key: macos-latest-php-asan-${{ env.BASE_PHP_VERSION }}
                   restore-keys: |
                       macos-latest-php-asan
@@ -303,7 +303,7 @@ jobs:
               run: echo "DYLD_LIBRARY_PATH=$(brew --prefix protobuf-c)/lib" >> $GITHUB_ENV              
 
             - name: Start Valkey servers
-              working-directory: php/tests
+              working-directory: tests
               run: |
                   set -e  # Exit on any error
                   
@@ -359,7 +359,7 @@ jobs:
                   
                   # Create clean log directory
                   mkdir -p ./asan_logs
-                  otool -L php/modules/valkey_glide.so
+                  otool -L modules/valkey_glide.so
                   nm -g modules/valkey_glide.so | grep protobuf_c_empty_string
                   # Run ASAN tests with visible error output
                   echo "=== Running make test-asan ==="
@@ -391,7 +391,7 @@ jobs:
                   pkill valkey-server || true
                   # Clean up data directories
                   rm -rf $HOME/valkey-cluster || true
-                  rm -rf php/tests/valkey_data || true
+                  rm -rf tests/valkey_data || true
 
             - name: Upload ASAN logs and reports
               if: always()
@@ -401,11 +401,11 @@ jobs:
                   name: asan-test-report-php-${{ matrix.engine.type }}-${{ matrix.engine.version }}
                   path: |
                       utils/clusters/**
-                      php/asan_logs/**
-                      php/tests/**/*.diff
-                      php/tests/**/*.exp
-                      php/tests/**/*.log
-                      php/tests/**/*.out
+                      asan_logs/**
+                      tests/**/*.diff
+                      tests/**/*.exp
+                      tests/**/*.log
+                      tests/**/*.out
 
     test-php-valgrind:
         name: PHP Valgrind Tests - EngineVersion ${{ matrix.engine.version }} (Ubuntu)
@@ -428,11 +428,11 @@ jobs:
             - uses: actions/cache@v4
               with:
                   path: |
-                      ffi/target
-                      glide-core/src/generated
-                      php/include/
-                      php/src/*.pb-c.c
-                      php/src/*.pb-c.h
+                      valkey-glide/ffi/target
+                      valkey-glide/glide-core/src/generated
+                      include/
+                      src/*.pb-c.c
+                      src/*.pb-c.h
                   key: ubuntu-latest-php-valgrind-${{ env.BASE_PHP_VERSION }}
                   restore-keys: |
                       ubuntu-latest-php-valgrind
@@ -485,7 +485,7 @@ jobs:
                       valgrind
 
             - name: Start Valkey servers
-              working-directory: php/tests
+              working-directory: tests
               run: |
                   set -e  # Exit on any error
                   
@@ -644,7 +644,7 @@ jobs:
                   pkill valkey-server || true
                   # Clean up data directories
                   rm -rf $HOME/valkey-cluster || true
-                  rm -rf php/tests/valkey_data || true
+                  rm -rf tests/valkey_data || true
 
             - name: Upload Valgrind logs and reports
               if: always()
@@ -654,11 +654,11 @@ jobs:
                   name: valgrind-test-report-php-${{ matrix.engine.type }}-${{ matrix.engine.version }}
                   path: |
                       utils/clusters/**
-                      php/valgrind_logs/**
-                      php/tests/**/*.diff
-                      php/tests/**/*.exp
-                      php/tests/**/*.log
-                      php/tests/**/*.out
+                      valgrind_logs/**
+                      tests/**/*.diff
+                      tests/**/*.exp
+                      tests/**/*.log
+                      tests/**/*.out
 
     lint:
         timeout-minutes: 15
@@ -704,9 +704,9 @@ jobs:
             - uses: actions/cache@v4
               with:
                   path: |
-                      ffi/target
-                      glide-core/src/generated
-                      php/include/
+                      valkey-glide/ffi/target
+                      valkey-glide/glide-core/src/generated
+                      include/
                   key: x86_64-unknown-linux-gnu-php-lint
                   restore-keys: |
                       x86_64-unknown-linux-gnu-php
@@ -716,7 +716,7 @@ jobs:
             - name: lint rust
               uses: ./.github/workflows/lint-rust
               with:
-                  cargo-toml-folder: ffi
+                  cargo-toml-folder: valkey-glide/ffi
                   github-token: ${{ secrets.GITHUB_TOKEN }}
 
             - name: Initialize PHP extension build system
@@ -796,9 +796,9 @@ jobs:
             - uses: actions/cache@v4
               with:
                   path: |
-                      ffi/target
-                      glide-core/src/generated
-                      php/include/
+                      valkey-glide/ffi/target
+                      valkey-glide/glide-core/src/generated
+                      include/
                   key: ${{ matrix.host.IMAGE }}-php-${{ matrix.php }}
                   restore-keys: ${{ matrix.host.IMAGE }}-php
 
@@ -812,7 +812,7 @@ jobs:
                   engine-version: ${{ matrix.engine.version }}
 
             - name: Start Valkey servers
-              working-directory: php/tests
+              working-directory: tests
               run: |
                   set -e  # Exit on any error
                   
@@ -894,7 +894,7 @@ jobs:
                   pkill valkey-server || true
                   # Clean up data directories
                   rm -rf $HOME/valkey-cluster || true
-                  rm -rf php/tests/valkey_data || true
+                  rm -rf tests/valkey_data || true
 
             - name: Upload test reports
               if: always()
@@ -905,10 +905,10 @@ jobs:
                   path: |
                       utils/clusters/**
                       benchmarks/results/**
-                      php/tests/**/*.diff
-                      php/tests/**/*.exp
-                      php/tests/**/*.log
-                      php/tests/**/*.out
+                      tests/**/*.diff
+                      tests/**/*.exp
+                      tests/**/*.log
+                      tests/**/*.out
 
     test-modules:
         if: ((github.repository_owner == 'valkey-io' && github.event_name == 'workflow_dispatch' && github.event.inputs.run-modules-tests == 'true') || github.event.pull_request.head.repo.owner.login == 'valkey-io')
@@ -925,9 +925,9 @@ jobs:
             - uses: actions/cache@v4
               with:
                   path: |
-                      ffi/target
-                      glide-core/src/generated
-                      php/include/
+                      valkey-glide/ffi/target
+                      valkey-glide/glide-core/src/generated
+                      include/
                   key: aarch64-unknown-linux-gnu-php
                   restore-keys: |
                       aarch64-unknown-linux-gnu-glide-core
@@ -965,7 +965,7 @@ jobs:
               with:
                   name: test-reports-modules
                   path: |
-                      php/tests/**/*.diff
-                      php/tests/**/*.exp
-                      php/tests/**/*.log
-                      php/tests/**/*.out
+                      tests/**/*.diff
+                      tests/**/*.exp
+                      tests/**/*.log
+                      tests/**/*.out
