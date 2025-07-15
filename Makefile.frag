@@ -15,7 +15,7 @@ endif
 INCLUDES += -Iinclude
 PROTOC = protoc
 PROTOC_C_PLUGIN := protoc-c
-PROTO_SRC_DIR = valkey-glide/core/src/protobuf
+PROTO_SRC_DIR = valkey-glide/glide-core/src/protobuf
 GEN_INCLUDE_DIR = include/glide
 GEN_SRC_DIR = src
 
