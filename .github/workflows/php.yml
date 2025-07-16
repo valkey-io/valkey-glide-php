@@ -25,7 +25,7 @@ on:
             - valkey-glide/glide-core/src/**
             - valkey-glide/glide-core/redis-rs/redis/src/**
             - valkey-glide/ffi/src/**
-            - utils/cluster_manager.py
+            - valkey-glide/utils/cluster_manager.py
             - **
             - .github/workflows/php.yml
             - .github/workflows/install-shared-dependencies/action.yml
@@ -182,13 +182,11 @@ jobs:
                   echo "=== Valkey servers startup completed ==="
 
             - name: Run PHP extension tests
-              working-directory: php
               run: |
                   # Run tests using direct extension loading with absolute path
                   php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php
 
             - name: Run integration tests
-              working-directory: php
               run: |
                   # All tests are now run through the main TestValkeyGlide.php runner
                   echo "All 4 test classes are already included in the main test runner"
@@ -277,7 +275,7 @@ jobs:
               run: cargo install cbindgen
 
             - name: Build FFI library
-              working-directory: ffi
+              working-directory: valkey-glide/ffi
               run: cargo build --release
 
             - name: Set up PHP
@@ -333,7 +331,6 @@ jobs:
                   echo "=== Valkey servers startup completed ==="
 
             - name: Setup and run ASAN tests
-              working-directory: php
               run: |
                   echo "=== Setting up PHP extension build system and running ASAN tests ==="
                   
@@ -367,7 +364,6 @@ jobs:
                   make test-asan
 
             - name: Display ASAN logs if found
-              working-directory: php
               if: always()
               run: |
                   if [ -d "./asan_logs" ] && [ "$(ls -A ./asan_logs 2>/dev/null)" ]; then
@@ -456,7 +452,7 @@ jobs:
               run: cargo install cbindgen
 
             - name: Build FFI library with debug symbols
-              working-directory: ffi
+              working-directory: valkey-glide/ffi
               run: |
                   # Build with debug symbols for better Valgrind analysis
                   CFLAGS="-g -O0" cargo build --release
@@ -518,7 +514,6 @@ jobs:
               run: which valgrind && valgrind --version
 
             - name: Setup and run Valgrind tests
-              working-directory: php
               run: |
                   echo "=== Setting up PHP extension build system for Valgrind testing ==="
                   
@@ -574,7 +569,6 @@ jobs:
                   echo "=== Valgrind analysis completed with exit code: $VALGRIND_EXIT_CODE ==="
 
             - name: Display Valgrind results
-              working-directory: php
               if: always()
               run: |
                   echo "=== Valgrind Analysis Results Summary ==="
@@ -720,32 +714,26 @@ jobs:
                   github-token: ${{ secrets.GITHUB_TOKEN }}
 
             - name: Initialize PHP extension build system
-              working-directory: php
               run: |
                   phpize
 
             - name: Configure PHP extension
-              working-directory: php
               run: |
                   ./configure --enable-valkey-glide
 
             - name: Generate protobuf and bindings
-              working-directory: php
               run: |
                   make generate-bindings generate-proto
 
             - name: Lint C code formatting
-              working-directory: php
               run: |
                   find . -name "*.c" -o -name "*.h" | grep -v "\.pb-c\." | xargs clang-format --dry-run --Werror
 
             - name: Run C static analysis
-              working-directory: php
               run: |
                   cppcheck --enable=all --suppress=missingIncludeSystem --error-exitcode=1 .
 
             - name: Lint PHP code (if PHP files exist)
-              working-directory: php
               run: |
                   if find tests/ -name "*.php" | head -1 | grep -q .; then
                       phpcs --standard=PSR12 tests/ || true
@@ -870,13 +858,11 @@ jobs:
                   echo "=== Valkey servers startup completed ==="
 
             - name: Run PHP extension tests
-              working-directory: php
               run: |
                   # Run tests using direct extension loading with absolute path
                   php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php
 
             - name: Run integration tests
-              working-directory: php
               run: |
                   # All tests are now run through the main TestValkeyGlide.php runner
                   echo "All 4 test classes are already included in the main test runner"
@@ -945,7 +931,6 @@ jobs:
                   github-token: ${{ secrets.GITHUB_TOKEN }}
 
             - name: Run modules tests
-              working-directory: php
               run: |
                   # Run tests using direct extension loading with absolute path
                   php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php
