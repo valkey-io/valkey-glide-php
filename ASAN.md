@@ -19,7 +19,6 @@ This document explains how to use AddressSanitizer (ASAN) to debug memory issues
 ### Option 1: Using Make Targets (Recommended)
 
 ```bash
-cd php/
 
 # Build with ASAN and run tests
 make test-asan
@@ -36,7 +35,6 @@ make help-asan
 ### Option 2: Manual Build
 
 ```bash
-cd php/
 
 # Clean previous builds
 make clean
@@ -118,7 +116,6 @@ This was a common issue where the `test-asan` target failed to locate the Addres
 #### Testing ASAN Setup
 Use the provided test script to verify your ASAN setup:
 ```bash
-cd php/
 ./test_asan_setup.sh
 ```
 

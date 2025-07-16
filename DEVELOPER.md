@@ -118,16 +118,16 @@ Before starting this step, make sure you've installed all software requirements.
     ```bash
     VERSION=2.0.0 # You can modify this to other released version or set it to "main" to get the unstable branch
     git clone --branch ${VERSION} https://github.com/valkey-io/valkey-glide.git
-    cd valkey-glide
+    cd valkey-glide-php
     ```
 
 2. Build the FFI library (required dependency):
 
     ```bash
     # Build the FFI library that the PHP extension depends on
-    cd ffi
+    cd valkey-glide/ffi
     cargo build --release
-    cd ../php
+    cd ../../
     ```
 
 3. Prepare the build environment:
@@ -234,7 +234,7 @@ Test reports are generated in the `tests/` folder. Failed tests will generate `.
 
 ### Generate protobuf files
 
-During the initial build, C protobuf files were created in `php/src/`. If modifications are made to the protobuf definition files (.proto files located in `glide-core/src/protobuf`), it becomes necessary to regenerate the C protobuf files. To do so, run:
+During the initial build, C protobuf files were created in `src/`. If modifications are made to the protobuf definition files (.proto files located in `glide-core/src/protobuf`), it becomes necessary to regenerate the C protobuf files. To do so, run:
 
 ```bash
 make generate-protobuf

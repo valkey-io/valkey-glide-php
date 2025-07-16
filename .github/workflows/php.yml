@@ -11,7 +11,6 @@ on:
             - valkey-glide/glide-core/redis-rs/redis/src/**
             - valkey-glide/ffi/src/**
             - valkey-glide/utils/cluster_manager.py
-            - **
             - .github/workflows/php.yml
             - .github/workflows/install-shared-dependencies/action.yml
             - .github/workflows/build-php-wrapper/action.yml
@@ -26,7 +25,6 @@ on:
             - valkey-glide/glide-core/redis-rs/redis/src/**
             - valkey-glide/ffi/src/**
             - valkey-glide/utils/cluster_manager.py
-            - **
             - .github/workflows/php.yml
             - .github/workflows/install-shared-dependencies/action.yml
             - .github/workflows/build-php-wrapper/action.yml

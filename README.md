@@ -108,14 +108,14 @@ protoc --version
 1. Clone the repository:
     ```bash
     git clone https://github.com/valkey-io/valkey-glide.git
-    cd valkey-glide
+    cd valkey-glide-php
     ```
 
 2. Build the FFI library (required dependency):
     ```bash
-    cd ffi
+    cd valkey-glide/ffi
     cargo build --release
-    cd ../php
+    cd ../../
     ```
 
 3. Build the extension:
