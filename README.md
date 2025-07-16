@@ -107,18 +107,23 @@ protoc --version
 
 1. Clone the repository:
     ```bash
-    git clone https://github.com/valkey-io/valkey-glide.git
+    git clone --recurse-submodules https://github.com/valkey-io/valkey-glide-php.git
     cd valkey-glide-php
     ```
 
-2. Build the FFI library (required dependency):
+2. Initialize submodules (if not cloned with --recurse-submodules):
+    ```bash
+    git submodule update --init --recursive
+    ```
+
+3. Build the FFI library (required dependency):
     ```bash
     cd valkey-glide/ffi
     cargo build --release
     cd ../../
     ```
 
-3. Build the extension:
+4. Build the extension:
     ```bash
     phpize
     ./configure --enable-valkey-glide
@@ -126,12 +131,12 @@ protoc --version
     make install
     ```
 
-4. Enable the extension by adding it to your `php.ini` file:
+5. Enable the extension by adding it to your `php.ini` file:
     ```ini
     extension=valkey_glide
     ```
 
-5. Verify the extension is loaded:
+6. Verify the extension is loaded:
     ```bash
     php -m | grep valkey_glide
     ```

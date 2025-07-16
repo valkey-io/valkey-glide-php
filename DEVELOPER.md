@@ -11,7 +11,7 @@ The Valkey GLIDE PHP wrapper is implemented as a PHP extension written in C that
 
 The extension follows standard PHP extension development practices and uses the Zend API to expose Valkey GLIDE functionality to PHP applications.
 
-**Important**: The PHP extension depends on the FFI (Foreign Function Interface) library located in the `../ffi` directory. This FFI library provides the bridge between the PHP extension and the Rust-based `glide-core`. You must build the FFI library before attempting to build the PHP extension.
+**Important**: The PHP extension depends on the FFI (Foreign Function Interface) library located in the `valkey-glide/ffi` directory. This FFI library provides the bridge between the PHP extension and the Rust-based `valkey-glide/glide-core`. You must build the FFI library before attempting to build the PHP extension.
 
 ### Build from source
 
@@ -117,8 +117,14 @@ Before starting this step, make sure you've installed all software requirements.
 
     ```bash
     VERSION=2.0.0 # You can modify this to other released version or set it to "main" to get the unstable branch
-    git clone --branch ${VERSION} https://github.com/valkey-io/valkey-glide.git
+    git clone --recurse-submodules --branch ${VERSION} https://github.com/valkey-io/valkey-glide-php.git
     cd valkey-glide-php
+    ```
+
+1a. Initialize submodules (if not cloned with --recurse-submodules):
+
+    ```bash
+    git submodule update --init --recursive
     ```
 
 2. Build the FFI library (required dependency):
@@ -492,7 +498,7 @@ Common issues and solutions:
 
 #### FFI Build Issues
 
-- **FFI library not found**: Ensure you have built the FFI library with `cargo build --release` in the `../ffi` directory
+- **FFI library not found**: Ensure you have built the FFI library with `cargo build --release` in the `valkey-glide/ffi` directory
 - **Rust compiler not found**: Install rustup and ensure `cargo` is in your PATH
 - **FFI build fails on Linux**: Install ziglang and zigbuild: `pip3 install ziglang && cargo install --locked cargo-zigbuild`
 - **Missing protobuf-c libraries**: Install `libprotobuf-c-dev` (Ubuntu) or `protobuf-c-devel` (CentOS/RHEL)
@@ -503,7 +509,13 @@ Common issues and solutions:
 - **phpize not found**: Install `php-dev` or `php-devel` package
 - **configure fails**: Check if all dependencies are installed
 - **make fails**: Ensure you have the correct PHP headers version
-- **Link errors with libglide_ffi**: Verify the FFI library was built successfully and exists at `../ffi/target/release/libglide_ffi.a`
+- **Link errors with libglide_ffi**: Verify the FFI library was built successfully and exists at `valkey-glide/ffi/target/release/libglide_ffi.a`
+
+#### Submodule Issues
+
+- **Submodule not initialized**: Run `git submodule update --init --recursive` to initialize all submodules
+- **Submodule out of date**: Run `git submodule update --recursive` to update submodules to the correct versions
+- **Missing valkey-glide directory**: Ensure you cloned with `--recurse-submodules` or manually initialize submodules
 
 #### Runtime Issues
 

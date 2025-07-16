@@ -71,6 +71,8 @@ jobs:
             version-matrix-output: ${{ steps.get-matrices.outputs.version-matrix-output }}
         steps:
             - uses: actions/checkout@v4
+              with:
+                  submodules: recursive
             - id: get-matrices
               uses: ./.github/workflows/create-test-matrices
               with:
@@ -92,6 +94,8 @@ jobs:
 
         steps:
             - uses: actions/checkout@v4
+              with:
+                  submodules: recursive
 
             - name: Output Matrix Parameters for this job
               run: |
@@ -236,6 +240,8 @@ jobs:
 
         steps:
             - uses: actions/checkout@v4
+              with:
+                  submodules: recursive
 
             - name: Output Matrix Parameters for this job
               run: |
@@ -413,6 +419,8 @@ jobs:
 
         steps:
             - uses: actions/checkout@v4
+              with:
+                  submodules: recursive
 
             - name: Output Matrix Parameters for this job
               run: |
@@ -657,6 +665,8 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+              with:
+                  submodules: recursive
 
             - name: Set up PHP
               uses: shivammathur/setup-php@v2
@@ -705,11 +715,6 @@ jobs:
                       x86_64-unknown-linux-gnu-glide-core
                       x86_64-unknown-linux-gnu
 
-            - name: lint rust
-              uses: ./.github/workflows/lint-rust
-              with:
-                  cargo-toml-folder: valkey-glide/ffi
-                  github-token: ${{ secrets.GITHUB_TOKEN }}
 
             - name: Initialize PHP extension build system
               run: |
@@ -747,6 +752,8 @@ jobs:
 
         steps:
             - uses: actions/checkout@v4
+              with:
+                  submodules: recursive
             - id: get-matrices
               uses: ./.github/workflows/create-test-matrices
               with:
