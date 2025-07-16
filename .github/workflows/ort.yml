@@ -92,7 +92,7 @@ jobs:
                   export JAVA_OPTS="$JAVA_OPTS -Xmx8g"
                   ./gradlew installDist
 
-            - name: Create ORT config file
+            - name: Create ORT config file for Rust projects
               run: |
                   mkdir -p ~/.ort/config
                   cat << EOF > ~/.ort/config/config.yml
@@ -103,6 +103,32 @@ jobs:
                       enabledPackageManagers: [Cargo, Composer, GoMod, GradleInspector]
                   EOF
                   cat ~/.ort/config/config.yml
+
+            - name: Create ORT config file for PHP project (exclude Java/Gradle)
+              run: |
+                  mkdir -p ~/.ort/config
+                  cat << EOF > ~/.ort/config/config-php.yml
+                  ort:
+                    analyzer:
+                      skip_excluded: true
+                      allowDynamicVersions: true
+                      enabledPackageManagers: [Cargo, Composer]
+                    excludes:
+                      paths:
+                      - pattern: "valkey-glide/java/**"
+                        reason: "DOCUMENTATION_OF"
+                        comment: "Java projects are part of submodule, not PHP project"
+                      - pattern: "valkey-glide/examples/java/**"
+                        reason: "DOCUMENTATION_OF"
+                        comment: "Java examples are part of submodule, not PHP project"
+                      - pattern: "valkey-glide/examples/kotlin/**"
+                        reason: "DOCUMENTATION_OF"
+                        comment: "Kotlin examples are part of submodule, not PHP project"
+                      - pattern: "**/build.gradle*"
+                        reason: "BUILD_TOOL_OF"
+                        comment: "Exclude all Gradle build files from submodule"
+                  EOF
+                  cat ~/.ort/config/config-php.yml
 
               ### Rust glide-core ###
             - name: Run ORT tools for glide-core
@@ -132,6 +158,7 @@ jobs:
               uses: ./.github/workflows/run-ort-tools
               with:
                   folder_path: "${{ github.workspace }}"
+                  config_file: "config-php.yml"
 
               ### Get licenses ###
             - name: Retrieve licenses list
