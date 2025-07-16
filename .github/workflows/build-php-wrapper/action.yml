@@ -101,7 +101,7 @@ runs:
 
         - name: Build FFI library
           shell: bash
-          working-directory: ffi
+          working-directory: valkey-glide/ffi
           run: |
               # Check if ASAN flags are present - if so, use regular cargo build to avoid Zig linker issues
               if [[ "$CFLAGS" == *"-fsanitize=address"* ]] || [[ "$CXXFLAGS" == *"-fsanitize=address"* ]]; then
@@ -115,7 +115,7 @@ runs:
 
         - name: Debug FFI library location
           shell: bash
-          working-directory: ffi
+          working-directory: valkey-glide/ffi
           run: |
               echo "=== FFI Target Directory Structure ==="
               find target -name "libglide_ffi.a" -type f 2>/dev/null || echo "No libglide_ffi.a found"
@@ -132,44 +132,38 @@ runs:
 
         - name: Initialize PHP extension build system
           shell: bash
-          working-directory: php
           run: |
               phpize
 
         - name: Configure PHP extension
           shell: bash
-          working-directory: php
           run: |
               ./configure --enable-valkey-glide
 
         - name: Generate protobuf and bindings
           shell: bash
-          working-directory: php
           run: |
               make build-modules-pre
 
         - name: Debug PHP extension linking
           shell: bash
-          working-directory: php
           run: |
               echo "=== Checking FFI library paths ==="
               echo "Platform: $(uname)"
               echo "Checking for target-specific paths:"
-              ls -la ../ffi/target/*/release/libglide_ffi.a 2>/dev/null || echo "No target-specific paths found"
+              ls -la valkey-glide/ffi/target/*/release/libglide_ffi.a 2>/dev/null || echo "No target-specific paths found"
               echo "Checking for generic release path:"
-              ls -la ../ffi/target/release/libglide_ffi.a 2>/dev/null || echo "No generic release path found"
+              ls -la valkey-glide/ffi/target/release/libglide_ffi.a 2>/dev/null || echo "No generic release path found"
               echo "=== Makefile.frag VALKEY_GLIDE_SHARED_LIBADD setting ==="
               grep "VALKEY_GLIDE_SHARED_LIBADD" Makefile.frag || echo "VALKEY_GLIDE_SHARED_LIBADD not found"
 
         - name: Build PHP extension
           shell: bash
-          working-directory: php
           run: |
               make
 
         - name: Verify extension build
           shell: bash
-          working-directory: php
           run: |
               # Check if the extension was built successfully
               if [ -f "modules/valkey_glide.so" ]; then
