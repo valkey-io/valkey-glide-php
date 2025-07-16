@@ -23,16 +23,73 @@ runs:
               CONFIG_FILE: ${{ inputs.config_file }}
           run: |
               echo "Running ORT tools for $FOLDER with config $CONFIG_FILE"
+              echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+              echo "Current working directory: $(pwd)"
+              
               # Calculate relative path from workspace root
               RELATIVE_PATH=$(realpath --relative-to="$GITHUB_WORKSPACE" "$FOLDER")
               echo "RELATIVE_PATH=$RELATIVE_PATH" >> "$GITHUB_OUTPUT"
               echo "LOCAL_PATH=`basename $FOLDER`" >> "$GITHUB_OUTPUT"
-              mkdir $FOLDER/ort_results
-              # Analyzer (analyzer-result.json)
+              
+              echo "Relative path calculated: $RELATIVE_PATH"
+              echo "Local path: `basename $FOLDER`"
+              
+              # Check if source folder exists and list contents
+              echo "Checking source folder: $FOLDER"
+              if [ -d "$FOLDER" ]; then
+                  echo "Source folder exists"
+                  echo "Contents of source folder:"
+                  ls -la "$FOLDER"
+              else
+                  echo "ERROR: Source folder does not exist!"
+                  exit 1
+              fi
+                            
+              # Create output directory
+              echo "Creating output directory: $FOLDER/ort_results"
+              mkdir -p "$FOLDER/ort_results"
+              
+              # Verify output directory was created
+              if [ -d "$FOLDER/ort_results" ]; then
+                  echo "Output directory created successfully"
+              else
+                  echo "ERROR: Failed to create output directory"
+                  exit 1
+              fi
+              
+              # Run analyzer
+              echo "Running ORT analyzer..."
+              set -e  # Exit on any error
               ./gradlew cli:run --args="--info analyze -c ~/.ort/config/$CONFIG_FILE -i $FOLDER -o $FOLDER/ort_results -f JSON"
+              ANALYZER_EXIT_CODE=$?
+              echo "Analyzer exit code: $ANALYZER_EXIT_CODE"
+              
+              # Check if analyzer produced output
+              echo "Checking analyzer output..."
+              if [ -f "$FOLDER/ort_results/analyzer-result.json" ]; then
+                  echo "Analyzer result file exists"
+                  echo "Size: $(stat -c%s "$FOLDER/ort_results/analyzer-result.json") bytes"
+              else
+                  echo "ERROR: Analyzer result file not found!"
+                  echo "Contents of output directory:"
+                  ls -la "$FOLDER/ort_results/" || echo "Output directory is empty or doesn't exist"
+                  exit 1
+              fi
 
-              # NOTICE DEFAULT
+              # Run reporter
+              echo "Running ORT reporter..."
               ./gradlew cli:run --args="--info report -i $FOLDER/ort_results/analyzer-result.json -o $FOLDER/ort_results/ -f PlainTextTemplate"
+              REPORTER_EXIT_CODE=$?
+              echo "Reporter exit code: $REPORTER_EXIT_CODE"
+              
+              # List final output
+              echo "Final contents of output directory:"
+              ls -la "$FOLDER/ort_results/"
+              
+              # Verify from workspace root
+              echo "Verifying files from workspace root:"
+              cd "$GITHUB_WORKSPACE"
+              ls -la "$RELATIVE_PATH/ort_results/" || echo "No files found at $RELATIVE_PATH/ort_results/"
 
         - name: Upload ORT results
           if: always()
