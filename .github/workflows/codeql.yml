@@ -33,8 +33,6 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - language: php
-                      build-mode: none
                     - language: actions
                       build-mode: none
 
