@@ -115,18 +115,33 @@ jobs:
                       enabledPackageManagers: [Cargo, Composer]
                     excludes:
                       paths:
-                      - pattern: "valkey-glide/java/**"
-                        reason: "DOCUMENTATION_OF"
-                        comment: "Java projects are part of submodule, not PHP project"
-                      - pattern: "valkey-glide/examples/java/**"
-                        reason: "DOCUMENTATION_OF"
-                        comment: "Java examples are part of submodule, not PHP project"
-                      - pattern: "valkey-glide/examples/kotlin/**"
-                        reason: "DOCUMENTATION_OF"
-                        comment: "Kotlin examples are part of submodule, not PHP project"
-                      - pattern: "**/build.gradle*"
+                      - pattern: "ort/**"
                         reason: "BUILD_TOOL_OF"
-                        comment: "Exclude all Gradle build files from submodule"
+                        comment: "ORT tool directory with test files, not part of PHP project"
+                      - pattern: "valkey-glide/**"
+                        reason: "DOCUMENTATION_OF"
+                        comment: "Submodule not part of PHP project"
+                      - pattern: "build/**"
+                        reason: "BUILD_TOOL_OF"
+                        comment: "Build artifacts"
+                      - pattern: "modules/**"
+                        reason: "BUILD_TOOL_OF"
+                        comment: "Compiled PHP modules"
+                      - pattern: "autom4te.cache/**"
+                        reason: "BUILD_TOOL_OF"
+                        comment: "Autotools cache"
+                      - pattern: "**/*.o"
+                        reason: "BUILD_TOOL_OF"
+                        comment: "Object files"
+                      - pattern: "**/*.lo"
+                        reason: "BUILD_TOOL_OF"
+                        comment: "Libtool object files"
+                      - pattern: "**/*.la"
+                        reason: "BUILD_TOOL_OF"
+                        comment: "Libtool archive files"
+                      - pattern: "**/*.dep"
+                        reason: "BUILD_TOOL_OF"
+                        comment: "Dependency files"
                   EOF
                   cat ~/.ort/config/config-php.yml
 
@@ -153,6 +168,10 @@ jobs:
             - name: Install PHP dependencies
               run: |
                   composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+                  echo "Composer install completed. Checking for composer.lock:"
+                  ls -la composer.lock || echo "Warning: composer.lock not found"
+                  echo "Current directory contents:"
+                  ls -la
 
             - name: Run ORT tools for PHP
               uses: ./.github/workflows/run-ort-tools

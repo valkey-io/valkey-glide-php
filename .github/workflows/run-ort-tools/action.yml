@@ -68,7 +68,16 @@ runs:
               else
                   echo "Using default config file: config.yml"
               fi
-              ./gradlew cli:run --args="--info analyze -i $FOLDER -o $FOLDER/ort_results -f JSON"
+              echo "Final config file content:"
+              cat ~/.ort/config/config.yml
+              echo "Running ORT command: ./gradlew cli:run --args=\"--info analyze -i $FOLDER -o $FOLDER/ort_results -f JSON\""
+              ./gradlew cli:run --args="--info analyze -i $FOLDER -o $FOLDER/ort_results -f JSON" 2>&1 | tee ort_analyzer.log || {
+                  echo "ORT analyzer failed. Last 50 lines of output:"
+                  tail -50 ort_analyzer.log
+                  echo "First 50 lines of output:"
+                  head -50 ort_analyzer.log
+                  exit 1
+              }
               ANALYZER_EXIT_CODE=$?
               echo "Analyzer exit code: $ANALYZER_EXIT_CODE"
               
