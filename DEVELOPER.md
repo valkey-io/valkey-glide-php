@@ -131,6 +131,7 @@ Before starting this step, make sure you've installed all software requirements.
 
     ```bash
     # Build the FFI library that the PHP extension depends on
+    python3 utils/remove_optional_from_proto.py
     cd valkey-glide/ffi
     cargo build --release
     cd ../../

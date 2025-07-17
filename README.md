@@ -134,6 +134,7 @@ protoc --version
 
 3. Build the FFI library (required dependency):
     ```bash
+    python3 utils/remove_optional_from_proto.py
     cd valkey-glide/ffi
     cargo build --release
     cd ../../
