@@ -82,6 +82,13 @@ runs:
               github-token: ${{ inputs.github-token }}
               engine-version: ${{ inputs.engine-version }}
 
+        - name: Remove optional fields from proto files
+          shell: bash
+          run: |
+              echo "=== Removing optional fields from proto files ==="
+              python3 utils/remove_optional_from_proto.py
+              echo "=== Proto file cleanup completed ==="
+
         - name: Install Rust and Cargo
           uses: ./.github/workflows/install-rust-and-protoc
           with:
