@@ -1,4 +1,10 @@
 <?php
+/**
+ * @generate-function-entries
+ * @generate-legacy-arginfo
+ * @generate-class-entries
+ */
+
 /*
 * -------------------------------------------------------------------- 
 *                   The PHP License, version 3.01
@@ -71,12 +77,6 @@
 */
 
 
-
-/**
- * @generate-function-entries
- * @generate-legacy-arginfo
- * @generate-class-entries
- */
 
 class ValkeyGlideCluster {
 

@@ -1,4 +1,10 @@
 <?php
+/**
+ * @generate-function-entries
+ * @generate-legacy-arginfo
+ * @generate-class-entries
+ */
+
 /*
 * -------------------------------------------------------------------- 
 *                   The PHP License, version 3.01
@@ -70,11 +76,6 @@
 * <http://www.zend.com>.
 */
 
-/**
- * @generate-function-entries
- * @generate-legacy-arginfo
- * @generate-class-entries
- */
 
 
 
