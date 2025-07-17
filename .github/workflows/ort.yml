@@ -103,9 +103,15 @@ jobs:
                       enabledPackageManagers: [Cargo, Composer, GoMod, GradleInspector]
                     excludes:
                       paths:
+                      - pattern: "**/cpp/**"
+                        reason: "BUILD_TOOL_OF"
+                        comment: "C++ bindings directory should not be analyzed by ORT"
                       - pattern: "valkey-glide/cpp/**"
-                        reason: "DOCUMENTATION_OF"
-                        comment: "C++ client bindings, not core Rust dependencies"
+                        reason: "BUILD_TOOL_OF"
+                        comment: "C++ client bindings, not part of dependency analysis"
+                      - pattern: "**/cpp/Cargo.toml"
+                        reason: "BUILD_TOOL_OF"
+                        comment: "C++ Cargo.toml should be excluded"
                       - pattern: "valkey-glide/benchmarks/rust/**"
                         reason: "DOCUMENTATION_OF"
                         comment: "Benchmark code, not core dependencies"
@@ -121,6 +127,10 @@ jobs:
                       - pattern: "valkey-glide/node/rust-client/**"
                         reason: "DOCUMENTATION_OF"
                         comment: "Node.js client bindings, not core Rust dependencies"
+                    scopes:
+                      - pattern: ".*cpp.*"
+                        reason: "BUILD_TOOL_OF"
+                        comment: "Exclude any package containing cpp in the name"
                   EOF
                   cat ~/.ort/config/config.yml
 
@@ -132,7 +142,7 @@ jobs:
                     analyzer:
                       skip_excluded: true
                       allowDynamicVersions: true
-                      enabledPackageManagers: [Cargo, Composer]
+                      enabledPackageManagers: [Composer]
                     excludes:
                       paths:
                       - pattern: "ort/**"
@@ -150,6 +160,9 @@ jobs:
                       - pattern: "autom4te.cache/**"
                         reason: "BUILD_TOOL_OF"
                         comment: "Autotools cache"
+                      - pattern: "**/Cargo.toml"
+                        reason: "BUILD_TOOL_OF"
+                        comment: "Rust manifests not relevant for PHP analysis"
                       - pattern: "**/*.o"
                         reason: "BUILD_TOOL_OF"
                         comment: "Object files"
