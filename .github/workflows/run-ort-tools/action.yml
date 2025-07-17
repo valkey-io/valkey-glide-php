@@ -60,7 +60,10 @@ runs:
               # Run analyzer
               echo "Running ORT analyzer..."
               set -e  # Exit on any error
-              ./gradlew cli:run --args="--info analyze -c ~/.ort/config/$CONFIG_FILE -i $FOLDER -o $FOLDER/ort_results -f JSON"
+              # Set ORT config directory and copy the specific config file
+              export ORT_CONFIG_DIR=~/.ort/config
+              cp ~/.ort/config/$CONFIG_FILE ~/.ort/config/config.yml
+              ./gradlew cli:run --args="--info analyze -i $FOLDER -o $FOLDER/ort_results -f JSON"
               ANALYZER_EXIT_CODE=$?
               echo "Analyzer exit code: $ANALYZER_EXIT_CODE"
               
