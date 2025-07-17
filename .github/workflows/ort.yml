@@ -101,6 +101,26 @@ jobs:
                       skip_excluded: true
                       allowDynamicVersions: true
                       enabledPackageManagers: [Cargo, Composer, GoMod, GradleInspector]
+                    excludes:
+                      paths:
+                      - pattern: "valkey-glide/cpp/**"
+                        reason: "DOCUMENTATION_OF"
+                        comment: "C++ client bindings, not core Rust dependencies"
+                      - pattern: "valkey-glide/benchmarks/rust/**"
+                        reason: "DOCUMENTATION_OF"
+                        comment: "Benchmark code, not core dependencies"
+                      - pattern: "valkey-glide/python/**"
+                        reason: "DOCUMENTATION_OF"
+                        comment: "Python client bindings, not core Rust dependencies"
+                      - pattern: "valkey-glide/java/**"
+                        reason: "DOCUMENTATION_OF"
+                        comment: "Java client bindings, not core Rust dependencies"
+                      - pattern: "valkey-glide/csharp/rust/**"
+                        reason: "DOCUMENTATION_OF"
+                        comment: "C# client bindings, not core Rust dependencies"
+                      - pattern: "valkey-glide/node/rust-client/**"
+                        reason: "DOCUMENTATION_OF"
+                        comment: "Node.js client bindings, not core Rust dependencies"
                   EOF
                   cat ~/.ort/config/config.yml
 
