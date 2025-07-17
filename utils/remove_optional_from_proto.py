@@ -21,5 +21,5 @@ def remove_optional_from_proto(directory):
 
 # Usage
 if __name__ == "__main__":
-    directory_to_scan = "../valkey-glide/glide-core/src/protobuf/"
+    directory_to_scan = "valkey-glide/glide-core/src/protobuf/"
     remove_optional_from_proto(directory_to_scan)
