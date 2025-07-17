@@ -2286,7 +2286,7 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
         /* For cluster mode, expect ClusterScanCursor object as first parameter */
         if (zend_parse_method_parameters(argc,
                                          object,
-                                         "Oo|sls",
+                                         "OO|sls",
                                          &object,
                                          ce,
                                          &z_iter,

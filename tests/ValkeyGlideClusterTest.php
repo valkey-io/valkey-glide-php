@@ -376,6 +376,44 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         set_time_limit(0);  // Reset to unlimited (or default) at the end
     }
 
+    public function testScanPattern() {
+        $id = uniqid();
+
+            $keys = [];
+            // Create some simple keys and lists
+            for ($i = 0; $i < 3; $i++) {
+                $simple = "simple:{$id}:$i";
+                $list = "list:{$id}:$i";
+
+                $this->valkey_glide->set($simple, $i);
+                $this->valkey_glide->del($list);
+                $this->valkey_glide->rpush($list, ['foo']);
+
+                $keys['STRING'][] = $simple;
+                $keys['LIST'][] = $list;
+            }
+
+            // Make sure we can scan for specific types
+            $cursor = new ClusterScanCursor(); // Create fresh cursor each time
+
+            foreach ($keys as $type => $vals) {
+                foreach ([0, 13] as $count) {
+                    $resp = [];
+
+                    while (true) {
+                        $scan = $this->valkey_glide->scan($cursor, "*$id*", $count, $type);  
+                        if ($scan)                      
+                            $resp = array_merge($resp, $scan);
+                        $new_cursor = new ClusterScanCursor($cursor->getNextCursor()); // Create a new cursor with the updated cursor ID
+                        $cursor = $new_cursor; // Update the cursor reference
+                        if ($cursor->isFinished()) break;
+                    }
+
+                    $this->assertEqualsCanonicalizing($vals, $resp);
+                }
+            }
+    }
+
     // Run some simple tests against the PUBSUB command.  This is problematic, as we
     // can't be sure what's going on in the instance, but we can do some things.
     public function testPubSub() {
