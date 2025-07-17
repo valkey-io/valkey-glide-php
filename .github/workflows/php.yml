@@ -543,9 +543,6 @@ jobs:
                   echo "=== Step 3: Configuring with debug flags ==="
                   CFLAGS="-g -O0" ./configure --enable-valkey-glide --enable-debug
                   
-                  # Step 4: Clean using make
-                  echo "=== Step 4: Clean using make ==="
-                  make clean || true
                   
                   # Step 5: Build extension with debug symbols
                   echo "=== Step 5: Building extension with debug symbols ==="
