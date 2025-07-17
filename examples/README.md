@@ -45,18 +45,6 @@ php basic/standalone_client.php
 
 ```
 
-### All Examples
-```bash
-# Run all basic examples
-find basic/ -name "*.php" -exec php {} \;
-
-```
-
-## Configuration
-
-Most examples can be configured via environment variables:
-
-
 ## Contributing
 
 When adding new examples:
