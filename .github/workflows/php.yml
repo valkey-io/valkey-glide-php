@@ -735,10 +735,6 @@ jobs:
               run: |
                   ./configure --enable-valkey-glide
 
-            - name: Generate protobuf and bindings
-              run: |
-                  make generate-bindings generate-proto
-
             - name: Lint C code formatting
               run: |
                   find . -name "*.c" -o -name "*.h" | grep -v "\.pb-c\." | xargs clang-format --dry-run --Werror
