@@ -5,7 +5,9 @@
         "source.organizeImports": "always"
     },
     "rust-analyzer.procMacro.ignored": {
-        "napi-derive": ["napi"]
+        "napi-derive": [
+            "napi"
+        ]
     },
     "editor.formatOnSave": true,
     "files.insertFinalNewline": true,
@@ -71,5 +73,12 @@
         "**/frontmatter.json": "jsonc",
         "**/.frontmatter/config/*.json": "jsonc",
         "iosfwd": "cpp"
-    }
+    },
+    "php.validate.enable": true,
+    "php.validate.executablePath": "/usr/bin/php",
+    "phpcs.enable": true,
+    "phpcs.executablePath": "/usr/local/bin/phpcs",
+    "phpcs.standard": "PSR12",
+    "php-cs-fixer.executablePath": "/usr/local/bin/php-cs-fixer",
+    "php-cs-fixer.onsave": true
 }
