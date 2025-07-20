@@ -283,8 +283,7 @@ jobs:
 
               ### Check for attributions diff ### (FFI attributions merged to FFI clients' attributions)
             - name: Check for diff
-              run: |
-                  cp valkey-glide/glide-core/ort_results/NOTICE_DEFAULT $RUST_ATTRIBUTIONS                  
+              run: |                  
                   cat valkey-glide/ffi/ort_results/NOTICE_DEFAULT >> $PHP_ATTRIBUTIONS
 
                   GIT_DIFF=`git diff $PHP_ATTRIBUTIONS`
