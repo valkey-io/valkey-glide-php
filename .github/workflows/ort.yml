@@ -229,7 +229,7 @@ jobs:
 
               ### Get licenses ###
             - name: Retrieve licenses list
-              working-directory: ./valkey-glide/utils
+              working-directory: ./utils
               run: |
                   {
                     echo 'LICENSES_LIST<<EOF'
