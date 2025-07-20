@@ -249,7 +249,7 @@ jobs:
               with:
                   name: final-package-list-${{ steps.date.outputs.date }}
                   path: |
-                      valkey-glide/utils/final_package_list.txt
+                      utils/final_package_list.txt
                   retention-days: 30
 
             - name: Upload the skipped package list
@@ -258,7 +258,7 @@ jobs:
               with:
                   name: skipped-package-list-${{ steps.date.outputs.date }}
                   path: |
-                      valkey-glide/utils/skipped_package_list.txt
+                      utils/skipped_package_list.txt
                   retention-days: 30
 
             - name: Upload the unknown/unapproved package list
@@ -267,14 +267,14 @@ jobs:
               with:
                   name: unapproved-package-list-${{ steps.date.outputs.date }}
                   path: |
-                      valkey-glide/utils/unapproved_package_list.txt
+                      utils/unapproved_package_list.txt
                   retention-days: 30
 
             - name: Check for unapproved packages
               run: |
-                  if [ -s valkey-glide/utils/unapproved_package_list.txt ]; then
-                    echo "::error::Found unapproved packages. Please review valkey-glide/utils/unapproved_package_list.txt"
-                    cat valkey-glide/utils/unapproved_package_list.txt
+                  if [ -s utils/unapproved_package_list.txt ]; then
+                    echo "::error::Found unapproved packages. Please review utils/unapproved_package_list.txt"
+                    cat utils/unapproved_package_list.txt
                     exit 1
                   else
                     echo "No unapproved packages found."
