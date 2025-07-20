@@ -1574,11 +1574,6 @@ class ValkeyGlide {
      */
     public function info(string ...$sections): ValkeyGlide|array|false;
 
-      /**
-     * @param string $pattern
-     * @return ValkeyGlide|list<string>|false
-     */
-    public function keys(string $pattern);
 
     /**
      * @param mixed $elements
@@ -2714,26 +2709,6 @@ class ValkeyGlide {
      * @see ValkeyGlide::sort()
      */
     public function sort_ro(string $key, ?array $options = null): mixed;
-
-    /**
-     * @deprecated
-     */
-    public function sortAsc(string $key, ?string $pattern = null, mixed $get = null, int $offset = -1, int $count = -1, ?string $store = null): array;
-
-    /**
-     * @deprecated
-     */
-    public function sortAscAlpha(string $key, ?string $pattern = null, mixed $get = null, int $offset = -1, int $count = -1, ?string $store = null): array;
-
-    /**
-     * @deprecated
-     */
-    public function sortDesc(string $key, ?string $pattern = null, mixed $get = null, int $offset = -1, int $count = -1, ?string $store = null): array;
-
-    /**
-     * @deprecated
-     */
-    public function sortDescAlpha(string $key, ?string $pattern = null, mixed $get = null, int $offset = -1, int $count = -1, ?string $store = null): array;
 
     /**
      * Remove one or more values from a ValkeyGlide SET key.

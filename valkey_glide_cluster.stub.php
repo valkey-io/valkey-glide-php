@@ -568,11 +568,6 @@ class ValkeyGlideCluster {
      */
     public function info(mixed $route, string ...$sections): ValkeyGlideCluster|array|false;
 
-    /**
-     * @see ValkeyGlide::keys
-     */
-    public function keys(string $pattern): ValkeyGlideCluster|array|false;
-
 
     /**
      * @see ValkeyGlide::lindex
