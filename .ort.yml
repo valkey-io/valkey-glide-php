@@ -3,9 +3,7 @@
 # and exclude build tools, test files, and other non-relevant directories.
 
 analyzer:
-  skip_excluded: true
-  allowDynamicVersions: true
-  enabledPackageManagers: [Composer]
+  skip_excluded: true    
 
 excludes:
   scopes:
