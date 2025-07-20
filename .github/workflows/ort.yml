@@ -287,7 +287,7 @@ jobs:
                   cp valkey-glide/glide-core/ort_results/NOTICE_DEFAULT $RUST_ATTRIBUTIONS                  
                   cat valkey-glide/ffi/ort_results/NOTICE_DEFAULT >> $PHP_ATTRIBUTIONS
 
-                  GIT_DIFF=`git diff $RUST_ATTRIBUTIONS $PHP_ATTRIBUTIONS`
+                  GIT_DIFF=`git diff $PHP_ATTRIBUTIONS`
                   if [ -n "$GIT_DIFF" ]; then
                     echo "FOUND_DIFF=true" >> $GITHUB_ENV
                   else
