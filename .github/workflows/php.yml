@@ -706,6 +706,13 @@ jobs:
 
             - name: Install cbindgen
               run: cargo install cbindgen
+            
+            - name: Remove optional fields from proto files
+              shell: bash
+              run: |
+                echo "=== Removing optional fields from proto files ==="
+                python3 utils/remove_optional_from_proto.py
+                echo "=== Proto file cleanup completed ==="
 
             - uses: actions/cache@v4
               with:
