@@ -29,7 +29,6 @@ jobs:
 
         continue-on-error: true
         env:
-            RUST_ATTRIBUTIONS: "valkey-glide/glide-core/THIRD_PARTY_LICENSES_RUST"
             PHP_ATTRIBUTIONS: "THIRD_PARTY_LICENSES_PHP"
             INPUT_TARGET_BRANCH: ${{ github.event.inputs.branch_name }}
             EVENT_NAME: ${{ github.event_name }}
@@ -302,7 +301,7 @@ jobs:
                   git config --global user.email "valkey-glide@lists.valkey.io"
                   git config --global user.name "ort-bot"
                   git checkout -b ${ORT_DIFF_BRANCH_NAME}
-                  git add $RUST_ATTRIBUTIONS $PHP_ATTRIBUTIONS
+                  git add $PHP_ATTRIBUTIONS
                   git commit -m "Updated attribution files" -s
                   git push --set-upstream origin ${ORT_DIFF_BRANCH_NAME} -f
 
@@ -328,8 +327,7 @@ jobs:
             - name: Warn of outdated attributions due to the PR
               if: ${{ env.FOUND_DIFF == 'true' && github.event_name == 'pull_request' }}
               run: |
-                  ATTRIBUTION_FILES=(
-                    "${{ env.RUST_ATTRIBUTIONS }}"
+                  ATTRIBUTION_FILES=(                    
                     "${{ env.PHP_ATTRIBUTIONS }}"
                   )
 
