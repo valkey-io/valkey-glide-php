@@ -741,7 +741,7 @@ jobs:
 
             - name: Run C static analysis
               run: |
-                  cppcheck --enable=all --suppress=missingInclude --suppress=missingIncludeSystem --error-exitcode=1 .
+                  cppcheck --enable=all --suppress=missingInclude --suppress=missingIncludeSystem --error-exitcode=1 -i valkey-glide .
 
             - name: Lint PHP code (if PHP files exist)
               run: |
