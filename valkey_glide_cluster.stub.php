@@ -270,7 +270,7 @@ class ValkeyGlideCluster {
     /**
      * @see ValkeyGlide::discard
      */
-    public function discard(): bool;
+    /* TODO public function discard(): bool; */
 
     /**
      * @see ValkeyGlide::dump
@@ -285,27 +285,27 @@ class ValkeyGlideCluster {
     /**
      * @see ValkeyGlide::eval
      */
-    public function eval(string $script, array $args = [], int $num_keys = 0): mixed;
+   /* TODO public function eval(string $script, array $args = [], int $num_keys = 0): mixed; */
 
     /**
      * @see ValkeyGlide::eval_ro
      */
-    public function eval_ro(string $script, array $args = [], int $num_keys = 0): mixed;
+    /* TODOpublic function eval_ro(string $script, array $args = [], int $num_keys = 0): mixed; */
 
     /**
      * @see ValkeyGlide::evalsha
      */
-    public function evalsha(string $script_sha, array $args = [], int $num_keys = 0): mixed;
+   /* TODO public function evalsha(string $script_sha, array $args = [], int $num_keys = 0): mixed;*/ 
 
     /**
      * @see ValkeyGlide::evalsha_ro
      */
-    public function evalsha_ro(string $script_sha, array $args = [], int $num_keys = 0): mixed;
+    /* TODOpublic function evalsha_ro(string $script_sha, array $args = [], int $num_keys = 0): mixed;*/
 
     /**
      * @see ValkeyGlide::exec()
      */
-    public function exec(): array|false;
+    /* TODOpublic function exec(): array|false;*/
 
     /**
      * @see ValkeyGlide::exists
@@ -368,26 +368,6 @@ class ValkeyGlideCluster {
     public function geopos(string $key, string $member, string ...$other_members): ValkeyGlideCluster|array|false;
 
     /**
-     * @see ValkeyGlide::georadius
-     */
-    public function georadius(string $key, float $lng, float $lat, float $radius, string $unit, array $options = []): mixed;
-
-    /**
-     * @see ValkeyGlide::georadius_ro
-     */
-    public function georadius_ro(string $key, float $lng, float $lat, float $radius, string $unit, array $options = []): mixed;
-
-    /**
-     * @see ValkeyGlide::georadiusbymember
-     */
-    public function georadiusbymember(string $key, string $member, float $radius, string $unit, array $options = []): mixed;
-
-    /**
-     * @see ValkeyGlide::georadiusbymember_ro
-     */
-    public function georadiusbymember_ro(string $key, string $member, float $radius, string $unit, array $options = []): mixed;
-
-    /**
      * @see https://valkey.io/commands/geosearch
      */
     public function geosearch(string $key, array|string $position, array|int|float $shape, string $unit, array $options = []): ValkeyGlideCluster|array;
@@ -407,10 +387,6 @@ class ValkeyGlideCluster {
      */
     public function getDel(string $key): mixed;
 
-    /**
-     * @see ValkeyGlide::getWithMeta
-     */
-    public function getWithMeta(string $key): ValkeyGlideCluster|array|false;
 
     /**
      * @see ValkeyGlide::getEx

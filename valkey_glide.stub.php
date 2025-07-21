@@ -790,7 +790,7 @@ class ValkeyGlide {
      *
      * @see https://valkey.io/commands/fcall
      */
-    public function fcall(string $fn, array $keys = [], array $args = []): mixed;
+    /* TODO public function fcall(string $fn, array $keys = [], array $args = []): mixed; */
 
     /**
      * This is a read-only variant of the FCALL command that cannot execute commands that modify data.
@@ -804,7 +804,7 @@ class ValkeyGlide {
      *
      * @see https://valkey.io/commands/fcall_ro
      */
-    public function fcall_ro(string $fn, array $keys = [], array $args = []): mixed;
+   /* TODO  public function fcall_ro(string $fn, array $keys = [], array $args = []): mixed; */
 
     /**
      * Deletes every key in all ValkeyGlide databases
@@ -844,7 +844,7 @@ class ValkeyGlide {
      *
      * @see https://valkey.io/commands/function
      */
-    public function function(string $operation, mixed ...$args): ValkeyGlide|bool|string|array;
+    /* TODO public function function(string $operation, mixed ...$args): ValkeyGlide|bool|string|array; */
 
     /**
      * Add one or more members to a geospacial sorted set
@@ -921,71 +921,6 @@ class ValkeyGlide {
      */
     public function geopos(string $key, string $member, string ...$other_members): ValkeyGlide|array|false;
 
-    /**
-     * Retrieve members of a geospacially sorted set that are within a certain radius of a location.
-     *
-     * @param string $key     The set to query
-     * @param float  $lng     The longitude of the location to query.
-     * @param float  $lat     The latitude of the location to query.
-     * @param float  $radius  The radius of the area to include.
-     * @param string $unit    The unit of the provided radius (defaults to 'meters).
-     *                        See {@link ValkeyGlide::geodist} for possible units.
-     * @param array  $options An array of options that modifies how the command behaves.
-     *                        <code>
-     *                        $options = [
-     *                            'WITHCOORD',     # Return members and their coordinates.
-     *                            'WITHDIST',      # Return members and their distances from the center.
-     *                            'WITHHASH',      # Return members GeoHash string.
-     *                            'ASC' | 'DESC',  # The sort order of returned members
-     *
-     *                            # Limit to N returned members.  Optionally a two element array may be
-     *                            # passed as the `LIMIT` argument, and the `ANY` argument.
-     *                            'COUNT' => [<int>], or [<int>, <bool>]
-     *
-     *                            # Instead of returning members, store them in the specified key.
-     *                            'STORE' => <string>
-     *
-     *                            # Store the distances in the specified key
-     *                            'STOREDIST' => <string>
-     *                        ];
-     *                        </code>
-     *
-     * @return mixed This command can return various things, depending on the options passed.
-     *
-     * @see https://valkey.io/commands/georadius
-     *
-     * @example $valkey_glide->georadius('cities', 47.608013, -122.335167, 1000, 'km');
-     */
-    public function georadius(string $key, float $lng, float $lat, float $radius, string $unit, array $options = []): mixed;
-
-    /**
-     * A readonly variant of `GEORADIUS` that may be executed on replicas.
-     *
-     * @see ValkeyGlide::georadius
-     */
-    public function georadius_ro(string $key, float $lng, float $lat, float $radius, string $unit, array $options = []): mixed;
-
-    /**
-     * Similar to `GEORADIUS` except it uses a member as the center of the query.
-     *
-     * @param string $key     The key to query.
-     * @param string $member  The member to treat as the center of the query.
-     * @param float  $radius  The radius from the member to include.
-     * @param string $unit    The unit of the provided radius
-     *                        See {@link ValkeyGlide::geodist} for possible units.
-     * @param array  $options An array with various options to modify the command's behavior.
-     *                        See {@link ValkeyGlide::georadius} for options.
-     *
-     * @return mixed This command can return various things depending on options.
-     *
-     * @example $valkey_glide->georadiusbymember('cities', 'Seattle', 200, 'mi');
-     */
-    public function georadiusbymember(string $key, string $member, float $radius, string $unit, array $options = []): mixed;
-
-    /**
-     * This is the read-only variant of `GEORADIUSBYMEMBER` that can be run on replicas.
-     */
-    public function georadiusbymember_ro(string $key, string $member, float $radius, string $unit, array $options = []): mixed;
 
     /**
      * Search a geospacial sorted set for members in various ways.
@@ -1040,24 +975,6 @@ class ValkeyGlide {
      */
     public function get(string $key): mixed;
 
-    /**
-     * Retrieve a value and metadata of key.
-     *
-     * @param  string  $key The key to query
-     * @return ValkeyGlide|array|false
-     *
-     * @example $valkey_glide->getWithMeta('foo');
-     */
-    public function getWithMeta(string $key): ValkeyGlide|array|false;
-
-    /**
-     * Get the authentication information on the connection, if any.
-     *
-     * @return mixed The authentication information used to authenticate the connection.
-     *
-     * @see ValkeyGlide::auth()
-     */
-    public function getAuth(): mixed;
 
     /**
      * Get the bit at a given index in a string key.

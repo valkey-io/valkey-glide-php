@@ -5661,7 +5661,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(round($r1, 8), round($r2, 8));
     }
 
-    public function testGeoSearch11() {
+    public function testGeoSearch() {
         if ( ! $this->minVersionCheck('6.2.0'))
             $this->markTestSkipped();
 
