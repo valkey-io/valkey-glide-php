@@ -542,97 +542,6 @@ int handle_ok_response(CommandResult* result) {
     return ret_val;
 }
 
-/* Handle a null or string response */
-int handle_null_or_string_response(CommandResult* result, char** output, size_t* output_len) {
-    /* Check if the command was successful */
-    if (!result) {
-        return -1;
-    }
-
-    /* Check if there was an error */
-    if (result->command_error) {
-        // printf("%s:%d - Error executing command: %s\n", __FILE__, __LINE__,
-        // result->command_error->command_error_message);
-        free_command_result(result);
-        return -1;
-    }
-
-    /* Process the result */
-    int ret_val = -1;
-    if (result->response) {
-        switch (result->response->response_type) {
-            case String:
-                /* Command returns a string/binary data */
-                if (result->response->string_value_len == 0) {
-                    *output = emalloc(1);  // Allocate at least one byte using PHP's memory manager
-                    if (*output) {
-                        (*output)[0] = '\0';  // Empty string is still null-terminated
-                    }
-                    *output_len = 0;
-                } else {
-                    // Allocate exact size needed for binary data using PHP's memory manager
-                    *output = emalloc(result->response->string_value_len);
-                    if (*output) {
-                        // Copy binary data without assuming null-termination
-                        memcpy(*output,
-                               result->response->string_value,
-                               result->response->string_value_len);
-                    }
-                    *output_len = result->response->string_value_len;
-                }
-                // Check if allocation failed
-                if (!*output) {
-                    ret_val = -1;  // Memory allocation failed
-                } else {
-                    ret_val = 1;  // Success
-                }
-                break;
-            case Null:
-                /* Key didn't exist, return NULL */
-                *output     = NULL;
-                *output_len = 0;
-                ret_val     = 0;
-                break;
-            default:
-                ret_val = -1;
-                break;
-        }
-    }
-
-    /* Free the result */
-    free_command_result(result);
-
-    return ret_val;
-}
-
-/* Handle a double response */
-int handle_double_response(CommandResult* result, double* output) {
-    /* Check if the command was successful */
-    if (!result) {
-        return -1;
-    }
-
-    /* Check if there was an error */
-    if (result->command_error) {
-        // printf("%s:%d - Error executing command: %s\n", __FILE__, __LINE__,
-        // result->command_error->command_error_message);
-        free_command_result(result);
-        return -1;
-    }
-
-    /* Get the result value */
-    int ret_val = -1;
-    if (result->response && result->response->response_type == Float) {
-        *output = result->response->float_value;
-        ret_val = 1;
-    }
-
-    /* Free the result */
-    free_command_result(result);
-
-    return ret_val;
-}
-
 /* Helper function to convert a CommandResponse to a PHP value
  * use_associative_array:
  * - 0: regular array processing
@@ -970,22 +879,6 @@ char* double_to_string(double value, size_t* len) {
     }
     return str;
 }
-
-/* Helper function to recursively extract field-value pairs from a stream entry */
-void extract_stream_field_values(CommandResponse* response, zval* field_array) {
-    if (!response) {
-        return;
-    }
-    CommandResponse* field_resp1 = &response->array_value[0];
-    zval             field, value;
-    command_response_to_zval(
-        &field_resp1->array_value[0], &field, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-    command_response_to_zval(
-        &field_resp1->array_value[1], &value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-    add_assoc_zval(field_array, Z_STRVAL(field), &value);
-    zval_dtor(&field);  // Clean up the field since we're using it as an index
-}
-
 /* Helper function to convert a CommandResponse to a PHP stream format
  * This is specifically for XRANGE/XREVRANGE commands that return stream entries
  * We need to handle both Array and Map response types

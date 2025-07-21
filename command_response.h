@@ -81,23 +81,6 @@ int handle_bool_response(CommandResult* result);
 int handle_ok_response(CommandResult* result);
 
 /*
- * Handle a null or string response
- * Returns 1 if string, 0 if null, -1 on error
- * The output and output_len parameters are set to the string value and length if not null
- * The caller is responsible for freeing the output string using efree()
- * This function frees the CommandResult
- */
-int handle_null_or_string_response(CommandResult* result, char** output, size_t* output_len);
-
-/*
- * Handle a double response
- * Returns 1 on success, -1 on error
- * The output parameter is set to the double value
- * This function frees the CommandResult
- */
-int handle_double_response(CommandResult* result, double* output);
-
-/*
  * Handle an array response
  * Returns 1 on success, 0 if null, -1 on error
  * The output parameter is set to a PHP array
@@ -147,13 +130,6 @@ char* long_to_string(long value, size_t* len);
  * The caller is responsible for freeing the string using efree()
  */
 char* double_to_string(double value, size_t* len);
-
-/*
- * Helper function to recursively extract field-value pairs from a stream entry
- * This function traverses the nested structure of ValkeyGlide stream entries
- * and populates the provided PHP array with the field-value pairs
- */
-void extract_stream_field_values(CommandResponse* response, zval* field_array);
 
 /*
  * Helper function to convert a CommandResponse to a PHP stream format

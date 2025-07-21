@@ -749,9 +749,6 @@ EXPIRETIME_METHOD_IMPL(ValkeyGlide)
 PEXPIRETIME_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto array ValkeyGlide::keys(string pattern) */
-KEYS_METHOD_IMPL(ValkeyGlide)
-/* }}} */
 
 /* {{{ proto bool ValkeyGlide::mset(array key_values) */
 MSET_METHOD_IMPL(ValkeyGlide)
@@ -871,10 +868,6 @@ FLUSHALL_METHOD_IMPL(ValkeyGlide)
 
 /* {{{ proto array ValkeyGlide::time() */
 TIME_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto array ValkeyGlide::role() */
-ROLE_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
 /* {{{ proto string ValkeyGlide::serverName() */

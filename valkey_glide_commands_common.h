@@ -133,7 +133,6 @@ int execute_acl_command(zval* object, int argc, zval* return_value, zend_class_e
 int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_flushall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_role_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_servername_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_serverversion_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -188,7 +187,6 @@ int execute_pexpireat_command(zval* object, int argc, zval* return_value, zend_c
 int execute_persist_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_expiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_pexpiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_keys_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_mset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_msetnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_type_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -616,19 +614,6 @@ int buffer_current_command_generic(valkey_glide_object* valkey_glide,
         RETURN_FALSE;                                                           \
     }
 
-#define ROLE_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, role) {                                              \
-        if (execute_role_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
 
 #define SERVERNAME_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, serverName) {                                              \
@@ -1300,20 +1285,6 @@ int buffer_current_command_generic(valkey_glide_object* valkey_glide,
         }                                                                              \
         zval_dtor(return_value);                                                       \
         RETURN_FALSE;                                                                  \
-    }
-
-#define KEYS_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, keys) {                                              \
-        if (execute_keys_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
     }
 
 #define MSET_METHOD_IMPL(class_name)                                            \

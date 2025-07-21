@@ -230,11 +230,6 @@ EXISTS_METHOD_IMPL(ValkeyGlideCluster)
 /* {{{ proto int ValkeyGlideCluster::touch(string $key, string ...$more_keys) */
 TOUCH_METHOD_IMPL(ValkeyGlideCluster)
 
-/* }}} */
-/* {{{ proto array ValkeyGlide::keys(string pattern) */
-KEYS_METHOD_IMPL(ValkeyGlideCluster)
-/* }}} */
-
 /* {{{ proto int ValkeyGlideCluster::type(string key) */
 TYPE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
@@ -875,9 +870,6 @@ GEOSEARCH_METHOD_IMPL(ValkeyGlideCluster)
 
 GEOSEARCHSTORE_METHOD_IMPL(ValkeyGlideCluster)
 
-/* {{{ proto array ValkeyGlideCluster::role(string key)
- *     proto array ValkeyGlideCluster::role(array host_port) */
-ROLE_METHOD_IMPL(ValkeyGlideCluster)
 
 /* {{{ proto array ValkeyGlideCluster::time(string key)
  *     proto array ValkeyGlideCluster::time(array host_port) */
