@@ -810,9 +810,6 @@ WATCH_METHOD_IMPL(ValkeyGlide)
 UNWATCH_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlide::acl(string $op, ...) */
-ACL_METHOD_IMPL(ValkeyGlide)
-/* }}} */
 /* {{{ proto double ValkeyGlide::incrByFloat(string key, double value) */
 INCRBYFLOAT_METHOD_IMPL(ValkeyGlide)
 /* }}} */

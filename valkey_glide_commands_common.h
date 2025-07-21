@@ -129,7 +129,6 @@ int execute_object_command(zval* object, int argc, zval* return_value, zend_clas
 /* Unified command functions */
 int execute_watch_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_unwatch_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_acl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_flushall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -556,20 +555,6 @@ int buffer_current_command_generic(valkey_glide_object* valkey_glide,
         }                                                                          \
         zval_dtor(return_value);                                                   \
         RETURN_FALSE;                                                              \
-    }
-
-#define ACL_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, acl) {                                              \
-        if (execute_acl_command(getThis(),                                     \
-                                ZEND_NUM_ARGS(),                               \
-                                return_value,                                  \
-                                strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                    ? get_valkey_glide_cluster_ce()            \
-                                    : get_valkey_glide_ce())) {                \
-            return;                                                            \
-        }                                                                      \
-        zval_dtor(return_value);                                               \
-        RETURN_FALSE;                                                          \
     }
 
 #define FLUSHDB_METHOD_IMPL(class_name)                                            \
