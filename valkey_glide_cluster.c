@@ -179,10 +179,6 @@ GET_METHOD_IMPL(ValkeyGlideCluster)
 GETDEL_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto array|false ValkeyGlideCluster::getWithMeta(string key) */
-GETWITHMETA_METHOD_IMPL(ValkeyGlideCluster)
-/* }}} */
-
 /* {{{ proto bool ValkeyGlideCluster::set(string key, string value) */
 SET_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
@@ -629,11 +625,6 @@ ZRANGE_METHOD_IMPL(ValkeyGlideCluster)
  * $options = false) */
 ZRANGESTORE_METHOD_IMPL(ValkeyGlideCluster)
 
-/* }}} */
-/* {{{ proto
- *     array ValkeyGlideCluster::zrevrange(string k,long s,long e,bool scores = 0) */
-ZREVRANGE_METHOD_IMPL(ValkeyGlideCluster)
-/* }}} */
 
 /* {{{ proto array
  *     ValkeyGlideCluster::zrangebyscore(string k, long s, long e, array opts) */
@@ -680,10 +671,6 @@ ZREVRANGEBYSCORE_METHOD_IMPL(ValkeyGlideCluster)
 ZRANGEBYLEX_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto array ValkeyGlideCluster::zrevrangebylex(string key, string min,
- *                                              string min, [long off, long limit) */
-ZREVRANGEBYLEX_METHOD_IMPL(ValkeyGlideCluster)
-/* }}} */
 
 /* {{{ proto long ValkeyGlideCluster::zlexcount(string key, string min, string max) */
 ZLEXCOUNT_METHOD_IMPL(ValkeyGlideCluster)
@@ -851,12 +838,6 @@ GEOPOS_METHOD_IMPL(ValkeyGlideCluster)
 /* {{{ proto array ValkeyGlideCluster::geodist(string key, string mem1, string mem2 [string unit])
  */
 GEODIST_METHOD_IMPL(ValkeyGlideCluster)
-
-/* {{{ proto array ValkeyGlideCluster::georadius() }}} */
-GEORADIUS_METHOD_IMPL(ValkeyGlideCluster)
-
-/* {{{ proto array ValkeyGlideCluster::georadius() }}} */
-GEORADIUS_RO_METHOD_IMPL(ValkeyGlideCluster)
 
 /* {{{ proto array ValkeyGlideCluster::georadiusbymember() }}} */
 PHP_METHOD(ValkeyGlideCluster, georadiusbymember) {

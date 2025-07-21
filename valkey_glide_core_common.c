@@ -1570,72 +1570,6 @@ int parse_expire_options(zval* options, core_options_t* opts) {
  * SPECIALIZED COMMAND HELPERS
  * ==================================================================== */
 
-/**
- * Execute string commands (SET, GET, GETSET, etc.)
- */
-int execute_string_command(const void*             glide_client,
-                           enum RequestType        cmd_type,
-                           const char*             key,
-                           size_t                  key_len,
-                           const char*             value,
-                           size_t                  value_len,
-                           long                    expire,
-                           zval*                   options,
-                           void*                   result,
-                           core_result_processor_t processor) {
-    core_command_args_t args = {0};
-    args.glide_client        = glide_client;
-    args.cmd_type            = cmd_type;
-    args.key                 = key;
-    args.key_len             = key_len;
-    args.raw_options         = options;
-
-    /* Parse options */
-    if (options) {
-        if (parse_set_options(options, &args.options) == 0) {
-            printf("Invalid options provided for SET command\n");
-            return 0; /* Invalid options */
-        }
-    }
-
-    /* Set expire if provided */
-    if (expire > 0) {
-        args.options.expire_seconds = expire;
-        args.options.has_expire     = 1;
-    }
-
-    /* Add value argument if provided */
-    if (value && value_len > 0) {
-        args.args[0].type                  = CORE_ARG_TYPE_STRING;
-        args.args[0].data.string_arg.value = value;
-        args.args[0].data.string_arg.len   = value_len;
-        args.arg_count                     = 1;
-    }
-
-    return execute_core_command(&args, result, processor);
-}
-
-/**
- * Execute key management commands (DEL, EXISTS, etc.)
- */
-int execute_key_command(const void*             glide_client,
-                        enum RequestType        cmd_type,
-                        zval*                   keys,
-                        int                     key_count,
-                        void*                   result,
-                        core_result_processor_t processor) {
-    core_command_args_t args = {0};
-    args.glide_client        = glide_client;
-    args.cmd_type            = cmd_type;
-
-    /* Set up array argument for keys */
-    args.args[0].type                 = CORE_ARG_TYPE_ARRAY;
-    args.args[0].data.array_arg.array = keys;
-    args.args[0].data.array_arg.count = key_count;
-    args.arg_count                    = 1;
-
-    return execute_core_command(&args, result, processor);
-}
 
 /**
  * Generic multi-key command handler for DEL, UNLINK, and similar commands
@@ -1688,62 +1622,6 @@ int execute_multi_key_command(const void*      glide_client,
     return execute_core_command(&args, output_value, process_core_int_result);
 }
 
-/**
- * Execute expire commands (EXPIRE, EXPIREAT, etc.)
- */
-int execute_expire_command_core(const void*             glide_client,
-                                enum RequestType        cmd_type,
-                                const char*             key,
-                                size_t                  key_len,
-                                long                    value,
-                                void*                   result,
-                                core_result_processor_t processor) {
-    core_command_args_t args = {0};
-    args.glide_client        = glide_client;
-    args.cmd_type            = cmd_type;
-    args.key                 = key;
-    args.key_len             = key_len;
-
-    /* Add time value argument */
-    args.args[0].type                = CORE_ARG_TYPE_LONG;
-    args.args[0].data.long_arg.value = value;
-    args.arg_count                   = 1;
-
-    return execute_core_command(&args, result, processor);
-}
-
-/**
- * Execute bit commands (BITCOUNT, BITOP, etc.)
- */
-int execute_bit_command(const void*             glide_client,
-                        enum RequestType        cmd_type,
-                        const char*             key,
-                        size_t                  key_len,
-                        core_arg_t*             cmd_args,
-                        int                     arg_count,
-                        zval*                   options,
-                        void*                   result,
-                        core_result_processor_t processor) {
-    core_command_args_t args = {0};
-    args.glide_client        = glide_client;
-    args.cmd_type            = cmd_type;
-    args.key                 = key;
-    args.key_len             = key_len;
-    args.raw_options         = options;
-
-    /* Parse options */
-    if (options) {
-        parse_bit_options(options, &args.options);
-    }
-
-    /* Copy command arguments */
-    for (int i = 0; i < arg_count && i < 8; i++) {
-        args.args[i] = cmd_args[i];
-    }
-    args.arg_count = arg_count;
-
-    return execute_core_command(&args, result, processor);
-}
 
 /* ====================================================================
  * DEBUG FUNCTIONS (only in debug builds)

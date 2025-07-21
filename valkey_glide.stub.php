@@ -3554,28 +3554,7 @@ class ValkeyGlide {
      */
     public function zRemRangeByScore(string $key, string $start, string $end): ValkeyGlide|int|false;
 
-    /**
-     * List the members of a ValkeyGlide sorted set in reverse order
-     *
-     * @param string $key        The sorted set in question.
-     * @param int    $start      The index to start listing elements
-     * @param int    $end        The index to stop listing elements.
-     * @param mixed  $withscores Whether or not ValkeyGlide should also return each members score.  See
-     *                           the example below demonstrating how it may be used.
-     *
-     * @return ValkeyGlide|array|false The members (and possibly scores) of the matching elements or false
-     *                           on failure.
-     *
-     * @see https://valkey.io/commands/zrevrange
-     *
-     * @example $valkey_glide->zRevRange('zs', 0, -1);
-     * @example $valkey_glide->zRevRange('zs', 2, 3);
-     * @example $valkey_glide->zRevRange('zs', 0, -1, true);
-     * @example $valkey_glide->zRevRange('zs', 0, -1, ['withscores' => true]);
-     */
-    public function zRevRange(string $key, int $start, int $end, mixed $scores = null): ValkeyGlide|array|false;
-
-    /**
+     /**
      * List elements from a ValkeyGlide sorted set by score, highest to lowest
      *
      * @param string $key     The sorted set to query.

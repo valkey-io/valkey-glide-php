@@ -278,25 +278,6 @@ int parse_expire_options(zval* options, core_options_t* opts);
  * SPECIALIZED COMMAND HELPERS
  * ==================================================================== */
 
-/* String commands (SET, GET, GETSET, etc.) */
-int execute_string_command(const void*             glide_client,
-                           enum RequestType        cmd_type,
-                           const char*             key,
-                           size_t                  key_len,
-                           const char*             value,
-                           size_t                  value_len,
-                           long                    expire,
-                           zval*                   options,
-                           void*                   result,
-                           core_result_processor_t processor);
-
-/* Key management commands (DEL, EXISTS, etc.) */
-int execute_key_command(const void*             glide_client,
-                        enum RequestType        cmd_type,
-                        zval*                   keys,
-                        int                     key_count,
-                        void*                   result,
-                        core_result_processor_t processor);
 
 /* Multi-key commands (DEL, UNLINK) with all usage patterns */
 int execute_multi_key_command(const void*      glide_client,
@@ -304,26 +285,6 @@ int execute_multi_key_command(const void*      glide_client,
                               zval*            keys,
                               int              keys_count,
                               long*            output_value);
-
-/* Expire commands (EXPIRE, EXPIREAT, etc.) */
-int execute_expire_command_core(const void*             glide_client,
-                                enum RequestType        cmd_type,
-                                const char*             key,
-                                size_t                  key_len,
-                                long                    value,
-                                void*                   result,
-                                core_result_processor_t processor);
-
-/* Bit commands (BITCOUNT, BITOP, etc.) */
-int execute_bit_command(const void*             glide_client,
-                        enum RequestType        cmd_type,
-                        const char*             key,
-                        size_t                  key_len,
-                        core_arg_t*             args,
-                        int                     arg_count,
-                        zval*                   options,
-                        void*                   result,
-                        core_result_processor_t processor);
 
 /* ====================================================================
  * ERROR HANDLING AND DEBUGGING

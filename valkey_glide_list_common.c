@@ -217,46 +217,6 @@ char* alloc_list_double_string(double value, size_t* len_out) {
  * ==================================================================== */
 
 /**
- * Parse blocking command options
- */
-int parse_list_blocking_options(zval* options, list_blocking_options_t* opts) {
-    /* Initialize options to default values */
-    opts->timeout     = 0.0;
-    opts->has_timeout = 0;
-
-    /* If no options, return success */
-    if (!options || Z_TYPE_P(options) != IS_ARRAY) {
-        return 1;
-    }
-
-    /* Look for timeout option */
-    HashTable* ht = Z_ARRVAL_P(options);
-    zval*      z_timeout;
-
-    if ((z_timeout = zend_hash_str_find(ht, "timeout", sizeof("timeout") - 1)) != NULL) {
-        if (Z_TYPE_P(z_timeout) == IS_DOUBLE) {
-            opts->timeout     = Z_DVAL_P(z_timeout);
-            opts->has_timeout = 1;
-        } else if (Z_TYPE_P(z_timeout) == IS_LONG) {
-            opts->timeout     = (double)Z_LVAL_P(z_timeout);
-            opts->has_timeout = 1;
-        }
-    }
-
-    return 1;
-}
-
-/**
- * Parse range command options
- */
-int parse_list_range_options(long start, long end, list_range_options_t* opts) {
-    opts->start     = start;
-    opts->end       = end;
-    opts->has_range = 1;
-    return 1;
-}
-
-/**
  * Parse position command options (for LPOS)
  */
 int parse_list_position_options(zval* options, list_position_options_t* opts) {
@@ -307,44 +267,6 @@ int parse_list_position_options(zval* options, list_position_options_t* opts) {
     return 1;
 }
 
-/**
- * Parse move command options
- */
-int parse_list_move_options(const char*          src_dir,
-                            size_t               src_dir_len,
-                            const char*          dest_dir,
-                            size_t               dest_dir_len,
-                            const char*          dest_key,
-                            size_t               dest_key_len,
-                            double               timeout,
-                            list_move_options_t* opts) {
-    opts->source_direction     = src_dir;
-    opts->source_direction_len = src_dir_len;
-    opts->dest_direction       = dest_dir;
-    opts->dest_direction_len   = dest_dir_len;
-    opts->dest_key             = dest_key;
-    opts->dest_key_len         = dest_key_len;
-    opts->timeout              = timeout;
-    opts->has_timeout          = (timeout >= 0.0);
-    return 1;
-}
-
-/**
- * Parse MPOP command options
- */
-int parse_list_mpop_options(const char*          direction,
-                            size_t               direction_len,
-                            long                 count,
-                            double               timeout,
-                            list_mpop_options_t* opts) {
-    opts->direction     = direction;
-    opts->direction_len = direction_len;
-    opts->count         = count;
-    opts->timeout       = timeout;
-    opts->has_count     = (count > 0);
-    opts->has_timeout   = (timeout >= 0.0);
-    return 1;
-}
 
 /* ====================================================================
  * ARGUMENT PREPARATION FUNCTIONS

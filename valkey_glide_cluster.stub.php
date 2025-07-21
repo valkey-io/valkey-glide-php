@@ -1093,11 +1093,6 @@ class ValkeyGlideCluster {
      */
     public function zRemRangeByScore(string $key, string $min, string $max): ValkeyGlideCluster|int|false;
 
-    /**
-     * @see ValkeyGlide::zrevrange
-     */
-    public function zRevRange(string $key, string $min, string $max, ?array $options = null): ValkeyGlideCluster|bool|array;
-
 
     /**
      * @see ValkeyGlide::zrevrangebyscore

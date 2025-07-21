@@ -116,57 +116,6 @@ int execute_renamenx_command(zval* object, int argc, zval* return_value, zend_cl
         return 0;
     }
 }
-
-/* Execute a GETWITHMETA command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
-int execute_getwithmeta_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    valkey_glide_object* valkey_glide;
-    char*                key = NULL;
-    size_t               key_len;
-    char*                response     = NULL;
-    size_t               response_len = 0;
-
-    /* Parse parameters */
-    if (zend_parse_method_parameters(argc, object, "Os", &object, ce, &key, &key_len) == FAILURE) {
-        return 0;
-    }
-
-    /* Get ValkeyGlide object */
-    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide || !valkey_glide->glide_client) {
-        return 0;
-    }
-
-    /* Execute the GETWITHMETA command using the Glide client */
-    core_command_args_t args = {0};
-    args.glide_client        = valkey_glide->glide_client;
-    args.cmd_type            = Get; /* Using GET for now, replace with GETWITHMETA when available */
-    args.key                 = key;
-    args.key_len             = key_len;
-
-    /* Use string result processor */
-    struct {
-        char**  result;
-        size_t* result_len;
-    } output = {&response, &response_len};
-
-    int result = execute_core_command(&args, &output, process_core_string_result);
-
-    /* Process the result */
-    if (result == 1 && response != NULL) {
-        /* Return the value */
-        ZVAL_STRINGL(return_value, response, response_len);
-        efree(response);
-        return 1;
-    } else if (result == 0) {
-        /* Key didn't exist */
-        ZVAL_NULL(return_value);
-        return 1;
-    } else {
-        /* Error */
-        return 0;
-    }
-}
-
 /* Execute a GETDEL command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
 int execute_getdel_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;

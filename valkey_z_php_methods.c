@@ -48,9 +48,6 @@ ZRANGE_METHOD_IMPL(ValkeyGlide)
 ZRANGESTORE_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto array ValkeyGlide::zRevRange(string key, mixed start, mixed end [, array options]) */
-ZREVRANGE_METHOD_IMPL(ValkeyGlide)
-/* }}} */
 
 /* {{{ proto array ValkeyGlide::zRangeByScore(string key, mixed min, mixed max [, array options]) */
 ZRANGEBYSCORE_METHOD_IMPL(ValkeyGlide)
@@ -66,10 +63,6 @@ ZREVRANGEBYSCORE_METHOD_IMPL(ValkeyGlide)
 ZRANGEBYLEX_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto array ValkeyGlide::zRevRangeByLex(string key, mixed max, mixed min [, array options])
- */
-ZREVRANGEBYLEX_METHOD_IMPL(ValkeyGlide)
-/* }}} */
 
 /* {{{ proto long ValkeyGlide::zLexCount(string key, mixed min, mixed max) */
 ZLEXCOUNT_METHOD_IMPL(ValkeyGlide)
@@ -205,16 +198,6 @@ GEOHASH_METHOD_IMPL(ValkeyGlide)
 
 /* {{{ proto array ValkeyGlide::geopos(string key, string member [, string ...]) */
 GEOPOS_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto array ValkeyGlide::georadius(string key, float lng, float lat, float radius, string
- * unit [, array options]) */
-GEORADIUS_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto array ValkeyGlide::georadius_ro(string key, float lng, float lat, float radius, string
- * unit [, array options]) */
-GEORADIUS_RO_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
 /* {{{ proto array ValkeyGlide::georadiusbymember(string key, string member, float radius, string
@@ -660,10 +643,6 @@ PHP_METHOD(ValkeyGlide, setOption) {
 SELECT_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto boolean ValkeyGlide::swapdb(int db1, int db2) */
-SWAPDB_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
 /* {{{ proto boolean ValkeyGlide::move(string key, int dbindex) */
 MOVE_METHOD_IMPL(ValkeyGlide)
 /* }}} */
@@ -825,9 +804,7 @@ GETEX_METHOD_IMPL(ValkeyGlide)
 /* {{{ proto string ValkeyGlide::getDel(string key) */
 GETDEL_METHOD_IMPL(ValkeyGlide)
 /* }}} */
-/* {{{ proto string ValkeyGlide::getWithMeta(string key) */
-GETWITHMETA_METHOD_IMPL(ValkeyGlide)
-/* }}} */
+
 /* {{{ proto boolean ValkeyGlide::renameNx(string key_src, string key_dst) */
 RENAMENX_METHOD_IMPL(ValkeyGlide)
 /* }}} */
@@ -867,14 +844,6 @@ FLUSHALL_METHOD_IMPL(ValkeyGlide)
 TIME_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto string ValkeyGlide::serverName() */
-SERVERNAME_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto string ValkeyGlide::serverVersion() */
-SERVERVERSION_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
 /* {{{ proto array ValkeyGlide::scan(long &iterator [, string pattern, long count]) */
 SCAN_METHOD_IMPL(ValkeyGlide)
 /* }}} */
@@ -901,12 +870,4 @@ PFCOUNT_METHOD_IMPL(ValkeyGlide)
 
 /* {{{ proto bool ValkeyGlide::pfmerge(string dst, array keys) */
 PFMERGE_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto double ValkeyGlide::getTimeout() */
-GETTIMEOUT_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto double ValkeyGlide::getReadTimeout() */
-GETREADTIMEOUT_METHOD_IMPL(ValkeyGlide)
 /* }}} */

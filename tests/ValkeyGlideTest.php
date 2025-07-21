@@ -3852,7 +3852,6 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
             ->zadd('{z}key1', 15, 'zValue15')
             ->zRemRangeByScore('{z}key1', 11, 13)
             ->zrange('{z}key1', 0, -1)
-            ->zRevRange('{z}key1', 0, -1)
             ->zRangeByScore('{z}key1', 1, 6)
             ->zCard('{z}key1')
             ->zScore('{z}key1', 'zValue15')
@@ -4017,7 +4016,6 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
             ->zRank($key, 'zValue1')
             ->zRevRank($key, 'zValue1')
             ->zRange($key, 0, -1)
-            ->zRevRange($key, 0, -1)
             ->zRangeByScore($key, 1, 2)
             ->zCount($key, 0, -1)
             ->zCard($key)
@@ -4136,7 +4134,6 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
             ->zRank($key, 'zValue1')
             ->zRevRank($key, 'zValue1')
             ->zRange($key, 0, -1)
-            ->zRevRange($key, 0, -1)
             ->zRangeByScore($key, 1, 2)
             ->zCount($key, 0, -1)
             ->zCard($key)
@@ -4253,7 +4250,6 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
             ->zRank($key, 'zValue1')
             ->zRevRank($key, 'zValue1')
             ->zRange($key, 0, -1)
-            ->zRevRange($key, 0, -1)
             ->zRangeByScore($key, 1, 2)
             ->zCount($key, 0, -1)
             ->zCard($key)
@@ -4498,8 +4494,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
             ->zRank($key, 'zValue1')
             ->zRevRank($key, 'zValue1')
             ->zRange($key, 0, -1)
-            ->zRevRange($key, 0, -1)
-            ->zRangeByScore($key, 1, 2)
+             ->zRangeByScore($key, 1, 2)
             ->zCount($key, 0, -1)
             ->zCard($key)
             ->zScore($key, 'zValue1')
@@ -4608,7 +4603,6 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->zRank($key, 'zValue1'));
         $this->assertFalse($this->valkey_glide->zRevRank($key, 'zValue1'));
         $this->assertFalse($this->valkey_glide->zRange($key, 0, -1));
-        $this->assertFalse($this->valkey_glide->zRevRange($key, 0, -1));
         $this->assertFalse($this->valkey_glide->zRangeByScore($key, 1, 2));
         $this->assertFalse($this->valkey_glide->zCount($key, 0, -1));
         $this->assertFalse($this->valkey_glide->zCard($key));
@@ -4668,8 +4662,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->zIncrBy($key, 1, 'zValue1'));
         $this->assertFalse($this->valkey_glide->zRank($key, 'zValue1'));
         $this->assertFalse($this->valkey_glide->zRevRank($key, 'zValue1'));
-        $this->assertFalse($this->valkey_glide->zRange($key, 0, -1));
-        $this->assertFalse($this->valkey_glide->zRevRange($key, 0, -1));
+        $this->assertFalse($this->valkey_glide->zRange($key, 0, -1));        
         $this->assertFalse($this->valkey_glide->zRangeByScore($key, 1, 2));
         $this->assertFalse($this->valkey_glide->zCount($key, 0, -1));
         $this->assertFalse($this->valkey_glide->zCard($key));
@@ -4729,8 +4722,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->zIncrBy($key, 1, 'zValue1'));
         $this->assertFalse($this->valkey_glide->zRank($key, 'zValue1'));
         $this->assertFalse($this->valkey_glide->zRevRank($key, 'zValue1'));
-        $this->assertFalse($this->valkey_glide->zRange($key, 0, -1));
-        $this->assertFalse($this->valkey_glide->zRevRange($key, 0, -1));
+        $this->assertFalse($this->valkey_glide->zRange($key, 0, -1));        
         $this->assertFalse($this->valkey_glide->zRangeByScore($key, 1, 2));
         $this->assertFalse($this->valkey_glide->zCount($key, 0, -1));
         $this->assertFalse($this->valkey_glide->zCard($key));
@@ -4864,8 +4856,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->zIncrBy($key, 1, 'zValue1'));
         $this->assertFalse($this->valkey_glide->zRank($key, 'zValue1'));
         $this->assertFalse($this->valkey_glide->zRevRank($key, 'zValue1'));
-        $this->assertFalse($this->valkey_glide->zRange($key, 0, -1));
-        $this->assertFalse($this->valkey_glide->zRevRange($key, 0, -1));
+        $this->assertFalse($this->valkey_glide->zRange($key, 0, -1));        
         $this->assertFalse($this->valkey_glide->zRangeByScore($key, 1, 2));
         $this->assertFalse($this->valkey_glide->zCount($key, 0, -1));
         $this->assertFalse($this->valkey_glide->zCard($key));

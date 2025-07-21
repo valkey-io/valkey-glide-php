@@ -661,31 +661,6 @@ int execute_pfmerge_command(zval* object, int argc, zval* return_value, zend_cla
     return 0;
 }
 
-/* Unified getTimeout command implementation */
-int execute_gettimeout_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    valkey_glide_object* valkey_glide;
-    double               timeout;
-
-    /* Parse parameters */
-    if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
-        return 0;
-    }
-
-    /* Get ValkeyGlide object */
-    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide || !valkey_glide->glide_client) {
-        return 0;
-    }
-
-    /* Execute the getTimeout command */
-    if (execute_get_timeout_command(valkey_glide->glide_client, &timeout)) {
-        ZVAL_DOUBLE(return_value, timeout);
-        return 1;
-    }
-
-    return 0;
-}
-
 /* Execute a SELECT command using the Valkey Glide client */
 int execute_select_command_internal(const void* glide_client, long dbindex) {
     core_command_args_t args = {0};
@@ -718,49 +693,6 @@ int execute_select_command(zval* object, int argc, zval* return_value, zend_clas
 
     /* Execute the SELECT command using the Glide client */
     if (execute_select_command_internal(valkey_glide->glide_client, dbindex)) {
-        ZVAL_TRUE(return_value);
-        return 1;
-    }
-
-    return 0;
-}
-
-/* Execute a SWAPDB command using the Valkey Glide client */
-int execute_swapdb_command_internal(const void* glide_client, long db1, long db2) {
-    core_command_args_t args = {0};
-    args.glide_client        = glide_client;
-    args.cmd_type            = SwapDb;
-
-    /* Add db1 argument */
-    args.args[0].type                = CORE_ARG_TYPE_LONG;
-    args.args[0].data.long_arg.value = db1;
-
-    /* Add db2 argument */
-    args.args[1].type                = CORE_ARG_TYPE_LONG;
-    args.args[1].data.long_arg.value = db2;
-    args.arg_count                   = 2;
-
-    return execute_core_command(&args, NULL, process_core_bool_result);
-}
-
-/* Execute a SWAPDB command - UNIFIED IMPLEMENTATION */
-int execute_swapdb_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    valkey_glide_object* valkey_glide;
-    long                 db1, db2;
-
-    /* Parse parameters */
-    if (zend_parse_method_parameters(argc, object, "Oll", &object, ce, &db1, &db2) == FAILURE) {
-        return 0;
-    }
-
-    /* Get ValkeyGlide object */
-    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide || !valkey_glide->glide_client) {
-        return 0;
-    }
-
-    /* Execute the SWAPDB command using the Glide client */
-    if (execute_swapdb_command_internal(valkey_glide->glide_client, db1, db2)) {
         ZVAL_TRUE(return_value);
         return 1;
     }

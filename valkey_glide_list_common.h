@@ -155,22 +155,8 @@ int execute_list_generic_command(const void*             glide_client,
                                  list_result_processor_t process_result);
 
 /* Option parsing functions */
-int parse_list_blocking_options(zval* options, list_blocking_options_t* opts);
-int parse_list_range_options(long start, long end, list_range_options_t* opts);
 int parse_list_position_options(zval* options, list_position_options_t* opts);
-int parse_list_move_options(const char*          src_dir,
-                            size_t               src_dir_len,
-                            const char*          dest_dir,
-                            size_t               dest_dir_len,
-                            const char*          dest_key,
-                            size_t               dest_key_len,
-                            double               timeout,
-                            list_move_options_t* opts);
-int parse_list_mpop_options(const char*          direction,
-                            size_t               direction_len,
-                            long                 count,
-                            double               timeout,
-                            list_mpop_options_t* opts);
+
 
 /* Argument preparation functions */
 int prepare_list_key_only_args(list_command_args_t* args,

@@ -300,12 +300,6 @@ int parse_store_options(zval* weights, zval* options, store_options_t* opts);
  * ==================================================================== */
 
 /**
- * Prepare keys array from zval for multi-key operations
- * Returns keys count on success, 0 on failure
- */
-int prepare_keys_array(zval* keys, int keys_count, uintptr_t** args, unsigned long** args_len);
-
-/**
  * Create LIMIT arguments (offset, count)
  * Returns number of arguments added (0 or 3)
  */
@@ -319,18 +313,6 @@ int create_limit_args(range_options_t* opts,
 /* ====================================================================
  * RESPONSE PROCESSING HELPERS
  * ==================================================================== */
-
-/**
- * Handle score response (for ZSCORE, ZINCRBY)
- * Returns: 1 = success with score, 0 = member not found, -1 = error
- */
-int handle_score_response(CommandResult* result, double* score);
-
-/**
- * Handle rank response (for ZRANK, ZREVRANK)
- * Returns: 1 = success with rank, 0 = member not found, -1 = error
- */
-int handle_rank_response(CommandResult* result, long* rank, double* score, int withscore);
 
 /**
  * Flatten withscores array from [[member, score]] to [member => score]
@@ -398,17 +380,13 @@ int execute_zpopmax_command(zval* object, int argc, zval* return_value, zend_cla
 int execute_zpopmin_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_zscan_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
-int execute_zrevrange_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_zrangebyscore_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_zrevrangebyscore_command(zval*             object,
                                      int               argc,
                                      zval*             return_value,
                                      zend_class_entry* ce);
 int execute_zrangebylex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_zrevrangebylex_command(zval*             object,
-                                   int               argc,
-                                   zval*             return_value,
-                                   zend_class_entry* ce);
+
 int execute_zdiff_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_zinter_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_zremrangebyscore_command(zval*             object,
@@ -483,20 +461,6 @@ int execute_bzpopmin_command(zval* object, int argc, zval* return_value, zend_cl
         RETURN_FALSE;                                                                  \
     }
 
-/* Ultra-simple macro for ZREVRANGE method implementation */
-#define ZREVRANGE_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, zRevRange) {                                              \
-        if (execute_zrevrange_command(getThis(),                                     \
-                                      ZEND_NUM_ARGS(),                               \
-                                      return_value,                                  \
-                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                          ? get_valkey_glide_cluster_ce()            \
-                                          : get_valkey_glide_ce())) {                \
-            return;                                                                  \
-        }                                                                            \
-        zval_dtor(return_value);                                                     \
-        RETURN_FALSE;                                                                \
-    }
 
 /* Ultra-simple macro for ZRANGEBYSCORE method implementation */
 #define ZRANGEBYSCORE_METHOD_IMPL(class_name)                                            \
@@ -543,20 +507,6 @@ int execute_bzpopmin_command(zval* object, int argc, zval* return_value, zend_cl
         RETURN_FALSE;                                                                  \
     }
 
-/* Ultra-simple macro for ZREVRANGEBYLEX method implementation */
-#define ZREVRANGEBYLEX_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, zRevRangeByLex) {                                              \
-        if (execute_zrevrangebylex_command(getThis(),                                     \
-                                           ZEND_NUM_ARGS(),                               \
-                                           return_value,                                  \
-                                           strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                               ? get_valkey_glide_cluster_ce()            \
-                                               : get_valkey_glide_ce())) {                \
-            return;                                                                       \
-        }                                                                                 \
-        zval_dtor(return_value);                                                          \
-        RETURN_FALSE;                                                                     \
-    }
 
 /* Ultra-simple macro for ZREMRANGEBYLEX method implementation */
 #define ZREMRANGEBYLEX_METHOD_IMPL(class_name)                                            \

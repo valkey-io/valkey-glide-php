@@ -89,11 +89,6 @@ int execute_echo_command(zval* object, int argc, zval* return_value, zend_class_
 int execute_ping_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_reset_command(const void* glide_client);
 int execute_info_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_info_sections_command(const void* glide_client,
-                                  zval*       sections,
-                                  int         sections_count,
-                                  char**      result,
-                                  size_t*     result_len);
 
 /* Additional operations */
 int execute_getbit_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -132,8 +127,6 @@ int execute_unwatch_command(zval* object, int argc, zval* return_value, zend_cla
 int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_flushall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_servername_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_serverversion_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_cluster_scan_command(const void* glide_client,
                                  char**      cursor,
@@ -151,16 +144,10 @@ int execute_hscan_command(zval* object, int argc, zval* return_value, zend_class
 int execute_pfadd_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_pfcount_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_pfmerge_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_gettimeout_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_getreadtimeout_command(zval*             object,
-                                   int               argc,
-                                   zval*             return_value,
-                                   zend_class_entry* ce);
 int execute_client_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_dbsize_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_select_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_swapdb_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_move_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_echo_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_bitop_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -205,7 +192,6 @@ int execute_expirememberat_command(zval*             object,
 int execute_mget_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_rename_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_renamenx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_getwithmeta_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_getdel_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_getex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_incr_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -600,34 +586,6 @@ int buffer_current_command_generic(valkey_glide_object* valkey_glide,
     }
 
 
-#define SERVERNAME_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, serverName) {                                              \
-        if (execute_servername_command(getThis(),                                     \
-                                       ZEND_NUM_ARGS(),                               \
-                                       return_value,                                  \
-                                       strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                           ? get_valkey_glide_cluster_ce()            \
-                                           : get_valkey_glide_ce())) {                \
-            return;                                                                   \
-        }                                                                             \
-        zval_dtor(return_value);                                                      \
-        RETURN_FALSE;                                                                 \
-    }
-
-#define SERVERVERSION_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, serverVersion) {                                              \
-        if (execute_serverversion_command(getThis(),                                     \
-                                          ZEND_NUM_ARGS(),                               \
-                                          return_value,                                  \
-                                          strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                              ? get_valkey_glide_cluster_ce()            \
-                                              : get_valkey_glide_ce())) {                \
-            return;                                                                      \
-        }                                                                                \
-        zval_dtor(return_value);                                                         \
-        RETURN_FALSE;                                                                    \
-    }
-
 #define SCAN_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, scan) {                                              \
         if (execute_scan_command(getThis(),                                     \
@@ -726,34 +684,6 @@ int buffer_current_command_generic(valkey_glide_object* valkey_glide,
         RETURN_FALSE;                                                              \
     }
 
-#define GETTIMEOUT_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, getTimeout) {                                              \
-        if (execute_gettimeout_command(getThis(),                                     \
-                                       ZEND_NUM_ARGS(),                               \
-                                       return_value,                                  \
-                                       strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                           ? get_valkey_glide_cluster_ce()            \
-                                           : get_valkey_glide_ce())) {                \
-            return;                                                                   \
-        }                                                                             \
-        zval_dtor(return_value);                                                      \
-        RETURN_FALSE;                                                                 \
-    }
-
-#define GETREADTIMEOUT_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, getReadTimeout) {                                              \
-        if (execute_getreadtimeout_command(getThis(),                                     \
-                                           ZEND_NUM_ARGS(),                               \
-                                           return_value,                                  \
-                                           strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                               ? get_valkey_glide_cluster_ce()            \
-                                               : get_valkey_glide_ce())) {                \
-            return;                                                                       \
-        }                                                                                 \
-        zval_dtor(return_value);                                                          \
-        RETURN_FALSE;                                                                     \
-    }
-
 #define CLIENT_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, client) {                                              \
         if (execute_client_command(getThis(),                                     \
@@ -799,20 +729,6 @@ int buffer_current_command_generic(valkey_glide_object* valkey_glide,
 #define SELECT_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, select) {                                              \
         if (execute_select_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
-
-#define SWAPDB_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, swapdb) {                                              \
-        if (execute_swapdb_command(getThis(),                                     \
                                    ZEND_NUM_ARGS(),                               \
                                    return_value,                                  \
                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
@@ -878,20 +794,6 @@ int buffer_current_command_generic(valkey_glide_object* valkey_glide,
         }                                                                           \
         zval_dtor(return_value);                                                    \
         RETURN_FALSE;                                                               \
-    }
-
-#define GETWITHMETA_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, getWithMeta) {                                              \
-        if (execute_getwithmeta_command(getThis(),                                     \
-                                        ZEND_NUM_ARGS(),                               \
-                                        return_value,                                  \
-                                        strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                            ? get_valkey_glide_cluster_ce()            \
-                                            : get_valkey_glide_ce())) {                \
-            return;                                                                    \
-        }                                                                              \
-        zval_dtor(return_value);                                                       \
-        RETURN_FALSE;                                                                  \
     }
 
 #define GETDEL_METHOD_IMPL(class_name)                                            \

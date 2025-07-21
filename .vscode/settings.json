@@ -72,7 +72,8 @@
     "files.associations": {
         "**/frontmatter.json": "jsonc",
         "**/.frontmatter/config/*.json": "jsonc",
-        "iosfwd": "cpp"
+        "iosfwd": "cpp",
+        "__node_handle": "c"
     },
     "php.validate.enable": true,
     "php.validate.executablePath": "/usr/bin/php",

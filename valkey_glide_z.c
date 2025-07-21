@@ -993,61 +993,6 @@ int execute_zunionstore_command(zval* object, int argc, zval* return_value, zend
     return result;
 }
 
-/* Execute a ZREVRANGE command using the Valkey Glide client */
-int execute_zrevrange_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    char*       key = NULL;
-    size_t      key_len;
-    zval *      z_start, *z_end, *options = NULL;
-    const void* glide_client = NULL;
-
-    /* Parse parameters */
-    if (zend_parse_method_parameters(
-            argc, object, "Oszz|a", &object, ce, &key, &key_len, &z_start, &z_end, &options) ==
-        FAILURE) {
-        return 0;
-    }
-
-    /* Get ValkeyGlide object */
-    valkey_glide_object* valkey_glide =
-        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    glide_client = valkey_glide->glide_client;
-
-    /* Check if we have a valid glide client */
-    if (!glide_client) {
-        return 0;
-    }
-
-    /* Initialize return array */
-    array_init(return_value);
-
-    /* Use framework for command execution */
-    z_command_args_t args = {0};
-    args.key              = key;
-    args.key_len          = key_len;
-    args.z_start          = z_start;
-    args.z_end            = z_end;
-    args.options          = options;
-
-    /* Parse options to determine if withscores is set */
-    range_options_t range_opts = {0};
-    parse_range_options(options, &range_opts);
-
-    struct {
-        zval* return_value;
-        int   withscores;
-    } array_data = {return_value, range_opts.withscores};
-
-    int result = execute_z_generic_command(
-        glide_client, ZRevRange, &args, &array_data, process_z_array_result);
-
-    /* If the command failed, clean up the return array */
-    if (!result) {
-        zval_dtor(return_value);
-    }
-
-    return result;
-}
-
 /* Execute a ZRANGEBYSCORE command using the Valkey Glide client */
 int execute_zrangebyscore_command(zval*             object,
                                   int               argc,
@@ -1558,60 +1503,6 @@ int execute_zrangestore_command(zval* object, int argc, zval* return_value, zend
 
     if (result) {
         ZVAL_LONG(return_value, result_count);
-    }
-
-    return result;
-}
-
-/* Execute a ZREVRANGEBYLEX command using the Valkey Glide client */
-int execute_zrevrangebylex_command(zval*             object,
-                                   int               argc,
-                                   zval*             return_value,
-                                   zend_class_entry* ce) {
-    char*       key = NULL;
-    size_t      key_len;
-    zval *      z_max, *z_min, *options = NULL;
-    const void* glide_client = NULL;
-
-    /* Parse parameters */
-    if (zend_parse_method_parameters(
-            argc, object, "Oszz|a", &object, ce, &key, &key_len, &z_max, &z_min, &options) ==
-        FAILURE) {
-        return 0;
-    }
-
-    /* Get ValkeyGlide object */
-    valkey_glide_object* valkey_glide =
-        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    glide_client = valkey_glide->glide_client;
-
-    /* Check if we have a valid glide client */
-    if (!glide_client) {
-        return 0;
-    }
-
-    /* Initialize return array */
-    array_init(return_value);
-
-    /* Use framework for command execution */
-    z_command_args_t args = {0};
-    args.key              = key;
-    args.key_len          = key_len;
-    args.z_start          = z_max; /* For ZREVRANGEBYLEX, start is max */
-    args.z_end            = z_min; /* For ZREVRANGEBYLEX, end is min */
-    args.options          = options;
-
-    struct {
-        zval* return_value;
-        int   withscores;
-    } array_data = {return_value, 0}; /* ZREVRANGEBYLEX never has withscores */
-
-    int result = execute_z_generic_command(
-        glide_client, ZRevRangeByLex, &args, &array_data, process_z_array_result);
-
-    /* If the command failed, clean up the return array */
-    if (!result) {
-        zval_dtor(return_value);
     }
 
     return result;

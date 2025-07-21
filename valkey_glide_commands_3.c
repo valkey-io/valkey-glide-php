@@ -1321,34 +1321,6 @@ int execute_get_read_timeout_command(const void* glide_client, double* output_va
     return 1;
 }
 
-/* Unified getReadTimeout command implementation */
-int execute_getreadtimeout_command(zval*             object,
-                                   int               argc,
-                                   zval*             return_value,
-                                   zend_class_entry* ce) {
-    valkey_glide_object* valkey_glide;
-    double               timeout;
-
-    /* Parse parameters */
-    if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
-        return 0;
-    }
-
-    /* Get ValkeyGlide object */
-    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide || !valkey_glide->glide_client) {
-        return 0;
-    }
-
-    /* Execute the getReadTimeout command */
-    if (execute_get_read_timeout_command(valkey_glide->glide_client, &timeout)) {
-        ZVAL_DOUBLE(return_value, timeout);
-        return 1;
-    }
-
-    return 0;
-}
-
 /* Execute getPersistentID command using the Valkey Glide client */
 int execute_get_persistent_id_command(const void* glide_client, char** result, size_t* result_len) {
     /* Check if client is valid */
@@ -1648,15 +1620,6 @@ int execute_rawcommand_command_internal(
     }
 
     return status;
-}
-
-/* Execute a DBSIZE command using the Valkey Glide client - MIGRATED TO CORE FRAMEWORK */
-int execute_dbsize_command_internal(const void* glide_client, long* output_value) {
-    core_command_args_t args = {0};
-    args.glide_client        = glide_client;
-    args.cmd_type            = DBSize;
-
-    return execute_core_command(&args, output_value, process_core_int_result);
 }
 
 /* Execute client command - UNIFIED IMPLEMENTATION */

@@ -102,15 +102,6 @@ typedef int (*geo_result_processor_t)(CommandResult* result, void* output);
  * FUNCTION PROTOTYPES
  * ==================================================================== */
 
-/* Options parsing */
-int parse_geo_with_options(zval* options, geo_with_options_t* opts);
-int parse_geo_radius_options(zval* options, geo_radius_options_t* opts);
-
-/* Argument preparation */
-int prepare_geo_key_args(geo_command_args_t* args,
-                         uintptr_t**         args_out,
-                         unsigned long**     args_len_out);
-
 int prepare_geo_members_args(geo_command_args_t* args,
                              uintptr_t**         args_out,
                              unsigned long**     args_len_out,
@@ -126,12 +117,6 @@ int prepare_geo_add_args(geo_command_args_t* args,
                          unsigned long**     args_len_out,
                          char***             allocated_strings,
                          int*                allocated_count);
-
-int prepare_geo_radius_args(geo_command_args_t* args,
-                            uintptr_t**         args_out,
-                            unsigned long**     args_len_out,
-                            char***             allocated_strings,
-                            int*                allocated_count);
 
 int prepare_geo_search_args(geo_command_args_t* args,
                             uintptr_t**         args_out,
@@ -151,12 +136,9 @@ int process_geo_double_result(CommandResult* result, void* output);
 int process_geo_array_result(CommandResult* result, void* output);
 int process_geo_hash_result(CommandResult* result, void* output);
 int process_geo_pos_result(CommandResult* result, void* output);
-int process_geo_radius_result(CommandResult* result, void* output);
 int process_geo_search_result(CommandResult* result, void* output);
 
 int execute_geoadd_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_georadius_ro_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_georadius_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_geohash_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 int execute_geodist_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -234,36 +216,6 @@ int execute_geo_generic_command(const void*            glide_client,
         }                                                                         \
         zval_dtor(return_value);                                                  \
         RETURN_FALSE;                                                             \
-    }
-
-/* Ultra-simple macro for GEORADIUS method implementation */
-#define GEORADIUS_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, georadius) {                                              \
-        if (execute_georadius_command(getThis(),                                     \
-                                      ZEND_NUM_ARGS(),                               \
-                                      return_value,                                  \
-                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                          ? get_valkey_glide_cluster_ce()            \
-                                          : get_valkey_glide_ce())) {                \
-            return;                                                                  \
-        }                                                                            \
-        zval_dtor(return_value);                                                     \
-        RETURN_FALSE;                                                                \
-    }
-
-/* Ultra-simple macro for GEORADIUS_RO method implementation */
-#define GEORADIUS_RO_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, georadius_ro) {                                              \
-        if (execute_georadius_ro_command(getThis(),                                     \
-                                         ZEND_NUM_ARGS(),                               \
-                                         return_value,                                  \
-                                         strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                             ? get_valkey_glide_cluster_ce()            \
-                                             : get_valkey_glide_ce())) {                \
-            return;                                                                     \
-        }                                                                               \
-        zval_dtor(return_value);                                                        \
-        RETURN_FALSE;                                                                   \
     }
 
 /* Ultra-simple macro for GEORADIUSBYMEMBER method implementation */

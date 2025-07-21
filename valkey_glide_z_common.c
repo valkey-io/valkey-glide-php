@@ -259,43 +259,6 @@ int parse_store_options(zval* weights, zval* options, store_options_t* opts) {
  * ==================================================================== */
 
 /**
- * Prepare keys array from zval for multi-key operations
- * Returns 1 on success, 0 on failure
- */
-/* Helper function to prepare keys array from zval */
-int prepare_keys_array(zval* keys, int keys_count, uintptr_t** args, unsigned long** args_len) {
-    /* Allocate memory for arguments */
-    *args     = (uintptr_t*)emalloc(keys_count * sizeof(uintptr_t));
-    *args_len = (unsigned long*)emalloc(keys_count * sizeof(unsigned long));
-
-    if (!(*args) || !(*args_len)) {
-        if (*args)
-            efree(*args);
-        if (*args_len)
-            efree(*args_len);
-        return 0;
-    }
-
-    /* Populate arguments array */
-    HashTable* keys_hash = Z_ARRVAL_P(keys);
-    zval*      key;
-    int        idx = 0;
-
-    ZEND_HASH_FOREACH_VAL(keys_hash, key) {
-        if (Z_TYPE_P(key) != IS_STRING) {
-            convert_to_string(key);
-        }
-
-        (*args)[idx]     = (uintptr_t)Z_STRVAL_P(key);
-        (*args_len)[idx] = Z_STRLEN_P(key);
-        idx++;
-    }
-    ZEND_HASH_FOREACH_END();
-
-    return 1;
-}
-
-/**
  * Create LIMIT arguments (offset, count)
  * Returns number of arguments added (0 or 3)
  */
@@ -339,80 +302,6 @@ int create_limit_args(range_options_t* opts,
  * RESPONSE PROCESSING HELPERS
  * ==================================================================== */
 
-/**
- * Handle score response (for ZSCORE, ZINCRBY)
- * Returns: 1 = success with score, 0 = member not found, -1 = error
- */
-int handle_score_response(CommandResult* result, double* score) {
-    if (!result || result->command_error || !result->response) {
-        return -1;
-    }
-
-    if (result->response->response_type == Null) {
-        return 0; /* Member doesn't exist */
-    }
-
-    if (result->response->response_type == String) {
-        /* Parse string as double */
-        char* endptr;
-        *score = strtod(result->response->string_value, &endptr);
-        if (*endptr == '\0' ||
-            endptr == result->response->string_value + result->response->string_value_len) {
-            return 1;
-        }
-        return -1;
-    }
-
-    if (result->response->response_type == Float) {
-        *score = result->response->float_value;
-        return 1;
-    }
-
-    return -1;
-}
-
-/**
- * Handle rank response (for ZRANK, ZREVRANK)
- * Returns: 1 = success with rank, 0 = member not found, -1 = error
- */
-int handle_rank_response(CommandResult* result, long* rank, double* score, int withscore) {
-    if (!result || result->command_error || !result->response) {
-        return -1;
-    }
-
-    if (result->response->response_type == Null) {
-        return 0; /* Member doesn't exist */
-    }
-
-    if (result->response->response_type == Int) {
-        *rank = result->response->int_value;
-        return 1;
-    }
-
-    if (result->response->response_type == Array && withscore) {
-        /* Array with rank and score [rank, score] */
-        if (result->response->array_value_len >= 2) {
-            CommandResponse* rank_resp  = &result->response->array_value[0];
-            CommandResponse* score_resp = &result->response->array_value[1];
-
-            if (rank_resp->response_type == Int &&
-                (score_resp->response_type == String || score_resp->response_type == Float)) {
-                *rank = rank_resp->int_value;
-
-                if (score_resp->response_type == String) {
-                    char* endptr;
-                    *score = strtod(score_resp->string_value, &endptr);
-                } else {
-                    *score = score_resp->float_value;
-                }
-
-                return 1;
-            }
-        }
-    }
-
-    return -1;
-}
 
 /**
  * Flatten withscores array from [[member, score]] to [member => score]
