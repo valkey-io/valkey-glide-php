@@ -735,19 +735,9 @@ class ValkeyGlideCluster {
     public function restore(string $key, int $timeout, string $value, ?array $options = null): ValkeyGlideCluster|bool;
 
     /**
-     * @see ValkeyGlide::role
-     */
-    public function role(mixed $route): mixed;
-
-    /**
      * @see ValkeyGlide::rpop()
      */
     public function rPop(string $key, int $count = 0): ValkeyGlideCluster|bool|string|array;
-
-    /**
-     * @see ValkeyGlide::rpoplpush()
-     */
-    public function rpoplpush(string $src, string $dst): ValkeyGlideCluster|bool|string;
 
     /**
      * @see ValkeyGlide::rpush
@@ -764,10 +754,6 @@ class ValkeyGlideCluster {
      */
     public function sAdd(string $key, mixed $value, mixed ...$other_values): ValkeyGlideCluster|int|false;    
 
-    /**
-     * @see ValkeyGlide::saddarray()
-     */
-    public function sAddArray(string $key, array $values): ValkeyGlideCluster|bool|int;
 
     /**
      * @see ValkeyGlide::scan

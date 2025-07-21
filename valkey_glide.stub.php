@@ -1981,35 +1981,7 @@ class ValkeyGlide {
      */
     public function restore(string $key, int $ttl, string $value, ?array $options = null): ValkeyGlide|bool;
 
-    /**
-     * Query whether the connected instance is a primary or replica
-     *
-     * @return mixed Will return an array with the role of the connected instance unless there is
-     *               an error.
-     */
-    public function role(): mixed;
 
-    /**
-     * Atomically pop an element off the end of a ValkeyGlide LIST and push it to the beginning of
-     * another.
-     *
-     * @param string $srckey The source key to pop from.
-     * @param string $dstkey The destination key to push to.
-     *
-     * @return ValkeyGlide|string|false The popped element or false if the source key was empty.
-     *
-     * @see https://valkey.io/commands/rpoplpush
-     *
-     * @example
-     * $valkey_glide->pipeline()
-     *       ->del('list1', 'list2')
-     *       ->rpush('list1', 'list1-1', 'list1-2')
-     *       ->rpush('list2', 'list2-1', 'list2-2')
-     *       ->exec();
-     *
-     * $valkey_glide->rpoplpush('list2', 'list1');
-     */
-    public function rpoplpush(string $srckey, string $dstkey): ValkeyGlide|string|false;
 
     /**
      * Add one or more values to a ValkeyGlide SET key.
@@ -2030,24 +2002,6 @@ class ValkeyGlide {
      */
     public function sAdd(string $key, mixed $value, mixed ...$other_values): ValkeyGlide|int|false;
 
-    /**
-     * Add one or more values to a ValkeyGlide SET key.  This is an alternative to ValkeyGlide::sadd() but
-     * instead of being variadic, takes a single array of values.
-     *
-     * @see https://valkey.io/commands/sadd
-     * @see ValkeyGlide::sadd()
-     *
-     * @param string $key       The set to add values to.
-     * @param array  $values    One or more members to add to the set.
-     * @return ValkeyGlide|int|false  The number of members added to the set.
-     *
-     * @example
-     * $valkey_glide->del('myset');
-     *
-     * $valkey_glide->sAddArray('myset', ['foo', 'bar', 'baz']);
-     * $valkey_glide->sAddArray('myset', ['foo', 'new']);
-     */
-    public function sAddArray(string $key, array $values): int;
 
     /**
      * Given one or more ValkeyGlide SETS, this command returns all of the members from the first
@@ -2364,7 +2318,7 @@ class ValkeyGlide {
      * @example $valkey_glide->script('load', 'return 1');
      * @example $valkey_glide->script('exists', sha1('return 1'));
      */
-    public function script(string $command, mixed ...$args): mixed;
+    /* TODO public function script(string $command, mixed ...$args): mixed; */
 
     /**
      * Select a specific ValkeyGlide database.
