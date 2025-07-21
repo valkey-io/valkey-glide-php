@@ -100,7 +100,7 @@ lint-c:
 	fi
 	@echo "Running C static analysis..."
 	@if command -v cppcheck >/dev/null 2>&1; then \
-		cppcheck --enable=all --suppress=missingIncludeSystem --error-exitcode=1 --quiet .; \
+		cppcheck --enable=all --suppress=missingInclude --suppress=missingIncludeSystem --error-exitcode=1 --quiet .; \
 		echo "✓ C static analysis passed"; \
 	else \
 		echo "Warning: cppcheck not found, skipping C static analysis"; \

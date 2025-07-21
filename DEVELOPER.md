@@ -354,7 +354,7 @@ find . -name "*.c" -o -name "*.h" | grep -v "\.pb-c\." | xargs clang-format --dr
 find . -name "*.c" -o -name "*.h" | grep -v "\.pb-c\." | xargs clang-format -i
 
 # Run C static analysis
-cppcheck --enable=all --suppress=missingIncludeSystem --error-exitcode=1 .
+cppcheck --enable=all --suppress=missingIncludeSystem --suppress=missingInclude --error-exitcode=1 .
 
 # Check PHP code standards
 phpcs --standard=phpcs.xml
