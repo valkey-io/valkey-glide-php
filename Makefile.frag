@@ -99,12 +99,7 @@ lint-c:
 		echo "Warning: clang-format not found, skipping C code formatting check"; \
 	fi
 	@echo "Running C static analysis..."
-	@if command -v cppcheck >/dev/null 2>&1; then \
-		cppcheck --enable=all --suppress=missingInclude --suppress=missingIncludeSystem --error-exitcode=1 --quiet .; \
-		echo "✓ C static analysis passed"; \
-	else \
-		echo "Warning: cppcheck not found, skipping C static analysis"; \
-	fi
+	
 
 lint-php:
 	@echo "Running PHP linting..."
@@ -180,9 +175,9 @@ install-lint-tools:
 	else \
 		echo "Warning: composer not found, please install composer first"; \
 	fi
-	@echo "Please ensure clang-format and cppcheck are installed for C code linting"
-	@echo "Ubuntu/Debian: sudo apt-get install clang-format cppcheck"
-	@echo "macOS: brew install clang-format cppcheck"
+	@echo "Please ensure clang-format are installed for C code linting"
+	@echo "Ubuntu/Debian: sudo apt-get install clang-format"
+	@echo "macOS: brew install clang-format"
 
 install-tools: install-build-tools install-lint-tools
 

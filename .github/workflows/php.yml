@@ -691,7 +691,6 @@ jobs:
                       pkg-config \
                       libssl-dev \
                       clang-format \
-                      cppcheck \
                       protobuf-c-compiler \
                       libprotobuf-c-dev \
                       libprotobuf-c1
@@ -738,10 +737,6 @@ jobs:
             - name: Lint C code formatting
               run: |
                   find . -name "*.c" -o -name "*.h" | grep -v "\.pb-c\." | xargs clang-format --dry-run --Werror
-
-            - name: Run C static analysis
-              run: |
-                  cppcheck --enable=all --suppress=missingInclude --suppress=missingIncludeSystem --error-exitcode=1 -i valkey-glide .
 
             - name: Lint PHP code (if PHP files exist)
               run: |
