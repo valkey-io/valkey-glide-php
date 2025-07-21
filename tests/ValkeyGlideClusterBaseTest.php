@@ -1,32 +1,34 @@
-<?php defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
+<?php
+
+defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
 /*
-* -------------------------------------------------------------------- 
+* --------------------------------------------------------------------
 *                   The PHP License, version 3.01
 * Copyright (c) 1999 - 2010 The PHP Group. All rights reserved.
-* -------------------------------------------------------------------- 
-* 
+* --------------------------------------------------------------------
+*
 * Redistribution and use in source and binary forms, with or without
 * modification, is permitted provided that the following conditions
 * are met:
-* 
+*
 *   1. Redistributions of source code must retain the above copyright
 *      notice, this list of conditions and the following disclaimer.
-*  
+*
 *  2. Redistributions in binary form must reproduce the above copyright
 *      notice, this list of conditions and the following disclaimer in
 *      the documentation and/or other materials provided with the
 *      distribution.
-*  
+*
 *   3. The name "PHP" must not be used to endorse or promote products
 *      derived from this software without prior written permission. For
 *      written permission, please contact group@php.net.
-*   
+*
 *   4. Products derived from this software may not be called "PHP", nor
 *      may "PHP" appear in their name, without prior written permission
 *      from group@php.net.  You may indicate that your software works in
 *      conjunction with PHP by saying "Foo for PHP" instead of calling
 *      it "PHP Foo" or "phpfoo"
-*  
+*
 *   5. The PHP Group may publish revised and/or new versions of the
 *      license from time to time. Each version will be given a
 *      distinguishing version number.
@@ -37,35 +39,35 @@
 *      published by the PHP Group. No one other than the PHP Group has
 *      the right to modify the terms applicable to covered code created
 *      under this License.
-* 
+*
 *   6. Redistributions of any form whatsoever must retain the following
 *      acknowledgment:
 *      "This product includes PHP software, freely available from
 *      <http://www.php.net/software/>".
-* 
-* THIS SOFTWARE IS PROVIDED BY THE PHP DEVELOPMENT TEAM ``AS IS'' AND 
+*
+* THIS SOFTWARE IS PROVIDED BY THE PHP DEVELOPMENT TEAM ``AS IS'' AND
 * ANY EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-* THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A 
+* THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
 * PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE PHP
-* DEVELOPMENT TEAM OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
-* INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
+* DEVELOPMENT TEAM OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+* INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 * OF THE POSSIBILITY OF SUCH DAMAGE.
-* 
-* -------------------------------------------------------------------- 
-* 
+*
+* --------------------------------------------------------------------
+*
 * This software consists of voluntary contributions made by many
 * individuals on behalf of the PHP Group.
-* 
+*
 * The PHP Group can be contacted via Email at group@php.net.
-* 
-* For more information on the PHP Group and the PHP project, 
+*
+* For more information on the PHP Group and the PHP project,
 * please see <http://www.php.net>.
-* 
+*
 * PHP includes the Zend Engine, freely available at
 * <http://www.zend.com>.
 */
@@ -76,7 +78,8 @@ require_once __DIR__ . "/ValkeyGlideBaseTest.php";
  * Abstract base class providing infrastructure methods for ValkeyGlideCluster tests
  * Contains no actual test methods - only setup and helper functionality
  */
-abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest {
+abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest
+{
     private $valkey_glide_types = [
         ValkeyGlide::VALKEY_GLIDE_STRING,
         ValkeyGlide::VALKEY_GLIDE_SET,
@@ -89,11 +92,12 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest {
     private static array $seed_messages = [];
     private static string $seed_source = '';
 
-    private function loadSeedsFromHostPort($host, $port) {
+    private function loadSeedsFromHostPort($host, $port)
+    {
         try {
-            $rc = new ValkeyGlideCluster(NULL, ["$host:$port"], 1, 1, true, $this->getAuth());
+            $rc = new ValkeyGlideCluster(null, ["$host:$port"], 1, 1, true, $this->getAuth());
             self::$seed_source = "Host: $host, Port: $port";
-            return array_map(function($master) {
+            return array_map(function ($master) {
                 return sprintf('%s:%s', $master[0], $master[1]);
             }, $rc->_masters());
         } catch (Exception $ex) {
@@ -104,9 +108,10 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest {
         return false;
     }
 
-    private function loadSeedsFromEnv() {
+    private function loadSeedsFromEnv()
+    {
         $seeds = getenv('REDIS_CLUSTER_NODES');
-        if ( ! $seeds) {
+        if (! $seeds) {
             self::$seed_messages[] = "environment variable REDIS_CLUSTER_NODES ($seeds)";
             return false;
         }
@@ -115,9 +120,10 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest {
         return array_filter(explode(' ', $seeds));
     }
 
-    private function loadSeedsFromNodeMap() {
+    private function loadSeedsFromNodeMap()
+    {
         $nodemap_file = dirname($_SERVER['PHP_SELF']) . '/nodes/nodemap';
-        if ( ! file_exists($nodemap_file)) {
+        if (! file_exists($nodemap_file)) {
             self::$seed_messages[] = "nodemap file '$nodemap_file'";
             return false;
         }
@@ -127,27 +133,30 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest {
     }
 
     /* Load our seeds on construction */
-    public function __construct($host, $port, $auth) {
+    public function __construct($host, $port, $auth)
+    {
         parent::__construct($host, $port, $auth);
         //self::$seeds = $this->loadSeeds($host, $port);TODO
     }
 
     /* Override setUp to get info from a specific node */
-    public function setUp() {
-        $this->valkey_glide = $this->newInstance();        
+    public function setUp()
+    {
+        $this->valkey_glide = $this->newInstance();
         $info = $this->valkey_glide->info("randomNode");
         $this->version = $info['redis_version'] ?? '0.0.0';
         $this->is_valkey = $this->detectValkey($info);
     }
 
     /* Override newInstance as we want a ValkeyGlideCluster object */
-    protected function newInstance() {
+    protected function newInstance()
+    {
         try {
             return new ValkeyGlideCluster(
                 [['host' => '127.0.0.1', 'port' => 7001]], // addresses array format
                 false, // use_tls
                 $this->getAuth(), // credentials
-                ValkeyGlide::READ_FROM_PRIMARY // read_from                               
+                ValkeyGlide::READ_FROM_PRIMARY // read_from
             );
         } catch (Exception $ex) {
             TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());
@@ -157,7 +166,8 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest {
         }
     }
 
-    protected function keyTypeToString($key_type) {
+    protected function keyTypeToString($key_type)
+    {
         switch ($key_type) {
             case ValkeyGlide::VALKEY_GLIDE_STRING:
                 return "string";
@@ -176,11 +186,13 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest {
         }
     }
 
-    protected function genKeyName($key_index, $key_type) {
+    protected function genKeyName($key_index, $key_type)
+    {
         return sprintf('%s-%s', $this->keyTypeToString($key_type), $key_index);
     }
 
-    protected function setKeyVals($key_index, $key_type, &$arr_ref) {
+    protected function setKeyVals($key_index, $key_type, &$arr_ref)
+    {
         $key = $this->genKeyName($key_index, $key_type);
 
         $this->valkey_glide->del($key);
@@ -235,7 +247,8 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest {
     }
 
     /* Verify that our ZSET values are identical */
-    protected function checkZSetEquality($a, $b) {
+    protected function checkZSetEquality($a, $b)
+    {
         /* If the count is off, the array keys are different or the sums are
          * different, we know there is something off */
         $boo_diff = count($a) != count($b) ||
@@ -248,7 +261,8 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest {
         }
     }
 
-    protected function checkKeyValue($key, $key_type, $value) {
+    protected function checkKeyValue($key, $key_type, $value)
+    {
         switch ($key_type) {
             case ValkeyGlide::VALKEY_GLIDE_STRING:
                 $this->assertEquals($value, $this->valkey_glide->get($key));
@@ -272,29 +286,33 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest {
             default:
                 throw new Exception("Unknown type " . $key_type);
         }
-    }   
+    }
 
-    protected function rawCommandArray($key, $args) {
+    protected function rawCommandArray($key, $args)
+    {
         array_unshift($args, $key);
         return call_user_func_array([$this->valkey_glide, 'rawCommand'], $args);
     }
 
-    protected function sessionPrefix(): string {
+    protected function sessionPrefix(): string
+    {
         return 'VALKEY_GLIDE_PHP_CLUSTER_SESSION:';
     }
 
-    protected function sessionSaveHandler(): string {
+    protected function sessionSaveHandler(): string
+    {
         return 'rediscluster';
     }
 
-    protected function sessionSavePath(): string {
+    protected function sessionSavePath(): string
+    {
         return implode('&', array_map(function ($host) {
             return 'seed[]=' . $host;
         }, self::$seeds)) . '&' . $this->getAuthFragment();
     }
 
-    protected function execWaitAOF() {
+    protected function execWaitAOF()
+    {
         return $this->valkey_glide->waitaof(uniqid(), 0, 0, 0);
     }
 }
-?>

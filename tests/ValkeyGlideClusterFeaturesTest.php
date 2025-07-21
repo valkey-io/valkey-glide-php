@@ -1,14 +1,17 @@
-<?php defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
+<?php
+
+defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
 
 require_once __DIR__ . "/ValkeyGlideClusterBaseTest.php";
 
 /**
  * ValkeyGlide Cluster Features Test
  * Tests various constructor options and features for ValkeyGlideCluster client
- */  
-class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
-
-    public function testBasicClusterConstructor() {
+ */
+class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest
+{
+    public function testBasicClusterConstructor()
+    {
         // Test creating ValkeyGlideCluster with basic configuration
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]], // addresses array format
@@ -19,7 +22,7 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
 
         // Verify the connection works with a simple ping
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
-        
+
         // Clean up
         $valkey_glide->close();
     }
@@ -28,14 +31,15 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
     // ADDRESSES PARAMETER TESTS
     // ==============================================
 
-    public function testConstructorWithMultipleAddresses() {
+    public function testConstructorWithMultipleAddresses()
+    {
         // Test with multiple cluster addresses
         $addresses = [
             ['host' => '127.0.0.1', 'port' => 7001],
             ['host' => '127.0.0.1', 'port' => 7002],
             ['host' => '127.0.0.1', 'port' => 7003]
         ];
-        
+
         $valkey_glide = new ValkeyGlideCluster($addresses, false, $this->getAuth());
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
@@ -45,14 +49,15 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
     // TLS PARAMETER TESTS
     // ==============================================
 
-    public function testConstructorWithTlsDisabled() {
+    public function testConstructorWithTlsDisabled()
+    {
         // Test with TLS explicitly disabled
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
             false, // use_tls disabled
             $this->getAuth()
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
@@ -61,19 +66,21 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
     // CREDENTIALS PARAMETER TESTS
     // ==============================================
 
-    public function testConstructorWithNullCredentials() {
+    public function testConstructorWithNullCredentials()
+    {
         // Test with no credentials (null)
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
             false,
             null // no credentials
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
 
-    public function testConstructorWithPasswordCredentials() {
+    public function testConstructorWithPasswordCredentials()
+    {
         // Test with password-only credentials
         if ($this->getAuth()) {
             $valkey_glide = new ValkeyGlideCluster(
@@ -81,7 +88,7 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
                 false,
                 $this->getAuth() // password credentials
             );
-            
+
             $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
             $valkey_glide->close();
         } else {
@@ -93,7 +100,8 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
     // READ STRATEGY PARAMETER TESTS
     // ==============================================
 
-    public function testConstructorWithReadFromPrimary() {
+    public function testConstructorWithReadFromPrimary()
+    {
         // Test with READ_FROM_PRIMARY strategy
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -101,12 +109,13 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             $this->getAuth(),
             ValkeyGlide::READ_FROM_PRIMARY
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
 
-    public function testConstructorWithReadFromPreferReplica() {
+    public function testConstructorWithReadFromPreferReplica()
+    {
         // Test with READ_FROM_PREFER_REPLICA strategy
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -114,12 +123,13 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             $this->getAuth(),
             ValkeyGlide::READ_FROM_PREFER_REPLICA
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
 
-    public function testConstructorWithReadFromAzAffinity() {
+    public function testConstructorWithReadFromAzAffinity()
+    {
         // Test with READ_FROM_AZ_AFFINITY strategy
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -127,12 +137,13 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             $this->getAuth(),
             ValkeyGlide::READ_FROM_AZ_AFFINITY
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
 
-    public function testConstructorWithReadFromAzAffinityReplicasAndPrimary() {
+    public function testConstructorWithReadFromAzAffinityReplicasAndPrimary()
+    {
         // Test with READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY strategy
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -140,7 +151,7 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             $this->getAuth(),
             ValkeyGlide::READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
@@ -149,7 +160,8 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
     // REQUEST TIMEOUT PARAMETER TESTS
     // ==============================================
 
-    public function testConstructorWithRequestTimeout() {
+    public function testConstructorWithRequestTimeout()
+    {
         // Test with 5 second timeout
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -158,12 +170,13 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             ValkeyGlide::READ_FROM_PRIMARY,
             5000 // 5 second timeout
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
 
-    public function testConstructorWithShortTimeout() {
+    public function testConstructorWithShortTimeout()
+    {
         // Test with 1 second timeout
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -172,12 +185,13 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             ValkeyGlide::READ_FROM_PRIMARY,
             1000 // 1 second timeout
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
 
-    public function testConstructorWithLongTimeout() {
+    public function testConstructorWithLongTimeout()
+    {
         // Test with 10 second timeout
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -186,7 +200,7 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             ValkeyGlide::READ_FROM_PRIMARY,
             10000 // 10 second timeout
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
@@ -195,10 +209,11 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
     // RECONNECTION STRATEGY PARAMETER TESTS
     // ==============================================
 
-    public function testConstructorWithSimpleReconnectStrategy() {
+    public function testConstructorWithSimpleReconnectStrategy()
+    {
         // Test with simple reconnection strategy
         $reconnectStrategy = ['num_of_retries' => 5];
-        
+
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
             false,
@@ -207,12 +222,13 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             null,
             $reconnectStrategy
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
 
-    public function testConstructorWithComplexReconnectStrategy() {
+    public function testConstructorWithComplexReconnectStrategy()
+    {
         // Test with complex reconnection strategy
         $reconnectStrategy = [
             'num_of_retries' => 3,
@@ -220,7 +236,7 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             'exponent_base' => 1.5,
             'max_delay' => 5000
         ];
-        
+
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
             false,
@@ -238,9 +254,10 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
     // CLIENT NAME PARAMETER TESTS
     // ==============================================
 
-    public function testConstructorWithClientName() {
+    public function testConstructorWithClientName()
+    {
         // Test with custom client name
-           
+
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
             false,
@@ -250,8 +267,8 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             null,
             "test-cluster-client-"
         );
-        
-        $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test'])); 
+
+        $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
 
@@ -259,7 +276,8 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
     // PERIODIC CHECKS PARAMETER TESTS
     // ==============================================
 
-    public function testConstructorWithPeriodicChecksEnabled() {
+    public function testConstructorWithPeriodicChecksEnabled()
+    {
         // Test with periodic checks enabled (default)
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -271,12 +289,13 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             null,
             ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
 
-    public function testConstructorWithPeriodicChecksDisabled() {
+    public function testConstructorWithPeriodicChecksDisabled()
+    {
         // Test with periodic checks disabled
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -288,7 +307,7 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             null,
             ValkeyGlideCluster::PERIODIC_CHECK_DISABLED
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
@@ -297,7 +316,8 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
     // INFLIGHT REQUESTS LIMIT PARAMETER TESTS
     // ==============================================
 
-    public function testConstructorWithInflightRequestsLimit() {
+    public function testConstructorWithInflightRequestsLimit()
+    {
         // Test with inflight requests limit
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -310,12 +330,13 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             null,
             100 // inflight requests limit
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
 
-    public function testConstructorWithHighInflightRequestsLimit() {
+    public function testConstructorWithHighInflightRequestsLimit()
+    {
         // Test with high inflight requests limit
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -328,7 +349,7 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             null,
             1000 // high inflight requests limit
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
@@ -337,7 +358,8 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
     // CLIENT AVAILABILITY ZONE PARAMETER TESTS
     // ==============================================
 
-    public function testConstructorWithClientAz() {
+    public function testConstructorWithClientAz()
+    {
         // Test with client availability zone
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -351,12 +373,13 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             null,
             'us-east-1a' // client availability zone
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
 
-    public function testConstructorWithDifferentClientAz() {
+    public function testConstructorWithDifferentClientAz()
+    {
         // Test with different client availability zone
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -370,7 +393,7 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             null,
             'eu-west-1b' // different client availability zone
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
@@ -379,13 +402,14 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
     // ADVANCED CONFIGURATION PARAMETER TESTS
     // ==============================================
 
-    public function testConstructorWithAdvancedConfig() {
+    public function testConstructorWithAdvancedConfig()
+    {
         // Test with advanced configuration
         $advancedConfig = [
             'connection_timeout' => 5000,
             'socket_timeout' => 3000
         ];
-        
+
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
             false,
@@ -399,7 +423,7 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             null,
             $advancedConfig
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
@@ -408,7 +432,8 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
     // LAZY CONNECT PARAMETER TESTS
     // ==============================================
 
-    public function testConstructorWithLazyConnectEnabled() {
+    public function testConstructorWithLazyConnectEnabled()
+    {
         // Test with lazy connection enabled
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -424,12 +449,13 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             null,
             true // lazy connect enabled
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
 
-    public function testConstructorWithLazyConnectDisabled() {
+    public function testConstructorWithLazyConnectDisabled()
+    {
         // Test with lazy connection disabled
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -445,7 +471,7 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             null,
             false // lazy connect disabled
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
@@ -454,7 +480,8 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
     // COMBINED PARAMETER TESTS
     // ==============================================
 
-    public function testConstructorWithAllParameters() {
+    public function testConstructorWithAllParameters()
+    {
         // Test with all parameters specified
         $addresses = [
             ['host' => '127.0.0.1', 'port' => 7001],
@@ -464,7 +491,7 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
         $reconnectStrategy = ['num_of_retries' => 3, 'factor' => 2];
         $clientName = 'comprehensive-test-client';
         $advancedConfig = ['connection_timeout' => 5000];
-        
+
         $valkey_glide = new ValkeyGlideCluster(
             $addresses,                                     // addresses
             false,                                          // use_tls
@@ -479,19 +506,20 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             $advancedConfig,                                // advanced_config
             false                                           // lazy_connect
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
-        
+
         // Perform a basic operation to ensure everything works
         $key = 'test:comprehensive:' . uniqid();
         $this->assertTrue($valkey_glide->set($key, 'test-value'));
         $this->assertEquals('test-value', $valkey_glide->get($key));
         $valkey_glide->del($key);
-        
+
         $valkey_glide->close();
     }
 
-    public function testConstructorWithCommonConfiguration() {
+    public function testConstructorWithCommonConfiguration()
+    {
         // Test with commonly used parameter combination
         $valkey_glide = new ValkeyGlideCluster(
             [['host' => '127.0.0.1', 'port' => 7001]],
@@ -502,9 +530,8 @@ class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest {
             ['num_of_retries' => 5],                   // reconnect_strategy
             'common-config-client'                      // client_name
         );
-        
+
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
 }
-?>

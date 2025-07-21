@@ -1,4 +1,5 @@
 <?php
+
 $testFunctions = [
     "testMinimumVersion",
     "testPing",
@@ -269,5 +270,3 @@ if ($skipped > 0) {
 }
 
 echo "========================\n";
-
-

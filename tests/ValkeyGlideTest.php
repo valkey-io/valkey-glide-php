@@ -1,32 +1,34 @@
-<?php defined('VALKEY_GLIDE_PHP_TESTRUN') or die('Use TestValkeyGlide.php to run tests!\n');
+<?php
+
+defined('VALKEY_GLIDE_PHP_TESTRUN') or die('Use TestValkeyGlide.php to run tests!\n');
 /*
-* -------------------------------------------------------------------- 
+* --------------------------------------------------------------------
 *                   The PHP License, version 3.01
 * Copyright (c) 1999 - 2010 The PHP Group. All rights reserved.
-* -------------------------------------------------------------------- 
-* 
+* --------------------------------------------------------------------
+*
 * Redistribution and use in source and binary forms, with or without
 * modification, is permitted provided that the following conditions
 * are met:
-* 
+*
 *   1. Redistributions of source code must retain the above copyright
 *      notice, this list of conditions and the following disclaimer.
-*  
+*
 *  2. Redistributions in binary form must reproduce the above copyright
 *      notice, this list of conditions and the following disclaimer in
 *      the documentation and/or other materials provided with the
 *      distribution.
-*  
+*
 *   3. The name "PHP" must not be used to endorse or promote products
 *      derived from this software without prior written permission. For
 *      written permission, please contact group@php.net.
-*   
+*
 *   4. Products derived from this software may not be called "PHP", nor
 *      may "PHP" appear in their name, without prior written permission
 *      from group@php.net.  You may indicate that your software works in
 *      conjunction with PHP by saying "Foo for PHP" instead of calling
 *      it "PHP Foo" or "phpfoo"
-*  
+*
 *   5. The PHP Group may publish revised and/or new versions of the
 *      license from time to time. Each version will be given a
 *      distinguishing version number.
@@ -37,35 +39,35 @@
 *      published by the PHP Group. No one other than the PHP Group has
 *      the right to modify the terms applicable to covered code created
 *      under this License.
-* 
+*
 *   6. Redistributions of any form whatsoever must retain the following
 *      acknowledgment:
 *      "This product includes PHP software, freely available from
 *      <http://www.php.net/software/>".
-* 
-* THIS SOFTWARE IS PROVIDED BY THE PHP DEVELOPMENT TEAM ``AS IS'' AND 
+*
+* THIS SOFTWARE IS PROVIDED BY THE PHP DEVELOPMENT TEAM ``AS IS'' AND
 * ANY EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-* THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A 
+* THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
 * PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE PHP
-* DEVELOPMENT TEAM OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
-* INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
+* DEVELOPMENT TEAM OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+* INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 * OF THE POSSIBILITY OF SUCH DAMAGE.
-* 
-* -------------------------------------------------------------------- 
-* 
+*
+* --------------------------------------------------------------------
+*
 * This software consists of voluntary contributions made by many
 * individuals on behalf of the PHP Group.
-* 
+*
 * The PHP Group can be contacted via Email at group@php.net.
-* 
-* For more information on the PHP Group and the PHP project, 
+*
+* For more information on the PHP Group and the PHP project,
 * please see <http://www.php.net>.
-* 
+*
 * PHP includes the Zend Engine, freely available at
 * <http://www.zend.com>.
 */
@@ -73,17 +75,18 @@
 require_once __DIR__ . '/ValkeyGlideBaseTest.php';
 
 
-class ValkeyGlide_Test extends ValkeyGlideBaseTest {
-   
-
-    public function testMinimumVersion() {
+class ValkeyGlide_Test extends ValkeyGlideBaseTest
+{
+    public function testMinimumVersion()
+    {
         $this->assertTrue(version_compare($this->version, '2.4.0') >= 0);
     }
 
-    public function testPing() {
+    public function testPing()
+    {
         /* Reply literal off */
         $this->assertTrue($this->valkey_glide->ping());
-        
+
         //$this->assertTrue($this->valkey_glide->ping(NULL));
         $this->assertEquals('BEEP', $this->valkey_glide->ping('BEEP'));
         return;
@@ -148,7 +151,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
     /* These test cases were generated randomly.  We're just trying to test
        that PhpValkeyGlide handles all combination of arguments correctly. */
-    public function testBitcount() {
+    public function testBitcount()
+    {
         /* key */
         $this->valkey_glide->set('bitcountkey', hex2bin('bd906b854ca76cae'));
         $this->assertEquals(33, $this->valkey_glide->bitcount('bitcountkey'));
@@ -165,18 +169,20 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->set('bitcountkey', hex2bin('10eb8939e68bfdb640260f0629f3'));
         $this->assertEquals(1, $this->valkey_glide->bitcount('bitcountkey', 8, 8, false));
 
-        if ( !  $this->minVersionCheck('7.0')) {
+        if (!  $this->minVersionCheck('7.0')) {
             /* key, start, end, BIT */
             $this->valkey_glide->set('bitcountkey', hex2bin('cd0e4c80f9e4590d888a10'));
             $this->assertEquals(5, $this->valkey_glide->bitcount('bitcountkey', 0, 9, true));
         }
     }
 
-    public function testBitop() {
+    public function testBitop()
+    {
 
-        if ( ! $this->minVersionCheck('2.6.0'))
+        if (! $this->minVersionCheck('2.6.0')) {
             $this->markTestSkipped();
-        
+        }
+
         $this->valkey_glide->set('{key}1', 'foobar');
         $this->valkey_glide->set('{key}2', 'abcdef');
 
@@ -190,7 +196,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->del('{key}1', '{key}2');
     }
 
-    public function testBitsets() {
+    public function testBitsets()
+    {
         $this->valkey_glide->del('key');
         $this->assertEquals(0, $this->valkey_glide->getBit('key', 0));
         $this->assertFalse($this->valkey_glide->getBit('key', -1));
@@ -231,11 +238,14 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(1, $this->valkey_glide->getBit('key', 0x7fffffff));
     }
 
-    public function testLcs() {
-        if ( ! $this->minVersionCheck('7.0.0'))
+    public function testLcs()
+    {
+        if (! $this->minVersionCheck('7.0.0')) {
             $this->markTestSkipped();
+        }
 
-        $key1 = '{lcs}1'; $key2 = '{lcs}2';
+        $key1 = '{lcs}1';
+        $key2 = '{lcs}2';
         $this->assertTrue($this->valkey_glide->set($key1, '12244447777777'));
         $this->assertTrue($this->valkey_glide->set($key2, '6666662244441'));
 
@@ -255,9 +265,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->del([$key1, $key2]);
     }
 
-    public function testLmpop() {
-        if (version_compare($this->version, '7.0.0') < 0)
+    public function testLmpop()
+    {
+        if (version_compare($this->version, '7.0.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $key1 = '{l}1';
         $key2 = '{l}2';
@@ -265,19 +277,21 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->del($key1, $key2);
 
         $this->assertEquals(6, $this->valkey_glide->rpush($key1, 'A', 'B', 'C', 'D', 'E', 'F'));
-   
+
         $this->assertEquals(6, $this->valkey_glide->rpush($key2, 'F', 'E', 'D', 'C', 'B', 'A'));
-        
+
         $this->assertEquals([$key1, ['A']], $this->valkey_glide->lmpop([$key1, $key2], 'LEFT'));
         $this->assertEquals([$key1, ['F']], $this->valkey_glide->lmpop([$key1, $key2], 'RIGHT'));
-        $this->assertEquals([$key1, ['B', 'C', 'D']], $this->valkey_glide->lmpop([$key1, $key2], 'LEFT',  3));
+        $this->assertEquals([$key1, ['B', 'C', 'D']], $this->valkey_glide->lmpop([$key1, $key2], 'LEFT', 3));
 
         $this->assertEquals(2, $this->valkey_glide->del($key1, $key2));
     }
 
-    public function testBLmpop() {
-        if (version_compare($this->version, '7.0.0') < 0)
+    public function testBLmpop()
+    {
+        if (version_compare($this->version, '7.0.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $key1 = '{bl}1';
         $key2 = '{bl}2';
@@ -299,15 +313,17 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertBetween($et - $st, .05, .75);
     }
 
-    function testZmpop() {
-        if (version_compare($this->version, '7.0.0') < 0)
+    function testZmpop()
+    {
+        if (version_compare($this->version, '7.0.0') < 0) {
             $this->markTestSkipped();
-        
+        }
+
         $key1 = '{z}1';
         $key2 = '{z}2';
-        
+
         $this->valkey_glide->del($key1, $key2);
-        
+
         $this->assertEquals(4, $this->valkey_glide->zadd($key1, 0, 'zero', 2, 'two', 4, 'four', 6, 'six'));
         $this->assertEquals(4, $this->valkey_glide->zadd($key2, 1, 'one', 3, 'three', 5, 'five', 7, 'seven'));
 
@@ -328,9 +344,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->setOption(ValkeyGlide::OPT_NULL_MULTIBULK_AS_NULL, false);
     }
 
-    function testBZmpop() {
-        if (version_compare($this->version, '7.0.0') < 0)
+    function testBZmpop()
+    {
+        if (version_compare($this->version, '7.0.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $key1 = '{z}1';
         $key2 = '{z}2';
@@ -355,7 +373,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertBetween($et - $st, .05, .75);
     }
 
-    public function testBitPos() {
+    public function testBitPos()
+    {
         if (version_compare($this->version, '2.8.7') < 0) {
             $this->MarkTestSkipped();
             return;
@@ -373,16 +392,18 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->set('bpkey', "\x00\x00\x00");
         $this->assertEquals(-1, $this->valkey_glide->bitpos('bpkey', 1));
 
-        if ( ! $this->minVersionCheck('7.0.0'))
+        if (! $this->minVersionCheck('7.0.0')) {
             return;
+        }
 
         $this->valkey_glide->set('bpkey', "\xF");
         $this->assertEquals(4, $this->valkey_glide->bitpos('bpkey', 1, 0, -1, true));
-                $this->assertEquals(-1,  $this->valkey_glide->bitpos('bpkey', 1, 1, -1));
-        $this->assertEquals(-1,  $this->valkey_glide->bitpos('bpkey', 1, 1, -1, false));
+                $this->assertEquals(-1, $this->valkey_glide->bitpos('bpkey', 1, 1, -1));
+        $this->assertEquals(-1, $this->valkey_glide->bitpos('bpkey', 1, 1, -1, false));
     }
 
-    public function testSetLargeKeys() {
+    public function testSetLargeKeys()
+    {
         foreach ([1000, 100000, 1000000] as $size) {
             $value = str_repeat('A', $size);
             $this->assertTrue($this->valkey_glide->set('x', $value));
@@ -390,18 +411,21 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
     }
 
-    public function testEcho() {
+    public function testEcho()
+    {
         $this->assertEquals('hello', $this->valkey_glide->echo('hello'));
         $this->assertEquals('', $this->valkey_glide->echo(''));
         $this->assertEquals(' 0123 ', $this->valkey_glide->echo(' 0123 '));
     }
 
-    public function testErr() {
+    public function testErr()
+    {
         $this->valkey_glide->set('x', '-ERR');
         $this->assertKeyEquals('-ERR', 'x');
     }
 
-    public function testSet() {
+    public function testSet()
+    {
         $this->assertTrue($this->valkey_glide->set('key', 'nil'));
         $this->assertKeyEquals('nil', 'key');
 
@@ -416,7 +440,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertKeyEquals('val', 'key2');
 
         $value1 = bin2hex(random_bytes(rand(64, 128)));
-        $value2 = random_bytes(rand(65536, 65536 * 2));;
+        $value2 = random_bytes(rand(65536, 65536 * 2));
+        ;
 
         $this->valkey_glide->set('key2', $value1);
         $this->assertKeyEquals($value1, 'key2');
@@ -432,13 +457,13 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertKeyMissing('key');
 
 
-        
+
         $data = gzcompress('42');
         $this->assertTrue($this->valkey_glide->set('key', $data));
         $this->assertEquals('42', gzuncompress($this->valkey_glide->get('key')));
 
 
-        
+
         $this->valkey_glide->del('key');
         $data = gzcompress('value1');
         $this->assertTrue($this->valkey_glide->set('key', $data));
@@ -450,36 +475,37 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         $this->assertTrue($this->valkey_glide->set('key', 0));
 
-        
+
         $this->assertKeyEquals('0', 'key');
         $this->assertTrue($this->valkey_glide->set('key', 1));
         $this->assertKeyEquals('1', 'key');
         $this->assertTrue($this->valkey_glide->set('key', 0.1));
         $this->assertKeyEquals('0.1', 'key');
 
-        
+
         $this->assertTrue($this->valkey_glide->set('key', '0.1'));
         $this->assertKeyEquals('0.1', 'key');
         $this->assertTrue($this->valkey_glide->set('key', true));
         $this->assertKeyEquals('1', 'key');
 
-        
+
         $this->assertTrue($this->valkey_glide->set('key', ''));
         $this->assertKeyEquals('', 'key');
-        $this->assertTrue($this->valkey_glide->set('key', NULL));
+        $this->assertTrue($this->valkey_glide->set('key', null));
         $this->assertKeyEquals('', 'key');
 
 
         $this->assertTrue($this->valkey_glide->set('key', gzcompress('42')));
         $this->assertEquals('42', gzuncompress($this->valkey_glide->get('key')));
-
     }
 
     /* Extended SET options for ValkeyGlide >= 2.6.12 */
-    public function testExtendedSet() {
+    public function testExtendedSet()
+    {
         // Skip the test if we don't have a new enough version of ValkeyGlide
-        if (version_compare($this->version, '2.6.12') < 0)
+        if (version_compare($this->version, '2.6.12') < 0) {
             $this->markTestSkipped();
+        }
 
         /* Legacy SETEX redirection */
         $this->valkey_glide->del('foo');
@@ -494,7 +520,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         /* Invalid third arguments */
         $this->assertFalse(@$this->valkey_glide->set('foo', 'bar', 'baz'));
-        $this->assertFalse(@$this->valkey_glide->set('foo', 'bar',new StdClass()));
+        $this->assertFalse(@$this->valkey_glide->set('foo', 'bar', new StdClass()));
 
         /* Set if not exist */
         $this->valkey_glide->del('foo');
@@ -536,17 +562,18 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         /* Pass NULL as the optional arguments which should be ignored */
         $this->valkey_glide->del('foo');
-        $this->valkey_glide->set('foo', 'bar', NULL);
+        $this->valkey_glide->set('foo', 'bar', null);
         $this->assertKeyEquals('bar', 'foo');
         $this->assertLT(0, $this->valkey_glide->ttl('foo'));
 
         /* Make sure we ignore bad/non-string options (regression test for #1835) */
-        $this->assertTrue($this->valkey_glide->set('foo', 'bar', [NULL, 'EX' => 60]));
-        $this->assertTrue($this->valkey_glide->set('foo', 'bar', [NULL, new stdClass(), 'EX' => 60]));
-        $this->assertFalse(@$this->valkey_glide->set('foo', 'bar', [NULL, 'EX' => []]));
-        
-        if (version_compare($this->version, '6.0.0') < 0)
+        $this->assertTrue($this->valkey_glide->set('foo', 'bar', [null, 'EX' => 60]));
+        $this->assertTrue($this->valkey_glide->set('foo', 'bar', [null, new stdClass(), 'EX' => 60]));
+        $this->assertFalse(@$this->valkey_glide->set('foo', 'bar', [null, 'EX' => []]));
+
+        if (version_compare($this->version, '6.0.0') < 0) {
             return;
+        }
 
         /* KEEPTTL works by itself */
         $this->valkey_glide->set('foo', 'bar', ['EX' => 100]);
@@ -559,16 +586,19 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->set('foo', 'bar', ['XX']);
         $this->assertEquals(-1, $this->valkey_glide->ttl('foo'));
 
-        if (version_compare($this->version, '6.2.0') < 0)
+        if (version_compare($this->version, '6.2.0') < 0) {
             return;
+        }
 
         $this->assertEquals('bar', $this->valkey_glide->set('foo', 'baz', ['GET']));
     }
 
     /* Test Valkey >= 8.1 IFEQ SET option */
-    public function testValkeyIfEq() {
-        if ( ! $this->is_valkey || ! $this->minVersionCheck('8.1.0'))
+    public function testValkeyIfEq()
+    {
+        if (! $this->is_valkey || ! $this->minVersionCheck('8.1.0')) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('foo');
         $this->assertTrue($this->valkey_glide->set('foo', 'bar'));
@@ -578,28 +608,32 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals('bar2', $this->valkey_glide->set('foo', 'bar3', ['IFEQ' => 'bar2', 'GET']));
     }
 
-    public function testGetSet() {
+    public function testGetSet()
+    {
         $this->valkey_glide->del('key');
         $this->assertFalse($this->valkey_glide->getSet('key', '42'));
         $this->assertEquals('42', $this->valkey_glide->getSet('key', '123'));
         $this->assertEquals('123', $this->valkey_glide->getSet('key', '123'));
     }
 
-    public function testGetDel() {
+    public function testGetDel()
+    {
         $this->valkey_glide->del('key');
         $this->assertTrue($this->valkey_glide->set('key', 'iexist'));
         $this->assertEquals('iexist', $this->valkey_glide->getDel('key'));
         $this->assertEquals(0, $this->valkey_glide->exists('key'));
     }
 
-    public function testRandomKey() {
+    public function testRandomKey()
+    {
         for ($i = 0; $i < 1000; $i++) {
             $k = $this->valkey_glide->randomKey();
             $this->assertKeyExists($k);
         }
     }
 
-    public function testRename() {
+    public function testRename()
+    {
         // strings
         $this->valkey_glide->del('{key}0');
         $this->valkey_glide->set('{key}0', 'val0');
@@ -608,7 +642,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertKeyEquals('val0', '{key}1');
     }
 
-    public function testRenameNx() {
+    public function testRenameNx()
+    {
         // strings
         $this->valkey_glide->del('{key}0', '{key}1');
         $this->valkey_glide->set('{key}0', 'val0');
@@ -626,7 +661,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->lPush('{key}1', 'val1-1');
         $this->assertFalse($this->valkey_glide->renameNx('{key}0', '{key}1'));
         $this->assertEquals(['val1', 'val0'], $this->valkey_glide->lRange('{key}0', 0, -1));
-      
+
         $this->assertEquals(['val1-1', 'val1-0'], $this->valkey_glide->lRange('{key}1', 0, -1));
 
         $this->valkey_glide->del('{key}2');
@@ -635,7 +670,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(['val1', 'val0'], $this->valkey_glide->lRange('{key}2', 0, -1));
     }
 
-    public function testMultiple1() {
+    public function testMultiple1()
+    {
         $kvals = [
             'mget1' => 'v1',
             'mget2' => 'v2',
@@ -658,7 +694,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(['test'], $this->valkey_glide->mget([1])); // non-string
     }
 
-    public function testMultipleBin() {
+    public function testMultipleBin()
+    {
         $kvals = [
             'binkey-1' => random_bytes(16),
             'binkey-2' => random_bytes(16),
@@ -669,13 +706,16 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
             $this->valkey_glide->set($k, $v);
         }
 
-        $this->assertEquals(array_values($kvals),
-                            $this->valkey_glide->mget(array_keys($kvals)));
+        $this->assertEquals(
+            array_values($kvals),
+            $this->valkey_glide->mget(array_keys($kvals))
+        );
     }
 
-    
 
-    public function testExpire() {
+
+    public function testExpire()
+    {
         $this->valkey_glide->del('key');
         $this->valkey_glide->set('key', 'value');
 
@@ -688,7 +728,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
     /* This test is prone to failure in the Travis container, so attempt to
        mitigate this by running more than once */
-    public function testExpireAt() {
+    public function testExpireAt()
+    {
         $success = false;
 
         for ($i = 0; !$success && $i < 3; $i++) {
@@ -697,28 +738,30 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
             $this->valkey_glide->expireAt('key', time() + 1);
             usleep(1500000);
 
-            $success = FALSE === $this->valkey_glide->get('key');
+            $success = false === $this->valkey_glide->get('key');
         }
 
         $this->assertTrue($success);
     }
 
-    function testExpireOptions() {
-        if ( ! $this->minVersionCheck('7.0.0'))
+    function testExpireOptions()
+    {
+        if (! $this->minVersionCheck('7.0.0')) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->set('eopts', 'value');
 
         /* NX -- Only if expiry isn't set so success, then failure */
         $this->assertTrue($this->valkey_glide->expire('eopts', 1000, 'NX'));
-        
+
         $this->assertFalse($this->valkey_glide->expire('eopts', 1000, 'NX'));
-        
+
         /* XX -- Only set if the key has an existing expiry */
         $this->assertTrue($this->valkey_glide->expire('eopts', 1000, 'XX'));
-      
+
         $this->assertTrue($this->valkey_glide->persist('eopts'));
-    
+
         $this->assertFalse($this->valkey_glide->expire('eopts', 1000, 'XX'));
 
         /* GT -- Only set when new expiry > current expiry */
@@ -737,9 +780,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->del('eopts');
     }
 
-    public function testExpiretime() {
-        if (version_compare($this->version, '7.0.0') < 0)
+    public function testExpiretime()
+    {
+        if (version_compare($this->version, '7.0.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $now = time();
 
@@ -755,7 +800,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertBetween($this->valkey_glide->expiretime('key2'), $now + 14, $now + 16);
         $this->assertBetween($this->valkey_glide->pexpiretime('key2'), ($now + 14) * 1000, ($now + 16) * 1000);
 
-        // Test pexpireat (new)  
+        // Test pexpireat (new)
         $future_ms = ($now + 20) * 1000;
         $this->assertTrue($this->valkey_glide->set('key3', 'value'));
         $this->assertTrue($this->valkey_glide->pexpireat('key3', $future_ms));
@@ -765,14 +810,16 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->del('key1', 'key2', 'key3');
     }
 
-    public function testGetEx() {
-        if (version_compare($this->version, '6.2.0') < 0)
+    public function testGetEx()
+    {
+        if (version_compare($this->version, '6.2.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $this->assertTrue($this->valkey_glide->set('key', 'value'));
 
         $this->assertEquals('value', $this->valkey_glide->getEx('key', ['EX' => 100]));
-        
+
         $this->assertBetween($this->valkey_glide->ttl('key'), 95, 100);
 
         $this->assertEquals('value', $this->valkey_glide->getEx('key', ['PX' => 100000]));
@@ -781,7 +828,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals('value', $this->valkey_glide->getEx('key', ['EXAT' => time() + 200]));
         $this->assertBetween($this->valkey_glide->ttl('key'), 195, 200);
 
-        $this->assertEquals('value', $this->valkey_glide->getEx('key', ['PXAT' => (time()*1000) + 25000]));
+        $this->assertEquals('value', $this->valkey_glide->getEx('key', ['PXAT' => (time() * 1000) + 25000]));
         $this->assertBetween($this->valkey_glide->pttl('key'), 24000, 25000);
 
         $this->assertEquals('value', $this->valkey_glide->getEx('key', ['PERSIST' => true]));
@@ -794,21 +841,24 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(-1, $this->valkey_glide->ttl('key'));
     }
 
-    public function testSetEx() {
+    public function testSetEx()
+    {
         $this->valkey_glide->del('key');
         $this->assertTrue($this->valkey_glide->setex('key', 7, 'val'));
         $this->assertEquals(7, $this->valkey_glide->ttl('key'));
         $this->assertKeyEquals('val', 'key');
     }
 
-    public function testPSetEx() {
+    public function testPSetEx()
+    {
         $this->valkey_glide->del('key');
         $this->assertTrue($this->valkey_glide->psetex('key', 7 * 1000, 'val'));
         $this->assertEquals(7, $this->valkey_glide->ttl('key'));
         $this->assertKeyEquals('val', 'key');
     }
 
-    public function testSetNX() {
+    public function testSetNX()
+    {
 
         $this->valkey_glide->set('key', 42);
         $this->assertFalse($this->valkey_glide->setnx('key', 'err'));
@@ -819,9 +869,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertKeyEquals('42', 'key');
     }
 
-    public function testExpireAtWithLong() {
-        if (PHP_INT_SIZE != 8)
+    public function testExpireAtWithLong()
+    {
+        if (PHP_INT_SIZE != 8) {
             $this->markTestSkipped('64 bits only');
+        }
 
         $large_expiry = 3153600000;
         $this->valkey_glide->del('key');
@@ -829,7 +881,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals($large_expiry, $this->valkey_glide->ttl('key'));
     }
 
-    public function testIncr() {
+    public function testIncr()
+    {
         $this->valkey_glide->set('key', 0);
 
         $this->valkey_glide->incr('key');
@@ -864,10 +917,12 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(PHP_INT_MAX, $this->valkey_glide->incrby('key', PHP_INT_MAX));
     }
 
-    public function testIncrByFloat() {
+    public function testIncrByFloat()
+    {
         // incrbyfloat is new in 2.6.0
-        if (version_compare($this->version, '2.5.0') < 0)
+        if (version_compare($this->version, '2.5.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('key');
 
@@ -894,14 +949,15 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
        // $this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, 'someprefix:');
         // TODO ADD this option to the test
         $this->valkey_glide->del('someprefix:key');
-        $this->valkey_glide->incrbyfloat('someprefix:key',1.8);
+        $this->valkey_glide->incrbyfloat('someprefix:key', 1.8);
         $this->assertKeyEqualsWeak(1.8, 'someprefix:key');
         //$this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, '');
         $this->assertKeyExists('someprefix:key');
         $this->valkey_glide->del('someprefix:key');
     }
 
-    public function testDecr() {
+    public function testDecr()
+    {
         $this->valkey_glide->set('key', 5);
 
         $this->valkey_glide->decr('key');
@@ -925,7 +981,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
     }
 
 
-    public function testExists() {
+    public function testExists()
+    {
         /* Single key */
         $this->valkey_glide->del('key');
         $this->assertKeyMissing('key');
@@ -945,13 +1002,16 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         /* Test passing an array as well as the keys variadic */
         $this->assertEquals(count($mkeys), $this->valkey_glide->exists($mkeys));
-        if (count($mkeys))
+        if (count($mkeys)) {
             $this->assertEquals(count($mkeys), $this->valkey_glide->exists(...$mkeys));
+        }
     }
 
-    public function testTouch() {
-        if ( ! $this->minVersionCheck('3.2.1'))
+    public function testTouch()
+    {
+        if (! $this->minVersionCheck('3.2.1')) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('notakey');
 
@@ -961,7 +1021,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertGT(0, $this->valkey_glide->object('idletime', '{idle}2'));
 
         $this->assertEquals(2, $this->valkey_glide->touch('{idle}1', '{idle}2', '{idle}notakey'));
-        
+
         $idle1 = $this->valkey_glide->object('idletime', '{idle}1');
         $idle2 = $this->valkey_glide->object('idletime', '{idle}2');
 
@@ -971,9 +1031,10 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertLT(2, $idle2);
     }
 
-    
 
-    protected function genericDelUnlink($cmd) {
+
+    protected function genericDelUnlink($cmd)
+    {
         $key = uniqid('key:');
         $this->valkey_glide->set($key, 'val');
         $this->assertKeyEquals('val', $key);
@@ -985,7 +1046,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->set('y', 1);
         $this->valkey_glide->set('z', 2);
         $this->assertEquals(3, $this->valkey_glide->$cmd('x', 'y', 'z'));
-        
+
         $this->assertFalse($this->valkey_glide->get('x'));
         $this->assertFalse($this->valkey_glide->get('y'));
         $this->assertFalse($this->valkey_glide->get('z'));
@@ -1006,22 +1067,26 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(2, $this->valkey_glide->$cmd(['x', 'y']));
     }
 
-    public function testDelete() {
+    public function testDelete()
+    {
         $this->genericDelUnlink('DEL');
     }
 
-    public function testUnlink() {
-        if (version_compare($this->version, '4.0.0') < 0)
+    public function testUnlink()
+    {
+        if (version_compare($this->version, '4.0.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $this->genericDelUnlink('UNLINK');
     }
 
-    public function testType() {
+    public function testType()
+    {
         // string
         $this->valkey_glide->set('key', 'val');
         $this->assertEquals(ValkeyGlide::VALKEY_GLIDE_STRING, $this->valkey_glide->type('key'));
-        
+
         // list
         $this->valkey_glide->lPush('keyList', 'val0');
         $this->valkey_glide->lPush('keyList', 'val1');
@@ -1032,7 +1097,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->sAdd('keySet', 'val0');
         $this->valkey_glide->sAdd('keySet', 'val1');
         $this->assertEquals(ValkeyGlide::VALKEY_GLIDE_SET, $this->valkey_glide->type('keySet'));
-       
+
         // zset
         $this->valkey_glide->del('keyZSet');
         $this->valkey_glide->zAdd('keyZSet', 0, 'val0');
@@ -1049,17 +1114,17 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         if ($this->minVersionCheck('5.0')) {
             $this->valkey_glide->del('stream');
             $this->valkey_glide->xAdd('stream', '*', ['foo' => 'bar']);
-           
+
             $this->assertEquals(ValkeyGlide::VALKEY_GLIDE_STREAM, $this->valkey_glide->type('stream'));
         }
 
         // None
         $this->valkey_glide->del('keyNotExists');
         $this->assertEquals(ValkeyGlide::VALKEY_GLIDE_NOT_FOUND, $this->valkey_glide->type('keyNotExists'));
-
     }
 
-    public function testStr() {
+    public function testStr()
+    {
         $this->valkey_glide->set('key', 'val1');
         $this->assertEquals(8, $this->valkey_glide->append('key', 'val2'));
         $this->assertKeyEquals('val1val2', 'key');
@@ -1085,7 +1150,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(3, $this->valkey_glide->strlen('key'));
     }
 
-    public function testlPop() {
+    public function testlPop()
+    {
         $this->valkey_glide->del('list');
 
         $this->valkey_glide->lPush('list', 'val');
@@ -1112,7 +1178,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals('val1', gzuncompress($this->valkey_glide->lPop('list')));
     }
 
-    public function testrPop() {
+    public function testrPop()
+    {
         $this->valkey_glide->del('list');
 
         $this->valkey_glide->rPush('list', 'val');
@@ -1139,9 +1206,10 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals('val1', gzuncompress($this->valkey_glide->rPop('list')));
     }
 
-    
 
-    public function testblockingPop() {
+
+    public function testblockingPop()
+    {
         /* Test with a double timeout in ValkeyGlide >= 6.0.0 */
         if (version_compare($this->version, '6.0.0') >= 0) {
             $this->valkey_glide->del('list');
@@ -1165,7 +1233,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->del('list');
         return; //TODO: fix this test
         /* Also test our option that we want *-1 to be returned as NULL */
-        foreach ([false => [], true => NULL] as $opt => $val) {
+        foreach ([false => [], true => null] as $opt => $val) {
             $this->valkey_glide->setOption(ValkeyGlide::OPT_NULL_MULTIBULK_AS_NULL, $opt);
             $this->assertEquals($val, $this->valkey_glide->blPop(['list'], 1));
             $this->assertEquals($val, $this->valkey_glide->brPop(['list'], 1));
@@ -1174,7 +1242,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->setOption(ValkeyGlide::OPT_NULL_MULTIBULK_AS_NULL, false);
     }
 
-    public function testLLen() {
+    public function testLLen()
+    {
         $this->valkey_glide->del('list');
 
         $this->valkey_glide->lPush('list', 'val');
@@ -1199,7 +1268,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->llen('list'));// not a list returns FALSE
     }
 
-    public function testlPopx() {
+    public function testlPopx()
+    {
         $this->valkey_glide->del('keyNotExists');
         $this->assertEquals(0, $this->valkey_glide->lPushx('keyNotExists', 'value'));
         $this->assertEquals(0, $this->valkey_glide->rPushx('keyNotExists', 'value'));
@@ -1221,7 +1291,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(['val2', 'val0', 'val1'], $this->valkey_glide->lrange('key', 0, -1));
     }
 
-    public function testlPos() {
+    public function testlPos()
+    {
         $this->valkey_glide->del('key');
         $this->valkey_glide->lPush('key', 'val0', 'val1', 'val1');
         $this->assertEquals(2, $this->valkey_glide->lPos('key', 'val0'));
@@ -1232,7 +1303,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals([], $this->valkey_glide->lPos('key', 'val2', ['count' => 1]));
 
         return; //TODO: fix this test
-        foreach ([[true, NULL], [false, false]] as $optpack) {
+        foreach ([[true, null], [false, false]] as $optpack) {
             list ($setting, $expected) = $optpack;
             $this->valkey_glide->setOption(ValkeyGlide::OPT_NULL_MULTIBULK_AS_NULL, $setting);
             $this->assertEquals($expected, $this->valkey_glide->lPos('key', 'val2'));
@@ -1240,7 +1311,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
     }
 
     // ltrim, lLen, lpop
-    public function testltrim() {
+    public function testltrim()
+    {
         $this->valkey_glide->del('list');
 
         $this->valkey_glide->lPush('list', 'val');
@@ -1263,7 +1335,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->ltrim('list', 0, 2));
     }
 
-    public function setupSort() {
+    public function setupSort()
+    {
         // people with name, age, salary
         $this->valkey_glide->set('person:name_1', 'Alice');
         $this->valkey_glide->set('person:age_1', 27);
@@ -1283,35 +1356,37 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         // set-up
         $this->valkey_glide->del('person:id');
-        foreach ([1, 2, 3, 4] as $id) {            
+        foreach ([1, 2, 3, 4] as $id) {
             $this->valkey_glide->lPush('person:id', $id);
         }
     }
 
-    public function testSortPrefix() {
-        
+    public function testSortPrefix()
+    {
+
         // Make sure that sorting works with a prefix
         $this->valkey_glide->del('some-item');
         $this->valkey_glide->sadd('some-item', 1);
         $this->valkey_glide->sadd('some-item', 2);
         $this->valkey_glide->sadd('some-item', 3);
 
-        $this->assertEquals(['1', '2', '3'], $this->valkey_glide->sort('some-item', ['sort' => 'asc']));        
-        $this->assertEquals(['3', '2', '1'], $this->valkey_glide->sort('some-item', ['sort' => 'desc']));        
+        $this->assertEquals(['1', '2', '3'], $this->valkey_glide->sort('some-item', ['sort' => 'asc']));
+        $this->assertEquals(['3', '2', '1'], $this->valkey_glide->sort('some-item', ['sort' => 'desc']));
         $this->assertEquals(['1', '2', '3'], $this->valkey_glide->sort('some-item'));
 
         // Kill our set/prefix
         $this->valkey_glide->del('some-item');
     }
 
-    public function testSortAsc() {
+    public function testSortAsc()
+    {
         $this->setupSort();
         // sort by age and get IDs
         $byAgeAsc = ['3', '1', '2', '4'];
         $this->assertEquals($byAgeAsc, $this->valkey_glide->sort('person:id', ['by' => 'person:age_*']));
         $this->assertEquals($byAgeAsc, $this->valkey_glide->sort('person:id', ['by' => 'person:age_*', 'sort' => 'asc']));
-        $this->assertEquals(['1', '2', '3', '4'], $this->valkey_glide->sort('person:id', ['by' => NULL]));   // check that NULL works.
-        $this->assertEquals(['1', '2', '3', '4'], $this->valkey_glide->sort('person:id', ['by' => NULL, 'get' => NULL])); // for all fields.
+        $this->assertEquals(['1', '2', '3', '4'], $this->valkey_glide->sort('person:id', ['by' => null]));   // check that NULL works.
+        $this->assertEquals(['1', '2', '3', '4'], $this->valkey_glide->sort('person:id', ['by' => null, 'get' => null])); // for all fields.
         $this->assertEquals(['1', '2', '3', '4'], $this->valkey_glide->sort('person:id', ['sort' => 'asc']));
 
         // sort by age and get names
@@ -1359,13 +1434,14 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals($list, $this->valkey_glide->sort('list', ['sort' => 'asc', 'alpha' => true]));
     }
 
-    public function testSortDesc() {
+    public function testSortDesc()
+    {
         $this->setupSort();
 
         // sort by age and get IDs
         $byAgeDesc = ['4', '2', '1', '3'];
         $this->assertEquals($byAgeDesc, $this->valkey_glide->sort('person:id', ['by' => 'person:age_*', 'sort' => 'desc']));
-        
+
         // sort by age and get names
         $byAgeDesc = ['Dave', 'Bob', 'Alice', 'Carol'];
         $this->assertEquals($byAgeDesc, $this->valkey_glide->sort('person:id', ['by' => 'person:age_*', 'get' => 'person:name_*', 'sort' => 'desc']));
@@ -1389,20 +1465,24 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
     }
 
     /* This test is just to make sure SORT and SORT_RO are both callable */
-    public function testSortHandler() {        
+    public function testSortHandler()
+    {
         $this->valkey_glide->del('list');
 
         $this->valkey_glide->rpush('list', 'c', 'b', 'a');
 
         $methods = ['sort'];
-        if ($this->minVersionCheck('7.0.0')) $methods[] = 'sort_ro';
+        if ($this->minVersionCheck('7.0.0')) {
+            $methods[] = 'sort_ro';
+        }
 
         foreach ($methods as $method) {
             $this->assertEquals(['a', 'b', 'c'], $this->valkey_glide->$method('list', ['sort' => 'asc', 'alpha' => true]));
         }
     }
 
-    public function testLindex() {                
+    public function testLindex()
+    {
 
         $this->valkey_glide->del('list');
         $this->valkey_glide->lPush('list', 'val');
@@ -1424,9 +1504,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals('val4', $this->valkey_glide->lIndex('list', -1));
     }
 
-    public function testlMove() {
-        if (version_compare($this->version, '6.2.0') < 0)
+    public function testlMove()
+    {
+        if (version_compare($this->version, '6.2.0') < 0) {
             $this->markTestSkipped();
+        }
 
         [$list1, $list2] = ['{l}0', '{l}1'];
         $left  = $this->getLeftConstant();
@@ -1445,40 +1527,41 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         $this->assertEquals(['b'], $this->valkey_glide->lRange($list1, 0, -1));
         $this->assertEquals(['a', 'c'], $this->valkey_glide->lRange($list2, 0, -1));
-
     }
 
-    public function testMove() {
+    public function testMove()
+    {
         // Version check if needed (move has been available since early Redis versions)
-        
+
         $key1 = 'move_test_key1';
         $key2 = 'move_test_key2';
         $value1 = 'test_value1';
         $value2 = 'test_value2';
-        
+
         // Ensure we're in database 0
         $this->valkey_glide->select(0);
-        
+
         // Clean up any existing keys
         $this->valkey_glide->del($key1, $key2);
         $this->valkey_glide->select(1);
         $this->valkey_glide->del($key1, $key2);
         $this->valkey_glide->select(0);
-        
+
         // Test successful move
         $this->valkey_glide->set($key1, $value1);
         $this->assertTrue($this->valkey_glide->move($key1, 1));
-        
+
         // Verify key moved
         $this->assertEquals(0, $this->valkey_glide->exists($key1)); // Gone from db 0
         $this->valkey_glide->select(1);
         $this->assertKeyEquals($value1, $key1); // Present in db 1
-
     }
 
-    public function testBlmove() {
-        if (version_compare($this->version, '6.2.0') < 0)
+    public function testBlmove()
+    {
+        if (version_compare($this->version, '6.2.0') < 0) {
             $this->markTestSkipped();
+        }
 
         [$list1, $list2] = ['{l}0', '{l}1'];
         $left = $this->getLeftConstant();
@@ -1498,7 +1581,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
     }
 
     // lRem testing
-    public function testLRem() {
+    public function testLRem()
+    {
         $this->valkey_glide->del('list');
         $this->valkey_glide->lPush('list', 'a');
         $this->valkey_glide->lPush('list', 'b');
@@ -1544,7 +1628,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->lrem('list', 'x'));
     }
 
-    public function testSAdd() {
+    public function testSAdd()
+    {
         $this->valkey_glide->del('set');
 
         $this->assertEquals(1, $this->valkey_glide->sAdd('set', 'val'));
@@ -1558,7 +1643,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertTrue($this->valkey_glide->sismember('set', 'val2'));
     }
 
-    public function testSCard() {
+    public function testSCard()
+    {
         $this->valkey_glide->del('set');
         $this->assertEquals(1, $this->valkey_glide->sAdd('set', 'val'));
         $this->assertEquals(1, $this->valkey_glide->scard('set'));
@@ -1566,7 +1652,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(2, $this->valkey_glide->scard('set'));
     }
 
-    public function testSRem() {
+    public function testSRem()
+    {
         $this->valkey_glide->del('set');
         $this->valkey_glide->sAdd('set', 'val');
         $this->valkey_glide->sAdd('set', 'val2');
@@ -1576,7 +1663,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(0, $this->valkey_glide->scard('set'));
     }
 
-    public function testsMove() {
+    public function testsMove()
+    {
         $this->valkey_glide->del('{set}0');
         $this->valkey_glide->del('{set}1');
 
@@ -1590,11 +1678,12 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(1, $this->valkey_glide->scard('{set}0'));
         $this->assertEquals(1, $this->valkey_glide->scard('{set}1'));
 
-        $this->assertEquals(['val2'], $this->valkey_glide->smembers('{set}0'));      
+        $this->assertEquals(['val2'], $this->valkey_glide->smembers('{set}0'));
         $this->assertEquals(['val'], $this->valkey_glide->smembers('{set}1'));
     }
 
-    public function testsPop() {
+    public function testsPop()
+    {
         $this->valkey_glide->del('set0');
         $this->assertFalse($this->valkey_glide->sPop('set0'));
 
@@ -1611,9 +1700,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->sPop('set0'));
     }
 
-    public function testsPopWithCount() {
-        if ( ! $this->minVersionCheck('3.2'))
+    public function testsPopWithCount()
+    {
+        if (! $this->minVersionCheck('3.2')) {
             $this->markTestSkipped();
+        }
 
         $set = 'set0';
         $prefix = 'member';
@@ -1622,7 +1713,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         /* Add a few members */
         $this->valkey_glide->del($set);
         for ($i = 0; $i < $count; $i++) {
-            $this->valkey_glide->sadd($set, $prefix.$i);
+            $this->valkey_glide->sadd($set, $prefix . $i);
         }
 
         /* Pop them all */
@@ -1632,12 +1723,13 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         if ($this->assertIsArray($ret, $count)) {
             /* Probably overkill but validate the actual returned members */
             for ($i = 0; $i < $count; $i++) {
-                $this->assertInArray($prefix.$i, $ret);
+                $this->assertInArray($prefix . $i, $ret);
             }
         }
     }
 
-    public function testsRandMember() {
+    public function testsRandMember()
+    {
         $this->valkey_glide->del('set0');
         $this->assertFalse($this->valkey_glide->sRandMember('set0'));
 
@@ -1661,7 +1753,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         //
 
         $this->valkey_glide->del('set0');
-        
+
         for ($i = 0; $i < 5; $i++) {
             $member = "member:$i";
             $this->valkey_glide->sAdd('set0', $member);
@@ -1678,16 +1770,15 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         /* Ensure we can handle basically any return type */
         // TODO support new stdClass(),
-        foreach ([3.1415, 42, 'hello', NULL] as $val) {
+        foreach ([3.1415, 42, 'hello', null] as $val) {
             $this->assertEquals(1, $this->valkey_glide->del('set0'));
             $this->assertEquals(1, $this->valkey_glide->sadd('set0', $val));
             //$this->assertSameType($val, $this->valkey_glide->srandmember('set0'));  TODO
         }
-
-        
     }
 
-    public function testSRandMemberWithCount() {
+    public function testSRandMemberWithCount()
+    {
         // Make sure the set is nuked
         $this->valkey_glide->del('set0');
 
@@ -1744,7 +1835,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
     }
 
-    public function testSIsMember() {
+    public function testSIsMember()
+    {
         $this->valkey_glide->del('set');
 
         $this->valkey_glide->sAdd('set', 'val');
@@ -1753,7 +1845,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->sismember('set', 'val2'));
     }
 
-    public function testSMembers() {
+    public function testSMembers()
+    {
         $this->valkey_glide->del('set');
 
         $data = ['val', 'val2', 'val3'];
@@ -1764,9 +1857,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEqualsCanonicalizing($data, $this->valkey_glide->smembers('set'));
     }
 
-    public function testsMisMember() {
-        if (version_compare($this->version, '6.2.0') < 0)
+    public function testsMisMember()
+    {
+        if (version_compare($this->version, '6.2.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('set');
 
@@ -1781,7 +1876,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals([false, false, false], $misMembers);
     }
 
-    public function testlSet() {
+    public function testlSet()
+    {
         $this->valkey_glide->del('list');
         $this->valkey_glide->lPush('list', 'val');
         $this->valkey_glide->lPush('list', 'val2');
@@ -1798,7 +1894,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals('val', $this->valkey_glide->lIndex('list', 2));
     }
 
-    public function testsInter() {
+    public function testsInter()
+    {
         $this->valkey_glide->del('{set}odd');    // set of odd numbers
         $this->valkey_glide->del('{set}prime');  // set of prime numbers
         $this->valkey_glide->del('{set}square'); // set of squares
@@ -1844,7 +1941,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         $yz = $this->valkey_glide->sInter(['{set}prime', '{set}square']);    // set of odd squares, as array
         foreach ($yz as $i) {
-        $i = (int)$i;
+            $i = (int)$i;
             $this->assertInArray($i, array_intersect($y, $z));
         }
 
@@ -1863,7 +1960,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($nil);
     }
 
-    public function testsInterStore() {
+    public function testsInterStore()
+    {
         $this->valkey_glide->del('{set}x', '{set}y', '{set}z', '{set}t');
 
         $x = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25];
@@ -1888,7 +1986,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         /* Regression test for passing a single array */
         $this->assertEquals(
-            count(array_intersect($x,$y)),
+            count(array_intersect($x, $y)),
             $this->valkey_glide->sInterStore(['{set}k', '{set}x', '{set}y'])
         );
 
@@ -1921,7 +2019,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(0, $xyz);
     }
 
-    public function testsUnion() {
+    public function testsUnion()
+    {
         $this->valkey_glide->del('{set}x');  // set of odd numbers
         $this->valkey_glide->del('{set}y');  // set of prime numbers
         $this->valkey_glide->del('{set}z');  // set of squares
@@ -1954,13 +2053,13 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         $yz = $this->valkey_glide->sUnion('{set}y', '{set}z');   // y U Z
         foreach ($yz as $i) {
-        $i = (int)$i;
+            $i = (int)$i;
             $this->assertInArray($i, array_merge($y, $z));
         }
 
         $zt = $this->valkey_glide->sUnion('{set}z', '{set}t');   // z U t
         foreach ($zt as $i) {
-        $i = (int)$i;
+            $i = (int)$i;
             $this->assertInArray($i, array_merge($z, $t));
         }
 
@@ -1970,7 +2069,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
     }
 
-    public function testsUnionStore() {
+    public function testsUnionStore()
+    {
         $this->valkey_glide->del('{set}x', '{set}y', '{set}z', '{set}t');
 
         $x = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25];
@@ -1997,7 +2097,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $xy = array_unique(array_merge($x, $y));
         $this->assertEquals($count, count($xy));
         foreach ($xy as $i) {
-        $i = (int)$i;
+            $i = (int)$i;
             $this->assertTrue($this->valkey_glide->sismember('{set}k', $i));
         }
 
@@ -2035,7 +2135,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(0, $count);
     }
 
-    public function testsDiff() {
+    public function testsDiff()
+    {
         $this->valkey_glide->del('{set}x');  // set of odd numbers
         $this->valkey_glide->del('{set}y');  // set of prime numbers
         $this->valkey_glide->del('{set}z');  // set of squares
@@ -2063,30 +2164,31 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         $xy = $this->valkey_glide->sDiff('{set}x', '{set}y');    // x U y
         foreach ($xy as $i) {
-        $i = (int)$i;
+            $i = (int)$i;
             $this->assertInArray($i, array_diff($x, $y));
         }
 
         $yz = $this->valkey_glide->sDiff('{set}y', '{set}z');    // y U Z
         foreach ($yz as $i) {
-        $i = (int)$i;
+            $i = (int)$i;
             $this->assertInArray($i, array_diff($y, $z));
         }
 
         $zt = $this->valkey_glide->sDiff('{set}z', '{set}t');    // z U t
         foreach ($zt as $i) {
-        $i = (int)$i;
+            $i = (int)$i;
             $this->assertInArray($i, array_diff($z, $t));
         }
 
         $xyz = $this->valkey_glide->sDiff('{set}x', '{set}y', '{set}z'); // x U y U z
         foreach ($xyz as $i) {
-        $i = (int)$i;
+            $i = (int)$i;
             $this->assertInArray($i, array_diff($x, $y, $z));
         }
     }
 
-    public function testsDiffStore() {
+    public function testsDiffStore()
+    {
         $this->valkey_glide->del('{set}x', '{set}y', '{set}z', '{set}t');
 
         $x = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25];
@@ -2150,9 +2252,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(0, $count);
     }
 
-    public function testInterCard() {
-        if (version_compare($this->version, '7.0.0') < 0)
+    public function testInterCard()
+    {
+        if (version_compare($this->version, '7.0.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $set_data = [
             ['aardvark', 'dog', 'fish', 'squirrel', 'tiger'],
@@ -2185,13 +2289,13 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         $this->assertEquals(1, $this->valkey_glide->sintercard($ssets, 1));
         $this->assertEquals(2, $this->valkey_glide->sintercard($ssets, 2));
-       
+
 
         $this->assertEquals(1, $this->valkey_glide->zintercard($zsets, 1));
         $this->assertEquals(2, $this->valkey_glide->zintercard($zsets, 2));
 
         $this->assertFalse(@$this->valkey_glide->sintercard($ssets, -1));
-   
+
         $this->assertFalse(@$this->valkey_glide->zintercard($ssets, -1));
 
         $this->assertFalse(@$this->valkey_glide->sintercard([]));
@@ -2200,7 +2304,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->del(array_merge($ssets, $zsets));
     }
 
-    public function testLRange() {
+    public function testLRange()
+    {
         $this->valkey_glide->del('list');
         $this->valkey_glide->lPush('list', 'val');
         $this->valkey_glide->lPush('list', 'val2');
@@ -2219,26 +2324,29 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals([], $this->valkey_glide->lrange('list', 0, -1));
     }
 
-    public function testdbSize() {
+    public function testdbSize()
+    {
         $this->assertTrue($this->valkey_glide->flushDB());
         $this->valkey_glide->set('x', 'y');
         $this->assertEquals(1, $this->valkey_glide->dbSize());
     }
 
-    public function testFlushDB() {
+    public function testFlushDB()
+    {
         $this->assertTrue($this->valkey_glide->flushdb());
-        $this->assertTrue($this->valkey_glide->flushdb(NULL));
+        $this->assertTrue($this->valkey_glide->flushdb(null));
         $this->assertTrue($this->valkey_glide->flushdb(false));
         $this->assertTrue($this->valkey_glide->flushdb(true));
     }
 
-    public function testFlushAll() {
+    public function testFlushAll()
+    {
         $this->valkey_glide->set('x', 'y');
         $this->assertTrue($this->valkey_glide->flushAll());
         $this->assertEquals(0, $this->valkey_glide->dbSize());
 
         $this->valkey_glide->set('x', 'y');
-        $this->assertTrue($this->valkey_glide->flushAll(NULL));
+        $this->assertTrue($this->valkey_glide->flushAll(null));
         $this->assertEquals(0, $this->valkey_glide->dbSize());
 
         $this->valkey_glide->set('x', 'y');
@@ -2250,14 +2358,16 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(0, $this->valkey_glide->dbSize());
     }
 
-    public function testTTL() {
+    public function testTTL()
+    {
         $this->valkey_glide->set('x', 'y');
         $this->valkey_glide->expire('x', 5);
         $ttl = $this->valkey_glide->ttl('x');
         $this->assertBetween($ttl, 1, 5);
 
         // A key with no TTL
-        $this->valkey_glide->del('x'); $this->valkey_glide->set('x', 'bar');
+        $this->valkey_glide->del('x');
+        $this->valkey_glide->set('x', 'bar');
         $this->assertEquals(-1, $this->valkey_glide->ttl('x'));
 
         // A key that doesn't exist (> 2.8 will return -2)
@@ -2267,7 +2377,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
     }
 
-    public function testPersist() {
+    public function testPersist()
+    {
         $this->valkey_glide->set('x', 'y');
         $this->valkey_glide->expire('x', 100);
         $this->assertTrue($this->valkey_glide->persist('x'));     // true if there is a timeout
@@ -2277,14 +2388,16 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->persist('x'));    // false if the key doesn’t exist.
     }
 
-    
 
-    
 
-    public function testWait() {
+
+
+    public function testWait()
+    {
         // Closest we can check based on redis commit history
-        if (version_compare($this->version, '2.9.11') < 0)
+        if (version_compare($this->version, '2.9.11') < 0) {
             $this->markTestSkipped();
+        }
 
         // We could have slaves here, so determine that
         $info     = $this->valkey_glide->info();
@@ -2307,10 +2420,12 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->wait(-1, 20));
     }
 
-    public function testInfo() {
+    public function testInfo()
+    {
         $sequence = [false];
-        if ($this->haveMulti())
+        if ($this->haveMulti()) {
             $sequence[] = true;
+        }
 
         foreach ($sequence as $boo_multi) {
             if ($boo_multi) {
@@ -2334,13 +2449,15 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
                 'role'
             ];
             if (version_compare($this->version, '2.5.0') < 0) {
-                array_push($keys,
+                array_push(
+                    $keys,
                     'changes_since_last_save',
                     'bgsave_in_progress',
                     'last_save_time'
                 );
             } else {
-                array_push($keys,
+                array_push(
+                    $keys,
                     'rdb_changes_since_last_save',
                     'rdb_bgsave_in_progress',
                     'rdb_last_save_time'
@@ -2352,42 +2469,47 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
             }
         }
 
-        if ( ! $this->minVersionCheck('7.0.0'))
+        if (! $this->minVersionCheck('7.0.0')) {
             return;
+        }
 
         $res = $this->valkey_glide->info('server', 'memory');
         $this->assertTrue(is_array($res) && isset($res['redis_version']) && isset($res['used_memory']));
     }
 
-    public function testInfoCommandStats() {
+    public function testInfoCommandStats()
+    {
         // INFO COMMANDSTATS is new in 2.6.0
-        if (version_compare($this->version, '2.5.0') < 0)
+        if (version_compare($this->version, '2.5.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $info = $this->valkey_glide->info('COMMANDSTATS');
-        
-        
-        if ( ! $this->assertIsArray($info))
+
+
+        if (! $this->assertIsArray($info)) {
             return;
-        
+        }
+
         foreach ($info as $k => $value) {
-            
-            if ( ! is_string($k)) {
-                self::$errors []= $this->assertionTrace("'%s' is not a string", $this->printArg($haystack));
+            if (! is_string($k)) {
+                self::$errors [] = $this->assertionTrace("'%s' is not a string", $this->printArg($haystack));
                 return false;
             }
             $this->assertStringContains('cmdstat_', $k);
         }
     }
 
-    public function testSelect() {
+    public function testSelect()
+    {
         $this->assertFalse(@$this->valkey_glide->select(-1));
         $this->assertTrue($this->valkey_glide->select(0));
     }
 
-  
 
-    public function testMset() {
+
+    public function testMset()
+    {
         $this->valkey_glide->del('x', 'y', 'z');    // remove x y z
         $this->assertTrue($this->valkey_glide->mset(['x' => 'a', 'y' => 'b', 'z' => 'c']));   // set x y z
 
@@ -2409,26 +2531,26 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertTrue($this->valkey_glide->mset($set_array));
         $this->assertEquals(array_values($set_array), $this->valkey_glide->mget(array_keys($set_array)));
         $this->valkey_glide->del(array_keys($set_array));
-
-
     }
 
-    public function testMsetNX() {
+    public function testMsetNX()
+    {
         $this->valkey_glide->del('x', 'y', 'z');    // remove x y z
         $this->assertTrue($this->valkey_glide->msetnx(['x' => 'a', 'y' => 'b', 'z' => 'c']));    // set x y z
-        
+
         $this->assertEquals(['a', 'b', 'c'], $this->valkey_glide->mget(['x', 'y', 'z']));    // check x y z
 
         $this->valkey_glide->del('x');  // delete just x
-        $this->assertFalse($this->valkey_glide->msetnx(['x' => 'A', 'y' => 'B', 'z' => 'C']));   // set x y z        
-        $this->assertEquals([FALSE, 'b', 'c'], $this->valkey_glide->mget(['x', 'y', 'z']));  // check x y z
+        $this->assertFalse($this->valkey_glide->msetnx(['x' => 'A', 'y' => 'B', 'z' => 'C']));   // set x y z
+        $this->assertEquals([false, 'b', 'c'], $this->valkey_glide->mget(['x', 'y', 'z']));  // check x y z
 
         $this->assertFalse($this->valkey_glide->msetnx([])); // set ø → FALSE
     }
 
-    
 
-    public function testZAddFirstArg() {
+
+    public function testZAddFirstArg()
+    {
         $this->valkey_glide->del('100');
 
         $zsetName = 100; // not a string!
@@ -2438,7 +2560,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(['val0', 'val1'], $this->valkey_glide->zRange($zsetName, 0, -1));
     }
 
-    public function testZaddIncr() {
+    public function testZaddIncr()
+    {
         $this->valkey_glide->del('zset');
 
         $this->assertEquals(10.0, $this->valkey_glide->zAdd('zset', ['incr'], 10, 'value'));
@@ -2447,12 +2570,13 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->zAdd('zset', ['incr'], 10, 'value', 20, 'value2'));
     }
 
-    public function testZX() {
+    public function testZX()
+    {
         $this->valkey_glide->del('key');
 
         $this->assertEquals([], $this->valkey_glide->zRange('key', 0, -1));
         $this->assertEquals([], $this->valkey_glide->zRange('key', 0, -1, true));
-        
+
         $this->assertEquals(1, $this->valkey_glide->zAdd('key', 0, 'val0'));
         $this->assertEquals(1, $this->valkey_glide->zAdd('key', 2, 'val2'));
         $this->assertEquals(2, $this->valkey_glide->zAdd('key', 4, 'val4', 5, 'val5')); // multiple parameters
@@ -2472,18 +2596,18 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(['val0', 'val1', 'val2', 'val3', 'val4', 'val5'], $this->valkey_glide->zRange('key', 0, -1));
         // withscores
         $ret = $this->valkey_glide->zRange('key', 0, -1, true);
-        
-        $this->assertEquals(6, count($ret));        
-      
+
+        $this->assertEquals(6, count($ret));
+
         $this->assertEquals(0.0, $ret['val0']);
         $this->assertEquals(1.0, $ret['val1']);
         $this->assertEquals(2.0, $ret['val2']);
         $this->assertEquals(3.0, $ret['val3']);
         $this->assertEquals(4.0, $ret['val4']);
         $this->assertEquals(5.0, $ret['val5']);
-    
+
         $this->assertEquals(0, $this->valkey_glide->zRem('key', 'valX'));
-            
+
         $this->assertEquals(1, $this->valkey_glide->zRem('key', 'val3'));
         $this->assertEquals(1, $this->valkey_glide->zRem('key', 'val4'));
         $this->assertEquals(1, $this->valkey_glide->zRem('key', 'val5'));
@@ -2496,75 +2620,99 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(1, $this->valkey_glide->zAdd('key', 3, 'aal3'));
 
         $zero_to_three = $this->valkey_glide->zRangeByScore('key', 0, 3);
-        
+
         $this->assertEquals(['val0', 'val1', 'val2', 'aal3', 'val3'], $zero_to_three);
 
         $three_to_zero = $this->valkey_glide->zRevRangeByScore('key', 3, 0);
-        
+
         $this->assertEquals(array_reverse(['val0', 'val1', 'val2', 'aal3', 'val3']), $three_to_zero);
 
         $this->assertEquals(5, $this->valkey_glide->zCount('key', 0, 3));
-        
+
         // withscores
-        
+
         $this->valkey_glide->zRem('key', 'aal3');
         $zero_to_three = $this->valkey_glide->zRangeByScore('key', 0, 3, ['withscores' => true]);
-        
 
-        
+
+
         $this->assertEquals(['val0' => 0.0, 'val1' => 1.0, 'val2' => 2.0, 'val3' => 3.0], $zero_to_three);
-        
+
         $this->assertEquals(4, $this->valkey_glide->zCount('key', 0, 3));
-        
-        
+
+
         // limit
         $this->assertEquals(['val0'], $this->valkey_glide->zRangeByScore('key', 0, 3, ['limit' => [0, 1]]));
-        
-        $this->assertEquals(['val0', 'val1'],
-                            $this->valkey_glide->zRangeByScore('key', 0, 3, ['limit' => [0, 2]]));
-        $this->assertEquals(['val1', 'val2'],
-                            $this->valkey_glide->zRangeByScore('key', 0, 3, ['limit' => [1, 2]]));
-        $this->assertEquals(['val0', 'val1'],
-                            $this->valkey_glide->zRangeByScore('key', 0, 1, ['limit' => [0, 100]]));
-
-        if ($this->minVersionCheck('6.2.0'))
-            $this->assertEquals(['val0', 'val1'], $this->valkey_glide->zrange('key', 0, 1, ['byscore', 'limit' => [0, 100]]));
-
-        // limits as references
-        $limit = [0, 100];
-        foreach ($limit as &$val) {}
-        $this->assertEquals(['val0', 'val1'], $this->valkey_glide->zRangeByScore('key', 0, 1, ['limit' => $limit]));
 
         $this->assertEquals(
-            ['val3'], $this->valkey_glide->zRevRangeByScore('key', 3, 0, ['limit' => [0, 1]])
+            ['val0', 'val1'],
+            $this->valkey_glide->zRangeByScore('key', 0, 3, ['limit' => [0, 2]])
         );
         $this->assertEquals(
-            ['val3', 'val2'], $this->valkey_glide->zRevRangeByScore('key', 3, 0, ['limit' => [0, 2]])
+            ['val1', 'val2'],
+            $this->valkey_glide->zRangeByScore('key', 0, 3, ['limit' => [1, 2]])
         );
         $this->assertEquals(
-            ['val2', 'val1'], $this->valkey_glide->zRevRangeByScore('key', 3, 0, ['limit' => [1, 2]])
-        );
-        $this->assertEquals(
-            ['val1', 'val0'], $this->valkey_glide->zRevRangeByScore('key', 1, 0, ['limit' => [0, 100]])
+            ['val0', 'val1'],
+            $this->valkey_glide->zRangeByScore('key', 0, 1, ['limit' => [0, 100]])
         );
 
         if ($this->minVersionCheck('6.2.0')) {
-            $this->assertEquals(['val1', 'val0'],
-                                $this->valkey_glide->zrange('key', 1, 0, ['byscore', 'rev', 'limit' => [0, 100]]));
-            
-            $this->assertEquals(2, $this->valkey_glide->zrangestore('dst{key}', 'key', 1, 0,
-                                ['byscore', 'rev', 'limit' => [0, 100]]));
-            
+            $this->assertEquals(['val0', 'val1'], $this->valkey_glide->zrange('key', 0, 1, ['byscore', 'limit' => [0, 100]]));
+        }
+
+        // limits as references
+        $limit = [0, 100];
+        foreach ($limit as &$val) {
+        }
+        $this->assertEquals(['val0', 'val1'], $this->valkey_glide->zRangeByScore('key', 0, 1, ['limit' => $limit]));
+
+        $this->assertEquals(
+            ['val3'],
+            $this->valkey_glide->zRevRangeByScore('key', 3, 0, ['limit' => [0, 1]])
+        );
+        $this->assertEquals(
+            ['val3', 'val2'],
+            $this->valkey_glide->zRevRangeByScore('key', 3, 0, ['limit' => [0, 2]])
+        );
+        $this->assertEquals(
+            ['val2', 'val1'],
+            $this->valkey_glide->zRevRangeByScore('key', 3, 0, ['limit' => [1, 2]])
+        );
+        $this->assertEquals(
+            ['val1', 'val0'],
+            $this->valkey_glide->zRevRangeByScore('key', 1, 0, ['limit' => [0, 100]])
+        );
+
+        if ($this->minVersionCheck('6.2.0')) {
+            $this->assertEquals(
+                ['val1', 'val0'],
+                $this->valkey_glide->zrange('key', 1, 0, ['byscore', 'rev', 'limit' => [0, 100]])
+            );
+
+            $this->assertEquals(2, $this->valkey_glide->zrangestore(
+                'dst{key}',
+                'key',
+                1,
+                0,
+                ['byscore', 'rev', 'limit' => [0, 100]]
+            ));
+
             $this->assertEquals(['val0', 'val1'], $this->valkey_glide->zRange('dst{key}', 0, -1));
 
-            $this->assertEquals(1, $this->valkey_glide->zrangestore('dst{key}', 'key', 1, 0,
-                                ['byscore', 'rev', 'limit' => [0, 1]]));
+            $this->assertEquals(1, $this->valkey_glide->zrangestore(
+                'dst{key}',
+                'key',
+                1,
+                0,
+                ['byscore', 'rev', 'limit' => [0, 1]]
+            ));
             $this->assertEquals(['val1'], $this->valkey_glide->zrange('dst{key}', 0, -1));
         }
         $this->assertEquals(4, $this->valkey_glide->zCard('key'));
-         
+
         $this->assertEquals(1.0, $this->valkey_glide->zScore('key', 'val1'));
-        
+
         $this->assertFalse($this->valkey_glide->zScore('key', 'val'));
         $this->assertFalse($this->valkey_glide->zScore(3, 2));
 
@@ -2578,7 +2726,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
             ['foo' => 1.0, 'bar' => 2.0, 'biz' => 3.0, 'foz' => 4.0],
             $this->valkey_glide->zRangeByScore('zset', '-inf', '+inf', ['withscores' => true])
         );
-        
+
         $this->assertEquals(
             ['foo' => 1.0, 'bar' => 2.0],
             $this->valkey_glide->zRangeByScore('zset', 1, 2, ['withscores' => true])
@@ -2588,7 +2736,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
             $this->valkey_glide->zRangeByScore('zset', '(1', 2, ['withscores' => true])
         );
         $this->assertEquals([], $this->valkey_glide->zRangeByScore('zset', '(1', '(2', ['withscores' => true]));
-        
+
         $this->assertEquals(4, $this->valkey_glide->zCount('zset', '-inf', '+inf'));
         $this->assertEquals(2, $this->valkey_glide->zCount('zset', 1, 2));
         $this->assertEquals(1, $this->valkey_glide->zCount('zset', '(1', 2));
@@ -2600,7 +2748,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(1.0, $this->valkey_glide->zScore('key', 'val1'));
         $this->assertEquals(2.5, $this->valkey_glide->zIncrBy('key', 1.5, 'val1'));
         $this->assertEquals(2.5, $this->valkey_glide->zScore('key', 'val1'));
-        
+
         // zUnionStore
         $this->valkey_glide->del('{zset}1');
         $this->valkey_glide->del('{zset}2');
@@ -2617,13 +2765,13 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->zAdd('{zset}3', 5, 'val5');
 
         $this->assertEquals(4, $this->valkey_glide->zUnionStore('{zset}U', ['{zset}1', '{zset}3']));
-        
+
         $this->assertEquals(['val0', 'val1', 'val4', 'val5'], $this->valkey_glide->zRange('{zset}U', 0, -1));
 
         // Union on non existing keys
         $this->valkey_glide->del('{zset}U');
         $this->assertEquals(0, $this->valkey_glide->zUnionStore('{zset}U', ['{zset}X', '{zset}Y']));
-        $this->assertEquals([],$this->valkey_glide->zRange('{zset}U', 0, -1));
+        $this->assertEquals([], $this->valkey_glide->zRange('{zset}U', 0, -1));
 
         // !Exist U Exist → copy of existing zset.
         $this->valkey_glide->del('{zset}U', 'X');
@@ -2637,25 +2785,25 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->zRemRangeByScore('{zset}Z', 0, 10);
         $this->assertEquals(4, $this->valkey_glide->zUnionStore('{zset}Z', ['{zset}1', '{zset}2'], [5, 1]));
         $this->assertEquals(['val0', 'val2', 'val3', 'val1'], $this->valkey_glide->zRange('{zset}Z', 0, -1));
-        
+
         $this->valkey_glide->del('{zset}1');
         $this->valkey_glide->del('{zset}2');
         $this->valkey_glide->del('{zset}3');
-        
+
         //test zUnion with weights and aggegration function
         $this->valkey_glide->zadd('{zset}1', 1, 'duplicate');
         $this->valkey_glide->zadd('{zset}2', 2, 'duplicate');
         $this->valkey_glide->zUnionStore('{zset}U', ['{zset}1', '{zset}2'], [1, 1], 'MIN');
-        
+
         $this->assertEquals(1.0, $this->valkey_glide->zScore('{zset}U', 'duplicate'));
         $this->valkey_glide->del('{zset}U');
-        
+
         //now test zUnion *without* weights but with aggregate function
         $this->valkey_glide->zUnionStore('{zset}U', ['{zset}1', '{zset}2'], null, 'MIN');
-        
+
         $this->assertEquals(1.0, $this->valkey_glide->zScore('{zset}U', 'duplicate'));
         $this->valkey_glide->del('{zset}U', '{zset}1', '{zset}2');
-        
+
         // test integer and float weights (GitHub issue #109).
         $this->valkey_glide->del('{zset}1', '{zset}2', '{zset}3');
 
@@ -2664,7 +2812,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->zadd('{zset}2', 1, 'one');
         $this->valkey_glide->zadd('{zset}2', 2, 'two');
         $this->valkey_glide->zadd('{zset}2', 3, 'three');
-        
+
         $this->assertEquals(3, $this->valkey_glide->zUnionStore('{zset}3', ['{zset}1', '{zset}2'], [2, 3.0]));
 
         $this->valkey_glide->del('{zset}1');
@@ -2676,22 +2824,22 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->zadd('{zset}2', 3, 'three', 4, 'four', 5, 'five');
 
         // Make sure phpredis handles these weights
-        $this->assertEquals(5, $this->valkey_glide->zUnionStore('{zset}3', ['{zset}1', '{zset}2'], [1, 'inf']) );
+        $this->assertEquals(5, $this->valkey_glide->zUnionStore('{zset}3', ['{zset}1', '{zset}2'], [1, 'inf']));
         $this->assertEquals(5, $this->valkey_glide->zUnionStore('{zset}3', ['{zset}1', '{zset}2'], [1, '-inf']));
         $this->assertEquals(5, $this->valkey_glide->zUnionStore('{zset}3', ['{zset}1', '{zset}2'], [1, '+inf']));
-        
+
         // Now, confirm that they're being sent, and that it works
         $weights = ['inf', '-inf', '+inf'];
-        
+
         foreach ($weights as $weight) {
             $r = $this->valkey_glide->zUnionStore('{zset}3', ['{zset}1', '{zset}2'], [1, $weight]);
             $this->assertEquals(5, $r);
-            $r = $this->valkey_glide->zrangebyscore('{zset}3', '(-inf', '(inf',['withscores'=>true]);
+            $r = $this->valkey_glide->zrangebyscore('{zset}3', '(-inf', '(inf', ['withscores' => true]);
             $this->assertEquals(2, count($r));
             $this->assertArrayKey($r, 'one');
             $this->assertArrayKey($r, 'two');
         }
-        
+
         $this->valkey_glide->del('{zset}1', '{zset}2', '{zset}3');
 
         $this->valkey_glide->zadd('{zset}1', 2000.1, 'one');
@@ -2791,7 +2939,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(0, $this->valkey_glide->zRevRank('z', 'five'));
     }
 
-    public function testZRangeScoreArg() {
+    public function testZRangeScoreArg()
+    {
         $this->valkey_glide->del('{z}');
 
         $mems = ['one' => 1.0, 'two' => 2.0, 'three' => 3.0];
@@ -2804,7 +2953,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals($mems, $this->valkey_glide->zRange('{z}', 0, -1, ['withscores' => true]));
     }
 
-    public function testZRangeByLex() {
+    public function testZRangeByLex()
+    {
         /* ZRANGEBYLEX available on versions >= 2.8.9 */
         if (version_compare($this->version, '2.8.9') < 0) {
             $this->MarkTestSkipped();
@@ -2821,13 +2971,13 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
 
         // with limit offset
-        $this->assertEquals(['b', 'c'], $this->valkey_glide->zRangeByLex('key', '-', '[c', 1, 2) );
+        $this->assertEquals(['b', 'c'], $this->valkey_glide->zRangeByLex('key', '-', '[c', 1, 2));
         $this->assertEquals(['b'], $this->valkey_glide->zRangeByLex('key', '-', '(c', 1, 2));
 
         /* Test getting the same functionality via ZRANGE and options */
         if ($this->minVersionCheck('6.2.0')) {
             $this->assertEquals(['a', 'b', 'c'], $this->valkey_glide->zRange('key', '-', '[c', ['BYLEX']));
-            
+
             $this->assertEquals(['b', 'c'], $this->valkey_glide->zRange('key', '-', '[c', ['BYLEX', 'LIMIT' => [1, 2]]));
             $this->assertEquals(['b'], $this->valkey_glide->zRange('key', '-', '(c', ['BYLEX', 'LIMIT' => [1, 2]]));
 
@@ -2835,7 +2985,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
     }
 
-    public function testZLexCount() {
+    public function testZLexCount()
+    {
         if (version_compare($this->version, '2.8.9') < 0) {
             $this->MarkTestSkipped();
             return;
@@ -2865,10 +3016,12 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
     }
 
-    public function testzDiff() {
+    public function testzDiff()
+    {
         // Only available since 6.2.0
-        if (version_compare($this->version, '6.2.0') < 0)
+        if (version_compare($this->version, '6.2.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('key');
         foreach (range('a', 'c') as $c) {
@@ -2879,24 +3032,28 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(['a' => 1.0, 'b' => 1.0, 'c' => 1.0], $this->valkey_glide->zDiff(['key'], ['withscores' => true]));
     }
 
-    public function testzInter() {
+    public function testzInter()
+    {
         // Only available since 6.2.0
-        if (version_compare($this->version, '6.2.0') < 0)
+        if (version_compare($this->version, '6.2.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('key');
         foreach (range('a', 'c') as $c) {
             $this->valkey_glide->zAdd('key', 1, $c);
         }
 
-        $this->assertEquals(['a', 'b', 'c'], $this->valkey_glide->zInter(['key']));        
+        $this->assertEquals(['a', 'b', 'c'], $this->valkey_glide->zInter(['key']));
         $this->assertEquals(['a' => 1.0, 'b' => 1.0, 'c' => 1.0], $this->valkey_glide->zInter(['key'], null, ['withscores' => true]));
     }
 
-    public function testzUnion() {
+    public function testzUnion()
+    {
         // Only available since 6.2.0
-        if (version_compare($this->version, '6.2.0') < 0)
+        if (version_compare($this->version, '6.2.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('key');
         foreach (range('a', 'c') as $c) {
@@ -2908,10 +3065,12 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(['a' => 1.0, 'b' => 1.0, 'c' => 1.0], $this->valkey_glide->zUnion(['key'], null, ['withscores' => true]));
     }
 
-    public function testzDiffStore() {
+    public function testzDiffStore()
+    {
         // Only available since 6.2.0
-        if (version_compare($this->version, '6.2.0') < 0)
+        if (version_compare($this->version, '6.2.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('{zkey}src');
         foreach (range('a', 'c') as $c) {
@@ -2921,10 +3080,12 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(['a', 'b', 'c'], $this->valkey_glide->zRange('{zkey}dst', 0, -1));
     }
 
-    public function testzMscore() {
+    public function testzMscore()
+    {
         // Only available since 6.2.0
-        if (version_compare($this->version, '6.2.0') < 0)
+        if (version_compare($this->version, '6.2.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('key');
         foreach (range('a', 'c') as $c) {
@@ -2932,14 +3093,15 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
 
         $scores = $this->valkey_glide->zMscore('key', 'a', 'notamember', 'c');
-       
+
         $this->assertEquals([1.0, false, 1.0], $scores);
-        
+
         $scores = $this->valkey_glide->zMscore('wrongkey', 'a', 'b', 'c');
         $this->assertEquals([false, false, false], $scores);
     }
 
-    public function testZRemRangeByLex() {
+    public function testZRemRangeByLex()
+    {
         if (version_compare($this->version, '2.8.9') < 0) {
             $this->MarkTestSkipped();
             return;
@@ -2958,7 +3120,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(2, $this->valkey_glide->zRemRangeByLex('key', '[a', '[c'));
     }
 
-    public function testBZPop() {
+    public function testBZPop()
+    {
         if (version_compare($this->version, '5.0.0') < 0) {
             $this->MarkTestSkipped();
             return;
@@ -2968,11 +3131,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->zAdd('{zs}1', 0, 'a', 1, 'b', 2, 'c');
         $this->valkey_glide->zAdd('{zs}2', 3, 'A', 4, 'B', 5, 'D');
 
-        $this->assertEquals(['{zs}1', 'a', '0'], $this->valkey_glide->bzPopMin('{zs}1', '{zs}2', 0));  
-        
+        $this->assertEquals(['{zs}1', 'a', '0'], $this->valkey_glide->bzPopMin('{zs}1', '{zs}2', 0));
+
         $this->assertEquals(['{zs}1', 'c', '2'], $this->valkey_glide->bzPopMax(['{zs}1', '{zs}2'], 0));
         $this->assertEquals(['{zs}2', 'A', '3'], $this->valkey_glide->bzPopMin(['{zs}2', '{zs}1'], 0));
-        
+
 
         /* Verify timeout is being sent */
         $this->valkey_glide->del('{zs}1', '{zs}2');
@@ -2982,7 +3145,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertGT(100, $et - $st);
     }
 
-    public function testZPop() {
+    public function testZPop()
+    {
         if (version_compare($this->version, '5.0.0') < 0) {
             $this->MarkTestSkipped();
             return;
@@ -3005,117 +3169,119 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(['a' => 0.0, 'b' => 1.0, 'c' => 2.0], $this->valkey_glide->zPopMin('key', 3));
     }
 
-    public function testZRandMember() {
+    public function testZRandMember()
+    {
         if (version_compare($this->version, '6.2.0') < 0) {
             $this->MarkTestSkipped();
             return;
         }
         $this->valkey_glide->del('key');
         $this->valkey_glide->zAdd('key', 0, 'a', 1, 'b', 2, 'c', 3, 'd', 4, 'e');
-        
+
         $result = $this->valkey_glide->zRandMember('key');
-        
-        $this->assertEquals(array_intersect($result,['a', 'b', 'c', 'd', 'e']), $result);        
-        
-        
+
+        $this->assertEquals(array_intersect($result, ['a', 'b', 'c', 'd', 'e']), $result);
+
+
         $result = $this->valkey_glide->zRandMember('key', ['count' => 3]);
-        
+
         $this->assertEquals(3, count($result));
         $this->assertEquals(array_intersect($result, ['a', 'b', 'c', 'd', 'e']), $result);
-        
+
         $result = $this->valkey_glide->zRandMember('key', ['count' => 2, 'withscores' => true]);
         $this->assertEquals(2, count($result));
-        
-        
+
+
         $this->assertEquals(array_intersect_key($result, ['a' => 0, 'b' => 1, 'c' => 2, 'd' => 3, 'e' => 4]), $result);
     }
 
-    public function testHashes() {
-        
-        
+    public function testHashes()
+    {
+
+
         $this->valkey_glide->del('h', 'key');
-        
+
         $this->assertEquals(0, $this->valkey_glide->hLen('h'));
-       
+
         $this->assertEquals(1, $this->valkey_glide->hSet('h', 'a', 'a-value'));
-        
+
         $this->assertEquals(1, $this->valkey_glide->hLen('h'));
         $this->assertEquals(1, $this->valkey_glide->hSet('h', 'b', 'b-value'));
         $this->assertEquals(2, $this->valkey_glide->hLen('h'));
-        
+
         $this->assertEquals('a-value', $this->valkey_glide->hGet('h', 'a'));  // simple get
         $this->assertEquals('b-value', $this->valkey_glide->hGet('h', 'b'));  // simple get
-        
+
         $this->assertEquals(0, $this->valkey_glide->hSet('h', 'a', 'another-value')); // replacement
         $this->assertEquals('another-value', $this->valkey_glide->hGet('h', 'a'));    // get the new value
-        
+
         $this->assertEquals('b-value', $this->valkey_glide->hGet('h', 'b'));  // simple get
- 
+
         $this->assertFalse($this->valkey_glide->hGet('h', 'c'));  // unknown hash member
-       
+
         $this->assertFalse($this->valkey_glide->hGet('key', 'c'));    // unknownkey
 
         // hDel
         $this->assertEquals(1, $this->valkey_glide->hDel('h', 'a')); // 1 on success
-        
+
         $this->assertEquals(0, $this->valkey_glide->hDel('h', 'a')); // 0 on failure
-        
+
         $this->valkey_glide->del('h');
         $this->valkey_glide->hSet('h', 'x', 'a');
         $this->valkey_glide->hSet('h', 'y', 'b');
         $this->assertEquals(2, $this->valkey_glide->hDel('h', 'x', 'y')); // variadic
-       
+
 
         // hsetnx
         $this->valkey_glide->del('h');
-        
+
         $this->assertTrue($this->valkey_glide->hSetNx('h', 'x', 'a'));
-        
+
         $this->assertTrue($this->valkey_glide->hSetNx('h', 'y', 'b'));
         $this->assertFalse($this->valkey_glide->hSetNx('h', 'x', '?'));
         $this->assertFalse($this->valkey_glide->hSetNx('h', 'y', '?'));
         $this->assertEquals('a', $this->valkey_glide->hGet('h', 'x'));
         $this->assertEquals('b', $this->valkey_glide->hGet('h', 'y'));
-        
+
         // keys
         $keys = $this->valkey_glide->hKeys('h');
         $this->assertEqualsCanonicalizing(['x', 'y'], $keys);
-        
+
         // values
         $values = $this->valkey_glide->hVals('h');
         $this->assertEqualsCanonicalizing(['a', 'b'], $values);
 
         // keys + values
         $all = $this->valkey_glide->hGetAll('h');
-        
+
         $this->assertEqualsCanonicalizing(['x' => 'a', 'y' => 'b'], $all, true);
-         
+
         // hExists
         $this->assertTrue($this->valkey_glide->hExists('h', 'x'));
-        
+
         $this->assertTrue($this->valkey_glide->hExists('h', 'y'));
         $this->assertFalse($this->valkey_glide->hExists('h', 'w'));
         $this->valkey_glide->del('h');
         $this->assertFalse($this->valkey_glide->hExists('h', 'x'));
-   
+
         // hIncrBy
         $this->valkey_glide->del('h');
         $this->assertEquals(2, $this->valkey_glide->hIncrBy('h', 'x', 2));
-        
+
         $this->assertEquals(3, $this->valkey_glide->hIncrBy('h', 'x', 1));
         $this->assertEquals(2, $this->valkey_glide->hIncrBy('h', 'x', -1));
         $this->assertEquals('2', $this->valkey_glide->hGet('h', 'x'));
-        $this->assertEquals(PHP_INT_MAX, $this->valkey_glide->hIncrBy('h', 'x', PHP_INT_MAX-2));
-        $this->assertEquals(''.PHP_INT_MAX, $this->valkey_glide->hGet('h', 'x'));
+        $this->assertEquals(PHP_INT_MAX, $this->valkey_glide->hIncrBy('h', 'x', PHP_INT_MAX - 2));
+        $this->assertEquals('' . PHP_INT_MAX, $this->valkey_glide->hGet('h', 'x'));
 
         $this->valkey_glide->hSet('h', 'y', 'not-a-number');
         $this->assertFalse($this->valkey_glide->hIncrBy('h', 'y', 1));
-        
+
         if (version_compare($this->version, '2.5.0') >= 0) {
             // hIncrByFloat
             $this->valkey_glide->del('h');
             $this->assertEquals(1.5, $this->valkey_glide->hIncrByFloat('h', 'x', 1.5));
-        
+
             $this->assertEquals(3.0, $this->valkey_glide->hincrByFloat('h', 'x', 1.5));
             $this->assertEquals(1.5, $this->valkey_glide->hincrByFloat('h', 'x', -1.5));
             $this->assertEquals(1000000000001.5, $this->valkey_glide->hincrByFloat('h', 'x', 1000000000000));
@@ -3123,34 +3289,34 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
             $this->valkey_glide->hset('h', 'y', 'not-a-number');
             $this->assertFalse($this->valkey_glide->hIncrByFloat('h', 'y', 1.5));
         }
- 
+
         // hmset
         $this->valkey_glide->del('h');
         $this->assertTrue($this->valkey_glide->hMset('h', ['x' => 123, 'y' => 456, 'z' => 'abc']));
-        
+
         $this->assertEquals('123', $this->valkey_glide->hGet('h', 'x'));
         $this->assertEquals('456', $this->valkey_glide->hGet('h', 'y'));
         $this->assertEquals('abc', $this->valkey_glide->hGet('h', 'z'));
         $this->assertFalse($this->valkey_glide->hGet('h', 't'));
-        
+
         // hmget
         $this->assertEquals(['x' => '123', 'y' => '456'], $this->valkey_glide->hMget('h', ['x', 'y']));
-      
+
         $this->assertEquals(['z' => 'abc'], $this->valkey_glide->hMget('h', ['z']));
-        $this->assertEquals(['x' => '123', 't' => FALSE, 'y' => '456'], $this->valkey_glide->hMget('h', ['x', 't', 'y']));
-        $this->assertEquals(['x' => '123', 't' => FALSE, 'y' => '456'], $this->valkey_glide->hMget('h', ['x', 't', 'y']));
+        $this->assertEquals(['x' => '123', 't' => false, 'y' => '456'], $this->valkey_glide->hMget('h', ['x', 't', 'y']));
+        $this->assertEquals(['x' => '123', 't' => false, 'y' => '456'], $this->valkey_glide->hMget('h', ['x', 't', 'y']));
         $this->assertNotEquals([123 => 'x'], $this->valkey_glide->hMget('h', [123]));
-        $this->assertEquals([123 => FALSE], $this->valkey_glide->hMget('h', [123]));
-       
+        $this->assertEquals([123 => false], $this->valkey_glide->hMget('h', [123]));
+
         // Test with an array populated with things we can't use as keys
-        $this->assertFalse($this->valkey_glide->hmget('h', [false,NULL,false]));
-       
+        $this->assertFalse($this->valkey_glide->hmget('h', [false,null,false]));
+
         // Test with some invalid keys mixed in (which should just be ignored)
         $this->assertEquals(
             ['x' => '123', 'y' => '456', 'z' => 'abc'],
             $this->valkey_glide->hMget('h', ['x', null, 'y', '', 'z', false])
         );
-       
+
         // hmget/hmset with numeric fields
         $this->valkey_glide->del('h');
         $this->assertTrue($this->valkey_glide->hMset('h', [123 => 'x', 'y' => 456]));
@@ -3161,33 +3327,34 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         // references
         $keys = [123, 'y'];
-        foreach ($keys as &$key) {}
-    
+        foreach ($keys as &$key) {
+        }
+
         $this->assertEquals([123 => 'x', 'y' => '456'], $this->valkey_glide->hMget('h', $keys));
-          
+
         // check non-string types.
-         
+
         $this->valkey_glide->del('h1');
-        $this->assertTrue($this->valkey_glide->hMSet('h1', ['x' => 0, 'y' => [], 'z' => new stdclass(), 't' => NULL]));
-        
+        $this->assertTrue($this->valkey_glide->hMSet('h1', ['x' => 0, 'y' => [], 'z' => new stdclass(), 't' => null]));
+
         $h1 = $this->valkey_glide->hGetAll('h1');
         $this->assertEquals('0', $h1['x']);
         $this->assertEquals('Array', $h1['y']);
-        
+
        // $this->assertEquals('Object', $h1['z']); //TODO
         $this->assertEquals('', $h1['t']);
-        
+
         // hset with fields + values as an associative array
         if (version_compare($this->version, '4.0.0') >= 0) {
             $this->valkey_glide->del('h');
             $this->assertEquals(3, $this->valkey_glide->hSet('h', ['x' => 123, 'y' => 456, 'z' => 'abc']));
-            
+
             $this->assertEquals(['x' => '123', 'y' => '456', 'z' => 'abc'], $this->valkey_glide->hGetAll('h'));
             $this->assertEquals(0, $this->valkey_glide->hSet('h', ['x' => 789]));
             $this->assertEquals(['x' => '789', 'y' => '456', 'z' => 'abc'], $this->valkey_glide->hGetAll('h'));
         }
-        
-        
+
+
         // hset with variadic fields + values
         if (version_compare($this->version, '4.0.0') >= 0) {
             $this->valkey_glide->del('h');
@@ -3204,16 +3371,18 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
             $this->valkey_glide->hSet('h', 'foo', 'bar');
             $this->assertEquals(0, $this->valkey_glide->hStrLen('h', 'x')); // field is not present in the hash
             $this->assertEquals(3, $this->valkey_glide->hStrLen('h', 'foo'));
-	    }
+        }
     }
 
-    public function testHRandField() {
-        if (version_compare($this->version, '6.2.0') < 0)
+    public function testHRandField()
+    {
+        if (version_compare($this->version, '6.2.0') < 0) {
             $this->MarkTestSkipped();
-        
+        }
+
         $this->valkey_glide->del('key');
         $this->valkey_glide->hMSet('key', ['a' => 0, 'b' => 1, 'c' => 'foo', 'd' => 'bar', 'e' => null]);
-        
+
         $this->assertInArray($this->valkey_glide->hRandField('key'), ['a', 'b', 'c', 'd', 'e']);
 
         $result = $this->valkey_glide->hRandField('key', ['count' => 3]);
@@ -3221,18 +3390,18 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(array_intersect($result, ['a', 'b', 'c', 'd', 'e']), $result);
 
         $result = $this->valkey_glide->hRandField('key', ['count' => 2, 'withvalues' => true]);
-     
+
         $this->assertEquals(2, count($result));
         $xx = ['a' => 0, 'b' => 1, 'c' => 'foo', 'd' => 'bar', 'e' => null];
         $this->assertEquals(array_intersect_key($result, $xx), $result);
-        
+
         /* Make sure PhpValkeyGlide sends COUNt (1) when `WITHVALUES` is set */
         $result = $this->valkey_glide->hRandField('key', ['withvalues' => true]);
-        
+
         $this->assertIsArray($result);
-        
+
         $this->assertEquals(1, count($result));
-        
+
         /* We can return false if the key doesn't exist */
         $this->assertIsInt($this->valkey_glide->del('notahash'));
         $this->assertFalse($this->valkey_glide->hRandField('notahash'));
@@ -3240,7 +3409,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->hRandField('notahash', ['withvalues' => true]));
     }
 
-    public function testSetRange() {
+    public function testSetRange()
+    {
 
         $this->valkey_glide->del('key');
         $this->valkey_glide->set('key', 'hello world');
@@ -3257,7 +3427,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertKeyEquals("\x00\x00\x00\x00\x00\x00foo", 'key');
     }
 
-    public function testObject() {
+    public function testObject()
+    {
         /* Version 3.0.0 (represented as >= 2.9.0 in redis info)  and moving
          * forward uses 'embstr' instead of 'raw' for small string values */
         if (version_compare($this->version, '2.9.0') < 0) {
@@ -3276,7 +3447,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals($small_encoding, $this->valkey_glide->object('encoding', 'key'));
         $this->assertEquals(1, $this->valkey_glide->object('refcount', 'key'));
         $this->assertTrue(is_numeric($this->valkey_glide->object('idletime', 'key')));
-       
+
 
         $this->valkey_glide->del('key');
         $this->valkey_glide->lpush('key', 'value');
@@ -3315,14 +3486,15 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertTrue(is_numeric($this->valkey_glide->object('idletime', 'key')));
     }
 
-    public function testMultiExec() {
+    public function testMultiExec()
+    {
         $this->MarkTestSkipped();
         $this->sequence(ValkeyGlide::MULTI);
-        
+
         $this->differentType(ValkeyGlide::MULTI);
 
         // with prefix as well
-     
+
         $this->sequence(ValkeyGlide::MULTI);
         $this->differentType(ValkeyGlide::MULTI);
 
@@ -3335,7 +3507,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(['42'], $ret);
     }
 
-    public function testFailedTransactions() {
+    public function testFailedTransactions()
+    {
          $this->markTestSkipped();//TODO
         $this->valkey_glide->set('x', 42);
 
@@ -3359,9 +3532,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(['44'], $ret);
     }
 
-    public function testPipeline() {
-        if ( ! $this->havePipeline())
+    public function testPipeline()
+    {
+        if (! $this->havePipeline()) {
             $this->markTestSkipped();
+        }
 
         $this->sequence(ValkeyGlide::PIPELINE);
         $this->differentType(ValkeyGlide::PIPELINE);
@@ -3373,9 +3548,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, '');
     }
 
-    public function testPipelineMultiExec() {
-        if ( ! $this->havePipeline())
+    public function testPipelineMultiExec()
+    {
+        if (! $this->havePipeline()) {
             $this->markTestSkipped();
+        }
 
         $ret = $this->valkey_glide->pipeline()->multi()->exec()->exec();
         $this->assertIsArray($ret);
@@ -3392,7 +3569,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(5, count($ret)); // should be 5 atomic operations
     }
 
-    public function testMultiEmpty()    
+    public function testMultiEmpty()
     {
          $this->markTestSkipped();//TODO
         $ret = $this->valkey_glide->multi()->exec();
@@ -3410,7 +3587,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
     }
 
     /* GitHub issue #1211 (ignore redundant calls to pipeline or multi) */
-    public function testDoublePipeNoOp() {
+    public function testDoublePipeNoOp()
+    {
          $this->markTestSkipped();//TODO
         /* Only the first pipeline should be honored */
         for ($i = 0; $i < 6; $i++) {
@@ -3435,7 +3613,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals([true, 'over9000'], $data);
     }
 
-    public function testDiscard() {
+    public function testDiscard()
+    {
          $this->markTestSkipped();//TODO
         foreach ([ValkeyGlide::PIPELINE, ValkeyGlide::MULTI] as $mode) {
             /* start transaction */
@@ -3452,7 +3631,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
     }
 
-    protected function sequence($mode) {
+    protected function sequence($mode)
+    {
         $ret = $this->valkey_glide->multi($mode)
             ->set('x', 42)
             ->type('x')
@@ -3500,7 +3680,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEqualsWeak(4, $ret[$i++]);
         $this->assertEqualsWeak(true, $ret[$i++]);
         $this->assertEqualsWeak(4, $ret[$i++]);
-        $this->assertEqualsWeak(FALSE, $ret[$i++]);
+        $this->assertEqualsWeak(false, $ret[$i++]);
         $this->assertEqualsWeak(true, $ret[$i++]);
         $this->assertEqualsWeak(true, $ret[$i++]);
         $this->assertEqualsWeak(9, $ret[$i++]);
@@ -3958,8 +4138,9 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         // GitHub issue 78
         $this->valkey_glide->del('test');
-        for ($i = 1; $i <= 5; $i++)
+        for ($i = 1; $i <= 5; $i++) {
             $this->valkey_glide->zadd('test', $i, (string)$i);
+        }
 
         $result = $this->valkey_glide->multi($mode)
             ->zscore('test', '1')
@@ -3968,10 +4149,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
             ->zscore('test', '2')
             ->exec();
 
-        $this->assertEquals([1.0, FALSE, FALSE, 2.0], $result);
+        $this->assertEquals([1.0, false, false, 2.0], $result);
     }
 
-    protected function differentType($mode) {
+    protected function differentType($mode)
+    {
         // string
         $key = '{hash}string';
         $dkey = '{hash}' . __FUNCTION__;
@@ -4560,9 +4742,10 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals($i, count($ret));
     }
 
-    public function testDifferentTypeString() {
+    public function testDifferentTypeString()
+    {
         $this->markTestSkipped();
-         
+
         $key = '{hash}string';
         $dkey = '{hash}' . __FUNCTION__;
 
@@ -4590,7 +4773,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->sMove($key, $dkey . 'skey1', 'sValue1'));
         $this->assertFalse($this->valkey_glide->scard($key));
         $this->assertFalse($this->valkey_glide->sismember($key, 'sValue1'));
-        $this->assertFalse($this->valkey_glide->sInter($key, $dkey. 'skey2'));
+        $this->assertFalse($this->valkey_glide->sInter($key, $dkey . 'skey2'));
         $this->assertFalse($this->valkey_glide->sUnion($key, $dkey . 'skey4'));
         $this->assertFalse($this->valkey_glide->sDiff($key, $dkey . 'skey7'));
         $this->assertFalse($this->valkey_glide->sMembers($key));
@@ -4624,7 +4807,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->hGetAll($key));
     }
 
-    public function testDifferentTypeList() {
+    public function testDifferentTypeList()
+    {
          $this->markTestSkipped();
         $key = '{hash}list';
         $dkey = '{hash}' . __FUNCTION__;
@@ -4637,7 +4821,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->getset($key, 'value2'));
         $this->assertFalse($this->valkey_glide->append($key, 'append'));
         $this->assertFalse($this->valkey_glide->getRange($key, 0, 8));
-        $this->assertEquals([FALSE], $this->valkey_glide->mget([$key]));
+        $this->assertEquals([false], $this->valkey_glide->mget([$key]));
         $this->assertFalse($this->valkey_glide->incr($key));
         $this->assertFalse($this->valkey_glide->incrBy($key, 1));
         $this->assertFalse($this->valkey_glide->decr($key));
@@ -4662,7 +4846,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->zIncrBy($key, 1, 'zValue1'));
         $this->assertFalse($this->valkey_glide->zRank($key, 'zValue1'));
         $this->assertFalse($this->valkey_glide->zRevRank($key, 'zValue1'));
-        $this->assertFalse($this->valkey_glide->zRange($key, 0, -1));        
+        $this->assertFalse($this->valkey_glide->zRange($key, 0, -1));
         $this->assertFalse($this->valkey_glide->zRangeByScore($key, 1, 2));
         $this->assertFalse($this->valkey_glide->zCount($key, 0, -1));
         $this->assertFalse($this->valkey_glide->zCard($key));
@@ -4684,7 +4868,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->hGetAll($key));
     }
 
-    public function testDifferentTypeSet() {
+    public function testDifferentTypeSet()
+    {
          $this->markTestSkipped();
         $key = '{hash}set';
         $dkey = '{hash}' . __FUNCTION__;
@@ -4696,7 +4881,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->getset($key, 'value2'));
         $this->assertFalse($this->valkey_glide->append($key, 'append'));
         $this->assertFalse($this->valkey_glide->getRange($key, 0, 8));
-        $this->assertEquals([FALSE], $this->valkey_glide->mget([$key]));
+        $this->assertEquals([false], $this->valkey_glide->mget([$key]));
         $this->assertFalse($this->valkey_glide->incr($key));
         $this->assertFalse($this->valkey_glide->incrBy($key, 1));
         $this->assertFalse($this->valkey_glide->decr($key));
@@ -4722,7 +4907,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->zIncrBy($key, 1, 'zValue1'));
         $this->assertFalse($this->valkey_glide->zRank($key, 'zValue1'));
         $this->assertFalse($this->valkey_glide->zRevRank($key, 'zValue1'));
-        $this->assertFalse($this->valkey_glide->zRange($key, 0, -1));        
+        $this->assertFalse($this->valkey_glide->zRange($key, 0, -1));
         $this->assertFalse($this->valkey_glide->zRangeByScore($key, 1, 2));
         $this->assertFalse($this->valkey_glide->zCount($key, 0, -1));
         $this->assertFalse($this->valkey_glide->zCard($key));
@@ -4744,7 +4929,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->hGetAll($key));
     }
 
-    public function testDifferentTypeSortedSet() {
+    public function testDifferentTypeSortedSet()
+    {
          $this->markTestSkipped();
         $key = '{hash}sortedset';
         $dkey = '{hash}' . __FUNCTION__;
@@ -4757,7 +4943,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->getset($key, 'value2'));
         $this->assertFalse($this->valkey_glide->append($key, 'append'));
         $this->assertFalse($this->valkey_glide->getRange($key, 0, 8));
-        $this->assertEquals([FALSE], $this->valkey_glide->mget([$key]));
+        $this->assertEquals([false], $this->valkey_glide->mget([$key]));
         $this->assertFalse($this->valkey_glide->incr($key));
         $this->assertFalse($this->valkey_glide->incrBy($key, 1));
         $this->assertFalse($this->valkey_glide->decr($key));
@@ -4804,7 +4990,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->hGetAll($key));
     }
 
-    public function testDifferentTypeHash() {
+    public function testDifferentTypeHash()
+    {
          $this->markTestSkipped();
         $key = '{hash}hash';
         $dkey = '{hash}hash';
@@ -4817,7 +5004,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->getset($key, 'value2'));
         $this->assertFalse($this->valkey_glide->append($key, 'append'));
         $this->assertFalse($this->valkey_glide->getRange($key, 0, 8));
-        $this->assertEquals([FALSE], $this->valkey_glide->mget([$key]));
+        $this->assertEquals([false], $this->valkey_glide->mget([$key]));
         $this->assertFalse($this->valkey_glide->incr($key));
         $this->assertFalse($this->valkey_glide->incrBy($key, 1));
         $this->assertFalse($this->valkey_glide->decr($key));
@@ -4856,7 +5043,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->zIncrBy($key, 1, 'zValue1'));
         $this->assertFalse($this->valkey_glide->zRank($key, 'zValue1'));
         $this->assertFalse($this->valkey_glide->zRevRank($key, 'zValue1'));
-        $this->assertFalse($this->valkey_glide->zRange($key, 0, -1));        
+        $this->assertFalse($this->valkey_glide->zRange($key, 0, -1));
         $this->assertFalse($this->valkey_glide->zRangeByScore($key, 1, 2));
         $this->assertFalse($this->valkey_glide->zCount($key, 0, -1));
         $this->assertFalse($this->valkey_glide->zCard($key));
@@ -4865,9 +5052,10 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->zRemRangeByScore($key, 1, 2));
     }
 
-    
 
-    private function cartesianProduct(array $arrays) {
+
+    private function cartesianProduct(array $arrays)
+    {
         $result = [[]];
 
         foreach ($arrays as $array) {
@@ -4887,10 +5075,12 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
     }
 
 
-    public function testDumpRestore() {
+    public function testDumpRestore()
+    {
 
-        if (version_compare($this->version, '2.5.0') < 0)
+        if (version_compare($this->version, '2.5.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('foo');
         $this->valkey_glide->del('bar');
@@ -4899,7 +5089,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->set('bar', 'this-is-bar');
 
         $d_foo = $this->valkey_glide->dump('foo');
-        
+
         $d_bar = $this->valkey_glide->dump('bar');
 
         $this->valkey_glide->del('foo');
@@ -4908,21 +5098,21 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         // Assert returns from restore
         $this->assertTrue($this->valkey_glide->restore('foo', 0, $d_bar));
         $this->assertTrue($this->valkey_glide->restore('bar', 0, $d_foo));
-        
+
 
         // Now check that the keys have switched
-        $this->assertKeyEquals('this-is-bar', 'foo');        
+        $this->assertKeyEquals('this-is-bar', 'foo');
         $this->assertKeyEquals('this-is-foo', 'bar');
-        
+
         /* Test that we can REPLACE a key */
-        $this->assertTrue($this->valkey_glide->set('foo', 'some-value'));        
+        $this->assertTrue($this->valkey_glide->set('foo', 'some-value'));
         $this->assertTrue($this->valkey_glide->restore('foo', 0, $d_bar, ['REPLACE']));
-        
+
 
         /* Ensure we can set an absolute TTL */
         $this->assertTrue($this->valkey_glide->restore('foo', time() + 10, $d_bar, ['REPLACE', 'ABSTTL']));
         $this->assertLTE(10, $this->valkey_glide->ttl('foo'));
-        
+
         /* Ensure we can set an IDLETIME */
         $this->assertTrue($this->valkey_glide->restore('foo', 0, $d_bar, ['REPLACE', 'IDLETIME' => 200]));
         $this->assertGT(100, $this->valkey_glide->object('idletime', 'foo'));
@@ -4935,10 +5125,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->del('bar');
     }
 
-    
+
 
     // Helper function to compare nested results -- from the php.net array_diff page, I believe
-    private function array_diff_recursive($aArray1, $aArray2) {
+    private function array_diff_recursive($aArray1, $aArray2)
+    {
         $aReturn = [];
 
         foreach ($aArray1 as $mKey => $mValue) {
@@ -4961,11 +5152,13 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         return $aReturn;
     }
 
-    public function testScript() {
-        //TODO 
+    public function testScript()
+    {
+        //TODO
         $this->markTestSkipped();
-        if (version_compare($this->version, '2.5.0') < 0)
+        if (version_compare($this->version, '2.5.0') < 0) {
             $this->markTestSkipped();
+        }
 
         // Flush any scripts we have
         $this->assertTrue($this->valkey_glide->script('flush'));
@@ -4993,16 +5186,19 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertTrue(is_array($result) && count(array_filter($result)) == 3);
     }
 
-    public function testEval() {
-        //TODO 
+    public function testEval()
+    {
+        //TODO
         $this->markTestSkipped();
-        if (version_compare($this->version, '2.5.0') < 0)
+        if (version_compare($this->version, '2.5.0') < 0) {
             $this->markTestSkipped();
+        }
 
         /* The eval_ro method uses the same underlying handlers as eval so we
            only need to verify we can call it. */
-        if ($this->minVersionCheck('7.0.0'))
+        if ($this->minVersionCheck('7.0.0')) {
             $this->assertEquals('1.55', $this->valkey_glide->eval_ro("return '1.55'"));
+        }
 
         // Basic single line response tests
         $this->assertEquals(1, $this->valkey_glide->eval('return 1'));
@@ -5038,8 +5234,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         // Test an empty MULTI BULK response
         $this->valkey_glide->del('{eval-key}-nolist');
-        $empty_resp = $this->valkey_glide->eval("return redis.call('lrange', '{eval-key}-nolist', 0, -1)",
-            ['{eval-key}-nolist'], 1);
+        $empty_resp = $this->valkey_glide->eval(
+            "return redis.call('lrange', '{eval-key}-nolist', 0, -1)",
+            ['{eval-key}-nolist'],
+            1
+        );
         $this->assertEquals([], $empty_resp);
 
         // Now test a nested reply
@@ -5083,7 +5282,9 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $num_scripts = 10;
 
         $modes = [ValkeyGlide::MULTI];
-        if ($this->havePipeline()) $modes[] = ValkeyGlide::PIPELINE;
+        if ($this->havePipeline()) {
+            $modes[] = ValkeyGlide::PIPELINE;
+        }
 
         foreach ($modes as $mode) {
             $this->valkey_glide->multi($mode);
@@ -5123,11 +5324,13 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
     }
 
-    public function testEvalSHA() {
+    public function testEvalSHA()
+    {
         //TODO
         $this->markTestSkipped();
-        if (version_compare($this->version, '2.5.0') < 0)
+        if (version_compare($this->version, '2.5.0') < 0) {
             $this->markTestSkipped();
+        }
 
         // Flush any loaded scripts
         $this->valkey_glide->script('flush');
@@ -5148,20 +5351,22 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         /* Our evalsha_ro handler is the same as evalsha so just make sure
            we can invoke the command */
-        if ($this->minVersionCheck('7.0.0'))
+        if ($this->minVersionCheck('7.0.0')) {
             $this->assertEquals(1, $this->valkey_glide->evalsha_ro($sha));
+        }
     }
 
 
-    
 
-    public function testConfig() {
+
+    public function testConfig()
+    {
         /* GET */
         $cfg = $this->valkey_glide->config('GET', 'timeout');
-        
+
         $this->assertArrayKey($cfg, 'timeout');
         $sec = $cfg['timeout'];
-       
+
         /* SET */
         foreach ([$sec + 30, $sec] as $val) {
             $this->assertTrue($this->valkey_glide->config('SET', 'timeout', $val));
@@ -5175,7 +5380,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $c1 = count($this->valkey_glide->info('commandstats'));
         $this->assertTrue($this->valkey_glide->config('resetstat'));
         $this->assertLT($c1, count($this->valkey_glide->info('commandstats')));
-        
+
 
         /* Ensure invalid calls are handled by PhpValkeyGlide */
         foreach (['notacommand', 'get', 'set'] as $cmd) {
@@ -5187,9 +5392,10 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
            command be attempted */
         $res = $this->valkey_glide->config('rewrite');
         $this->assertIsBool($res);
-  
-        if ( ! $this->minVersionCheck('7.0.0'))
+
+        if (! $this->minVersionCheck('7.0.0')) {
             return;
+        }
 
         /* Test getting multiple values */
         $settings = $this->valkey_glide->config('get', ['timeout', 'databases', 'set-max-intset-entries']);
@@ -5197,8 +5403,9 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
                           isset($settings['databases']) && isset($settings['set-max-intset-entries']));
 
         /* Short circuit if the above assertion would have failed */
-        if ( ! is_array($settings) || ! isset($settings['timeout']) || ! isset($settings['set-max-intset-entries']))
+        if (! is_array($settings) || ! isset($settings['timeout']) || ! isset($settings['set-max-intset-entries'])) {
             return;
+        }
 
         list($timeout, $max_intset) = [$settings['timeout'], $settings['set-max-intset-entries']];
 
@@ -5209,23 +5416,24 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         foreach ($updates as $update) {
             $this->assertTrue($this->valkey_glide->config('set', $update));
-       
+
             $vals = $this->valkey_glide->config('get', array_keys($update));
             $this->assertEqualsWeak($vals, $update, true);
         }
-  
+
         /* Make sure PhpValkeyGlide catches malformed multiple get/set calls */
         $this->assertFalse(@$this->valkey_glide->config('get', []));
         $this->assertFalse(@$this->valkey_glide->config('set', []));
         $this->assertFalse(@$this->valkey_glide->config('set', [0, 1, 2]));
     }
 
-    public function testReconnectSelect() {
+    public function testReconnectSelect()
+    {
         $key = 'reconnect-select';
         $value = 'Has been set!';
 
         $original_cfg = $this->valkey_glide->config('GET', 'timeout');
-       
+
         // Make sure the default DB doesn't have the key.
         $this->valkey_glide->select(0);
         $this->valkey_glide->del($key);
@@ -5240,20 +5448,22 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         // Wait for the connection to time out.  On very old versions
         // of ValkeyGlide we need to wait much longer (TODO:  Investigate
         // which version exactly)
-        sleep(5 );
+        sleep(5);
         $this->assertFalse($this->valkey_glide->get($key));
-       
+
         $this->valkey_glide->select(5);
         // Make sure we're still using the same DB.
         $this->assertKeyEquals($value, $key);
-    
+
         // Revert the setting.
         $this->valkey_glide->config('SET', 'timeout', $original_cfg['timeout']);
     }
 
-    public function testTime() {
-        if (version_compare($this->version, '2.5.0') < 0)
+    public function testTime()
+    {
+        if (version_compare($this->version, '2.5.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $time_arr = $this->valkey_glide->time();
         $this->assertTrue(is_array($time_arr) && count($time_arr) == 2 &&
@@ -5262,15 +5472,16 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
     }
 
 
- 
 
-    
+
+
 
     /**
      * Scan and variants
      */
 
-    protected function get_keyspace_count($db) {
+    protected function get_keyspace_count($db)
+    {
         $info = $this->valkey_glide->info();
         if (isset($info[$db])) {
             $info = $info[$db];
@@ -5282,25 +5493,31 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
     }
 
-    public function testScan() {
+    public function testScan()
+    {
         set_time_limit(10); // Enforce a 10-second limit on this test
-        if (version_compare($this->version, '2.8.0') < 0)
+        if (version_compare($this->version, '2.8.0') < 0) {
             $this->markTestSkipped();
+        }
         $ttl = 0;
         // Key count
         $key_count = $this->get_keyspace_count('db0');
-        
+
         // Scan them all
-        $it = NULL;
+        $it = null;
         while (true) {
-            $ttl += 1;      
+            $ttl += 1;
             $keys = $this->valkey_glide->scan($it);
             if ($keys) {
                 $key_count -= count($keys);
             }
-            if ($it == "0") break;
+            if ($it == "0") {
+                break;
+            }
             $this->assertNotEquals(1000, $ttl);
-            if ($ttl > 1000) break;
+            if ($ttl > 1000) {
+                break;
+            }
         }
         // Should have iterated all keys
         $this->assertEquals(0, $key_count);
@@ -5312,24 +5529,27 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
 
         // Scan just these keys using a pattern match
-        $it = NULL;
-        
+        $it = null;
+
         while (true) {
-            $ttl += 1;      
-            $keys = $this->valkey_glide->scan($it, "*$uniq*");            
-           
-            if ($keys)
-                $i -= count($keys); 
-            
-            if ($it == "0") 
-                break;  
+            $ttl += 1;
+            $keys = $this->valkey_glide->scan($it, "*$uniq*");
+
+            if ($keys) {
+                $i -= count($keys);
+            }
+
+            if ($it == "0") {
+                break;
+            }
             $this->assertNotEquals(1000, $ttl);
-            if ($ttl > 1000) break;
-         
+            if ($ttl > 1000) {
+                break;
+            }
         }
 
         $this->assertEquals(0, $i);
-        
+
         // SCAN with type is scheduled for release in ValkeyGlide 6.
         if (version_compare($this->version, '6.0.0') >= 0) {
             // Use a unique ID so we can find our type keys
@@ -5354,30 +5574,37 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
                 foreach ([0, 10] as $count) {
                     $resp = [];
 
-                    $it = NULL;
+                    $it = null;
                     while (true) {
                         $ttl += 1;
-                        $scan = $this->valkey_glide->scan($it, "*$id*", $count, $type);  
-                        if ($scan)                      
+                        $scan = $this->valkey_glide->scan($it, "*$id*", $count, $type);
+                        if ($scan) {
                             $resp = array_merge($resp, $scan);
-                        if ($it == "0") break;
+                        }
+                        if ($it == "0") {
+                            break;
+                        }
                         $this->assertNotEquals(1000, $ttl);
-                        if ($ttl > 1000) break;
+                        if ($ttl > 1000) {
+                            break;
+                        }
                     }
 
                     $this->assertEqualsCanonicalizing($vals, $resp);
                 }
             }
         }
-        
+
         $this->assertLT(1000, $ttl);
         set_time_limit(0);  // Reset to unlimited (or default) at the end
     }
-    
-    public function testHScan() {
+
+    public function testHScan()
+    {
         set_time_limit(10); // Enforce a 10-second limit on this test
-        if (version_compare($this->version, '2.8.0') < 0)
+        if (version_compare($this->version, '2.8.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('hash');
         $foo_mems = 0;
@@ -5392,20 +5619,21 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
 
         // Scan all of them
-        $it = NULL;
+        $it = null;
         while (true) {
             $keys = $this->valkey_glide->hscan('hash', $it);
-            if ($keys){
+            if ($keys) {
                 $i -= count($keys);
             }
-            if ($it == "0")
-                break;                    
+            if ($it == "0") {
+                break;
+            }
         }
-          
+
         $this->assertEquals(0, $i);
-        
+
         // Scan just *foomem* (should be 4)
-        $it = NULL;
+        $it = null;
         while (true) {
             $keys = $this->valkey_glide->hscan('hash', $it, '*foomember*', 1000);
             if ($keys) {
@@ -5415,20 +5643,23 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
                     $this->assertStringContains('value', $val);
                 }
             }
-            if ($it == 0) 
+            if ($it == 0) {
                 break;
+            }
         }
 
         $this->assertEquals(0, $foo_mems);
         set_time_limit(0);  // Reset to unlimited (or default) at the end
     }
 
-    public function testSScan() {
+    public function testSScan()
+    {
         set_time_limit(10); // Enforce a 10-second limit on this test
-        if (version_compare($this->version, '2.8.0') < 0)
+        if (version_compare($this->version, '2.8.0') < 0) {
             $this->markTestSkipped();
+        }
 
-        
+
 
         $this->valkey_glide->del('set');
         for ($i = 0; $i < 100; $i++) {
@@ -5436,35 +5667,39 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
 
         // Scan all of them
-        $it = NULL;
-        while (true) {            
+        $it = null;
+        while (true) {
             $keys = $this->valkey_glide->sscan('set', $it);
             $i -= count($keys);
             foreach ($keys as $mem) {
                 $this->assertStringContains('member', $mem);
             }
-            if ($it == "0")
+            if ($it == "0") {
                 break;
+            }
         }
         $this->assertEquals(0, $i);
 
         // Scan just ones with zero in them (0, 10, 20, 30, 40, 50, 60, 70, 80, 90)
-        $it = NULL;
+        $it = null;
         $w_zero = 0;
         while (true) {
             $keys = $this->valkey_glide->sscan('set', $it, '*0*');
             $w_zero += count($keys);
-            if ($it == "0")
+            if ($it == "0") {
                 break;
+            }
         }
         $this->assertEquals(10, $w_zero);
         set_time_limit(0);  // Reset to unlimited (or default) at the end
     }
 
-    public function testZScan() {
-        set_time_limit(10); // Enforce a 10-second limit on this test 
-        if (version_compare($this->version, '2.8.0') < 0)
+    public function testZScan()
+    {
+        set_time_limit(10); // Enforce a 10-second limit on this test
+        if (version_compare($this->version, '2.8.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('zset');
 
@@ -5482,23 +5717,25 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
 
         // Scan them all
-        $it = NULL;
+        $it = null;
         while (true) {
             $keys = $this->valkey_glide->zscan('zset', $it);
 
-            foreach ($keys as $mem => $f_score) {               
+            foreach ($keys as $mem => $f_score) {
                 $t_score -= $f_score;
                 $i--;
             }
 
-            if ($it == "0") break;
+            if ($it == "0") {
+                break;
+            }
         }
-        
+
         $this->assertEquals(0, $i);
-        $this->assertEquals(0, $t_score);        
+        $this->assertEquals(0, $t_score);
 
         // Just scan 'pmem' members
-        $it = NULL;
+        $it = null;
         $p_score_old = $p_score;
         $p_count_old = $p_count;
         while (true) {
@@ -5509,26 +5746,32 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
                     $p_count -= 1;
                 }
             }
-            if ($it == "0") break;
+            if ($it == "0") {
+                break;
+            }
         }
         $this->assertEquals(0, $p_score);
         $this->assertEquals(0, $p_count);
 
-        // Turn off retrying and we should get some empty results        
+        // Turn off retrying and we should get some empty results
         [$skips, $p_score, $p_count] = [0, $p_score_old, $p_count_old];
 
-        $it = NULL;
+        $it = null;
         while (true) {
             $keys = $this->valkey_glide->zscan('zset', $it, '*pmem*');
-            
-            if ($keys !== FALSE) {
-                if (count($keys) == 0) $skips++;
+
+            if ($keys !== false) {
+                if (count($keys) == 0) {
+                    $skips++;
+                }
                 foreach ($keys as $mem => $f_score) {
                     $p_score -= $f_score;
                     $p_count -= 1;
                 }
             }
-            if ($it == "0") break;
+            if ($it == "0") {
+                break;
+            }
         }
         // We should still get all the keys, just with several empty results
         $this->assertGT(0, $skips);
@@ -5538,12 +5781,13 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
     }
 
     /* Make sure we capture errors when scanning */
-    public function testScanErrors() {
-        
+    public function testScanErrors()
+    {
+
         $this->valkey_glide->set('scankey', 'simplekey');
 
         foreach (['sScan', 'hScan', 'zScan'] as $method) {
-            $it = NULL;
+            $it = null;
             $this->valkey_glide->$method('scankey', $it);
         }
     }
@@ -5552,7 +5796,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
     // HyperLogLog (PF) commands
     //
 
-    protected function createPFKey($key, $count) {
+    protected function createPFKey($key, $count)
+    {
         $mems = [];
         for ($i = 0; $i < $count; $i++) {
             $mems[] = uniqid('pfmem:');
@@ -5562,9 +5807,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->valkey_glide->pfAdd($key, $count);
     }
 
-    public function testPFCommands() {
-        if (version_compare($this->version, '2.8.9') < 0)
+    public function testPFCommands()
+    {
+        if (version_compare($this->version, '2.8.9') < 0) {
             $this->markTestSkipped();
+        }
 
         $mems = [];
 
@@ -5584,27 +5831,27 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
                 $keys = [];
 
                 // Now add for each key
-                for ($i = 0; $i < $key_count; $i++) {
-                    $key    = "{key}:$i";
-                    $keys[] = $key;
+        for ($i = 0; $i < $key_count; $i++) {
+            $key    = "{key}:$i";
+            $keys[] = $key;
 
-                    // Clean up this key
-                    $this->valkey_glide->del($key);
+            // Clean up this key
+            $this->valkey_glide->del($key);
 
-                    // Add to our cardinality set, and confirm we got a valid response
-                    $this->assertGT(0, $this->valkey_glide->pfadd($key, $mems));
-                    
-                    // Grab estimated cardinality
-                    $card = $this->valkey_glide->pfcount($key);
-                 
-                    $this->assertIsInt($card);
-                 
-                    // Count should be close
-                    $this->assertBetween($card, count($mems) * .9, count($mems) * 1.1);
-                    
-                    // The PFCOUNT on this key should be the same as the above returned response
-                    $this->assertEquals($card, $this->valkey_glide->pfcount($key));
-                }
+            // Add to our cardinality set, and confirm we got a valid response
+            $this->assertGT(0, $this->valkey_glide->pfadd($key, $mems));
+
+            // Grab estimated cardinality
+            $card = $this->valkey_glide->pfcount($key);
+
+            $this->assertIsInt($card);
+
+            // Count should be close
+            $this->assertBetween($card, count($mems) * .9, count($mems) * 1.1);
+
+            // The PFCOUNT on this key should be the same as the above returned response
+            $this->assertEquals($card, $this->valkey_glide->pfcount($key));
+        }
 
                 // Clean up merge key
                 $this->valkey_glide->del('pf-merge-{key}');
@@ -5616,23 +5863,27 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
                 $valkey_glide_card = $this->valkey_glide->pfcount('pf-merge-{key}');
 
                 // Merged cardinality should still be roughly 1000
-                $this->assertBetween($valkey_glide_card, count($mems) * .9,
-                                     count($mems) * 1.1);
+                $this->assertBetween(
+                    $valkey_glide_card,
+                    count($mems) * .9,
+                    count($mems) * 1.1
+                );
 
                 // Clean up merge key
                 $this->valkey_glide->del('pf-merge-{key}');
-
     }
 
     //
     // GEO* command tests
     //
 
-    protected function rawCommandArray($key, $args) {
+    protected function rawCommandArray($key, $args)
+    {
         return call_user_func_array([$this->valkey_glide, 'rawCommand'], $args);
     }
 
-    protected function addCities($key) {
+    protected function addCities($key)
+    {
         $this->valkey_glide->del($key);
         foreach ($this->cities as $city => $longlat) {
             $this->valkey_glide->geoadd($key, $longlat[0], $longlat[1], $city);
@@ -5640,9 +5891,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
     }
 
     /* GEOADD */
-    public function testGeoAdd() {
-        if ( ! $this->minVersionCheck('3.2'))
+    public function testGeoAdd()
+    {
+        if (! $this->minVersionCheck('3.2')) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('geokey');
 
@@ -5663,27 +5916,33 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
 
 
-    public function testGeoPos() {
-        if ( ! $this->minVersionCheck('3.2.0'))
+    public function testGeoPos()
+    {
+        if (! $this->minVersionCheck('3.2.0')) {
             $this->markTestSkipped();
+        }
 
         $this->addCities('gk');
         $this->assertEquals($this->rawCommandArray('gk', ['geopos', 'gk', 'Chico', 'Sacramento']), $this->valkey_glide->geopos('gk', 'Chico', 'Sacramento'));
         $this->assertEquals($this->rawCommandArray('gk', ['geopos', 'gk', 'Cupertino']), $this->valkey_glide->geopos('gk', 'Cupertino'));
     }
 
-    public function testGeoHash() {
-        if ( ! $this->minVersionCheck('3.2.0'))
+    public function testGeoHash()
+    {
+        if (! $this->minVersionCheck('3.2.0')) {
             $this->markTestSkipped();
+        }
 
         $this->addCities('gk');
         $this->assertEquals($this->rawCommandArray('gk', ['geohash', 'gk', 'Chico', 'Sacramento']), $this->valkey_glide->geohash('gk', 'Chico', 'Sacramento'));
         $this->assertEquals($this->rawCommandArray('gk', ['geohash', 'gk', 'Chico']), $this->valkey_glide->geohash('gk', 'Chico'));
     }
 
-    public function testGeoDist() {
-        if ( ! $this->minVersionCheck('3.2.0'))
+    public function testGeoDist()
+    {
+        if (! $this->minVersionCheck('3.2.0')) {
             $this->markTestSkipped();
+        }
 
         $this->addCities('gk');
 
@@ -5696,19 +5955,21 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals(round($r1, 8), round($r2, 8));
     }
 
-    public function testGeoSearch() {
-        if ( ! $this->minVersionCheck('6.2.0'))
+    public function testGeoSearch()
+    {
+        if (! $this->minVersionCheck('6.2.0')) {
             $this->markTestSkipped();
+        }
 
         $this->addCities('gk');
-    
+
         $this->assertEquals(['Chico'], $this->valkey_glide->geosearch('gk', 'Chico', 1, 'm'));
-        $res = $this->valkey_glide->geosearch('gk', 'Chico', 1, 'm', ['withcoord', 'withdist', 'withhash']);       
-        
+        $res = $this->valkey_glide->geosearch('gk', 'Chico', 1, 'm', ['withcoord', 'withdist', 'withhash']);
+
         $this->assertValidate($this->valkey_glide->geosearch('gk', 'Chico', 1, 'm', ['withcoord', 'withdist', 'withhash']), function ($v) {
-           
+
             $this->assertArrayKey($v, 'Chico', 'is_array');
-           
+
             $this->assertEquals(count($v['Chico']), 3);
             $this->assertArrayKey($v['Chico'], 0, 'is_float');
             $this->assertArrayKey($v['Chico'], 1, 'is_int');
@@ -5717,9 +5978,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         });
     }
 
-    public function testGeoSearchStore() {
-        if ( ! $this->minVersionCheck('6.2.0'))
+    public function testGeoSearchStore()
+    {
+        if (! $this->minVersionCheck('6.2.0')) {
             $this->markTestSkipped();
+        }
 
         $this->addCities('{gk}src');
         $this->assertEquals(3, $this->valkey_glide->geosearchstore('{gk}dst', '{gk}src', 'Chico', 100, 'km'));
@@ -5727,10 +5990,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
     }
 
     /* Test a 'raw' command */
-    public function testRawCommand() {
+    public function testRawCommand()
+    {
         $key = uniqid();
 
-        $this->valkey_glide->set($key,'some-value');
+        $this->valkey_glide->set($key, 'some-value');
         $result = $this->valkey_glide->rawCommand('get', $key);
         $this->assertEquals($result, 'some-value');
 
@@ -5741,7 +6005,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
     /* STREAMS */
 
-    protected function addStreamEntries($key, $count) {
+    protected function addStreamEntries($key, $count)
+    {
         $ids = [];
 
         $this->valkey_glide->del($key);
@@ -5753,7 +6018,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         return $ids;
     }
 
-    protected function addStreamsAndGroups($streams, $count, $groups) {
+    protected function addStreamsAndGroups($streams, $count, $groups)
+    {
         $ids = [];
 
         foreach ($streams as $stream) {
@@ -5766,14 +6032,16 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         return $ids;
     }
 
-    public function testXAdd() {
-        if ( ! $this->minVersionCheck('5.0'))
+    public function testXAdd()
+    {
+        if (! $this->minVersionCheck('5.0')) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('stream');
         for ($i = 0; $i < 5; $i++) {
             $id = $this->valkey_glide->xAdd('stream', '*', ['k1' => 'v1', 'k2' => 'v2']);
-            $this->assertEquals($i+1, $this->valkey_glide->xLen('stream'));
+            $this->assertEquals($i + 1, $this->valkey_glide->xLen('stream'));
 
             /* ValkeyGlide should return <timestamp>-<sequence> */
             $bits = explode('-', $id);
@@ -5798,9 +6066,10 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         @$this->valkey_glide->xAdd('stream', '*', []);
     }
 
-    protected function doXRangeTest($reverse) {
+    protected function doXRangeTest($reverse)
+    {
         $key = '{stream}';
-        
+
         if ($reverse) {
             list($cmd,$a1,$a2) = ['xRevRange', '+', 0];
         } else {
@@ -5815,14 +6084,14 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
 
         $messages = $this->valkey_glide->$cmd($key, $a1, $a2);
-        
+
         $this->assertEquals(count($messages), 3);
-        
-        
+
+
         $i = $reverse ? 2 : 0;
         foreach ($messages as $seq => $v) {
             $this->assertEquals(count(explode('-', $seq)), 2);
-            $this->assertEquals($v, ['field' => "value:$i"]);            
+            $this->assertEquals($v, ['field' => "value:$i"]);
             $i += $reverse ? -1 : 1;
         }
 
@@ -5831,47 +6100,50 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
             $messages = $this->valkey_glide->$cmd($key, $a1, $a2, $count);
             $this->assertEquals(count($messages), $count);
         }
-        
     }
 
-    public function testXRange() {
-        if ( ! $this->minVersionCheck('5.0'))
+    public function testXRange()
+    {
+        if (! $this->minVersionCheck('5.0')) {
             $this->markTestSkipped();
+        }
 
         foreach ([false, true] as $reverse) {
-            
-                foreach ([NULL] as $prefix) {
-                    $this->doXRangeTest($reverse);
-                }
+            foreach ([null] as $prefix) {
+                $this->doXRangeTest($reverse);
             }
-        
+        }
     }
 
-    protected function testXLen() {
-        if ( ! $this->minVersionCheck('5.0'))
+    protected function testXLen()
+    {
+        if (! $this->minVersionCheck('5.0')) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('{stream}');
         for ($i = 0; $i < 5; $i++) {
             $this->valkey_glide->xadd('{stream}', '*', ['foo' => 'bar']);
-            $this->assertEquals($i+1, $this->valkey_glide->xLen('{stream}'));
+            $this->assertEquals($i + 1, $this->valkey_glide->xLen('{stream}'));
         }
     }
 
-    public function testXGroup() {
-        if ( ! $this->minVersionCheck('5.0'))
+    public function testXGroup()
+    {
+        if (! $this->minVersionCheck('5.0')) {
             $this->markTestSkipped();
+        }
 
         /* CREATE MKSTREAM */
         $key = 's:' . uniqid();
         $this->assertFalse($this->valkey_glide->xGroup('CREATE', $key, 'g0', 0));
-          
-        
+
+
         $this->assertTrue($this->valkey_glide->xGroup('CREATE', $key, 'g1', 0, true));
-      
+
         /* XGROUP DESTROY */
         $this->assertTrue($this->valkey_glide->xGroup('DESTROY', $key, 'g1'));
-       
+
         /* Populate some entries in stream 's' */
         $this->addStreamEntries('s', 2);
 
@@ -5881,7 +6153,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         /* BUSYGROUP */
         $this->assertFalse($this->valkey_glide->xGroup('CREATE', 's', 'mygroup', '$'));
-        
+
 
         /* SETID */
         $this->assertTrue($this->valkey_glide->xGroup('SETID', 's', 'mygroup', '$'));
@@ -5889,9 +6161,10 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         $this->assertEquals(0, $this->valkey_glide->xGroup('DELCONSUMER', 's', 'mygroup', 'myconsumer'));
 
-        if ( ! $this->minVersionCheck('6.2.0'))
+        if (! $this->minVersionCheck('6.2.0')) {
             return;
-        
+        }
+
         /* CREATECONSUMER */
         $this->assertEquals(1, $this->valkey_glide->del('s'));
         $this->assertTrue($this->valkey_glide->xgroup('create', 's', 'mygroup', '$', true));
@@ -5900,22 +6173,23 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
             $info = $this->valkey_glide->xinfo('consumers', 's', 'mygroup');
             $this->assertIsArray($info, $i + 1);
             for ($j = 0; $j <= $i; $j++) {
-                $this->assertTrue(isset($info[$j]) && isset($info[$j]['name']) && $info[$j]['name'] == "c:$j");                
+                $this->assertTrue(isset($info[$j]) && isset($info[$j]['name']) && $info[$j]['name'] == "c:$j");
             }
-            
         }
-        
+
         /* Make sure we don't erroneously send options that don't belong to the operation */
         $this->assertFalse(
-            $this->valkey_glide->xGroup('CREATECONSUMER', 's', 'mygroup', 'fake-consumer', true, 1337));
-        
+            $this->valkey_glide->xGroup('CREATECONSUMER', 's', 'mygroup', 'fake-consumer', true, 1337)
+        );
+
         /* Make sure we handle the case where the user doesn't send enough arguments */
         $this->assertFalse(@$this->valkey_glide->xGroup('CREATECONSUMER'));
-        
+
         $this->assertFalse(@$this->valkey_glide->xGroup('create'));
         return;
-        if ( ! $this->minVersionCheck('7.0.0'))
+        if (! $this->minVersionCheck('7.0.0')) {
             return;
+        }
 
         /* ENTRIESREAD */
         $this->assertEquals(1, $this->valkey_glide->del('s'));
@@ -5924,21 +6198,23 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertTrue(isset($info[0]['entries-read']) && 1337 == (int)$info[0]['entries-read']);
     }
 
-    public function testXAck() {
-        if ( ! $this->minVersionCheck('5.0'))
+    public function testXAck()
+    {
+        if (! $this->minVersionCheck('5.0')) {
             $this->markTestSkipped();
+        }
 
         for ($n = 1; $n <= 3; $n++) {
             $this->addStreamsAndGroups(['{s}'], 3, ['g1' => 0]);
-            
+
             $msg = $this->valkey_glide->xReadGroup('g1', 'c1', ['{s}' => '>']);
             /* Extract IDs */
             $smsg = array_shift($msg);
             $ids = array_keys($smsg);
-        
+
             /* Now ACK $n messages */
             $ids = array_slice($ids, 0, $n);
-            
+
             $this->assertEquals($n, $this->valkey_glide->xAck('{s}', 'g1', $ids));
         }
 
@@ -5946,9 +6222,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->xAck('{s}', 'g1', []));
     }
 
-    protected function doXReadTest() {
-        if ( ! $this->minVersionCheck('5.0'))
+    protected function doXReadTest()
+    {
+        if (! $this->minVersionCheck('5.0')) {
             $this->markTestSkipped();
+        }
 
         $row = ['f1' => 'v1', 'f2' => 'v2'];
         $msgdata = [
@@ -5970,50 +6248,53 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         /* Everything from both streams */
         $rmsg = $this->valkey_glide->xRead($qzero);
-        
-        
+
+
         $this->assertEquals($rmsg, $qresult);
 
         /* Test COUNT option */
         for ($count = 1; $count <= 2; $count++) {
             $rmsg = $this->valkey_glide->xRead($qzero, $count);
-            
-            
+
+
             foreach ($keys as $key) {
                 $this->assertEquals(count($rmsg[$key]), $count);
             }
         }
         $out = $this->valkey_glide->xRead($qnew);
-        
+
         /* Should be empty (no new entries) */
-        $this->assertEquals(count($out),0);
-        
+        $this->assertEquals(count($out), 0);
+
         /* Test against a specific ID */
         $id = $this->valkey_glide->xAdd('{stream}-1', '*', $row);
         $new_id = $this->valkey_glide->xAdd('{stream}-1', '*', ['final' => 'row']);
-        
+
         $rmsg = $this->valkey_glide->xRead(['{stream}-1' => $id]);
-        
+
 
 
         /* Empty query should fail */
         $this->assertFalse(@$this->valkey_glide->xRead([]));
     }
 
-    public function testXRead() {
-        if ( ! $this->minVersionCheck('5.0'))
+    public function testXRead()
+    {
+        if (! $this->minVersionCheck('5.0')) {
             $this->markTestSkipped();
+        }
 
         $this->doXReadTest();
-        
+
         /* Don't need to test BLOCK multiple times */
-        $m1 = round(microtime(true)*1000);
+        $m1 = round(microtime(true) * 1000);
         $this->valkey_glide->xRead(['somestream' => '$'], -1, 100);
-        $m2 = round(microtime(true)*1000);
+        $m2 = round(microtime(true) * 1000);
         $this->assertGT(99, $m2 - $m1);
     }
 
-    protected function compareStreamIds($valkey_glide, $control) {
+    protected function compareStreamIds($valkey_glide, $control)
+    {
         foreach ($control as $stream => $ids) {
             $rcount = count($valkey_glide[$stream]);
             $lcount = count($control[$stream]);
@@ -6028,9 +6309,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
     }
 
-    public function testXReadGroup() {
-        if ( ! $this->minVersionCheck('5.0'))
+    public function testXReadGroup()
+    {
+        if (! $this->minVersionCheck('5.0')) {
             $this->markTestSkipped();
+        }
 
         /* Create some streams and groups */
         $streams = ['{s}-1', '{s}-2'];
@@ -6075,7 +6358,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
 
         /* Test COUNT option with NULL (should be ignored) */
-        $this->addStreamsAndGroups($streams, 3, $groups, NULL);
+        $this->addStreamsAndGroups($streams, 3, $groups, null);
         $resp = $this->valkey_glide->xReadGroup('group1', 'consumer', $query1, 0);
         foreach ($resp as $stream => $smsg) {
             $this->assertEquals(count($smsg), 3);
@@ -6084,9 +6367,9 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         /* Finally test BLOCK with a sloppy timing test */
         $tm1 = $this->mstime();
         $qnew = ['{s}-1' => '>', '{s}-2' => '>'];
-        
+
         $this->valkey_glide->xReadGroup('group1', 'c1', $qnew, 0, 100);
-        
+
         $this->assertGTE(100, $this->mstime() - $tm1);
 
         /* Make sure passing NULL to block doesn't block */
@@ -6096,25 +6379,27 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         /* Make sure passing bad values to BLOCK or COUNT immediately fails */
         $this->assertFalse(@$this->valkey_glide->xReadGroup('group1', 'c1', $qnew, -1));
-        $this->assertFalse(@$this->valkey_glide->xReadGroup('group1', 'c1', $qnew, NULL, -1));
+        $this->assertFalse(@$this->valkey_glide->xReadGroup('group1', 'c1', $qnew, null, -1));
     }
 
-    public function testXPending() {
-        if ( ! $this->minVersionCheck('5.0'))
+    public function testXPending()
+    {
+        if (! $this->minVersionCheck('5.0')) {
             $this->markTestSkipped();
+        }
 
         $rows = 5;
         $this->addStreamsAndGroups(['s'], $rows, ['group' => 0]);
 
         $msg = $this->valkey_glide->xReadGroup('group', 'consumer', ['s' => 0]);
-        
+
         $ids = array_keys($msg['s']);
-        
+
         for ($n = count($ids); $n >= 0; $n--) {
-            $xp = $this->valkey_glide->xPending('s', 'group');            
-            
+            $xp = $this->valkey_glide->xPending('s', 'group');
+
             $this->assertEquals(count($ids), $xp[0]);
-            
+
             /* Verify we're seeing the IDs themselves */
             for ($idx = 1; $idx <= 2; $idx++) {
                 if ($xp[$idx]) {
@@ -6127,12 +6412,13 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
                 $this->valkey_glide->xAck('s', 'group', [$id]);
             }
         }
-
     }
 
-    public function testXDel() {
-        if ( ! $this->minVersionCheck('5.0'))
+    public function testXDel()
+    {
+        if (! $this->minVersionCheck('5.0')) {
             $this->markTestSkipped();
+        }
 
         for ($n = 5; $n > 0; $n--) {
             $ids = $this->addStreamEntries('s', 5);
@@ -6144,9 +6430,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse(@$this->valkey_glide->xDel('s', []));
     }
 
-    public function testXTrim() {
-        if ( ! $this->minVersionCheck('5.0'))
+    public function testXTrim()
+    {
+        if (! $this->minVersionCheck('5.0')) {
             $this->markTestSkipped();
+        }
 
         for ($maxlen = 0; $maxlen <= 50; $maxlen += 10) {
             $this->addStreamEntries('stream', 100);
@@ -6158,10 +6446,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
            can call it with the flag */
         $this->addStreamEntries('stream', 100);
         $this->assertEquals(0, $this->valkey_glide->xTrim('stream', 1, true));
-      
+
         /* We need ValkeyGlide >= 6.2.0 for MINID and LIMIT options */
-        if ( ! $this->minVersionCheck('6.2.0'))
+        if (! $this->minVersionCheck('6.2.0')) {
             return;
+        }
 
         $this->assertEquals(1, $this->valkey_glide->del('stream'));
 
@@ -6171,7 +6460,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
                 $this->valkey_glide->xadd('stream', "$i-$j", ['foo' => 'bar']);
             }
         }
-  
+
         /* MINID of 2-0 */
         $this->assertEquals(3, $this->valkey_glide->xtrim('stream', 2, false, true));
         $this->assertEquals(['2-0', '2-1', '2-2'], array_keys($this->valkey_glide->xrange('stream', '0', '+')));
@@ -6179,33 +6468,32 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         /* TODO:  Figure oiut how to test LIMIT deterministically.  For now just
                   send a LIMIT and verify we don't get a failure from ValkeyGlide. */
         $this->assertIsInt(@$this->valkey_glide->xtrim('stream', 2, true, false, 3));
-       
     }
 
     /* XCLAIM is one of the most complicated commands, with a great deal of different options
      * The following test attempts to verify every combination of every possible option. */
-    public function testXClaim() {
-        if ( ! $this->minVersionCheck('5.0'))
+    public function testXClaim()
+    {
+        if (! $this->minVersionCheck('5.0')) {
             $this->markTestSkipped();
+        }
 
-        foreach ([0, 100] as $min_idle_time) 
-        
-        {
+        foreach ([0, 100] as $min_idle_time) {
             foreach ([false, true] as $justid) {
-                foreach ([0, 10] as $retrycount) 
-                {
+                foreach ([0, 10] as $retrycount) {
                     /* We need to test not passing TIME/IDLE as well as passing either */
                     if ($min_idle_time == 0) {
                         $topts = [[], ['IDLE', 1000000], ['TIME', time() * 1000]];
                     } else {
-                        $topts = [NULL];
+                        $topts = [null];
                     }
 
                     foreach ($topts as $tinfo) {
                         if ($tinfo) {
                             list($ttype, $tvalue) = $tinfo;
                         } else {
-                            $ttype = NULL; $tvalue = NULL;
+                            $ttype = null;
+                            $tvalue = null;
                         }
 
                         /* Add some messages and create a group */
@@ -6221,34 +6509,44 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
                         /* Construct our options array */
                         $opts = [];
-                        if ($justid) $opts[] = 'JUSTID';
-                        if ($retrycount) $opts['RETRYCOUNT'] = $retrycount;
-                        if ($tvalue !== NULL) $opts[$ttype] = $tvalue;
-                        
+                        if ($justid) {
+                            $opts[] = 'JUSTID';
+                        }
+                        if ($retrycount) {
+                            $opts['RETRYCOUNT'] = $retrycount;
+                        }
+                        if ($tvalue !== null) {
+                            $opts[$ttype] = $tvalue;
+                        }
+
                         /* Now have pavlo XCLAIM them */
                         $cids = $this->valkey_glide->xClaim('s', 'group1', 'Pavlo', $min_idle_time, $oids, $opts);
-                        
-                        if ( ! $justid) $cids = array_keys($cids);
-                       
+
+                        if (! $justid) {
+                            $cids = array_keys($cids);
+                        }
+
                         if ($min_idle_time == 0) {
                             $this->assertEquals($cids, $oids);
-                              
+
                             /* Append the FORCE option to our second stream where we have not already
                              * assigned to a PEL group */
                             $opts[] = 'FORCE';
                             $freturn = $this->valkey_glide->xClaim('f', 'group1', 'Test', 0, $fids, $opts);
-                            
-                            if ( ! $justid) $freturn = array_keys($freturn);
-                            
+
+                            if (! $justid) {
+                                $freturn = array_keys($freturn);
+                            }
+
                             $this->assertEquals($freturn, $fids);
-                         
-                            if ($retrycount || $tvalue !== NULL) {
+
+                            if ($retrycount || $tvalue !== null) {
                                 $pending = $this->valkey_glide->xPending('s', 'group1', 0, '+', 1, 'Pavlo');
 
                                 if ($retrycount) {
                                     $this->assertEquals($pending[0][3], $retrycount);
                                 }
-                                if ($tvalue !== NULL) {
+                                if ($tvalue !== null) {
                                     if ($ttype == 'IDLE') {
                                         /* If testing IDLE the value must be >= what we set */
                                         $this->assertGTE($tvalue, $pending[0][2]);
@@ -6266,22 +6564,20 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
                             $this->assertEquals([], $cids);
                         }
                     }
-                    
                 }
-                
             }
-            
         }
     }
 
     /* Make sure our XAUTOCLAIM handler works */
-    public function testXAutoClaim() {
+    public function testXAutoClaim()
+    {
         $this->valkey_glide->del('ships');
         $this->valkey_glide->xGroup('CREATE', 'ships', 'combatants', '0-0', true);
 
         // Test an empty xautoclaim reply
         $res = $this->valkey_glide->xAutoClaim('ships', 'combatants', 'Sisko', 0, '0-0');
-       
+
         $this->assertTrue(is_array($res) && (count($res) == 2 || count($res) == 3));
         if (count($res) == 2) {
             $this->assertEquals(['0-0', []], $res);
@@ -6300,29 +6596,31 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         // Assume control of the pending message with a different consumer.
         $res = $this->valkey_glide->xAutoClaim('ships', 'combatants', 'Sisko', 0, '0-0');
-        
+
         $this->assertTrue($res && (count($res) == 2 || count($res) == 3));
-        
+
         $this->assertTrue(isset($res[1]['1424-74205']['name']) &&
                           $res[1]['1424-74205']['name'] == 'Defiant');
-        
+
         // Now the 'Sisko' consumer should own the message
         $pending = $this->valkey_glide->xPending('ships', 'combatants');
         $this->assertTrue(isset($pending[3][0][0]) && $pending[3][0][0] == 'Sisko');
     }
 
-    public function testXInfo() {
-        if ( ! $this->minVersionCheck('5.0'))
+    public function testXInfo()
+    {
+        if (! $this->minVersionCheck('5.0')) {
             $this->markTestSkipped();
+        }
 
         /* Create some streams and groups */
         $stream = 's';
         $groups = ['g1' => 0, 'g2' => 0];
         $this->addStreamsAndGroups([$stream], 1, $groups);
-        
-        
+
+
         $info = $this->valkey_glide->xInfo('GROUPS', $stream);
-        
+
         $this->assertIsArray($info);
         $this->assertEquals(count($info), count($groups));
         foreach ($info as $group) {
@@ -6341,19 +6639,20 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
 
         /* Ensure that default/NULL arguments are ignored */
-        $info = $this->valkey_glide->xInfo('STREAM', $stream, NULL);
-        
+        $info = $this->valkey_glide->xInfo('STREAM', $stream, null);
+
 
         $this->assertIsArray($info);
-        
-        $info = $this->valkey_glide->xInfo('STREAM', $stream, NULL, -1);
-     
+
+        $info = $this->valkey_glide->xInfo('STREAM', $stream, null, -1);
+
         $this->assertIsArray($info);
-     
+
         /* XINFO STREAM FULL [COUNT N] Requires >= 6.0.0 */
-        if ( ! $this->minVersionCheck('6.0'))
+        if (! $this->minVersionCheck('6.0')) {
             return;
-        
+        }
+
         /* Add some items to the stream so we can test COUNT */
         for ($i = 0; $i < 5; $i++) {
             $this->valkey_glide->xAdd($stream, '*', ['foo' => 'bar']);
@@ -6364,11 +6663,11 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         for ($count = 1; $count < 5; $count++) {
             $info = $this->valkey_glide->xInfo('STREAM', $stream, 'full', $count);
-            
+
             $n = isset($info['entries']) ? count($info['entries']) : 0;
             $this->assertEquals($n, $count);
         }
-        
+
         /* Count <= 0 should be ignored */
         foreach ([-1, 0] as $count) {
             $info = $this->valkey_glide->xInfo('STREAM', $stream, 'full', 0);
@@ -6377,12 +6676,13 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         }
 
         /* Make sure we can't erroneously send non-null args after null ones */
-        $this->assertFalse(@$this->valkey_glide->xInfo('FOO', NULL, 'fail', 25));
-        $this->assertFalse(@$this->valkey_glide->xInfo('FOO', NULL, NULL, -2));
+        $this->assertFalse(@$this->valkey_glide->xInfo('FOO', null, 'fail', 25));
+        $this->assertFalse(@$this->valkey_glide->xInfo('FOO', null, null, -2));
     }
 
     /* Regression test for issue-1831 (XINFO STREAM on an empty stream) */
-    public function testXInfoEmptyStream() {
+    public function testXInfoEmptyStream()
+    {
         /* Configure an empty stream */
         $this->valkey_glide->del('s');
         $this->valkey_glide->xAdd('s', '*', ['foo' => 'bar']);
@@ -6397,7 +6697,8 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
     }
 
 
-    protected function testRequiresMode(string $mode) {
+    protected function testRequiresMode(string $mode)
+    {
         if (php_sapi_name() != $mode) {
             $this->markTestSkipped("Test requires PHP running in '$mode' mode");
         }
@@ -6407,11 +6708,13 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
 
 
-    
 
-    public function testCopy() {
-        if (version_compare($this->version, '6.2.0') < 0)
+
+    public function testCopy()
+    {
+        if (version_compare($this->version, '6.2.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $this->valkey_glide->del('{key}dst');
         $this->valkey_glide->set('{key}src', 'foo');
@@ -6426,12 +6729,14 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertKeyEquals('bar', '{key}dst');
     }
 
-   
 
-    public function testFunction() {
+
+    public function testFunction()
+    {
         $this->markTestSkipped();// TODO support for functions is not implemented yet
-        if (version_compare($this->version, '7.0') < 0)
+        if (version_compare($this->version, '7.0') < 0) {
             $this->markTestSkipped();
+        }
 
         $this->assertTrue($this->valkey_glide->function('flush', 'sync'));
         $this->assertEquals('mylib', $this->valkey_glide->function('load', "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)"));
@@ -6445,10 +6750,4 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertEquals([['library_name' => 'mylib', 'engine' => 'LUA', 'functions' => [['name' => 'myfunc', 'description' => false,'flags' => []]]]], $this->valkey_glide->function('list'));
         $this->assertTrue($this->valkey_glide->function('delete', 'mylib'));
     }
-
-    
-
-
-
 }
-?>

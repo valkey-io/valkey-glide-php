@@ -1,32 +1,34 @@
-<?php defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
+<?php
+
+defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
 /*
-* -------------------------------------------------------------------- 
+* --------------------------------------------------------------------
 *                   The PHP License, version 3.01
 * Copyright (c) 1999 - 2010 The PHP Group. All rights reserved.
-* -------------------------------------------------------------------- 
-* 
+* --------------------------------------------------------------------
+*
 * Redistribution and use in source and binary forms, with or without
 * modification, is permitted provided that the following conditions
 * are met:
-* 
+*
 *   1. Redistributions of source code must retain the above copyright
 *      notice, this list of conditions and the following disclaimer.
-*  
+*
 *  2. Redistributions in binary form must reproduce the above copyright
 *      notice, this list of conditions and the following disclaimer in
 *      the documentation and/or other materials provided with the
 *      distribution.
-*  
+*
 *   3. The name "PHP" must not be used to endorse or promote products
 *      derived from this software without prior written permission. For
 *      written permission, please contact group@php.net.
-*   
+*
 *   4. Products derived from this software may not be called "PHP", nor
 *      may "PHP" appear in their name, without prior written permission
 *      from group@php.net.  You may indicate that your software works in
 *      conjunction with PHP by saying "Foo for PHP" instead of calling
 *      it "PHP Foo" or "phpfoo"
-*  
+*
 *   5. The PHP Group may publish revised and/or new versions of the
 *      license from time to time. Each version will be given a
 *      distinguishing version number.
@@ -37,35 +39,35 @@
 *      published by the PHP Group. No one other than the PHP Group has
 *      the right to modify the terms applicable to covered code created
 *      under this License.
-* 
+*
 *   6. Redistributions of any form whatsoever must retain the following
 *      acknowledgment:
 *      "This product includes PHP software, freely available from
 *      <http://www.php.net/software/>".
-* 
-* THIS SOFTWARE IS PROVIDED BY THE PHP DEVELOPMENT TEAM ``AS IS'' AND 
+*
+* THIS SOFTWARE IS PROVIDED BY THE PHP DEVELOPMENT TEAM ``AS IS'' AND
 * ANY EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-* THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A 
+* THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
 * PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE PHP
-* DEVELOPMENT TEAM OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
-* INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
+* DEVELOPMENT TEAM OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+* INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 * OF THE POSSIBILITY OF SUCH DAMAGE.
-* 
-* -------------------------------------------------------------------- 
-* 
+*
+* --------------------------------------------------------------------
+*
 * This software consists of voluntary contributions made by many
 * individuals on behalf of the PHP Group.
-* 
+*
 * The PHP Group can be contacted via Email at group@php.net.
-* 
-* For more information on the PHP Group and the PHP project, 
+*
+* For more information on the PHP Group and the PHP project,
 * please see <http://www.php.net>.
-* 
+*
 * PHP includes the Zend Engine, freely available at
 * <http://www.zend.com>.
 */
@@ -77,7 +79,8 @@ require_once __DIR__ . "/ValkeyGlideTest.php";
  * so we only override specific functions where the prototype is different or
  * where we're validating specific cluster mechanisms
  */
-class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
+class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test
+{
     private $valkey_glide_types = [
         ValkeyGlide::VALKEY_GLIDE_STRING,
         ValkeyGlide::VALKEY_GLIDE_SET,
@@ -90,39 +93,82 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
 
     protected static array $seeds = [];
 
-    private static array  $seed_messages = [];
+    private static array $seed_messages = [];
     private static string $seed_source = '';
 
     /* Tests we'll skip all together in the context of ValkeyGlideCluster.  The
      * ValkeyGlideCluster class doesn't implement specialized (non-redis) commands
      * such as sortAsc, or sortDesc and other commands such as SELECT are
      * simply invalid in ValkeyGlide Cluster */
-    public function testPipelinePublish() { $this->markTestSkipped(); }
-    public function testSortAsc()  { $this->markTestSkipped(); }
-    public function testSortDesc() { $this->markTestSkipped(); }
-    public function testWait()     { $this->markTestSkipped(); }
-    public function testSelect()   { $this->markTestSkipped(); }
-    public function testReconnectSelect() { $this->markTestSkipped(); }
-    public function testDoublePipeNoOp() { $this->markTestSkipped(); }
-    public function testSwapDB() { $this->markTestSkipped(); }
-    public function testConnectException() { $this->markTestSkipped(); }
-    public function testTlsConnect() { $this->markTestSkipped(); }
-    public function testConnectDatabaseSelect() { $this->markTestSkipped(); }
-    public function testMove() { 
+    public function testPipelinePublish()
+    {
+        $this->markTestSkipped();
+    }
+    public function testSortAsc()
+    {
+        $this->markTestSkipped();
+    }
+    public function testSortDesc()
+    {
+        $this->markTestSkipped();
+    }
+    public function testWait()
+    {
+        $this->markTestSkipped();
+    }
+    public function testSelect()
+    {
+        $this->markTestSkipped();
+    }
+    public function testReconnectSelect()
+    {
+        $this->markTestSkipped();
+    }
+    public function testDoublePipeNoOp()
+    {
+        $this->markTestSkipped();
+    }
+    public function testSwapDB()
+    {
+        $this->markTestSkipped();
+    }
+    public function testConnectException()
+    {
+        $this->markTestSkipped();
+    }
+    public function testTlsConnect()
+    {
+        $this->markTestSkipped();
+    }
+    public function testConnectDatabaseSelect()
+    {
+        $this->markTestSkipped();
+    }
+    public function testMove()
+    {
         $this->markTestSkipped(); // Move is not supported in ValkeyGlideCluster
     }
 
     /* These 'directed node' commands work differently in ValkeyGlideCluster */
-    public function testConfig() { $this->markTestSkipped(); }
-    public function testFlushDB() { $this->markTestSkipped(); }
-    public function testFunction() { $this->markTestSkipped(); }
+    public function testConfig()
+    {
+        $this->markTestSkipped();
+    }
+    public function testFlushDB()
+    {
+        $this->markTestSkipped();
+    }
+    public function testFunction()
+    {
+        $this->markTestSkipped();
+    }
 
-    private function loadSeedsFromHostPort($host, $port) {
+    private function loadSeedsFromHostPort($host, $port)
+    {
         try {
-            
-            $rc = new ValkeyGlideCluster(NULL, ["$host:$port"], 1, 1, true, $this->getAuth());
+            $rc = new ValkeyGlideCluster(null, ["$host:$port"], 1, 1, true, $this->getAuth());
             self::$seed_source = "Host: $host, Port: $port";
-            return array_map(function($master) {
+            return array_map(function ($master) {
                 return sprintf('%s:%s', $master[0], $master[1]);
             }, $rc->_masters());
         } catch (Exception $ex) {
@@ -134,9 +180,10 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         return false;
     }
 
-    private function loadSeedsFromEnv() {
+    private function loadSeedsFromEnv()
+    {
         $seeds = getenv('REDIS_CLUSTER_NODES');
-        if ( ! $seeds) {
+        if (! $seeds) {
             self::$seed_messages[] = "environment variable REDIS_CLUSTER_NODES ($seeds)";
             return false;
         }
@@ -145,9 +192,10 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         return array_filter(explode(' ', $seeds));
     }
 
-    private function loadSeedsFromNodeMap() {
+    private function loadSeedsFromNodeMap()
+    {
         $nodemap_file = dirname($_SERVER['PHP_SELF']) . '/nodes/nodemap';
-        if ( ! file_exists($nodemap_file)) {
+        if (! file_exists($nodemap_file)) {
             self::$seed_messages[] = "nodemap file '$nodemap_file'";
             return false;
         }
@@ -173,16 +221,18 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
     }*/
 
     /* Load our seeds on construction */
-    public function __construct($host, $port, $auth) {
-        
+    public function __construct($host, $port, $auth)
+    {
+
         parent::__construct($host, $port, $auth);
 
         //self::$seeds = $this->loadSeeds($host, $port);TODO
     }
 
     /* Override setUp to get info from a specific node */
-    public function setUp() {
-        $this->valkey_glide    = $this->newInstance();        
+    public function setUp()
+    {
+        $this->valkey_glide    = $this->newInstance();
         $info           = $this->valkey_glide->info("randomNode");
         $this->version  = $info['redis_version'] ?? '0.0.0';
 
@@ -190,16 +240,14 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
     }
 
     /* Override newInstance as we want a ValkeyGlideCluster object */
-    protected function newInstance() {
+    protected function newInstance()
+    {
         try {
-          
             return new ValkeyGlideCluster(
                 [['host' => '127.0.0.1', 'port' => 7001]], // addresses array format
                 false, // use_tls
                 $this->getAuth(), // credentials
-                ValkeyGlide::READ_FROM_PRIMARY, // read_from                               
-       
-                
+                ValkeyGlide::READ_FROM_PRIMARY, // read_from
             );
         } catch (Exception $ex) {
             TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());
@@ -213,7 +261,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
      * is only true for a few commands, which by definition have to be directed
      * at a specific node */
 
-    public function testPing() {
+    public function testPing()
+    {
         for ($i = 0; $i < 20; $i++) {
             $this->assertTrue($this->valkey_glide->ping(['type' => 'primarySlotKey', 'key' => "key:$i"]));
             $this->assertEquals('BEEP', $this->valkey_glide->ping(['type' => 'primarySlotKey', 'key' => "key:$i"], 'BEEP'));
@@ -226,7 +275,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         $this->assertEquals([true, 'BEEP'], $this->valkey_glide->exec());
     }
 
-    public function testRandomKey() {
+    public function testRandomKey()
+    {
         /* Ensure some keys are present to test */
         for ($i = 0; $i < 1000; $i++) {
             if (rand(1, 2) == 1) {
@@ -240,13 +290,15 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         }
     }
 
-    public function testEcho() {
+    public function testEcho()
+    {
         $this->assertEquals('hello', $this->valkey_glide->echo('echo1', 'hello'));
         $this->assertEquals('world', $this->valkey_glide->echo('echo2', 'world'));
         $this->assertEquals(' 0123 ', $this->valkey_glide->echo('echo3', " 0123 "));
     }
 
-    public function testSortPrefix() {
+    public function testSortPrefix()
+    {
         $this->markTestSkipped();
         $this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, 'some-prefix:');
         $this->valkey_glide->del('some-item');
@@ -261,7 +313,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         $this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, '');
     }
 
-    public function testDBSize() {
+    public function testDBSize()
+    {
         for ($i = 0; $i < 10; $i++) {
             $key = "key:$i";
             $this->assertTrue($this->valkey_glide->flushdb($key));
@@ -270,7 +323,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         }
     }
 
-    public function testFlushAll() {
+    public function testFlushAll()
+    {
 
         for ($i = 0; $i < 10; $i++) {
             $key = "key:$i";
@@ -281,7 +335,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         }
     }
 
-    public function testInfo() {
+    public function testInfo()
+    {
         $fields = [
             "redis_version", "arch_bits", "uptime_in_seconds", "uptime_in_days",
             "connected_clients", "connected_slaves", "used_memory",
@@ -291,49 +346,42 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
 
         // Test individual node INFO calls
         for ($i = 0; $i < 3; $i++) {
-            $info = $this->valkey_glide->info(['type' => 'primarySlotKey', 'key' => $i]);            
+            $info = $this->valkey_glide->info(['type' => 'primarySlotKey', 'key' => $i]);
             foreach ($fields as $field) {
                 $this->assertArrayKey($info, $field);
             }
         }
-        
+
         // Test AllNodes INFO response
         $allNodesInfo = $this->valkey_glide->info("allNodes", "cpu");
         // Should return an array
         $this->assertIsArray($allNodesInfo, 12);
-        
+
         // Should have 6 entries (one per node)
         $this->assertEquals(12, count($allNodesInfo), "Should have 6 node entries");
-        
+
         $nodesSeen = [];
-        
+
         // Test each node entry
         foreach ($allNodesInfo as $index => $nodeInfo) {
-            
-            if ($index % 2 == 0){
+            if ($index % 2 == 0) {
                 $this->assertIsInt($nodeInfo['127.0.0.1'], "Port field should be an integer");
-                $nodePort = $nodeInfo['127.0.0.1'];             
-           
+                $nodePort = $nodeInfo['127.0.0.1'];
+
                 $this->assertFalse(array_key_exists($nodePort, $nodesSeen));
                 $this->assertIsArray($nodeInfo, 1);
                 $nodesSeen[$nodePort] = true;
-                
-            }
-            else 
-            {
-                // Should contain used_cpu_sys field (since we requested it)                
+            } else {
+                // Should contain used_cpu_sys field (since we requested it)
                 $this->assertArrayKey($nodeInfo, 'used_cpu_sys');
-
             }
-
         }
-        
-        
     }
 
-    public function testClient() {
+    public function testClient()
+    {
         $key = 'key-' . rand(1, 100);
-        
+
         return; //TODO other commands are not supoprted by GLIDE
 
         $this->assertTrue($this->valkey_glide->client($key, 'setname', 'cluster_tests'));
@@ -342,7 +390,7 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         $this->assertIsArray($clients);
 
         /* Find us in the list */
-        $addr = NULL;
+        $addr = null;
         foreach ($clients as $client) {
             if ($client['name'] == 'cluster_tests') {
                 $addr = $client['addr'];
@@ -357,82 +405,91 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         $this->assertTrue($this->valkey_glide->client($key, 'kill', $addr));
     }
 
-    public function testTime() {
+    public function testTime()
+    {
         [$sec, $usec] = $this->valkey_glide->time(uniqid());
         $this->assertEquals(strval(intval($sec)), strval($sec));
         $this->assertEquals(strval(intval($usec)), strval($usec));
     }
 
-    public function testScan() {   
+    public function testScan()
+    {
         return;//TODO
-        set_time_limit(10); // Enforce a 10-second limit on this test 
+        set_time_limit(10); // Enforce a 10-second limit on this test
         $key_count = 0;
         $scan_count = 0;
 
         /* Iterate over our masters, scanning each one */
         $key_count = $this->valkey_glide->dbsize("allPrimaries");
-       
+
         /* Scan the keys here using ClusterScanCursor - create new cursor each iteration */
         $cursor = new ClusterScanCursor(); // Create fresh cursor each time
         while (true) {
-            
-            $keys = $this->valkey_glide->scan($cursor);            
-            if ($keys)
+            $keys = $this->valkey_glide->scan($cursor);
+            if ($keys) {
                 $scan_count += count($keys);
+            }
             $new_cursor = new ClusterScanCursor($cursor->getNextCursor()); // Create a new cursor with the updated cursor ID
             $cursor = $new_cursor; // Update the cursor reference
-            if ($cursor->isFinished()) break;
+            if ($cursor->isFinished()) {
+                break;
+            }
             // Cursor goes out of scope here, destructor should be called
         }
-        
+
 
         /* Our total key count should match */
         $this->assertEquals($scan_count, $key_count);
         set_time_limit(0);  // Reset to unlimited (or default) at the end
     }
 
-    public function testScanPattern() {
+    public function testScanPattern()
+    {
          return;//TODO
         $id = uniqid();
 
             $keys = [];
             // Create some simple keys and lists
-            for ($i = 0; $i < 3; $i++) {
-                $simple = "simple:{$id}:$i";
-                $list = "list:{$id}:$i";
+        for ($i = 0; $i < 3; $i++) {
+            $simple = "simple:{$id}:$i";
+            $list = "list:{$id}:$i";
 
-                $this->valkey_glide->set($simple, $i);
-                $this->valkey_glide->del($list);
-                $this->valkey_glide->rpush($list, ['foo']);
+            $this->valkey_glide->set($simple, $i);
+            $this->valkey_glide->del($list);
+            $this->valkey_glide->rpush($list, ['foo']);
 
-                $keys['STRING'][] = $simple;
-                $keys['LIST'][] = $list;
-            }
+            $keys['STRING'][] = $simple;
+            $keys['LIST'][] = $list;
+        }
 
             // Make sure we can scan for specific types
             $cursor = new ClusterScanCursor(); // Create fresh cursor each time
 
-            foreach ($keys as $type => $vals) {
-                foreach ([0, 13] as $count) {
-                    $resp = [];
+        foreach ($keys as $type => $vals) {
+            foreach ([0, 13] as $count) {
+                $resp = [];
 
-                    while (true) {
-                        $scan = $this->valkey_glide->scan($cursor, "*$id*", $count, $type);  
-                        if ($scan)                      
-                            $resp = array_merge($resp, $scan);
-                        $new_cursor = new ClusterScanCursor($cursor->getNextCursor()); // Create a new cursor with the updated cursor ID
-                        $cursor = $new_cursor; // Update the cursor reference
-                        if ($cursor->isFinished()) break;
+                while (true) {
+                    $scan = $this->valkey_glide->scan($cursor, "*$id*", $count, $type);
+                    if ($scan) {
+                        $resp = array_merge($resp, $scan);
                     }
-
-                    $this->assertEqualsCanonicalizing($vals, $resp);
+                    $new_cursor = new ClusterScanCursor($cursor->getNextCursor()); // Create a new cursor with the updated cursor ID
+                    $cursor = $new_cursor; // Update the cursor reference
+                    if ($cursor->isFinished()) {
+                        break;
+                    }
                 }
+
+                $this->assertEqualsCanonicalizing($vals, $resp);
             }
+        }
     }
 
     // Run some simple tests against the PUBSUB command.  This is problematic, as we
     // can't be sure what's going on in the instance, but we can do some things.
-    public function testPubSub() {
+    public function testPubSub()
+    {
         $this->markTestSkipped();
 
         // PUBSUB CHANNELS ...
@@ -454,12 +511,12 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
 
         $zipped = [];
         for ($i = 0; $i <= count($result) / 2; $i += 2) {
-            $zipped[$result[$i]] = $result[$i+1];
+            $zipped[$result[$i]] = $result[$i + 1];
         }
         $result = $zipped;
 
         // Make sure the elements are correct, and have zero counts
-        foreach([$c1,$c2] as $channel) {
+        foreach ([$c1,$c2] as $channel) {
             $this->assertArrayKey($result, $channel);
             $this->assertEquals(0, $result[$channel]);
         }
@@ -474,18 +531,19 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
 
     /* Unlike ValkeyGlide proper, MsetNX won't always totally fail if all keys can't
      * be set, but rather will only fail per-node when that is the case */
-    public function testMSetNX() {
+    public function testMSetNX()
+    {
         $this->markTestSkipped();//TODO understand how to do it in GLIDE
 
         /* All of these keys should get set */
         $this->valkey_glide->del('x', 'y', 'z');
-        $ret = $this->valkey_glide->msetnx(['x'=>'a', 'y'=>'b', 'z'=>'c']);
+        $ret = $this->valkey_glide->msetnx(['x' => 'a', 'y' => 'b', 'z' => 'c']);
         $this->assertIsArray($ret);
-        $this->assertEquals(array_sum($ret),count($ret));
+        $this->assertEquals(array_sum($ret), count($ret));
 
         /* Delete one key */
         $this->valkey_glide->del('x');
-        $ret = $this->valkey_glide->msetnx(['x'=>'a', 'y'=>'b', 'z'=>'c']);
+        $ret = $this->valkey_glide->msetnx(['x' => 'a', 'y' => 'b', 'z' => 'c']);
         $this->assertIsArray($ret);
         $this->assertEquals(1, array_sum($ret));
 
@@ -493,7 +551,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
     }
 
     /* Slowlog needs to take a key or [ip, port], to direct it to a node */
-    public function testSlowlog() {
+    public function testSlowlog()
+    {
         $this->markTestSkipped();
         $key = uniqid() . '-' . rand(1, 1000);
 
@@ -505,12 +564,13 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
     }
 
     /* INFO COMMANDSTATS requires a key or ip:port for node direction */
-    public function testInfoCommandStats() {
+    public function testInfoCommandStats()
+    {
         $info = $this->valkey_glide->info(uniqid(), "COMMANDSTATS");
 
         $this->assertIsArray($info);
         if (is_array($info)) {
-            foreach($info as $k => $value) {
+            foreach ($info as $k => $value) {
                 $this->assertStringContains('cmdstat_', $k);
             }
         }
@@ -518,7 +578,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
 
     /* ValkeyGlideCluster will always respond with an array, even if transactions
      * failed, because the commands could be coming from multiple nodes */
-    public function testFailedTransactions() {
+    public function testFailedTransactions()
+    {
         $this->markTestSkipped();
         $this->valkey_glide->set('x', 42);
 
@@ -541,7 +602,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         $this->assertEquals(['44'], $ret);
     }
 
-    public function testDiscard() {
+    public function testDiscard()
+    {
         $this->markTestSkipped();
         $this->valkey_glide->multi();
         $this->valkey_glide->set('pipecount', 'over9000');
@@ -552,7 +614,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
 
     /* ValkeyGlideCluster::script() is a 'raw' command, which requires a key such that
      * we can direct it to a given node */
-    public function testScript() {
+    public function testScript()
+    {
         $this->markTestSkipped();
         $key = uniqid() . '-' . rand(1, 1000);
 
@@ -584,7 +647,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
 
     /* ValkeyGlideCluster::EVALSHA needs a 'key' to let us know which node we want to
      * direct the command at */
-    public function testEvalSHA() {
+    public function testEvalSHA()
+    {
         $this->markTestSkipped();
         $key = uniqid() . '-' . rand(1, 1000);
 
@@ -592,8 +656,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         $this->valkey_glide->script($key, 'flush');
 
         // Non existent script (but proper sha1), and a random (not) sha1 string
-        $this->assertFalse($this->valkey_glide->evalsha(sha1(uniqid()),[$key], 1));
-        $this->assertFalse($this->valkey_glide->evalsha('some-random-data'),[$key], 1);
+        $this->assertFalse($this->valkey_glide->evalsha(sha1(uniqid()), [$key], 1));
+        $this->assertFalse($this->valkey_glide->evalsha('some-random-data'), [$key], 1);
 
         // Load a script
         $cb  = uniqid(); // To ensure the script is new
@@ -601,12 +665,13 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         $sha = sha1($scr);
 
         // Run it when it doesn't exist, run it with eval, and then run it with sha1
-        $this->assertFalse($this->valkey_glide->evalsha($scr,[$key], 1));
-        $this->assertEquals(1, $this->valkey_glide->eval($scr,[$key], 1));
-        $this->assertEquals(1, $this->valkey_glide->evalsha($sha,[$key], 1));
+        $this->assertFalse($this->valkey_glide->evalsha($scr, [$key], 1));
+        $this->assertEquals(1, $this->valkey_glide->eval($scr, [$key], 1));
+        $this->assertEquals(1, $this->valkey_glide->evalsha($sha, [$key], 1));
     }
 
-    public function testEvalBulkResponse() {
+    public function testEvalBulkResponse()
+    {
         $this->markTestSkipped();
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
         $key2 = uniqid() . '-' . rand(1, 1000) . '{hash}';
@@ -616,13 +681,14 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
 
         $scr = "return {KEYS[1],KEYS[2]}";
 
-        $result = $this->valkey_glide->eval($scr,[$key1, $key2], 2);
+        $result = $this->valkey_glide->eval($scr, [$key1, $key2], 2);
 
         $this->assertEquals($key1, $result[0]);
         $this->assertEquals($key2, $result[1]);
     }
 
-    public function testEvalBulkResponseMulti() {
+    public function testEvalBulkResponseMulti()
+    {
         $this->markTestSkipped();
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
         $key2 = uniqid() . '-' . rand(1, 1000) . '{hash}';
@@ -641,7 +707,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         $this->assertEquals($key2, $result[0][1]);
     }
 
-    public function testEvalBulkEmptyResponse() {
+    public function testEvalBulkEmptyResponse()
+    {
         $this->markTestSkipped();
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
         $key2 = uniqid() . '-' . rand(1, 1000) . '{hash}';
@@ -656,7 +723,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         $this->assertNull($result);
     }
 
-    public function testEvalBulkEmptyResponseMulti() {
+    public function testEvalBulkEmptyResponseMulti()
+    {
         $this->markTestSkipped();
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
         $key2 = uniqid() . '-' . rand(1, 1000) . '{hash}';
@@ -674,7 +742,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
     }
 
     /* Cluster specific introspection stuff */
-    public function testIntrospection() {
+    public function testIntrospection()
+    {
         $this->markTestSkipped();
         $primaries = $this->valkey_glide->_masters();
         $this->assertIsArray($primaries);
@@ -685,7 +754,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         }
     }
 
-    protected function keyTypeToString($key_type) {
+    protected function keyTypeToString($key_type)
+    {
         switch ($key_type) {
             case ValkeyGlide::VALKEY_GLIDE_STRING:
                 return "string";
@@ -702,14 +772,15 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
             default:
                 return "unknown($key_type)";
         }
-
     }
 
-    protected function genKeyName($key_index, $key_type) {
+    protected function genKeyName($key_index, $key_type)
+    {
         return sprintf('%s-%s', $this->keyTypeToString($key_type), $key_index);
     }
 
-    protected function setKeyVals($key_index, $key_type, &$arr_ref) {
+    protected function setKeyVals($key_index, $key_type, &$arr_ref)
+    {
         $key = $this->genKeyName($key_index, $key_type);
 
         $this->valkey_glide->del($key);
@@ -764,7 +835,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
     }
 
     /* Verify that our ZSET values are identical */
-    protected function checkZSetEquality($a, $b) {
+    protected function checkZSetEquality($a, $b)
+    {
         /* If the count is off, the array keys are different or the sums are
          * different, we know there is something off */
         $boo_diff = count($a) != count($b) ||
@@ -777,7 +849,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         }
     }
 
-    protected function checkKeyValue($key, $key_type, $value) {
+    protected function checkKeyValue($key, $key_type, $value)
+    {
         switch ($key_type) {
             case ValkeyGlide::VALKEY_GLIDE_STRING:
                 $this->assertEquals($value, $this->valkey_glide->get($key));
@@ -801,10 +874,11 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
             default:
                 throw new Exception("Unknown type " . $key_type);
         }
-    }   
+    }
 
     /* Test a 'raw' command */
-    public function testRawCommand() {
+    public function testRawCommand()
+    {
         $this->valkey_glide->rawCommand('mykey', 'set', 'mykey', 'my-value');
         $this->assertEquals('my-value', $this->valkey_glide->get('mykey'));
 
@@ -813,13 +887,15 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         $this->assertEquals(['A', 'B', 'C', 'D'], $this->valkey_glide->lrange('mylist', 0, -1));
     }
 
-    protected function rawCommandArray($key, $args) {
+    protected function rawCommandArray($key, $args)
+    {
         array_unshift($args, $key);
         return call_user_func_array([$this->valkey_glide, 'rawCommand'], $args);
     }
 
     /* Test that rawCommand and EVAL can be configured to return simple string values */
-    public function testReplyLiteral() {
+    public function testReplyLiteral()
+    {
         $this->markTestSkipped();
 
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
@@ -840,10 +916,11 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
 
- 
+
 
     /* Test that we are able to use the slot cache without issues */
-    public function testSlotCache() {
+    public function testSlotCache()
+    {
         ini_set('redis.clusters.cache_slots', 1);
 
         $pong = 0;
@@ -858,7 +935,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
     }
 
     /* Regression test for connection pool liveness checks */
-    public function testConnectionPool() {
+    public function testConnectionPool()
+    {
         $prev_value = ini_get('redis.pconnect.pooling_enabled');
         ini_set('redis.pconnect.pooling_enabled', 1);
 
@@ -872,31 +950,35 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         ini_set('redis.pconnect.pooling_enabled', $prev_value);
     }
 
-    protected function sessionPrefix(): string {
+    protected function sessionPrefix(): string
+    {
         return 'VALKEY_GLIDE_PHP_CLUSTER_SESSION:';
     }
 
-    protected function sessionSaveHandler(): string {
+    protected function sessionSaveHandler(): string
+    {
         return 'rediscluster';
     }
 
     /**
      * @inheritdoc
      */
-    protected function sessionSavePath(): string {
+    protected function sessionSavePath(): string
+    {
         return implode('&', array_map(function ($host) {
             return 'seed[]=' . $host;
         }, self::$seeds)) . '&' . $this->getAuthFragment();
     }
 
     /* Test correct handling of null multibulk replies */
-    public function testNullArray() {
+    public function testNullArray()
+    {
         $this->markTestSkipped();
 
         $key = "key:arr";
         $this->valkey_glide->del($key);
 
-        foreach ([false => [], true => NULL] as $opt => $test) {
+        foreach ([false => [], true => null] as $opt => $test) {
             $this->valkey_glide->setOption(ValkeyGlide::OPT_NULL_MULTIBULK_AS_NULL, $opt);
 
             $r = $this->valkey_glide->rawCommand($key, "BLPOP", $key, .05);
@@ -911,8 +993,8 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         $this->valkey_glide->setOption(ValkeyGlide::OPT_NULL_MULTIBULK_AS_NULL, false);
     }
 
-    protected function execWaitAOF() {
+    protected function execWaitAOF()
+    {
         return $this->valkey_glide->waitaof(uniqid(), 0, 0, 0);
     }
 }
-?>

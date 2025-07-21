@@ -1,4 +1,5 @@
 <?php
+
 $testFunctions = [
     "testMinimumVersion",
     "testPing",
