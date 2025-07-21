@@ -1024,28 +1024,6 @@ class ValkeyGlide {
      */
     public function getDel(string $key): ValkeyGlide|string|bool;
 
-  
-    /**
-     * Get the persistent connection ID, if there is one.
-     *
-     * @return string The ID or NULL if we don't have one.
-     */
-    public function getPersistentID(): ?string;
-
-    /**
-     * Get the server name as reported by the `HELLO` response.
-     *
-     * @return string|false
-     */
-    public function serverName(): string|false;
-
-    /**
-     * Get the server version as reported by the `HELLO` response.
-     *
-     * @return string|false
-     */
-    public function serverVersion(): string|false;
-
     /**
      * Retrieve a substring of a string by index.
      *
@@ -1369,27 +1347,6 @@ class ValkeyGlide {
      */
     public function hscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): ValkeyGlide|array|bool;
 
-    /**
-     * Set an expiration on a key member (KeyDB only).
-     *
-     * @see https://docs.keydb.dev/docs/commands/#expiremember
-     *
-     * @param string $key The key to expire
-     * @param string $field The field to expire
-     * @param string|null $unit The unit of the ttl (s, or ms).
-     */
-    public function expiremember(string $key, string $field, int $ttl, ?string $unit = null): ValkeyGlide|int|false;
-
-    /**
-     * Set an expiration on a key membert to a specific unix timestamp (KeyDB only).
-     *
-     * @see https://docs.keydb.dev/docs/commands/#expirememberat
-     *
-     * @param string $key The key to expire
-     * @param string $field The field to expire
-     * @param int $timestamp The unix timestamp to expire at.
-     */
-    public function expirememberat(string $key, string $field, int $timestamp): ValkeyGlide|int|false;
 
     /**
      * Increment a key's value, optionally by a specific amount.
