@@ -619,7 +619,7 @@ class ValkeyGlideCluster {
     /* We only support ValkeyGlide::MULTI in ValkeyGlideCluster but take the argument
        so we can test MULTI..EXEC with ValkeyGlideTest.php and in the event
        we add pipeline support in the future. */
-    public function multi(int $value = ValkeyGlide::MULTI): ValkeyGlideCluster|bool;
+    /* TODO public function multi(int $value = ValkeyGlide::MULTI): ValkeyGlideCluster|bool; */
 
     /**
      * @see ValkeyGlide::object
@@ -687,7 +687,7 @@ class ValkeyGlideCluster {
     /**
      * @see ValkeyGlide::psubscribe
      */
-    public function psubscribe(array $patterns, callable $callback): void;
+    /* TODO public function psubscribe(array $patterns, callable $callback): void; */
 
     /**
      * @see ValkeyGlide::pttl
@@ -697,17 +697,17 @@ class ValkeyGlideCluster {
     /**
      * @see ValkeyGlide::publish
      */
-    public function publish(string $channel, string $message): ValkeyGlideCluster|bool|int;
+    /* TODO public function publish(string $channel, string $message): ValkeyGlideCluster|bool|int;*/
 
     /**
      * @see ValkeyGlide::pubsub
      */
-    public function pubsub(mixed $route, string ...$values): mixed;
+    /* TODO public function pubsub(mixed $route, string ...$values): mixed;*/
 
     /**
      * @see ValkeyGlide::punsubscribe
      */
-    public function punsubscribe(string $pattern, string ...$other_patterns): bool|array;
+    /* TODO public function punsubscribe(string $pattern, string ...$other_patterns): bool|array;*/
 
     /**
      * @see ValkeyGlide::randomkey

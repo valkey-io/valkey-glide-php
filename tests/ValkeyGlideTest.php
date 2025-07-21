@@ -743,12 +743,26 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         $now = time();
 
+        // Test expireat (existing test)
         $this->assertTrue($this->valkey_glide->set('key1', 'value'));
         $this->assertTrue($this->valkey_glide->expireat('key1', $now + 10));
         $this->assertEquals($now + 10, $this->valkey_glide->expiretime('key1'));
         $this->assertEquals(1000 * ($now + 10), $this->valkey_glide->pexpiretime('key1'));
 
-        $this->valkey_glide->del('key1');
+        // Test pexpire (new)
+        $this->assertTrue($this->valkey_glide->set('key2', 'value'));
+        $this->assertTrue($this->valkey_glide->pexpire('key2', 15000)); // 15 seconds in ms
+        $this->assertBetween($this->valkey_glide->expiretime('key2'), $now + 14, $now + 16);
+        $this->assertBetween($this->valkey_glide->pexpiretime('key2'), ($now + 14) * 1000, ($now + 16) * 1000);
+
+        // Test pexpireat (new)  
+        $future_ms = ($now + 20) * 1000;
+        $this->assertTrue($this->valkey_glide->set('key3', 'value'));
+        $this->assertTrue($this->valkey_glide->pexpireat('key3', $future_ms));
+        $this->assertEquals($now + 20, $this->valkey_glide->expiretime('key3'));
+        $this->assertEquals($future_ms, $this->valkey_glide->pexpiretime('key3'));
+
+        $this->valkey_glide->del('key1', 'key2', 'key3');
     }
 
     public function testGetEx() {
