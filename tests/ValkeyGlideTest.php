@@ -3256,11 +3256,13 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertFalse($this->valkey_glide->object('encoding', 'key'));
         $this->assertFalse($this->valkey_glide->object('refcount', 'key'));
         $this->assertFalse($this->valkey_glide->object('idletime', 'key'));
+        $this->assertFalse($this->valkey_glide->object('freq', 'key'));
 
         $this->valkey_glide->set('key', 'value');
         $this->assertEquals($small_encoding, $this->valkey_glide->object('encoding', 'key'));
         $this->assertEquals(1, $this->valkey_glide->object('refcount', 'key'));
         $this->assertTrue(is_numeric($this->valkey_glide->object('idletime', 'key')));
+       
 
         $this->valkey_glide->del('key');
         $this->valkey_glide->lpush('key', 'value');

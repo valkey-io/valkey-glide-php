@@ -1683,7 +1683,7 @@ class ValkeyGlide {
      * $valkey_glide->get('foo');
      * $valkey_glide->exec();
      */
-    public function multi(int $value = ValkeyGlide::MULTI): bool|ValkeyGlide;
+    /* TODO public function multi(int $value = ValkeyGlide::MULTI): bool|ValkeyGlide; */
 
     public function object(string $subcommand, string $key): ValkeyGlide|int|string|false;
 
