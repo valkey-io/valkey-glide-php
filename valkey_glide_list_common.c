@@ -27,8 +27,8 @@ extern zend_class_entry* get_valkey_glide_exception_ce();
  * Allocate command arguments arrays
  */
 int allocate_list_command_args(int count, uintptr_t** args_out, unsigned long** args_len_out) {
-    *args_out     = (uintptr_t*)emalloc(count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(count * sizeof(unsigned long));
 
     if (!*args_out || !*args_len_out) {
         if (*args_out)
@@ -55,7 +55,7 @@ void free_list_command_args(uintptr_t* args, unsigned long* args_len) {
  * Process a blocking result from a command
  */
 int process_list_blocking_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     if (!result || !result->response) {
         return 0;
@@ -285,7 +285,7 @@ int prepare_list_key_only_args(list_command_args_t* args,
         return 0;
     }
 
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     return 1;
@@ -326,7 +326,7 @@ int prepare_list_key_values_args(list_command_args_t* args,
     }
 
     /* Initialize allocated strings tracking */
-    *allocated_strings = (char**)emalloc(total_args * sizeof(char*));
+    *allocated_strings = (char**) emalloc(total_args * sizeof(char*));
     if (!*allocated_strings) {
         free_list_command_args(*args_out, *args_len_out);
         return 0;
@@ -334,7 +334,7 @@ int prepare_list_key_values_args(list_command_args_t* args,
     *allocated_count = 0;
 
     /* First argument: key */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Process all values and add to args array */
@@ -344,7 +344,7 @@ int prepare_list_key_values_args(list_command_args_t* args,
         zval* value = &args->values[i];
 
         if (Z_TYPE_P(value) == IS_STRING) {
-            (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL_P(value);
+            (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(value);
             (*args_len_out)[arg_idx] = Z_STRLEN_P(value);
             arg_idx++;
         } else if (Z_TYPE_P(value) == IS_LONG) {
@@ -360,7 +360,7 @@ int prepare_list_key_values_args(list_command_args_t* args,
             (*allocated_strings)[*allocated_count] = str_val;
             (*allocated_count)++;
 
-            (*args_out)[arg_idx]     = (uintptr_t)str_val;
+            (*args_out)[arg_idx]     = (uintptr_t) str_val;
             (*args_len_out)[arg_idx] = str_len;
             arg_idx++;
         } else if (Z_TYPE_P(value) == IS_DOUBLE) {
@@ -376,7 +376,7 @@ int prepare_list_key_values_args(list_command_args_t* args,
             (*allocated_strings)[*allocated_count] = str_val;
             (*allocated_count)++;
 
-            (*args_out)[arg_idx]     = (uintptr_t)str_val;
+            (*args_out)[arg_idx]     = (uintptr_t) str_val;
             (*args_len_out)[arg_idx] = str_len;
             arg_idx++;
         } else if (Z_TYPE_P(value) == IS_ARRAY) {
@@ -385,7 +385,7 @@ int prepare_list_key_values_args(list_command_args_t* args,
 
             ZEND_HASH_FOREACH_VAL(ht, z_item) {
                 if (Z_TYPE_P(z_item) == IS_STRING) {
-                    (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL_P(z_item);
+                    (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_item);
                     (*args_len_out)[arg_idx] = Z_STRLEN_P(z_item);
                     arg_idx++;
                 } else if (Z_TYPE_P(z_item) == IS_LONG) {
@@ -401,7 +401,7 @@ int prepare_list_key_values_args(list_command_args_t* args,
                     (*allocated_strings)[*allocated_count] = str_val;
                     (*allocated_count)++;
 
-                    (*args_out)[arg_idx]     = (uintptr_t)str_val;
+                    (*args_out)[arg_idx]     = (uintptr_t) str_val;
                     (*args_len_out)[arg_idx] = str_len;
                     arg_idx++;
                 } else if (Z_TYPE_P(z_item) == IS_DOUBLE) {
@@ -417,7 +417,7 @@ int prepare_list_key_values_args(list_command_args_t* args,
                     (*allocated_strings)[*allocated_count] = str_val;
                     (*allocated_count)++;
 
-                    (*args_out)[arg_idx]     = (uintptr_t)str_val;
+                    (*args_out)[arg_idx]     = (uintptr_t) str_val;
                     (*args_len_out)[arg_idx] = str_len;
                     arg_idx++;
                 } else {
@@ -437,7 +437,7 @@ int prepare_list_key_values_args(list_command_args_t* args,
  * Process an integer result for LPOS and other commands that return to zval
  */
 int process_list_zval_int_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     if (!result || !result->response) {
         return 0;
@@ -479,7 +479,7 @@ int prepare_list_key_count_args(list_command_args_t* args,
     *allocated_count   = 0;
 
     /* First argument: key */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Add count if provided */
@@ -492,7 +492,7 @@ int prepare_list_key_count_args(list_command_args_t* args,
         }
 
         /* Track allocated string */
-        *allocated_strings = (char**)emalloc(sizeof(char*));
+        *allocated_strings = (char**) emalloc(sizeof(char*));
         if (!*allocated_strings) {
             efree(count_str);
             free_list_command_args(*args_out, *args_len_out);
@@ -502,7 +502,7 @@ int prepare_list_key_count_args(list_command_args_t* args,
         (*allocated_strings)[0] = count_str;
         *allocated_count        = 1;
 
-        (*args_out)[1]     = (uintptr_t)count_str;
+        (*args_out)[1]     = (uintptr_t) count_str;
         (*args_len_out)[1] = count_len;
     }
 
@@ -517,7 +517,7 @@ int prepare_list_key_count_args(list_command_args_t* args,
  * Process an integer result from a command
  */
 int process_list_int_result(CommandResult* result, void* output) {
-    long* output_value = (long*)output;
+    long* output_value = (long*) output;
 
     if (!result || !result->response) {
         return 0;
@@ -535,9 +535,9 @@ int process_list_int_result(CommandResult* result, void* output) {
  * Process a string result from a command
  */
 int process_list_string_result(CommandResult* result, void* output) {
-    void**  output_array = (void**)output;
-    char**  output_value = (char**)output_array[0];
-    size_t* output_len   = (size_t*)output_array[1];
+    void**  output_array = (void**) output;
+    char**  output_value = (char**) output_array[0];
+    size_t* output_len   = (size_t*) output_array[1];
 
     if (!result || !result->response) {
         return 0;
@@ -569,7 +569,7 @@ int process_list_string_result(CommandResult* result, void* output) {
  * Process an array result from a command
  */
 int process_list_array_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     if (!result || !result->response) {
         return 0;
@@ -583,7 +583,7 @@ int process_list_array_result(CommandResult* result, void* output) {
  * Process a pop result from a command (handles both single values and arrays)
  */
 int process_list_pop_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     if (!result || !result->response) {
         return 0;
@@ -640,7 +640,7 @@ int prepare_list_blocking_args(list_command_args_t* args,
     }
 
     /* Initialize allocated strings tracking */
-    *allocated_strings = (char**)emalloc(sizeof(char*));
+    *allocated_strings = (char**) emalloc(sizeof(char*));
     if (!*allocated_strings) {
         free_list_command_args(*args_out, *args_len_out);
         return 0;
@@ -659,17 +659,17 @@ int prepare_list_blocking_args(list_command_args_t* args,
                 free_list_command_args(*args_out, *args_len_out);
                 return 0;
             }
-            (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL_P(z_key);
+            (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_key);
             (*args_len_out)[arg_idx] = Z_STRLEN_P(z_key);
             arg_idx++;
         }
         ZEND_HASH_FOREACH_END();
     } else if (args->keys && Z_TYPE_P(args->keys) == IS_STRING) {
-        (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL_P(args->keys);
+        (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(args->keys);
         (*args_len_out)[arg_idx] = Z_STRLEN_P(args->keys);
         arg_idx++;
     } else if (args->key) {
-        (*args_out)[arg_idx]     = (uintptr_t)args->key;
+        (*args_out)[arg_idx]     = (uintptr_t) args->key;
         (*args_len_out)[arg_idx] = args->key_len;
         arg_idx++;
     }
@@ -686,7 +686,7 @@ int prepare_list_blocking_args(list_command_args_t* args,
     (*allocated_strings)[*allocated_count] = timeout_str;
     (*allocated_count)++;
 
-    (*args_out)[arg_idx]     = (uintptr_t)timeout_str;
+    (*args_out)[arg_idx]     = (uintptr_t) timeout_str;
     (*args_len_out)[arg_idx] = timeout_len;
 
     return arg_count;
@@ -866,7 +866,7 @@ int prepare_list_range_args(list_command_args_t* args,
     }
 
     /* Initialize allocated strings tracking */
-    *allocated_strings = (char**)emalloc(2 * sizeof(char*));
+    *allocated_strings = (char**) emalloc(2 * sizeof(char*));
     if (!*allocated_strings) {
         free_list_command_args(*args_out, *args_len_out);
         return 0;
@@ -874,7 +874,7 @@ int prepare_list_range_args(list_command_args_t* args,
     *allocated_count = 0;
 
     /* First argument: key */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Second argument: start */
@@ -889,7 +889,7 @@ int prepare_list_range_args(list_command_args_t* args,
     (*allocated_strings)[*allocated_count] = start_str;
     (*allocated_count)++;
 
-    (*args_out)[1]     = (uintptr_t)start_str;
+    (*args_out)[1]     = (uintptr_t) start_str;
     (*args_len_out)[1] = start_len;
 
     /* Third argument: end */
@@ -904,7 +904,7 @@ int prepare_list_range_args(list_command_args_t* args,
     (*allocated_strings)[*allocated_count] = end_str;
     (*allocated_count)++;
 
-    (*args_out)[2]     = (uintptr_t)end_str;
+    (*args_out)[2]     = (uintptr_t) end_str;
     (*args_len_out)[2] = end_len;
 
     return 3;
@@ -941,7 +941,7 @@ int prepare_list_position_args(list_command_args_t* args,
     }
 
     /* Initialize allocated strings tracking */
-    *allocated_strings = (char**)emalloc(3 * sizeof(char*));
+    *allocated_strings = (char**) emalloc(3 * sizeof(char*));
     if (!*allocated_strings) {
         free_list_command_args(*args_out, *args_len_out);
         return 0;
@@ -949,16 +949,16 @@ int prepare_list_position_args(list_command_args_t* args,
     *allocated_count = 0;
 
     /* Key and element are first two arguments */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
-    (*args_out)[1]     = (uintptr_t)args->element;
+    (*args_out)[1]     = (uintptr_t) args->element;
     (*args_len_out)[1] = args->element_len;
 
     unsigned int arg_idx = 2;
 
     /* Add optional arguments */
     if (args->position_opts.has_rank) {
-        (*args_out)[arg_idx]     = (uintptr_t)"RANK";
+        (*args_out)[arg_idx]     = (uintptr_t) "RANK";
         (*args_len_out)[arg_idx] = 4;
         arg_idx++;
 
@@ -973,13 +973,13 @@ int prepare_list_position_args(list_command_args_t* args,
         (*allocated_strings)[*allocated_count] = rank_str;
         (*allocated_count)++;
 
-        (*args_out)[arg_idx]     = (uintptr_t)rank_str;
+        (*args_out)[arg_idx]     = (uintptr_t) rank_str;
         (*args_len_out)[arg_idx] = rank_len;
         arg_idx++;
     }
 
     if (args->position_opts.has_count) {
-        (*args_out)[arg_idx]     = (uintptr_t)"COUNT";
+        (*args_out)[arg_idx]     = (uintptr_t) "COUNT";
         (*args_len_out)[arg_idx] = 5;
         arg_idx++;
 
@@ -994,13 +994,13 @@ int prepare_list_position_args(list_command_args_t* args,
         (*allocated_strings)[*allocated_count] = count_str;
         (*allocated_count)++;
 
-        (*args_out)[arg_idx]     = (uintptr_t)count_str;
+        (*args_out)[arg_idx]     = (uintptr_t) count_str;
         (*args_len_out)[arg_idx] = count_len;
         arg_idx++;
     }
 
     if (args->position_opts.has_maxlen) {
-        (*args_out)[arg_idx]     = (uintptr_t)"MAXLEN";
+        (*args_out)[arg_idx]     = (uintptr_t) "MAXLEN";
         (*args_len_out)[arg_idx] = 6;
         arg_idx++;
 
@@ -1015,7 +1015,7 @@ int prepare_list_position_args(list_command_args_t* args,
         (*allocated_strings)[*allocated_count] = maxlen_str;
         (*allocated_count)++;
 
-        (*args_out)[arg_idx]     = (uintptr_t)maxlen_str;
+        (*args_out)[arg_idx]     = (uintptr_t) maxlen_str;
         (*args_len_out)[arg_idx] = maxlen_len;
         arg_idx++;
     }
@@ -1042,13 +1042,13 @@ int prepare_list_insert_args(list_command_args_t* args,
         return 0;
     }
 
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
-    (*args_out)[1]     = (uintptr_t)args->position_opts.position;
+    (*args_out)[1]     = (uintptr_t) args->position_opts.position;
     (*args_len_out)[1] = args->position_opts.position_len;
-    (*args_out)[2]     = (uintptr_t)args->position_opts.pivot;
+    (*args_out)[2]     = (uintptr_t) args->position_opts.pivot;
     (*args_len_out)[2] = args->position_opts.pivot_len;
-    (*args_out)[3]     = (uintptr_t)args->value;
+    (*args_out)[3]     = (uintptr_t) args->value;
     (*args_len_out)[3] = args->value_len;
 
     return 4;
@@ -1073,7 +1073,7 @@ int prepare_list_index_set_args(list_command_args_t* args,
     }
 
     /* Initialize allocated strings tracking */
-    *allocated_strings = (char**)emalloc(sizeof(char*));
+    *allocated_strings = (char**) emalloc(sizeof(char*));
     if (!*allocated_strings) {
         free_list_command_args(*args_out, *args_len_out);
         return 0;
@@ -1081,7 +1081,7 @@ int prepare_list_index_set_args(list_command_args_t* args,
     *allocated_count = 0;
 
     /* First argument: key */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Second argument: index */
@@ -1096,12 +1096,12 @@ int prepare_list_index_set_args(list_command_args_t* args,
     (*allocated_strings)[*allocated_count] = index_str;
     (*allocated_count)++;
 
-    (*args_out)[1]     = (uintptr_t)index_str;
+    (*args_out)[1]     = (uintptr_t) index_str;
     (*args_len_out)[1] = index_len;
 
     /* Third argument: value (for LSET) */
     if (args->value) {
-        (*args_out)[2]     = (uintptr_t)args->value;
+        (*args_out)[2]     = (uintptr_t) args->value;
         (*args_len_out)[2] = args->value_len;
     }
 
@@ -1128,7 +1128,7 @@ int prepare_list_rem_args(list_command_args_t* args,
     }
 
     /* Initialize allocated strings tracking */
-    *allocated_strings = (char**)emalloc(sizeof(char*));
+    *allocated_strings = (char**) emalloc(sizeof(char*));
     if (!*allocated_strings) {
         free_list_command_args(*args_out, *args_len_out);
         return 0;
@@ -1136,7 +1136,7 @@ int prepare_list_rem_args(list_command_args_t* args,
     *allocated_count = 0;
 
     /* First argument: key */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Second argument: count */
@@ -1151,11 +1151,11 @@ int prepare_list_rem_args(list_command_args_t* args,
     (*allocated_strings)[*allocated_count] = count_str;
     (*allocated_count)++;
 
-    (*args_out)[1]     = (uintptr_t)count_str;
+    (*args_out)[1]     = (uintptr_t) count_str;
     (*args_len_out)[1] = count_len;
 
     /* Third argument: value */
-    (*args_out)[2]     = (uintptr_t)args->value;
+    (*args_out)[2]     = (uintptr_t) args->value;
     (*args_len_out)[2] = args->value_len;
 
     return 3;
@@ -1177,7 +1177,7 @@ int prepare_list_trim_args(list_command_args_t* args,
     }
 
     /* Initialize allocated strings tracking */
-    *allocated_strings = (char**)emalloc(2 * sizeof(char*));
+    *allocated_strings = (char**) emalloc(2 * sizeof(char*));
     if (!*allocated_strings) {
         free_list_command_args(*args_out, *args_len_out);
         return 0;
@@ -1185,7 +1185,7 @@ int prepare_list_trim_args(list_command_args_t* args,
     *allocated_count = 0;
 
     /* First argument: key */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Second argument: start */
@@ -1200,7 +1200,7 @@ int prepare_list_trim_args(list_command_args_t* args,
     (*allocated_strings)[*allocated_count] = start_str;
     (*allocated_count)++;
 
-    (*args_out)[1]     = (uintptr_t)start_str;
+    (*args_out)[1]     = (uintptr_t) start_str;
     (*args_len_out)[1] = start_len;
 
     /* Third argument: end */
@@ -1215,7 +1215,7 @@ int prepare_list_trim_args(list_command_args_t* args,
     (*allocated_strings)[*allocated_count] = end_str;
     (*allocated_count)++;
 
-    (*args_out)[2]     = (uintptr_t)end_str;
+    (*args_out)[2]     = (uintptr_t) end_str;
     (*args_len_out)[2] = end_len;
 
     return 3;
@@ -1255,7 +1255,7 @@ int prepare_list_move_args(list_command_args_t* args,
     }
 
     /* Initialize allocated strings tracking */
-    *allocated_strings = (char**)emalloc(sizeof(char*));
+    *allocated_strings = (char**) emalloc(sizeof(char*));
     if (!*allocated_strings) {
         free_list_command_args(*args_out, *args_len_out);
         return 0;
@@ -1265,22 +1265,22 @@ int prepare_list_move_args(list_command_args_t* args,
     unsigned int arg_idx = 0;
 
     /* First argument: source key */
-    (*args_out)[arg_idx]     = (uintptr_t)args->key;
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
     (*args_len_out)[arg_idx] = args->key_len;
     arg_idx++;
 
     /* Second argument: destination key */
-    (*args_out)[arg_idx]     = (uintptr_t)args->move_opts.dest_key;
+    (*args_out)[arg_idx]     = (uintptr_t) args->move_opts.dest_key;
     (*args_len_out)[arg_idx] = args->move_opts.dest_key_len;
     arg_idx++;
 
     /* Add direction arguments if present (LMOVE/BLMOVE style) */
     if (args->move_opts.source_direction && args->move_opts.dest_direction) {
-        (*args_out)[arg_idx]     = (uintptr_t)args->move_opts.source_direction;
+        (*args_out)[arg_idx]     = (uintptr_t) args->move_opts.source_direction;
         (*args_len_out)[arg_idx] = args->move_opts.source_direction_len;
         arg_idx++;
 
-        (*args_out)[arg_idx]     = (uintptr_t)args->move_opts.dest_direction;
+        (*args_out)[arg_idx]     = (uintptr_t) args->move_opts.dest_direction;
         (*args_len_out)[arg_idx] = args->move_opts.dest_direction_len;
         arg_idx++;
     }
@@ -1298,7 +1298,7 @@ int prepare_list_move_args(list_command_args_t* args,
         (*allocated_strings)[*allocated_count] = timeout_str;
         (*allocated_count)++;
 
-        (*args_out)[arg_idx]     = (uintptr_t)timeout_str;
+        (*args_out)[arg_idx]     = (uintptr_t) timeout_str;
         (*args_len_out)[arg_idx] = timeout_len;
         arg_idx++;
     }
@@ -1342,7 +1342,7 @@ int prepare_list_mpop_args(list_command_args_t* args,
     }
 
     /* Initialize allocated strings tracking */
-    *allocated_strings = (char**)emalloc(3 * sizeof(char*)); /* timeout, numkeys, count */
+    *allocated_strings = (char**) emalloc(3 * sizeof(char*)); /* timeout, numkeys, count */
     if (!*allocated_strings) {
         free_list_command_args(*args_out, *args_len_out);
         return 0;
@@ -1364,7 +1364,7 @@ int prepare_list_mpop_args(list_command_args_t* args,
         (*allocated_strings)[*allocated_count] = timeout_str;
         (*allocated_count)++;
 
-        (*args_out)[arg_idx]     = (uintptr_t)timeout_str;
+        (*args_out)[arg_idx]     = (uintptr_t) timeout_str;
         (*args_len_out)[arg_idx] = timeout_len;
         arg_idx++;
     }
@@ -1381,7 +1381,7 @@ int prepare_list_mpop_args(list_command_args_t* args,
     (*allocated_strings)[*allocated_count] = numkeys_str;
     (*allocated_count)++;
 
-    (*args_out)[arg_idx]     = (uintptr_t)numkeys_str;
+    (*args_out)[arg_idx]     = (uintptr_t) numkeys_str;
     (*args_len_out)[arg_idx] = numkeys_len;
     arg_idx++;
 
@@ -1394,20 +1394,20 @@ int prepare_list_mpop_args(list_command_args_t* args,
             free_list_command_args(*args_out, *args_len_out);
             return 0;
         }
-        (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL_P(z_key);
+        (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_key);
         (*args_len_out)[arg_idx] = Z_STRLEN_P(z_key);
         arg_idx++;
     }
     ZEND_HASH_FOREACH_END();
 
     /* Add direction */
-    (*args_out)[arg_idx]     = (uintptr_t)args->mpop_opts.direction;
+    (*args_out)[arg_idx]     = (uintptr_t) args->mpop_opts.direction;
     (*args_len_out)[arg_idx] = args->mpop_opts.direction_len;
     arg_idx++;
 
     /* Add COUNT if specified */
     if (args->mpop_opts.has_count) {
-        (*args_out)[arg_idx]     = (uintptr_t)"COUNT";
+        (*args_out)[arg_idx]     = (uintptr_t) "COUNT";
         (*args_len_out)[arg_idx] = 5;
         arg_idx++;
 
@@ -1422,7 +1422,7 @@ int prepare_list_mpop_args(list_command_args_t* args,
         (*allocated_strings)[*allocated_count] = count_str;
         (*allocated_count)++;
 
-        (*args_out)[arg_idx]     = (uintptr_t)count_str;
+        (*args_out)[arg_idx]     = (uintptr_t) count_str;
         (*args_len_out)[arg_idx] = count_len;
         arg_idx++;
     }
@@ -2017,7 +2017,7 @@ int execute_list_trim_command(zval* object, int argc, zval* return_value, zend_c
  * Process an OK result from a command
  */
 int process_list_ok_result(CommandResult* result, void* output) {
-    int* status = (int*)output;
+    int* status = (int*) output;
 
     if (!result) {
         *status = 0;
@@ -2042,7 +2042,7 @@ int process_list_ok_result(CommandResult* result, void* output) {
  * Process an MPOP result from a command
  */
 int process_list_mpop_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     if (!result || !result->response) {
         ZVAL_FALSE(return_value);

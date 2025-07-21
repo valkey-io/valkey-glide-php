@@ -50,7 +50,7 @@ static uint8_t* create_connection_request(const char*                          h
 
     /* Set up the node address */
     ConnectionRequest__NodeAddress node_addr = CONNECTION_REQUEST__NODE_ADDRESS__INIT;
-    node_addr.host                           = (char*)host;
+    node_addr.host                           = (char*) host;
     node_addr.port                           = port;
 
     /* Add the node address to the connection request */
@@ -61,8 +61,8 @@ static uint8_t* create_connection_request(const char*                          h
     /* Set up authentication if provided */
     ConnectionRequest__AuthenticationInfo auth_info = CONNECTION_REQUEST__AUTHENTICATION_INFO__INIT;
     if (user && pass) {
-        auth_info.username           = (char*)user;
-        auth_info.password           = (char*)pass;
+        auth_info.username           = (char*) user;
+        auth_info.password           = (char*) pass;
         conn_req.authentication_info = &auth_info;
     }
 
@@ -100,7 +100,7 @@ static uint8_t* create_connection_request(const char*                          h
     *len = connection_request__connection_request__get_packed_size(&conn_req);
 
     /* Allocate memory for the serialized message */
-    uint8_t* buffer = (uint8_t*)emalloc(*len);
+    uint8_t* buffer = (uint8_t*) emalloc(*len);
     if (!buffer) {
         *len = 0;
         return NULL;
@@ -155,7 +155,7 @@ const void* create_glide_client(valkey_glide_client_configuration_t* config, boo
     /* Check if there was an error */
     if (conn_resp->connection_error_message) {
         printf("Error creating client: %s\n", conn_resp->connection_error_message);
-        free_connection_response((ConnectionResponse*)conn_resp);
+        free_connection_response((ConnectionResponse*) conn_resp);
         return NULL;
     }
 
@@ -163,7 +163,7 @@ const void* create_glide_client(valkey_glide_client_configuration_t* config, boo
     const void* client = conn_resp->conn_ptr;
 
     /* Free the connection response (but not the client) */
-    free_connection_response((ConnectionResponse*)conn_resp);
+    free_connection_response((ConnectionResponse*) conn_resp);
 
     return client;
 }
@@ -176,7 +176,7 @@ struct set_result_data {
 };
 
 static int process_set_result(CommandResult* result, void* output) {
-    struct set_result_data* data = (struct set_result_data*)output;
+    struct set_result_data* data = (struct set_result_data*) output;
 
     if (!result || !result->response) {
         return 0;
@@ -423,11 +423,11 @@ int execute_set_command(zval* object, int argc, zval* return_value, zend_class_e
             case IS_DOUBLE:
                 /* Double - use as timeout */
                 expire     = Z_DVAL_P(z_expire);
-                expire_int = (zend_long)expire;
+                expire_int = (zend_long) expire;
                 break;
             case IS_LONG:
                 /* Long - use as timeout */
-                expire     = (double)Z_LVAL_P(z_expire);
+                expire     = (double) Z_LVAL_P(z_expire);
                 expire_int = Z_LVAL_P(z_expire);
                 break;
             case IS_ARRAY:
@@ -1011,9 +1011,9 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
         } else {
             /* One or more sections specified */
             unsigned long  arg_count = args_count - 1; /* Subtract 1 for route parameter */
-            uintptr_t*     cmd_args  = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
+            uintptr_t*     cmd_args  = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
             unsigned long* cmd_args_len =
-                (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+                (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
             if (!cmd_args || !cmd_args_len) {
                 if (cmd_args)
@@ -1036,14 +1036,14 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
                     ZVAL_COPY(&temp, section);
                     convert_to_string(&temp);
 
-                    cmd_args[arg_idx]     = (uintptr_t)Z_STRVAL(temp);
+                    cmd_args[arg_idx]     = (uintptr_t) Z_STRVAL(temp);
                     cmd_args_len[arg_idx] = Z_STRLEN(temp);
 
                     /* Free the temporary zval */
                     zval_dtor(&temp);
                 } else {
                     /* It's already a string */
-                    cmd_args[arg_idx]     = (uintptr_t)Z_STRVAL_P(section);
+                    cmd_args[arg_idx]     = (uintptr_t) Z_STRVAL_P(section);
                     cmd_args_len[arg_idx] = Z_STRLEN_P(section);
                 }
             }
@@ -1091,9 +1091,9 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
         } else {
             /* One or more sections specified */
             unsigned long  arg_count = args_count;
-            uintptr_t*     cmd_args  = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
+            uintptr_t*     cmd_args  = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
             unsigned long* cmd_args_len =
-                (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+                (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
             if (!cmd_args || !cmd_args_len) {
                 if (cmd_args)
@@ -1114,14 +1114,14 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
                     ZVAL_COPY(&temp, section);
                     convert_to_string(&temp);
 
-                    cmd_args[i]     = (uintptr_t)Z_STRVAL(temp);
+                    cmd_args[i]     = (uintptr_t) Z_STRVAL(temp);
                     cmd_args_len[i] = Z_STRLEN(temp);
 
                     /* Free the temporary zval */
                     zval_dtor(&temp);
                 } else {
                     /* It's already a string */
-                    cmd_args[i]     = (uintptr_t)Z_STRVAL_P(section);
+                    cmd_args[i]     = (uintptr_t) Z_STRVAL_P(section);
                     cmd_args_len[i] = Z_STRLEN_P(section);
                 }
             }
@@ -1748,11 +1748,11 @@ int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_e
     unsigned long args_len[7];
 
     /* First argument: key1 */
-    args[0]     = (uintptr_t)key1;
+    args[0]     = (uintptr_t) key1;
     args_len[0] = key1_len;
 
     /* Second argument: key2 */
-    args[1]     = (uintptr_t)key2;
+    args[1]     = (uintptr_t) key2;
     args_len[1] = key2_len;
 
     /* Parse options and flags */
@@ -1805,21 +1805,21 @@ int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_e
 
     /* Add LEN option if specified */
     if (has_len) {
-        args[arg_count]     = (uintptr_t)"LEN";
+        args[arg_count]     = (uintptr_t) "LEN";
         args_len[arg_count] = 3;
         arg_count++;
     }
 
     /* Add IDX option if specified */
     if (has_idx) {
-        args[arg_count]     = (uintptr_t)"IDX";
+        args[arg_count]     = (uintptr_t) "IDX";
         args_len[arg_count] = 3;
         arg_count++;
     }
 
     /* Add MINMATCHLEN option if specified */
     if (has_minmatchlen) {
-        args[arg_count]     = (uintptr_t)"MINMATCHLEN";
+        args[arg_count]     = (uintptr_t) "MINMATCHLEN";
         args_len[arg_count] = 11;
         arg_count++;
 
@@ -1829,14 +1829,14 @@ int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_e
         if (!minmatchlen_str) {
             return 0;
         }
-        args[arg_count]     = (uintptr_t)minmatchlen_str;
+        args[arg_count]     = (uintptr_t) minmatchlen_str;
         args_len[arg_count] = minmatchlen_len;
         arg_count++;
     }
 
     /* Add WITHMATCHLEN option if specified */
     if (has_withmatchlen) {
-        args[arg_count]     = (uintptr_t)"WITHMATCHLEN";
+        args[arg_count]     = (uintptr_t) "WITHMATCHLEN";
         args_len[arg_count] = 12;
         arg_count++;
     }

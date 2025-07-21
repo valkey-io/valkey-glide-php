@@ -355,7 +355,7 @@ int execute_object_command_impl(const void* glide_client,
     uintptr_t     args[1];
     unsigned long args_len[1];
 
-    args[0]     = (uintptr_t)key;
+    args[0]     = (uintptr_t) key;
     args_len[0] = key_len;
 
     /* Select appropriate request type based on subcommand */
@@ -385,7 +385,7 @@ int execute_object_command_impl(const void* glide_client,
         /* These subcommands return integers */
         if (result->response && result->response->response_type == Int) {
             /* Success, set return value */
-            ZVAL_LONG(return_value, (long)result->response->int_value);
+            ZVAL_LONG(return_value, (long) result->response->int_value);
             ret_val = 1;
         } else if (result->response && result->response->response_type == Null) {
             /* Key doesn't exist */

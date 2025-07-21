@@ -372,7 +372,7 @@ PHP_METHOD(ValkeyGlide, __construct) {
         if (factor_val && (Z_TYPE_P(factor_val) == IS_DOUBLE || Z_TYPE_P(factor_val) == IS_LONG)) {
             client_config.base.reconnect_strategy->factor = Z_TYPE_P(factor_val) == IS_DOUBLE
                                                                 ? Z_DVAL_P(factor_val)
-                                                                : (double)Z_LVAL_P(factor_val);
+                                                                : (double) Z_LVAL_P(factor_val);
         } else {
             client_config.base.reconnect_strategy->factor = 2.0; /* Default */
         }
@@ -383,7 +383,7 @@ PHP_METHOD(ValkeyGlide, __construct) {
             (Z_TYPE_P(exponent_val) == IS_DOUBLE || Z_TYPE_P(exponent_val) == IS_LONG)) {
             client_config.base.reconnect_strategy->exponent_base =
                 Z_TYPE_P(exponent_val) == IS_DOUBLE ? Z_DVAL_P(exponent_val)
-                                                    : (double)Z_LVAL_P(exponent_val);
+                                                    : (double) Z_LVAL_P(exponent_val);
         } else {
             client_config.base.reconnect_strategy->exponent_base = 2; /* Default */
         }

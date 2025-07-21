@@ -331,8 +331,8 @@ int parse_x_claim_options(zval* options, x_claim_options_t* opts) {
  * Allocate command arguments arrays
  */
 int allocate_command_args(int count, uintptr_t** args_out, unsigned long** args_len_out) {
-    *args_out     = (uintptr_t*)emalloc(count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(count * sizeof(unsigned long));
 
     if (!*args_out || !*args_len_out) {
         if (*args_out)
@@ -478,9 +478,9 @@ cleanup:
         /* The limit string is added after LIMIT keyword, scan backwards to find it */
         for (int i = arg_count - 1; i >= 0; i--) {
             /* Look for the pattern: LIMIT followed by allocated string */
-            if (i > 0 && cmd_args[i - 1] == (uintptr_t)"LIMIT") {
+            if (i > 0 && cmd_args[i - 1] == (uintptr_t) "LIMIT") {
                 /* This should be our allocated limit string */
-                char* potential_str = (char*)cmd_args[i];
+                char* potential_str = (char*) cmd_args[i];
                 /* Simple validation: check if it looks like a number string */
                 if (potential_str && potential_str[0] >= '0' && potential_str[0] <= '9') {
                     efree(potential_str);
@@ -496,9 +496,9 @@ cleanup:
         /* The count string is added after COUNT keyword, scan backwards to find it */
         for (int i = arg_count - 1; i >= 0; i--) {
             /* Look for the pattern: COUNT followed by allocated string */
-            if (i > 0 && cmd_args[i - 1] == (uintptr_t)"COUNT") {
+            if (i > 0 && cmd_args[i - 1] == (uintptr_t) "COUNT") {
                 /* This should be our allocated count string */
-                char* potential_str = (char*)cmd_args[i];
+                char* potential_str = (char*) cmd_args[i];
                 /* Simple validation: check if it looks like a number string */
                 if (potential_str && potential_str[0] >= '0' && potential_str[0] <= '9') {
                     efree(potential_str);
@@ -523,7 +523,7 @@ cleanup:
  * Process an integer result from a command
  */
 int process_x_int_result(CommandResult* result, void* output) {
-    long* output_value = (long*)output;
+    long* output_value = (long*) output;
 
     /* For ValkeyGlide stream commands, integer response is the count */
     if (result->response->response_type == Int) {
@@ -539,7 +539,7 @@ int process_x_int_result(CommandResult* result, void* output) {
  * Process a string result from a command
  */
 int process_x_string_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     if (result->response->response_type == String) {
         ZVAL_STRINGL(
@@ -554,7 +554,7 @@ int process_x_string_result(CommandResult* result, void* output) {
  * Process a stream result from a command
  */
 int process_x_stream_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     /* Use the command_response_to_stream_zval function */
     return command_response_to_stream_zval(result->response, return_value);
@@ -564,7 +564,7 @@ int process_x_stream_result(CommandResult* result, void* output) {
  * Process an XADD result from a command
  */
 int process_x_add_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     /* XADD returns the ID string, convert to proper output */
     return command_response_to_zval(
@@ -575,7 +575,7 @@ int process_x_add_result(CommandResult* result, void* output) {
  * Process an XGROUP result from a command
  */
 int process_x_group_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     /* XGROUP response depends on subcommand */
     return command_response_to_zval(
@@ -586,7 +586,7 @@ int process_x_group_result(CommandResult* result, void* output) {
  * Process an XPENDING result from a command
  */
 int process_x_pending_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
     int   status       = 0;
 
     /* XPENDING returns pending entries info */
@@ -620,7 +620,7 @@ int process_x_pending_result(CommandResult* result, void* output) {
  * Process an XREADGROUP result from a command
  */
 int process_x_readgroup_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
     int   status       = 0;
 
     /* Initialize array for results */
@@ -657,7 +657,7 @@ int process_x_readgroup_result(CommandResult* result, void* output) {
  * Process an XCLAIM result from a command
  */
 int process_x_claim_result(CommandResult* result, void* output) {
-    x_claim_result_context_t* ctx          = (x_claim_result_context_t*)output;
+    x_claim_result_context_t* ctx          = (x_claim_result_context_t*) output;
     zval*                     return_value = ctx->return_value;
     int                       status       = 0;
     int                       justid       = ctx->claim_opts->justid;
@@ -677,7 +677,7 @@ int process_x_claim_result(CommandResult* result, void* output) {
  * Process an XAUTOCLAIM result from a command
  */
 int process_x_autoclaim_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     /* XAUTOCLAIM returns a multi-part response */
     if (result->response->response_type != Array || result->response->array_value_len < 1) {
@@ -735,7 +735,7 @@ int process_x_autoclaim_result(CommandResult* result, void* output) {
  * Process an XINFO result from a command
  */
 int process_x_info_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     /* XINFO returns information about the stream or consumers in associative array format */
     return command_response_to_zval(
@@ -819,7 +819,7 @@ int prepare_x_info_args(x_command_args_t* args,
 
         /* Allocate memory to track dynamic strings */
         if (has_count) {
-            *allocated_strings = (char**)ecalloc(1, sizeof(char*));
+            *allocated_strings = (char**) ecalloc(1, sizeof(char*));
             if (!*allocated_strings) {
                 return 0;
             }
@@ -844,48 +844,48 @@ int prepare_x_info_args(x_command_args_t* args,
     if (strcasecmp(args->subcommand, "CONSUMERS") == 0) {
         /* First argument: key */
         if (Z_TYPE(args->args[0]) == IS_STRING) {
-            (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL(args->args[0]);
+            (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL(args->args[0]);
             (*args_len_out)[arg_idx] = Z_STRLEN(args->args[0]);
             arg_idx++;
         } else {
             convert_to_string(&args->args[0]);
-            (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL(args->args[0]);
+            (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL(args->args[0]);
             (*args_len_out)[arg_idx] = Z_STRLEN(args->args[0]);
             arg_idx++;
         }
 
         /* Second argument: group */
         if (Z_TYPE(args->args[1]) == IS_STRING) {
-            (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL(args->args[1]);
+            (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL(args->args[1]);
             (*args_len_out)[arg_idx] = Z_STRLEN(args->args[1]);
             arg_idx++;
         } else {
             convert_to_string(&args->args[1]);
-            (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL(args->args[1]);
+            (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL(args->args[1]);
             (*args_len_out)[arg_idx] = Z_STRLEN(args->args[1]);
             arg_idx++;
         }
     } else if (strcasecmp(args->subcommand, "GROUPS") == 0) {
         /* Only argument: key */
         if (Z_TYPE(args->args[0]) == IS_STRING) {
-            (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL(args->args[0]);
+            (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL(args->args[0]);
             (*args_len_out)[arg_idx] = Z_STRLEN(args->args[0]);
             arg_idx++;
         } else {
             convert_to_string(&args->args[0]);
-            (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL(args->args[0]);
+            (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL(args->args[0]);
             (*args_len_out)[arg_idx] = Z_STRLEN(args->args[0]);
             arg_idx++;
         }
     } else if (strcasecmp(args->subcommand, "STREAM") == 0) {
         /* First argument: key */
         if (Z_TYPE(args->args[0]) == IS_STRING) {
-            (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL(args->args[0]);
+            (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL(args->args[0]);
             (*args_len_out)[arg_idx] = Z_STRLEN(args->args[0]);
             arg_idx++;
         } else {
             convert_to_string(&args->args[0]);
-            (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL(args->args[0]);
+            (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL(args->args[0]);
             (*args_len_out)[arg_idx] = Z_STRLEN(args->args[0]);
             arg_idx++;
         }
@@ -895,7 +895,7 @@ int prepare_x_info_args(x_command_args_t* args,
         if (args->args_count >= 2 && Z_TYPE(args->args[1]) == IS_STRING &&
             strcasecmp(Z_STRVAL(args->args[1]), "FULL") == 0) {
             has_full                 = 1;
-            (*args_out)[arg_idx]     = (uintptr_t)"FULL";
+            (*args_out)[arg_idx]     = (uintptr_t) "FULL";
             (*args_len_out)[arg_idx] = sizeof("FULL") - 1;
             arg_idx++;
 
@@ -918,7 +918,7 @@ int prepare_x_info_args(x_command_args_t* args,
                 }
 
                 if (has_count) {
-                    (*args_out)[arg_idx]     = (uintptr_t)"COUNT";
+                    (*args_out)[arg_idx]     = (uintptr_t) "COUNT";
                     (*args_len_out)[arg_idx] = sizeof("COUNT") - 1;
                     arg_idx++;
 
@@ -931,7 +931,7 @@ int prepare_x_info_args(x_command_args_t* args,
                         (*allocated_strings)[*allocated_count] = count_copy;
                         (*allocated_count)++;
 
-                        (*args_out)[arg_idx]     = (uintptr_t)count_copy;
+                        (*args_out)[arg_idx]     = (uintptr_t) count_copy;
                         (*args_len_out)[arg_idx] = count_str_len;
                         arg_idx++;
                     }
@@ -957,8 +957,8 @@ int prepare_x_len_args(x_command_args_t* args, uintptr_t** args_out, unsigned lo
     }
 
     /* Allocate memory for arguments */
-    *args_out     = (uintptr_t*)emalloc(sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(sizeof(unsigned long));
 
     if (!*args_out || !*args_len_out) {
         if (*args_out)
@@ -969,7 +969,7 @@ int prepare_x_len_args(x_command_args_t* args, uintptr_t** args_out, unsigned lo
     }
 
     /* Set key as the only argument */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     return 1;
@@ -987,8 +987,8 @@ int prepare_x_ack_args(x_command_args_t* args, uintptr_t** args_out, unsigned lo
 
     /* Prepare command arguments: key + group + IDs */
     unsigned long arg_count = 2 + args->id_count;
-    *args_out               = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out           = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out               = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out           = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!*args_out || !*args_len_out) {
         if (*args_out)
@@ -999,11 +999,11 @@ int prepare_x_ack_args(x_command_args_t* args, uintptr_t** args_out, unsigned lo
     }
 
     /* Set key as first argument */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Set group as second argument */
-    (*args_out)[1]     = (uintptr_t)args->group;
+    (*args_out)[1]     = (uintptr_t) args->group;
     (*args_len_out)[1] = args->group_len;
 
     /* Add all stream IDs */
@@ -1013,7 +1013,7 @@ int prepare_x_ack_args(x_command_args_t* args, uintptr_t** args_out, unsigned lo
         if (Z_TYPE_P(z_id) != IS_STRING) {
             convert_to_string(z_id);
         }
-        (*args_out)[i]     = (uintptr_t)Z_STRVAL_P(z_id);
+        (*args_out)[i]     = (uintptr_t) Z_STRVAL_P(z_id);
         (*args_len_out)[i] = Z_STRLEN_P(z_id);
         i++;
     }
@@ -1034,8 +1034,8 @@ int prepare_x_del_args(x_command_args_t* args, uintptr_t** args_out, unsigned lo
 
     /* Prepare command arguments: key + IDs */
     unsigned long arg_count = 1 + args->id_count;
-    *args_out               = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out           = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out               = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out           = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!*args_out || !*args_len_out) {
         if (*args_out)
@@ -1046,7 +1046,7 @@ int prepare_x_del_args(x_command_args_t* args, uintptr_t** args_out, unsigned lo
     }
 
     /* Set key as first argument */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Add all stream IDs */
@@ -1056,7 +1056,7 @@ int prepare_x_del_args(x_command_args_t* args, uintptr_t** args_out, unsigned lo
         if (Z_TYPE_P(z_id) != IS_STRING) {
             convert_to_string(z_id);
         }
-        (*args_out)[i]     = (uintptr_t)Z_STRVAL_P(z_id);
+        (*args_out)[i]     = (uintptr_t) Z_STRVAL_P(z_id);
         (*args_len_out)[i] = Z_STRLEN_P(z_id);
         i++;
     }
@@ -1079,8 +1079,8 @@ int prepare_x_range_args(x_command_args_t* args,
 
     /* Calculate total args: key + start + end + (COUNT + count_value) */
     unsigned long arg_count = 1 + 1 + 1 + (args->range_opts.has_count ? 2 : 0);
-    *args_out               = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out           = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out               = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out           = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     /* Check if memory allocation was successful */
     if (!*args_out || !*args_len_out) {
@@ -1095,24 +1095,24 @@ int prepare_x_range_args(x_command_args_t* args,
     unsigned int arg_idx = 0;
 
     /* Key */
-    (*args_out)[arg_idx]     = (uintptr_t)args->key;
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
     (*args_len_out)[arg_idx] = args->key_len;
     arg_idx++;
 
     /* Start ID */
-    (*args_out)[arg_idx]     = (uintptr_t)args->start;
+    (*args_out)[arg_idx]     = (uintptr_t) args->start;
     (*args_len_out)[arg_idx] = args->start_len;
     arg_idx++;
 
     /* End ID */
-    (*args_out)[arg_idx]     = (uintptr_t)args->end;
+    (*args_out)[arg_idx]     = (uintptr_t) args->end;
     (*args_len_out)[arg_idx] = args->end_len;
     arg_idx++;
 
     /* Add COUNT if specified */
     if (args->range_opts.has_count) {
         /* Add COUNT keyword */
-        (*args_out)[arg_idx]     = (uintptr_t)"COUNT";
+        (*args_out)[arg_idx]     = (uintptr_t) "COUNT";
         (*args_len_out)[arg_idx] = sizeof("COUNT") - 1;
         arg_idx++;
 
@@ -1127,7 +1127,7 @@ int prepare_x_range_args(x_command_args_t* args,
             memcpy(count_str_copy, count_str, count_str_len);
             count_str_copy[count_str_len] = '\0';
 
-            (*args_out)[arg_idx]     = (uintptr_t)count_str_copy;
+            (*args_out)[arg_idx]     = (uintptr_t) count_str_copy;
             (*args_len_out)[arg_idx] = count_str_len;
             arg_idx++;
         }
@@ -1164,11 +1164,11 @@ int prepare_x_add_args(x_command_args_t* args,
 
     /* Calculate total args: key + options + ID + field/value pairs (each entry is a pair) */
     unsigned long arg_count = 1 + extra_args + 1 + (args->fv_count * 2);
-    *args_out               = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out           = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out               = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out           = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     /* Allocate array to track temporary string allocations */
-    *allocated_strings = (char**)ecalloc(args->fv_count + 5, sizeof(char*));
+    *allocated_strings = (char**) ecalloc(args->fv_count + 5, sizeof(char*));
     *allocated_count   = 0;
 
     if (!*args_out || !*args_len_out || !*allocated_strings) {
@@ -1183,13 +1183,13 @@ int prepare_x_add_args(x_command_args_t* args,
 
     /* Set key as first argument */
     unsigned int arg_idx     = 0;
-    (*args_out)[arg_idx]     = (uintptr_t)args->key;
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
     (*args_len_out)[arg_idx] = args->key_len;
     arg_idx++;
 
     /* Add NOMKSTREAM if specified */
     if (args->add_opts.nomkstream) {
-        (*args_out)[arg_idx]     = (uintptr_t)"NOMKSTREAM";
+        (*args_out)[arg_idx]     = (uintptr_t) "NOMKSTREAM";
         (*args_len_out)[arg_idx] = sizeof("NOMKSTREAM") - 1;
         arg_idx++;
     }
@@ -1201,17 +1201,17 @@ int prepare_x_add_args(x_command_args_t* args,
         maxlen_str_len = snprintf(maxlen_str, sizeof(maxlen_str), "%ld", args->add_opts.maxlen);
 
         if (args->add_opts.minid_strategy) {
-            (*args_out)[arg_idx]     = (uintptr_t)"MINID";
+            (*args_out)[arg_idx]     = (uintptr_t) "MINID";
             (*args_len_out)[arg_idx] = sizeof("MINID") - 1;
         } else {
-            (*args_out)[arg_idx]     = (uintptr_t)"MAXLEN";
+            (*args_out)[arg_idx]     = (uintptr_t) "MAXLEN";
             (*args_len_out)[arg_idx] = sizeof("MAXLEN") - 1;
         }
         arg_idx++;
 
         /* Add ~ for approximate trimming */
         if (args->add_opts.approximate) {
-            (*args_out)[arg_idx]     = (uintptr_t)"~";
+            (*args_out)[arg_idx]     = (uintptr_t) "~";
             (*args_len_out)[arg_idx] = 1;
             arg_idx++;
         }
@@ -1222,14 +1222,14 @@ int prepare_x_add_args(x_command_args_t* args,
             (*allocated_strings)[*allocated_count] = maxlen_str_copy;
             (*allocated_count)++;
 
-            (*args_out)[arg_idx]     = (uintptr_t)maxlen_str_copy;
+            (*args_out)[arg_idx]     = (uintptr_t) maxlen_str_copy;
             (*args_len_out)[arg_idx] = maxlen_str_len;
             arg_idx++;
         }
     }
 
     /* Add stream ID */
-    (*args_out)[arg_idx]     = (uintptr_t)args->id;
+    (*args_out)[arg_idx]     = (uintptr_t) args->id;
     (*args_len_out)[arg_idx] = args->id_len;
     arg_idx++;
 
@@ -1241,7 +1241,7 @@ int prepare_x_add_args(x_command_args_t* args,
     ZEND_HASH_FOREACH_STR_KEY_VAL(ht, field_str, z_value) {
         /* Add field name */
         if (field_str) {
-            (*args_out)[arg_idx]     = (uintptr_t)ZSTR_VAL(field_str);
+            (*args_out)[arg_idx]     = (uintptr_t) ZSTR_VAL(field_str);
             (*args_len_out)[arg_idx] = ZSTR_LEN(field_str);
             arg_idx++;
 
@@ -1257,14 +1257,14 @@ int prepare_x_add_args(x_command_args_t* args,
                     (*allocated_strings)[*allocated_count] = str_copy;
                     (*allocated_count)++;
 
-                    (*args_out)[arg_idx]     = (uintptr_t)str_copy;
+                    (*args_out)[arg_idx]     = (uintptr_t) str_copy;
                     (*args_len_out)[arg_idx] = Z_STRLEN(temp);
                     arg_idx++;
                 }
 
                 zval_dtor(&temp);
             } else {
-                (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL_P(z_value);
+                (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_value);
                 (*args_len_out)[arg_idx] = Z_STRLEN_P(z_value);
                 arg_idx++;
             }
@@ -1306,7 +1306,7 @@ int prepare_x_group_args(x_command_args_t* args,
             convert_to_string(arg);
         }
 
-        (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL_P(arg);
+        (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(arg);
         (*args_len_out)[arg_idx] = Z_STRLEN_P(arg);
         arg_idx++;
     }
@@ -1347,23 +1347,23 @@ int prepare_x_pending_args(x_command_args_t* args,
 
     /* Set key and group as first two arguments */
     unsigned int arg_idx     = 0;
-    (*args_out)[arg_idx]     = (uintptr_t)args->key;
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
     (*args_len_out)[arg_idx] = args->key_len;
     arg_idx++;
 
-    (*args_out)[arg_idx]     = (uintptr_t)args->group;
+    (*args_out)[arg_idx]     = (uintptr_t) args->group;
     (*args_len_out)[arg_idx] = args->group_len;
     arg_idx++;
 
     /* Add additional options */
     if (args->pending_opts.start) {
-        (*args_out)[arg_idx]     = (uintptr_t)args->pending_opts.start;
+        (*args_out)[arg_idx]     = (uintptr_t) args->pending_opts.start;
         (*args_len_out)[arg_idx] = args->pending_opts.start_len;
         arg_idx++;
     }
 
     if (args->pending_opts.end) {
-        (*args_out)[arg_idx]     = (uintptr_t)args->pending_opts.end;
+        (*args_out)[arg_idx]     = (uintptr_t) args->pending_opts.end;
         (*args_len_out)[arg_idx] = args->pending_opts.end_len;
         arg_idx++;
     }
@@ -1380,17 +1380,17 @@ int prepare_x_pending_args(x_command_args_t* args,
             memcpy(count_str_copy, count_str, count_str_len);
             count_str_copy[count_str_len] = '\0';
 
-            (*args_out)[arg_idx]     = (uintptr_t)count_str_copy;
+            (*args_out)[arg_idx]     = (uintptr_t) count_str_copy;
             (*args_len_out)[arg_idx] = count_str_len;
             arg_idx++;
 
             /* This needs to be freed later */
-            (*args_out)[arg_count - 1] = (uintptr_t)count_str_copy;
+            (*args_out)[arg_count - 1] = (uintptr_t) count_str_copy;
         }
     }
 
     if (args->pending_opts.consumer) {
-        (*args_out)[arg_idx]     = (uintptr_t)args->pending_opts.consumer;
+        (*args_out)[arg_idx]     = (uintptr_t) args->pending_opts.consumer;
         (*args_len_out)[arg_idx] = args->pending_opts.consumer_len;
         arg_idx++;
     }
@@ -1442,21 +1442,21 @@ int prepare_x_readgroup_args(x_command_args_t* args,
     unsigned int arg_idx = 0;
 
     /* Add GROUP, group, consumer */
-    (*args_out)[arg_idx]     = (uintptr_t)"GROUP";
+    (*args_out)[arg_idx]     = (uintptr_t) "GROUP";
     (*args_len_out)[arg_idx] = sizeof("GROUP") - 1;
     arg_idx++;
 
-    (*args_out)[arg_idx]     = (uintptr_t)args->group;
+    (*args_out)[arg_idx]     = (uintptr_t) args->group;
     (*args_len_out)[arg_idx] = args->group_len;
     arg_idx++;
 
-    (*args_out)[arg_idx]     = (uintptr_t)args->consumer;
+    (*args_out)[arg_idx]     = (uintptr_t) args->consumer;
     (*args_len_out)[arg_idx] = args->consumer_len;
     arg_idx++;
 
     /* Add COUNT if specified */
     if (args->read_opts.has_count) {
-        (*args_out)[arg_idx]     = (uintptr_t)"COUNT";
+        (*args_out)[arg_idx]     = (uintptr_t) "COUNT";
         (*args_len_out)[arg_idx] = sizeof("COUNT") - 1;
         arg_idx++;
 
@@ -1471,7 +1471,7 @@ int prepare_x_readgroup_args(x_command_args_t* args,
             memcpy(count_str_copy, count_str, count_str_len);
             count_str_copy[count_str_len] = '\0';
 
-            (*args_out)[arg_idx]     = (uintptr_t)count_str_copy;
+            (*args_out)[arg_idx]     = (uintptr_t) count_str_copy;
             (*args_len_out)[arg_idx] = count_str_len;
             arg_idx++;
         }
@@ -1479,7 +1479,7 @@ int prepare_x_readgroup_args(x_command_args_t* args,
 
     /* Add BLOCK if specified */
     if (args->read_opts.has_block) {
-        (*args_out)[arg_idx]     = (uintptr_t)"BLOCK";
+        (*args_out)[arg_idx]     = (uintptr_t) "BLOCK";
         (*args_len_out)[arg_idx] = sizeof("BLOCK") - 1;
         arg_idx++;
 
@@ -1494,7 +1494,7 @@ int prepare_x_readgroup_args(x_command_args_t* args,
             memcpy(block_str_copy, block_str, block_str_len);
             block_str_copy[block_str_len] = '\0';
 
-            (*args_out)[arg_idx]     = (uintptr_t)block_str_copy;
+            (*args_out)[arg_idx]     = (uintptr_t) block_str_copy;
             (*args_len_out)[arg_idx] = block_str_len;
             arg_idx++;
         }
@@ -1502,13 +1502,13 @@ int prepare_x_readgroup_args(x_command_args_t* args,
 
     /* Add NOACK if specified */
     if (args->read_opts.noack) {
-        (*args_out)[arg_idx]     = (uintptr_t)"NOACK";
+        (*args_out)[arg_idx]     = (uintptr_t) "NOACK";
         (*args_len_out)[arg_idx] = sizeof("NOACK") - 1;
         arg_idx++;
     }
 
     /* Add STREAMS keyword */
-    (*args_out)[arg_idx]     = (uintptr_t)"STREAMS";
+    (*args_out)[arg_idx]     = (uintptr_t) "STREAMS";
     (*args_len_out)[arg_idx] = sizeof("STREAMS") - 1;
     arg_idx++;
 
@@ -1518,7 +1518,7 @@ int prepare_x_readgroup_args(x_command_args_t* args,
         if (Z_TYPE_P(z_stream) != IS_STRING) {
             convert_to_string(z_stream);
         }
-        (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL_P(z_stream);
+        (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_stream);
         (*args_len_out)[arg_idx] = Z_STRLEN_P(z_stream);
         arg_idx++;
     }
@@ -1530,7 +1530,7 @@ int prepare_x_readgroup_args(x_command_args_t* args,
         if (Z_TYPE_P(z_id) != IS_STRING) {
             convert_to_string(z_id);
         }
-        (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL_P(z_id);
+        (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_id);
         (*args_len_out)[arg_idx] = Z_STRLEN_P(z_id);
         arg_idx++;
     }
@@ -1583,7 +1583,7 @@ int prepare_x_read_args(x_command_args_t* args,
 
     /* Add COUNT if specified */
     if (args->read_opts.has_count) {
-        (*args_out)[arg_idx]     = (uintptr_t)"COUNT";
+        (*args_out)[arg_idx]     = (uintptr_t) "COUNT";
         (*args_len_out)[arg_idx] = sizeof("COUNT") - 1;
         arg_idx++;
 
@@ -1598,7 +1598,7 @@ int prepare_x_read_args(x_command_args_t* args,
             memcpy(count_str_copy, count_str, count_str_len);
             count_str_copy[count_str_len] = '\0';
 
-            (*args_out)[arg_idx]     = (uintptr_t)count_str_copy;
+            (*args_out)[arg_idx]     = (uintptr_t) count_str_copy;
             (*args_len_out)[arg_idx] = count_str_len;
             arg_idx++;
         }
@@ -1606,7 +1606,7 @@ int prepare_x_read_args(x_command_args_t* args,
 
     /* Add BLOCK if specified */
     if (args->read_opts.has_block) {
-        (*args_out)[arg_idx]     = (uintptr_t)"BLOCK";
+        (*args_out)[arg_idx]     = (uintptr_t) "BLOCK";
         (*args_len_out)[arg_idx] = sizeof("BLOCK") - 1;
         arg_idx++;
 
@@ -1621,7 +1621,7 @@ int prepare_x_read_args(x_command_args_t* args,
             memcpy(block_str_copy, block_str, block_str_len);
             block_str_copy[block_str_len] = '\0';
 
-            (*args_out)[arg_idx]     = (uintptr_t)block_str_copy;
+            (*args_out)[arg_idx]     = (uintptr_t) block_str_copy;
             (*args_len_out)[arg_idx] = block_str_len;
             arg_idx++;
         }
@@ -1629,13 +1629,13 @@ int prepare_x_read_args(x_command_args_t* args,
 
     /* Add NOACK if specified */
     if (args->read_opts.noack) {
-        (*args_out)[arg_idx]     = (uintptr_t)"NOACK";
+        (*args_out)[arg_idx]     = (uintptr_t) "NOACK";
         (*args_len_out)[arg_idx] = sizeof("NOACK") - 1;
         arg_idx++;
     }
 
     /* Add STREAMS keyword */
-    (*args_out)[arg_idx]     = (uintptr_t)"STREAMS";
+    (*args_out)[arg_idx]     = (uintptr_t) "STREAMS";
     (*args_len_out)[arg_idx] = sizeof("STREAMS") - 1;
     arg_idx++;
 
@@ -1645,7 +1645,7 @@ int prepare_x_read_args(x_command_args_t* args,
         if (Z_TYPE_P(z_stream) != IS_STRING) {
             convert_to_string(z_stream);
         }
-        (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL_P(z_stream);
+        (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_stream);
         (*args_len_out)[arg_idx] = Z_STRLEN_P(z_stream);
         arg_idx++;
     }
@@ -1657,7 +1657,7 @@ int prepare_x_read_args(x_command_args_t* args,
         if (Z_TYPE_P(z_id) != IS_STRING) {
             convert_to_string(z_id);
         }
-        (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL_P(z_id);
+        (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_id);
         (*args_len_out)[arg_idx] = Z_STRLEN_P(z_id);
         arg_idx++;
     }
@@ -1702,15 +1702,15 @@ int prepare_x_claim_args(x_command_args_t* args,
 
     /* Set key, group, consumer, min_idle_time */
     unsigned int arg_idx     = 0;
-    (*args_out)[arg_idx]     = (uintptr_t)args->key;
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
     (*args_len_out)[arg_idx] = args->key_len;
     arg_idx++;
 
-    (*args_out)[arg_idx]     = (uintptr_t)args->group;
+    (*args_out)[arg_idx]     = (uintptr_t) args->group;
     (*args_len_out)[arg_idx] = args->group_len;
     arg_idx++;
 
-    (*args_out)[arg_idx]     = (uintptr_t)args->consumer;
+    (*args_out)[arg_idx]     = (uintptr_t) args->consumer;
     (*args_len_out)[arg_idx] = args->consumer_len;
     arg_idx++;
 
@@ -1725,7 +1725,7 @@ int prepare_x_claim_args(x_command_args_t* args,
         memcpy(min_idle_str_copy, min_idle_str, min_idle_str_len);
         min_idle_str_copy[min_idle_str_len] = '\0';
 
-        (*args_out)[arg_idx]     = (uintptr_t)min_idle_str_copy;
+        (*args_out)[arg_idx]     = (uintptr_t) min_idle_str_copy;
         (*args_len_out)[arg_idx] = min_idle_str_len;
         arg_idx++;
 
@@ -1743,7 +1743,7 @@ int prepare_x_claim_args(x_command_args_t* args,
         if (Z_TYPE_P(z_id) != IS_STRING) {
             convert_to_string(z_id);
         }
-        (*args_out)[arg_idx]     = (uintptr_t)Z_STRVAL_P(z_id);
+        (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_id);
         (*args_len_out)[arg_idx] = Z_STRLEN_P(z_id);
         arg_idx++;
     }
@@ -1751,7 +1751,7 @@ int prepare_x_claim_args(x_command_args_t* args,
 
     /* Add options */
     if (args->claim_opts.has_idle) {
-        (*args_out)[arg_idx]     = (uintptr_t)"IDLE";
+        (*args_out)[arg_idx]     = (uintptr_t) "IDLE";
         (*args_len_out)[arg_idx] = sizeof("IDLE") - 1;
         arg_idx++;
 
@@ -1766,7 +1766,7 @@ int prepare_x_claim_args(x_command_args_t* args,
             memcpy(idle_str_copy, idle_str, idle_str_len);
             idle_str_copy[idle_str_len] = '\0';
 
-            (*args_out)[arg_idx]     = (uintptr_t)idle_str_copy;
+            (*args_out)[arg_idx]     = (uintptr_t) idle_str_copy;
             (*args_len_out)[arg_idx] = idle_str_len;
             arg_idx++;
 
@@ -1776,7 +1776,7 @@ int prepare_x_claim_args(x_command_args_t* args,
     }
 
     if (args->claim_opts.has_time) {
-        (*args_out)[arg_idx]     = (uintptr_t)"TIME";
+        (*args_out)[arg_idx]     = (uintptr_t) "TIME";
         (*args_len_out)[arg_idx] = sizeof("TIME") - 1;
         arg_idx++;
 
@@ -1791,7 +1791,7 @@ int prepare_x_claim_args(x_command_args_t* args,
             memcpy(time_str_copy, time_str, time_str_len);
             time_str_copy[time_str_len] = '\0';
 
-            (*args_out)[arg_idx]     = (uintptr_t)time_str_copy;
+            (*args_out)[arg_idx]     = (uintptr_t) time_str_copy;
             (*args_len_out)[arg_idx] = time_str_len;
             arg_idx++;
 
@@ -1801,7 +1801,7 @@ int prepare_x_claim_args(x_command_args_t* args,
     }
 
     if (args->claim_opts.has_retrycount) {
-        (*args_out)[arg_idx]     = (uintptr_t)"RETRYCOUNT";
+        (*args_out)[arg_idx]     = (uintptr_t) "RETRYCOUNT";
         (*args_len_out)[arg_idx] = sizeof("RETRYCOUNT") - 1;
         arg_idx++;
 
@@ -1816,7 +1816,7 @@ int prepare_x_claim_args(x_command_args_t* args,
             memcpy(retry_str_copy, retry_str, retry_str_len);
             retry_str_copy[retry_str_len] = '\0';
 
-            (*args_out)[arg_idx]     = (uintptr_t)retry_str_copy;
+            (*args_out)[arg_idx]     = (uintptr_t) retry_str_copy;
             (*args_len_out)[arg_idx] = retry_str_len;
             arg_idx++;
 
@@ -1826,13 +1826,13 @@ int prepare_x_claim_args(x_command_args_t* args,
     }
 
     if (args->claim_opts.force) {
-        (*args_out)[arg_idx]     = (uintptr_t)"FORCE";
+        (*args_out)[arg_idx]     = (uintptr_t) "FORCE";
         (*args_len_out)[arg_idx] = sizeof("FORCE") - 1;
         arg_idx++;
     }
 
     if (args->claim_opts.justid) {
-        (*args_out)[arg_idx]     = (uintptr_t)"JUSTID";
+        (*args_out)[arg_idx]     = (uintptr_t) "JUSTID";
         (*args_len_out)[arg_idx] = sizeof("JUSTID") - 1;
         arg_idx++;
     }
@@ -1870,15 +1870,15 @@ int prepare_x_autoclaim_args(x_command_args_t* args,
 
     /* Set key, group, consumer */
     unsigned int arg_idx     = 0;
-    (*args_out)[arg_idx]     = (uintptr_t)args->key;
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
     (*args_len_out)[arg_idx] = args->key_len;
     arg_idx++;
 
-    (*args_out)[arg_idx]     = (uintptr_t)args->group;
+    (*args_out)[arg_idx]     = (uintptr_t) args->group;
     (*args_len_out)[arg_idx] = args->group_len;
     arg_idx++;
 
-    (*args_out)[arg_idx]     = (uintptr_t)args->consumer;
+    (*args_out)[arg_idx]     = (uintptr_t) args->consumer;
     (*args_len_out)[arg_idx] = args->consumer_len;
     arg_idx++;
 
@@ -1893,7 +1893,7 @@ int prepare_x_autoclaim_args(x_command_args_t* args,
         memcpy(min_idle_str_copy, min_idle_str, min_idle_str_len);
         min_idle_str_copy[min_idle_str_len] = '\0';
 
-        (*args_out)[arg_idx]     = (uintptr_t)min_idle_str_copy;
+        (*args_out)[arg_idx]     = (uintptr_t) min_idle_str_copy;
         (*args_len_out)[arg_idx] = min_idle_str_len;
         arg_idx++;
 
@@ -1906,13 +1906,13 @@ int prepare_x_autoclaim_args(x_command_args_t* args,
     }
 
     /* Add start ID */
-    (*args_out)[arg_idx]     = (uintptr_t)args->start;
+    (*args_out)[arg_idx]     = (uintptr_t) args->start;
     (*args_len_out)[arg_idx] = args->start_len;
     arg_idx++;
 
     /* Add COUNT if specified */
     if (args->claim_opts.has_count) {
-        (*args_out)[arg_idx]     = (uintptr_t)"COUNT";
+        (*args_out)[arg_idx]     = (uintptr_t) "COUNT";
         (*args_len_out)[arg_idx] = sizeof("COUNT") - 1;
         arg_idx++;
 
@@ -1927,7 +1927,7 @@ int prepare_x_autoclaim_args(x_command_args_t* args,
             memcpy(count_str_copy, count_str, count_str_len);
             count_str_copy[count_str_len] = '\0';
 
-            (*args_out)[arg_idx]     = (uintptr_t)count_str_copy;
+            (*args_out)[arg_idx]     = (uintptr_t) count_str_copy;
             (*args_len_out)[arg_idx] = count_str_len;
             arg_idx++;
 
@@ -1938,7 +1938,7 @@ int prepare_x_autoclaim_args(x_command_args_t* args,
 
     /* Add JUSTID if specified */
     if (args->claim_opts.justid) {
-        (*args_out)[arg_idx]     = (uintptr_t)"JUSTID";
+        (*args_out)[arg_idx]     = (uintptr_t) "JUSTID";
         (*args_len_out)[arg_idx] = sizeof("JUSTID") - 1;
         arg_idx++;
     }
@@ -1961,8 +1961,8 @@ int prepare_x_trim_args(x_command_args_t* args,
     /* Calculate total args: key + strategy + [~] + threshold + [LIMIT + value] */
     unsigned long arg_count =
         1 + 1 + (args->trim_opts.approximate ? 1 : 0) + 1 + (args->trim_opts.has_limit ? 2 : 0);
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!*args_out || !*args_len_out) {
         if (*args_out)
@@ -1974,30 +1974,30 @@ int prepare_x_trim_args(x_command_args_t* args,
 
     /* Set key as first argument */
     unsigned int arg_idx     = 0;
-    (*args_out)[arg_idx]     = (uintptr_t)args->key;
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
     (*args_len_out)[arg_idx] = args->key_len;
     arg_idx++;
 
     /* Add strategy */
-    (*args_out)[arg_idx]     = (uintptr_t)args->strategy;
+    (*args_out)[arg_idx]     = (uintptr_t) args->strategy;
     (*args_len_out)[arg_idx] = args->strategy_len;
     arg_idx++;
 
     /* Add ~ for approximate trimming */
     if (args->trim_opts.approximate) {
-        (*args_out)[arg_idx]     = (uintptr_t)"~";
+        (*args_out)[arg_idx]     = (uintptr_t) "~";
         (*args_len_out)[arg_idx] = 1;
         arg_idx++;
     }
 
     /* Add threshold value */
-    (*args_out)[arg_idx]     = (uintptr_t)args->threshold;
+    (*args_out)[arg_idx]     = (uintptr_t) args->threshold;
     (*args_len_out)[arg_idx] = args->threshold_len;
     arg_idx++;
 
     /* Add LIMIT if specified */
     if (args->trim_opts.has_limit) {
-        (*args_out)[arg_idx]     = (uintptr_t)"LIMIT";
+        (*args_out)[arg_idx]     = (uintptr_t) "LIMIT";
         (*args_len_out)[arg_idx] = sizeof("LIMIT") - 1;
         arg_idx++;
 
@@ -2012,7 +2012,7 @@ int prepare_x_trim_args(x_command_args_t* args,
             memcpy(limit_str_copy, limit_str, limit_str_len);
             limit_str_copy[limit_str_len] = '\0';
 
-            (*args_out)[arg_idx]     = (uintptr_t)limit_str_copy;
+            (*args_out)[arg_idx]     = (uintptr_t) limit_str_copy;
             (*args_len_out)[arg_idx] = limit_str_len;
             arg_idx++;
         }

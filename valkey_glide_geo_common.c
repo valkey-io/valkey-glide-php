@@ -59,8 +59,8 @@ int prepare_geo_members_args(geo_command_args_t* args,
     /* Prepare command arguments: key + members */
     unsigned long arg_count = 1 + args->member_count;
 
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -71,7 +71,7 @@ int prepare_geo_members_args(geo_command_args_t* args,
     }
 
     /* First argument: key */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Add members as arguments */
@@ -91,7 +91,7 @@ int prepare_geo_members_args(geo_command_args_t* args,
             return 0;
         }
 
-        (*args_out)[i + 1]     = (uintptr_t)str_val;
+        (*args_out)[i + 1]     = (uintptr_t) str_val;
         (*args_len_out)[i + 1] = str_len;
 
         if (need_free) {
@@ -116,8 +116,8 @@ int prepare_geo_dist_args(geo_command_args_t* args,
 
     /* Prepare command arguments */
     unsigned long arg_count = args->unit ? 4 : 3;
-    *args_out               = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out           = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out               = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out           = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -128,18 +128,18 @@ int prepare_geo_dist_args(geo_command_args_t* args,
     }
 
     /* Set arguments */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
-    (*args_out)[1]     = (uintptr_t)args->src_member;
+    (*args_out)[1]     = (uintptr_t) args->src_member;
     (*args_len_out)[1] = args->src_member_len;
 
-    (*args_out)[2]     = (uintptr_t)args->dst_member;
+    (*args_out)[2]     = (uintptr_t) args->dst_member;
     (*args_len_out)[2] = args->dst_member_len;
 
     /* Optional unit argument */
     if (args->unit) {
-        (*args_out)[3]     = (uintptr_t)args->unit;
+        (*args_out)[3]     = (uintptr_t) args->unit;
         (*args_len_out)[3] = args->unit_len;
     }
 
@@ -166,8 +166,8 @@ int prepare_geo_add_args(geo_command_args_t* args,
     /* Prepare command arguments */
     unsigned long arg_count =
         1 + args->geo_args_count; /* key + (longitude, latitude, member) triplets */
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -178,7 +178,7 @@ int prepare_geo_add_args(geo_command_args_t* args,
     }
 
     /* First argument: key */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Add arguments: lon, lat, member, lon, lat, member, ... */
@@ -198,7 +198,7 @@ int prepare_geo_add_args(geo_command_args_t* args,
             return 0;
         }
 
-        (*args_out)[i + 1]     = (uintptr_t)str_val;
+        (*args_out)[i + 1]     = (uintptr_t) str_val;
         (*args_len_out)[i + 1] = str_len;
 
         if (need_free) {
@@ -228,8 +228,8 @@ int prepare_geo_search_args(geo_command_args_t* args,
 
     /* Calculate the maximum arguments we might need */
     unsigned long max_args = 15; /* Conservative estimate */
-    *args_out              = (uintptr_t*)emalloc(max_args * sizeof(uintptr_t));
-    *args_len_out          = (unsigned long*)emalloc(max_args * sizeof(unsigned long));
+    *args_out              = (uintptr_t*) emalloc(max_args * sizeof(uintptr_t));
+    *args_len_out          = (unsigned long*) emalloc(max_args * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -243,16 +243,16 @@ int prepare_geo_search_args(geo_command_args_t* args,
     unsigned long arg_idx = 0;
 
     /* First argument: key */
-    (*args_out)[arg_idx]       = (uintptr_t)args->key;
+    (*args_out)[arg_idx]       = (uintptr_t) args->key;
     (*args_len_out)[arg_idx++] = args->key_len;
 
     /* Handle FROM parameter - could be member name or coordinates */
     if (Z_TYPE_P(args->from) == IS_STRING) {
         /* FROMMEMBER <member> */
-        (*args_out)[arg_idx]       = (uintptr_t)"FROMMEMBER";
+        (*args_out)[arg_idx]       = (uintptr_t) "FROMMEMBER";
         (*args_len_out)[arg_idx++] = strlen("FROMMEMBER");
 
-        (*args_out)[arg_idx]       = (uintptr_t)Z_STRVAL_P(args->from);
+        (*args_out)[arg_idx]       = (uintptr_t) Z_STRVAL_P(args->from);
         (*args_len_out)[arg_idx++] = Z_STRLEN_P(args->from);
     } else if (Z_TYPE_P(args->from) == IS_ARRAY) {
         /* FROMLONLAT <lon> <lat> */
@@ -261,7 +261,7 @@ int prepare_geo_search_args(geo_command_args_t* args,
         lat = zend_hash_index_find(Z_ARRVAL_P(args->from), 1);
 
         if (lon && lat) {
-            (*args_out)[arg_idx]       = (uintptr_t)"FROMLONLAT";
+            (*args_out)[arg_idx]       = (uintptr_t) "FROMLONLAT";
             (*args_len_out)[arg_idx++] = strlen("FROMLONLAT");
 
             /* Convert longitude and latitude to strings */
@@ -272,7 +272,7 @@ int prepare_geo_search_args(geo_command_args_t* args,
                 efree(*args_len_out);
                 return 0;
             }
-            (*args_out)[arg_idx]                       = (uintptr_t)lon_str;
+            (*args_out)[arg_idx]                       = (uintptr_t) lon_str;
             (*args_len_out)[arg_idx++]                 = lon_str_len;
             (*allocated_strings)[(*allocated_count)++] = lon_str;
 
@@ -283,7 +283,7 @@ int prepare_geo_search_args(geo_command_args_t* args,
                 efree(*args_len_out);
                 return 0;
             }
-            (*args_out)[arg_idx]                       = (uintptr_t)lat_str;
+            (*args_out)[arg_idx]                       = (uintptr_t) lat_str;
             (*args_len_out)[arg_idx++]                 = lat_str_len;
             (*allocated_strings)[(*allocated_count)++] = lat_str;
         }
@@ -292,7 +292,7 @@ int prepare_geo_search_args(geo_command_args_t* args,
     /* Handle BY parameter */
     if (args->by_radius != NULL) {
         /* BYRADIUS <radius> <unit> */
-        (*args_out)[arg_idx]       = (uintptr_t)"BYRADIUS";
+        (*args_out)[arg_idx]       = (uintptr_t) "BYRADIUS";
         (*args_len_out)[arg_idx++] = strlen("BYRADIUS");
 
         /* Convert radius to string */
@@ -304,33 +304,33 @@ int prepare_geo_search_args(geo_command_args_t* args,
             efree(*args_len_out);
             return 0;
         }
-        (*args_out)[arg_idx]                       = (uintptr_t)radius_str;
+        (*args_out)[arg_idx]                       = (uintptr_t) radius_str;
         (*args_len_out)[arg_idx++]                 = radius_str_len;
         (*allocated_strings)[(*allocated_count)++] = radius_str;
 
-        (*args_out)[arg_idx]       = (uintptr_t)args->unit;
+        (*args_out)[arg_idx]       = (uintptr_t) args->unit;
         (*args_len_out)[arg_idx++] = args->unit_len;
     }
 
     /* Add WITH* options if enabled */
     if (args->radius_opts.with_opts.withcoord) {
-        (*args_out)[arg_idx]       = (uintptr_t)"WITHCOORD";
+        (*args_out)[arg_idx]       = (uintptr_t) "WITHCOORD";
         (*args_len_out)[arg_idx++] = strlen("WITHCOORD");
     }
 
     if (args->radius_opts.with_opts.withdist) {
-        (*args_out)[arg_idx]       = (uintptr_t)"WITHDIST";
+        (*args_out)[arg_idx]       = (uintptr_t) "WITHDIST";
         (*args_len_out)[arg_idx++] = strlen("WITHDIST");
     }
 
     if (args->radius_opts.with_opts.withhash) {
-        (*args_out)[arg_idx]       = (uintptr_t)"WITHHASH";
+        (*args_out)[arg_idx]       = (uintptr_t) "WITHHASH";
         (*args_len_out)[arg_idx++] = strlen("WITHHASH");
     }
 
     /* Add COUNT option if set */
     if (args->radius_opts.count > 0) {
-        (*args_out)[arg_idx]       = (uintptr_t)"COUNT";
+        (*args_out)[arg_idx]       = (uintptr_t) "COUNT";
         (*args_len_out)[arg_idx++] = strlen("COUNT");
 
         /* Convert count to string */
@@ -343,20 +343,20 @@ int prepare_geo_search_args(geo_command_args_t* args,
             return 0;
         }
 
-        (*args_out)[arg_idx]                       = (uintptr_t)count_str;
+        (*args_out)[arg_idx]                       = (uintptr_t) count_str;
         (*args_len_out)[arg_idx++]                 = count_str_len;
         (*allocated_strings)[(*allocated_count)++] = count_str;
 
         /* Add ANY if specified */
         if (args->radius_opts.any) {
-            (*args_out)[arg_idx]       = (uintptr_t)"ANY";
+            (*args_out)[arg_idx]       = (uintptr_t) "ANY";
             (*args_len_out)[arg_idx++] = strlen("ANY");
         }
     }
 
     /* Add sorting option if specified */
     if (args->radius_opts.sort && args->radius_opts.sort_len > 0) {
-        (*args_out)[arg_idx]       = (uintptr_t)args->radius_opts.sort;
+        (*args_out)[arg_idx]       = (uintptr_t) args->radius_opts.sort;
         (*args_len_out)[arg_idx++] = args->radius_opts.sort_len;
     }
 
@@ -381,8 +381,8 @@ int prepare_geo_search_store_args(geo_command_args_t* args,
 
     /* Calculate the maximum arguments we might need */
     unsigned long max_args = 16; /* Conservative estimate */
-    *args_out              = (uintptr_t*)emalloc(max_args * sizeof(uintptr_t));
-    *args_len_out          = (unsigned long*)emalloc(max_args * sizeof(unsigned long));
+    *args_out              = (uintptr_t*) emalloc(max_args * sizeof(uintptr_t));
+    *args_len_out          = (unsigned long*) emalloc(max_args * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -396,19 +396,19 @@ int prepare_geo_search_store_args(geo_command_args_t* args,
     unsigned long arg_idx = 0;
 
     /* First two arguments: destination and source keys */
-    (*args_out)[arg_idx]       = (uintptr_t)args->dest;
+    (*args_out)[arg_idx]       = (uintptr_t) args->dest;
     (*args_len_out)[arg_idx++] = args->dest_len;
 
-    (*args_out)[arg_idx]       = (uintptr_t)args->src;
+    (*args_out)[arg_idx]       = (uintptr_t) args->src;
     (*args_len_out)[arg_idx++] = args->src_len;
 
     /* Handle FROM parameter - could be member name or coordinates */
     if (Z_TYPE_P(args->from) == IS_STRING) {
         /* FROMMEMBER <member> */
-        (*args_out)[arg_idx]       = (uintptr_t)"FROMMEMBER";
+        (*args_out)[arg_idx]       = (uintptr_t) "FROMMEMBER";
         (*args_len_out)[arg_idx++] = strlen("FROMMEMBER");
 
-        (*args_out)[arg_idx]       = (uintptr_t)Z_STRVAL_P(args->from);
+        (*args_out)[arg_idx]       = (uintptr_t) Z_STRVAL_P(args->from);
         (*args_len_out)[arg_idx++] = Z_STRLEN_P(args->from);
     } else if (Z_TYPE_P(args->from) == IS_ARRAY) {
         /* FROMLONLAT <lon> <lat> */
@@ -417,7 +417,7 @@ int prepare_geo_search_store_args(geo_command_args_t* args,
         lat = zend_hash_index_find(Z_ARRVAL_P(args->from), 1);
 
         if (lon && lat) {
-            (*args_out)[arg_idx]       = (uintptr_t)"FROMLONLAT";
+            (*args_out)[arg_idx]       = (uintptr_t) "FROMLONLAT";
             (*args_len_out)[arg_idx++] = strlen("FROMLONLAT");
 
             /* Convert longitude and latitude to strings */
@@ -428,7 +428,7 @@ int prepare_geo_search_store_args(geo_command_args_t* args,
                 efree(*args_len_out);
                 return 0;
             }
-            (*args_out)[arg_idx]                       = (uintptr_t)lon_str;
+            (*args_out)[arg_idx]                       = (uintptr_t) lon_str;
             (*args_len_out)[arg_idx++]                 = lon_str_len;
             (*allocated_strings)[(*allocated_count)++] = lon_str;
 
@@ -439,7 +439,7 @@ int prepare_geo_search_store_args(geo_command_args_t* args,
                 efree(*args_len_out);
                 return 0;
             }
-            (*args_out)[arg_idx]                       = (uintptr_t)lat_str;
+            (*args_out)[arg_idx]                       = (uintptr_t) lat_str;
             (*args_len_out)[arg_idx++]                 = lat_str_len;
             (*allocated_strings)[(*allocated_count)++] = lat_str;
         }
@@ -448,7 +448,7 @@ int prepare_geo_search_store_args(geo_command_args_t* args,
     /* Handle BY parameter */
     if (args->by_radius != NULL) {
         /* BYRADIUS <radius> <unit> */
-        (*args_out)[arg_idx]       = (uintptr_t)"BYRADIUS";
+        (*args_out)[arg_idx]       = (uintptr_t) "BYRADIUS";
         (*args_len_out)[arg_idx++] = strlen("BYRADIUS");
 
         /* Convert radius to string */
@@ -460,17 +460,17 @@ int prepare_geo_search_store_args(geo_command_args_t* args,
             efree(*args_len_out);
             return 0;
         }
-        (*args_out)[arg_idx]                       = (uintptr_t)radius_str;
+        (*args_out)[arg_idx]                       = (uintptr_t) radius_str;
         (*args_len_out)[arg_idx++]                 = radius_str_len;
         (*allocated_strings)[(*allocated_count)++] = radius_str;
 
-        (*args_out)[arg_idx]       = (uintptr_t)args->unit;
+        (*args_out)[arg_idx]       = (uintptr_t) args->unit;
         (*args_len_out)[arg_idx++] = args->unit_len;
     }
 
     /* Add COUNT option if set */
     if (args->radius_opts.count > 0) {
-        (*args_out)[arg_idx]       = (uintptr_t)"COUNT";
+        (*args_out)[arg_idx]       = (uintptr_t) "COUNT";
         (*args_len_out)[arg_idx++] = strlen("COUNT");
 
         /* Convert count to string */
@@ -483,26 +483,26 @@ int prepare_geo_search_store_args(geo_command_args_t* args,
             return 0;
         }
 
-        (*args_out)[arg_idx]                       = (uintptr_t)count_str;
+        (*args_out)[arg_idx]                       = (uintptr_t) count_str;
         (*args_len_out)[arg_idx++]                 = count_str_len;
         (*allocated_strings)[(*allocated_count)++] = count_str;
 
         /* Add ANY if specified */
         if (args->radius_opts.any) {
-            (*args_out)[arg_idx]       = (uintptr_t)"ANY";
+            (*args_out)[arg_idx]       = (uintptr_t) "ANY";
             (*args_len_out)[arg_idx++] = strlen("ANY");
         }
     }
 
     /* Add sorting option if specified */
     if (args->radius_opts.sort && args->radius_opts.sort_len > 0) {
-        (*args_out)[arg_idx]       = (uintptr_t)args->radius_opts.sort;
+        (*args_out)[arg_idx]       = (uintptr_t) args->radius_opts.sort;
         (*args_len_out)[arg_idx++] = args->radius_opts.sort_len;
     }
 
     /* Add STOREDIST if specified */
     if (args->radius_opts.store_dist) {
-        (*args_out)[arg_idx]       = (uintptr_t)"STOREDIST";
+        (*args_out)[arg_idx]       = (uintptr_t) "STOREDIST";
         (*args_len_out)[arg_idx++] = strlen("STOREDIST");
     }
 
@@ -518,7 +518,7 @@ int prepare_geo_search_store_args(geo_command_args_t* args,
  * Returns 1 on success, 0 on failure
  */
 int process_geo_int_result(CommandResult* result, void* output) {
-    long* output_value = (long*)output;
+    long* output_value = (long*) output;
 
     if (!result || !result->response || !output_value) {
         return 0;
@@ -538,7 +538,7 @@ int process_geo_int_result(CommandResult* result, void* output) {
  * Returns: 1 = success with value, 0 = not found or error
  */
 int process_geo_double_result(CommandResult* result, void* output) {
-    double* output_value = (double*)output;
+    double* output_value = (double*) output;
 
     if (!result || !result->response || !output_value) {
         return 0;
@@ -569,7 +569,7 @@ int process_geo_double_result(CommandResult* result, void* output) {
  * Returns 1 on success, 0 on failure
  */
 int process_geo_array_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     if (!result || !result->response || !return_value) {
         return 0;
@@ -585,7 +585,7 @@ int process_geo_array_result(CommandResult* result, void* output) {
  * Returns 1 on success, 0 on failure
  */
 int process_geo_hash_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     if (!result || !result->response || !return_value) {
         return 0;
@@ -615,7 +615,7 @@ int process_geo_hash_result(CommandResult* result, void* output) {
  * Returns 1 on success, 0 on failure
  */
 int process_geo_pos_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     if (!result || !result->response || !return_value) {
         return 0;
@@ -671,7 +671,7 @@ int process_geo_search_result(CommandResult* result, void* output) {
         int   withcoord;
         int   withdist;
         int   withhash;
-    }* search_data = (void*)output;
+    }* search_data = (void*) output;
 
     zval* return_value = search_data->return_value;
     int   withcoord    = search_data->withcoord;
@@ -811,7 +811,7 @@ int execute_geo_generic_command(const void*            glide_client,
     /* Determine argument preparation method based on command type */
     switch (cmd_type) {
         case GeoAdd:
-            allocated_strings = (char**)emalloc(args->geo_args_count * sizeof(char*));
+            allocated_strings = (char**) emalloc(args->geo_args_count * sizeof(char*));
             if (!allocated_strings) {
                 return 0;
             }
@@ -825,7 +825,7 @@ int execute_geo_generic_command(const void*            glide_client,
 
         case GeoHash:
         case GeoPos:
-            allocated_strings = (char**)emalloc(args->member_count * sizeof(char*));
+            allocated_strings = (char**) emalloc(args->member_count * sizeof(char*));
             if (!allocated_strings) {
                 return 0;
             }
@@ -835,7 +835,7 @@ int execute_geo_generic_command(const void*            glide_client,
 
 
         case GeoSearch:
-            allocated_strings = (char**)emalloc(10 * sizeof(char*));
+            allocated_strings = (char**) emalloc(10 * sizeof(char*));
             if (!allocated_strings) {
                 return 0;
             }
@@ -844,7 +844,7 @@ int execute_geo_generic_command(const void*            glide_client,
             break;
 
         case GeoSearchStore:
-            allocated_strings = (char**)emalloc(10 * sizeof(char*));
+            allocated_strings = (char**) emalloc(10 * sizeof(char*));
             if (!allocated_strings) {
                 return 0;
             }

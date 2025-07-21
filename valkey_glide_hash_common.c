@@ -179,24 +179,24 @@ int execute_h_simple_command(const void*       glide_client,
     if (result) {
         switch (response_type) {
             case H_RESPONSE_INT:
-                status = handle_int_response(result, (long*)result_ptr);
+                status = handle_int_response(result, (long*) result_ptr);
                 break;
             case H_RESPONSE_STRING:
                 status = handle_string_response(
-                    result, ((char***)result_ptr)[0], ((size_t**)result_ptr)[1]);
+                    result, ((char***) result_ptr)[0], ((size_t**) result_ptr)[1]);
                 break;
             case H_RESPONSE_BOOL:
                 status = handle_bool_response(result);
                 if (status >= 0 && result_ptr) {
-                    *((int*)result_ptr) = status;
-                    status              = status >= 0 ? 1 : 0;
+                    *((int*) result_ptr) = status;
+                    status               = status >= 0 ? 1 : 0;
                 }
                 break;
             case H_RESPONSE_ARRAY:
-                status = handle_array_response(result, (zval*)result_ptr);
+                status = handle_array_response(result, (zval*) result_ptr);
                 break;
             case H_RESPONSE_MAP:
-                status = handle_map_response(result, (zval*)result_ptr);
+                status = handle_map_response(result, (zval*) result_ptr);
                 break;
             case H_RESPONSE_OK:
                 status = handle_ok_response(result);
@@ -230,8 +230,8 @@ int prepare_h_key_only_args(h_command_args_t* args,
                             char***           allocated_strings,
                             int*              allocated_count) {
     /* Allocate argument arrays */
-    *args_out          = (uintptr_t*)emalloc(sizeof(uintptr_t));
-    *args_len_out      = (unsigned long*)emalloc(sizeof(unsigned long));
+    *args_out          = (uintptr_t*) emalloc(sizeof(uintptr_t));
+    *args_len_out      = (unsigned long*) emalloc(sizeof(unsigned long));
     *allocated_strings = NULL;
     *allocated_count   = 0;
 
@@ -244,7 +244,7 @@ int prepare_h_key_only_args(h_command_args_t* args,
     }
 
     /* Set key as the only argument */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     return 1;
@@ -263,8 +263,8 @@ int prepare_h_single_field_args(h_command_args_t* args,
     }
 
     /* Allocate argument arrays */
-    *args_out          = (uintptr_t*)emalloc(2 * sizeof(uintptr_t));
-    *args_len_out      = (unsigned long*)emalloc(2 * sizeof(unsigned long));
+    *args_out          = (uintptr_t*) emalloc(2 * sizeof(uintptr_t));
+    *args_len_out      = (unsigned long*) emalloc(2 * sizeof(unsigned long));
     *allocated_strings = NULL;
     *allocated_count   = 0;
 
@@ -277,9 +277,9 @@ int prepare_h_single_field_args(h_command_args_t* args,
     }
 
     /* Set key and field arguments */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
-    (*args_out)[1]     = (uintptr_t)args->field;
+    (*args_out)[1]     = (uintptr_t) args->field;
     (*args_len_out)[1] = args->field_len;
 
     return 2;
@@ -298,8 +298,8 @@ int prepare_h_field_value_args(h_command_args_t* args,
     }
 
     /* Allocate argument arrays */
-    *args_out          = (uintptr_t*)emalloc(3 * sizeof(uintptr_t));
-    *args_len_out      = (unsigned long*)emalloc(3 * sizeof(unsigned long));
+    *args_out          = (uintptr_t*) emalloc(3 * sizeof(uintptr_t));
+    *args_len_out      = (unsigned long*) emalloc(3 * sizeof(unsigned long));
     *allocated_strings = NULL;
     *allocated_count   = 0;
 
@@ -312,11 +312,11 @@ int prepare_h_field_value_args(h_command_args_t* args,
     }
 
     /* Set key, field, and value arguments */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
-    (*args_out)[1]     = (uintptr_t)args->field;
+    (*args_out)[1]     = (uintptr_t) args->field;
     (*args_len_out)[1] = args->field_len;
-    (*args_out)[2]     = (uintptr_t)args->value;
+    (*args_out)[2]     = (uintptr_t) args->value;
     (*args_len_out)[2] = args->value_len;
 
     return 3;
@@ -338,9 +338,9 @@ int prepare_h_multi_field_args(h_command_args_t* args,
     unsigned long arg_count = 1 + args->field_count;
 
     /* Allocate argument arrays */
-    *args_out          = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out      = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
-    *allocated_strings = (char**)emalloc(args->field_count * sizeof(char*));
+    *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    *allocated_strings = (char**) emalloc(args->field_count * sizeof(char*));
     *allocated_count   = 0;
 
     if (!*args_out || !*args_len_out || !*allocated_strings) {
@@ -354,7 +354,7 @@ int prepare_h_multi_field_args(h_command_args_t* args,
     }
 
     /* Set key as first argument */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Convert and add fields */
@@ -395,9 +395,9 @@ int prepare_h_set_args(h_command_args_t* args,
 
         /* Prepare command arguments: key + field-value pairs */
         unsigned long arg_count = 1 + (pairs_count * 2);
-        *args_out               = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-        *args_len_out           = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
-        *allocated_strings      = (char**)emalloc((pairs_count * 2) * sizeof(char*));
+        *args_out               = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+        *args_len_out           = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+        *allocated_strings      = (char**) emalloc((pairs_count * 2) * sizeof(char*));
         *allocated_count        = 0;
 
         if (!*args_out || !*args_len_out || !*allocated_strings) {
@@ -411,7 +411,7 @@ int prepare_h_set_args(h_command_args_t* args,
         }
 
         /* First argument: key */
-        (*args_out)[0]     = (uintptr_t)args->key;
+        (*args_out)[0]     = (uintptr_t) args->key;
         (*args_len_out)[0] = args->key_len;
 
         /* Process field-value pairs */
@@ -425,9 +425,9 @@ int prepare_h_set_args(h_command_args_t* args,
 
         /* Prepare command arguments: key + field/value pairs */
         unsigned long arg_count = 1 + args->fv_count;
-        *args_out               = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-        *args_len_out           = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
-        *allocated_strings      = (char**)emalloc(args->fv_count * sizeof(char*));
+        *args_out               = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+        *args_len_out           = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+        *allocated_strings      = (char**) emalloc(args->fv_count * sizeof(char*));
         *allocated_count        = 0;
 
         if (!*args_out || !*args_len_out || !*allocated_strings) {
@@ -441,7 +441,7 @@ int prepare_h_set_args(h_command_args_t* args,
         }
 
         /* First argument: key */
-        (*args_out)[0]     = (uintptr_t)args->key;
+        (*args_out)[0]     = (uintptr_t) args->key;
         (*args_len_out)[0] = args->key_len;
 
         /* Convert field/value pairs */
@@ -472,9 +472,9 @@ int prepare_h_mset_args(h_command_args_t* args,
     int           pairs_count = zend_hash_num_elements(ht);
     unsigned long arg_count   = 1 + (pairs_count * 2);
 
-    *args_out          = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out      = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
-    *allocated_strings = (char**)emalloc((pairs_count * 2) * sizeof(char*));
+    *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    *allocated_strings = (char**) emalloc((pairs_count * 2) * sizeof(char*));
     *allocated_count   = 0;
 
     if (!*args_out || !*args_len_out || !*allocated_strings) {
@@ -488,7 +488,7 @@ int prepare_h_mset_args(h_command_args_t* args,
     }
 
     /* First argument: key */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Process field-value pairs */
@@ -509,9 +509,9 @@ int prepare_h_incr_args(h_command_args_t* args,
     }
 
     /* Allocate argument arrays */
-    *args_out          = (uintptr_t*)emalloc(3 * sizeof(uintptr_t));
-    *args_len_out      = (unsigned long*)emalloc(3 * sizeof(unsigned long));
-    *allocated_strings = (char**)emalloc(sizeof(char*));
+    *args_out          = (uintptr_t*) emalloc(3 * sizeof(uintptr_t));
+    *args_len_out      = (unsigned long*) emalloc(3 * sizeof(unsigned long));
+    *allocated_strings = (char**) emalloc(sizeof(char*));
     *allocated_count   = 0;
 
     if (!*args_out || !*args_len_out || !*allocated_strings) {
@@ -525,9 +525,9 @@ int prepare_h_incr_args(h_command_args_t* args,
     }
 
     /* Set key and field arguments */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
-    (*args_out)[1]     = (uintptr_t)args->field;
+    (*args_out)[1]     = (uintptr_t) args->field;
     (*args_len_out)[1] = args->field_len;
 
     /* Convert increment value to string */
@@ -552,7 +552,7 @@ int prepare_h_incr_args(h_command_args_t* args,
     (*allocated_strings)[0] = incr_str;
     *allocated_count        = 1;
 
-    (*args_out)[2]     = (uintptr_t)incr_str;
+    (*args_out)[2]     = (uintptr_t) incr_str;
     (*args_len_out)[2] = incr_len;
 
     return 3;
@@ -582,9 +582,9 @@ int prepare_h_randfield_args(h_command_args_t* args,
         }
     }
 
-    *args_out          = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out      = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
-    *allocated_strings = need_count_str ? (char**)emalloc(sizeof(char*)) : NULL;
+    *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    *allocated_strings = need_count_str ? (char**) emalloc(sizeof(char*)) : NULL;
     *allocated_count   = 0;
 
     if (!*args_out || !*args_len_out || (need_count_str && !*allocated_strings)) {
@@ -599,7 +599,7 @@ int prepare_h_randfield_args(h_command_args_t* args,
 
     /* First argument: key */
     int arg_idx              = 0;
-    (*args_out)[arg_idx]     = (uintptr_t)args->key;
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
     (*args_len_out)[arg_idx] = args->key_len;
     arg_idx++;
 
@@ -617,14 +617,14 @@ int prepare_h_randfield_args(h_command_args_t* args,
         (*allocated_strings)[0] = count_str;
         *allocated_count        = 1;
 
-        (*args_out)[arg_idx] = (uintptr_t)count_str;
+        (*args_out)[arg_idx] = (uintptr_t) count_str;
         arg_idx++;
     }
 
     /* Add WITHVALUES if specified */
     if (args->withvalues) {
         const char* withvalues_str = "WITHVALUES";
-        (*args_out)[arg_idx]       = (uintptr_t)withvalues_str;
+        (*args_out)[arg_idx]       = (uintptr_t) withvalues_str;
         (*args_len_out)[arg_idx]   = strlen(withvalues_str);
         arg_idx++;
     }
@@ -640,8 +640,8 @@ int prepare_h_randfield_args(h_command_args_t* args,
  * Process results for HMGET (associative field mapping)
  */
 int process_h_mget_result(CommandResult* result, void* output) {
-    h_command_args_t* args         = (h_command_args_t*)((void**)output)[0];
-    zval*             return_value = (zval*)((void**)output)[1];
+    h_command_args_t* args         = (h_command_args_t*) ((void**) output)[0];
+    zval*             return_value = (zval*) ((void**) output)[1];
 
     /* Check if the command was successful */
     if (!result) {
@@ -698,8 +698,8 @@ int process_h_mget_result(CommandResult* result, void* output) {
  * Process results for HRANDFIELD
  */
 int process_h_randfield_result(CommandResult* result, void* output) {
-    h_command_args_t* args         = (h_command_args_t*)((void**)output)[0];
-    zval*             return_value = (zval*)((void**)output)[1];
+    h_command_args_t* args         = (h_command_args_t*) ((void**) output)[0];
+    zval*             return_value = (zval*) ((void**) output)[1];
 
     /* Check if the command was successful */
     if (!result) {
@@ -794,7 +794,7 @@ int process_h_randfield_result(CommandResult* result, void* output) {
  * Process results for HINCRBYFLOAT
  */
 int process_h_incrbyfloat_result(CommandResult* result, void* output) {
-    double* output_value = (double*)output;
+    double* output_value = (double*) output;
 
     /* Use command_response_to_zval to get the string result */
     zval temp_result;
@@ -809,7 +809,7 @@ int process_h_incrbyfloat_result(CommandResult* result, void* output) {
             *output_value = Z_DVAL(temp_result);
         } else if (Z_TYPE(temp_result) == IS_LONG) {
             /* Convert long to double */
-            *output_value = (double)Z_LVAL(temp_result);
+            *output_value = (double) Z_LVAL(temp_result);
         } else {
             zval_dtor(&temp_result);
             return 0;
@@ -827,7 +827,7 @@ int process_h_incrbyfloat_result(CommandResult* result, void* output) {
  * Process results for HGETALL (convert flat array to associative)
  */
 int process_h_getall_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     /* Check if the command was successful */
     if (!result || result->command_error) {
@@ -865,7 +865,7 @@ int convert_zval_array_to_args(zval*          z_array,
             return 0;
         }
 
-        args[current_arg]     = (uintptr_t)str_val;
+        args[current_arg]     = (uintptr_t) str_val;
         args_len[current_arg] = str_len;
 
         if (need_free) {
@@ -898,7 +898,7 @@ int process_field_value_pairs(zval*          field_values,
         /* Add field */
         if (hash_key) {
             /* Associative array: key is the field */
-            args[arg_idx]     = (uintptr_t)ZSTR_VAL(hash_key);
+            args[arg_idx]     = (uintptr_t) ZSTR_VAL(hash_key);
             args_len[arg_idx] = ZSTR_LEN(hash_key);
         } else {
             /* Numeric index - convert to string */
@@ -906,7 +906,7 @@ int process_field_value_pairs(zval*          field_values,
             if (!field_str) {
                 return 0;
             }
-            args[arg_idx]                       = (uintptr_t)field_str;
+            args[arg_idx]                       = (uintptr_t) field_str;
             allocated_strings[*allocated_count] = field_str;
             (*allocated_count)++;
         }
@@ -1001,7 +1001,7 @@ int process_field_value_pairs(zval*          field_values,
             need_free = 1;
         }
 
-        args[arg_idx]     = (uintptr_t)str_val;
+        args[arg_idx]     = (uintptr_t) str_val;
         args_len[arg_idx] = str_len;
 
         if (need_free) {
@@ -1063,7 +1063,7 @@ int execute_h_get_command(const void* glide_client,
     args.field            = field;
     args.field_len        = field_len;
 
-    void* result_ptr[2] = {(void*)result, (void*)result_len};
+    void* result_ptr[2] = {(void*) result, (void*) result_len};
     return execute_h_simple_command(glide_client, HGet, &args, result_ptr, H_RESPONSE_STRING);
 }
 

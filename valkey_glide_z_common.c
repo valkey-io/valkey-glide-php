@@ -273,7 +273,7 @@ int create_limit_args(range_options_t* opts,
     }
 
     /* Add LIMIT keyword */
-    args[start_idx]     = (uintptr_t)"LIMIT";
+    args[start_idx]     = (uintptr_t) "LIMIT";
     args_len[start_idx] = 5;
 
     /* Add offset parameter */
@@ -282,7 +282,7 @@ int create_limit_args(range_options_t* opts,
     if (!offset_str) {
         return 0;
     }
-    args[start_idx + 1]                     = (uintptr_t)offset_str;
+    args[start_idx + 1]                     = (uintptr_t) offset_str;
     args_len[start_idx + 1]                 = len;
     allocated_strings[(*allocated_count)++] = offset_str;
 
@@ -291,7 +291,7 @@ int create_limit_args(range_options_t* opts,
     if (!count_str) {
         return 0;
     }
-    args[start_idx + 2]                     = (uintptr_t)count_str;
+    args[start_idx + 2]                     = (uintptr_t) count_str;
     args_len[start_idx + 2]                 = len;
     allocated_strings[(*allocated_count)++] = count_str;
 
@@ -389,7 +389,7 @@ int execute_z_generic_command(const void*          glide_client,
 
         case ZRem:
         case ZMScore:
-            allocated_strings = (char**)emalloc(args->member_count * sizeof(char*));
+            allocated_strings = (char**) emalloc(args->member_count * sizeof(char*));
             if (!allocated_strings) {
                 return 0;
             }
@@ -404,7 +404,7 @@ int execute_z_generic_command(const void*          glide_client,
         case ZRevRangeByScore:
         case ZRevRangeByLex:
             allocated_strings =
-                (char**)emalloc(10 * sizeof(char*)); /* Enough for typical options */
+                (char**) emalloc(10 * sizeof(char*)); /* Enough for typical options */
             if (!allocated_strings) {
                 return 0;
             }
@@ -415,9 +415,9 @@ int execute_z_generic_command(const void*          glide_client,
 
         case ZIncrBy:
             arg_count         = 3; /* key + increment + member */
-            arg_values        = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-            arg_lens          = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
-            allocated_strings = (char**)emalloc(1 * sizeof(char*));
+            arg_values        = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+            arg_lens          = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+            allocated_strings = (char**) emalloc(1 * sizeof(char*));
 
             if (!arg_values || !arg_lens || !allocated_strings) {
                 if (arg_values)
@@ -430,7 +430,7 @@ int execute_z_generic_command(const void*          glide_client,
             }
 
             /* Set arguments */
-            arg_values[0] = (uintptr_t)args->key;
+            arg_values[0] = (uintptr_t) args->key;
             arg_lens[0]   = args->key_len;
 
             /* Add increment parameter */
@@ -445,21 +445,21 @@ int execute_z_generic_command(const void*          glide_client,
                 return 0;
             }
 
-            arg_values[1]        = (uintptr_t)increment_str_copy;
+            arg_values[1]        = (uintptr_t) increment_str_copy;
             arg_lens[1]          = increment_str_len;
             allocated_strings[0] = increment_str_copy;
             allocated_count      = 1;
 
             /* Add member parameter */
-            arg_values[2] = (uintptr_t)args->member;
+            arg_values[2] = (uintptr_t) args->member;
             arg_lens[2]   = args->member_len;
             break;
 
         case ZRemRangeByRank:
             arg_count         = 3; /* key + start + stop */
-            arg_values        = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-            arg_lens          = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
-            allocated_strings = (char**)emalloc(2 * sizeof(char*));
+            arg_values        = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+            arg_lens          = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+            allocated_strings = (char**) emalloc(2 * sizeof(char*));
 
             if (!arg_values || !arg_lens || !allocated_strings) {
                 if (arg_values)
@@ -472,7 +472,7 @@ int execute_z_generic_command(const void*          glide_client,
             }
 
             /* Set arguments */
-            arg_values[0] = (uintptr_t)args->key;
+            arg_values[0] = (uintptr_t) args->key;
             arg_lens[0]   = args->key_len;
 
             /* Add start and end parameters */
@@ -491,11 +491,11 @@ int execute_z_generic_command(const void*          glide_client,
                 return 0;
             }
 
-            arg_values[1]        = (uintptr_t)start_str_copy;
+            arg_values[1]        = (uintptr_t) start_str_copy;
             arg_lens[1]          = start_str_len;
             allocated_strings[0] = start_str_copy;
 
-            arg_values[2]        = (uintptr_t)end_str_copy;
+            arg_values[2]        = (uintptr_t) end_str_copy;
             arg_lens[2]          = end_str_len;
             allocated_strings[1] = end_str_copy;
             allocated_count      = 2;
@@ -504,7 +504,8 @@ int execute_z_generic_command(const void*          glide_client,
         case ZDiffStore:
         case ZInterStore:
         case ZUnionStore:
-            allocated_strings = (char**)emalloc(20 * sizeof(char*)); /* Enough for store commands */
+            allocated_strings =
+                (char**) emalloc(20 * sizeof(char*)); /* Enough for store commands */
             if (!allocated_strings) {
                 return 0;
             }
@@ -513,7 +514,7 @@ int execute_z_generic_command(const void*          glide_client,
             break;
 
         case ZInterCard:
-            allocated_strings = (char**)emalloc(5 * sizeof(char*)); /* Enough for ZINTERCARD */
+            allocated_strings = (char**) emalloc(5 * sizeof(char*)); /* Enough for ZINTERCARD */
             if (!allocated_strings) {
                 return 0;
             }
@@ -522,7 +523,7 @@ int execute_z_generic_command(const void*          glide_client,
             break;
 
         case ZUnion:
-            allocated_strings = (char**)emalloc(20 * sizeof(char*)); /* Enough for ZUNION */
+            allocated_strings = (char**) emalloc(20 * sizeof(char*)); /* Enough for ZUNION */
             if (!allocated_strings) {
                 return 0;
             }
@@ -532,7 +533,7 @@ int execute_z_generic_command(const void*          glide_client,
 
         case ZPopMax:
         case ZPopMin:
-            allocated_strings = (char**)emalloc(2 * sizeof(char*)); /* Enough for ZPOP commands */
+            allocated_strings = (char**) emalloc(2 * sizeof(char*)); /* Enough for ZPOP commands */
             if (!allocated_strings) {
                 return 0;
             }
@@ -541,7 +542,7 @@ int execute_z_generic_command(const void*          glide_client,
             break;
 
         case ZRangeStore:
-            allocated_strings = (char**)emalloc(10 * sizeof(char*)); /* Enough for ZRANGESTORE */
+            allocated_strings = (char**) emalloc(10 * sizeof(char*)); /* Enough for ZRANGESTORE */
             if (!allocated_strings) {
                 return 0;
             }
@@ -550,7 +551,7 @@ int execute_z_generic_command(const void*          glide_client,
             break;
 
         case ZAdd:
-            allocated_strings = (char**)emalloc(20 * sizeof(char*)); /* Enough for ZADD */
+            allocated_strings = (char**) emalloc(20 * sizeof(char*)); /* Enough for ZADD */
             if (!allocated_strings) {
                 return 0;
             }
@@ -559,7 +560,7 @@ int execute_z_generic_command(const void*          glide_client,
             break;
 
         case ZDiff:
-            allocated_strings = (char**)emalloc(5 * sizeof(char*)); /* Enough for ZDIFF */
+            allocated_strings = (char**) emalloc(5 * sizeof(char*)); /* Enough for ZDIFF */
             if (!allocated_strings) {
                 return 0;
             }
@@ -568,7 +569,7 @@ int execute_z_generic_command(const void*          glide_client,
             break;
 
         case ZInter:
-            allocated_strings = (char**)emalloc(20 * sizeof(char*)); /* Enough for ZINTER */
+            allocated_strings = (char**) emalloc(20 * sizeof(char*)); /* Enough for ZINTER */
             if (!allocated_strings) {
                 return 0;
             }
@@ -577,7 +578,7 @@ int execute_z_generic_command(const void*          glide_client,
             break;
 
         case ZRandMember:
-            allocated_strings = (char**)emalloc(2 * sizeof(char*)); /* Enough for ZRANDMEMBER */
+            allocated_strings = (char**) emalloc(2 * sizeof(char*)); /* Enough for ZRANDMEMBER */
             if (!allocated_strings) {
                 return 0;
             }
@@ -653,8 +654,8 @@ int prepare_z_key_args(z_command_args_t* args, uintptr_t** args_out, unsigned lo
 
     unsigned long arg_count = 1; /* just key */
 
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -665,7 +666,7 @@ int prepare_z_key_args(z_command_args_t* args, uintptr_t** args_out, unsigned lo
     }
 
     /* Set arguments */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     return arg_count;
@@ -688,8 +689,8 @@ int prepare_z_pop_args(z_command_args_t* args,
         arg_count++;
     }
 
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -699,7 +700,7 @@ int prepare_z_pop_args(z_command_args_t* args,
         return 0;
     }
 
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     if (args->start > 1) {
@@ -711,7 +712,7 @@ int prepare_z_pop_args(z_command_args_t* args,
             efree(*args_len_out);
             return 0;
         }
-        (*args_out)[1]                             = (uintptr_t)count_str_copy;
+        (*args_out)[1]                             = (uintptr_t) count_str_copy;
         (*args_len_out)[1]                         = strlen(count_str);
         (*allocated_strings)[(*allocated_count)++] = count_str_copy;
     }
@@ -735,8 +736,8 @@ int prepare_z_member_args(z_command_args_t* args,
         arg_count++; /* Add WITHSCORE parameter */
     }
 
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -747,16 +748,16 @@ int prepare_z_member_args(z_command_args_t* args,
     }
 
     /* Set arguments */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
-    (*args_out)[1]     = (uintptr_t)args->member;
+    (*args_out)[1]     = (uintptr_t) args->member;
     (*args_len_out)[1] = args->member_len;
 
     /* Add WITHSCORE if required */
     if (args->withscores) {
         const char* withscore_str = "WITHSCORE";
-        (*args_out)[2]            = (uintptr_t)withscore_str;
+        (*args_out)[2]            = (uintptr_t) withscore_str;
         (*args_len_out)[2]        = 9; /* length of "WITHSCORE" */
     }
 
@@ -775,8 +776,8 @@ int prepare_z_range_args(z_command_args_t* args,
 
     unsigned long arg_count = 3; /* key + min + max */
 
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -787,13 +788,13 @@ int prepare_z_range_args(z_command_args_t* args,
     }
 
     /* Set arguments */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
-    (*args_out)[1]     = (uintptr_t)args->min;
+    (*args_out)[1]     = (uintptr_t) args->min;
     (*args_len_out)[1] = args->min_len;
 
-    (*args_out)[2]     = (uintptr_t)args->max;
+    (*args_out)[2]     = (uintptr_t) args->max;
     (*args_len_out)[2] = args->max_len;
 
     return arg_count;
@@ -817,8 +818,8 @@ int prepare_z_members_args(z_command_args_t* args,
     /* Prepare command arguments */
     unsigned long arg_count = 1 + args->member_count; /* key + members */
 
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -829,7 +830,7 @@ int prepare_z_members_args(z_command_args_t* args,
     }
 
     /* First argument: key */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Add members as arguments */
@@ -838,7 +839,7 @@ int prepare_z_members_args(z_command_args_t* args,
         zval* z_member = &args->members[i];
 
         if (Z_TYPE_P(z_member) == IS_STRING) {
-            (*args_out)[i + 1]     = (uintptr_t)Z_STRVAL_P(z_member);
+            (*args_out)[i + 1]     = (uintptr_t) Z_STRVAL_P(z_member);
             (*args_len_out)[i + 1] = Z_STRLEN_P(z_member);
         } else {
             /* Convert non-string values to string */
@@ -858,7 +859,7 @@ int prepare_z_members_args(z_command_args_t* args,
                 return 0;
             }
 
-            (*args_out)[i + 1]     = (uintptr_t)str_val;
+            (*args_out)[i + 1]     = (uintptr_t) str_val;
             (*args_len_out)[i + 1] = str_len;
 
             if (need_free) {
@@ -879,7 +880,7 @@ static int convert_zval_to_string_arg(zval*          z_value,
                                       char***        allocated_strings,
                                       int*           allocated_count) {
     if (Z_TYPE_P(z_value) == IS_STRING) {
-        *arg_ptr     = (uintptr_t)Z_STRVAL_P(z_value);
+        *arg_ptr     = (uintptr_t) Z_STRVAL_P(z_value);
         *arg_len_ptr = Z_STRLEN_P(z_value);
         return 1;
     } else {
@@ -894,7 +895,7 @@ static int convert_zval_to_string_arg(zval*          z_value,
             return 0;
         }
 
-        *arg_ptr     = (uintptr_t)str_val;
+        *arg_ptr     = (uintptr_t) str_val;
         *arg_len_ptr = str_len;
 
         if (need_free) {
@@ -962,8 +963,8 @@ int prepare_z_complex_range_args(z_command_args_t* args,
         arg_count += 3; /* Add LIMIT + offset + count parameters */
 
     /* Allocate memory for arguments */
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -974,7 +975,7 @@ int prepare_z_complex_range_args(z_command_args_t* args,
     }
 
     /* First argument: key */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Convert start and end to strings if needed */
@@ -1008,7 +1009,7 @@ int prepare_z_complex_range_args(z_command_args_t* args,
     /* Add BYSCORE parameter if required */
     if (range_opts.byscore) {
         const char* byscore_str  = "BYSCORE";
-        (*args_out)[arg_idx]     = (uintptr_t)byscore_str;
+        (*args_out)[arg_idx]     = (uintptr_t) byscore_str;
         (*args_len_out)[arg_idx] = 7; /* length of "BYSCORE" */
         arg_idx++;
     }
@@ -1016,7 +1017,7 @@ int prepare_z_complex_range_args(z_command_args_t* args,
     /* Add BYLEX parameter if required */
     if (range_opts.bylex) {
         const char* bylex_str    = "BYLEX";
-        (*args_out)[arg_idx]     = (uintptr_t)bylex_str;
+        (*args_out)[arg_idx]     = (uintptr_t) bylex_str;
         (*args_len_out)[arg_idx] = 5; /* length of "BYLEX" */
         arg_idx++;
     }
@@ -1024,7 +1025,7 @@ int prepare_z_complex_range_args(z_command_args_t* args,
     /* Add REV parameter if required */
     if (range_opts.rev) {
         const char* rev_str      = "REV";
-        (*args_out)[arg_idx]     = (uintptr_t)rev_str;
+        (*args_out)[arg_idx]     = (uintptr_t) rev_str;
         (*args_len_out)[arg_idx] = 3; /* length of "REV" */
         arg_idx++;
     }
@@ -1039,7 +1040,7 @@ int prepare_z_complex_range_args(z_command_args_t* args,
     /* Add WITHSCORES if required - add it last as per ValkeyGlide command syntax */
     if (range_opts.withscores) {
         const char* withscores_str = "WITHSCORES";
-        (*args_out)[arg_idx]       = (uintptr_t)withscores_str;
+        (*args_out)[arg_idx]       = (uintptr_t) withscores_str;
         (*args_len_out)[arg_idx]   = 10; /* length of "WITHSCORES" */
         arg_idx++;
     }
@@ -1081,8 +1082,8 @@ int prepare_z_store_args(z_command_args_t* args,
     }
 
     /* Allocate final args arrays */
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -1093,7 +1094,7 @@ int prepare_z_store_args(z_command_args_t* args,
     }
 
     /* Set destination */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Add numkeys as the second argument */
@@ -1105,7 +1106,7 @@ int prepare_z_store_args(z_command_args_t* args,
         efree(*args_len_out);
         return 0;
     }
-    (*args_out)[1]                             = (uintptr_t)numkeys_str_copy;
+    (*args_out)[1]                             = (uintptr_t) numkeys_str_copy;
     (*args_len_out)[1]                         = strlen(numkeys_str);
     (*allocated_strings)[(*allocated_count)++] = numkeys_str_copy;
 
@@ -1117,7 +1118,7 @@ int prepare_z_store_args(z_command_args_t* args,
         if (Z_TYPE_P(key) != IS_STRING) {
             convert_to_string(key);
         }
-        (*args_out)[idx]     = (uintptr_t)Z_STRVAL_P(key);
+        (*args_out)[idx]     = (uintptr_t) Z_STRVAL_P(key);
         (*args_len_out)[idx] = Z_STRLEN_P(key);
         idx++;
     }
@@ -1127,7 +1128,7 @@ int prepare_z_store_args(z_command_args_t* args,
 
     /* Add WEIGHTS if present */
     if (store_opts.has_weights) {
-        (*args_out)[offset]     = (uintptr_t)"WEIGHTS";
+        (*args_out)[offset]     = (uintptr_t) "WEIGHTS";
         (*args_len_out)[offset] = 7;
         offset++;
 
@@ -1152,7 +1153,7 @@ int prepare_z_store_args(z_command_args_t* args,
                 return 0;
             }
 
-            (*args_out)[offset]     = (uintptr_t)weight_str;
+            (*args_out)[offset]     = (uintptr_t) weight_str;
             (*args_len_out)[offset] = weight_len;
 
             if (need_free) {
@@ -1166,7 +1167,7 @@ int prepare_z_store_args(z_command_args_t* args,
 
     /* Add AGGREGATE if present */
     if (store_opts.has_aggregate) {
-        (*args_out)[offset]     = (uintptr_t)"AGGREGATE";
+        (*args_out)[offset]     = (uintptr_t) "AGGREGATE";
         (*args_len_out)[offset] = 9;
         offset++;
 
@@ -1183,7 +1184,7 @@ int prepare_z_store_args(z_command_args_t* args,
             return 0;
         }
 
-        (*args_out)[offset]                        = (uintptr_t)agg_str_copy;
+        (*args_out)[offset]                        = (uintptr_t) agg_str_copy;
         (*args_len_out)[offset]                    = Z_STRLEN_P(store_opts.aggregate);
         (*allocated_strings)[(*allocated_count)++] = agg_str_copy;
     }
@@ -1222,8 +1223,8 @@ int prepare_z_intercard_args(z_command_args_t* args,
     }
 
     /* Allocate final args arrays */
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -1242,7 +1243,7 @@ int prepare_z_intercard_args(z_command_args_t* args,
         efree(*args_len_out);
         return 0;
     }
-    (*args_out)[0]                             = (uintptr_t)numkeys_str_copy;
+    (*args_out)[0]                             = (uintptr_t) numkeys_str_copy;
     (*args_len_out)[0]                         = strlen(numkeys_str);
     (*allocated_strings)[(*allocated_count)++] = numkeys_str_copy;
 
@@ -1254,7 +1255,7 @@ int prepare_z_intercard_args(z_command_args_t* args,
         if (Z_TYPE_P(key) != IS_STRING) {
             convert_to_string(key);
         }
-        (*args_out)[idx]     = (uintptr_t)Z_STRVAL_P(key);
+        (*args_out)[idx]     = (uintptr_t) Z_STRVAL_P(key);
         (*args_len_out)[idx] = Z_STRLEN_P(key);
         idx++;
     }
@@ -1265,7 +1266,7 @@ int prepare_z_intercard_args(z_command_args_t* args,
         unsigned int offset = 1 + args->member_count; /* +1 for numkeys */
 
         /* Add LIMIT keyword */
-        (*args_out)[offset]     = (uintptr_t)"LIMIT";
+        (*args_out)[offset]     = (uintptr_t) "LIMIT";
         (*args_len_out)[offset] = 5;
         offset++;
 
@@ -1283,7 +1284,7 @@ int prepare_z_intercard_args(z_command_args_t* args,
             efree(*args_len_out);
             return 0;
         }
-        (*args_out)[offset]                        = (uintptr_t)limit_str_copy;
+        (*args_out)[offset]                        = (uintptr_t) limit_str_copy;
         (*args_len_out)[offset]                    = strlen(limit_str);
         (*allocated_strings)[(*allocated_count)++] = limit_str_copy;
     }
@@ -1328,8 +1329,8 @@ int prepare_z_union_args(z_command_args_t* args,
     }
 
     /* Allocate final args arrays */
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -1348,7 +1349,7 @@ int prepare_z_union_args(z_command_args_t* args,
         efree(*args_len_out);
         return 0;
     }
-    (*args_out)[0]                             = (uintptr_t)numkeys_str_copy;
+    (*args_out)[0]                             = (uintptr_t) numkeys_str_copy;
     (*args_len_out)[0]                         = strlen(numkeys_str);
     (*allocated_strings)[(*allocated_count)++] = numkeys_str_copy;
 
@@ -1360,7 +1361,7 @@ int prepare_z_union_args(z_command_args_t* args,
         if (Z_TYPE_P(key) != IS_STRING) {
             convert_to_string(key);
         }
-        (*args_out)[offset]     = (uintptr_t)Z_STRVAL_P(key);
+        (*args_out)[offset]     = (uintptr_t) Z_STRVAL_P(key);
         (*args_len_out)[offset] = Z_STRLEN_P(key);
         offset++;
     }
@@ -1369,7 +1370,7 @@ int prepare_z_union_args(z_command_args_t* args,
     /* Add WEIGHTS if present */
     if (union_opts.has_weights) {
         /* Add WEIGHTS keyword */
-        (*args_out)[offset]     = (uintptr_t)"WEIGHTS";
+        (*args_out)[offset]     = (uintptr_t) "WEIGHTS";
         (*args_len_out)[offset] = 7;
         offset++;
 
@@ -1394,7 +1395,7 @@ int prepare_z_union_args(z_command_args_t* args,
                 return 0;
             }
 
-            (*args_out)[offset]     = (uintptr_t)weight_str;
+            (*args_out)[offset]     = (uintptr_t) weight_str;
             (*args_len_out)[offset] = weight_len;
 
             if (need_free) {
@@ -1409,7 +1410,7 @@ int prepare_z_union_args(z_command_args_t* args,
     /* Add AGGREGATE if present */
     if (union_opts.has_aggregate) {
         /* Add AGGREGATE keyword */
-        (*args_out)[offset]     = (uintptr_t)"AGGREGATE";
+        (*args_out)[offset]     = (uintptr_t) "AGGREGATE";
         (*args_len_out)[offset] = 9;
         offset++;
 
@@ -1427,7 +1428,7 @@ int prepare_z_union_args(z_command_args_t* args,
             return 0;
         }
 
-        (*args_out)[offset]                        = (uintptr_t)agg_str_copy;
+        (*args_out)[offset]                        = (uintptr_t) agg_str_copy;
         (*args_len_out)[offset]                    = Z_STRLEN_P(union_opts.aggregate);
         (*allocated_strings)[(*allocated_count)++] = agg_str_copy;
         offset++;
@@ -1436,7 +1437,7 @@ int prepare_z_union_args(z_command_args_t* args,
     /* Add WITHSCORES if present */
     if (union_opts.withscores) {
         /* Add WITHSCORES keyword */
-        (*args_out)[offset]     = (uintptr_t)"WITHSCORES";
+        (*args_out)[offset]     = (uintptr_t) "WITHSCORES";
         (*args_len_out)[offset] = 10;
         offset++;
     }
@@ -1475,8 +1476,8 @@ int prepare_z_rangestore_args(z_command_args_t* args,
         arg_count += 3; /* LIMIT + offset + count */
 
     /* Allocate final args arrays */
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -1487,9 +1488,9 @@ int prepare_z_rangestore_args(z_command_args_t* args,
     }
 
     /* Set dst and src (args->key is dst, args->member is src) */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
-    (*args_out)[1]     = (uintptr_t)args->member;
+    (*args_out)[1]     = (uintptr_t) args->member;
     (*args_len_out)[1] = args->member_len;
 
     /* Add start and end using framework helper */
@@ -1501,7 +1502,7 @@ int prepare_z_rangestore_args(z_command_args_t* args,
         efree(*args_len_out);
         return 0;
     }
-    (*args_out)[2]     = (uintptr_t)str;
+    (*args_out)[2]     = (uintptr_t) str;
     (*args_len_out)[2] = len;
     if (need_free)
         (*allocated_strings)[(*allocated_count)++] = str;
@@ -1513,7 +1514,7 @@ int prepare_z_rangestore_args(z_command_args_t* args,
         efree(*args_len_out);
         return 0;
     }
-    (*args_out)[3]     = (uintptr_t)str;
+    (*args_out)[3]     = (uintptr_t) str;
     (*args_len_out)[3] = len;
     if (need_free)
         (*allocated_strings)[(*allocated_count)++] = str;
@@ -1521,16 +1522,16 @@ int prepare_z_rangestore_args(z_command_args_t* args,
     /* Add range options */
     unsigned int offset = 4;
     if (range_opts.bylex) {
-        (*args_out)[offset]     = (uintptr_t)"BYLEX";
+        (*args_out)[offset]     = (uintptr_t) "BYLEX";
         (*args_len_out)[offset] = 5;
         offset++;
     } else if (range_opts.byscore) {
-        (*args_out)[offset]     = (uintptr_t)"BYSCORE";
+        (*args_out)[offset]     = (uintptr_t) "BYSCORE";
         (*args_len_out)[offset] = 7;
         offset++;
     }
     if (range_opts.rev) {
-        (*args_out)[offset]     = (uintptr_t)"REV";
+        (*args_out)[offset]     = (uintptr_t) "REV";
         (*args_len_out)[offset] = 3;
         offset++;
     }
@@ -1586,8 +1587,8 @@ int prepare_z_zadd_args(z_command_args_t* args,
     unsigned long arg_count = 1 + num_options + (score_member_pairs * 2);
 
     /* Allocate final args arrays */
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -1598,33 +1599,33 @@ int prepare_z_zadd_args(z_command_args_t* args,
     }
 
     /* Set key */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
     int arg_idx        = 1;
 
     /* Add options using existing framework pattern */
     if (zadd_opts.xx) {
-        (*args_out)[arg_idx]       = (uintptr_t)"XX";
+        (*args_out)[arg_idx]       = (uintptr_t) "XX";
         (*args_len_out)[arg_idx++] = 2;
     }
     if (zadd_opts.nx) {
-        (*args_out)[arg_idx]       = (uintptr_t)"NX";
+        (*args_out)[arg_idx]       = (uintptr_t) "NX";
         (*args_len_out)[arg_idx++] = 2;
     }
     if (zadd_opts.lt) {
-        (*args_out)[arg_idx]       = (uintptr_t)"LT";
+        (*args_out)[arg_idx]       = (uintptr_t) "LT";
         (*args_len_out)[arg_idx++] = 2;
     }
     if (zadd_opts.gt) {
-        (*args_out)[arg_idx]       = (uintptr_t)"GT";
+        (*args_out)[arg_idx]       = (uintptr_t) "GT";
         (*args_len_out)[arg_idx++] = 2;
     }
     if (zadd_opts.ch) {
-        (*args_out)[arg_idx]       = (uintptr_t)"CH";
+        (*args_out)[arg_idx]       = (uintptr_t) "CH";
         (*args_len_out)[arg_idx++] = 2;
     }
     if (zadd_opts.incr) {
-        (*args_out)[arg_idx]       = (uintptr_t)"INCR";
+        (*args_out)[arg_idx]       = (uintptr_t) "INCR";
         (*args_len_out)[arg_idx++] = 4;
     }
 
@@ -1653,7 +1654,7 @@ int prepare_z_zadd_args(z_command_args_t* args,
             return 0;
         }
 
-        (*args_out)[arg_idx]       = (uintptr_t)score_str;
+        (*args_out)[arg_idx]       = (uintptr_t) score_str;
         (*args_len_out)[arg_idx++] = score_len;
         if (need_free) {
             (*allocated_strings)[(*allocated_count)++] = score_str;
@@ -1668,7 +1669,7 @@ int prepare_z_zadd_args(z_command_args_t* args,
             efree(*args_len_out);
             return 0;
         }
-        (*args_out)[arg_idx]       = (uintptr_t)Z_STRVAL_P(member);
+        (*args_out)[arg_idx]       = (uintptr_t) Z_STRVAL_P(member);
         (*args_len_out)[arg_idx++] = Z_STRLEN_P(member);
     }
 
@@ -1701,8 +1702,8 @@ int prepare_z_zdiff_args(z_command_args_t* args,
     }
 
     /* Allocate final args arrays */
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -1721,7 +1722,7 @@ int prepare_z_zdiff_args(z_command_args_t* args,
         efree(*args_len_out);
         return 0;
     }
-    (*args_out)[0]                             = (uintptr_t)numkeys_str_copy;
+    (*args_out)[0]                             = (uintptr_t) numkeys_str_copy;
     (*args_len_out)[0]                         = strlen(numkeys_str);
     (*allocated_strings)[(*allocated_count)++] = numkeys_str_copy;
 
@@ -1733,7 +1734,7 @@ int prepare_z_zdiff_args(z_command_args_t* args,
         if (Z_TYPE_P(key) != IS_STRING) {
             convert_to_string(key);
         }
-        (*args_out)[offset]     = (uintptr_t)Z_STRVAL_P(key);
+        (*args_out)[offset]     = (uintptr_t) Z_STRVAL_P(key);
         (*args_len_out)[offset] = Z_STRLEN_P(key);
         offset++;
     }
@@ -1742,7 +1743,7 @@ int prepare_z_zdiff_args(z_command_args_t* args,
     /* Add WITHSCORES if present */
     if (zdiff_opts.withscores) {
         /* Add WITHSCORES keyword */
-        (*args_out)[offset]     = (uintptr_t)"WITHSCORES";
+        (*args_out)[offset]     = (uintptr_t) "WITHSCORES";
         (*args_len_out)[offset] = 10;
         offset++;
     }
@@ -1776,8 +1777,8 @@ int prepare_z_randmember_args(z_command_args_t* args,
     }
 
     /* Allocate final args arrays */
-    *args_out     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!(*args_out) || !(*args_len_out)) {
         if (*args_out)
@@ -1788,7 +1789,7 @@ int prepare_z_randmember_args(z_command_args_t* args,
     }
 
     /* Set key */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
     int arg_idx        = 1;
 
@@ -1802,7 +1803,7 @@ int prepare_z_randmember_args(z_command_args_t* args,
             efree(*args_len_out);
             return 0;
         }
-        (*args_out)[arg_idx]                       = (uintptr_t)count_str_copy;
+        (*args_out)[arg_idx]                       = (uintptr_t) count_str_copy;
         (*args_len_out)[arg_idx]                   = strlen(count_str);
         (*allocated_strings)[(*allocated_count)++] = count_str_copy;
         arg_idx++;
@@ -1810,7 +1811,7 @@ int prepare_z_randmember_args(z_command_args_t* args,
 
     /* Add WITHSCORES if present */
     if (args->withscores) {
-        (*args_out)[arg_idx]     = (uintptr_t)"WITHSCORES";
+        (*args_out)[arg_idx]     = (uintptr_t) "WITHSCORES";
         (*args_len_out)[arg_idx] = 10; /* length of "WITHSCORES" */
         arg_idx++;
     }
@@ -1826,7 +1827,7 @@ int prepare_z_randmember_args(z_command_args_t* args,
  * Process integer result (for commands returning count)
  */
 int process_z_int_result(CommandResult* result, void* output) {
-    long* output_value = (long*)output;
+    long* output_value = (long*) output;
 
     if (!result || !result->response || !output_value) {
         return 0;
@@ -1844,7 +1845,7 @@ int process_z_int_result(CommandResult* result, void* output) {
  * Process double result (for commands returning scores)
  */
 int process_z_double_result(CommandResult* result, void* output) {
-    double* output_value = (double*)output;
+    double* output_value = (double*) output;
 
     if (!result || !result->response || !output_value) {
         return 0;
@@ -1991,7 +1992,7 @@ int process_z_array_result(CommandResult* result, void* output) {
  * Process integer result and set as ZVAL_LONG (for commands like ZINTERCARD)
  */
 int process_z_long_to_zval_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     if (!result || !result->response || !return_value) {
         return 0;

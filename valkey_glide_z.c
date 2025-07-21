@@ -1595,8 +1595,8 @@ int prepare_mpop_arguments(const void*     glide_client,
     }
 
     /* Allocate memory for arguments */
-    uintptr_t*     args     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    unsigned long* args_len = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    uintptr_t*     args     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    unsigned long* args_len = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!args || !args_len) {
         if (args)
@@ -1619,7 +1619,7 @@ int prepare_mpop_arguments(const void*     glide_client,
             efree(args_len);
             return 0;
         }
-        args[arg_idx]     = (uintptr_t)timeout_str;
+        args[arg_idx]     = (uintptr_t) timeout_str;
         args_len[arg_idx] = timeout_len;
         *timeout_str_ptr  = timeout_str;
         arg_idx++;
@@ -1639,7 +1639,7 @@ int prepare_mpop_arguments(const void*     glide_client,
     }
     /* Debug output to see the value being passed */
 
-    args[arg_idx]     = (uintptr_t)numkeys_str;
+    args[arg_idx]     = (uintptr_t) numkeys_str;
     args_len[arg_idx] = numkeys_len;
     *numkeys_str_ptr  = numkeys_str;
     arg_idx++;
@@ -1659,14 +1659,14 @@ int prepare_mpop_arguments(const void*     glide_client,
             }
             return 0;
         }
-        args[arg_idx]     = (uintptr_t)Z_STRVAL_P(z_key);
+        args[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_key);
         args_len[arg_idx] = Z_STRLEN_P(z_key);
         arg_idx++;
     }
     ZEND_HASH_FOREACH_END();
 
     /* Add direction (LEFT or RIGHT) directly */
-    args[arg_idx]     = (uintptr_t)from;
+    args[arg_idx]     = (uintptr_t) from;
     args_len[arg_idx] = from_len;
     arg_idx++;
 
@@ -1676,9 +1676,9 @@ int prepare_mpop_arguments(const void*     glide_client,
         arg_count += 2;
 
         /* Reallocate args and args_len arrays */
-        uintptr_t*     new_args = (uintptr_t*)erealloc(args, arg_count * sizeof(uintptr_t));
+        uintptr_t*     new_args = (uintptr_t*) erealloc(args, arg_count * sizeof(uintptr_t));
         unsigned long* new_args_len =
-            (unsigned long*)erealloc(args_len, arg_count * sizeof(unsigned long));
+            (unsigned long*) erealloc(args_len, arg_count * sizeof(unsigned long));
 
         if (!new_args || !new_args_len) {
             efree(args);
@@ -1696,7 +1696,7 @@ int prepare_mpop_arguments(const void*     glide_client,
         args_len = new_args_len;
 
         /* Add COUNT keyword */
-        args[arg_idx]     = (uintptr_t)"COUNT";
+        args[arg_idx]     = (uintptr_t) "COUNT";
         args_len[arg_idx] = 5;
         arg_idx++;
 
@@ -1714,7 +1714,7 @@ int prepare_mpop_arguments(const void*     glide_client,
             }
             return 0;
         }
-        args[arg_idx]     = (uintptr_t)count_str;
+        args[arg_idx]     = (uintptr_t) count_str;
         args_len[arg_idx] = count_len;
         *count_str_ptr    = count_str;
         arg_idx++;
@@ -2035,8 +2035,8 @@ int execute_bzpopmax_command_internal(
     unsigned long arg_count = keys_count + 1; /* keys + timeout */
 
     /* Allocate argument arrays */
-    uintptr_t*     args     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    unsigned long* args_len = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    uintptr_t*     args     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    unsigned long* args_len = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!args || !args_len) {
         if (args)
@@ -2055,7 +2055,7 @@ int execute_bzpopmax_command_internal(
             efree(args_len);
             return 0;
         }
-        args[i]     = (uintptr_t)Z_STRVAL_P(key);
+        args[i]     = (uintptr_t) Z_STRVAL_P(key);
         args_len[i] = Z_STRLEN_P(key);
     }
 
@@ -2067,7 +2067,7 @@ int execute_bzpopmax_command_internal(
         efree(args_len);
         return 0;
     }
-    args[keys_count]     = (uintptr_t)timeout_str;
+    args[keys_count]     = (uintptr_t) timeout_str;
     args_len[keys_count] = timeout_len;
 
     /* Execute the command */
@@ -2155,7 +2155,7 @@ int execute_bzpopmax_command(zval* object, int argc, zval* return_value, zend_cl
         if (Z_TYPE_P(z_keys) == IS_ARRAY) {
             /* Get timeout value */
             if (Z_TYPE_P(z_timeout) == IS_LONG) {
-                timeout = (double)Z_LVAL_P(z_timeout);
+                timeout = (double) Z_LVAL_P(z_timeout);
             } else if (Z_TYPE_P(z_timeout) == IS_DOUBLE) {
                 timeout = Z_DVAL_P(z_timeout);
             } else {
@@ -2270,8 +2270,8 @@ int execute_bzpopmin_command_internal(
     unsigned long arg_count = keys_count + 1; /* keys + timeout */
 
     /* Allocate argument arrays */
-    uintptr_t*     args     = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    unsigned long* args_len = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    uintptr_t*     args     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    unsigned long* args_len = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!args || !args_len) {
         if (args)
@@ -2290,7 +2290,7 @@ int execute_bzpopmin_command_internal(
             efree(args_len);
             return 0;
         }
-        args[i]     = (uintptr_t)Z_STRVAL_P(key);
+        args[i]     = (uintptr_t) Z_STRVAL_P(key);
         args_len[i] = Z_STRLEN_P(key);
     }
 
@@ -2302,7 +2302,7 @@ int execute_bzpopmin_command_internal(
         efree(args_len);
         return 0;
     }
-    args[keys_count]     = (uintptr_t)timeout_str;
+    args[keys_count]     = (uintptr_t) timeout_str;
     args_len[keys_count] = timeout_len;
 
     /* Execute the command */
@@ -2389,7 +2389,7 @@ int execute_bzpopmin_command(zval* object, int argc, zval* return_value, zend_cl
         if (Z_TYPE_P(z_keys) == IS_ARRAY) {
             /* Get timeout value */
             if (Z_TYPE_P(z_timeout) == IS_LONG) {
-                timeout = (double)Z_LVAL_P(z_timeout);
+                timeout = (double) Z_LVAL_P(z_timeout);
             } else if (Z_TYPE_P(z_timeout) == IS_DOUBLE) {
                 timeout = Z_DVAL_P(z_timeout);
             } else {

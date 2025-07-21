@@ -137,7 +137,7 @@ static void expand_command_buffer(valkey_glide_object* valkey_glide) {
         new_capacity = 16;
     }
 
-    struct batch_command* new_buffer = (struct batch_command*)erealloc(
+    struct batch_command* new_buffer = (struct batch_command*) erealloc(
         valkey_glide->buffered_commands, new_capacity * sizeof(struct batch_command));
 
     if (new_buffer) {
@@ -180,8 +180,8 @@ static int buffer_command_for_batch(valkey_glide_object* valkey_glide,
 
     /* Copy arguments */
     if (arg_count > 0 && args && arg_lengths) {
-        cmd->args        = (uint8_t**)emalloc(arg_count * sizeof(uint8_t*));
-        cmd->arg_lengths = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
+        cmd->args        = (uint8_t**) emalloc(arg_count * sizeof(uint8_t*));
+        cmd->arg_lengths = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
 
         if (!cmd->args || !cmd->arg_lengths) {
             if (cmd->args)
@@ -194,7 +194,7 @@ static int buffer_command_for_batch(valkey_glide_object* valkey_glide,
         uintptr_t i;
         for (i = 0; i < arg_count; i++) {
             if (args[i] && arg_lengths[i] > 0) {
-                cmd->args[i] = (uint8_t*)emalloc(arg_lengths[i] + 1);
+                cmd->args[i] = (uint8_t*) emalloc(arg_lengths[i] + 1);
                 if (cmd->args[i]) {
                     memcpy(cmd->args[i], args[i], arg_lengths[i]);
                     cmd->args[i][arg_lengths[i]] = '\0';
@@ -214,7 +214,7 @@ static int buffer_command_for_batch(valkey_glide_object* valkey_glide,
 
     /* Copy key if provided */
     if (key && key_len > 0) {
-        cmd->key = (char*)emalloc(key_len + 1);
+        cmd->key = (char*) emalloc(key_len + 1);
         if (cmd->key) {
             memcpy(cmd->key, key, key_len);
             cmd->key[key_len] = '\0';
@@ -238,7 +238,7 @@ int buffer_current_command_generic(valkey_glide_object* valkey_glide,
                                    enum RequestType     request_type,
                                    int                  argc,
                                    zval*                this_ptr) {
-    (void)this_ptr; /* Unused parameter */
+    (void) this_ptr; /* Unused parameter */
 
     if (!valkey_glide || !valkey_glide->is_in_batch_mode) {
         return 0;
@@ -258,8 +258,8 @@ int buffer_current_command_generic(valkey_glide_object* valkey_glide,
     uintptr_t* arg_lengths = NULL;
 
     if (arg_count > 0 && args) {
-        cmd_args    = (uint8_t**)emalloc(arg_count * sizeof(uint8_t*));
-        arg_lengths = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
+        cmd_args    = (uint8_t**) emalloc(arg_count * sizeof(uint8_t*));
+        arg_lengths = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
 
         if (!cmd_args || !arg_lengths) {
             if (cmd_args)
@@ -278,7 +278,7 @@ int buffer_current_command_generic(valkey_glide_object* valkey_glide,
 
             /* Allocate and copy the string data immediately */
             size_t str_len = Z_STRLEN(temp_zval);
-            cmd_args[i]    = (uint8_t*)emalloc(str_len + 1);
+            cmd_args[i]    = (uint8_t*) emalloc(str_len + 1);
             if (cmd_args[i]) {
                 memcpy(cmd_args[i], Z_STRVAL(temp_zval), str_len);
                 cmd_args[i][str_len] = '\0';
@@ -328,8 +328,8 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
 
         /* Prepare command arguments */
         unsigned long  arg_count = args_count;
-        uintptr_t*     cmd_args  = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-        unsigned long* args_len  = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+        uintptr_t*     cmd_args  = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+        unsigned long* args_len  = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
         if (!cmd_args || !args_len) {
             if (cmd_args)
@@ -349,20 +349,20 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
                 zval temp;
                 ZVAL_COPY(&temp, arg);
                 convert_to_string(&temp);
-                cmd_args[i] = (uintptr_t)Z_STRVAL(temp);
+                cmd_args[i] = (uintptr_t) Z_STRVAL(temp);
                 args_len[i] = Z_STRLEN(temp);
                 zval_dtor(&temp);
             } else {
-                cmd_args[i] = (uintptr_t)Z_STRVAL_P(arg);
+                cmd_args[i] = (uintptr_t) Z_STRVAL_P(arg);
                 args_len[i] = Z_STRLEN_P(arg);
             }
         }
 
         /* Set the first argument as "FUNCTION" */
         const char*    function_cmd = "FUNCTION";
-        uintptr_t*     final_args   = (uintptr_t*)emalloc((arg_count + 1) * sizeof(uintptr_t));
+        uintptr_t*     final_args   = (uintptr_t*) emalloc((arg_count + 1) * sizeof(uintptr_t));
         unsigned long* final_args_len =
-            (unsigned long*)emalloc((arg_count + 1) * sizeof(unsigned long));
+            (unsigned long*) emalloc((arg_count + 1) * sizeof(unsigned long));
 
         if (!final_args || !final_args_len) {
             if (cmd_args)
@@ -376,7 +376,7 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
             return 0;
         }
 
-        final_args[0]     = (uintptr_t)function_cmd;
+        final_args[0]     = (uintptr_t) function_cmd;
         final_args_len[0] = strlen(function_cmd);
 
         /* Copy the rest of the arguments */
@@ -448,13 +448,13 @@ int execute_multi_command(zval* object, int argc, zval* return_value, zend_class
 
     /* Initialize batch mode */
     valkey_glide->is_in_batch_mode = true;
-    valkey_glide->batch_type       = (int)batch_type;
+    valkey_glide->batch_type       = (int) batch_type;
     valkey_glide->command_count    = 0;
 
     /* Initialize buffer if needed */
     if (!valkey_glide->buffered_commands) {
         valkey_glide->command_capacity  = 16; /* Initial capacity */
-        valkey_glide->buffered_commands = (struct batch_command*)ecalloc(
+        valkey_glide->buffered_commands = (struct batch_command*) ecalloc(
             valkey_glide->command_capacity, sizeof(struct batch_command));
     }
 
@@ -523,7 +523,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
 
     /* Convert buffered commands to FFI BatchInfo structure */
     struct CmdInfo** cmd_infos =
-        (struct CmdInfo**)emalloc(valkey_glide->command_count * sizeof(struct CmdInfo*));
+        (struct CmdInfo**) emalloc(valkey_glide->command_count * sizeof(struct CmdInfo*));
     if (!cmd_infos) {
         clear_batch_state(valkey_glide);
         ZVAL_FALSE(return_value);
@@ -534,7 +534,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     size_t i;
     for (i = 0; i < valkey_glide->command_count; i++) {
         struct batch_command* buffered = &valkey_glide->buffered_commands[i];
-        struct CmdInfo*       cmd_info = (struct CmdInfo*)emalloc(sizeof(struct CmdInfo));
+        struct CmdInfo*       cmd_info = (struct CmdInfo*) emalloc(sizeof(struct CmdInfo));
 
         if (!cmd_info) {
             /* Cleanup on error */
@@ -548,9 +548,9 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
         }
 
         cmd_info->request_type = buffered->request_type;
-        cmd_info->args         = (const uint8_t* const*)buffered->args;
+        cmd_info->args         = (const uint8_t* const*) buffered->args;
         cmd_info->arg_count    = buffered->arg_count;
-        cmd_info->args_len     = (const uintptr_t*)buffered->arg_lengths;
+        cmd_info->args_len     = (const uintptr_t*) buffered->arg_lengths;
 
         cmd_infos[i] = cmd_info;
     }
@@ -558,7 +558,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     /* Create BatchInfo structure */
     struct BatchInfo batch_info = {
         .cmd_count = valkey_glide->command_count,
-        .cmds      = (const struct CmdInfo* const*)cmd_infos,
+        .cmds      = (const struct CmdInfo* const*) cmd_infos,
         .is_atomic = (valkey_glide->batch_type == MULTI || valkey_glide->batch_type == ATOMIC)};
 
     /* Execute via FFI batch() function */
@@ -634,8 +634,8 @@ int execute_fcall_command(zval* object, int argc, zval* return_value, zend_class
 
         /* Calculate total arguments: function_name + numkeys + all additional args */
         unsigned long  arg_count = 2 + args_count; /* name + numkeys + additional args */
-        uintptr_t*     cmd_args  = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-        unsigned long* args_len  = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+        uintptr_t*     cmd_args  = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+        unsigned long* args_len  = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
         if (!cmd_args || !args_len) {
             if (cmd_args)
@@ -646,9 +646,9 @@ int execute_fcall_command(zval* object, int argc, zval* return_value, zend_class
         }
 
         /* Set function name and numkeys */
-        cmd_args[0] = (uintptr_t)name;
+        cmd_args[0] = (uintptr_t) name;
         args_len[0] = name_len;
-        cmd_args[1] = (uintptr_t)numkeys_str;
+        cmd_args[1] = (uintptr_t) numkeys_str;
         args_len[1] = strlen(numkeys_str);
 
         /* Convert additional arguments to strings if needed */
@@ -661,11 +661,11 @@ int execute_fcall_command(zval* object, int argc, zval* return_value, zend_class
                 zval temp;
                 ZVAL_COPY(&temp, arg);
                 convert_to_string(&temp);
-                cmd_args[i + 2] = (uintptr_t)Z_STRVAL(temp);
+                cmd_args[i + 2] = (uintptr_t) Z_STRVAL(temp);
                 args_len[i + 2] = Z_STRLEN(temp);
                 zval_dtor(&temp);
             } else {
-                cmd_args[i + 2] = (uintptr_t)Z_STRVAL_P(arg);
+                cmd_args[i + 2] = (uintptr_t) Z_STRVAL_P(arg);
                 args_len[i + 2] = Z_STRLEN_P(arg);
             }
         }
@@ -737,8 +737,8 @@ int execute_fcall_ro_command(zval* object, int argc, zval* return_value, zend_cl
 
         /* Calculate total arguments: function_name + numkeys + all additional args */
         unsigned long  arg_count = 2 + args_count; /* name + numkeys + additional args */
-        uintptr_t*     cmd_args  = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-        unsigned long* args_len  = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+        uintptr_t*     cmd_args  = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+        unsigned long* args_len  = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
         if (!cmd_args || !args_len) {
             if (cmd_args)
@@ -749,9 +749,9 @@ int execute_fcall_ro_command(zval* object, int argc, zval* return_value, zend_cl
         }
 
         /* Set function name and numkeys */
-        cmd_args[0] = (uintptr_t)name;
+        cmd_args[0] = (uintptr_t) name;
         args_len[0] = name_len;
-        cmd_args[1] = (uintptr_t)numkeys_str;
+        cmd_args[1] = (uintptr_t) numkeys_str;
         args_len[1] = strlen(numkeys_str);
 
         /* Convert additional arguments to strings if needed */
@@ -764,11 +764,11 @@ int execute_fcall_ro_command(zval* object, int argc, zval* return_value, zend_cl
                 zval temp;
                 ZVAL_COPY(&temp, arg);
                 convert_to_string(&temp);
-                cmd_args[i + 2] = (uintptr_t)Z_STRVAL(temp);
+                cmd_args[i + 2] = (uintptr_t) Z_STRVAL(temp);
                 args_len[i + 2] = Z_STRLEN(temp);
                 zval_dtor(&temp);
             } else {
-                cmd_args[i + 2] = (uintptr_t)Z_STRVAL_P(arg);
+                cmd_args[i + 2] = (uintptr_t) Z_STRVAL_P(arg);
                 args_len[i + 2] = Z_STRLEN_P(arg);
             }
         }
@@ -894,8 +894,8 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
         /* Start with basic arguments: key + ttl + serialized */
         unsigned long  base_arg_count = 3;
         unsigned long  max_args       = 10; /* Maximum possible arguments */
-        uintptr_t*     args           = (uintptr_t*)emalloc(max_args * sizeof(uintptr_t));
-        unsigned long* args_len       = (unsigned long*)emalloc(max_args * sizeof(unsigned long));
+        uintptr_t*     args           = (uintptr_t*) emalloc(max_args * sizeof(uintptr_t));
+        unsigned long* args_len       = (unsigned long*) emalloc(max_args * sizeof(unsigned long));
 
         if (!args || !args_len) {
             if (args)
@@ -906,11 +906,11 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
         }
 
         /* Set up base arguments */
-        args[0]     = (uintptr_t)key;
+        args[0]     = (uintptr_t) key;
         args_len[0] = key_len;
-        args[1]     = (uintptr_t)ttl_str;
+        args[1]     = (uintptr_t) ttl_str;
         args_len[1] = strlen(ttl_str);
-        args[2]     = (uintptr_t)serialized;
+        args[2]     = (uintptr_t) serialized;
         args_len[2] = serialized_len;
 
         unsigned long arg_count = base_arg_count;
@@ -958,7 +958,7 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
             /* Add REPLACE if needed */
             if (has_replace && arg_count < max_args) {
                 const char* replace_str = "REPLACE";
-                args[arg_count]         = (uintptr_t)replace_str;
+                args[arg_count]         = (uintptr_t) replace_str;
                 args_len[arg_count]     = strlen(replace_str);
                 arg_count++;
             }
@@ -966,7 +966,7 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
             /* Add ABSTTL if needed */
             if (has_absttl && arg_count < max_args) {
                 const char* absttl_str = "ABSTTL";
-                args[arg_count]        = (uintptr_t)absttl_str;
+                args[arg_count]        = (uintptr_t) absttl_str;
                 args_len[arg_count]    = strlen(absttl_str);
                 arg_count++;
             }
@@ -974,14 +974,14 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
             /* Add IDLETIME if provided */
             if (idletime >= 0 && arg_count + 1 < max_args) {
                 const char* idletime_str = "IDLETIME";
-                args[arg_count]          = (uintptr_t)idletime_str;
+                args[arg_count]          = (uintptr_t) idletime_str;
                 args_len[arg_count]      = strlen(idletime_str);
                 arg_count++;
 
                 /* Convert idletime to string */
-                char* idletime_val = (char*)emalloc(32);
+                char* idletime_val = (char*) emalloc(32);
                 snprintf(idletime_val, 32, "%ld", idletime);
-                args[arg_count]     = (uintptr_t)idletime_val;
+                args[arg_count]     = (uintptr_t) idletime_val;
                 args_len[arg_count] = strlen(idletime_val);
                 arg_count++;
             }
@@ -989,14 +989,14 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
             /* Add FREQ if provided */
             if (freq >= 0 && arg_count + 1 < max_args) {
                 const char* freq_str = "FREQ";
-                args[arg_count]      = (uintptr_t)freq_str;
+                args[arg_count]      = (uintptr_t) freq_str;
                 args_len[arg_count]  = strlen(freq_str);
                 arg_count++;
 
                 /* Convert freq to string */
-                char* freq_val = (char*)emalloc(32);
+                char* freq_val = (char*) emalloc(32);
                 snprintf(freq_val, 32, "%ld", freq);
-                args[arg_count]     = (uintptr_t)freq_val;
+                args[arg_count]     = (uintptr_t) freq_val;
                 args_len[arg_count] = strlen(freq_val);
                 arg_count++;
             }
@@ -1014,7 +1014,7 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
         int i;
         for (i = base_arg_count; i < arg_count; i++) {
             /* Check if this is a dynamically allocated string (IDLETIME/FREQ values) */
-            char* str = (char*)args[i];
+            char* str = (char*) args[i];
             if (str && str[0] >= '0' && str[0] <= '9') {
                 efree(str);
             }
@@ -1108,10 +1108,10 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
             /* Handle string or array parameter */
             if (Z_TYPE_P(key) == IS_STRING) {
                 arg_count = 1;
-                args      = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-                args_len  = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+                args      = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+                args_len  = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-                args[0]     = (uintptr_t)Z_STRVAL_P(key);
+                args[0]     = (uintptr_t) Z_STRVAL_P(key);
                 args_len[0] = Z_STRLEN_P(key);
             } else if (Z_TYPE_P(key) == IS_ARRAY) {
                 HashTable* ht = Z_ARRVAL_P(key);
@@ -1122,9 +1122,9 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
                     return 0;
                 }
 
-                args         = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-                args_len     = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
-                temp_strings = (char**)ecalloc(arg_count, sizeof(char*));
+                args         = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+                args_len     = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+                temp_strings = (char**) ecalloc(arg_count, sizeof(char*));
 
                 zval* z_param;
                 int   i = 0;
@@ -1134,7 +1134,7 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
                     convert_to_string(&temp);
 
                     temp_strings[temp_string_count] = estrdup(Z_STRVAL(temp));
-                    args[i]                         = (uintptr_t)temp_strings[temp_string_count];
+                    args[i]                         = (uintptr_t) temp_strings[temp_string_count];
                     args_len[i]                     = Z_STRLEN(temp);
                     temp_string_count++;
                     i++;
@@ -1158,12 +1158,12 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
             if (Z_TYPE_P(key) == IS_STRING && Z_TYPE_P(value) != IS_NULL) {
                 /* CONFIG SET key value */
                 arg_count    = 2;
-                args         = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-                args_len     = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
-                temp_strings = (char**)ecalloc(2, sizeof(char*));
+                args         = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+                args_len     = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+                temp_strings = (char**) ecalloc(2, sizeof(char*));
 
                 /* Key */
-                args[0]     = (uintptr_t)Z_STRVAL_P(key);
+                args[0]     = (uintptr_t) Z_STRVAL_P(key);
                 args_len[0] = Z_STRLEN_P(key);
 
                 /* Value */
@@ -1172,7 +1172,7 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
                 convert_to_string(&temp);
 
                 temp_strings[0]   = estrdup(Z_STRVAL(temp));
-                args[1]           = (uintptr_t)temp_strings[0];
+                args[1]           = (uintptr_t) temp_strings[0];
                 args_len[1]       = Z_STRLEN(temp);
                 temp_string_count = 1;
 
@@ -1187,9 +1187,9 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
                     return 0;
                 }
 
-                args         = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-                args_len     = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
-                temp_strings = (char**)ecalloc(zend_hash_num_elements(ht), sizeof(char*));
+                args         = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+                args_len     = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+                temp_strings = (char**) ecalloc(zend_hash_num_elements(ht), sizeof(char*));
 
                 zend_string* zkey;
                 zval*        zvalue;
@@ -1201,7 +1201,7 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
                     }
 
                     /* Add key */
-                    args[i]     = (uintptr_t)ZSTR_VAL(zkey);
+                    args[i]     = (uintptr_t) ZSTR_VAL(zkey);
                     args_len[i] = ZSTR_LEN(zkey);
                     i++;
 
@@ -1211,7 +1211,7 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
                     convert_to_string(&temp);
 
                     temp_strings[temp_string_count] = estrdup(Z_STRVAL(temp));
-                    args[i]                         = (uintptr_t)temp_strings[temp_string_count];
+                    args[i]                         = (uintptr_t) temp_strings[temp_string_count];
                     args_len[i]                     = Z_STRLEN(temp);
                     temp_string_count++;
                     i++;
@@ -1346,8 +1346,8 @@ int execute_client_command_internal(
 
     /* Create argument arrays */
     unsigned long  arg_count = args_count;
-    uintptr_t*     cmd_args  = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    unsigned long* args_len  = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    uintptr_t*     cmd_args  = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    unsigned long* args_len  = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!cmd_args || !args_len) {
         if (cmd_args)
@@ -1358,7 +1358,7 @@ int execute_client_command_internal(
     }
 
     /* Keep track of allocated strings for cleanup */
-    char** allocated     = (char**)emalloc(args_count * sizeof(char*));
+    char** allocated     = (char**) emalloc(args_count * sizeof(char*));
     int    allocated_idx = 0;
 
     /* Convert arguments to strings if needed */
@@ -1368,7 +1368,7 @@ int execute_client_command_internal(
 
         /* If string, use directly */
         if (Z_TYPE_P(arg) == IS_STRING) {
-            cmd_args[i] = (uintptr_t)Z_STRVAL_P(arg);
+            cmd_args[i] = (uintptr_t) Z_STRVAL_P(arg);
             args_len[i] = Z_STRLEN_P(arg);
         } else {
             /* Convert non-string types to string */
@@ -1384,7 +1384,7 @@ int execute_client_command_internal(
             memcpy(str, Z_STRVAL(copy), str_len);
             str[str_len] = '\0';
 
-            cmd_args[i] = (uintptr_t)str;
+            cmd_args[i] = (uintptr_t) str;
             args_len[i] = str_len;
 
             /* Track allocated string for cleanup */
@@ -1430,8 +1430,8 @@ int execute_client_command_internal(
     /* If using CustomCommand type, prepend "CLIENT" to the argument list */
     if (command_type == CustomCommand) {
         final_arg_count = arg_count + 1;
-        final_args      = (uintptr_t*)emalloc(final_arg_count * sizeof(uintptr_t));
-        final_args_len  = (unsigned long*)emalloc(final_arg_count * sizeof(unsigned long));
+        final_args      = (uintptr_t*) emalloc(final_arg_count * sizeof(uintptr_t));
+        final_args_len  = (unsigned long*) emalloc(final_arg_count * sizeof(unsigned long));
 
         if (!final_args || !final_args_len) {
             if (final_args)
@@ -1449,7 +1449,7 @@ int execute_client_command_internal(
         }
 
         /* Add "CLIENT" as first argument */
-        final_args[0]     = (uintptr_t)"CLIENT";
+        final_args[0]     = (uintptr_t) "CLIENT";
         final_args_len[0] = 6; /* strlen("CLIENT") */
 
         /* Copy the rest of the arguments */
@@ -1525,8 +1525,8 @@ int execute_rawcommand_command_internal(
 
     /* Create argument arrays */
     unsigned long  arg_count = args_count;
-    uintptr_t*     cmd_args  = (uintptr_t*)emalloc(arg_count * sizeof(uintptr_t));
-    unsigned long* args_len  = (unsigned long*)emalloc(arg_count * sizeof(unsigned long));
+    uintptr_t*     cmd_args  = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    unsigned long* args_len  = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     if (!cmd_args || !args_len) {
         if (cmd_args)
@@ -1537,7 +1537,7 @@ int execute_rawcommand_command_internal(
     }
 
     /* Keep track of allocated strings for cleanup */
-    char** allocated     = (char**)emalloc(args_count * sizeof(char*));
+    char** allocated     = (char**) emalloc(args_count * sizeof(char*));
     int    allocated_idx = 0;
 
     /* Convert arguments to strings if needed */
@@ -1547,7 +1547,7 @@ int execute_rawcommand_command_internal(
 
         /* If string, use directly */
         if (Z_TYPE_P(arg) == IS_STRING) {
-            cmd_args[i] = (uintptr_t)Z_STRVAL_P(arg);
+            cmd_args[i] = (uintptr_t) Z_STRVAL_P(arg);
             args_len[i] = Z_STRLEN_P(arg);
         } else {
             /* Convert non-string types to string */
@@ -1563,7 +1563,7 @@ int execute_rawcommand_command_internal(
             memcpy(str, Z_STRVAL(copy), str_len);
             str[str_len] = '\0';
 
-            cmd_args[i] = (uintptr_t)str;
+            cmd_args[i] = (uintptr_t) str;
             args_len[i] = str_len;
 
             /* Track allocated string for cleanup */

@@ -289,7 +289,7 @@ int prepare_key_only_args(core_command_args_t* args,
         return 0;
     }
 
-    (*cmd_args)[0]     = (uintptr_t)args->key;
+    (*cmd_args)[0]     = (uintptr_t) args->key;
     (*cmd_args_len)[0] = args->key_len;
 
     return 1;
@@ -363,7 +363,7 @@ int prepare_key_value_args(core_command_args_t* args,
     int arg_idx = 0;
 
     /* Add key */
-    (*cmd_args)[arg_idx]     = (uintptr_t)args->key;
+    (*cmd_args)[arg_idx]     = (uintptr_t) args->key;
     (*cmd_args_len)[arg_idx] = args->key_len;
     arg_idx++;
 
@@ -371,7 +371,7 @@ int prepare_key_value_args(core_command_args_t* args,
     for (int i = 0; i < args->arg_count; i++) {
         switch (args->args[i].type) {
             case CORE_ARG_TYPE_STRING:
-                (*cmd_args)[arg_idx]     = (uintptr_t)args->args[i].data.string_arg.value;
+                (*cmd_args)[arg_idx]     = (uintptr_t) args->args[i].data.string_arg.value;
                 (*cmd_args_len)[arg_idx] = args->args[i].data.string_arg.len;
                 arg_idx++;
                 break;
@@ -380,7 +380,7 @@ int prepare_key_value_args(core_command_args_t* args,
                 size_t len;
                 char*  str = core_long_to_string(args->args[i].data.long_arg.value, &len);
                 if (str) {
-                    (*cmd_args)[arg_idx]     = (uintptr_t)str;
+                    (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
                     add_tracked_string(*allocated_strings, allocated_count, str);
                     arg_idx++;
@@ -392,7 +392,7 @@ int prepare_key_value_args(core_command_args_t* args,
                 size_t len;
                 char*  str = core_double_to_string(args->args[i].data.double_arg.value, &len);
                 if (str) {
-                    (*cmd_args)[arg_idx]     = (uintptr_t)str;
+                    (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
                     add_tracked_string(*allocated_strings, allocated_count, str);
                     arg_idx++;
@@ -402,7 +402,8 @@ int prepare_key_value_args(core_command_args_t* args,
 
             case CORE_ARG_TYPE_MULTI_STRING:
                 for (int j = 0; j < args->args[i].data.multi_string_arg.count; j++) {
-                    (*cmd_args)[arg_idx] = (uintptr_t)args->args[i].data.multi_string_arg.values[j];
+                    (*cmd_args)[arg_idx] =
+                        (uintptr_t) args->args[i].data.multi_string_arg.values[j];
                     (*cmd_args_len)[arg_idx] = args->args[i].data.multi_string_arg.lengths[j];
                     arg_idx++;
                 }
@@ -417,7 +418,7 @@ int prepare_key_value_args(core_command_args_t* args,
 
                     ZEND_HASH_FOREACH_VAL(ht, element) {
                         if (Z_TYPE_P(element) == IS_STRING) {
-                            (*cmd_args)[arg_idx]     = (uintptr_t)Z_STRVAL_P(element);
+                            (*cmd_args)[arg_idx]     = (uintptr_t) Z_STRVAL_P(element);
                             (*cmd_args_len)[arg_idx] = Z_STRLEN_P(element);
                             arg_idx++;
                         } else {
@@ -429,7 +430,7 @@ int prepare_key_value_args(core_command_args_t* args,
                                 if (str_copy) {
                                     memcpy(str_copy, ZSTR_VAL(str), len);
                                     str_copy[len]            = '\0';
-                                    (*cmd_args)[arg_idx]     = (uintptr_t)str_copy;
+                                    (*cmd_args)[arg_idx]     = (uintptr_t) str_copy;
                                     (*cmd_args_len)[arg_idx] = len;
                                     add_tracked_string(
                                         *allocated_strings, allocated_count, str_copy);
@@ -452,53 +453,53 @@ int prepare_key_value_args(core_command_args_t* args,
     /* Add options */
     if (args->options.has_expire) {
         if (args->options.has_pxat) {
-            (*cmd_args)[arg_idx]     = (uintptr_t)"PXAT";
+            (*cmd_args)[arg_idx]     = (uintptr_t) "PXAT";
             (*cmd_args_len)[arg_idx] = 4;
             arg_idx++;
 
             size_t len;
             char*  str = core_long_to_string(args->options.expire_at_milliseconds, &len);
             if (str) {
-                (*cmd_args)[arg_idx]     = (uintptr_t)str;
+                (*cmd_args)[arg_idx]     = (uintptr_t) str;
                 (*cmd_args_len)[arg_idx] = len;
                 add_tracked_string(*allocated_strings, allocated_count, str);
                 arg_idx++;
             }
         } else if (args->options.has_exat) {
-            (*cmd_args)[arg_idx]     = (uintptr_t)"EXAT";
+            (*cmd_args)[arg_idx]     = (uintptr_t) "EXAT";
             (*cmd_args_len)[arg_idx] = 4;
             arg_idx++;
 
             size_t len;
             char*  str = core_long_to_string(args->options.expire_at_seconds, &len);
             if (str) {
-                (*cmd_args)[arg_idx]     = (uintptr_t)str;
+                (*cmd_args)[arg_idx]     = (uintptr_t) str;
                 (*cmd_args_len)[arg_idx] = len;
                 add_tracked_string(*allocated_strings, allocated_count, str);
                 arg_idx++;
             }
         } else if (args->options.has_pexpire) {
-            (*cmd_args)[arg_idx]     = (uintptr_t)"PX";
+            (*cmd_args)[arg_idx]     = (uintptr_t) "PX";
             (*cmd_args_len)[arg_idx] = 2;
             arg_idx++;
 
             size_t len;
             char*  str = core_long_to_string(args->options.expire_milliseconds, &len);
             if (str) {
-                (*cmd_args)[arg_idx]     = (uintptr_t)str;
+                (*cmd_args)[arg_idx]     = (uintptr_t) str;
                 (*cmd_args_len)[arg_idx] = len;
                 add_tracked_string(*allocated_strings, allocated_count, str);
                 arg_idx++;
             }
         } else {
-            (*cmd_args)[arg_idx]     = (uintptr_t)"EX";
+            (*cmd_args)[arg_idx]     = (uintptr_t) "EX";
             (*cmd_args_len)[arg_idx] = 2;
             arg_idx++;
 
             size_t len;
             char*  str = core_long_to_string(args->options.expire_seconds, &len);
             if (str) {
-                (*cmd_args)[arg_idx]     = (uintptr_t)str;
+                (*cmd_args)[arg_idx]     = (uintptr_t) str;
                 (*cmd_args_len)[arg_idx] = len;
                 add_tracked_string(*allocated_strings, allocated_count, str);
                 arg_idx++;
@@ -507,41 +508,41 @@ int prepare_key_value_args(core_command_args_t* args,
     }
 
     if (args->options.nx) {
-        (*cmd_args)[arg_idx]     = (uintptr_t)"NX";
+        (*cmd_args)[arg_idx]     = (uintptr_t) "NX";
         (*cmd_args_len)[arg_idx] = 2;
         arg_idx++;
     }
 
     if (args->options.xx) {
-        (*cmd_args)[arg_idx]     = (uintptr_t)"XX";
+        (*cmd_args)[arg_idx]     = (uintptr_t) "XX";
         (*cmd_args_len)[arg_idx] = 2;
         arg_idx++;
     }
 
     if (args->options.get_old_value) {
-        (*cmd_args)[arg_idx]     = (uintptr_t)"GET";
+        (*cmd_args)[arg_idx]     = (uintptr_t) "GET";
         (*cmd_args_len)[arg_idx] = 3;
         arg_idx++;
     }
 
     if (args->options.keep_ttl) {
-        (*cmd_args)[arg_idx]     = (uintptr_t)"KEEPTTL";
+        (*cmd_args)[arg_idx]     = (uintptr_t) "KEEPTTL";
         (*cmd_args_len)[arg_idx] = 7;
         arg_idx++;
     }
 
     if (args->options.has_ifeq) {
-        (*cmd_args)[arg_idx]     = (uintptr_t)"IFEQ";
+        (*cmd_args)[arg_idx]     = (uintptr_t) "IFEQ";
         (*cmd_args_len)[arg_idx] = 4;
         arg_idx++;
 
-        (*cmd_args)[arg_idx]     = (uintptr_t)args->options.ifeq_value;
+        (*cmd_args)[arg_idx]     = (uintptr_t) args->options.ifeq_value;
         (*cmd_args_len)[arg_idx] = args->options.ifeq_len;
         arg_idx++;
     }
 
     if (args->options.persist) {
-        (*cmd_args)[arg_idx]     = (uintptr_t)"PERSIST";
+        (*cmd_args)[arg_idx]     = (uintptr_t) "PERSIST";
         (*cmd_args_len)[arg_idx] = 7;
         arg_idx++;
     }
@@ -593,7 +594,7 @@ int prepare_message_args(core_command_args_t* args,
     for (int i = 0; i < args->arg_count; i++) {
         switch (args->args[i].type) {
             case CORE_ARG_TYPE_STRING:
-                (*cmd_args)[arg_idx]     = (uintptr_t)args->args[i].data.string_arg.value;
+                (*cmd_args)[arg_idx]     = (uintptr_t) args->args[i].data.string_arg.value;
                 (*cmd_args_len)[arg_idx] = args->args[i].data.string_arg.len;
                 arg_idx++;
                 break;
@@ -602,7 +603,7 @@ int prepare_message_args(core_command_args_t* args,
                 size_t len;
                 char*  str = core_long_to_string(args->args[i].data.long_arg.value, &len);
                 if (str) {
-                    (*cmd_args)[arg_idx]     = (uintptr_t)str;
+                    (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
                     add_tracked_string(*allocated_strings, allocated_count, str);
                     arg_idx++;
@@ -614,7 +615,7 @@ int prepare_message_args(core_command_args_t* args,
                 size_t len;
                 char*  str = core_double_to_string(args->args[i].data.double_arg.value, &len);
                 if (str) {
-                    (*cmd_args)[arg_idx]     = (uintptr_t)str;
+                    (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
                     add_tracked_string(*allocated_strings, allocated_count, str);
                     arg_idx++;
@@ -624,7 +625,8 @@ int prepare_message_args(core_command_args_t* args,
 
             case CORE_ARG_TYPE_MULTI_STRING:
                 for (int j = 0; j < args->args[i].data.multi_string_arg.count; j++) {
-                    (*cmd_args)[arg_idx] = (uintptr_t)args->args[i].data.multi_string_arg.values[j];
+                    (*cmd_args)[arg_idx] =
+                        (uintptr_t) args->args[i].data.multi_string_arg.values[j];
                     (*cmd_args_len)[arg_idx] = args->args[i].data.multi_string_arg.lengths[j];
                     arg_idx++;
                 }
@@ -683,30 +685,30 @@ int prepare_key_value_pairs_args(core_command_args_t* args,
         if (!key) {
             /* Numeric key - convert to string */
             size_t key_len;
-            char*  key_str = core_long_to_string((long)num_key, &key_len);
+            char*  key_str = core_long_to_string((long) num_key, &key_len);
             if (key_str) {
-                (*cmd_args)[arg_idx]     = (uintptr_t)key_str;
+                (*cmd_args)[arg_idx]     = (uintptr_t) key_str;
                 (*cmd_args_len)[arg_idx] = key_len;
                 add_tracked_string(*allocated_strings, allocated_count, key_str);
                 arg_idx++;
             }
         } else {
             /* String key */
-            (*cmd_args)[arg_idx]     = (uintptr_t)ZSTR_VAL(key);
+            (*cmd_args)[arg_idx]     = (uintptr_t) ZSTR_VAL(key);
             (*cmd_args_len)[arg_idx] = ZSTR_LEN(key);
             arg_idx++;
         }
 
         /* Add value */
         if (Z_TYPE_P(data) == IS_STRING) {
-            (*cmd_args)[arg_idx]     = (uintptr_t)Z_STRVAL_P(data);
+            (*cmd_args)[arg_idx]     = (uintptr_t) Z_STRVAL_P(data);
             (*cmd_args_len)[arg_idx] = Z_STRLEN_P(data);
             arg_idx++;
         } else {
             /* Convert non-string value to string using safe method */
             zend_string* str = zval_get_string(data);
             if (str) {
-                (*cmd_args)[arg_idx]     = (uintptr_t)ZSTR_VAL(str);
+                (*cmd_args)[arg_idx]     = (uintptr_t) ZSTR_VAL(str);
                 (*cmd_args_len)[arg_idx] = ZSTR_LEN(str);
                 arg_idx++;
             }
@@ -742,7 +744,7 @@ int prepare_multi_key_args(core_command_args_t* args,
         if (Z_TYPE_P(key) != IS_STRING) {
             convert_to_string(key);
         }
-        (*cmd_args)[idx]     = (uintptr_t)Z_STRVAL_P(key);
+        (*cmd_args)[idx]     = (uintptr_t) Z_STRVAL_P(key);
         (*cmd_args_len)[idx] = Z_STRLEN_P(key);
         idx++;
     }
@@ -803,26 +805,26 @@ int prepare_bit_operation_args(core_command_args_t* args,
     /* Handle BitOp differently - operation comes first */
     if (args->cmd_type == BitOp) {
         /* Add operation */
-        (*cmd_args)[arg_idx]     = (uintptr_t)args->args[0].data.string_arg.value;
+        (*cmd_args)[arg_idx]     = (uintptr_t) args->args[0].data.string_arg.value;
         (*cmd_args_len)[arg_idx] = args->args[0].data.string_arg.len;
         arg_idx++;
 
         /* Add destination key */
-        (*cmd_args)[arg_idx]     = (uintptr_t)args->key;
+        (*cmd_args)[arg_idx]     = (uintptr_t) args->key;
         (*cmd_args_len)[arg_idx] = args->key_len;
         arg_idx++;
 
         /* Add source keys */
         for (int i = 1; i < args->arg_count; i++) {
             if (args->args[i].type == CORE_ARG_TYPE_STRING) {
-                (*cmd_args)[arg_idx]     = (uintptr_t)args->args[i].data.string_arg.value;
+                (*cmd_args)[arg_idx]     = (uintptr_t) args->args[i].data.string_arg.value;
                 (*cmd_args_len)[arg_idx] = args->args[i].data.string_arg.len;
                 arg_idx++;
             }
         }
     } else {
         /* Add key first for other bit operations */
-        (*cmd_args)[arg_idx]     = (uintptr_t)args->key;
+        (*cmd_args)[arg_idx]     = (uintptr_t) args->key;
         (*cmd_args_len)[arg_idx] = args->key_len;
         arg_idx++;
 
@@ -833,7 +835,7 @@ int prepare_bit_operation_args(core_command_args_t* args,
                     size_t len;
                     char*  str = core_long_to_string(args->args[i].data.long_arg.value, &len);
                     if (str) {
-                        (*cmd_args)[arg_idx]     = (uintptr_t)str;
+                        (*cmd_args)[arg_idx]     = (uintptr_t) str;
                         (*cmd_args_len)[arg_idx] = len;
                         add_tracked_string(*allocated_strings, allocated_count, str);
                         arg_idx++;
@@ -850,7 +852,7 @@ int prepare_bit_operation_args(core_command_args_t* args,
             size_t len;
             char*  start_str = core_long_to_string(args->options.start, &len);
             if (start_str) {
-                (*cmd_args)[arg_idx]     = (uintptr_t)start_str;
+                (*cmd_args)[arg_idx]     = (uintptr_t) start_str;
                 (*cmd_args_len)[arg_idx] = len;
                 add_tracked_string(*allocated_strings, allocated_count, start_str);
                 arg_idx++;
@@ -858,7 +860,7 @@ int prepare_bit_operation_args(core_command_args_t* args,
 
             char* end_str = core_long_to_string(args->options.end, &len);
             if (end_str) {
-                (*cmd_args)[arg_idx]     = (uintptr_t)end_str;
+                (*cmd_args)[arg_idx]     = (uintptr_t) end_str;
                 (*cmd_args_len)[arg_idx] = len;
                 add_tracked_string(*allocated_strings, allocated_count, end_str);
                 arg_idx++;
@@ -867,7 +869,7 @@ int prepare_bit_operation_args(core_command_args_t* args,
 
         /* Add BYBIT flag if present */
         if (args->options.bybit) {
-            (*cmd_args)[arg_idx]     = (uintptr_t)"BIT";
+            (*cmd_args)[arg_idx]     = (uintptr_t) "BIT";
             (*cmd_args_len)[arg_idx] = 3;
             arg_idx++;
         }
@@ -901,7 +903,7 @@ int prepare_expire_args(core_command_args_t* args,
     int arg_idx = 0;
 
     /* Add key */
-    (*cmd_args)[arg_idx]     = (uintptr_t)args->key;
+    (*cmd_args)[arg_idx]     = (uintptr_t) args->key;
     (*cmd_args_len)[arg_idx] = args->key_len;
     arg_idx++;
 
@@ -912,7 +914,7 @@ int prepare_expire_args(core_command_args_t* args,
                 size_t len;
                 char*  str = core_long_to_string(args->args[i].data.long_arg.value, &len);
                 if (str) {
-                    (*cmd_args)[arg_idx]     = (uintptr_t)str;
+                    (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
                     add_tracked_string(*allocated_strings, allocated_count, str);
                     arg_idx++;
@@ -920,7 +922,7 @@ int prepare_expire_args(core_command_args_t* args,
                 break;
             }
             case CORE_ARG_TYPE_STRING:
-                (*cmd_args)[arg_idx]     = (uintptr_t)args->args[i].data.string_arg.value;
+                (*cmd_args)[arg_idx]     = (uintptr_t) args->args[i].data.string_arg.value;
                 (*cmd_args_len)[arg_idx] = args->args[i].data.string_arg.len;
                 arg_idx++;
                 break;
@@ -968,7 +970,7 @@ int prepare_range_args(core_command_args_t* args,
     int arg_idx = 0;
 
     /* Add key */
-    (*cmd_args)[arg_idx]     = (uintptr_t)args->key;
+    (*cmd_args)[arg_idx]     = (uintptr_t) args->key;
     (*cmd_args_len)[arg_idx] = args->key_len;
     arg_idx++;
 
@@ -979,7 +981,7 @@ int prepare_range_args(core_command_args_t* args,
                 size_t len;
                 char*  str = core_long_to_string(args->args[i].data.long_arg.value, &len);
                 if (str) {
-                    (*cmd_args)[arg_idx]     = (uintptr_t)str;
+                    (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
                     add_tracked_string(*allocated_strings, allocated_count, str);
                     arg_idx++;
@@ -987,7 +989,7 @@ int prepare_range_args(core_command_args_t* args,
                 break;
             }
             case CORE_ARG_TYPE_STRING:
-                (*cmd_args)[arg_idx]     = (uintptr_t)args->args[i].data.string_arg.value;
+                (*cmd_args)[arg_idx]     = (uintptr_t) args->args[i].data.string_arg.value;
                 (*cmd_args_len)[arg_idx] = args->args[i].data.string_arg.len;
                 arg_idx++;
                 break;
@@ -1007,7 +1009,7 @@ int prepare_range_args(core_command_args_t* args,
  * Process integer result
  */
 int process_core_int_result(CommandResult* result, void* output) {
-    long* output_value = (long*)output;
+    long* output_value = (long*) output;
 
     if (!result || !result->response || !output_value) {
         return 0;
@@ -1087,7 +1089,7 @@ int process_core_bool_result(CommandResult* result, void* output) {
  * Process array result
  */
 int process_core_array_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*)output;
+    zval* return_value = (zval*) output;
 
     if (!result || !result->response || !return_value) {
         return 0;
@@ -1101,7 +1103,7 @@ int process_core_array_result(CommandResult* result, void* output) {
  * Process double result
  */
 int process_core_double_result(CommandResult* result, void* output) {
-    double* output_value = (double*)output;
+    double* output_value = (double*) output;
 
     if (!result || !result->response || !output_value) {
         return 0;
@@ -1147,7 +1149,7 @@ int process_core_null_or_value_result(CommandResult* result, void* output) {
  * Process TYPE command result (maps ValkeyGlide type strings to PHP constants)
  */
 int process_core_type_result(CommandResult* result, void* output) {
-    long* type_code = (long*)output;
+    long* type_code = (long*) output;
 
     if (!result || !result->response || !type_code) {
         return -1;
@@ -1194,8 +1196,8 @@ int process_core_type_result(CommandResult* result, void* output) {
  * Allocate command argument arrays
  */
 int allocate_core_arg_arrays(int count, uintptr_t** args_out, unsigned long** args_len_out) {
-    *args_out     = (uintptr_t*)emalloc(count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(count * sizeof(unsigned long));
 
     if (!*args_out || !*args_len_out) {
         if (*args_out)
@@ -1222,7 +1224,7 @@ void free_core_arg_arrays(uintptr_t* args, unsigned long* args_len) {
  * Create string tracker for memory management
  */
 char** create_string_tracker(int max_strings) {
-    return (char**)ecalloc(max_strings, sizeof(char*));
+    return (char**) ecalloc(max_strings, sizeof(char*));
 }
 
 /**
@@ -1255,7 +1257,7 @@ void free_tracked_strings(char** tracker, int count) {
 char* core_long_to_string(long value, size_t* len) {
     char buffer[32];
     *len      = snprintf(buffer, sizeof(buffer), "%ld", value);
-    char* str = (char*)emalloc(*len + 1);
+    char* str = (char*) emalloc(*len + 1);
     if (str) {
         memcpy(str, buffer, *len);
         str[*len] = '\0';
@@ -1269,7 +1271,7 @@ char* core_long_to_string(long value, size_t* len) {
 char* core_double_to_string(double value, size_t* len) {
     char buffer[64];
     *len      = snprintf(buffer, sizeof(buffer), "%.17g", value);
-    char* str = (char*)emalloc(*len + 1);
+    char* str = (char*) emalloc(*len + 1);
     if (str) {
         memcpy(str, buffer, *len);
         str[*len] = '\0';
@@ -1637,7 +1639,7 @@ void debug_print_core_args(core_command_args_t* args) {
     printf("DEBUG: Core Command Args:\n");
     printf("  cmd_type: %d\n", args->cmd_type);
     printf("  key: %.*s (len: %zu)\n",
-           (int)args->key_len,
+           (int) args->key_len,
            args->key ? args->key : "NULL",
            args->key_len);
     printf("  arg_count: %d\n", args->arg_count);
@@ -1647,7 +1649,7 @@ void debug_print_core_args(core_command_args_t* args) {
         switch (args->args[i].type) {
             case CORE_ARG_TYPE_STRING:
                 printf("    string: %.*s (len: %zu)\n",
-                       (int)args->args[i].data.string_arg.len,
+                       (int) args->args[i].data.string_arg.len,
                        args->args[i].data.string_arg.value,
                        args->args[i].data.string_arg.len);
                 break;
@@ -1692,7 +1694,7 @@ void debug_print_command_result(CommandResult* result) {
                 break;
             case String:
                 printf("  string_value: %.*s (len: %ld)\n",
-                       (int)result->response->string_value_len,
+                       (int) result->response->string_value_len,
                        result->response->string_value,
                        result->response->string_value_len);
                 break;

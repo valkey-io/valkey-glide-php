@@ -31,8 +31,8 @@ extern char* double_to_string(double value, size_t* len);
  * Allocate command arguments arrays
  */
 int allocate_s_command_args(int count, uintptr_t** args_out, unsigned long** args_len_out) {
-    *args_out     = (uintptr_t*)emalloc(count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*)emalloc(count * sizeof(unsigned long));
+    *args_out     = (uintptr_t*) emalloc(count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(count * sizeof(unsigned long));
 
     if (!*args_out || !*args_len_out) {
         if (*args_out)
@@ -101,7 +101,7 @@ int convert_zval_to_string_args(
         zval* element = &input[i];
 
         if (Z_TYPE_P(element) == IS_STRING) {
-            (*args_out)[offset + i]     = (uintptr_t)Z_STRVAL_P(element);
+            (*args_out)[offset + i]     = (uintptr_t) Z_STRVAL_P(element);
             (*args_len_out)[offset + i] = Z_STRLEN_P(element);
         } else if (Z_TYPE_P(element) == IS_OBJECT) {
             /* Handle object conversion specially */
@@ -115,7 +115,7 @@ int convert_zval_to_string_args(
             memcpy(str_copy, Z_STRVAL(tmp_zval), str_len);
             str_copy[str_len] = '\0';
 
-            (*args_out)[offset + i]     = (uintptr_t)str_copy;
+            (*args_out)[offset + i]     = (uintptr_t) str_copy;
             (*args_len_out)[offset + i] = str_len;
             zval_dtor(&tmp_zval);
         } else {
@@ -129,7 +129,7 @@ int convert_zval_to_string_args(
             memcpy(str_copy, Z_STRVAL(temp), str_len);
             str_copy[str_len] = '\0';
 
-            (*args_out)[offset + i]     = (uintptr_t)str_copy;
+            (*args_out)[offset + i]     = (uintptr_t) str_copy;
             (*args_len_out)[offset + i] = str_len;
             zval_dtor(&temp);
         }
@@ -176,7 +176,7 @@ int prepare_s_key_members_args(s_command_args_t* args,
     }
 
     /* Set key as first argument */
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     /* Convert and set member arguments */
@@ -199,7 +199,7 @@ int prepare_s_key_only_args(s_command_args_t* args,
         return 0;
     }
 
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     return 1;
@@ -220,9 +220,9 @@ int prepare_s_key_member_args(s_command_args_t* args,
         return 0;
     }
 
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
-    (*args_out)[1]     = (uintptr_t)args->member;
+    (*args_out)[1]     = (uintptr_t) args->member;
     (*args_len_out)[1] = args->member_len;
 
     return 2;
@@ -244,7 +244,7 @@ int prepare_s_key_count_args(s_command_args_t* args,
         return 0;
     }
 
-    (*args_out)[0]     = (uintptr_t)args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
     if (args->has_count) {
@@ -253,7 +253,7 @@ int prepare_s_key_count_args(s_command_args_t* args,
             cleanup_s_command_args(*args_out, *args_len_out);
             return 0;
         }
-        (*args_out)[1]     = (uintptr_t)count_str;
+        (*args_out)[1]     = (uintptr_t) count_str;
         (*args_len_out)[1] = strlen(count_str);
     }
 
@@ -302,7 +302,7 @@ int prepare_s_multi_key_limit_args(s_command_args_t* args,
         cleanup_s_command_args(*args_out, *args_len_out);
         return 0;
     }
-    (*args_out)[0]     = (uintptr_t)numkeys_str;
+    (*args_out)[0]     = (uintptr_t) numkeys_str;
     (*args_len_out)[0] = strlen(numkeys_str);
 
     /* Add keys */
@@ -310,16 +310,16 @@ int prepare_s_multi_key_limit_args(s_command_args_t* args,
 
     /* Add LIMIT if specified */
     if (args->has_limit) {
-        (*args_out)[1 + args->keys_count]     = (uintptr_t)"LIMIT";
+        (*args_out)[1 + args->keys_count]     = (uintptr_t) "LIMIT";
         (*args_len_out)[1 + args->keys_count] = 5;
 
         char* limit_str = alloc_long_string(args->limit, NULL);
         if (!limit_str) {
-            efree((void*)(*args_out)[0]); /* Free numkeys_str */
+            efree((void*) (*args_out)[0]); /* Free numkeys_str */
             cleanup_s_command_args(*args_out, *args_len_out);
             return 0;
         }
-        (*args_out)[2 + args->keys_count]     = (uintptr_t)limit_str;
+        (*args_out)[2 + args->keys_count]     = (uintptr_t) limit_str;
         (*args_len_out)[2 + args->keys_count] = strlen(limit_str);
     }
 
@@ -344,7 +344,7 @@ int prepare_s_dst_multi_key_args(s_command_args_t* args,
     }
 
     /* Set destination key */
-    (*args_out)[0]     = (uintptr_t)args->dst_key;
+    (*args_out)[0]     = (uintptr_t) args->dst_key;
     (*args_len_out)[0] = args->dst_key_len;
 
     /* Add source keys */
@@ -368,11 +368,11 @@ int prepare_s_two_key_member_args(s_command_args_t* args,
         return 0;
     }
 
-    (*args_out)[0]     = (uintptr_t)args->src_key;
+    (*args_out)[0]     = (uintptr_t) args->src_key;
     (*args_len_out)[0] = args->src_key_len;
-    (*args_out)[1]     = (uintptr_t)args->dst_key;
+    (*args_out)[1]     = (uintptr_t) args->dst_key;
     (*args_len_out)[1] = args->dst_key_len;
-    (*args_out)[2]     = (uintptr_t)args->member;
+    (*args_out)[2]     = (uintptr_t) args->member;
     (*args_len_out)[2] = args->member_len;
 
     return 3;
@@ -404,7 +404,7 @@ int prepare_s_scan_args(s_command_args_t* args,
 
     /* Add key if this is SSCAN */
     if (has_key) {
-        (*args_out)[arg_idx]     = (uintptr_t)args->key;
+        (*args_out)[arg_idx]     = (uintptr_t) args->key;
         (*args_len_out)[arg_idx] = args->key_len;
         arg_idx++;
     }
@@ -413,43 +413,43 @@ int prepare_s_scan_args(s_command_args_t* args,
 
     size_t cursor_len = strlen(*args->cursor);
 
-    (*args_out)[arg_idx]     = (uintptr_t)*args->cursor;
+    (*args_out)[arg_idx]     = (uintptr_t) *args->cursor;
     (*args_len_out)[arg_idx] = cursor_len;
     arg_idx++;
 
     /* Add MATCH pattern if provided */
     if (has_pattern) {
-        (*args_out)[arg_idx]     = (uintptr_t)"MATCH";
+        (*args_out)[arg_idx]     = (uintptr_t) "MATCH";
         (*args_len_out)[arg_idx] = 5;
         arg_idx++;
-        (*args_out)[arg_idx]     = (uintptr_t)args->pattern;
+        (*args_out)[arg_idx]     = (uintptr_t) args->pattern;
         (*args_len_out)[arg_idx] = args->pattern_len;
         arg_idx++;
     }
 
     /* Add COUNT if provided */
     if (has_count) {
-        (*args_out)[arg_idx]     = (uintptr_t)"COUNT";
+        (*args_out)[arg_idx]     = (uintptr_t) "COUNT";
         (*args_len_out)[arg_idx] = 5;
         arg_idx++;
 
         char* count_str = alloc_long_string(args->count, NULL);
         if (!count_str) {
-            efree((void*)(*args_out)[has_key ? 1 : 0]); /* Free cursor_str */
+            efree((void*) (*args_out)[has_key ? 1 : 0]); /* Free cursor_str */
             cleanup_s_command_args(*args_out, *args_len_out);
             return 0;
         }
-        (*args_out)[arg_idx]     = (uintptr_t)count_str;
+        (*args_out)[arg_idx]     = (uintptr_t) count_str;
         (*args_len_out)[arg_idx] = strlen(count_str);
         arg_idx++;
     }
 
     /* Add TYPE if provided (SCAN only) */
     if (has_type) {
-        (*args_out)[arg_idx]     = (uintptr_t)"TYPE";
+        (*args_out)[arg_idx]     = (uintptr_t) "TYPE";
         (*args_len_out)[arg_idx] = 4;
         arg_idx++;
-        (*args_out)[arg_idx]     = (uintptr_t)args->type;
+        (*args_out)[arg_idx]     = (uintptr_t) args->type;
         (*args_len_out)[arg_idx] = args->type_len;
         arg_idx++;
     }
@@ -472,7 +472,7 @@ int prepare_s_server_args(s_command_args_t* args,
     }
 
     /* Server commands typically use "server" section for INFO */
-    (*args_out)[0]     = (uintptr_t)"server";
+    (*args_out)[0]     = (uintptr_t) "server";
     (*args_len_out)[0] = 6;
 
     return 1;
@@ -567,7 +567,7 @@ int process_s_string_response(CommandResult* result, s_command_args_t* args, zva
         if (result->response->response_type == String) {
             if (args->output_string && args->output_string_len) {
                 size_t len           = result->response->string_value_len;
-                *args->output_string = (char*)emalloc(len + 1);
+                *args->output_string = (char*) emalloc(len + 1);
                 if (*args->output_string) {
                     memcpy(*args->output_string, result->response->string_value, len);
                     (*args->output_string)[len] = '\0';
@@ -768,11 +768,11 @@ cleanup:
     /* Clean up allocated strings for specific categories */
     if (cmd_args && args_len) {
         if (category == S_CMD_KEY_COUNT && args->has_count && arg_count > 1) {
-            efree((void*)cmd_args[1]); /* Free count string */
+            efree((void*) cmd_args[1]); /* Free count string */
         } else if (category == S_CMD_MULTI_KEY_LIMIT) {
-            efree((void*)cmd_args[0]); /* Free numkeys string */
+            efree((void*) cmd_args[0]); /* Free numkeys string */
             if (args->has_limit && arg_count > 2 + args->keys_count) {
-                efree((void*)cmd_args[2 + args->keys_count]); /* Free limit string */
+                efree((void*) cmd_args[2 + args->keys_count]); /* Free limit string */
             }
         } else if (category == S_CMD_SCAN) {
             /* No need to free cursor string anymore - it's directly referenced */
@@ -781,7 +781,7 @@ cleanup:
                 int has_key   = (args->key && args->key_len > 0);
                 int count_idx = (has_key ? 1 : 0) + 1 + (args->pattern ? 2 : 0) + 1;
                 if (count_idx < arg_count) {
-                    efree((void*)cmd_args[count_idx]);
+                    efree((void*) cmd_args[count_idx]);
                 }
             }
         }
@@ -808,13 +808,13 @@ cleanup:
                 if (args->members && category == S_CMD_KEY_MEMBERS) {
                     zval* element = &args->members[i];
                     if (Z_TYPE_P(element) != IS_STRING && cmd_args[start_idx + i] != 0) {
-                        efree((void*)cmd_args[start_idx + i]);
+                        efree((void*) cmd_args[start_idx + i]);
                     }
                 } else if (args->keys &&
                            (category == S_CMD_MULTI_KEY || category == S_CMD_DST_MULTI_KEY)) {
                     zval* element = &args->keys[i];
                     if (Z_TYPE_P(element) != IS_STRING && cmd_args[start_idx + i] != 0) {
-                        efree((void*)cmd_args[start_idx + i]);
+                        efree((void*) cmd_args[start_idx + i]);
                     }
                 }
             }
@@ -2160,10 +2160,10 @@ int execute_cluster_scan_command(const void* glide_client,
 
         /* Add MATCH pattern */
         if (pattern && pattern_len > 0) {
-            args[idx]     = (uintptr_t)"MATCH";
+            args[idx]     = (uintptr_t) "MATCH";
             args_len[idx] = 5;
             idx++;
-            args[idx]     = (uintptr_t)pattern;
+            args[idx]     = (uintptr_t) pattern;
             args_len[idx] = pattern_len;
             idx++;
         }
@@ -2176,20 +2176,20 @@ int execute_cluster_scan_command(const void* glide_client,
                 efree(args_len);
                 return 0;
             }
-            args[idx]     = (uintptr_t)"COUNT";
+            args[idx]     = (uintptr_t) "COUNT";
             args_len[idx] = 5;
             idx++;
-            args[idx]     = (uintptr_t)count_str;
+            args[idx]     = (uintptr_t) count_str;
             args_len[idx] = strlen(count_str);
             idx++;
         }
 
         /* Add TYPE (for SCAN only) */
         if (has_type && type && type_len > 0) {
-            args[idx]     = (uintptr_t)"TYPE";
+            args[idx]     = (uintptr_t) "TYPE";
             args_len[idx] = 4;
             idx++;
-            args[idx]     = (uintptr_t)type;
+            args[idx]     = (uintptr_t) type;
             args_len[idx] = type_len;
             idx++;
         }

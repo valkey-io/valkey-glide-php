@@ -15,13 +15,13 @@
 #define VALKEY_GLIDE_PHP_VERSION "0.1"
 
 #define VALKEY_GLIDE_PHP_GET_OBJECT(class_entry, o) \
-    (class_entry*)((char*)o - XtOffsetOf(class_entry, std))
+    (class_entry*) ((char*) o - XtOffsetOf(class_entry, std))
 #define VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(class_entry, z) \
     VALKEY_GLIDE_PHP_GET_OBJECT(class_entry, Z_OBJ_P(z))
 
 /* NULL check so Eclipse doesn't go crazy */
 #ifndef NULL
-#define NULL ((void*)0)
+#define NULL ((void*) 0)
 #endif
 
 /* We'll fallthrough if we want to */

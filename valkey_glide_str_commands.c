@@ -212,8 +212,8 @@ static void build_sort_args(const char*     key,
         max_args++; /* DESC */
 
     /* Allocate arrays for arguments */
-    uintptr_t*     args     = (uintptr_t*)emalloc(max_args * sizeof(uintptr_t));
-    unsigned long* args_len = (unsigned long*)emalloc(max_args * sizeof(unsigned long));
+    uintptr_t*     args     = (uintptr_t*) emalloc(max_args * sizeof(uintptr_t));
+    unsigned long* args_len = (unsigned long*) emalloc(max_args * sizeof(unsigned long));
 
     if (!args || !args_len) {
         if (args)
@@ -230,7 +230,7 @@ static void build_sort_args(const char*     key,
     unsigned long arg_idx = 0;
 
     /* First argument: key */
-    args[arg_idx]     = (uintptr_t)key;
+    args[arg_idx]     = (uintptr_t) key;
     args_len[arg_idx] = key_len;
     arg_idx++;
 
@@ -246,12 +246,12 @@ static void build_sort_args(const char*     key,
             (z_ele = zend_hash_str_find(ht, "BY", sizeof("BY") - 1)) != NULL) {
             if (Z_TYPE_P(z_ele) == IS_STRING) {
                 /* Add BY keyword */
-                args[arg_idx]     = (uintptr_t)"BY";
+                args[arg_idx]     = (uintptr_t) "BY";
                 args_len[arg_idx] = 2;
                 arg_idx++;
 
                 /* Add BY pattern */
-                args[arg_idx]     = (uintptr_t)Z_STRVAL_P(z_ele);
+                args[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_ele);
                 args_len[arg_idx] = Z_STRLEN_P(z_ele);
                 arg_idx++;
             }
@@ -269,7 +269,7 @@ static void build_sort_args(const char*     key,
 
                     if (z_offset && z_count) {
                         /* Add LIMIT keyword */
-                        args[arg_idx]     = (uintptr_t)"LIMIT";
+                        args[arg_idx]     = (uintptr_t) "LIMIT";
                         args_len[arg_idx] = 5;
                         arg_idx++;
 
@@ -279,7 +279,7 @@ static void build_sort_args(const char*     key,
                         long   offset_val = zval_get_long(z_offset);
                         offset_str        = long_to_string(offset_val, &offset_len);
                         if (offset_str) {
-                            args[arg_idx]     = (uintptr_t)offset_str;
+                            args[arg_idx]     = (uintptr_t) offset_str;
                             args_len[arg_idx] = offset_len;
                             arg_idx++;
 
@@ -289,7 +289,7 @@ static void build_sort_args(const char*     key,
                             long   count_val = zval_get_long(z_count);
                             count_str        = long_to_string(count_val, &count_len);
                             if (count_str) {
-                                args[arg_idx]     = (uintptr_t)count_str;
+                                args[arg_idx]     = (uintptr_t) count_str;
                                 args_len[arg_idx] = count_len;
                                 arg_idx++;
                             } else {
@@ -308,7 +308,7 @@ static void build_sort_args(const char*     key,
                 (z_count = zend_hash_str_find(ht, "limit_count", sizeof("limit_count") - 1)) !=
                     NULL) {
                 /* Add LIMIT keyword */
-                args[arg_idx]     = (uintptr_t)"LIMIT";
+                args[arg_idx]     = (uintptr_t) "LIMIT";
                 args_len[arg_idx] = 5;
                 arg_idx++;
 
@@ -318,7 +318,7 @@ static void build_sort_args(const char*     key,
                 long   offset_val = zval_get_long(z_offset);
                 offset_str        = long_to_string(offset_val, &offset_len);
                 if (offset_str) {
-                    args[arg_idx]     = (uintptr_t)offset_str;
+                    args[arg_idx]     = (uintptr_t) offset_str;
                     args_len[arg_idx] = offset_len;
                     arg_idx++;
 
@@ -328,7 +328,7 @@ static void build_sort_args(const char*     key,
                     long   count_val = zval_get_long(z_count);
                     count_str        = long_to_string(count_val, &count_len);
                     if (count_str) {
-                        args[arg_idx]     = (uintptr_t)count_str;
+                        args[arg_idx]     = (uintptr_t) count_str;
                         args_len[arg_idx] = count_len;
                         arg_idx++;
                     } else {
@@ -348,12 +348,12 @@ static void build_sort_args(const char*     key,
                 ZEND_HASH_FOREACH_VAL(get_ht, z_pattern) {
                     if (Z_TYPE_P(z_pattern) == IS_STRING) {
                         /* Add GET keyword */
-                        args[arg_idx]     = (uintptr_t)"GET";
+                        args[arg_idx]     = (uintptr_t) "GET";
                         args_len[arg_idx] = 3;
                         arg_idx++;
 
                         /* Add GET pattern */
-                        args[arg_idx]     = (uintptr_t)Z_STRVAL_P(z_pattern);
+                        args[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_pattern);
                         args_len[arg_idx] = Z_STRLEN_P(z_pattern);
                         arg_idx++;
                     }
@@ -361,11 +361,11 @@ static void build_sort_args(const char*     key,
                 ZEND_HASH_FOREACH_END();
             } else if (Z_TYPE_P(z_ele) == IS_STRING) {
                 /* Handle single GET pattern: 'get' => 'pattern' */
-                args[arg_idx]     = (uintptr_t)"GET";
+                args[arg_idx]     = (uintptr_t) "GET";
                 args_len[arg_idx] = 3;
                 arg_idx++;
 
-                args[arg_idx]     = (uintptr_t)Z_STRVAL_P(z_ele);
+                args[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_ele);
                 args_len[arg_idx] = Z_STRLEN_P(z_ele);
                 arg_idx++;
             }
@@ -376,12 +376,12 @@ static void build_sort_args(const char*     key,
             (z_ele = zend_hash_str_find(ht, "STORE", sizeof("STORE") - 1)) != NULL) {
             if (Z_TYPE_P(z_ele) == IS_STRING) {
                 /* Add STORE keyword */
-                args[arg_idx]     = (uintptr_t)"STORE";
+                args[arg_idx]     = (uintptr_t) "STORE";
                 args_len[arg_idx] = 5;
                 arg_idx++;
 
                 /* Add STORE destination key */
-                args[arg_idx]     = (uintptr_t)Z_STRVAL_P(z_ele);
+                args[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_ele);
                 args_len[arg_idx] = Z_STRLEN_P(z_ele);
                 arg_idx++;
             }
@@ -390,17 +390,17 @@ static void build_sort_args(const char*     key,
 
     /* Add sorting options */
     if (alpha) {
-        args[arg_idx]     = (uintptr_t)"ALPHA";
+        args[arg_idx]     = (uintptr_t) "ALPHA";
         args_len[arg_idx] = 5;
         arg_idx++;
     }
 
     if (desc) {
-        args[arg_idx]     = (uintptr_t)"DESC";
+        args[arg_idx]     = (uintptr_t) "DESC";
         args_len[arg_idx] = 4;
         arg_idx++;
     } else if (explicit_asc) {
-        args[arg_idx]     = (uintptr_t)"ASC";
+        args[arg_idx]     = (uintptr_t) "ASC";
         args_len[arg_idx] = 3;
         arg_idx++;
     }
@@ -418,17 +418,17 @@ static void free_sort_args(uintptr_t* args, unsigned long* args_len, unsigned lo
         for (unsigned long i = 0; i < arg_count; i++) {
             /* Skip key, BY, GET, LIMIT, STORE, ALPHA, DESC, ASC and any string that was
                directly extracted from a zval (not allocated) */
-            if (strcmp((const char*)args[i], "BY") != 0 &&
-                strcmp((const char*)args[i], "GET") != 0 &&
-                strcmp((const char*)args[i], "LIMIT") != 0 &&
-                strcmp((const char*)args[i], "STORE") != 0 &&
-                strcmp((const char*)args[i], "ALPHA") != 0 &&
-                strcmp((const char*)args[i], "DESC") != 0 &&
-                strcmp((const char*)args[i], "ASC") != 0 && i > 0 && /* Skip key */
-                ((i > 1 && strcmp((const char*)args[i - 1], "LIMIT") ==
+            if (strcmp((const char*) args[i], "BY") != 0 &&
+                strcmp((const char*) args[i], "GET") != 0 &&
+                strcmp((const char*) args[i], "LIMIT") != 0 &&
+                strcmp((const char*) args[i], "STORE") != 0 &&
+                strcmp((const char*) args[i], "ALPHA") != 0 &&
+                strcmp((const char*) args[i], "DESC") != 0 &&
+                strcmp((const char*) args[i], "ASC") != 0 && i > 0 && /* Skip key */
+                ((i > 1 && strcmp((const char*) args[i - 1], "LIMIT") ==
                                0) || /* Only free offset and count */
-                 (i > 2 && strcmp((const char*)args[i - 2], "LIMIT") == 0))) {
-                efree((void*)args[i]);
+                 (i > 2 && strcmp((const char*) args[i - 2], "LIMIT") == 0))) {
+                efree((void*) args[i]);
             }
         }
 
@@ -561,10 +561,10 @@ int execute_expiremember_command(zval* object, int argc, zval* return_value, zen
 
         /* Execute the command */
         CommandResult* cmd_result = execute_command(valkey_glide->glide_client,
-                                                    CustomCommand,    /* command type */
-                                                    arg_count,        /* number of arguments */
-                                                    (uintptr_t*)args, /* arguments */
-                                                    args_len          /* argument lengths */
+                                                    CustomCommand,     /* command type */
+                                                    arg_count,         /* number of arguments */
+                                                    (uintptr_t*) args, /* arguments */
+                                                    args_len           /* argument lengths */
         );
 
         /* Check if we have a valid result */
@@ -626,10 +626,10 @@ int execute_expirememberat_command(zval*             object,
 
         /* Execute the command */
         CommandResult* cmd_result = execute_command(valkey_glide->glide_client,
-                                                    CustomCommand,    /* command type */
-                                                    arg_count,        /* number of arguments */
-                                                    (uintptr_t*)args, /* arguments */
-                                                    args_len          /* argument lengths */
+                                                    CustomCommand,     /* command type */
+                                                    arg_count,         /* number of arguments */
+                                                    (uintptr_t*) args, /* arguments */
+                                                    args_len           /* argument lengths */
         );
 
         /* Check if we have a valid result */

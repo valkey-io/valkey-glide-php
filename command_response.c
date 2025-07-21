@@ -240,7 +240,7 @@ uint8_t* create_route_bytes_from_route(cluster_route_t* route, size_t* route_byt
         return NULL;
     }
 
-    route_bytes = (uint8_t*)emalloc(*route_bytes_len);
+    route_bytes = (uint8_t*) emalloc(*route_bytes_len);
 
     if (!route_bytes) {
         printf("Error: Failed to allocate memory for route bytes\n");
@@ -859,7 +859,7 @@ int handle_set_response(CommandResult* result, zval* output) {
 char* long_to_string(long value, size_t* len) {
     char buffer[32];
     *len      = snprintf(buffer, sizeof(buffer), "%ld", value);
-    char* str = (char*)emalloc(*len + 1);
+    char* str = (char*) emalloc(*len + 1);
     if (str) {
         memcpy(str, buffer, *len);
         str[*len] = '\0';
@@ -872,7 +872,7 @@ char* double_to_string(double value, size_t* len) {
     char buffer[64];
     /* Use %.6g format to get a more user-friendly representation */
     *len      = snprintf(buffer, sizeof(buffer), "%.6g", value);
-    char* str = (char*)emalloc(*len + 1);
+    char* str = (char*) emalloc(*len + 1);
     if (str) {
         memcpy(str, buffer, *len);
         str[*len] = '\0';
