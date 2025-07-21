@@ -879,7 +879,7 @@ class ValkeyGlideCluster {
     /**
      * @see ValkeyGlide::subscribe
      */
-    public function subscribe(array $channels, callable $cb): void;
+   /* TODO  public function subscribe(array $channels, callable $cb): void; */
 
     /**
      * @see ValkeyGlide::sunion()
@@ -909,7 +909,7 @@ class ValkeyGlideCluster {
     /**
      * @see ValkeyGlide::unsubscribe
      */
-    public function unsubscribe(array $channels): bool|array;
+   /* TODO  public function unsubscribe(array $channels): bool|array;*/ 
 
     /**
      * @see ValkeyGlide::unlink
@@ -919,12 +919,12 @@ class ValkeyGlideCluster {
     /**
      * @see ValkeyGlide::unwatch
      */
-    public function unwatch(): bool;
+    /* TODO public function unwatch(): bool; */
 
     /**
      * @see ValkeyGlide::watch
      */
-    public function watch(string $key, string ...$other_keys): ValkeyGlideCluster|bool;
+    /* TODO public function watch(string $key, string ...$other_keys): ValkeyGlideCluster|bool; */
 
     /**
      * @see ValkeyGlide::xack
@@ -1098,10 +1098,6 @@ class ValkeyGlideCluster {
      */
     public function zRevRange(string $key, string $min, string $max, ?array $options = null): ValkeyGlideCluster|bool|array;
 
-    /**
-     * @see ValkeyGlide::zrevrangebylex
-     */
-    public function zRevRangeByLex(string $key, string $min, string $max, ?array $options = null): ValkeyGlideCluster|bool|array;
 
     /**
      * @see ValkeyGlide::zrevrangebyscore

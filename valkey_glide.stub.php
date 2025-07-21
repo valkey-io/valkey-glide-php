@@ -2439,10 +2439,6 @@ class ValkeyGlide {
      */
     public function sismember(string $key, mixed $value): ValkeyGlide|bool;
 
-    
-
- 
-
     /**
      * Update one or more keys last modified metadata.
      *
@@ -2593,7 +2589,7 @@ class ValkeyGlide {
      * // broken and this command will execute.
      * echo "Subscribe loop ended\n";
      */
-    public function ssubscribe(array $channels, callable $cb): bool;
+    /* TODO public function ssubscribe(array $channels, callable $cb): bool; */
 
     /**
      * Retrieve the length of a ValkeyGlide STRING key.
@@ -2638,7 +2634,7 @@ class ValkeyGlide {
      * // broken and this command will execute.
      * echo "Subscribe loop ended\n";
      */
-    public function subscribe(array $channels, callable $cb): bool;
+    /* TODO public function subscribe(array $channels, callable $cb): bool; */
 
     /**
      * Unsubscribes the client from the given shard channels,
@@ -2662,30 +2658,8 @@ class ValkeyGlide {
      *
      * echo "We've unsubscribed from both channels, exiting\n";
      */
-    public function sunsubscribe(array $channels): ValkeyGlide|array|bool;
+    /* TODO public function sunsubscribe(array $channels): ValkeyGlide|array|bool; */
 
-    /**
-     * Atomically swap two ValkeyGlide databases so that all of the keys in the source database will
-     * now be in the destination database and vice-versa.
-     *
-     * Note: This command simply swaps ValkeyGlide' internal pointer to the database and is therefore
-     * very fast, regardless of the size of the underlying databases.
-     *
-     * @param int $src The source database number
-     * @param int $dst The destination database number
-     *
-     * @return ValkeyGlide|bool Success if the databases could be swapped and false on failure.
-     *
-     * @see https://valkey.io/commands/swapdb
-     * @see ValkeyGlide::del()
-     *
-     * @example
-     * $valkey_glide->select(0);
-     * $valkey_glide->set('db0-key', 'db0-value');
-     * $valkey_glide->swapdb(0, 1);
-     * $valkey_glide->get('db0-key');
-     */
-    public function swapdb(int $src, int $dst): ValkeyGlide|bool;
 
     /**
      * Retrieve the server time from the connected ValkeyGlide instance.
@@ -2780,7 +2754,7 @@ class ValkeyGlide {
      *
      * echo "We've unsubscribed from both channels, exiting\n";
      */
-    public function unsubscribe(array $channels): ValkeyGlide|array|bool;
+    /* TODO public function unsubscribe(array $channels): ValkeyGlide|array|bool; */
 
     /**
      * Remove any previously WATCH'ed keys in a transaction.
@@ -2791,7 +2765,7 @@ class ValkeyGlide {
      *
      * @return True on success and false on failure.
      */
-    public function unwatch(): ValkeyGlide|bool;
+    /* TODO public function unwatch(): ValkeyGlide|bool; */
 
     /**
      * Watch one or more keys for conditional execution of a transaction.
@@ -2831,7 +2805,7 @@ class ValkeyGlide {
      * // bool(false)
      * var_dump($res);
      */
-    public function watch(array|string $key, string ...$other_keys): ValkeyGlide|bool;
+   /* TODO  public function watch(array|string $key, string ...$other_keys): ValkeyGlide|bool; */
 
     /**
      * Block the client up to the provided timeout until a certain number of replicas have confirmed
@@ -3600,25 +3574,6 @@ class ValkeyGlide {
      * @example $valkey_glide->zRevRange('zs', 0, -1, ['withscores' => true]);
      */
     public function zRevRange(string $key, int $start, int $end, mixed $scores = null): ValkeyGlide|array|false;
-
-    /**
-     * List members of a ValkeyGlide sorted set within a legographical range, in reverse order.
-     *
-     * @param string $key    The sorted set to list
-     * @param string $min    The maximum legographical element to include in the result.
-     * @param string $min    The minimum lexographical element to include in the result.
-     * @param string $offset An option offset within the matching elements to start at.
-     * @param string $count  An optional count to limit the replies to.
-     *
-     * @return ValkeyGlide|array|false The matching members or false on failure.
-     *
-     * @see https://valkey.io/commands/zrevrangebylex
-     * @see ValkeyGlide::zrangebylex()
-     *
-     * @example $valkey_glide->zRevRangeByLex('captains', '[Q', '[J');
-     * @example $valkey_glide->zRevRangeByLex('captains', '[Q', '[J', 1, 2);
-     */
-    public function zRevRangeByLex(string $key, string $max, string $min, int $offset = -1, int $count = -1): ValkeyGlide|array|false;
 
     /**
      * List elements from a ValkeyGlide sorted set by score, highest to lowest
