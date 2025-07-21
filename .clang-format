@@ -6,8 +6,8 @@ ColumnLimit: 100
 AllowShortFunctionsOnASingleLine: None
 AlwaysBreakBeforeMultilineStrings: true
 BreakBeforeBraces: Attach
-AlignConsecutiveAssignments: true
-AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveDeclarations: Consecutive
 AlignTrailingComments: true
 AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: false
@@ -34,3 +34,5 @@ SpacesInAngles: false
 SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
+Language: Cpp
+Standard: c++03
