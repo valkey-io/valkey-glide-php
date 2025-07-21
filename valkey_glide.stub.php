@@ -268,23 +268,6 @@ class ValkeyGlide {
     public function append(string $key, mixed $value): ValkeyGlide|int|false;
 
     /**
-     * Authenticate a ValkeyGlide connection after its been established.
-     *
-     *     $valkey_glide->auth('password');
-     *     $valkey_glide->auth(['password']);
-     *     $valkey_glide->auth(['username', 'password']);
-     *
-     * @see https://valkey.io/commands/auth
-     *
-     * @param mixed $credentials A string password, or an array with one or two string elements.
-     * @return ValkeyGlide|bool Whether the AUTH was successful.
-     *
-     */
-    public function auth( mixed $credentials): ValkeyGlide|bool;
-
-
-
-    /**
      * Count the number of set bits in a ValkeyGlide string.
      *
      * @see https://valkey.io/commands/bitcount/
@@ -350,20 +333,6 @@ class ValkeyGlide {
      *
      */
     public function brPop(string|array $key_or_keys, string|float|int $timeout_or_key, mixed ...$extra_args): ValkeyGlide|array|null|false;
-
-    /**
-     * Pop an element from the end of a ValkeyGlide list, pushing it to the beginning of another ValkeyGlide list,
-     * optionally blocking up to a specified timeout.
-     *
-     * @see https://valkey.io/commands/brpoplpush/
-     *
-     * @param string    $src     The source list
-     * @param string    $dst     The destination list
-     * @param int|float $timeout The number of seconds to wait.  Note that you must be connected
-     *                           to ValkeyGlide >= 6.0.0 to send a floating point timeout.
-     *
-     */
-    public function brpoplpush(string $src, string $dst, int|float $timeout): ValkeyGlide|string|false;
 
     /**
      * POP the maximum scoring element off of one or more sorted sets, blocking up to a specified
@@ -468,9 +437,9 @@ class ValkeyGlide {
     public function lmpop(array $keys, string $from, int $count = 1): ValkeyGlide|array|null|false;
 
   
-
+    /* TODO this command is not supported, should add test" 
     public function client(string $opt, mixed ...$args): mixed;
-
+    */
     public function close(): bool;
 
   
@@ -601,13 +570,7 @@ class ValkeyGlide {
     public function del(array|string $key, string ...$other_keys): ValkeyGlide|int|false;
 
     /**
-     * @deprecated
-     * @alias ValkeyGlide::del
-     */
-    public function delete(array|string $key, string ...$other_keys): ValkeyGlide|int|false;
-
-    /**
-     * Discard a transaction currently in progress.
+     * TODO Discard a transaction currently in progress.
      *
      * @return ValkeyGlide|bool  True if we could discard the transaction.
      *
@@ -615,7 +578,7 @@ class ValkeyGlide {
      * $valkey_glide->set('foo', 'bar');
      * $valkey_glide->discard();
      */
-    public function discard(): ValkeyGlide|bool;
+    /* public function discard(): ValkeyGlide|bool;*/
 
     /**
      * Dump ValkeyGlide' internal binary representation of a key.
@@ -664,7 +627,7 @@ class ValkeyGlide {
      * @return mixed LUA scripts may return arbitrary data so this method can return
      *               strings, arrays, nested arrays, etc.
      */
-    public function eval(string $script, array $args = [], int $num_keys = 0): mixed;
+   /*TODO  public function eval(string $script, array $args = [], int $num_keys = 0): mixed;*/
 
     /**
      * This is simply the read-only variant of eval, meaning the underlying script
@@ -672,7 +635,7 @@ class ValkeyGlide {
      *
      * @see ValkeyGlide::eval_ro()
      */
-    public function eval_ro(string $script_sha, array $args = [], int $num_keys = 0): mixed;
+    /* TODO public function eval_ro(string $script_sha, array $args = [], int $num_keys = 0): mixed; */
 
     /**
      * Execute a LUA script on the server but instead of sending the script, send
@@ -691,7 +654,7 @@ class ValkeyGlide {
      * @see ValkeyGlide::eval();
      *
      */
-    public function evalsha(string $sha1, array $args = [], int $num_keys = 0): mixed;
+   /* TODO public function evalsha(string $sha1, array $args = [], int $num_keys = 0): mixed; */
 
     /**
      * This is simply the read-only variant of evalsha, meaning the underlying script
@@ -699,7 +662,7 @@ class ValkeyGlide {
      *
      * @see ValkeyGlide::evalsha()
      */
-    public function evalsha_ro(string $sha1, array $args = [], int $num_keys = 0): mixed;
+    /* TODO public function evalsha_ro(string $sha1, array $args = [], int $num_keys = 0): mixed; */
 
     /**
      * Execute either a MULTI or PIPELINE block and return the array of replies.
@@ -719,7 +682,7 @@ class ValkeyGlide {
      *              ->rpush('list', 'one', 'two', 'three')
      *              ->exec();
      */
-    public function exec(): ValkeyGlide|array|false;
+    /* TODO public function exec(): ValkeyGlide|array|false; */
 
     /**
      * Test if one or more keys exist.

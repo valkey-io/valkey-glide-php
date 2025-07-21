@@ -2190,6 +2190,24 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertTrue($this->valkey_glide->flushdb(true));
     }
 
+    public function testFlushAll() {
+        $this->valkey_glide->set('x', 'y');
+        $this->assertTrue($this->valkey_glide->flushAll());
+        $this->assertEquals(0, $this->valkey_glide->dbSize());
+
+        $this->valkey_glide->set('x', 'y');
+        $this->assertTrue($this->valkey_glide->flushAll(NULL));
+        $this->assertEquals(0, $this->valkey_glide->dbSize());
+
+        $this->valkey_glide->set('x', 'y');
+        $this->assertTrue($this->valkey_glide->flushAll(false));
+        $this->assertEquals(0, $this->valkey_glide->dbSize());
+
+        $this->valkey_glide->set('x', 'y');
+        $this->assertTrue($this->valkey_glide->flushAll(true));
+        $this->assertEquals(0, $this->valkey_glide->dbSize());
+    }
+
     public function testTTL() {
         $this->valkey_glide->set('x', 'y');
         $this->valkey_glide->expire('x', 5);

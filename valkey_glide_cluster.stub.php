@@ -216,10 +216,11 @@ class ValkeyGlideCluster {
     public function lmpop(array $keys, string $from, int $count = 1): ValkeyGlideCluster|array|null|false;
 
     /**
+     * TODO this command is not supported, should add test
      * @see ValkeyGlide::client
-     */
-    public function client(mixed $route, string $subcommand, ?string $arg = null): array|string|bool;
-
+     *
+    * public function client(mixed $route, string $subcommand, ?string $arg = null): array|string|bool;
+    */
     /**
      * @see ValkeyGlide::close
      */

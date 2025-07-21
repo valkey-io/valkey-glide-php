@@ -267,6 +267,17 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
         }
     }
 
+    public function testFlushAll() {
+
+        for ($i = 0; $i < 10; $i++) {
+            $key = "key:$i";
+            $this->assertTrue($this->valkey_glide->flushAll($key));
+            $this->assertEquals(0, $this->valkey_glide->dbsize($key));
+            $this->valkey_glide->set($key, "val:$i");
+            $this->assertEquals(1, $this->valkey_glide->dbsize($key));
+        }
+    }
+
     public function testInfo() {
         $fields = [
             "redis_version", "arch_bits", "uptime_in_seconds", "uptime_in_days",
