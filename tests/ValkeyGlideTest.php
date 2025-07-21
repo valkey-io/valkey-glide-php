@@ -947,7 +947,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
         $this->assertGT(0, $this->valkey_glide->object('idletime', '{idle}2'));
 
         $this->assertEquals(2, $this->valkey_glide->touch('{idle}1', '{idle}2', '{idle}notakey'));
-        return;
+        
         $idle1 = $this->valkey_glide->object('idletime', '{idle}1');
         $idle2 = $this->valkey_glide->object('idletime', '{idle}2');
 
@@ -1431,6 +1431,34 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest {
 
         $this->assertEquals(['b'], $this->valkey_glide->lRange($list1, 0, -1));
         $this->assertEquals(['a', 'c'], $this->valkey_glide->lRange($list2, 0, -1));
+
+    }
+
+    public function testMove() {
+        // Version check if needed (move has been available since early Redis versions)
+        
+        $key1 = 'move_test_key1';
+        $key2 = 'move_test_key2';
+        $value1 = 'test_value1';
+        $value2 = 'test_value2';
+        
+        // Ensure we're in database 0
+        $this->valkey_glide->select(0);
+        
+        // Clean up any existing keys
+        $this->valkey_glide->del($key1, $key2);
+        $this->valkey_glide->select(1);
+        $this->valkey_glide->del($key1, $key2);
+        $this->valkey_glide->select(0);
+        
+        // Test successful move
+        $this->valkey_glide->set($key1, $value1);
+        $this->assertTrue($this->valkey_glide->move($key1, 1));
+        
+        // Verify key moved
+        $this->assertEquals(0, $this->valkey_glide->exists($key1)); // Gone from db 0
+        $this->valkey_glide->select(1);
+        $this->assertKeyEquals($value1, $key1); // Present in db 1
 
     }
 

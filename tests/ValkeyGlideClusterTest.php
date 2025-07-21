@@ -108,6 +108,9 @@ class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test {
     public function testConnectException() { $this->markTestSkipped(); }
     public function testTlsConnect() { $this->markTestSkipped(); }
     public function testConnectDatabaseSelect() { $this->markTestSkipped(); }
+    public function testMove() { 
+        $this->markTestSkipped(); // Move is not supported in ValkeyGlideCluster
+    }
 
     /* These 'directed node' commands work differently in ValkeyGlideCluster */
     public function testConfig() { $this->markTestSkipped(); }
