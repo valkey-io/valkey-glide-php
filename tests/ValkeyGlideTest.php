@@ -75,7 +75,7 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die('Use TestValkeyGlide.php to run tests
 require_once __DIR__ . '/ValkeyGlideBaseTest.php';
 
 
-class ValkeyGlide_Test extends ValkeyGlideBaseTest
+class ValkeyGlideTest extends ValkeyGlideBaseTest
 {
     public function testMinimumVersion()
     {
@@ -313,7 +313,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest
         $this->assertBetween($et - $st, .05, .75);
     }
 
-    function testZmpop()
+    public function testZmpop()
     {
         if (version_compare($this->version, '7.0.0') < 0) {
             $this->markTestSkipped();
@@ -344,7 +344,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest
         $this->valkey_glide->setOption(ValkeyGlide::OPT_NULL_MULTIBULK_AS_NULL, false);
     }
 
-    function testBZmpop()
+    public function testBZmpop()
     {
         if (version_compare($this->version, '7.0.0') < 0) {
             $this->markTestSkipped();
@@ -744,7 +744,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest
         $this->assertTrue($success);
     }
 
-    function testExpireOptions()
+    public function testExpireOptions()
     {
         if (! $this->minVersionCheck('7.0.0')) {
             $this->markTestSkipped();
@@ -5128,14 +5128,14 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest
 
 
     // Helper function to compare nested results -- from the php.net array_diff page, I believe
-    private function array_diff_recursive($aArray1, $aArray2)
+    private function ArrayDiffRecursive($aArray1, $aArray2)
     {
         $aReturn = [];
 
         foreach ($aArray1 as $mKey => $mValue) {
             if (array_key_exists($mKey, $aArray2)) {
                 if (is_array($mValue)) {
-                    $aRecursiveDiff = $this->array_diff_recursive($mValue, $aArray2[$mKey]);
+                    $aRecursiveDiff = $this->ArrayDiffRecursive($mValue, $aArray2[$mKey]);
                     if (count($aRecursiveDiff)) {
                         $aReturn[$mKey] = $aRecursiveDiff;
                     }
@@ -5272,7 +5272,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest
         $eval_result = $this->valkey_glide->eval($nested_script, ['{eval-key}-str1', '{eval-key}-str2', '{eval-key}-zset', '{eval-key}-list'], 4);
         $this->assertTrue(
             is_array($eval_result) &&
-            count($this->array_diff_recursive($eval_result, $expected)) == 0
+            count($this->ArrayDiffRecursive($eval_result, $expected)) == 0
         );
 
         /*
@@ -5296,7 +5296,7 @@ class ValkeyGlide_Test extends ValkeyGlideBaseTest
             foreach ($replies as $reply) {
                 $this->assertTrue(
                     is_array($reply) &&
-                    count($this->array_diff_recursive($reply, $expected)) == 0
+                    count($this->ArrayDiffRecursive($reply, $expected)) == 0
                 );
             }
         }

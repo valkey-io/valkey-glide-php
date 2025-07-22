@@ -8,7 +8,7 @@ require_once __DIR__ . "/ValkeyGlideClusterBaseTest.php";
  * ValkeyGlide Cluster Features Test
  * Tests various constructor options and features for ValkeyGlideCluster client
  */
-class ValkeyGlide_Cluster_Features_Test extends ValkeyGlideClusterBaseTest
+class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 {
     public function testBasicClusterConstructor()
     {

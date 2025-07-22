@@ -79,7 +79,7 @@ require_once __DIR__ . "/ValkeyGlideTest.php";
  * so we only override specific functions where the prototype is different or
  * where we're validating specific cluster mechanisms
  */
-class ValkeyGlide_Cluster_Test extends ValkeyGlide_Test
+class ValkeyGlideClusterTest extends ValkeyGlideTest
 {
     private $valkey_glide_types = [
         ValkeyGlide::VALKEY_GLIDE_STRING,

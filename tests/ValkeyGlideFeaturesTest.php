@@ -8,7 +8,7 @@ require_once __DIR__ . "/ValkeyGlideBaseTest.php";
  * ValkeyGlide Features Test
  * Tests various constructor options and features for standalone ValkeyGlide client
  */
-class ValkeyGlide_Features_Test extends ValkeyGlideBaseTest
+class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 {
     public function testBasicConstructor()
     {

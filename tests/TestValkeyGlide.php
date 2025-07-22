@@ -103,10 +103,10 @@ function getClassArray($classes)
 function getTestClass($class)
 {
     $valid_classes = [
-        'valkeyglide'         => 'ValkeyGlide_Test',
-        'valkeyglidecluster'  => 'ValkeyGlide_Cluster_Test',
-        'valkeyglideclientfeatures' => 'ValkeyGlide_Features_Test',
-        'valkeyglideclusterfeatures' => 'ValkeyGlide_Cluster_Features_Test'
+        'valkeyglide'         => 'ValkeyGlideTest',
+        'valkeyglidecluster'  => 'ValkeyGlideClusterTest',
+        'valkeyglideclientfeatures' => 'ValkeyGlideFeaturesTest',
+        'valkeyglideclusterfeatures' => 'ValkeyGlideClusterFeaturesTest'
     ];
 
     /* Return early if the class is one of our built-in ones */
