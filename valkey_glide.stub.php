@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @generate-function-entries
  * @generate-legacy-arginfo
@@ -6,33 +7,33 @@
  */
 
 /*
-* -------------------------------------------------------------------- 
+* --------------------------------------------------------------------
 *                   The PHP License, version 3.01
 * Copyright (c) 1999 - 2010 The PHP Group. All rights reserved.
-* -------------------------------------------------------------------- 
-* 
+* --------------------------------------------------------------------
+*
 * Redistribution and use in source and binary forms, with or without
 * modification, is permitted provided that the following conditions
 * are met:
-* 
+*
 *   1. Redistributions of source code must retain the above copyright
 *      notice, this list of conditions and the following disclaimer.
-*  
+*
 *  2. Redistributions in binary form must reproduce the above copyright
 *      notice, this list of conditions and the following disclaimer in
 *      the documentation and/or other materials provided with the
 *      distribution.
-*  
+*
 *   3. The name "PHP" must not be used to endorse or promote products
 *      derived from this software without prior written permission. For
 *      written permission, please contact group@php.net.
-*   
+*
 *   4. Products derived from this software may not be called "PHP", nor
 *      may "PHP" appear in their name, without prior written permission
 *      from group@php.net.  You may indicate that your software works in
 *      conjunction with PHP by saying "Foo for PHP" instead of calling
 *      it "PHP Foo" or "phpfoo"
-*  
+*
 *   5. The PHP Group may publish revised and/or new versions of the
 *      license from time to time. Each version will be given a
 *      distinguishing version number.
@@ -43,35 +44,35 @@
 *      published by the PHP Group. No one other than the PHP Group has
 *      the right to modify the terms applicable to covered code created
 *      under this License.
-* 
+*
 *   6. Redistributions of any form whatsoever must retain the following
 *      acknowledgment:
 *      "This product includes PHP software, freely available from
 *      <http://www.php.net/software/>".
-* 
-* THIS SOFTWARE IS PROVIDED BY THE PHP DEVELOPMENT TEAM ``AS IS'' AND 
+*
+* THIS SOFTWARE IS PROVIDED BY THE PHP DEVELOPMENT TEAM ``AS IS'' AND
 * ANY EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-* THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A 
+* THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
 * PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE PHP
-* DEVELOPMENT TEAM OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
-* INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
+* DEVELOPMENT TEAM OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+* INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 * OF THE POSSIBILITY OF SUCH DAMAGE.
-* 
-* -------------------------------------------------------------------- 
-* 
+*
+* --------------------------------------------------------------------
+*
 * This software consists of voluntary contributions made by many
 * individuals on behalf of the PHP Group.
-* 
+*
 * The PHP Group can be contacted via Email at group@php.net.
-* 
-* For more information on the PHP Group and the PHP project, 
+*
+* For more information on the PHP Group and the PHP project,
 * please see <http://www.php.net>.
-* 
+*
 * PHP includes the Zend Engine, freely available at
 * <http://www.zend.com>.
 */
@@ -79,7 +80,8 @@
 
 
 
-class ValkeyGlide {
+class ValkeyGlide
+{
     /**
      *
      * @var int
@@ -140,29 +142,29 @@ class ValkeyGlide {
            *  @var int
            * Always get from primary, in order to get the freshest data.
            */
-          public const  READ_FROM_PRIMARY = 0;
-          
+    public const  READ_FROM_PRIMARY = 0;
+
           /**
            *  @var int
            * Spread the requests between all replicas in a round robin manner.
            * If no replica is available, route the requests to the primary.
            */
-          public const  READ_FROM_PREFER_REPLICA = 1;
-          
+    public const  READ_FROM_PREFER_REPLICA = 1;
+
           /**
            *  @var int
-           * Spread the read requests between replicas in the same client's AZ (Availability zone) 
+           * Spread the read requests between replicas in the same client's AZ (Availability zone)
            * in a round robin manner, falling back to other replicas or the primary if needed.
            */
-          public const  READ_FROM_AZ_AFFINITY = 2;
-          
+    public const  READ_FROM_AZ_AFFINITY = 2;
+
           /**
            *  @var int
-           * Spread the read requests among nodes within the client's Availability Zone (AZ) 
-           * in a round robin manner, prioritizing local replicas, then the local primary, 
+           * Spread the read requests among nodes within the client's Availability Zone (AZ)
+           * in a round robin manner, prioritizing local replicas, then the local primary,
            * and falling back to any replica or the primary if needed.
            */
-          public const  READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY = 3;
+    public const  READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY = 3;
 
 
     /**
@@ -215,7 +217,7 @@ class ValkeyGlide {
      *
      */
     public const PIPELINE = UNKNOWN;
-   
+
     /**
      * Create a new ValkeyGlide instance with the provided configuration.
      *
@@ -249,7 +251,7 @@ class ValkeyGlide {
 
     public function __destruct();
 
-     
+
 
     /**
      * Append data to a ValkeyGlide STRING key.
@@ -436,13 +438,13 @@ class ValkeyGlide {
      */
     public function lmpop(array $keys, string $from, int $count = 1): ValkeyGlide|array|null|false;
 
-  
-    /* TODO this command is not supported, should add test" 
+
+    /* TODO this command is not supported, should add test"
     public function client(string $opt, mixed ...$args): mixed;
     */
     public function close(): bool;
 
-  
+
     /**
      *  Execute the ValkeyGlide CONFIG command in a variety of ways.
      *
@@ -748,7 +750,7 @@ class ValkeyGlide {
      */
     public function expireAt(string $key, int $timestamp, ?string $mode = null): ValkeyGlide|bool;
 
-   
+
     /**
      * Get the expiration of a given key as a unix timestamp
      *
@@ -1011,7 +1013,7 @@ class ValkeyGlide {
      */
     public function getEx(string $key, array $options = []): ValkeyGlide|string|bool;
 
-    
+
     /**
      * Get a key from ValkeyGlide and delete it in an atomic operation.
      *
@@ -1074,7 +1076,7 @@ class ValkeyGlide {
      */
     public function lcs(string $key1, string $key2, ?array $options = null): ValkeyGlide|string|array|int|false;
 
-   
+
     /**
      * Sets a key and returns any previously set value, if the key already existed.
      *
@@ -1091,7 +1093,7 @@ class ValkeyGlide {
      */
     public function getset(string $key, mixed $value): ValkeyGlide|string|false;
 
-   
+
     /**
      * Remove one or more fields from a hash.
      *
@@ -1594,7 +1596,7 @@ class ValkeyGlide {
      * @example $valkey_glide->lrange('mylist', 0, -1);  // the whole list
      * @example $valkey_glide->lrange('mylist', -2, -1); // the last two elements in the list.
      */
-    public function lrange(string $key, int $start , int $end): ValkeyGlide|array|false;
+    public function lrange(string $key, int $start, int $end): ValkeyGlide|array|false;
 
     /**
      * Remove one or more matching elements from a list.
@@ -1620,7 +1622,7 @@ class ValkeyGlide {
      *
      * @example $valkey_glide->ltrim('mylist', 0, 3);  // Keep the first four elements
      */
-    public function ltrim(string $key, int $start , int $end): ValkeyGlide|bool;
+    public function ltrim(string $key, int $start, int $end): ValkeyGlide|bool;
 
     /**
      * Get one or more string keys.
@@ -1632,7 +1634,7 @@ class ValkeyGlide {
      */
     public function mget(array $keys): ValkeyGlide|array|false;
 
-   
+
 
     /**
      * Move a key to a different database on the same valkey instance.
@@ -1797,7 +1799,7 @@ class ValkeyGlide {
      */
    /* TODO  public function pipeline(): bool|ValkeyGlide; */
 
-    
+
     /**
      * Set a key with an expiration time in milliseconds
      *
@@ -2263,11 +2265,11 @@ class ValkeyGlide {
      *                         should instead continue to SCAN until the iterator reference is
      *                         returned to zero.
      *
-     * @see https://valkey.io/commands/scan     
+     * @see https://valkey.io/commands/scan
      *
      * @example
      * $valkey_glide = new ValkeyGlide(['host' => 'localhost']);
-     *     
+     *
      *
      * $it = null;
      *
@@ -2397,7 +2399,7 @@ class ValkeyGlide {
      */
     public function setRange(string $key, int $index, string $value): ValkeyGlide|int|false;
 
-    
+
 
     /**
      * Set a ValkeyGlide STRING key with a specific expiration in seconds.
@@ -2453,7 +2455,7 @@ class ValkeyGlide {
      */
     public function touch(array|string $key_or_array, string ...$more_keys): ValkeyGlide|int|false;
 
-    
+
 
     /**
      * Sort the contents of a ValkeyGlide key in various ways.
@@ -3029,8 +3031,14 @@ class ValkeyGlide {
      *
      * @return mixed                 This command return various results depending on the operation performed.
      */
-    public function xgroup(string $operation, ?string $key = null, ?string $group = null, ?string $id_or_consumer = null,
-                           bool $mkstream = false, int $entries_read = -2): mixed;
+    public function xgroup(
+        string $operation,
+        ?string $key = null,
+        ?string $group = null,
+        ?string $id_or_consumer = null,
+        bool $mkstream = false,
+        int $entries_read = -2
+    ): mixed;
 
     /**
      * Retrieve information about a stream key.
@@ -3455,8 +3463,13 @@ class ValkeyGlide {
      *
      * See {@link ValkeyGlide::zRange} for a full description of the possible options.
      */
-    public function zrangestore(string $dstkey, string $srckey, string $start, string $end,
-                                array|bool|null $options = null): ValkeyGlide|int|false;
+    public function zrangestore(
+        string $dstkey,
+        string $srckey,
+        string $start,
+        string $end,
+        array|bool|null $options = null
+    ): ValkeyGlide|int|false;
 
     /**
      * Retrieve one or more random members from a ValkeyGlide sorted set.
@@ -3816,4 +3829,6 @@ class ValkeyGlide {
     public function zunionstore(string $dst, array $keys, ?array $weights = null, ?string $aggregate = null): ValkeyGlide|int|false;
 }
 
-class ValkeyGlideException extends RuntimeException {}
+class ValkeyGlideException extends RuntimeException
+{
+}

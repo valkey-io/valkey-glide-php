@@ -1,7 +1,8 @@
 <?php
+
 /**
  * Configuration Options Example
- * 
+ *
  * This example demonstrates various configuration options available
  * for both standalone and cluster Valkey GLIDE clients.
  */
@@ -54,7 +55,7 @@ $standaloneAddresses = [
 // All configuration options for standalone client
 $use_tls = false;
 $credentials = null; // ['username' => 'user', 'password' => 'pass']
-$read_from = 0; // 0=PRIMARY, 1=PREFER_REPLICA, 2=AZ_AFFINITY  
+$read_from = 0; // 0=PRIMARY, 1=PREFER_REPLICA, 2=AZ_AFFINITY
 $request_timeout = 2000; // 2 seconds in milliseconds
 $reconnect_strategy = [
     'num_of_retries' => 3,
@@ -87,13 +88,13 @@ try {
         $advanced_config,
         $lazy_connect
     );
-    
+
     echo "✅ Advanced standalone client created successfully\n";
-    
+
     // Show client info
     $info = $advancedClient->client_info();
     echo "Client info: " . json_encode($info) . "\n";
-    
+
     $advancedClient->ping();
     $advancedClient->close();
 } catch (Exception $e) {
@@ -136,7 +137,7 @@ try {
         ],
         false                     // lazy_connect
     );
-    
+
     echo "✅ Cluster client created successfully\n";
     $clusterClient->ping();
     $clusterClient->close();
@@ -166,7 +167,7 @@ try {
         0,                        // read_from
         5000                      // request_timeout
     );
-    
+
     echo "✅ Authenticated client created\n";
     $authClient->ping();
     $authClient->close();
@@ -183,7 +184,7 @@ try {
         0,                        // read_from
         5000                      // request_timeout
     );
-    
+
     echo "✅ Password-only client created\n";
     $passwordClient->close();
 } catch (Exception $e) {
@@ -208,7 +209,7 @@ try {
         0,                        // read_from
         5000                      // request_timeout
     );
-    
+
     echo "✅ TLS client created\n";
     $tlsClient->ping();
     $tlsClient->close();
@@ -232,7 +233,7 @@ $readPreferences = [
 
 foreach ($readPreferences as $readFrom => $description) {
     echo "Read preference {$readFrom}: {$description}\n";
-    
+
     try {
         $readClient = new ValkeyGlide(
             $standaloneAddresses,
@@ -241,7 +242,7 @@ foreach ($readPreferences as $readFrom => $description) {
             $readFrom,            // read_from preference
             2000                  // request_timeout
         );
-        
+
         echo "  ✅ Client created with read preference {$readFrom}\n";
         $readClient->close();
     } catch (Exception $e) {
@@ -258,14 +259,14 @@ echo "----------------------------------\n";
 
 $timeoutExamples = [
     1000 => '1 second',
-    5000 => '5 seconds', 
+    5000 => '5 seconds',
     10000 => '10 seconds',
     30000 => '30 seconds'
 ];
 
 foreach ($timeoutExamples as $timeout => $description) {
     echo "Creating client with {$description} timeout...\n";
-    
+
     try {
         $timeoutClient = new ValkeyGlide(
             $standaloneAddresses,
@@ -274,15 +275,15 @@ foreach ($timeoutExamples as $timeout => $description) {
             0,                    // read_from
             $timeout              // request_timeout
         );
-        
+
         echo "  ✅ Client created with {$timeout}ms timeout\n";
-        
+
         // Test with a quick operation
         $start = microtime(true);
         $timeoutClient->ping();
         $duration = (microtime(true) - $start) * 1000;
         echo "  PING took {$duration:.2f}ms\n";
-        
+
         $timeoutClient->close();
     } catch (Exception $e) {
         echo "  ❌ Timeout {$timeout} failed: " . $e->getMessage() . "\n";
@@ -319,7 +320,7 @@ foreach ($reconnectStrategies as $name => $strategy) {
     echo "  Retries: {$strategy['num_of_retries']}\n";
     echo "  Factor: {$strategy['factor']}\n";
     echo "  Exponent base: {$strategy['exponent_base']}\n";
-    
+
     try {
         $reconnectClient = new ValkeyGlide(
             $standaloneAddresses,
@@ -329,7 +330,7 @@ foreach ($reconnectStrategies as $name => $strategy) {
             5000,                 // request_timeout
             $strategy             // reconnect_strategy
         );
-        
+
         echo "  ✅ Client created with '{$name}' reconnection strategy\n";
         $reconnectClient->close();
     } catch (Exception $e) {
@@ -378,7 +379,7 @@ try {
         null,                     // reconnect_strategy (default)
         $envDatabase              // database_id
     );
-    
+
     echo "✅ Environment-based client created successfully\n";
     $envClient->ping();
     $envClient->close();
