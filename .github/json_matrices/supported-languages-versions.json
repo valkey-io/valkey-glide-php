@@ -1,11 +1,7 @@
 [
-    {
-        "language": "php",
-        "versions": [
-            "8.2"
-        ],
-        "always-run-versions": [
-            "8.2"
-        ]
-    }
+  {
+    "language": "php",
+    "versions": ["8.2"],
+    "always-run-versions": ["8.2"]
+  }
 ]

@@ -1,963 +1,962 @@
 name: PHP CI
 
 on:
-    push:
-        branches:
-            - main
-            - release-*
-            - v*
-        paths:
-            - valkey-glide/glide-core/src/**
-            - valkey-glide/glide-core/redis-rs/redis/src/**
-            - valkey-glide/ffi/src/**
-            - valkey-glide/utils/cluster_manager.py
-            - .github/workflows/php.yml
-            - .github/workflows/install-shared-dependencies/action.yml
-            - .github/workflows/build-php-wrapper/action.yml
-            - .github/workflows/test-benchmark/action.yml
-            - .github/workflows/lint-rust/action.yml
-            - .github/workflows/install-engine/action.yml
-            - .github/workflows/create-test-matrices/action.yml
-            - .github/json_matrices/**
-    pull_request:
-        paths:
-            - valkey-glide/glide-core/src/**
-            - valkey-glide/glide-core/redis-rs/redis/src/**
-            - valkey-glide/ffi/src/**
-            - valkey-glide/utils/cluster_manager.py
-            - .github/workflows/php.yml
-            - .github/workflows/install-shared-dependencies/action.yml
-            - .github/workflows/build-php-wrapper/action.yml
-            - .github/workflows/test-benchmark/action.yml
-            - .github/workflows/lint-rust/action.yml
-            - .github/workflows/install-engine/action.yml
-            - .github/workflows/create-test-matrices/action.yml
-            - .github/json_matrices/**
-    workflow_dispatch:
-        inputs:
-            full-matrix:
-                description: "Run the full engine, host, and language version matrix"
-                type: boolean
-                default: false
-            name:
-                required: false
-                type: string
-                description: "(Optional) Test run name"
-            run-modules-tests:
-                description: "Run modules tests"
-                type: boolean
-                default: false
+  push:
+    branches:
+      - main
+      - release-*
+      - v*
+    paths:
+      - valkey-glide/glide-core/src/**
+      - valkey-glide/glide-core/redis-rs/redis/src/**
+      - valkey-glide/ffi/src/**
+      - valkey-glide/utils/cluster_manager.py
+      - .github/workflows/php.yml
+      - .github/workflows/install-shared-dependencies/action.yml
+      - .github/workflows/build-php-wrapper/action.yml
+      - .github/workflows/test-benchmark/action.yml
+      - .github/workflows/lint-rust/action.yml
+      - .github/workflows/install-engine/action.yml
+      - .github/workflows/create-test-matrices/action.yml
+      - .github/json_matrices/**
+  pull_request:
+    paths:
+      - valkey-glide/glide-core/src/**
+      - valkey-glide/glide-core/redis-rs/redis/src/**
+      - valkey-glide/ffi/src/**
+      - valkey-glide/utils/cluster_manager.py
+      - .github/workflows/php.yml
+      - .github/workflows/install-shared-dependencies/action.yml
+      - .github/workflows/build-php-wrapper/action.yml
+      - .github/workflows/test-benchmark/action.yml
+      - .github/workflows/lint-rust/action.yml
+      - .github/workflows/install-engine/action.yml
+      - .github/workflows/create-test-matrices/action.yml
+      - .github/json_matrices/**
+  workflow_dispatch:
+    inputs:
+      full-matrix:
+        description: "Run the full engine, host, and language version matrix"
+        type: boolean
+        default: false
+      name:
+        required: false
+        type: string
+        description: "(Optional) Test run name"
+      run-modules-tests:
+        description: "Run modules tests"
+        type: boolean
+        default: false
 
-    workflow_call:
+  workflow_call:
 
 concurrency:
-    group: php-${{ github.head_ref || github.ref }}-${{ toJson(inputs) }}
-    cancel-in-progress: true
+  group: php-${{ github.head_ref || github.ref }}-${{ toJson(inputs) }}
+  cancel-in-progress: true
 
 run-name:
-    # Set custom name if job is started manually and name is given
-    ${{ github.event_name == 'workflow_dispatch' && (inputs.name == '' && format('{0} @ {1} {2}', github.ref_name, github.sha, toJson(inputs)) || inputs.name) || '' }}
+  # Set custom name if job is started manually and name is given
+  ${{ github.event_name == 'workflow_dispatch' && (inputs.name == '' && format('{0} @ {1} {2}', github.ref_name, github.sha, toJson(inputs)) || inputs.name) || '' }}
 
 env:
-    CARGO_TERM_COLOR: always
-    BASE_PHP_VERSION: "8.2"
+  CARGO_TERM_COLOR: always
+  BASE_PHP_VERSION: "8.2"
 
 jobs:
-    get-matrices:
-        runs-on: ubuntu-latest
-        outputs:
-            engine-matrix-output: ${{ steps.get-matrices.outputs.engine-matrix-output }}
-            host-matrix-output: ${{ steps.get-matrices.outputs.host-matrix-output }}
-            version-matrix-output: ${{ steps.get-matrices.outputs.version-matrix-output }}
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  submodules: recursive
-            - id: get-matrices
-              uses: ./.github/workflows/create-test-matrices
-              with:
-                  language-name: php
-                  # Run full test matrix if job started by cron or it was explictly specified by a person who triggered the workflow
-                  run-full-matrix: ${{ github.event.inputs.full-matrix == 'true' || github.event_name == 'schedule' }}
+  get-matrices:
+    runs-on: ubuntu-latest
+    outputs:
+      engine-matrix-output: ${{ steps.get-matrices.outputs.engine-matrix-output }}
+      host-matrix-output: ${{ steps.get-matrices.outputs.host-matrix-output }}
+      version-matrix-output: ${{ steps.get-matrices.outputs.version-matrix-output }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - id: get-matrices
+        uses: ./.github/workflows/create-test-matrices
+        with:
+          language-name: php
+          # Run full test matrix if job started by cron or it was explictly specified by a person who triggered the workflow
+          run-full-matrix: ${{ github.event.inputs.full-matrix == 'true' || github.event_name == 'schedule' }}
 
-    test-php:
-        name: PHP Tests - ${{ matrix.php }}, EngineVersion - ${{ matrix.engine.version }}, Target - ${{ matrix.host.TARGET }}
-        needs: get-matrices
-        timeout-minutes: 35
-        strategy:
-            fail-fast: false
-            matrix:
-                php: ${{ fromJson(needs.get-matrices.outputs.version-matrix-output) }}
-                engine: ${{ fromJson(needs.get-matrices.outputs.engine-matrix-output) }}
-                host: ${{ fromJson(needs.get-matrices.outputs.host-matrix-output) }}
-        runs-on: ${{ matrix.host.RUNNER }}
+  test-php:
+    name: PHP Tests - ${{ matrix.php }}, EngineVersion - ${{ matrix.engine.version }}, Target - ${{ matrix.host.TARGET }}
+    needs: get-matrices
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ${{ fromJson(needs.get-matrices.outputs.version-matrix-output) }}
+        engine: ${{ fromJson(needs.get-matrices.outputs.engine-matrix-output) }}
+        host: ${{ fromJson(needs.get-matrices.outputs.host-matrix-output) }}
+    runs-on: ${{ matrix.host.RUNNER }}
 
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  submodules: recursive
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-            - name: Output Matrix Parameters for this job
-              run: |
-                  echo "Job running with the following matrix configuration:"
-                  echo "${{ toJson(matrix) }}"
+      - name: Output Matrix Parameters for this job
+        run: |
+          echo "Job running with the following matrix configuration:"
+          echo "${{ toJson(matrix) }}"
 
-            - uses: actions/cache@v4
-              with:
-                  path: |
-                      valkey-glide/ffi/target
-                      valkey-glide/glide-core/src/generated
-                      include/
-                      src/*.pb-c.c
-                      src/*.pb-c.h
-                  key: ${{ matrix.host.TARGET }}-php-${{ matrix.php }}
-                  restore-keys: |
-                      ${{ matrix.host.TARGET }}-php
-                      ${{ matrix.host.TARGET }}-glide-core
-                      ${{ matrix.host.TARGET }}
+      - uses: actions/cache@v4
+        with:
+          path: |
+            valkey-glide/ffi/target
+            valkey-glide/glide-core/src/generated
+            include/
+            src/*.pb-c.c
+            src/*.pb-c.h
+          key: ${{ matrix.host.TARGET }}-php-${{ matrix.php }}
+          restore-keys: |
+            ${{ matrix.host.TARGET }}-php
+            ${{ matrix.host.TARGET }}-glide-core
+            ${{ matrix.host.TARGET }}
 
-            - name: Build PHP wrapper
-              uses: ./.github/workflows/build-php-wrapper
-              with:
-                  os: ${{ matrix.host.OS }}
-                  target: ${{ matrix.host.TARGET }}
-                  php-version: ${{ matrix.php }}
-                  github-token: ${{ secrets.GITHUB_TOKEN }}
-                  engine-version: ${{ matrix.engine.version }}
+      - name: Build PHP wrapper
+        uses: ./.github/workflows/build-php-wrapper
+        with:
+          os: ${{ matrix.host.OS }}
+          target: ${{ matrix.host.TARGET }}
+          php-version: ${{ matrix.php }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: ${{ matrix.engine.version }}
 
-            - name: Start Valkey servers
-              working-directory: tests
-              run: |
-                  set -e  # Exit on any error
-                  
-                  # Ensure /usr/local/bin is in PATH (where valkey-server is installed)
-                  export PATH="/usr/local/bin:$PATH"
-                  
-                  echo "=== DEBUG: Current directory and files ==="
-                  pwd
-                  ls -la
-                  
-                  echo "=== DEBUG: Current PATH ==="
-                  echo "PATH=$PATH"
-                  
-                  echo "=== DEBUG: Checking for installed binaries in /usr/local/bin ==="
-                  ls -la /usr/local/bin/ | grep -E "(valkey|redis)" || echo "No valkey/redis binaries in /usr/local/bin"
-                  
-                  echo "=== DEBUG: Checking script permissions ==="
-                  ls -la start_valkey_with_replicas.sh create-valkey-cluster.sh
-                  
-                  # Make scripts executable
-                  chmod +x start_valkey_with_replicas.sh create-valkey-cluster.sh
-                  
-                  echo "=== DEBUG: After chmod ==="
-                  ls -la start_valkey_with_replicas.sh create-valkey-cluster.sh
-                  
-                  # Check if valkey-server is available
-                  echo "=== DEBUG: Checking for valkey-server ==="
-                  which valkey-server || echo "valkey-server not found in PATH"
-                  
-                  # Check alternative locations and names
-                  echo "=== DEBUG: Checking alternative binary names ==="
-                  which redis-server || echo "redis-server not found in PATH"
-                  which valkey-cli || echo "valkey-cli not found in PATH"
-                  which redis-cli || echo "redis-cli not found in PATH"
-                  
-                  # Start standalone servers (6379, 6380, 6381)
-                  echo "=== Starting standalone Valkey servers ==="
-                  ./start_valkey_with_replicas.sh
-                  
-                  # Wait a moment for servers to start
-                  echo "=== Waiting for standalone servers to start ==="
-                  sleep 3
-                  
-                  # Check if servers are running
-                  echo "=== Checking standalone server status ==="
-                  ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
-                  
-                  # Start cluster servers (7001-7006)
-                  echo "=== Starting Valkey cluster ==="
-                  ./create-valkey-cluster.sh
-                  
-                  # Final server status check
-                  echo "=== Final server status check ==="
-                  ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
-                  echo "=== Valkey servers startup completed ==="
+      - name: Start Valkey servers
+        working-directory: tests
+        run: |
+          set -e  # Exit on any error
 
-            - name: Run PHP extension tests
-              run: |
-                  # Run tests using direct extension loading with absolute path
-                  php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php
+          # Ensure /usr/local/bin is in PATH (where valkey-server is installed)
+          export PATH="/usr/local/bin:$PATH"
 
-            - name: Run integration tests
-              run: |
-                  # All tests are now run through the main TestValkeyGlide.php runner
-                  echo "All 4 test classes are already included in the main test runner"
-                  echo "TestValkeyGlide.php now runs all classes by default:"
-                  echo "- ValkeyGlide_Test (standalone)"
-                  echo "- ValkeyGlide_Cluster_Test (cluster)"
-                  echo "- ValkeyGlide_Features_Test (standalone features)"
-                  echo "- ValkeyGlide_Cluster_Features_Test (cluster features)"
+          echo "=== DEBUG: Current directory and files ==="
+          pwd
+          ls -la
 
-            - name: Stop Valkey servers
-              if: always()
-              run: |
-                  # Stop all Valkey server processes
-                  echo "Stopping Valkey servers..."
-                  pkill valkey-server || true
-                  # Clean up data directories
-                  rm -rf $HOME/valkey-cluster || true
-                  rm -rf tests/valkey_data || true
+          echo "=== DEBUG: Current PATH ==="
+          echo "PATH=$PATH"
 
-            - uses: ./.github/workflows/test-benchmark
-              if: ${{ matrix.engine.version == '8.0' && matrix.host.OS == 'ubuntu' && matrix.host.RUNNER == 'ubuntu-latest' && matrix.php == env.BASE_PHP_VERSION }}
-              with:
-                  language-flag: -php
+          echo "=== DEBUG: Checking for installed binaries in /usr/local/bin ==="
+          ls -la /usr/local/bin/ | grep -E "(valkey|redis)" || echo "No valkey/redis binaries in /usr/local/bin"
 
-            - name: Upload logs and reports
-              if: always()
-              continue-on-error: true
-              uses: actions/upload-artifact@v4
-              with:
-                  name: test-report-php-${{ matrix.php }}-${{ matrix.engine.type }}-${{ matrix.engine.version }}-${{ matrix.host.RUNNER }}
-                  path: |
-                      utils/clusters/**
-                      benchmarks/results/**
-                      tests/**/*.diff
-                      tests/**/*.exp
-                      tests/**/*.log
-                      tests/**/*.out
+          echo "=== DEBUG: Checking script permissions ==="
+          ls -la start_valkey_with_replicas.sh create-valkey-cluster.sh
 
-    test-php-asan:
-        name: PHP ASAN Tests - EngineVersion ${{ matrix.engine.version }} (macOS)
-        if: false  # Temporarily disabled
-        needs: get-matrices
-        runs-on: macos-latest
-        timeout-minutes: 45
-        strategy:
-            fail-fast: false
-            matrix:
-                engine: ${{ fromJson(needs.get-matrices.outputs.engine-matrix-output) }}
+          # Make scripts executable
+          chmod +x start_valkey_with_replicas.sh create-valkey-cluster.sh
 
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  submodules: recursive
+          echo "=== DEBUG: After chmod ==="
+          ls -la start_valkey_with_replicas.sh create-valkey-cluster.sh
 
-            - name: Output Matrix Parameters for this job
-              run: |
-                  echo "Job running with the following matrix configuration:"
-                  echo "${{ toJson(matrix) }}"
+          # Check if valkey-server is available
+          echo "=== DEBUG: Checking for valkey-server ==="
+          which valkey-server || echo "valkey-server not found in PATH"
 
-            - uses: actions/cache@v4
-              with:
-                  path: |
-                      valkey-glide/ffi/target
-                      valkey-glide/glide-core/src/generated
-                      include/
-                      src/*.pb-c.c
-                      src/*.pb-c.h
-                  key: macos-latest-php-asan-${{ env.BASE_PHP_VERSION }}
-                  restore-keys: |
-                      macos-latest-php-asan
-                      macos-latest-php
-                      macos-latest-glide-core
-                      macos-latest
+          # Check alternative locations and names
+          echo "=== DEBUG: Checking alternative binary names ==="
+          which redis-server || echo "redis-server not found in PATH"
+          which valkey-cli || echo "valkey-cli not found in PATH"
+          which redis-cli || echo "redis-cli not found in PATH"
 
-            - name: Install shared dependencies
-              uses: ./.github/workflows/install-shared-dependencies
-              with:
-                  target: x86_64-apple-darwin
-                  github-token: ${{ secrets.GITHUB_TOKEN }}
-                  engine-version: ${{ matrix.engine.version }}
+          # Start standalone servers (6379, 6380, 6381)
+          echo "=== Starting standalone Valkey servers ==="
+          ./start_valkey_with_replicas.sh
 
-            - name: Install Rust and protoc
-              uses: ./.github/workflows/install-rust-and-protoc
-              with:
-                  github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Wait a moment for servers to start
+          echo "=== Waiting for standalone servers to start ==="
+          sleep 3
 
-            - name: Install cbindgen
-              run: cargo install cbindgen
+          # Check if servers are running
+          echo "=== Checking standalone server status ==="
+          ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
 
-            - name: Build FFI library
-              working-directory: valkey-glide/ffi
-              run: cargo build --release
+          # Start cluster servers (7001-7006)
+          echo "=== Starting Valkey cluster ==="
+          ./create-valkey-cluster.sh
 
-            - name: Set up PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  php-version: ${{ env.BASE_PHP_VERSION }}
-                  extensions: none
-                  tools: none
+          # Final server status check
+          echo "=== Final server status check ==="
+          ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
+          echo "=== Valkey servers startup completed ==="
 
-            - name: Install system dependencies for PHP ASAN build
-              run: |
-                  # Install required tools via Homebrew
-                  brew install autoconf automake libtool pkg-config protobuf-c
-                  export DYLD_LIBRARY_PATH="/opt/homebrew/lib:$DYLD_LIBRARY_PATH"
-                  export PATH="/opt/homebrew/bin:$PATH"
-                  # Ensure Xcode Command Line Tools are installed (required for ASAN)
-                  xcode-select --install || echo "Xcode Command Line Tools already installed"
+      - name: Run PHP extension tests
+        run: |
+          # Run tests using direct extension loading with absolute path
+          php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php
 
-            - name: Install protobuf-c
-              run: brew install protobuf-c
+      - name: Run integration tests
+        run: |
+          # All tests are now run through the main TestValkeyGlide.php runner
+          echo "All 4 test classes are already included in the main test runner"
+          echo "TestValkeyGlide.php now runs all classes by default:"
+          echo "- ValkeyGlide_Test (standalone)"
+          echo "- ValkeyGlide_Cluster_Test (cluster)"
+          echo "- ValkeyGlide_Features_Test (standalone features)"
+          echo "- ValkeyGlide_Cluster_Features_Test (cluster features)"
 
-            - name: Export DYLD_LIBRARY_PATH
-              run: echo "DYLD_LIBRARY_PATH=$(brew --prefix protobuf-c)/lib" >> $GITHUB_ENV              
+      - name: Stop Valkey servers
+        if: always()
+        run: |
+          # Stop all Valkey server processes
+          echo "Stopping Valkey servers..."
+          pkill valkey-server || true
+          # Clean up data directories
+          rm -rf $HOME/valkey-cluster || true
+          rm -rf tests/valkey_data || true
 
-            - name: Start Valkey servers
-              working-directory: tests
-              run: |
-                  set -e  # Exit on any error
-                  
-                  # Ensure /usr/local/bin is in PATH (where valkey-server is installed)
-                  export PATH="/usr/local/bin:$PATH"
-                  
-                  echo "=== Starting Valkey servers for ASAN testing ==="
-                  
-                  # Make scripts executable
-                  chmod +x start_valkey_with_replicas.sh create-valkey-cluster.sh
-                  
-                  # Start standalone servers (6379, 6380, 6381)
-                  echo "=== Starting standalone Valkey servers ==="
-                  ./start_valkey_with_replicas.sh
-                  
-                  # Wait a moment for servers to start
-                  echo "=== Waiting for standalone servers to start ==="
-                  sleep 3
-                  
-                  # Start cluster servers (7001-7006)
-                  echo "=== Starting Valkey cluster ==="
-                  ./create-valkey-cluster.sh
-                  
-                  # Final server status check
-                  echo "=== Final server status check ==="
-                  ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
-                  echo "=== Valkey servers startup completed ==="
+      - uses: ./.github/workflows/test-benchmark
+        if: ${{ matrix.engine.version == '8.0' && matrix.host.OS == 'ubuntu' && matrix.host.RUNNER == 'ubuntu-latest' && matrix.php == env.BASE_PHP_VERSION }}
+        with:
+          language-flag: -php
 
-            - name: Setup and run ASAN tests
-              run: |
-                  echo "=== Setting up PHP extension build system and running ASAN tests ==="
-                  
-                  # Step 1: Clean any existing files (manual cleanup since Makefile may not exist)
-                  echo "=== Step 1: Cleaning previous builds ==="
-                  rm -rf ./modules/ ./libs/ ./.libs/ ./tmp-php.ini ./asan_logs/
-                  find . -name "*.lo" -o -name "*.o" -o -name "*.la" | xargs rm -f 2>/dev/null || true
-                  
-                  # Step 2: Initialize PHP extension build system
-                  echo "=== Step 2: Initializing PHP extension build system ==="
-                  phpize
-                  
-                  # Step 3: Configure with ASAN flags - this generates Makefile with ASAN targets
-                  echo "=== Step 3: Configuring with ASAN flags ==="
-                  ./configure --enable-valkey-glide --enable-valkey-glide-asan
-                  
-                  # Step 4: Now we can use make clean safely
-                  echo "=== Step 4: Clean using make (now that Makefile exists) ==="
-                  make clean || true
-                  
-                  # Step 5: Build and test with AddressSanitizer
-                  echo "=== Step 5: Building and testing with AddressSanitizer ==="
-                  
-                  # Create clean log directory
-                  mkdir -p ./asan_logs
-                  otool -L modules/valkey_glide.so
-                  nm -g modules/valkey_glide.so | grep protobuf_c_empty_string
-                  # Run ASAN tests with visible error output
-                  echo "=== Running make test-asan ==="
+      - name: Upload logs and reports
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-php-${{ matrix.php }}-${{ matrix.engine.type }}-${{ matrix.engine.version }}-${{ matrix.host.RUNNER }}
+          path: |
+            utils/clusters/**
+            benchmarks/results/**
+            tests/**/*.diff
+            tests/**/*.exp
+            tests/**/*.log
+            tests/**/*.out
 
-                  make test-asan
+  test-php-asan:
+    name: PHP ASAN Tests - EngineVersion ${{ matrix.engine.version }} (macOS)
+    if: false # Temporarily disabled
+    needs: get-matrices
+    runs-on: macos-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: ${{ fromJson(needs.get-matrices.outputs.engine-matrix-output) }}
 
-            - name: Display ASAN logs if found
-              if: always()
-              run: |
-                  if [ -d "./asan_logs" ] && [ "$(ls -A ./asan_logs 2>/dev/null)" ]; then
-                      echo "=== ASAN Reports Found ==="
-                      for log_file in ./asan_logs/*; do
-                          if [ -f "$log_file" ]; then
-                              echo "=== Contents of $log_file ==="
-                              cat "$log_file"
-                              echo "=== End of $log_file ==="
-                          fi
-                      done
-                  else
-                      echo "✓ No ASAN issues detected"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Output Matrix Parameters for this job
+        run: |
+          echo "Job running with the following matrix configuration:"
+          echo "${{ toJson(matrix) }}"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            valkey-glide/ffi/target
+            valkey-glide/glide-core/src/generated
+            include/
+            src/*.pb-c.c
+            src/*.pb-c.h
+          key: macos-latest-php-asan-${{ env.BASE_PHP_VERSION }}
+          restore-keys: |
+            macos-latest-php-asan
+            macos-latest-php
+            macos-latest-glide-core
+            macos-latest
+
+      - name: Install shared dependencies
+        uses: ./.github/workflows/install-shared-dependencies
+        with:
+          target: x86_64-apple-darwin
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: ${{ matrix.engine.version }}
+
+      - name: Install Rust and protoc
+        uses: ./.github/workflows/install-rust-and-protoc
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cbindgen
+        run: cargo install cbindgen
+
+      - name: Build FFI library
+        working-directory: valkey-glide/ffi
+        run: cargo build --release
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.BASE_PHP_VERSION }}
+          extensions: none
+          tools: none
+
+      - name: Install system dependencies for PHP ASAN build
+        run: |
+          # Install required tools via Homebrew
+          brew install autoconf automake libtool pkg-config protobuf-c
+          export DYLD_LIBRARY_PATH="/opt/homebrew/lib:$DYLD_LIBRARY_PATH"
+          export PATH="/opt/homebrew/bin:$PATH"
+          # Ensure Xcode Command Line Tools are installed (required for ASAN)
+          xcode-select --install || echo "Xcode Command Line Tools already installed"
+
+      - name: Install protobuf-c
+        run: brew install protobuf-c
+
+      - name: Export DYLD_LIBRARY_PATH
+        run: echo "DYLD_LIBRARY_PATH=$(brew --prefix protobuf-c)/lib" >> $GITHUB_ENV
+
+      - name: Start Valkey servers
+        working-directory: tests
+        run: |
+          set -e  # Exit on any error
+
+          # Ensure /usr/local/bin is in PATH (where valkey-server is installed)
+          export PATH="/usr/local/bin:$PATH"
+
+          echo "=== Starting Valkey servers for ASAN testing ==="
+
+          # Make scripts executable
+          chmod +x start_valkey_with_replicas.sh create-valkey-cluster.sh
+
+          # Start standalone servers (6379, 6380, 6381)
+          echo "=== Starting standalone Valkey servers ==="
+          ./start_valkey_with_replicas.sh
+
+          # Wait a moment for servers to start
+          echo "=== Waiting for standalone servers to start ==="
+          sleep 3
+
+          # Start cluster servers (7001-7006)
+          echo "=== Starting Valkey cluster ==="
+          ./create-valkey-cluster.sh
+
+          # Final server status check
+          echo "=== Final server status check ==="
+          ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
+          echo "=== Valkey servers startup completed ==="
+
+      - name: Setup and run ASAN tests
+        run: |
+          echo "=== Setting up PHP extension build system and running ASAN tests ==="
+
+          # Step 1: Clean any existing files (manual cleanup since Makefile may not exist)
+          echo "=== Step 1: Cleaning previous builds ==="
+          rm -rf ./modules/ ./libs/ ./.libs/ ./tmp-php.ini ./asan_logs/
+          find . -name "*.lo" -o -name "*.o" -o -name "*.la" | xargs rm -f 2>/dev/null || true
+
+          # Step 2: Initialize PHP extension build system
+          echo "=== Step 2: Initializing PHP extension build system ==="
+          phpize
+
+          # Step 3: Configure with ASAN flags - this generates Makefile with ASAN targets
+          echo "=== Step 3: Configuring with ASAN flags ==="
+          ./configure --enable-valkey-glide --enable-valkey-glide-asan
+
+          # Step 4: Now we can use make clean safely
+          echo "=== Step 4: Clean using make (now that Makefile exists) ==="
+          make clean || true
+
+          # Step 5: Build and test with AddressSanitizer
+          echo "=== Step 5: Building and testing with AddressSanitizer ==="
+
+          # Create clean log directory
+          mkdir -p ./asan_logs
+          otool -L modules/valkey_glide.so
+          nm -g modules/valkey_glide.so | grep protobuf_c_empty_string
+          # Run ASAN tests with visible error output
+          echo "=== Running make test-asan ==="
+
+          make test-asan
+
+      - name: Display ASAN logs if found
+        if: always()
+        run: |
+          if [ -d "./asan_logs" ] && [ "$(ls -A ./asan_logs 2>/dev/null)" ]; then
+              echo "=== ASAN Reports Found ==="
+              for log_file in ./asan_logs/*; do
+                  if [ -f "$log_file" ]; then
+                      echo "=== Contents of $log_file ==="
+                      cat "$log_file"
+                      echo "=== End of $log_file ==="
                   fi
+              done
+          else
+              echo "✓ No ASAN issues detected"
+          fi
 
-            - name: Stop Valkey servers
-              if: always()
-              run: |
-                  # Stop all Valkey server processes
-                  echo "Stopping Valkey servers..."
-                  pkill valkey-server || true
-                  # Clean up data directories
-                  rm -rf $HOME/valkey-cluster || true
-                  rm -rf tests/valkey_data || true
+      - name: Stop Valkey servers
+        if: always()
+        run: |
+          # Stop all Valkey server processes
+          echo "Stopping Valkey servers..."
+          pkill valkey-server || true
+          # Clean up data directories
+          rm -rf $HOME/valkey-cluster || true
+          rm -rf tests/valkey_data || true
 
-            - name: Upload ASAN logs and reports
-              if: always()
-              continue-on-error: true
-              uses: actions/upload-artifact@v4
-              with:
-                  name: asan-test-report-php-${{ matrix.engine.type }}-${{ matrix.engine.version }}
-                  path: |
-                      utils/clusters/**
-                      asan_logs/**
-                      tests/**/*.diff
-                      tests/**/*.exp
-                      tests/**/*.log
-                      tests/**/*.out
+      - name: Upload ASAN logs and reports
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: asan-test-report-php-${{ matrix.engine.type }}-${{ matrix.engine.version }}
+          path: |
+            utils/clusters/**
+            asan_logs/**
+            tests/**/*.diff
+            tests/**/*.exp
+            tests/**/*.log
+            tests/**/*.out
 
-    test-php-valgrind:
-        name: PHP Valgrind Tests - EngineVersion ${{ matrix.engine.version }} (Ubuntu)
-        needs: get-matrices
-        runs-on: ubuntu-latest
-        timeout-minutes: 45
-        strategy:
-            fail-fast: false
-            matrix:
-                engine: ${{ fromJson(needs.get-matrices.outputs.engine-matrix-output) }}
+  test-php-valgrind:
+    name: PHP Valgrind Tests - EngineVersion ${{ matrix.engine.version }} (Ubuntu)
+    needs: get-matrices
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: ${{ fromJson(needs.get-matrices.outputs.engine-matrix-output) }}
 
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  submodules: recursive
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-            - name: Output Matrix Parameters for this job
-              run: |
-                  echo "Job running with the following matrix configuration:"
-                  echo "${{ toJson(matrix) }}"
+      - name: Output Matrix Parameters for this job
+        run: |
+          echo "Job running with the following matrix configuration:"
+          echo "${{ toJson(matrix) }}"
 
-            - uses: actions/cache@v4
-              with:
-                  path: |
-                      valkey-glide/ffi/target
-                      valkey-glide/glide-core/src/generated
-                      include/
-                      src/*.pb-c.c
-                      src/*.pb-c.h
-                  key: ubuntu-latest-php-valgrind-${{ env.BASE_PHP_VERSION }}
-                  restore-keys: |
-                      ubuntu-latest-php-valgrind
-                      ubuntu-latest-php
-                      ubuntu-latest-glide-core
-                      ubuntu-latest
+      - uses: actions/cache@v4
+        with:
+          path: |
+            valkey-glide/ffi/target
+            valkey-glide/glide-core/src/generated
+            include/
+            src/*.pb-c.c
+            src/*.pb-c.h
+          key: ubuntu-latest-php-valgrind-${{ env.BASE_PHP_VERSION }}
+          restore-keys: |
+            ubuntu-latest-php-valgrind
+            ubuntu-latest-php
+            ubuntu-latest-glide-core
+            ubuntu-latest
 
-            - name: Install shared dependencies
-              uses: ./.github/workflows/install-shared-dependencies
-              with:
-                  target: x86_64-unknown-linux-gnu
-                  github-token: ${{ secrets.GITHUB_TOKEN }}
-                  engine-version: ${{ matrix.engine.version }}
+      - name: Install shared dependencies
+        uses: ./.github/workflows/install-shared-dependencies
+        with:
+          target: x86_64-unknown-linux-gnu
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: ${{ matrix.engine.version }}
 
-            - name: Install Rust and protoc
-              uses: ./.github/workflows/install-rust-and-protoc
-              with:
-                  github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Rust and protoc
+        uses: ./.github/workflows/install-rust-and-protoc
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Install cbindgen
-              run: cargo install cbindgen
-            
-            - name: Remove optional fields from proto files
-              shell: bash
-              run: |
-                echo "=== Removing optional fields from proto files ==="
-                python3 utils/remove_optional_from_proto.py
-                echo "=== Proto file cleanup completed ==="
+      - name: Install cbindgen
+        run: cargo install cbindgen
 
-            - name: Build FFI library with debug symbols
-              working-directory: valkey-glide/ffi
-              run: |
-                  # Build with debug symbols for better Valgrind analysis
-                  CFLAGS="-g -O0" cargo build --target x86_64-unknown-linux-gnu --release
+      - name: Remove optional fields from proto files
+        shell: bash
+        run: |
+          echo "=== Removing optional fields from proto files ==="
+          python3 utils/remove_optional_from_proto.py
+          echo "=== Proto file cleanup completed ==="
 
-            - name: Set up PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  php-version: ${{ env.BASE_PHP_VERSION }}
-                  extensions: none
-                  tools: none
+      - name: Build FFI library with debug symbols
+        working-directory: valkey-glide/ffi
+        run: |
+          # Build with debug symbols for better Valgrind analysis
+          CFLAGS="-g -O0" cargo build --target x86_64-unknown-linux-gnu --release
 
-            - name: Install system dependencies for PHP Valgrind build
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y \
-                      php${{ env.BASE_PHP_VERSION }}-dev \
-                      build-essential \
-                      autoconf \
-                      automake \
-                      libtool \
-                      pkg-config \
-                      libssl-dev \
-                      protobuf-c-compiler \
-                      libprotobuf-c-dev \
-                      libprotobuf-c1 \
-                      valgrind
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.BASE_PHP_VERSION }}
+          extensions: none
+          tools: none
 
-            - name: Start Valkey servers
-              working-directory: tests
-              run: |
-                  set -e  # Exit on any error
-                  
-                  # Ensure /usr/local/bin is in PATH (where valkey-server is installed)
-                  export PATH="/usr/local/bin:$PATH"
-                  
-                  echo "=== Starting Valkey servers for Valgrind testing ==="
-                  
-                  # Make scripts executable
-                  chmod +x start_valkey_with_replicas.sh create-valkey-cluster.sh
-                  
-                  # Start standalone servers (6379, 6380, 6381)
-                  echo "=== Starting standalone Valkey servers ==="
-                  ./start_valkey_with_replicas.sh
-                  
-                  # Wait a moment for servers to start
-                  echo "=== Waiting for standalone servers to start ==="
-                  sleep 3
-                  
-                  # Start cluster servers (7001-7006)
-                  echo "=== Starting Valkey cluster ==="
-                  ./create-valkey-cluster.sh
-                  
-                  # Final server status check
-                  echo "=== Final server status check ==="
-                  ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
-                  echo "=== Valkey servers startup completed ==="
-                  
-            - name: Check Valgrind PATH
-              run: which valgrind && valgrind --version
+      - name: Install system dependencies for PHP Valgrind build
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+              php${{ env.BASE_PHP_VERSION }}-dev \
+              build-essential \
+              autoconf \
+              automake \
+              libtool \
+              pkg-config \
+              libssl-dev \
+              protobuf-c-compiler \
+              libprotobuf-c-dev \
+              libprotobuf-c1 \
+              valgrind
 
-            - name: Setup and run Valgrind tests
-              run: |
-                  echo "=== Setting up PHP extension build system for Valgrind testing ==="
-                  
-                  # Step 1: Clean any existing files
-                  echo "=== Step 1: Cleaning previous builds ==="
-                  rm -rf ./modules/ ./libs/ ./.libs/ ./tmp-php.ini ./valgrind_logs/
-                  find . -name "*.lo" -o -name "*.o" -o -name "*.la" | xargs rm -f 2>/dev/null || true
-                  
-                  # Step 2: Initialize PHP extension build system
-                  echo "=== Step 2: Initializing PHP extension build system ==="
-                  phpize
-                  
-                  # Step 3: Configure with debug flags for better Valgrind analysis
-                  echo "=== Step 3: Configuring with debug flags ==="
-                  CFLAGS="-g -O0" ./configure --enable-valkey-glide --enable-debug
-                  
-                  
-                  # Step 5: Build extension with debug symbols
-                  echo "=== Step 5: Building extension with debug symbols ==="
-                  CFLAGS="-g -O0" make build-modules-pre
-                  CFLAGS="-g -O0" make
+      - name: Start Valkey servers
+        working-directory: tests
+        run: |
+          set -e  # Exit on any error
 
-                  # Step 6: Create valgrind logs directory and verify setup
-                  mkdir -p ./valgrind_logs
-                  echo "=== Step 6: Verifying Valgrind setup ==="
-                  echo "Working directory: $(pwd)"
-                  echo "Extension exists: $(ls -la modules/valkey_glide.so 2>/dev/null || echo 'NOT FOUND')"
-                  echo "Config file exists: $(ls -la ext.ini 2>/dev/null || echo 'NOT FOUND')"
-                  echo "Test file exists: $(ls -la tests/TestValkeyGlide.php 2>/dev/null || echo 'NOT FOUND')"
-                  echo "Suppressions file exists: $(ls -la valgrind.supp 2>/dev/null || echo 'NOT FOUND')"
-                  echo "Valgrind version: $(valgrind --version)"
-                                                     
-                  # Step 7: Run Valgrind tests
+          # Ensure /usr/local/bin is in PATH (where valkey-server is installed)
+          export PATH="/usr/local/bin:$PATH"
+
+          echo "=== Starting Valkey servers for Valgrind testing ==="
+
+          # Make scripts executable
+          chmod +x start_valkey_with_replicas.sh create-valkey-cluster.sh
+
+          # Start standalone servers (6379, 6380, 6381)
+          echo "=== Starting standalone Valkey servers ==="
+          ./start_valkey_with_replicas.sh
+
+          # Wait a moment for servers to start
+          echo "=== Waiting for standalone servers to start ==="
+          sleep 3
+
+          # Start cluster servers (7001-7006)
+          echo "=== Starting Valkey cluster ==="
+          ./create-valkey-cluster.sh
+
+          # Final server status check
+          echo "=== Final server status check ==="
+          ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
+          echo "=== Valkey servers startup completed ==="
+
+      - name: Check Valgrind PATH
+        run: which valgrind && valgrind --version
+
+      - name: Setup and run Valgrind tests
+        run: |
+          echo "=== Setting up PHP extension build system for Valgrind testing ==="
+
+          # Step 1: Clean any existing files
+          echo "=== Step 1: Cleaning previous builds ==="
+          rm -rf ./modules/ ./libs/ ./.libs/ ./tmp-php.ini ./valgrind_logs/
+          find . -name "*.lo" -o -name "*.o" -o -name "*.la" | xargs rm -f 2>/dev/null || true
+
+          # Step 2: Initialize PHP extension build system
+          echo "=== Step 2: Initializing PHP extension build system ==="
+          phpize
+
+          # Step 3: Configure with debug flags for better Valgrind analysis
+          echo "=== Step 3: Configuring with debug flags ==="
+          CFLAGS="-g -O0" ./configure --enable-valkey-glide --enable-debug
+
+
+          # Step 5: Build extension with debug symbols
+          echo "=== Step 5: Building extension with debug symbols ==="
+          CFLAGS="-g -O0" make build-modules-pre
+          CFLAGS="-g -O0" make
+
+          # Step 6: Create valgrind logs directory and verify setup
+          mkdir -p ./valgrind_logs
+          echo "=== Step 6: Verifying Valgrind setup ==="
+          echo "Working directory: $(pwd)"
+          echo "Extension exists: $(ls -la modules/valkey_glide.so 2>/dev/null || echo 'NOT FOUND')"
+          echo "Config file exists: $(ls -la ext.ini 2>/dev/null || echo 'NOT FOUND')"
+          echo "Test file exists: $(ls -la tests/TestValkeyGlide.php 2>/dev/null || echo 'NOT FOUND')"
+          echo "Suppressions file exists: $(ls -la valgrind.supp 2>/dev/null || echo 'NOT FOUND')"
+          echo "Valgrind version: $(valgrind --version)"
+                                             
+          # Step 7: Run Valgrind tests
+          echo ""
+          echo "=== Step 7: Running Valgrind memory analysis ==="
+          echo "Command: valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --suppressions=valgrind.supp php -n -c ext.ini tests/TestValkeyGlide.php"
+          echo ""
+
+          # Run Valgrind with output to both terminal and log file
+          valgrind \
+              --tool=memcheck \
+              --leak-check=full \
+              --show-leak-kinds=all \
+              --track-origins=yes \
+              --verbose \
+              php -n -c ext.ini tests/TestValkeyGlide.php 2>&1 | tee ./valgrind_logs/valgrind_output.log
+
+          VALGRIND_EXIT_CODE=$?
+          echo ""
+          echo "=== Valgrind analysis completed with exit code: $VALGRIND_EXIT_CODE ==="
+
+      - name: Display Valgrind results
+        if: always()
+        run: |
+          echo "=== Valgrind Analysis Results Summary ==="
+          echo "Log directory contents:"
+          ls -la ./valgrind_logs/ 2>/dev/null || echo "No valgrind_logs directory found"
+          echo ""
+
+          if [ -f "./valgrind_logs/valgrind_output.log" ]; then
+              LOG_SIZE=$(wc -c < ./valgrind_logs/valgrind_output.log)
+              echo "=== Valgrind log file found (${LOG_SIZE} bytes) ==="
+              
+              # Since we used tee, the output should already be visible above
+              # But let's extract key information for summary
+              echo ""
+              echo "=== Extracting Key Results ==="
+              
+              # Show test completion status
+              if grep -q "All tests passed" ./valgrind_logs/valgrind_output.log; then
+                  echo "✅ All tests passed"
+              elif grep -q "FAILED" ./valgrind_logs/valgrind_output.log; then
+                  echo "❌ Some tests failed"
+              fi
+              
+              # Check for memory leaks
+              if grep -q "definitely lost:" ./valgrind_logs/valgrind_output.log; then
+                  echo "⚠️  CRITICAL: Definite memory leaks detected"
+                  grep -A 3 -B 1 "definitely lost:" ./valgrind_logs/valgrind_output.log || true
+              else
+                  echo "✅ No definite memory leaks detected"
+              fi
+              
+              # Check for possible leaks
+              if grep -q "possibly lost:" ./valgrind_logs/valgrind_output.log; then
+                  POSSIBLY_LOST=$(grep "possibly lost:" ./valgrind_logs/valgrind_output.log | head -1)
+                  echo "⚠️  Possible leaks: $POSSIBLY_LOST"
+              fi
+              
+              # Show leak summary if present
+              if grep -q "LEAK SUMMARY:" ./valgrind_logs/valgrind_output.log; then
                   echo ""
-                  echo "=== Step 7: Running Valgrind memory analysis ==="
-                  echo "Command: valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --suppressions=valgrind.supp php -n -c ext.ini tests/TestValkeyGlide.php"
+                  echo "=== Memory Leak Summary ==="
+                  grep -A 6 "LEAK SUMMARY:" ./valgrind_logs/valgrind_output.log | head -7 || true
+              fi
+              
+              # Show error summary
+              if grep -q "ERROR SUMMARY:" ./valgrind_logs/valgrind_output.log; then
                   echo ""
-                  
-                  # Run Valgrind with output to both terminal and log file
-                  valgrind \
-                      --tool=memcheck \
-                      --leak-check=full \
-                      --show-leak-kinds=all \
-                      --track-origins=yes \
-                      --verbose \
-                      php -n -c ext.ini tests/TestValkeyGlide.php 2>&1 | tee ./valgrind_logs/valgrind_output.log
-                  
-                  VALGRIND_EXIT_CODE=$?
-                  echo ""
-                  echo "=== Valgrind analysis completed with exit code: $VALGRIND_EXIT_CODE ==="
+                  echo "=== Error Summary ==="
+                  grep "ERROR SUMMARY:" ./valgrind_logs/valgrind_output.log || true
+              fi
+              
+              echo ""
+              echo "📝 Full Valgrind output was displayed above during test execution"
+              echo "📎 Complete log is also saved as artifact for detailed analysis"
+              
+          else
+              echo "❌ No Valgrind output file found"
+              echo "This indicates the Valgrind command may have failed to execute properly"
+              echo "Check the previous step output for any error messages"
+          fi
 
-            - name: Display Valgrind results
-              if: always()
-              run: |
-                  echo "=== Valgrind Analysis Results Summary ==="
-                  echo "Log directory contents:"
-                  ls -la ./valgrind_logs/ 2>/dev/null || echo "No valgrind_logs directory found"
-                  echo ""
-                  
-                  if [ -f "./valgrind_logs/valgrind_output.log" ]; then
-                      LOG_SIZE=$(wc -c < ./valgrind_logs/valgrind_output.log)
-                      echo "=== Valgrind log file found (${LOG_SIZE} bytes) ==="
-                      
-                      # Since we used tee, the output should already be visible above
-                      # But let's extract key information for summary
-                      echo ""
-                      echo "=== Extracting Key Results ==="
-                      
-                      # Show test completion status
-                      if grep -q "All tests passed" ./valgrind_logs/valgrind_output.log; then
-                          echo "✅ All tests passed"
-                      elif grep -q "FAILED" ./valgrind_logs/valgrind_output.log; then
-                          echo "❌ Some tests failed"
-                      fi
-                      
-                      # Check for memory leaks
-                      if grep -q "definitely lost:" ./valgrind_logs/valgrind_output.log; then
-                          echo "⚠️  CRITICAL: Definite memory leaks detected"
-                          grep -A 3 -B 1 "definitely lost:" ./valgrind_logs/valgrind_output.log || true
-                      else
-                          echo "✅ No definite memory leaks detected"
-                      fi
-                      
-                      # Check for possible leaks
-                      if grep -q "possibly lost:" ./valgrind_logs/valgrind_output.log; then
-                          POSSIBLY_LOST=$(grep "possibly lost:" ./valgrind_logs/valgrind_output.log | head -1)
-                          echo "⚠️  Possible leaks: $POSSIBLY_LOST"
-                      fi
-                      
-                      # Show leak summary if present
-                      if grep -q "LEAK SUMMARY:" ./valgrind_logs/valgrind_output.log; then
-                          echo ""
-                          echo "=== Memory Leak Summary ==="
-                          grep -A 6 "LEAK SUMMARY:" ./valgrind_logs/valgrind_output.log | head -7 || true
-                      fi
-                      
-                      # Show error summary
-                      if grep -q "ERROR SUMMARY:" ./valgrind_logs/valgrind_output.log; then
-                          echo ""
-                          echo "=== Error Summary ==="
-                          grep "ERROR SUMMARY:" ./valgrind_logs/valgrind_output.log || true
-                      fi
-                      
-                      echo ""
-                      echo "📝 Full Valgrind output was displayed above during test execution"
-                      echo "📎 Complete log is also saved as artifact for detailed analysis"
-                      
-                  else
-                      echo "❌ No Valgrind output file found"
-                      echo "This indicates the Valgrind command may have failed to execute properly"
-                      echo "Check the previous step output for any error messages"
-                  fi
+      - name: Stop Valkey servers
+        if: always()
+        run: |
+          # Stop all Valkey server processes
+          echo "Stopping Valkey servers..."
+          pkill valkey-server || true
+          # Clean up data directories
+          rm -rf $HOME/valkey-cluster || true
+          rm -rf tests/valkey_data || true
 
-            - name: Stop Valkey servers
-              if: always()
-              run: |
-                  # Stop all Valkey server processes
-                  echo "Stopping Valkey servers..."
-                  pkill valkey-server || true
-                  # Clean up data directories
-                  rm -rf $HOME/valkey-cluster || true
-                  rm -rf tests/valkey_data || true
+      - name: Upload Valgrind logs and reports
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: valgrind-test-report-php-${{ matrix.engine.type }}-${{ matrix.engine.version }}
+          path: |
+            utils/clusters/**
+            valgrind_logs/**
+            tests/**/*.diff
+            tests/**/*.exp
+            tests/**/*.log
+            tests/**/*.out
 
-            - name: Upload Valgrind logs and reports
-              if: always()
-              continue-on-error: true
-              uses: actions/upload-artifact@v4
-              with:
-                  name: valgrind-test-report-php-${{ matrix.engine.type }}-${{ matrix.engine.version }}
-                  path: |
-                      utils/clusters/**
-                      valgrind_logs/**
-                      tests/**/*.diff
-                      tests/**/*.exp
-                      tests/**/*.log
-                      tests/**/*.out
+  lint:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    lint:
-        timeout-minutes: 15
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  submodules: recursive
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.BASE_PHP_VERSION }}
+          extensions: none
+          tools: phpcs, phpstan
 
-            - name: Set up PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  php-version: ${{ env.BASE_PHP_VERSION }}
-                  extensions: none
-                  tools: phpcs, phpstan
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+              php${{ env.BASE_PHP_VERSION }}-dev \
+              build-essential \
+              autoconf \
+              automake \
+              libtool \
+              pkg-config \
+              libssl-dev \
+              clang-format \
+              protobuf-c-compiler \
+              libprotobuf-c-dev \
+              libprotobuf-c1
 
-            - name: Install system dependencies
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y \
-                      php${{ env.BASE_PHP_VERSION }}-dev \
-                      build-essential \
-                      autoconf \
-                      automake \
-                      libtool \
-                      pkg-config \
-                      libssl-dev \
-                      clang-format \
-                      protobuf-c-compiler \
-                      libprotobuf-c-dev \
-                      libprotobuf-c1
+      - name: Check clang-format version
+        run: clang-format --version
 
-            - name: Check clang-format version
-              run: clang-format --version
+      - name: Install protoc
+        uses: ./.github/workflows/install-rust-and-protoc
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Install protoc
-              uses: ./.github/workflows/install-rust-and-protoc
-              with:
-                  github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install cbindgen
+        run: cargo install cbindgen
 
-            - name: Install cbindgen
-              run: cargo install cbindgen
-            
-            - name: Remove optional fields from proto files
-              shell: bash
-              run: |
-                echo "=== Removing optional fields from proto files ==="
-                python3 utils/remove_optional_from_proto.py
-                echo "=== Proto file cleanup completed ==="
+      - name: Remove optional fields from proto files
+        shell: bash
+        run: |
+          echo "=== Removing optional fields from proto files ==="
+          python3 utils/remove_optional_from_proto.py
+          echo "=== Proto file cleanup completed ==="
 
-            - uses: actions/cache@v4
-              with:
-                  path: |
-                      valkey-glide/ffi/target
-                      valkey-glide/glide-core/src/generated
-                      include/
-                  key: x86_64-unknown-linux-gnu-php-lint
-                  restore-keys: |
-                      x86_64-unknown-linux-gnu-php
-                      x86_64-unknown-linux-gnu-glide-core
-                      x86_64-unknown-linux-gnu
+      - uses: actions/cache@v4
+        with:
+          path: |
+            valkey-glide/ffi/target
+            valkey-glide/glide-core/src/generated
+            include/
+          key: x86_64-unknown-linux-gnu-php-lint
+          restore-keys: |
+            x86_64-unknown-linux-gnu-php
+            x86_64-unknown-linux-gnu-glide-core
+            x86_64-unknown-linux-gnu
 
+      - name: Initialize PHP extension build system
+        run: |
+          phpize
 
-            - name: Initialize PHP extension build system
-              run: |
-                  phpize
+      - name: Configure PHP extension
+        run: |
+          ./configure --enable-valkey-glide
 
-            - name: Configure PHP extension
-              run: |
-                  ./configure --enable-valkey-glide
+      - name: Lint C code formatting
+        run: |
+          find . -name "*.c" -o -name "*.h" | grep -v "\.pb-c\." | xargs clang-format --dry-run --Werror
 
-            - name: Lint C code formatting
-              run: |
-                  find . -name "*.c" -o -name "*.h" | grep -v "\.pb-c\." | xargs clang-format --dry-run --Werror
+      - name: Lint PHP code (if PHP files exist)
+        run: |
+          if find tests/ -name "*.php" | head -1 | grep -q .; then
+              phpcs --standard=PSR12 tests/ || true
+          fi
 
-            - name: Lint PHP code (if PHP files exist)
-              run: |
-                  if find tests/ -name "*.php" | head -1 | grep -q .; then
-                      phpcs --standard=PSR12 tests/ || true
-                  fi
+  get-containers:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.full-matrix == 'true' || github.event_name == 'schedule' }}
+    outputs:
+      engine-matrix-output: ${{ steps.get-matrices.outputs.engine-matrix-output }}
+      host-matrix-output: ${{ steps.get-matrices.outputs.host-matrix-output }}
+      version-matrix-output: ${{ steps.get-matrices.outputs.version-matrix-output }}
 
-    get-containers:
-        runs-on: ubuntu-latest
-        if: ${{ github.event.inputs.full-matrix == 'true' || github.event_name == 'schedule' }}
-        outputs:
-            engine-matrix-output: ${{ steps.get-matrices.outputs.engine-matrix-output }}
-            host-matrix-output: ${{ steps.get-matrices.outputs.host-matrix-output }}
-            version-matrix-output: ${{ steps.get-matrices.outputs.version-matrix-output }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - id: get-matrices
+        uses: ./.github/workflows/create-test-matrices
+        with:
+          language-name: php
+          run-full-matrix: true
+          containers: true
 
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  submodules: recursive
-            - id: get-matrices
-              uses: ./.github/workflows/create-test-matrices
-              with:
-                  language-name: php
-                  run-full-matrix: true
-                  containers: true
+  test-php-container:
+    runs-on: ${{ matrix.host.RUNNER }}
+    needs: get-containers
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ${{ fromJson(needs.get-containers.outputs.version-matrix-output) }}
+        engine: ${{ fromJson(needs.get-containers.outputs.engine-matrix-output) }}
+        host: ${{ fromJson(needs.get-containers.outputs.host-matrix-output) }}
+    container:
+      image: ${{ matrix.host.IMAGE }}
+      options: ${{ join(' -q ', matrix.host.CONTAINER_OPTIONS) }} # adding `-q` to bypass empty options
+    steps:
+      - name: Install git and dependencies
+        run: |
+          yum update
+          yum install -y git tar php php-devel gcc make autoconf automake libtool pkgconfig openssl openssl-devel unzip
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          echo IMAGE=amazonlinux:latest | sed -r 's/:/-/g' >> $GITHUB_ENV
+      # Replace `:` in the variable otherwise it can't be used in `upload-artifact`
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    test-php-container:
-        runs-on: ${{ matrix.host.RUNNER }}
-        needs: get-containers
-        timeout-minutes: 35
-        strategy:
-            fail-fast: false
-            matrix:
-                php: ${{ fromJson(needs.get-containers.outputs.version-matrix-output) }}
-                engine: ${{ fromJson(needs.get-containers.outputs.engine-matrix-output) }}
-                host: ${{ fromJson(needs.get-containers.outputs.host-matrix-output) }}
-        container:
-            image: ${{ matrix.host.IMAGE }}
-            options: ${{ join(' -q ', matrix.host.CONTAINER_OPTIONS) }} # adding `-q` to bypass empty options
-        steps:
-            - name: Install git and dependencies
-              run: |
-                  yum update
-                  yum install -y git tar php php-devel gcc make autoconf automake libtool pkgconfig openssl openssl-devel unzip
-                  git config --global --add safe.directory "$GITHUB_WORKSPACE"
-                  echo IMAGE=amazonlinux:latest | sed -r 's/:/-/g' >> $GITHUB_ENV
-            # Replace `:` in the variable otherwise it can't be used in `upload-artifact`
-            - uses: actions/checkout@v4
-              with:
-                  submodules: recursive
+      - uses: actions/cache@v4
+        with:
+          path: |
+            valkey-glide/ffi/target
+            valkey-glide/glide-core/src/generated
+            include/
+          key: ${{ matrix.host.IMAGE }}-php-${{ matrix.php }}
+          restore-keys: ${{ matrix.host.IMAGE }}-php
 
-            - uses: actions/cache@v4
-              with:
-                  path: |
-                      valkey-glide/ffi/target
-                      valkey-glide/glide-core/src/generated
-                      include/
-                  key: ${{ matrix.host.IMAGE }}-php-${{ matrix.php }}
-                  restore-keys: ${{ matrix.host.IMAGE }}-php
+      - name: Build PHP wrapper
+        uses: ./.github/workflows/build-php-wrapper
+        with:
+          os: ${{ matrix.host.OS }}
+          target: ${{ matrix.host.TARGET }}
+          php-version: ${{ matrix.php }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: ${{ matrix.engine.version }}
 
-            - name: Build PHP wrapper
-              uses: ./.github/workflows/build-php-wrapper
-              with:
-                  os: ${{ matrix.host.OS }}
-                  target: ${{ matrix.host.TARGET }}
-                  php-version: ${{ matrix.php }}
-                  github-token: ${{ secrets.GITHUB_TOKEN }}
-                  engine-version: ${{ matrix.engine.version }}
+      - name: Start Valkey servers
+        working-directory: tests
+        run: |
+          set -e  # Exit on any error
 
-            - name: Start Valkey servers
-              working-directory: tests
-              run: |
-                  set -e  # Exit on any error
-                  
-                  # Ensure /usr/local/bin is in PATH (where valkey-server is installed)
-                  export PATH="/usr/local/bin:$PATH"
-                  
-                  echo "=== DEBUG: Current directory and files ==="
-                  pwd
-                  ls -la
-                  
-                  echo "=== DEBUG: Current PATH ==="
-                  echo "PATH=$PATH"
-                  
-                  echo "=== DEBUG: Checking for installed binaries in /usr/local/bin ==="
-                  ls -la /usr/local/bin/ | grep -E "(valkey|redis)" || echo "No valkey/redis binaries in /usr/local/bin"
-                  
-                  echo "=== DEBUG: Checking script permissions ==="
-                  ls -la start_valkey_with_replicas.sh create-valkey-cluster.sh
-                  
-                  # Make scripts executable
-                  chmod +x start_valkey_with_replicas.sh create-valkey-cluster.sh
-                  
-                  echo "=== DEBUG: After chmod ==="
-                  ls -la start_valkey_with_replicas.sh create-valkey-cluster.sh
-                  
-                  # Check if valkey-server is available
-                  echo "=== DEBUG: Checking for valkey-server ==="
-                  which valkey-server || echo "valkey-server not found in PATH"
-                  
-                  # Check alternative locations and names
-                  echo "=== DEBUG: Checking alternative binary names ==="
-                  which redis-server || echo "redis-server not found in PATH"
-                  which valkey-cli || echo "valkey-cli not found in PATH"
-                  which redis-cli || echo "redis-cli not found in PATH"
-                  
-                  # Start standalone servers (6379, 6380, 6381)
-                  echo "=== Starting standalone Valkey servers ==="
-                  ./start_valkey_with_replicas.sh
-                  
-                  # Wait a moment for servers to start
-                  echo "=== Waiting for standalone servers to start ==="
-                  sleep 3
-                  
-                  # Check if servers are running
-                  echo "=== Checking standalone server status ==="
-                  ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
-                  
-                  # Start cluster servers (7001-7006)
-                  echo "=== Starting Valkey cluster ==="
-                  ./create-valkey-cluster.sh
-                  
-                  # Final server status check
-                  echo "=== Final server status check ==="
-                  ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
-                  echo "=== Valkey servers startup completed ==="
+          # Ensure /usr/local/bin is in PATH (where valkey-server is installed)
+          export PATH="/usr/local/bin:$PATH"
 
-            - name: Run PHP extension tests
-              run: |
-                  # Run tests using direct extension loading with absolute path
-                  php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php
+          echo "=== DEBUG: Current directory and files ==="
+          pwd
+          ls -la
 
-            - name: Run integration tests
-              run: |
-                  # All tests are now run through the main TestValkeyGlide.php runner
-                  echo "All 4 test classes are already included in the main test runner"
-                  echo "TestValkeyGlide.php now runs all classes by default:"
-                  echo "- ValkeyGlide_Test (standalone)"
-                  echo "- ValkeyGlide_Cluster_Test (cluster)"
-                  echo "- ValkeyGlide_Features_Test (standalone features)"
-                  echo "- ValkeyGlide_Cluster_Features_Test (cluster features)"
+          echo "=== DEBUG: Current PATH ==="
+          echo "PATH=$PATH"
 
-            - name: Stop Valkey servers
-              if: always()
-              run: |
-                  # Stop all Valkey server processes
-                  echo "Stopping Valkey servers..."
-                  pkill valkey-server || true
-                  # Clean up data directories
-                  rm -rf $HOME/valkey-cluster || true
-                  rm -rf tests/valkey_data || true
+          echo "=== DEBUG: Checking for installed binaries in /usr/local/bin ==="
+          ls -la /usr/local/bin/ | grep -E "(valkey|redis)" || echo "No valkey/redis binaries in /usr/local/bin"
 
-            - name: Upload test reports
-              if: always()
-              continue-on-error: true
-              uses: actions/upload-artifact@v4
-              with:
-                  name: test-reports-php-${{ matrix.php }}-${{ matrix.engine.type }}-${{ matrix.engine.version }}-${{ env.IMAGE }}-${{ matrix.host.ARCH }}
-                  path: |
-                      utils/clusters/**
-                      benchmarks/results/**
-                      tests/**/*.diff
-                      tests/**/*.exp
-                      tests/**/*.log
-                      tests/**/*.out
+          echo "=== DEBUG: Checking script permissions ==="
+          ls -la start_valkey_with_replicas.sh create-valkey-cluster.sh
 
-    test-modules:
-        if: ((github.repository_owner == 'valkey-io' && github.event_name == 'workflow_dispatch' && github.event.inputs.run-modules-tests == 'true') || github.event.pull_request.head.repo.owner.login == 'valkey-io')
-        environment: AWS_ACTIONS
-        name: Modules Tests
-        runs-on: [self-hosted, linux, ARM64, persistent]
-        timeout-minutes: 15
-        steps:
-            - name: Setup self-hosted runner access
-              run: sudo chown -R $USER:$USER /home/ubuntu/actions-runner/_work/valkey-glide
+          # Make scripts executable
+          chmod +x start_valkey_with_replicas.sh create-valkey-cluster.sh
 
-            - uses: actions/checkout@v4
+          echo "=== DEBUG: After chmod ==="
+          ls -la start_valkey_with_replicas.sh create-valkey-cluster.sh
 
-            - uses: actions/cache@v4
-              with:
-                  path: |
-                      valkey-glide/ffi/target
-                      valkey-glide/glide-core/src/generated
-                      include/
-                  key: aarch64-unknown-linux-gnu-php
-                  restore-keys: |
-                      aarch64-unknown-linux-gnu-glide-core
-                      aarch64-unknown-linux-gnu
+          # Check if valkey-server is available
+          echo "=== DEBUG: Checking for valkey-server ==="
+          which valkey-server || echo "valkey-server not found in PATH"
 
-            - name: Install zig
-              uses: ./.github/workflows/install-zig
+          # Check alternative locations and names
+          echo "=== DEBUG: Checking alternative binary names ==="
+          which redis-server || echo "redis-server not found in PATH"
+          which valkey-cli || echo "valkey-cli not found in PATH"
+          which redis-cli || echo "redis-cli not found in PATH"
 
-            - name: Build PHP wrapper
-              uses: ./.github/workflows/build-php-wrapper
-              with:
-                  os: ubuntu
-                  target: aarch64-unknown-linux-gnu
-                  php-version: ${{ env.BASE_PHP_VERSION }}
-                  github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Start standalone servers (6379, 6380, 6381)
+          echo "=== Starting standalone Valkey servers ==="
+          ./start_valkey_with_replicas.sh
 
-            - name: Run modules tests
-              run: |
-                  # Run tests using direct extension loading with absolute path
-                  php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php
-                  
-                  # Run all test files with direct extension loading using absolute path
-                  for test_file in tests/ValkeyGlide*Test.php; do
-                    if [ -f "$test_file" ]; then
-                      echo "Running $test_file..."
-                      php -n -d extension=$(pwd)/modules/valkey_glide.so "$test_file"
-                    fi
-                  done
+          # Wait a moment for servers to start
+          echo "=== Waiting for standalone servers to start ==="
+          sleep 3
 
-            - name: Upload test reports
-              if: always()
-              continue-on-error: true
-              uses: actions/upload-artifact@v4
-              with:
-                  name: test-reports-modules
-                  path: |
-                      tests/**/*.diff
-                      tests/**/*.exp
-                      tests/**/*.log
-                      tests/**/*.out
+          # Check if servers are running
+          echo "=== Checking standalone server status ==="
+          ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
+
+          # Start cluster servers (7001-7006)
+          echo "=== Starting Valkey cluster ==="
+          ./create-valkey-cluster.sh
+
+          # Final server status check
+          echo "=== Final server status check ==="
+          ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
+          echo "=== Valkey servers startup completed ==="
+
+      - name: Run PHP extension tests
+        run: |
+          # Run tests using direct extension loading with absolute path
+          php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php
+
+      - name: Run integration tests
+        run: |
+          # All tests are now run through the main TestValkeyGlide.php runner
+          echo "All 4 test classes are already included in the main test runner"
+          echo "TestValkeyGlide.php now runs all classes by default:"
+          echo "- ValkeyGlide_Test (standalone)"
+          echo "- ValkeyGlide_Cluster_Test (cluster)"
+          echo "- ValkeyGlide_Features_Test (standalone features)"
+          echo "- ValkeyGlide_Cluster_Features_Test (cluster features)"
+
+      - name: Stop Valkey servers
+        if: always()
+        run: |
+          # Stop all Valkey server processes
+          echo "Stopping Valkey servers..."
+          pkill valkey-server || true
+          # Clean up data directories
+          rm -rf $HOME/valkey-cluster || true
+          rm -rf tests/valkey_data || true
+
+      - name: Upload test reports
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-php-${{ matrix.php }}-${{ matrix.engine.type }}-${{ matrix.engine.version }}-${{ env.IMAGE }}-${{ matrix.host.ARCH }}
+          path: |
+            utils/clusters/**
+            benchmarks/results/**
+            tests/**/*.diff
+            tests/**/*.exp
+            tests/**/*.log
+            tests/**/*.out
+
+  test-modules:
+    if: ((github.repository_owner == 'valkey-io' && github.event_name == 'workflow_dispatch' && github.event.inputs.run-modules-tests == 'true') || github.event.pull_request.head.repo.owner.login == 'valkey-io')
+    environment: AWS_ACTIONS
+    name: Modules Tests
+    runs-on: [self-hosted, linux, ARM64, persistent]
+    timeout-minutes: 15
+    steps:
+      - name: Setup self-hosted runner access
+        run: sudo chown -R $USER:$USER /home/ubuntu/actions-runner/_work/valkey-glide
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            valkey-glide/ffi/target
+            valkey-glide/glide-core/src/generated
+            include/
+          key: aarch64-unknown-linux-gnu-php
+          restore-keys: |
+            aarch64-unknown-linux-gnu-glide-core
+            aarch64-unknown-linux-gnu
+
+      - name: Install zig
+        uses: ./.github/workflows/install-zig
+
+      - name: Build PHP wrapper
+        uses: ./.github/workflows/build-php-wrapper
+        with:
+          os: ubuntu
+          target: aarch64-unknown-linux-gnu
+          php-version: ${{ env.BASE_PHP_VERSION }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run modules tests
+        run: |
+          # Run tests using direct extension loading with absolute path
+          php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php
+
+          # Run all test files with direct extension loading using absolute path
+          for test_file in tests/ValkeyGlide*Test.php; do
+            if [ -f "$test_file" ]; then
+              echo "Running $test_file..."
+              php -n -d extension=$(pwd)/modules/valkey_glide.so "$test_file"
+            fi
+          done
+
+      - name: Upload test reports
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-modules
+          path: |
+            tests/**/*.diff
+            tests/**/*.exp
+            tests/**/*.log
+            tests/**/*.out
