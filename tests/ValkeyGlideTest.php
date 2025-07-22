@@ -5128,14 +5128,14 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
 
     // Helper function to compare nested results -- from the php.net array_diff page, I believe
-    private function ArrayDiffRecursive($aArray1, $aArray2)
+    private function arrayDiffRecursive($aArray1, $aArray2)
     {
         $aReturn = [];
 
         foreach ($aArray1 as $mKey => $mValue) {
             if (array_key_exists($mKey, $aArray2)) {
                 if (is_array($mValue)) {
-                    $aRecursiveDiff = $this->ArrayDiffRecursive($mValue, $aArray2[$mKey]);
+                    $aRecursiveDiff = $this->arrayDiffRecursive($mValue, $aArray2[$mKey]);
                     if (count($aRecursiveDiff)) {
                         $aReturn[$mKey] = $aRecursiveDiff;
                     }
@@ -5272,7 +5272,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $eval_result = $this->valkey_glide->eval($nested_script, ['{eval-key}-str1', '{eval-key}-str2', '{eval-key}-zset', '{eval-key}-list'], 4);
         $this->assertTrue(
             is_array($eval_result) &&
-            count($this->ArrayDiffRecursive($eval_result, $expected)) == 0
+            count($this->arrayDiffRecursive($eval_result, $expected)) == 0
         );
 
         /*
@@ -5296,7 +5296,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             foreach ($replies as $reply) {
                 $this->assertTrue(
                     is_array($reply) &&
-                    count($this->ArrayDiffRecursive($reply, $expected)) == 0
+                    count($this->arrayDiffRecursive($reply, $expected)) == 0
                 );
             }
         }
@@ -5480,7 +5480,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
      * Scan and variants
      */
 
-    protected function get_keyspace_count($db)
+    protected function getKeyspaceCount($db)
     {
         $info = $this->valkey_glide->info();
         if (isset($info[$db])) {
@@ -5501,7 +5501,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $ttl = 0;
         // Key count
-        $key_count = $this->get_keyspace_count('db0');
+        $key_count = $this->getKeyspaceCount('db0');
 
         // Scan them all
         $it = null;

@@ -139,22 +139,22 @@ class TestSuite
         }
     }
 
-    public static function make_bold(string $msg)
+    public static function makeBold(string $msg)
     {
         return self::$colorize ? self::$BOLD_ON . $msg . self::$BOLD_OFF : $msg;
     }
 
-    public static function make_success(string $msg)
+    public static function makeSucces(string $msg)
     {
         return self::$colorize ? self::$GREEN . $msg . self::$BOLD_OFF : $msg;
     }
 
-    public static function make_fail(string $msg)
+    public static function makeFail(string $msg)
     {
         return self::$colorize ? self::$RED . $msg . self::$BOLD_OFF : $msg;
     }
 
-    public static function make_warning(string $msg)
+    public static function makeWarning(string $msg)
     {
         return self::$colorize ? self::$YELLOW . $msg . self::$BOLD_OFF : $msg;
     }
@@ -198,7 +198,7 @@ class TestSuite
         $lines [] = sprintf(
             "%s %s - %s",
             $prefix,
-            self::make_bold($fn),
+            self::makeBold($fn),
             $msg ? $msg : '(no message)'
         );
 
@@ -583,7 +583,7 @@ class TestSuite
             "Assertion failed: %s:%d (%s)",
             $bt[0]['file'],
             $bt[0]['line'],
-            self::make_bold($bt[0]['function'])
+            self::makeBold($bt[0]['function'])
         );
 
 
@@ -847,7 +847,7 @@ class TestSuite
             }
 
             $padded_name = str_pad($name, $max_test_len + 1);
-            echo self::make_bold($padded_name);
+            echo self::makeBold($padded_name);
 
             $count = count($class_name::$errors);
             $rt = new $class_name($host, $port, $auth);
@@ -857,17 +857,17 @@ class TestSuite
                 $rt->$name();
 
                 if ($count === count($class_name::$errors)) {
-                    $result = self::make_success('PASSED');
+                    $result = self::makeSucces('PASSED');
                 } else {
-                    $result = self::make_fail('FAILED');
+                    $result = self::makeFail('FAILED');
                 }
             } catch (Exception $e) {
                 /* We may have simply skipped the test */
                 if ($e instanceof TestSkippedException) {
-                    $result = self::make_warning('SKIPPED');
+                    $result = self::makeWarning('SKIPPED');
                 } else {
                     $class_name::$errors[] = "Uncaught exception '" . $e->getMessage() . "' ($name)\n";
-                    $result = self::make_fail('FAILED');
+                    $result = self::makeFail('FAILED');
                 }
             }
 

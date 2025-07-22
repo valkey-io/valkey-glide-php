@@ -155,7 +155,7 @@ $auth = $opt['auth'] ?? null;
 if ($user && $auth) {
     $auth = [$user, $auth];
 } elseif ($user && ! $auth) {
-    echo TestSuite::make_warning("User passed without a password!\n");
+    echo TestSuite::makeWarning("User passed without a password!\n");
 }
 
 /* Toggle colorization in our TestSuite class */
@@ -171,7 +171,7 @@ foreach ($classes as $class) {
     /* Depending on the classes being tested, run our tests on it */
     echo "Testing class ";
 
-    echo TestSuite::make_bold($class) . "\n";
+    echo TestSuite::makeBold($class) . "\n";
 
     if (TestSuite::run("$class", $filter, $host, $port, $auth)) {
         exit(1);
