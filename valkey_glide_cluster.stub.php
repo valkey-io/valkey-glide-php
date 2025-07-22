@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @generate-function-entries
  * @generate-legacy-arginfo
@@ -6,33 +7,33 @@
  */
 
 /*
-* -------------------------------------------------------------------- 
+* --------------------------------------------------------------------
 *                   The PHP License, version 3.01
 * Copyright (c) 1999 - 2010 The PHP Group. All rights reserved.
-* -------------------------------------------------------------------- 
-* 
+* --------------------------------------------------------------------
+*
 * Redistribution and use in source and binary forms, with or without
 * modification, is permitted provided that the following conditions
 * are met:
-* 
+*
 *   1. Redistributions of source code must retain the above copyright
 *      notice, this list of conditions and the following disclaimer.
-*  
+*
 *  2. Redistributions in binary form must reproduce the above copyright
 *      notice, this list of conditions and the following disclaimer in
 *      the documentation and/or other materials provided with the
 *      distribution.
-*  
+*
 *   3. The name "PHP" must not be used to endorse or promote products
 *      derived from this software without prior written permission. For
 *      written permission, please contact group@php.net.
-*   
+*
 *   4. Products derived from this software may not be called "PHP", nor
 *      may "PHP" appear in their name, without prior written permission
 *      from group@php.net.  You may indicate that your software works in
 *      conjunction with PHP by saying "Foo for PHP" instead of calling
 *      it "PHP Foo" or "phpfoo"
-*  
+*
 *   5. The PHP Group may publish revised and/or new versions of the
 *      license from time to time. Each version will be given a
 *      distinguishing version number.
@@ -43,55 +44,55 @@
 *      published by the PHP Group. No one other than the PHP Group has
 *      the right to modify the terms applicable to covered code created
 *      under this License.
-* 
+*
 *   6. Redistributions of any form whatsoever must retain the following
 *      acknowledgment:
 *      "This product includes PHP software, freely available from
 *      <http://www.php.net/software/>".
-* 
-* THIS SOFTWARE IS PROVIDED BY THE PHP DEVELOPMENT TEAM ``AS IS'' AND 
+*
+* THIS SOFTWARE IS PROVIDED BY THE PHP DEVELOPMENT TEAM ``AS IS'' AND
 * ANY EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-* THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A 
+* THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
 * PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE PHP
-* DEVELOPMENT TEAM OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
-* INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
+* DEVELOPMENT TEAM OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+* INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 * OF THE POSSIBILITY OF SUCH DAMAGE.
-* 
-* -------------------------------------------------------------------- 
-* 
+*
+* --------------------------------------------------------------------
+*
 * This software consists of voluntary contributions made by many
 * individuals on behalf of the PHP Group.
-* 
+*
 * The PHP Group can be contacted via Email at group@php.net.
-* 
-* For more information on the PHP Group and the PHP project, 
+*
+* For more information on the PHP Group and the PHP project,
 * please see <http://www.php.net>.
-* 
+*
 * PHP includes the Zend Engine, freely available at
 * <http://www.zend.com>.
 */
 
 
 
-class ValkeyGlideCluster {
-
+class ValkeyGlideCluster
+{
                     /**
                    *  @var int
          * Enables the periodic checks with the default configurations.
          */
-        public const   PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS = 0;
-        
+    public const   PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS = 0;
+
         /**
          *   @var int
          * Disables the periodic checks.
          */
-        public const    PERIODIC_CHECK_DISABLED = 1;
-    
+    public const    PERIODIC_CHECK_DISABLED = 1;
+
     /**
      * Create a new ValkeyGlideCluster instance with the provided configuration.
      *
@@ -123,14 +124,14 @@ class ValkeyGlideCluster {
         ?bool $lazy_connect = null
     );
 
-    
+
 
     /**
      * @see ValkeyGlide::append()
      */
     public function append(string $key, mixed $value): ValkeyGlideCluster|bool|int;
 
-    
+
     /**
      * @see ValkeyGlide::bitcount
      */
@@ -233,14 +234,14 @@ class ValkeyGlideCluster {
    //TODO public function config(mixed $route, string $subcommand, mixed ...$extra_args): mixed;
 
     /**
-     * @param mixed $route         The routing configuration that determines which node(s) to send the 
+     * @param mixed $route         The routing configuration that determines which node(s) to send the
      *                             command to. Can be:
      *                             - string "randomNode" to route to a random node
      *                             - string "allPrimaries" to route to all primary nodes
      *                             - string "allNodes" to route to all nodes (primaries and replicas)
      *                             - string containing a key name for slot-based routing
      *                             - array ['type' => 'primarySlotKey', 'key' => 'keyName'] for slot key routing
-     *                             - array ['type' => 'routeByAddress', 'host' => 'hostname', 'port' => port] 
+     *                             - array ['type' => 'routeByAddress', 'host' => 'hostname', 'port' => port]
      *                               for specific node routing
      * @see ValkeyGlide::dbsize()
      */
@@ -295,7 +296,7 @@ class ValkeyGlideCluster {
     /**
      * @see ValkeyGlide::evalsha
      */
-   /* TODO public function evalsha(string $script_sha, array $args = [], int $num_keys = 0): mixed;*/ 
+   /* TODO public function evalsha(string $script_sha, array $args = [], int $num_keys = 0): mixed;*/
 
     /**
      * @see ValkeyGlide::evalsha_ro
@@ -351,7 +352,7 @@ class ValkeyGlideCluster {
      * @see ValkeyGlide::geoadd
      */
     public function geoadd(string $key, float $lng, float $lat, string $member, mixed ...$other_triples_and_options): ValkeyGlideCluster|int|false;
-        
+
     /**
      * @see ValkeyGlide::geodist
      */
@@ -530,14 +531,14 @@ class ValkeyGlideCluster {
      *
      * @see https://valkey.io/commands/info/
      *
-     * @param mixed $route         The routing configuration that determines which node(s) to send the 
+     * @param mixed $route         The routing configuration that determines which node(s) to send the
      *                             command to. Can be:
      *                             - string "randomNode" to route to a random node
      *                             - string "allPrimaries" to route to all primary nodes
      *                             - string "allNodes" to route to all nodes (primaries and replicas)
      *                             - string containing a key name for slot-based routing
      *                             - array ['type' => 'primarySlotKey', 'key' => 'keyName'] for slot key routing
-     *                             - array ['type' => 'routeByAddress', 'host' => 'hostname', 'port' => port] 
+     *                             - array ['type' => 'routeByAddress', 'host' => 'hostname', 'port' => port]
      *                               for specific node routing
      * @param string $sections     Optional section(s) you wish ValkeyGlide server to return.
      *
@@ -662,14 +663,14 @@ class ValkeyGlideCluster {
      *
      * @see ValkeyGlide::ping()
      *
-     * @param mixed $route         The routing configuration that determines which node(s) to send the 
+     * @param mixed $route         The routing configuration that determines which node(s) to send the
      *                             command to. Can be:
      *                             - string "randomNode" to route to a random node
      *                             - string "allPrimaries" to route to all primary nodes
      *                             - string "allNodes" to route to all nodes (primaries and replicas)
      *                             - string containing a key name for slot-based routing
      *                             - array ['type' => 'primarySlotKey', 'key' => 'keyName'] for slot key routing
-     *                             - array ['type' => 'routeByAddress', 'host' => 'hostname', 'port' => port] 
+     *                             - array ['type' => 'routeByAddress', 'host' => 'hostname', 'port' => port]
      *                               for specific node routing
      *
      * @param string       $message        An optional message to send.
@@ -712,7 +713,7 @@ class ValkeyGlideCluster {
     /**
      * @see ValkeyGlide::randomkey
      */
-   public function randomKey(mixed $route): ValkeyGlideCluster|bool|string;
+    public function randomKey(mixed $route): ValkeyGlideCluster|bool|string;
 
     /**
      * @see ValkeyGlide::rawcommand
@@ -752,7 +753,7 @@ class ValkeyGlideCluster {
     /**
      * @see ValkeyGlide::sadd()
      */
-    public function sAdd(string $key, mixed $value, mixed ...$other_values): ValkeyGlideCluster|int|false;    
+    public function sAdd(string $key, mixed $value, mixed ...$other_values): ValkeyGlideCluster|int|false;
 
 
     /**
@@ -909,7 +910,7 @@ class ValkeyGlideCluster {
     /**
      * @see ValkeyGlide::unsubscribe
      */
-   /* TODO  public function unsubscribe(array $channels): bool|array;*/ 
+   /* TODO  public function unsubscribe(array $channels): bool|array;*/
 
     /**
      * @see ValkeyGlide::unlink
@@ -949,8 +950,14 @@ class ValkeyGlideCluster {
     /**
      * @see ValkeyGlide::xgroup
      */
-    public function xgroup(string $operation, ?string $key = null, ?string $group = null, ?string $id_or_consumer = null,
-                           bool $mkstream = false, int $entries_read = -2): mixed;
+    public function xgroup(
+        string $operation,
+        ?string $key = null,
+        ?string $group = null,
+        ?string $id_or_consumer = null,
+        bool $mkstream = false,
+        int $entries_read = -2
+    ): mixed;
 
     /**
      * @see ValkeyGlide::xautoclaim
@@ -1050,8 +1057,13 @@ class ValkeyGlideCluster {
     /**
      * @see ValkeyGlide::zrangestore
      */
-    public function zrangestore(string $dstkey, string $srckey, int $start, int $end,
-                                array|bool|null $options = null): ValkeyGlideCluster|int|false;
+    public function zrangestore(
+        string $dstkey,
+        string $srckey,
+        int $start,
+        int $end,
+        array|bool|null $options = null
+    ): ValkeyGlideCluster|int|false;
 
     /**
      * @see https://valkey.io/commands/zrandmember
@@ -1145,4 +1157,6 @@ class ValkeyGlideCluster {
     public function zdiff(array $keys, ?array $options = null): ValkeyGlideCluster|array|false;
 }
 
-class ValkeyGlideClusterException extends RuntimeException {}
+class ValkeyGlideClusterException extends RuntimeException
+{
+}
