@@ -200,43 +200,6 @@ GEOHASH_METHOD_IMPL(ValkeyGlide)
 GEOPOS_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto array ValkeyGlide::georadiusbymember(string key, string member, float radius, string
- * unit [, array options]) */
-PHP_METHOD(ValkeyGlide, georadiusbymember) {
-    RETURN_FALSE;
-}
-/* }}} */
-
-/* {{{ proto string ValkeyGlide::getPersistentID() */
-PHP_METHOD(ValkeyGlide, getPersistentID) {
-    RETURN_FALSE;
-}
-/* }}} */
-
-/* {{{ proto mixed ValkeyGlide::getAuth() */
-PHP_METHOD(ValkeyGlide, getAuth) {
-    RETURN_FALSE;
-}
-/* }}} */
-
-/* {{{ proto mixed ValkeyGlide::command(...) */
-PHP_METHOD(ValkeyGlide, command) {
-    RETURN_FALSE;
-}
-/* }}} */
-
-/* {{{ proto boolean ValkeyGlide::auth(string password [, string username]) */
-PHP_METHOD(ValkeyGlide, auth) {
-    RETURN_FALSE;
-}
-/* }}} */
-
-/* {{{ proto array ValkeyGlide::georadiusbymember_ro(string key, string member, float radius, string
- * unit [, array options]) */
-PHP_METHOD(ValkeyGlide, georadiusbymember_ro) {
-    RETURN_FALSE;
-}
-/* }}} */
 
 /* {{{ proto array ValkeyGlide::geosearch(string key, array|string from, array|string by,
  * string|null radius_unit, string|null count, string|null sorting, string|null pattern) */
@@ -317,9 +280,6 @@ XTRIM_METHOD_IMPL(ValkeyGlide)
 SADD_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto long ValkeyGlide::sAddArray(string key, array values) */
-SADD_ARRAY_METHOD_IMPL(ValkeyGlide)
-/* }}} */
 
 /* {{{ proto long ValkeyGlide::scard(string key) */
 SCARD_METHOD_IMPL(ValkeyGlide)
@@ -437,13 +397,6 @@ LPOS_METHOD_IMPL(ValkeyGlide)
 LLEN_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto string ValkeyGlide::rpoplpush(string srckey, string dstkey) */
-RPOPLPUSH_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto string ValkeyGlide::brpoplpush(string src, string dst, int timeout) */
-BRPOPLPUSH_METHOD_IMPL(ValkeyGlide)
-/* }}} */
 
 /* {{{ proto string ValkeyGlide::blmove(string src, string dst, string wherefrom, string whereto,
  * int timeout) */
@@ -625,19 +578,6 @@ PTTL_METHOD_IMPL(ValkeyGlide)
 PING_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/** {{{ proto bool ValkeyGlide::reset()
- */
-PHP_METHOD(ValkeyGlide, reset) {
-    RETURN_FALSE;
-    // TODO
-}
-/* }}} */
-
-/* {{{ proto boolean ValkeyGlide::setOption(long option, mixed value) */
-PHP_METHOD(ValkeyGlide, setOption) {
-    RETURN_FALSE;
-}
-/* }}} */
 
 /* {{{ proto boolean ValkeyGlide::select(int dbindex) */
 SELECT_METHOD_IMPL(ValkeyGlide)
@@ -771,14 +711,6 @@ SORTDESC_METHOD_IMPL(ValkeyGlide)
 
 /* {{{ proto array ValkeyGlide::sortDescAlpha(string key [, array options]) */
 SORTDESCALPHA_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto bool ValkeyGlide::expiremember(string key, string member, long seconds) */
-EXPIREMEMBER_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto bool ValkeyGlide::expirememberat(string key, string member, long timestamp) */
-EXPIREMEMBERAT_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
 /* {{{ proto boolean ValkeyGlide::watch(string key1, string key2...) */

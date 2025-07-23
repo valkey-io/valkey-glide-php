@@ -459,24 +459,6 @@ int execute_object_command(zval* object, int argc, zval* return_value, zend_clas
     return 0;
 }
 
-/* Execute getTimeout command using the Valkey Glide client */
-int execute_get_timeout_command(const void* glide_client, double* output_value) {
-    /* Check if client is valid */
-    if (!glide_client || !output_value) {
-        return 0;
-    }
-
-    /* Since this is a client configuration getter rather than a ValkeyGlide command,
-       we'll use a default value as this isn't directly supported by Glide */
-    *output_value = 0.0; /* Default timeout */
-
-    /* Here we'd ideally access the Glide client's configuration, but since
-       we don't have direct access to it through the FFI interface, we just
-       return success and the default value */
-
-    return 1;
-}
-
 /* Unified COPY command implementation */
 int execute_copy_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;

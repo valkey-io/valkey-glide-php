@@ -539,36 +539,6 @@ int execute_list_mpop_command(
         RETURN_FALSE;                                                                \
     }
 
-#define RPOPLPUSH_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, rpoplpush) {                                              \
-        if (execute_list_move_command(getThis(),                                     \
-                                      ZEND_NUM_ARGS(),                               \
-                                      return_value,                                  \
-                                      RPopLPush,                                     \
-                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                          ? get_valkey_glide_cluster_ce()            \
-                                          : get_valkey_glide_ce())) {                \
-            return;                                                                  \
-        }                                                                            \
-        zval_dtor(return_value);                                                     \
-        RETURN_FALSE;                                                                \
-    }
-
-#define BRPOPLPUSH_METHOD_IMPL(class_name)                                           \
-    PHP_METHOD(class_name, brpoplpush) {                                             \
-        if (execute_list_move_command(getThis(),                                     \
-                                      ZEND_NUM_ARGS(),                               \
-                                      return_value,                                  \
-                                      BRPopLPush,                                    \
-                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                          ? get_valkey_glide_cluster_ce()            \
-                                          : get_valkey_glide_ce())) {                \
-            return;                                                                  \
-        }                                                                            \
-        zval_dtor(return_value);                                                     \
-        RETURN_FALSE;                                                                \
-    }
-
 #define LLEN_METHOD_IMPL(class_name)                                                \
     PHP_METHOD(class_name, lLen) {                                                  \
         if (execute_list_len_command(getThis(),                                     \

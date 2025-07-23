@@ -294,19 +294,6 @@ int execute_scan_command_generic(
         RETURN_FALSE;                                                           \
     }
 
-#define SADD_ARRAY_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, sAddArray) {                                               \
-        if (execute_sadd_array_command(getThis(),                                     \
-                                       ZEND_NUM_ARGS(),                               \
-                                       return_value,                                  \
-                                       strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                           ? get_valkey_glide_cluster_ce()            \
-                                           : get_valkey_glide_ce())) {                \
-            return;                                                                   \
-        }                                                                             \
-        zval_dtor(return_value);                                                      \
-        RETURN_FALSE;                                                                 \
-    }
 
 #define SCARD_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, scard) {                                              \

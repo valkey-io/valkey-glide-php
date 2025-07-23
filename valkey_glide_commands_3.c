@@ -1303,38 +1303,6 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
     return 0;
 }
 
-/* Execute getReadTimeout command using the Valkey Glide client */
-int execute_get_read_timeout_command(const void* glide_client, double* output_value) {
-    /* Check if client is valid */
-    if (!glide_client || !output_value) {
-        return 0;
-    }
-
-    /* Since this is a client configuration getter rather than a ValkeyGlide command,
-       we'll use a default value as this isn't directly supported by Glide */
-    *output_value = 0.0; /* Default read timeout */
-
-    /* Here we'd ideally access the Glide client's configuration, but since
-       we don't have direct access to it through the FFI interface, we just
-       return success and the default value */
-
-    return 1;
-}
-
-/* Execute getPersistentID command using the Valkey Glide client */
-int execute_get_persistent_id_command(const void* glide_client, char** result, size_t* result_len) {
-    /* Check if client is valid */
-    if (!glide_client || !result || !result_len) {
-        return 0;
-    }
-
-    /* Since this is a client connection property rather than a ValkeyGlide command,
-       we return a NULL value since we don't have access to this information */
-    *result     = NULL;
-    *result_len = 0;
-
-    return 1;
-}
 
 /* Execute a CLIENT command using the Valkey Glide client */
 int execute_client_command_internal(

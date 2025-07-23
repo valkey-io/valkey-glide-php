@@ -167,11 +167,6 @@ class ValkeyGlideCluster
     public function brPop(string|array $key, string|float|int $timeout_or_key, mixed ...$extra_args): ValkeyGlideCluster|array|null|false;
 
     /**
-     * See ValkeyGlide::brpoplpush()
-     */
-    public function brpoplpush(string $srckey, string $deskey, int $timeout): mixed;
-
-    /**
      * Move an element from one list into another.
      *
      * @see ValkeyGlide::lmove
@@ -471,17 +466,7 @@ class ValkeyGlideCluster
      */
     public function hscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): array|bool;
 
-    /**
-     * @see ValkeyGlide::expiremember
-     */
-    public function expiremember(string $key, string $field, int $ttl, ?string $unit = null): ValkeyGlide|int|false;
-
-    /**
-     * @see ValkeyGlide::expirememberat
-     */
-    public function expirememberat(string $key, string $field, int $timestamp): ValkeyGlide|int|false;
-
-    /**
+      /**
      * @see https://valkey.io/commands/hrandfield
      */
     public function hRandField(string $key, ?array $options = null): ValkeyGlideCluster|string|array;

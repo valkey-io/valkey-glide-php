@@ -184,11 +184,7 @@ int execute_sortasc_command(zval* object, int argc, zval* return_value, zend_cla
 int execute_sortascalpha_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_sortdesc_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_sortdescalpha_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_expiremember_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_expirememberat_command(zval*             object,
-                                   int               argc,
-                                   zval*             return_value,
-                                   zend_class_entry* ce);
+
 int execute_mget_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_rename_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_renamenx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -1328,33 +1324,6 @@ int buffer_current_command_generic(valkey_glide_object* valkey_glide,
         RETURN_FALSE;                                                                    \
     }
 
-#define EXPIREMEMBER_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, expiremember) {                                              \
-        if (execute_expiremember_command(getThis(),                                     \
-                                         ZEND_NUM_ARGS(),                               \
-                                         return_value,                                  \
-                                         strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                             ? get_valkey_glide_cluster_ce()            \
-                                             : get_valkey_glide_ce())) {                \
-            return;                                                                     \
-        }                                                                               \
-        zval_dtor(return_value);                                                        \
-        RETURN_FALSE;                                                                   \
-    }
-
-#define EXPIREMEMBERAT_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, expirememberat) {                                              \
-        if (execute_expirememberat_command(getThis(),                                     \
-                                           ZEND_NUM_ARGS(),                               \
-                                           return_value,                                  \
-                                           strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                               ? get_valkey_glide_cluster_ce()            \
-                                               : get_valkey_glide_ce())) {                \
-            return;                                                                       \
-        }                                                                                 \
-        zval_dtor(return_value);                                                          \
-        RETURN_FALSE;                                                                     \
-    }
 
 #define OBJECT_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, object) {                                              \

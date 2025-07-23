@@ -289,13 +289,6 @@ LINDEX_METHOD_IMPL(ValkeyGlideCluster)
 LREM_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto string ValkeyGlideCluster::rpoplpush(string key, string key) */
-RPOPLPUSH_METHOD_IMPL(ValkeyGlideCluster)
-/* }}} */
-
-/* {{{ proto string ValkeyGlideCluster::brpoplpush(string key, string key, long tm) */
-BRPOPLPUSH_METHOD_IMPL(ValkeyGlideCluster)
-/* }}} */
 
 LMOVE_METHOD_IMPL(ValkeyGlideCluster)
 
@@ -325,9 +318,6 @@ SMISMEMBER_METHOD_IMPL(ValkeyGlideCluster)
 SADD_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto long ValkeyGlideCluster::saddarray(string key, array values) */
-SADD_ARRAY_METHOD_IMPL(ValkeyGlideCluster)
-/* }}} */
 
 /* {{{ proto long ValkeyGlideCluster::srem(string key, string val1 [, ...]) */
 SREM_METHOD_IMPL(ValkeyGlideCluster)
@@ -523,10 +513,6 @@ APPEND_METHOD_IMPL(ValkeyGlideCluster)
 /* {{{ proto long ValkeyGlideCluster::getbit(string key, long val) */
 GETBIT_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
-
-EXPIREMEMBER_METHOD_IMPL(ValkeyGlideCluster)
-
-EXPIREMEMBERAT_METHOD_IMPL(ValkeyGlideCluster)
 
 /* {{{ proto long ValkeyGlideCluster::setbit(string key, long offset, bool onoff) */
 SETBIT_METHOD_IMPL(ValkeyGlideCluster)
@@ -839,13 +825,6 @@ GEOPOS_METHOD_IMPL(ValkeyGlideCluster)
  */
 GEODIST_METHOD_IMPL(ValkeyGlideCluster)
 
-/* {{{ proto array ValkeyGlideCluster::georadiusbymember() }}} */
-PHP_METHOD(ValkeyGlideCluster, georadiusbymember) {
-}
-
-/* {{{ proto array ValkeyGlideCluster::georadiusbymember() }}} */
-PHP_METHOD(ValkeyGlideCluster, georadiusbymember_ro) {
-}
 
 GEOSEARCH_METHOD_IMPL(ValkeyGlideCluster)
 
@@ -914,11 +893,6 @@ ECHO_METHOD_IMPL(ValkeyGlideCluster)
 RAWCOMMAND_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto array ValkeyGlideCluster::command()
- *     proto array ValkeyGlideCluster::command('INFO', string cmd)
- *     proto array ValkeyGlideCluster::command('GETKEYS', array cmd_args) */
-PHP_METHOD(ValkeyGlideCluster, command) {
-}
 
 COPY_METHOD_IMPL(ValkeyGlideCluster)
 #endif /* PHP_REDIS_CLUSTER_C */
