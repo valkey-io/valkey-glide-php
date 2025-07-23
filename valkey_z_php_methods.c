@@ -697,22 +697,6 @@ SORT_METHOD_IMPL(ValkeyGlide)
 SORT_RO_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto array ValkeyGlide::sortAsc(string key [, array options]) */
-SORTASC_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto array ValkeyGlide::sortAscAlpha(string key [, array options]) */
-SORTASCALPHA_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto array ValkeyGlide::sortDesc(string key [, array options]) */
-SORTDESC_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto array ValkeyGlide::sortDescAlpha(string key [, array options]) */
-SORTDESCALPHA_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
 /* {{{ proto boolean ValkeyGlide::watch(string key1, string key2...) */
 WATCH_METHOD_IMPL(ValkeyGlide)
 /* }}} */

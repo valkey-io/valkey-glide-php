@@ -180,10 +180,6 @@ int execute_append_command(zval* object, int argc, zval* return_value, zend_clas
 int execute_getrange_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_sort_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_sort_ro_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_sortasc_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_sortascalpha_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_sortdesc_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_sortdescalpha_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 int execute_mget_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_rename_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -1266,62 +1262,6 @@ int buffer_current_command_generic(valkey_glide_object* valkey_glide,
         }                                                                          \
         zval_dtor(return_value);                                                   \
         RETURN_FALSE;                                                              \
-    }
-
-#define SORTASC_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, sortAsc) {                                              \
-        if (execute_sortasc_command(getThis(),                                     \
-                                    ZEND_NUM_ARGS(),                               \
-                                    return_value,                                  \
-                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                        ? get_valkey_glide_cluster_ce()            \
-                                        : get_valkey_glide_ce())) {                \
-            return;                                                                \
-        }                                                                          \
-        zval_dtor(return_value);                                                   \
-        RETURN_FALSE;                                                              \
-    }
-
-#define SORTASCALPHA_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, sortAscAlpha) {                                              \
-        if (execute_sortascalpha_command(getThis(),                                     \
-                                         ZEND_NUM_ARGS(),                               \
-                                         return_value,                                  \
-                                         strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                             ? get_valkey_glide_cluster_ce()            \
-                                             : get_valkey_glide_ce())) {                \
-            return;                                                                     \
-        }                                                                               \
-        zval_dtor(return_value);                                                        \
-        RETURN_FALSE;                                                                   \
-    }
-
-#define SORTDESC_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, sortDesc) {                                              \
-        if (execute_sortdesc_command(getThis(),                                     \
-                                     ZEND_NUM_ARGS(),                               \
-                                     return_value,                                  \
-                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                         ? get_valkey_glide_cluster_ce()            \
-                                         : get_valkey_glide_ce())) {                \
-            return;                                                                 \
-        }                                                                           \
-        zval_dtor(return_value);                                                    \
-        RETURN_FALSE;                                                               \
-    }
-
-#define SORTDESCALPHA_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, sortDescAlpha) {                                              \
-        if (execute_sortdescalpha_command(getThis(),                                     \
-                                          ZEND_NUM_ARGS(),                               \
-                                          return_value,                                  \
-                                          strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                              ? get_valkey_glide_cluster_ce()            \
-                                              : get_valkey_glide_ce())) {                \
-            return;                                                                      \
-        }                                                                                \
-        zval_dtor(return_value);                                                         \
-        RETURN_FALSE;                                                                    \
     }
 
 
