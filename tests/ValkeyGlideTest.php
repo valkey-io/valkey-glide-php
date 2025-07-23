@@ -2621,6 +2621,91 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->zAdd('zset', ['incr'], 10, 'value', 20, 'value2'));
     }
 
+    /**
+     * Test ZADD with CH option to cover line 178
+     */
+    public function testZaddWithChOption()
+    {
+        $key = 'test_zadd_ch_' . uniqid();
+
+        // First add some members
+        $this->assertEquals(2, $this->valkey_glide->zadd($key, 1, 'member1', 2, 'member2'));
+
+        // Test with CH option using string array format
+        $result = $this->valkey_glide->zadd($key, ['CH'], 1, 'member1', 3, 'member3');
+        $this->assertTrue(is_numeric($result));
+
+        // Clean up
+        $this->valkey_glide->del($key);
+    }
+
+    /**
+     * Test ZADD with associative array options format (lines 184-198)
+     */
+    public function testZaddWithAssociativeArrayOptions()
+    {
+        $key = 'test_zadd_assoc_' . uniqid();
+
+        // Test XX option with associative array
+        $this->assertEquals(0, $this->valkey_glide->zadd($key, ['XX' => true], 1, 'member1'));
+
+        // Add a member first
+        $this->assertEquals(1, $this->valkey_glide->zadd($key, 1, 'member1'));
+
+        // Test NX option with associative array (should fail since member exists)
+        $this->assertEquals(0, $this->valkey_glide->zadd($key, ['NX' => true], 2, 'member1'));
+
+        // Test LT option with associative array
+        $this->assertEquals(0, $this->valkey_glide->zadd($key, ['LT' => true], 0.5, 'member1'));
+
+        // Test GT option with associative array
+        $this->assertEquals(0, $this->valkey_glide->zadd($key, ['GT' => true], 2, 'member1'));
+
+        // Test CH option with associative array
+        $result = $this->valkey_glide->zadd($key, ['CH' => true], 3, 'member1');
+        $this->assertTrue(is_numeric($result));
+
+        // Test INCR option with associative array
+        $result = $this->valkey_glide->zadd($key, ['INCR' => true], 1, 'member1');
+        $this->assertTrue(is_numeric($result));
+
+        // Clean up
+        $this->valkey_glide->del($key);
+    }
+
+    /**
+     * Test ZADD with false values in associative array
+     */
+    public function testZaddWithFalseAssociativeValues()
+    {
+        $key = 'test_zadd_false_' . uniqid();
+
+        // Test with false values (should be ignored)
+        $this->assertEquals(1, $this->valkey_glide->zadd($key, ['XX' => false], 1, 'member1'));
+        $this->assertEquals(1, $this->valkey_glide->zadd($key, ['NX' => false], 2, 'member2'));
+
+        // Clean up
+        $this->valkey_glide->del($key);
+    }
+
+    /**
+     * Test ZADD with mixed associative options
+     */
+    public function testZaddWithMixedAssociativeOptions()
+    {
+        $key = 'test_zadd_mixed_' . uniqid();
+
+        // Test multiple options in associative format
+        $this->assertEquals(1, $this->valkey_glide->zadd($key, ['CH' => true, 'NX' => true], 1, 'member1'));
+
+        // Test combination that should work
+        $result = $this->valkey_glide->zadd($key, ['CH' => true, 'XX' => true], 2, 'member1');
+        $this->assertTrue(is_numeric($result));
+
+        // Clean up
+        $this->valkey_glide->del($key);
+    }
+
     public function testZX()
     {
         $this->valkey_glide->del('key');
@@ -3114,6 +3199,200 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(['a', 'b', 'c'], $this->valkey_glide->zUnion(['key']));
 
         $this->assertEquals(['a' => 1.0, 'b' => 1.0, 'c' => 1.0], $this->valkey_glide->zUnion(['key'], null, ['withscores' => true]));
+    }
+
+
+   /**
+     * Test ZUNION with WEIGHTS option - verify specific weighted scores
+     */
+    public function testZunionWithWeights()
+    {
+        $key1 = '{test}test_zunion_weights_1_' . uniqid();
+        $key2 = '{test}test_zunion_weights_2_' . uniqid();
+
+        // Set up test data with known scores
+        $this->valkey_glide->zadd($key1, 1, 'member1', 2, 'member2');
+        $this->valkey_glide->zadd($key2, 3, 'member1', 4, 'member3');
+
+        $keys = [$key1, $key2];
+        $weights = [2, 3]; // key1 scores * 2, key2 scores * 3
+
+        // Test ZUNION with weights and WITHSCORES
+        $result = $this->valkey_glide->zUnion($keys, $weights, ['WITHSCORES' => true]);
+
+        // Verify specific results:
+        // member1: (1*2) + (3*3) = 2 + 9 = 11
+        // member2: (2*2) + (0*3) = 4 + 0 = 4 (member2 only in key1)
+        // member3: (0*2) + (4*3) = 0 + 12 = 12 (member3 only in key2)
+
+        $this->assertIsArray($result);
+        $this->assertEquals(3, count($result)); // 3 members * 2 (member + score)
+        
+        // Verify members and scores are present
+        $this->assertEquals($result['member2'], 4.0);
+        $this->assertEquals($result['member1'], 11.0);
+        $this->assertEquals($result['member3'], 12.0);
+
+        // Clean up
+        $this->valkey_glide->del($key1, $key2);
+    }
+    /**
+     * Test ZUNION with AGGREGATE option - verify specific aggregation results
+     */
+    public function testZunionWithAggregate()
+    {
+        $key1 = '{test}test_zunion_agg_1_' . uniqid();
+        $key2 = '{test}test_zunion_agg_2_' . uniqid();
+
+        // Set up test data with overlapping member 'common'
+        $this->valkey_glide->zadd($key1, 5, 'common', 2, 'unique1');
+        $this->valkey_glide->zadd($key2, 3, 'common', 4, 'unique2');
+
+        $keys = [$key1, $key2];
+
+        // Test SUM aggregation (default behavior)
+        $result = $this->valkey_glide->zUnion($keys, null, ['AGGREGATE' => 'SUM', 'WITHSCORES' => true]);
+        $this->assertIsArray($result);
+        $this->assertEquals(3, count($result)); // 3 unique members
+        $this->assertEquals(8.0, $result['common']); // 5 + 3 = 8
+        $this->assertEquals(2.0, $result['unique1']);
+        $this->assertEquals(4.0, $result['unique2']);
+
+        // Test MIN aggregation
+        $result = $this->valkey_glide->zUnion($keys, null, ['AGGREGATE' => 'MIN', 'WITHSCORES' => true]);
+        $this->assertEquals(3.0, $result['common']); // min(5, 3) = 3
+
+        // Test MAX aggregation
+        $result = $this->valkey_glide->zUnion($keys, null, ['AGGREGATE' => 'MAX', 'WITHSCORES' => true]);
+        $this->assertEquals(5.0, $result['common']); // max(5, 3) = 5
+
+        // Clean up
+        $this->valkey_glide->del($key1, $key2);
+    }
+
+    /**
+     * Test ZUNION with both WEIGHTS and AGGREGATE - verify precise calculations
+     */
+    public function testZunionWithWeightsAndAggregate()
+    {
+        $key1 = '{test}test_zunion_both_1_' . uniqid();
+        $key2 = '{test}test_zunion_both_2_' . uniqid();
+
+        // Set up data where 'common' appears in both sets
+        $this->valkey_glide->zadd($key1, 2, 'common', 1, 'unique1');
+        $this->valkey_glide->zadd($key2, 4, 'common', 3, 'unique2');
+
+        $keys = [$key1, $key2];
+        $weights = [3, 2]; // key1 * 3, key2 * 2
+
+        // Test with MIN aggregation and weights
+        // For 'common': min(2*3, 4*2) = min(6, 8) = 6
+        $result = $this->valkey_glide->zUnion($keys, $weights, ['AGGREGATE' => 'MIN', 'WITHSCORES' => true]);
+        $this->assertIsArray($result);
+        $this->assertEquals(3, count($result)); // 3 unique members
+        $this->assertEquals(6.0, $result['common']);
+        $this->assertEquals(3.0, $result['unique1']); // 1 * 3 = 3
+        $this->assertEquals(6.0, $result['unique2']); // 3 * 2 = 6
+
+        // Test with MAX aggregation and weights
+        // For 'common': max(2*3, 4*2) = max(6, 8) = 8
+        $result = $this->valkey_glide->zUnion($keys, $weights, ['AGGREGATE' => 'MAX', 'WITHSCORES' => true]);
+        $this->assertEquals(8.0, $result['common']);
+        $this->assertEquals(3.0, $result['unique1']); // 1 * 3 = 3
+        $this->assertEquals(6.0, $result['unique2']); // 3 * 2 = 6
+
+        // Clean up
+        $this->valkey_glide->del($key1, $key2);
+    }
+
+    /**
+     * Test ZUNION with float weights - verify decimal precision
+     */
+    public function testZunionWithFloatWeights()
+    {
+        $key1 = '{test}test_zunion_float_1_' . uniqid();
+        $key2 = '{test}test_zunion_float_2_' . uniqid();
+
+        // Set up test data
+        $this->valkey_glide->zadd($key1, 2, 'member1');
+        $this->valkey_glide->zadd($key2, 3, 'member2');
+
+        $keys = [$key1, $key2];
+        $weights = [1.5, 2.5]; // Decimal weights
+
+        $result = $this->valkey_glide->zUnion($keys, $weights, ['WITHSCORES' => true]);
+
+        // Verify calculated scores:
+        // member1: 2 * 1.5 = 3.0
+        // member2: 3 * 2.5 = 7.5
+        $this->assertIsArray($result);
+        $this->assertEquals(2, count($result)); // 2 unique members
+        $this->assertEquals(3.0, $result['member1']);
+        $this->assertEquals(7.5, $result['member2']);
+
+        // Clean up
+        $this->valkey_glide->del($key1, $key2);
+    }
+
+    /**
+     * Test ZUNION with and without WITHSCORES - verify format differences
+     */
+    public function testZunionWithScoresComparison()
+    {
+        $key1 = '{test}test_zunion_scores_1_' . uniqid();
+        $key2 = '{test}test_zunion_scores_2_' . uniqid();
+
+        // Set up test data
+        $this->valkey_glide->zadd($key1, 1, 'alpha', 3, 'charlie');
+        $this->valkey_glide->zadd($key2, 2, 'beta', 4, 'delta');
+
+        $keys = [$key1, $key2];
+
+        // Test without WITHSCORES (members only)
+        $result_no_scores = $this->valkey_glide->zUnion($keys);
+        $this->assertIsArray($result_no_scores);
+        $this->assertEquals(4, count($result_no_scores)); // Just 4 members as indexed array
+        $this->assertEquals('alpha', $result_no_scores[0]);
+        $this->assertEquals('beta', $result_no_scores[1]);
+        $this->assertEquals('charlie', $result_no_scores[2]);
+        $this->assertEquals('delta', $result_no_scores[3]);
+
+        // Test with WITHSCORES (members + scores as associative array)
+        $result_with_scores = $this->valkey_glide->zUnion($keys, null, ['WITHSCORES' => true]);
+        $this->assertIsArray($result_with_scores);
+        $this->assertEquals(4, count($result_with_scores)); // 4 members in associative array
+        $this->assertEquals(1.0, $result_with_scores['alpha']);
+        $this->assertEquals(2.0, $result_with_scores['beta']);
+        $this->assertEquals(3.0, $result_with_scores['charlie']);
+        $this->assertEquals(4.0, $result_with_scores['delta']);
+
+        // Clean up
+        $this->valkey_glide->del($key1, $key2);
+    }
+
+/**
+ * Test ZUNION with non-string keys (numeric keys)
+ */
+    public function testZunionWithNumericKeys()
+    {
+        $key1 = '{test}123'; // Numeric-like key
+        $key2 = '{test}456'; // Numeric-like key
+
+        // Set up test data
+        $this->valkey_glide->zadd($key1, 1, 'member1');
+        $this->valkey_glide->zadd($key2, 2, 'member2');
+
+        // Test ZUNION with numeric-like keys in array
+        $keys = [$key1, $key2];
+
+        $result = $this->valkey_glide->zUnion($keys, null, ['WITHSCORES' => true]);
+        $this->assertIsArray($result);
+        $this->assertEquals(2, count($result)); // 2 members
+        $this->assertEquals(1.0, $result['member1']);
+        $this->assertEquals(2.0, $result['member2']);
+
+        // Clean up
+        $this->valkey_glide->del($key1, $key2);
     }
 
     public function testzDiffStore()
