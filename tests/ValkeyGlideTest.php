@@ -624,6 +624,57 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(0, $this->valkey_glide->exists('key'));
     }
 
+    public function testSetEXAT()
+    {
+        // EXAT option was introduced in Redis/Valkey 6.2.0
+        if (version_compare($this->version, '6.2.0') < 0) {
+            $this->markTestSkipped();
+        }
+
+        // Test EXAT with absolute Unix timestamp (2 minutes from now)
+        $this->valkey_glide->del('foo');
+        $future_timestamp = time() + 120;
+        $this->assertTrue($this->valkey_glide->set('foo', 'bar', ['EXAT' => $future_timestamp]));
+        $this->assertKeyEquals('bar', 'foo');
+        $this->assertBetween($this->valkey_glide->ttl('foo'), 115, 120);
+
+        // Test EXAT with NX option
+        $this->valkey_glide->del('foo');
+        $future_timestamp = time() + 180;
+        $this->assertTrue($this->valkey_glide->set('foo', 'bar', ['NX', 'EXAT' => $future_timestamp]));
+        $this->assertKeyEquals('bar', 'foo');
+        $this->assertBetween($this->valkey_glide->ttl('foo'), 175, 180);
+        
+        // Should fail with NX when key exists
+        $this->assertFalse($this->valkey_glide->set('foo', 'baz', ['NX', 'EXAT' => time() + 200]));
+        $this->assertKeyEquals('bar', 'foo'); // Value should remain unchanged
+
+        // Test EXAT with XX option
+        $future_timestamp = time() + 240;
+        $this->assertTrue($this->valkey_glide->set('foo', 'updated', ['XX', 'EXAT' => $future_timestamp]));
+        $this->assertKeyEquals('updated', 'foo');
+        $this->assertBetween($this->valkey_glide->ttl('foo'), 235, 240);
+
+        // Test EXAT with GET option (should return previous value)
+        $future_timestamp = time() + 300;
+        $this->assertEquals('updated', $this->valkey_glide->set('foo', 'final', ['GET', 'EXAT' => $future_timestamp]));
+        $this->assertKeyEquals('final', 'foo');
+        $this->assertBetween($this->valkey_glide->ttl('foo'), 295, 300);
+
+        // Test EXAT with past timestamp (key should expire immediately)
+        $past_timestamp = time() - 10;
+        $this->assertTrue($this->valkey_glide->set('foo', 'expired', ['EXAT' => $past_timestamp]));
+        // Key should be expired/not exist
+        $this->assertFalse($this->valkey_glide->get('foo'));
+
+        // Test invalid EXAT value (should fail)
+        $this->assertFalse(@$this->valkey_glide->set('foo', 'bar', ['EXAT' => 'invalid']));
+        $this->assertFalse(@$this->valkey_glide->set('foo', 'bar', ['EXAT' => -1]));
+
+        // Clean up
+        $this->valkey_glide->del('foo');
+    }
+
     public function testRandomKey()
     {
         for ($i = 0; $i < 1000; $i++) {
