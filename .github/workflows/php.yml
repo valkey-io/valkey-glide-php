@@ -740,7 +740,7 @@ jobs:
       - name: Lint PHP code (if PHP files exist)
         run: |
           if find tests/ -name "*.php" | head -1 | grep -q .; then
-              phpcs --standard=PSR12 tests/ || true
+              phpcs . || true
           fi
 
   get-containers:
