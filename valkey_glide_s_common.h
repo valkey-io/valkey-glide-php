@@ -41,20 +41,18 @@ typedef enum {
     S_CMD_MULTI_KEY_LIMIT, /* SINTERCARD - keys + limit option */
     S_CMD_DST_MULTI_KEY,   /* SINTERSTORE, SUNIONSTORE, SDIFFSTORE - destination + source keys */
     S_CMD_TWO_KEY_MEMBER,  /* SMOVE - source + destination + member */
-    S_CMD_SCAN,            /* SCAN, SSCAN - cursor + pattern + count */
-    S_CMD_SERVER           /* Server info commands */
+    S_CMD_SCAN             /* SCAN, SSCAN - cursor + pattern + count */
 } s_command_category_t;
 
 /**
  * S command response types
  */
 typedef enum {
-    S_RESPONSE_INT,    /* Integer response */
-    S_RESPONSE_BOOL,   /* Boolean response (0/1) */
-    S_RESPONSE_SET,    /* Set/Array response */
-    S_RESPONSE_MIXED,  /* Mixed response (string or array) */
-    S_RESPONSE_STRING, /* String response */
-    S_RESPONSE_SCAN    /* Scan response (cursor + array) */
+    S_RESPONSE_INT,   /* Integer response */
+    S_RESPONSE_BOOL,  /* Boolean response (0/1) */
+    S_RESPONSE_SET,   /* Set/Array response */
+    S_RESPONSE_MIXED, /* Mixed response (string or array) */
+    S_RESPONSE_SCAN   /* Scan response (cursor + array) */
 } s_response_type_t;
 
 /* ====================================================================
@@ -158,16 +156,12 @@ int prepare_s_two_key_member_args(s_command_args_t* args,
                                   uintptr_t**       args_out,
                                   unsigned long**   args_len_out);
 int prepare_s_scan_args(s_command_args_t* args, uintptr_t** args_out, unsigned long** args_len_out);
-int prepare_s_server_args(s_command_args_t* args,
-                          uintptr_t**       args_out,
-                          unsigned long**   args_len_out);
 
 /* Response processing functions */
 int process_s_int_response(CommandResult* result, s_command_args_t* args, zval* return_value);
 int process_s_bool_response(CommandResult* result, s_command_args_t* args, zval* return_value);
 int process_s_set_response(CommandResult* result, s_command_args_t* args, zval* return_value);
 int process_s_mixed_response(CommandResult* result, s_command_args_t* args, zval* return_value);
-int process_s_string_response(CommandResult* result, s_command_args_t* args, zval* return_value);
 int process_s_scan_response(CommandResult*    result,
                             enum RequestType  cmd_type,
                             s_command_args_t* args,
@@ -178,15 +172,11 @@ int  allocate_s_command_args(int count, uintptr_t** args_out, unsigned long** ar
 void cleanup_s_command_args(uintptr_t* args, unsigned long* args_len);
 int  convert_zval_to_string_args(
      zval* input, int count, uintptr_t** args_out, unsigned long** args_len_out, int offset);
-int   convert_single_zval_to_string(zval*        input,
-                                    const char** str_out,
-                                    size_t*      len_out,
-                                    zval*        temp_storage);
+
 char* alloc_long_string(long value, size_t* len_out);
 
 /* Specific command implementations */
 int execute_sadd_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_sadd_array_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_scard_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_srem_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_smove_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);

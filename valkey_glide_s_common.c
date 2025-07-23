@@ -56,40 +56,6 @@ void cleanup_s_command_args(uintptr_t* args, unsigned long* args_len) {
 }
 
 /**
- * Convert a single zval to string with proper cleanup handling
- */
-int convert_single_zval_to_string(zval*        input,
-                                  const char** str_out,
-                                  size_t*      len_out,
-                                  zval*        temp_storage) {
-    if (!input || !str_out || !len_out) {
-        return 0;
-    }
-
-    if (Z_TYPE_P(input) == IS_STRING) {
-        *str_out = Z_STRVAL_P(input);
-        *len_out = Z_STRLEN_P(input);
-        return 1;
-    }
-
-    /* Handle object conversion specially */
-    if (Z_TYPE_P(input) == IS_OBJECT) {
-        ZVAL_COPY(temp_storage, input);
-        zend_std_cast_object_tostring(temp_storage, temp_storage, IS_STRING);
-        *str_out = Z_STRVAL_P(temp_storage);
-        *len_out = Z_STRLEN_P(temp_storage);
-        return 1;
-    }
-
-    /* Handle other types */
-    ZVAL_COPY(temp_storage, input);
-    convert_to_string(temp_storage);
-    *str_out = Z_STRVAL_P(temp_storage);
-    *len_out = Z_STRLEN_P(temp_storage);
-    return 1;
-}
-
-/**
  * Convert array of zvals to string arguments
  */
 int convert_zval_to_string_args(
@@ -559,32 +525,6 @@ int process_s_mixed_response(CommandResult* result, s_command_args_t* args, zval
     return 0;
 }
 
-/**
- * Process string response
- */
-int process_s_string_response(CommandResult* result, s_command_args_t* args, zval* return_value) {
-    if (result && result->response && !result->command_error) {
-        if (result->response->response_type == String) {
-            if (args->output_string && args->output_string_len) {
-                size_t len           = result->response->string_value_len;
-                *args->output_string = (char*) emalloc(len + 1);
-                if (*args->output_string) {
-                    memcpy(*args->output_string, result->response->string_value, len);
-                    (*args->output_string)[len] = '\0';
-                    *args->output_string_len    = len;
-                    return 1;
-                }
-            }
-            if (return_value) {
-                ZVAL_STRINGL(return_value,
-                             result->response->string_value,
-                             result->response->string_value_len);
-                return 1;
-            }
-        }
-    }
-    return 0;
-}
 
 /**
  * Process scan response (cursor + array) - Updated for string cursors
@@ -721,9 +661,6 @@ int execute_s_generic_command(const void*          glide_client,
         case S_CMD_SCAN:
             arg_count = prepare_s_scan_args(args, &cmd_args, &args_len);
             break;
-        case S_CMD_SERVER:
-            arg_count = prepare_s_server_args(args, &cmd_args, &args_len);
-            break;
         default:
             return 0;
     }
@@ -750,9 +687,7 @@ int execute_s_generic_command(const void*          glide_client,
             case S_RESPONSE_MIXED:
                 status = process_s_mixed_response(result, args, return_value);
                 break;
-            case S_RESPONSE_STRING:
-                status = process_s_string_response(result, args, return_value);
-                break;
+
             case S_RESPONSE_SCAN:
                 status = process_s_scan_response(result, cmd_type, args, return_value);
                 break;
@@ -872,76 +807,6 @@ int execute_sadd_command(zval* object, int argc, zval* return_value, zend_class_
     return 0;
 }
 
-/**
- * Execute SADD array command using the new signature pattern
- */
-int execute_sadd_array_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    valkey_glide_object* valkey_glide;
-    char*                key = NULL;
-    size_t               key_len;
-    zval*                z_arr;
-    HashTable*           ht_arr;
-
-    /* Parse parameters */
-    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &z_arr) ==
-        FAILURE) {
-        return 0;
-    }
-
-    /* Get ValkeyGlide object */
-    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-
-    /* Get HashTable from array */
-    ht_arr = Z_ARRVAL_P(z_arr);
-
-    /* If we have a Glide client, use it */
-    if (valkey_glide->glide_client) {
-        /* Convert HashTable to zval array for generic processing */
-        int members_count = zend_hash_num_elements(ht_arr);
-        if (members_count == 0) {
-            ZVAL_LONG(return_value, 0);
-            return 1;
-        }
-
-        /* Allocate memory for zval array */
-        zval* z_members = ecalloc(members_count, sizeof(zval));
-
-        /* Copy HashTable values to zval array */
-        zval* data;
-        int   idx = 0;
-        ZEND_HASH_FOREACH_VAL(ht_arr, data) {
-            ZVAL_COPY(&z_members[idx], data);
-            idx++;
-        }
-        ZEND_HASH_FOREACH_END();
-
-        s_command_args_t args;
-        INIT_S_COMMAND_ARGS(args);
-
-        args.glide_client  = valkey_glide->glide_client;
-        args.key           = key;
-        args.key_len       = key_len;
-        args.members       = z_members;
-        args.members_count = members_count;
-
-        int result = execute_s_generic_command(valkey_glide->glide_client,
-                                               SAdd,
-                                               S_CMD_KEY_MEMBERS,
-                                               S_RESPONSE_INT,
-                                               &args,
-                                               return_value);
-
-        /* Clean up allocated array */
-        for (int i = 0; i < members_count; i++) {
-            zval_dtor(&z_members[i]);
-        }
-        efree(z_members);
-
-        return result;
-    }
-
-    return 0;
-}
 
 /**
  * Execute SCARD command using the new signature pattern
