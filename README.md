@@ -105,6 +105,7 @@ source "$HOME/.cargo/env"
 **For macOS:**
 ```bash
 brew install protobuf
+brew install protobuf-c
 # Verify installation
 protoc --version
 ```
