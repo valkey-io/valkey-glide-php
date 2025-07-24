@@ -62,6 +62,11 @@ jobs:
           distribution: "temurin"
           java-version: 11
 
+      - name: Set up Python for ScanCode
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
       - name: Cache ORT and Gradle packages
         uses: actions/cache@v4
         id: cache-ort
@@ -142,6 +147,13 @@ jobs:
               skip_excluded: true
               allowDynamicVersions: true
               enabledPackageManagers: [Composer]
+            scanner:
+              archive:
+                enabled: true
+              options:
+                ScanCode:
+                  commandLine: "--license --copyright --info --strip-root --timeout 300"
+                  parseLicenseExpressions: true
             excludes:
               paths:
               - pattern: "ort/**"

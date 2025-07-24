@@ -3,7 +3,19 @@
 # and exclude build tools, test files, and other non-relevant directories.
 
 analyzer:
-  skip_excluded: true    
+  skip_excluded: true
+
+scanner:
+  # Enable archive extraction for nested license detection
+  archive:
+    enabled: true
+  # Configure license file patterns to include PHP files
+  options:
+    ScanCode:
+      # Scan all common source file patterns including PHP
+      commandLine: "--license --copyright --info --strip-root --timeout 300"
+      # Include PHP files in license detection
+      parseLicenseExpressions: true
 
 excludes:
   scopes:

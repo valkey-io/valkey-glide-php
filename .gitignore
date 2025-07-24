@@ -82,3 +82,4 @@ include/**
 .libs/**
 *.dep
 *.lo
+lib/**
