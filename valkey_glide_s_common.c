@@ -423,26 +423,6 @@ int prepare_s_scan_args(s_command_args_t* args,
     return arg_count;
 }
 
-/**
- * Prepare arguments for server commands
- */
-int prepare_s_server_args(s_command_args_t* args,
-                          uintptr_t**       args_out,
-                          unsigned long**   args_len_out) {
-    if (!args->glide_client) {
-        return 0;
-    }
-
-    if (!allocate_s_command_args(1, args_out, args_len_out)) {
-        return 0;
-    }
-
-    /* Server commands typically use "server" section for INFO */
-    (*args_out)[0]     = (uintptr_t) "server";
-    (*args_len_out)[0] = 6;
-
-    return 1;
-}
 
 /* ====================================================================
  * RESPONSE PROCESSING FUNCTIONS
