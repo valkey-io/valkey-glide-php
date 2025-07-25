@@ -113,7 +113,7 @@ static uint8_t* create_connection_request(const char*                          h
 }
 
 /* Create a Valkey Glide client */
-const void* create_glide_client(valkey_glide_client_configuration_t* config, bool is_cluster) {
+const ConnectionResponse* create_glide_client(valkey_glide_client_configuration_t* config, bool is_cluster) {
     /* Create a connection request using first address or default */
     size_t      len;
     const char* host     = "localhost";
@@ -155,17 +155,9 @@ const void* create_glide_client(valkey_glide_client_configuration_t* config, boo
     /* Check if there was an error */
     if (conn_resp->connection_error_message) {
         printf("Error creating client: %s\n", conn_resp->connection_error_message);
-        free_connection_response((ConnectionResponse*) conn_resp);
-        return NULL;
     }
 
-    /* Get the client pointer */
-    const void* client = conn_resp->conn_ptr;
-
-    /* Free the connection response (but not the client) */
-    free_connection_response((ConnectionResponse*) conn_resp);
-
-    return client;
+    return conn_resp;
 }
 
 /* Custom result processor for SET commands with GET option support */

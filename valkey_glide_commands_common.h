@@ -58,7 +58,7 @@ void free_command_response(CommandResponse* command_response_ptr);
 void free_command_result(CommandResult* command_result_ptr);
 
 /* Helper functions for Valkey Glide integration */
-const void* create_glide_client(valkey_glide_client_configuration_t* config, bool is_cluster);
+const ConnectionResponse* create_glide_client(valkey_glide_client_configuration_t* config, bool is_cluster);
 
 /* Bit operations - UNIFIED SIGNATURES */
 int execute_bitcount_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);

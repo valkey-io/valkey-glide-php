@@ -430,7 +430,16 @@ PHP_METHOD(ValkeyGlide, __construct) {
         return;
     }
 
-    valkey_glide->glide_client = create_glide_client(&client_config, false);
+    const ConnectionResponse* conn_resp =
+        create_glide_client((valkey_glide_client_configuration_t*) &client_config, false);
+
+    if (conn_resp->connection_error_message) {
+        zend_throw_exception(valkey_glide_exception_ce, conn_resp->connection_error_message,0);
+    } else {
+        valkey_glide->glide_client = conn_resp->conn_ptr;
+    }
+
+    free_connection_response((ConnectionResponse*) conn_resp);
 
     /* Clean up temporary configuration structures */
     cleanup_client_config(&client_config);
