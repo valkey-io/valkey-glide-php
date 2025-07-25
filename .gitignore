@@ -103,3 +103,5 @@ Makefile
 Makefile.fragments
 Makefile.objects
 autom4te.cache
+config.h.in~
+configure~
