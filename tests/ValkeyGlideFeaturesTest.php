@@ -91,6 +91,30 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         }
     }
 
+    /**
+     * Test connection with invalid credentials
+     */
+    public function testConstructorInvalidAuth()
+    {
+        // Test constructor with credentials (if auth is configured)
+        $addresses = [
+            ['host' => $this->getHost(), 'port' => $this->getPort()]
+        ];
+
+        // Try to connect with incorrect auth
+        $valkey_glide = null;
+        try {
+            $credentials = ['username' => 'invalid_user', 'password' => 'invalid_password'];
+            $valkey_glide = new ValkeyGlide($addresses, false, $credentials);
+            $this->fail("Should throw an exception when running commands with invalid authentication");
+        } catch (Exception $e) {
+            $this->assertStringContains("WRONGPASS", $e->getMessage(), "Exception should indicate authentication failure");
+        } finally {
+            // Clean up
+            $valkey_glide?->close();
+        }
+    }
+
     public function testConstructorWithReadFromPrimary()
     {
         // Test constructor with READ_FROM_PRIMARY strategy

@@ -734,6 +734,12 @@ class TestSuite
         return false;
     }
 
+    protected function fail(string $message): bool
+    {
+        self::$errors [] = $this->assertionTrace("'%s'", $message);
+        return false;
+    }
+
     protected function markTestSkipped(string $msg = '')
     {
         $bt = debug_backtrace(false);

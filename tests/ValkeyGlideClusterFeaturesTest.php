@@ -96,6 +96,29 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         }
     }
 
+    public function testConstructorInvalidAuth()
+    {
+        if ($this->getAuth()) {
+            // Test constructor with credentials (if auth is configured)
+            $addresses = [
+                [['host' => '127.0.0.1', 'port' => 7001]],
+            ];
+
+            // Try to connect with incorrect auth
+            $valkey_glide = null;
+            try {
+                $credentials = ['username' => 'invalid_user', 'password' => 'invalid_password'];
+                $valkey_glide = new ValkeyGlideCluster($addresses, false, $credentials);
+                $this->fail("Should throw an exception when running commands with invalid authentication");
+            } catch (Exception $e) {
+                $this->assertStringContains("WRONGPASS", $e->getMessage(), "Exception should indicate authentication failure");
+            } finally {
+                // Clean up
+                $valkey_glide?->close();
+            }
+        }
+    }
+
     // ==============================================
     // READ STRATEGY PARAMETER TESTS
     // ==============================================
