@@ -250,6 +250,7 @@ jobs:
             --ignore "*modules/*" \
             --ignore "*autom4te.cache/*" \
             --ignore "*venv/*" \
+            --ignore "*ort/*" \
             --ignore "*myenv/*" \
             --ignore "*THIRD_PARTY_LICENSES_PHP*" \
             --json report.json --csv report.csv -v
