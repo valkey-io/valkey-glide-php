@@ -113,7 +113,8 @@ static uint8_t* create_connection_request(const char*                          h
 }
 
 /* Create a Valkey Glide client */
-const ConnectionResponse* create_glide_client(valkey_glide_client_configuration_t* config, bool is_cluster) {
+const ConnectionResponse* create_glide_client(valkey_glide_client_configuration_t* config,
+                                              bool                                 is_cluster) {
     /* Create a connection request using first address or default */
     size_t      len;
     const char* host     = "localhost";

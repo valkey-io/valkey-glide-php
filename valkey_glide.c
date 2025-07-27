@@ -434,7 +434,7 @@ PHP_METHOD(ValkeyGlide, __construct) {
         create_glide_client((valkey_glide_client_configuration_t*) &client_config, false);
 
     if (conn_resp->connection_error_message) {
-        zend_throw_exception(valkey_glide_exception_ce, conn_resp->connection_error_message,0);
+        zend_throw_exception(valkey_glide_exception_ce, conn_resp->connection_error_message, 0);
     } else {
         valkey_glide->glide_client = conn_resp->conn_ptr;
     }
