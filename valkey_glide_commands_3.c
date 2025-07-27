@@ -1304,6 +1304,104 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
 }
 
 
+/* Helper function to parse CLIENT LIST response into array of associative arrays */
+static int parse_client_list_response(const char* response_str,
+                                      size_t      response_len,
+                                      zval*       return_value) {
+    if (!response_str || response_len == 0) {
+        array_init(return_value);
+        return 1;
+    }
+
+    array_init(return_value);
+
+    /* Split response by newlines to get individual client entries */
+    const char* line_start   = response_str;
+    const char* line_end     = response_str;
+    const char* response_end = response_str + response_len;
+
+    while (line_start < response_end) {
+        /* Find end of current line */
+        while (line_end < response_end && *line_end != '\n' && *line_end != '\r') {
+            line_end++;
+        }
+
+        /* Skip empty lines */
+        if (line_end > line_start) {
+            size_t line_length = line_end - line_start;
+
+            /* Create associative array for this client */
+            zval client_array;
+            array_init(&client_array);
+
+            /* Parse key=value pairs in this line */
+            const char* token_start = line_start;
+            const char* token_end   = line_start;
+
+            while (token_start < line_start + line_length) {
+                /* Find end of current token (space-separated) */
+                while (token_end < line_start + line_length && *token_end != ' ') {
+                    token_end++;
+                }
+
+                if (token_end > token_start) {
+                    /* Look for '=' in token to split key and value */
+                    const char* equals_pos = token_start;
+                    while (equals_pos < token_end && *equals_pos != '=') {
+                        equals_pos++;
+                    }
+
+                    if (equals_pos < token_end && *equals_pos == '=') {
+                        /* Extract key and value */
+                        size_t key_len   = equals_pos - token_start;
+                        size_t value_len = token_end - equals_pos - 1;
+
+                        if (key_len > 0) {
+                            /* Create null-terminated key string */
+                            char* key = emalloc(key_len + 1);
+                            memcpy(key, token_start, key_len);
+                            key[key_len] = '\0';
+
+                            /* Create null-terminated value string */
+                            char* value = emalloc(value_len + 1);
+                            if (value_len > 0) {
+                                memcpy(value, equals_pos + 1, value_len);
+                            }
+                            value[value_len] = '\0';
+
+                            /* Add to client array */
+                            add_assoc_string(&client_array, key, value);
+
+                            /* Free temporary strings */
+                            efree(key);
+                            efree(value);
+                        }
+                    }
+                }
+
+                /* Move to next token */
+                token_start = token_end;
+                /* Skip spaces */
+                while (token_start < line_start + line_length && *token_start == ' ') {
+                    token_start++;
+                }
+                token_end = token_start;
+            }
+
+            /* Add client array to main result array */
+            add_next_index_zval(return_value, &client_array);
+        }
+
+        /* Move to next line */
+        while (line_end < response_end && (*line_end == '\n' || *line_end == '\r')) {
+            line_end++;
+        }
+        line_start = line_end;
+    }
+
+    return 1;
+}
+
 /* Execute a CLIENT command using the Valkey Glide client */
 int execute_client_command_internal(
     const void* glide_client, zval* args, int args_count, zval* return_value, zval* route) {
@@ -1324,20 +1422,22 @@ int execute_client_command_internal(
             efree(args_len);
         return 0;
     }
-
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
+    printf("args_count = %d\n", args_count);
     /* Keep track of allocated strings for cleanup */
     char** allocated     = (char**) emalloc(args_count * sizeof(char*));
     int    allocated_idx = 0;
 
     /* Convert arguments to strings if needed */
     int i;
-    for (i = 0; i < args_count; i++) {
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
+    for (i = 1; i < args_count; i++) {
         zval* arg = &args[i];
 
         /* If string, use directly */
         if (Z_TYPE_P(arg) == IS_STRING) {
-            cmd_args[i] = (uintptr_t) Z_STRVAL_P(arg);
-            args_len[i] = Z_STRLEN_P(arg);
+            cmd_args[i - 1] = (uintptr_t) Z_STRVAL_P(arg);
+            args_len[i - 1] = Z_STRLEN_P(arg);
         } else {
             /* Convert non-string types to string */
             zval   copy;
@@ -1352,8 +1452,8 @@ int execute_client_command_internal(
             memcpy(str, Z_STRVAL(copy), str_len);
             str[str_len] = '\0';
 
-            cmd_args[i] = (uintptr_t) str;
-            args_len[i] = str_len;
+            cmd_args[i - 1] = (uintptr_t) str;
+            args_len[i - 1] = str_len;
 
             /* Track allocated string for cleanup */
             allocated[allocated_idx++] = str;
@@ -1361,7 +1461,7 @@ int execute_client_command_internal(
             zval_dtor(&copy);
         }
     }
-
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
     /* Determine the appropriate client command type based on the first argument */
     enum RequestType command_type = ClientInfo; /* Default to ClientInfo */
 
@@ -1378,55 +1478,31 @@ int execute_client_command_internal(
             command_type = ClientGetName;
         else if (strcasecmp(subcmd, "ID") == 0)
             command_type = ClientId;
-        else if (strcasecmp(subcmd, "SETNAME") == 0)
+        else if (strcasecmp(subcmd, "SETNAME") == 0) {
+            printf("file = %s, line = %d\n", __FILE__, __LINE__);
             command_type = ClientSetName;
-        else if (strcasecmp(subcmd, "PAUSE") == 0)
+        } else if (strcasecmp(subcmd, "PAUSE") == 0)
             command_type = ClientPause;
         else if (strcasecmp(subcmd, "UNPAUSE") == 0)
             command_type = ClientUnpause;
         else if (strcasecmp(subcmd, "REPLY") == 0)
             command_type = ClientReply;
         else
-            command_type = CustomCommand; /* Use custom command for other subcommands */
+            return 0; /* Unknown command */
     }
-
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
     /* Set additional client prefix for custom commands */
     uintptr_t*     final_args      = cmd_args;
     unsigned long* final_args_len  = args_len;
-    unsigned long  final_arg_count = arg_count;
+    unsigned long  final_arg_count = arg_count - 1;
 
-    /* If using CustomCommand type, prepend "CLIENT" to the argument list */
-    if (command_type == CustomCommand) {
-        final_arg_count = arg_count + 1;
-        final_args      = (uintptr_t*) emalloc(final_arg_count * sizeof(uintptr_t));
-        final_args_len  = (unsigned long*) emalloc(final_arg_count * sizeof(unsigned long));
 
-        if (!final_args || !final_args_len) {
-            if (final_args)
-                efree(final_args);
-            if (final_args_len)
-                efree(final_args_len);
-
-            /* Free allocated strings */
-            for (i = 0; i < allocated_idx; i++)
-                efree(allocated[i]);
-            efree(allocated);
-            efree(cmd_args);
-            efree(args_len);
-            return 0;
-        }
-
-        /* Add "CLIENT" as first argument */
-        final_args[0]     = (uintptr_t) "CLIENT";
-        final_args_len[0] = 6; /* strlen("CLIENT") */
-
-        /* Copy the rest of the arguments */
-        for (i = 0; i < arg_count; i++) {
-            final_args[i + 1]     = cmd_args[i];
-            final_args_len[i + 1] = args_len[i];
-        }
-    }
-
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
+    printf("command_type = %d\n", command_type);
+    printf("final_arg_count = %lu\n", final_arg_count);
+    printf("final_args[0] = %s\n", (char*) final_args[0]);
+    printf("final_args_len[0] = %lu\n", final_args_len[0]);
+    printf("route = %p\n", route);
     /* Execute the command with or without routing */
     CommandResult* result;
     if (route) {
@@ -1447,7 +1523,7 @@ int execute_client_command_internal(
                                  final_args_len   /* argument lengths */
         );
     }
-
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
     /* Free allocated memory */
     for (i = 0; i < allocated_idx; i++)
         efree(allocated[i]);
@@ -1464,6 +1540,7 @@ int execute_client_command_internal(
 
     /* Process the result */
     int status = 0;
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
 
     if (result) {
         if (result->command_error) {
@@ -1473,9 +1550,16 @@ int execute_client_command_internal(
         }
 
         if (result->response) {
-            /* Convert the response to PHP value */
-            status = command_response_to_zval(
-                result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+            /* Special handling for CLIENT LIST - convert string to array of associative arrays */
+            if (command_type == ClientList && result->response->response_type == String) {
+                status = parse_client_list_response(result->response->string_value,
+                                                    result->response->string_value_len,
+                                                    return_value);
+            } else {
+                /* Convert the response to PHP value using normal processing */
+                status = command_response_to_zval(
+                    result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+            }
         }
         free_command_result(result);
     }
@@ -1598,12 +1682,13 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
     zend_bool            is_cluster = (ce == get_valkey_glide_cluster_ce());
     zval*                route      = NULL;
 
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
-
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
     if (is_cluster) {
         /* Parse parameters for cluster - route + command arguments */
         if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &z_args, &arg_count) ==
@@ -1626,13 +1711,14 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
             return 0;
         }
     } else {
+        printf("file = %s, line = %d\n", __FILE__, __LINE__);
         /* Parse parameters for non-cluster - just command arguments */
         if (zend_parse_method_parameters(argc, object, "O+", &object, ce, &z_args, &arg_count) ==
             FAILURE) {
             return 0;
         }
     }
-
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
     /* Execute the client command using the Glide client */
     if (execute_client_command_internal(
             valkey_glide->glide_client, z_args, arg_count, return_value, route)) {

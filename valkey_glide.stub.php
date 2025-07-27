@@ -439,9 +439,8 @@ class ValkeyGlide
     public function lmpop(array $keys, string $from, int $count = 1): ValkeyGlide|array|null|false;
 
 
-    /* TODO this command is not supported, should add test"
     public function client(string $opt, mixed ...$args): mixed;
-    */
+    
     public function close(): bool;
 
 

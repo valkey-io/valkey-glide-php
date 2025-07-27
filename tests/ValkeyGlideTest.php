@@ -644,7 +644,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($this->valkey_glide->set('foo', 'bar', ['NX', 'EXAT' => $future_timestamp]));
         $this->assertKeyEquals('bar', 'foo');
         $this->assertBetween($this->valkey_glide->ttl('foo'), 175, 180);
-        
+
         // Should fail with NX when key exists
         $this->assertFalse($this->valkey_glide->set('foo', 'baz', ['NX', 'EXAT' => time() + 200]));
         $this->assertKeyEquals('bar', 'foo'); // Value should remain unchanged
@@ -3227,7 +3227,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         $this->assertIsArray($result);
         $this->assertEquals(3, count($result)); // 3 members * 2 (member + score)
-        
+
         // Verify members and scores are present
         $this->assertEquals($result['member2'], 4.0);
         $this->assertEquals($result['member1'], 11.0);
@@ -5686,7 +5686,58 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
     }
 
+    public function testClient() {
+        /* CLIENT SETNAME */
+        $this->assertTrue($this->valkey_glide->client('setname', 'phpredis_unit_tests'));
 
+        /* CLIENT LIST */
+        $clients = $this->valkey_glide->client('list');        
+        $this->assertIsArray($clients);
+        
+        // Figure out which ip:port is us!
+        $address = NULL;
+        foreach ($clients as $client) {
+            if ($client['name'] == 'phpredis_unit_tests') {
+                $address = $client['addr'];
+            }
+        }
+
+        // We should have found our connection
+        $this->assertIsString($address);
+
+        /* CLIENT GETNAME */
+        $this->assertEquals('phpredis_unit_tests', $this->valkey_glide->client('getname'));
+        
+        if (version_compare($this->version, '5.0.0') >= 0) {
+            $this->assertGT(0, $this->valkey_glide->client('id'));
+            
+            if (version_compare($this->version, '6.0.0') >= 0) {
+                $this->assertFalse($this->valkey_glide->client('getredir'));                
+                $this->assertTrue($this->valkey_glide->client('tracking', 'on', ['optin' => true]));
+                return;
+                $this->assertEquals(0, $this->valkey_glide->client('getredir'));
+                $this->assertTrue($this->valkey_glide->client('caching', 'yes'));
+                $this->assertTrue($this->valkey_glide->client('tracking', 'off'));
+                
+                if (version_compare($this->version, '6.2.0') >= 0) {
+                    $this->assertFalse(empty($this->valkey_glide->client('info')));
+                    $this->assertEquals([
+                        'flags' => ['off'],
+                        'redirect' => -1,
+                        'prefixes' => [],
+                    ], $this->valkey_glide->client('trackinginfo'));
+
+                    if (version_compare($this->valkey_glide, '7.0.0') >= 0) {
+                        $this->assertTrue($this->valkey_glide->client('no-evict', 'on'));
+                    }
+                }
+            }
+        }
+
+        /* CLIENT KILL -- phpredis will reconnect, so we can do this */
+        $this->assertTrue($this->redis->client('kill', $address));
+
+    }
 
 
     public function testConfig()

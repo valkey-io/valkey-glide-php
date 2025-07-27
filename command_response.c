@@ -555,7 +555,7 @@ int command_response_to_zval(CommandResponse* response,
         ZVAL_NULL(output);
         return 0;
     }
-    // printf("response_type = %d\n", response->response_type);
+    printf("response_type = %d\n", response->response_type);
     switch (response->response_type) {
         case Null:
             // printf("%s:%d - CommandResponse is NULL\n", __FILE__, __LINE__);

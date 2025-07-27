@@ -413,7 +413,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     public function testScan()
-    {        
+    {
         set_time_limit(10); // Enforce a 10-second limit on this test
         $key_count = 0;
         $scan_count = 0;
