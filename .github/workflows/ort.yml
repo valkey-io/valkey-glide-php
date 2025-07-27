@@ -232,7 +232,7 @@ jobs:
           python3 -m pip install --upgrade pip setuptools wheel
           pip install scancode-toolkit
 
-      - name: Install and setup aboutcode-toolkit  
+      - name: Install and setup aboutcode-toolkit
         run: |
           git clone https://github.com/nexB/aboutcode-toolkit.git
           cd aboutcode-toolkit
