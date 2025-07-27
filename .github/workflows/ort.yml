@@ -240,7 +240,16 @@ jobs:
 
       - name: Run scancode license scanning
         run: |
-          scancode -n 16 --license . --json report.json --csv report.csv
+          scancode -n 16 --license . \
+            --ignore "valkey-glide/*" \
+            --ignore "bin/*" \
+            --ignore "lib/*" \
+            --ignore "vendor/*" \
+            --ignore "build/*" \
+            --ignore "path/*" \
+            --ignore "modules/*" \
+            --ignore "autom4te.cache/*" \
+            --json report.json --csv report.csv
 
       - name: Generate attribution with aboutcode-toolkit
         run: |
