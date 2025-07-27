@@ -253,7 +253,7 @@ jobs:
             --ignore "*ort/*" \
             --ignore "*myenv/*" \
             --ignore "*THIRD_PARTY_LICENSES_PHP*" \
-            --json report.json --csv report.csv -v
+            --json report.json --csv report.csv -v 2>&1 | tee scancode_output.log
 
       - name: Generate attribution with aboutcode-toolkit
         run: |
