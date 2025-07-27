@@ -380,9 +380,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testClient()
     {
-        $key = 'key-' . rand(1, 100);
-
-        return; //TODO other commands are not supoprted by GLIDE
+        $key = 'key-' . rand(1, 100);        
 
         $this->assertTrue($this->valkey_glide->client($key, 'setname', 'cluster_tests'));
 
