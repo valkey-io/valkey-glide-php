@@ -226,6 +226,33 @@ jobs:
           folder_path: "${{ github.workspace }}"
           config_file: "config-php.yml"
 
+        ### Additional License Scanning with Scancode ###
+      - name: Install scancode-toolkit
+        run: |
+          python3 -m pip install --upgrade pip setuptools wheel
+          pip install scancode-toolkit
+
+      - name: Install and setup aboutcode-toolkit  
+        run: |
+          git clone https://github.com/nexB/aboutcode-toolkit.git
+          cd aboutcode-toolkit
+          ./configure
+
+      - name: Run scancode license scanning
+        run: |
+          scancode -n 16 --license . --json report.json --csv report.csv
+
+      - name: Generate attribution with aboutcode-toolkit
+        run: |
+          cd aboutcode-toolkit
+          mkdir -p out
+          ./about attrib --scancode ../report.json --template ../aboutcode.template out/rep.csv
+
+      - name: Clean output and append to PHP licenses
+        run: |
+          awk 'NF{blank=0; print; next} blank < 2 {blank++; print}' aboutcode-toolkit/out/rep.csv > output.txt
+          cat output.txt >> $PHP_ATTRIBUTIONS
+
         ### Get licenses ###
       - name: Retrieve licenses list
         working-directory: ./utils

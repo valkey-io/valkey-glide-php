@@ -1,0 +1,7 @@
+{% for license in licenses_list %}
+            {%for about_object in abouts %}
+                {% if loop.last %}
+                    {{license.text}}
+                {% endif %}
+            {% endfor %}
+{% endfor %}
