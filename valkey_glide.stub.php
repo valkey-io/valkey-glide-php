@@ -440,7 +440,7 @@ class ValkeyGlide
 
 
     public function client(string $opt, mixed ...$args): mixed;
-    
+
     public function close(): bool;
 
 

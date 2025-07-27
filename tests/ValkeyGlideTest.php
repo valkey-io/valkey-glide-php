@@ -5686,16 +5686,17 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
     }
 
-    public function testClient() {
+    public function testClient()
+    {
         /* CLIENT SETNAME */
         $this->assertTrue($this->valkey_glide->client('setname', 'phpredis_unit_tests'));
 
         /* CLIENT LIST */
-        $clients = $this->valkey_glide->client('list');            
+        $clients = $this->valkey_glide->client('list');
         $this->assertIsArray($clients);
-        
+
         // Figure out which ip:port is us!
-        $address = NULL;
+        $address = null;
         foreach ($clients as $client) {
             if ($client['name'] == 'phpredis_unit_tests') {
                 $address = $client['addr'];
@@ -5707,14 +5708,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         /* CLIENT GETNAME */
         $this->assertEquals('phpredis_unit_tests', $this->valkey_glide->client('getname'));
-        
+
         if (version_compare($this->version, '5.0.0') >= 0) {
             $this->assertGT(0, $this->valkey_glide->client('id'));
-            
-            if (version_compare($this->version, '6.0.0') >= 0) {                            
-                
+
+            if (version_compare($this->version, '6.0.0') >= 0) {
                 if (version_compare($this->version, '6.2.0') >= 0) {
-                    $this->assertFalse(empty($this->valkey_glide->client('info')));                    
+                    $this->assertFalse(empty($this->valkey_glide->client('info')));
 
                     if (version_compare($this->version, '7.0.0') >= 0) {
                         $this->assertTrue($this->valkey_glide->client('no-evict', 'on'));
@@ -5725,7 +5725,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         /* CLIENT KILL -- phpredis will reconnect, so we can do this */
         $this->assertTrue($this->valkey_glide->client('kill', $address));
-
     }
 
 
