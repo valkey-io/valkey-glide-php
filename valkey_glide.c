@@ -7,6 +7,7 @@
 #include "cluster_scan_cursor.h"          // Include ClusterScanCursor class
 #include "cluster_scan_cursor_arginfo.h"  // Include ClusterScanCursor arginfo header
 #include "common.h"
+#include "logger.h"  // Include logger functionality
 #include "php_valkey_glide.h"
 #include "valkey_glide_arginfo.h"          // Include generated arginfo header
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
@@ -324,6 +325,16 @@ const zend_function_entry valkey_glide_cluster_methods[] = {
  * PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(valkey_glide) {
+    /* Initialize the logger system early to prevent crashes */
+    int logger_result = valkey_glide_logger_init("warn", NULL);
+    if (logger_result != 0) {
+        /* Log initialization failed, but continue - logger will auto-init on first use */
+        php_error_docref(
+            NULL,
+            E_WARNING,
+            "Failed to initialize ValkeyGlide logger, will auto-initialize on first use");
+    }
+
     /* ValkeyGlide class - use generated registration function */
     valkey_glide_ce = register_class_ValkeyGlide();
 
@@ -441,6 +452,8 @@ PHP_METHOD(ValkeyGlide, __construct) {
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
 
+    VALKEY_LOG_DEBUG("php_construct", "Starting ValkeyGlide construction");
+
     /* Validate addresses array */
     if (!common_params.addresses ||
         zend_hash_num_elements(Z_ARRVAL_P(common_params.addresses)) == 0) {
@@ -470,8 +483,10 @@ PHP_METHOD(ValkeyGlide, __construct) {
     const ConnectionResponse* conn_resp = create_glide_client(&client_config);
 
     if (conn_resp->connection_error_message) {
+        VALKEY_LOG_ERROR("php_construct", conn_resp->connection_error_message);
         zend_throw_exception(valkey_glide_exception_ce, conn_resp->connection_error_message, 0);
     } else {
+        VALKEY_LOG_INFO("php_construct", "ValkeyGlide client created successfully");
         valkey_glide->glide_client = conn_resp->conn_ptr;
     }
 
@@ -529,4 +544,142 @@ PHP_METHOD(ValkeyGlide, evalsha) { /* TODO: Implement */
 PHP_METHOD(ValkeyGlide, evalsha_ro) { /* TODO: Implement */
 }
 PHP_METHOD(ValkeyGlide, script) { /* TODO: Implement */
+}
+
+/* ============================================================================
+ * Logger PHP Functions - Bridge between PHP stub and C implementation
+ * ============================================================================ */
+
+/**
+ * PHP function: valkey_glide_logger_init(?string $level = null, ?string $filename = null): bool
+ */
+PHP_FUNCTION(valkey_glide_logger_init) {
+    char*  level        = NULL;
+    size_t level_len    = 0;
+    char*  filename     = NULL;
+    size_t filename_len = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_STRING_OR_NULL(level, level_len)
+    Z_PARAM_STRING_OR_NULL(filename, filename_len)
+    ZEND_PARSE_PARAMETERS_END();
+
+    int result = valkey_glide_logger_init(level, filename);
+    RETURN_BOOL(result == 0);
+}
+
+/**
+ * PHP function: valkey_glide_logger_set_config(string $level, ?string $filename = null): bool
+ */
+PHP_FUNCTION(valkey_glide_logger_set_config) {
+    char*  level;
+    size_t level_len;
+    char*  filename     = NULL;
+    size_t filename_len = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_STRING(level, level_len)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_STRING_OR_NULL(filename, filename_len)
+    ZEND_PARSE_PARAMETERS_END();
+
+    int result = valkey_glide_logger_set_config(level, filename);
+    RETURN_BOOL(result == 0);
+}
+
+/**
+ * PHP function: valkey_glide_logger_log(string $level, string $identifier, string $message): void
+ */
+PHP_FUNCTION(valkey_glide_logger_log) {
+    char * level, *identifier, *message;
+    size_t level_len, identifier_len, message_len;
+
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+    Z_PARAM_STRING(level, level_len)
+    Z_PARAM_STRING(identifier, identifier_len)
+    Z_PARAM_STRING(message, message_len)
+    ZEND_PARSE_PARAMETERS_END();
+
+    valkey_glide_logger_log(level, identifier, message);
+}
+
+/**
+ * PHP function: valkey_glide_logger_error(string $identifier, string $message): void
+ */
+PHP_FUNCTION(valkey_glide_logger_error) {
+    char * identifier, *message;
+    size_t identifier_len, message_len;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_STRING(identifier, identifier_len)
+    Z_PARAM_STRING(message, message_len)
+    ZEND_PARSE_PARAMETERS_END();
+
+    valkey_glide_logger_error(identifier, message);
+}
+
+/**
+ * PHP function: valkey_glide_logger_warn(string $identifier, string $message): void
+ */
+PHP_FUNCTION(valkey_glide_logger_warn) {
+    char * identifier, *message;
+    size_t identifier_len, message_len;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_STRING(identifier, identifier_len)
+    Z_PARAM_STRING(message, message_len)
+    ZEND_PARSE_PARAMETERS_END();
+
+    valkey_glide_logger_warn(identifier, message);
+}
+
+/**
+ * PHP function: valkey_glide_logger_info(string $identifier, string $message): void
+ */
+PHP_FUNCTION(valkey_glide_logger_info) {
+    char * identifier, *message;
+    size_t identifier_len, message_len;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_STRING(identifier, identifier_len)
+    Z_PARAM_STRING(message, message_len)
+    ZEND_PARSE_PARAMETERS_END();
+
+    valkey_glide_logger_info(identifier, message);
+}
+
+/**
+ * PHP function: valkey_glide_logger_debug(string $identifier, string $message): void
+ */
+PHP_FUNCTION(valkey_glide_logger_debug) {
+    char * identifier, *message;
+    size_t identifier_len, message_len;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_STRING(identifier, identifier_len)
+    Z_PARAM_STRING(message, message_len)
+    ZEND_PARSE_PARAMETERS_END();
+
+    valkey_glide_logger_debug(identifier, message);
+}
+
+/**
+ * PHP function: valkey_glide_logger_is_initialized(): bool
+ */
+PHP_FUNCTION(valkey_glide_logger_is_initialized) {
+    ZEND_PARSE_PARAMETERS_START(0, 0)
+    ZEND_PARSE_PARAMETERS_END();
+
+    RETURN_BOOL(valkey_glide_logger_is_initialized());
+}
+
+/**
+ * PHP function: valkey_glide_logger_get_level(): int
+ */
+PHP_FUNCTION(valkey_glide_logger_get_level) {
+    ZEND_PARSE_PARAMETERS_START(0, 0)
+    ZEND_PARSE_PARAMETERS_END();
+
+    RETURN_LONG(valkey_glide_logger_get_level());
 }

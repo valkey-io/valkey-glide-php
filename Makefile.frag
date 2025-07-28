@@ -57,7 +57,11 @@ generate-bindings:
 	@printf '#pragma once\n' > $(top_srcdir)/include/glide_bindings.h.tmp
 	@cat $(top_srcdir)/include/glide_bindings.h >> $(top_srcdir)/include/glide_bindings.h.tmp
 	@mv $(top_srcdir)/include/glide_bindings.h.tmp $(top_srcdir)/include/glide_bindings.h
-	
+
+logger_arginfo.h: logger.stub.php
+	@echo "Generating arginfo from logger.stub.php"
+	$(PHP_EXECUTABLE) build/gen_stub.php --no-legacy-arginfo logger.stub.php
+
 valkey_glide_arginfo.h: valkey_glide.stub.php
 	@echo "Generating arginfo from valkey_glide.stub.php"
 	$(PHP_EXECUTABLE) build/gen_stub.php --no-legacy-arginfo valkey_glide.stub.php
