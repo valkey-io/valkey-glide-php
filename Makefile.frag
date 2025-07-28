@@ -74,7 +74,7 @@ cluster_scan_cursor_arginfo.h: cluster_scan_cursor.stub.php
 	@echo "Generating arginfo from cluster_scan_cursor.stub.php"
 	$(PHP_EXECUTABLE) build/gen_stub.php --no-legacy-arginfo cluster_scan_cursor.stub.php
 
-ARGINFO_HEADERS = valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h cluster_scan_cursor_arginfo.h
+ARGINFO_HEADERS = valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h cluster_scan_cursor_arginfo.h logger_arginfo.h
 
 all: $(ARGINFO_HEADERS)
 
