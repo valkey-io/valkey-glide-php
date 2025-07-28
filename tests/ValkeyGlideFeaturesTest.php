@@ -254,14 +254,33 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             ['host' => $this->getHost(), 'port' => $this->getPort()]
         ];
 
-        $valkey_glide = new ValkeyGlide($addresses, false, null, ValkeyGlide::READ_FROM_PRIMARY, null, null, null, null, null, null, null, true);
-        $this->assertTrue($valkey_glide->ping());
-        $valkey_glide->close();
+        $valkey_glide_lazy = null;
+        $valkey_glide_monitoring = null;
+
+        try {
+            // Create monitoring connection without lazy connection.
+            $valkey_glide_monitoring = new ValkeyGlide($addresses, false, null, ValkeyGlide::READ_FROM_PRIMARY, null, null, null, null, null, null, null, false);
+            $clients = $valkey_glide_monitoring->client('list');
+            $client_count = count($clients);
+
+            // Create the lazy connection. The count should not change.
+            $valkey_glide_lazy = new ValkeyGlide($addresses, false, null, ValkeyGlide::READ_FROM_PRIMARY, null, null, null, null, null, null, null, true);
+            $clients = $valkey_glide_monitoring->client('list');
+            $this->assertTrue(count($clients) == $client_count);
+
+            // Issue a request with the lazy connection. Should make it active and increment the count.
+            $this->assertTrue($valkey_glide_lazy->ping());
+            $clients = $valkey_glide_monitoring->client('list');
+            $this->assertTrue(count($clients) == $client_count + 1);
+        } finally {
+            $valkey_glide_monitoring?->close();
+            $valkey_glide_lazy?->close();
+        }
 
         // Test with lazy connection disabled
-        $valkey_glide = new ValkeyGlide($addresses, false, null, ValkeyGlide::READ_FROM_PRIMARY, null, null, null, null, null, null, null, false);
-        $this->assertTrue($valkey_glide->ping());
-        $valkey_glide->close();
+        $valkey_glide_lazy = new ValkeyGlide($addresses, false, null, ValkeyGlide::READ_FROM_PRIMARY, null, null, null, null, null, null, null, false);
+        $this->assertTrue($valkey_glide_lazy->ping());
+        $valkey_glide_lazy->close();
     }
 
     public function testConstructorWithAllParameters()

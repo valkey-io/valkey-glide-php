@@ -457,24 +457,57 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
     public function testConstructorWithLazyConnectEnabled()
     {
-        // Test with lazy connection enabled
-        $valkey_glide = new ValkeyGlideCluster(
-            [['host' => '127.0.0.1', 'port' => 7001]],
-            false,
-            $this->getAuth(),
-            ValkeyGlide::READ_FROM_PRIMARY,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            true // lazy connect enabled
-        );
+        $valkey_glide_lazy = null;
+        $valkey_glide_monitoring = null;
 
-        $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
-        $valkey_glide->close();
+        try {
+            $key =
+            // Create monitoring client and get the initial count.
+            $valkey_glide_monitoring = new ValkeyGlideCluster(
+                [['host' => '127.0.0.1', 'port' => 7001]],
+                false,
+                $this->getAuth(),
+                ValkeyGlide::READ_FROM_PRIMARY,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false
+            );
+            $route = ['type' => 'primarySlotKey', 'key' => 'test'];
+            $clients = $valkey_glide_monitoring->client($route, 'list');
+            $client_count = count($clients);
+
+            // Test with lazy connection enabled
+            $valkey_glide_lazy = new ValkeyGlideCluster(
+                [['host' => '127.0.0.1', 'port' => 7001]],
+                false,
+                $this->getAuth(),
+                ValkeyGlide::READ_FROM_PRIMARY,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                true // lazy connect enabled
+            );
+            // Lazy connection should retain the same client count.
+            $clients = $valkey_glide_monitoring->client($route, 'list');
+            $this->assertTrue(count($clients) == $client_count);
+
+            // Trigger activity on the lazy connection. Should increment the client count.
+            $this->assertTrue($valkey_glide_lazy->ping(['type' => 'primarySlotKey', 'key' => 'test']));
+            $clients = $valkey_glide_monitoring->client($route, 'list');
+            $this->assertTrue(count($clients) > $client_count);
+        } finally {
+            $valkey_glide_lazy?->close();
+            $valkey_glide_monitoring?->close();
+        }
     }
 
     public function testConstructorWithLazyConnectDisabled()

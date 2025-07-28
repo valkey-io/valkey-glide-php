@@ -73,6 +73,7 @@ static uint8_t* create_connection_request(const char*                          h
     conn_req.request_timeout      = config->base.request_timeout > 0 ? config->base.request_timeout
                                                                      : 5000; /* Default 5 seconds */
 
+    conn_req.lazy_connect = config->base.lazy_connect;
     /* Map read_from configuration */
     if (config->base.read_from == VALKEY_GLIDE_READ_FROM_PREFER_REPLICA) {
         conn_req.read_from = CONNECTION_REQUEST__READ_FROM__PreferReplica;
