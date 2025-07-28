@@ -326,7 +326,7 @@ const zend_function_entry valkey_glide_cluster_methods[] = {
  */
 PHP_MINIT_FUNCTION(valkey_glide) {
     /* Initialize the logger system early to prevent crashes */
-    int logger_result = valkey_glide_logger_init("warn", NULL);
+    int logger_result = valkey_glide_logger_init("warn", "/tmp/valkey_log/valkey_glide.log");
     if (logger_result != 0) {
         /* Log initialization failed, but continue - logger will auto-init on first use */
         php_error_docref(
@@ -334,7 +334,7 @@ PHP_MINIT_FUNCTION(valkey_glide) {
             E_WARNING,
             "Failed to initialize ValkeyGlide logger, will auto-initialize on first use");
     }
-
+    valkey_glide_logger_error("php_init", "Initializing Valkey Glide PHP extension");
     /* ValkeyGlide class - use generated registration function */
     valkey_glide_ce = register_class_ValkeyGlide();
 

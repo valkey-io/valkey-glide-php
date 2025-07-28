@@ -124,6 +124,9 @@ static int internal_init_logger(const char* level, const char* filename) {
     enum Level ffi_level = int_to_ffi_level(level_int);
 
     /* Call the new FFI init function */
+    printf("Initializing Valkey Glide internal Logger with level: %s, file: %s\n",
+           level ? level : "default",
+           filename ? filename : "none");
     enum Level actual_ffi_level = init(&ffi_level, filename);
 
     /* Update our state with the actual level set by FFI */
@@ -156,6 +159,9 @@ int valkey_glide_logger_init(const char* level, const char* filename) {
      * This matches Node.js Logger.init() behavior:
      * Initialize only if it wasn't initialized before
      */
+    printf("Initializing Valkey Glide Logger with level: %s, file: %s\n",
+           level ? level : "default",
+           filename ? filename : "none");
     if (logger_initialized) {
         return 0; /* Already initialized, return success */
     }
