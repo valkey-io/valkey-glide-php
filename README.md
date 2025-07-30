@@ -1,6 +1,12 @@
-# Welcome to Valkey GLIDE!
+# Welcome to Valkey GLIDE PHP!
 
 Valkey General Language Independent Driver for the Enterprise (GLIDE) is the official open-source Valkey client library, proudly part of the Valkey organization. Our mission is to make your experience with Valkey and Redis OSS seamless and enjoyable. Whether you're a seasoned developer or just starting out, Valkey GLIDE is here to support you every step of the way.
+
+**`valkey-glide-php`** is the PHP binding for Valkey GLIDE. It brings the power and flexibility of the Valkey GLIDE core to the PHP ecosystem, with a familiar and convenient interface based on the popular [PHPRedis](https://github.com/phpredis/phpredis) API. By staying mostly API-compatible with PHPRedis, this client offers an easy migration path and minimal learning curve—while adding the features of Valkey GLIDE.
+
+> We chose [PHPRedis](https://github.com/phpredis/phpredis) because it is a powerful and widely adopted Redis client for PHP.
+
+⚠️ **Note:** This client is currently under active development. Not all features are available yet, but a public preview with a subset of core functionality will be released soon.
 
 # Why Choose Valkey GLIDE?
 
@@ -41,20 +47,17 @@ The release of Valkey GLIDE was tested on the following platforms:
 Linux:
 
 -   Ubuntu 20 (x86_64/amd64 and arm64/aarch64)
--   Amazon Linux 2 (AL2) and 2023 (AL2023) (x86_64)
 
 **Note: Currently Alpine Linux / MUSL is NOT supported.**
 
 macOS:
 
 -   macOS 14.7 (Apple silicon/aarch_64)
--   macOS 13.7 (x86_64/amd64)
 
 ## PHP Supported Versions
 
 | PHP Version |
 |-------------|
-| 8.1         |
 | 8.2         |
 | 8.3         |
 
@@ -154,11 +157,10 @@ protoc --version
     extension=valkey_glide
     ```
 
-6. Verify the extension is loaded:
-    ```bash
-    php -m | grep valkey_glide
+6. Execute the tests:
     ```
-
+    php -n -d extension=./modules/valkey_glide.so tests/TestValkeyGlide.php
+    ```
 ## Basic Examples
 
 ### Standalone Valkey:
@@ -273,47 +275,10 @@ $client = new ValkeyGlide(
 ?>
 ```
 
-## Development & Continuous Integration
-
-The Valkey GLIDE PHP project includes comprehensive development infrastructure:
-
-### Automated CI/CD Pipeline
-
-- **GitHub Actions Integration**: Automated testing across PHP versions (8.1, 8.2, 8.3), multiple engine versions, and host platforms
-- **Matrix Testing**: Comprehensive testing on Ubuntu, macOS, and containerized environments
-- **Code Quality Enforcement**: Automated linting and static analysis for both C and PHP code
-- **Benchmark Testing**: Performance regression testing integrated into the CI pipeline
-
-### Code Quality Standards
-
-- **PHP Standards**: PSR-12 coding standards with PHPStan static analysis (level 6)
-- **C Code Standards**: Google-based formatting with comprehensive static analysis
-- **Automated Formatting**: Pre-commit hooks and CI enforcement of code formatting
-- **Comprehensive Testing**: Unit tests, integration tests, and memory leak detection
-
-### Local Development
-
-```bash
-# Install development dependencies
-make install-lint-tools
-
-# Run all quality checks
-make lint
-
-# Fix formatting issues
-make lint-fix
-
-#Run tests
-make install
-cd tests
-php -n -d extension=../modules/valkey_glide.so TestValkeyGlide.php
-```
-
 ### Contributing
 
 All contributions are automatically validated through our CI pipeline, ensuring:
-- Code style compliance (PSR-12 for PHP, Google style for C)
-- Static analysis passing (PHPStan level 6)
+- Code style compliance
 - All tests passing across supported PHP versions
 - Memory leak detection and performance benchmarks
 
@@ -321,6 +286,19 @@ All contributions are automatically validated through our CI pipeline, ensuring:
 
 Development instructions for local building & testing the package are in the [DEVELOPER.md](DEVELOPER.md) file.
 
-## Community and Feedback
+## Contributing
+
+GitHub is a platform for collaborative coding. If you're interested in writing code, we encourage you to contribute by submitting pull requests from forked copies of this repository. Additionally, please consider creating GitHub issues for reporting bugs and suggesting new features. Feel free to comment on issues that interest. For more info see [Contributing](./CONTRIBUTING.md).
+
+## Get Involved!
+
+We invite you to join our open-source community and contribute to Valkey GLIDE. Whether it's reporting bugs, suggesting new features, or submitting pull requests, your contributions are highly valued. Check out our [Contributing Guidelines](./CONTRIBUTING.md) to get started.
+
+If you have any questions or need assistance, don't hesitate to reach out. Open a GitHub issue, and our community and contributors will be happy to help you.
+
+## Community Support and Feedback
 
 We encourage you to join our community to support, share feedback, and ask questions. You can approach us for anything on our Valkey Slack: [Join Valkey Slack](https://join.slack.com/t/valkey-oss-developer/shared_invite/zt-2nxs51chx-EB9hu9Qdch3GMfRcztTSkQ).
+
+## License
+* [Apache License 2.0](./LICENSE)
