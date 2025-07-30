@@ -7,7 +7,8 @@
 #include "cluster_scan_cursor.h"          // Include ClusterScanCursor class
 #include "cluster_scan_cursor_arginfo.h"  // Include ClusterScanCursor arginfo header
 #include "common.h"
-#include "logger.h"  // Include logger functionality
+#include "logger.h"          // Include logger functionality
+#include "logger_arginfo.h"  // Include logger functions arginfo
 #include "php_valkey_glide.h"
 #include "valkey_glide_arginfo.h"          // Include generated arginfo header
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
@@ -356,7 +357,7 @@ PHP_MINIT_FUNCTION(valkey_glide) {
 
 zend_module_entry valkey_glide_module_entry = {STANDARD_MODULE_HEADER,
                                                "valkey_glide",
-                                               NULL,
+                                               ext_functions,
                                                PHP_MINIT(valkey_glide),
                                                NULL,
                                                NULL,
