@@ -49,3 +49,6 @@ echo "Creating cluster..."
   127.0.0.1:7004 127.0.0.1:7005 127.0.0.1:7006 \
   --cluster-replicas 1 \
   --cluster-yes
+
+# 5. Use cluster_manager.py to create the TLS cluster
+../valkey-glide/utils/cluster_manager.py --tls start --prefix tls-cluster --cluster-mode -p 8001 8002 8003 8004 8005 8006

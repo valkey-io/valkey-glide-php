@@ -221,10 +221,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }*/
 
     /* Load our seeds on construction */
-    public function __construct($host, $port, $auth)
+    public function __construct($host, $port, $auth, $tls)
     {
 
-        parent::__construct($host, $port, $auth);
+        parent::__construct($host, $port, $auth, $tls);
 
         //self::$seeds = $this->loadSeeds($host, $port);TODO
     }

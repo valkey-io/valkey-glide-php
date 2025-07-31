@@ -81,6 +81,11 @@ require_once __DIR__ . "/TestSuite.php";
  */
 abstract class ValkeyGlideBaseTest extends TestSuite
 {
+    public function __construct($host, $port, $auth, $tls)
+    {
+        parent::__construct($host, $port, $auth, $tls);
+    }
+
     /**
      * @var ValkeyGlide
      */
@@ -175,10 +180,20 @@ abstract class ValkeyGlideBaseTest extends TestSuite
 
     protected function newInstance()
     {
-        $r = new ValkeyGlide([[
-            'host' => $this->getHost(),
-            'port' => $this->getPort(),
-        ]]);
+        if (!$this->getTLS()) {
+            $r = new ValkeyGlide([[
+                'host' => $this->getHost(),
+                'port' => $this->getPort(),
+            ]]);
+        } else {
+            $advancedConfig = [
+                'tls_config' => ['use_insecure_tls' => true]
+            ];
+            $r = new ValkeyGlide(addresses: [[
+                'host' => $this->getHost(),
+                'port' => $this->getPort(),
+            ]], use_tls: true, advanced_config: $advancedConfig);
+        }
 
         if ($this->getAuth()) {
             $this->assertTrue($r->auth($this->getAuth()));

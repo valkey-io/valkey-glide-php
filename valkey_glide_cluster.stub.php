@@ -113,7 +113,7 @@ class ValkeyGlideCluster
         array $addresses,
         bool $use_tls = false,
         ?array $credentials = null,
-        int $read_from = ValkeyGlide::READ_FROM_REPLICA,
+        int $read_from = ValkeyGlide::READ_FROM_PREFER_REPLICA,
         ?int $request_timeout = null,
         ?array $reconnect_strategy = null,
         ?string $client_name = null,

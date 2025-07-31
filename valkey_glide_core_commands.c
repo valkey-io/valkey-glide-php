@@ -38,13 +38,15 @@ extern char* long_to_string(long value, size_t* len);
 extern char* double_to_string(double value, size_t* len);
 
 /* Create a connection request in protobuf format */
-static uint8_t* create_connection_request(const char*                          host,
-                                          int                                  port,
-                                          const char*                          user,
-                                          const char*                          pass,
-                                          size_t*                              len,
-                                          valkey_glide_client_configuration_t* config,
-                                          bool                                 is_cluster) {
+static uint8_t* create_connection_request(const char*                               host,
+                                          int                                       port,
+                                          const char*                               user,
+                                          const char*                               pass,
+                                          size_t*                                   len,
+                                          valkey_glide_base_client_configuration_t* config,
+                                          int                                       database_id,
+                                          valkey_glide_periodic_checks_status_t     periodic_checks,
+                                          bool                                      is_cluster) {
     /* Create a connection request */
     ConnectionRequest__ConnectionRequest conn_req = CONNECTION_REQUEST__CONNECTION_REQUEST__INIT;
 
@@ -67,35 +69,49 @@ static uint8_t* create_connection_request(const char*                          h
     }
 
     /* Set values from configuration */
-    conn_req.tls_mode             = config->base.use_tls ? CONNECTION_REQUEST__TLS_MODE__SecureTls
-                                                         : CONNECTION_REQUEST__TLS_MODE__NoTls;
+    conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__NoTls;
+    if (config->use_tls) {
+        if (config->advanced_config && config->advanced_config->tls_config &&
+            config->advanced_config->tls_config->use_insecure_tls) {
+            conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__InsecureTls;
+        } else {
+            conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__SecureTls;
+        }
+    }
     conn_req.cluster_mode_enabled = is_cluster;
-    conn_req.request_timeout      = config->base.request_timeout > 0 ? config->base.request_timeout
-                                                                     : 5000; /* Default 5 seconds */
+    conn_req.request_timeout =
+        config->request_timeout > 0 ? config->request_timeout : 5000; /* Default 5 seconds */
 
-    conn_req.lazy_connect = config->base.lazy_connect;
+    conn_req.lazy_connect = config->lazy_connect;
     /* Map read_from configuration */
-    if (config->base.read_from == VALKEY_GLIDE_READ_FROM_PREFER_REPLICA) {
+    if (config->read_from == VALKEY_GLIDE_READ_FROM_PREFER_REPLICA) {
         conn_req.read_from = CONNECTION_REQUEST__READ_FROM__PreferReplica;
-    } else if (config->base.read_from == VALKEY_GLIDE_READ_FROM_AZ_AFFINITY) {
+    } else if (config->read_from == VALKEY_GLIDE_READ_FROM_AZ_AFFINITY) {
         conn_req.read_from = CONNECTION_REQUEST__READ_FROM__AZAffinity;
-    } else if (config->base.read_from == VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY) {
+    } else if (config->read_from == VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY) {
         conn_req.read_from = CONNECTION_REQUEST__READ_FROM__AZAffinityReplicasAndPrimary;
     } else {
         conn_req.read_from = CONNECTION_REQUEST__READ_FROM__Primary;
     }
 
-    /* Set database ID for standalone clients */
-    if (!is_cluster && config->database_id >= 0) {
-        conn_req.database_id = config->database_id;
+    /* Set database ID for standalone clients if it is valid. */
+    if (!is_cluster && database_id >= 0) {
+        conn_req.database_id = database_id;
     } else {
         conn_req.database_id = 0;
+    }
+
+    /* Set the periodic checks for cluster clients. */
+    ConnectionRequest__PeriodicChecksDisabled periodic_check_disabled_info =
+        CONNECTION_REQUEST__PERIODIC_CHECKS_DISABLED__INIT;
+    if (is_cluster && periodic_checks == VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED) {
+        conn_req.periodic_checks_disabled = &periodic_check_disabled_info;
     }
 
     conn_req.protocol = CONNECTION_REQUEST__PROTOCOL_VERSION__RESP3;
 
     /* Set client name */
-    conn_req.client_name = config->base.client_name ? config->base.client_name : "valkey-glide-php";
+    conn_req.client_name = config->client_name ? config->client_name : "valkey-glide-php";
 
     /* Calculate the size of the serialized message */
     *len = connection_request__connection_request__get_packed_size(&conn_req);
@@ -113,9 +129,12 @@ static uint8_t* create_connection_request(const char*                          h
     return buffer;
 }
 
-/* Create a Valkey Glide client */
-const ConnectionResponse* create_glide_client(valkey_glide_client_configuration_t* config,
-                                              bool                                 is_cluster) {
+/* Create a Valkey Glide client or Cluster client using shared properties. */
+static const ConnectionResponse* create_base_glide_client(
+    valkey_glide_base_client_configuration_t* config,
+    int                                       database_id,
+    valkey_glide_periodic_checks_status_t     periodic_checks,
+    bool                                      is_cluster) {
     /* Create a connection request using first address or default */
     size_t      len;
     const char* host     = "localhost";
@@ -124,19 +143,19 @@ const ConnectionResponse* create_glide_client(valkey_glide_client_configuration_
     const char* password = NULL;
 
     /* Use first address if available */
-    if (config->base.addresses && config->base.addresses_count > 0) {
-        host = config->base.addresses[0].host;
-        port = config->base.addresses[0].port;
+    if (config->addresses && config->addresses_count > 0) {
+        host = config->addresses[0].host;
+        port = config->addresses[0].port;
     }
 
     /* Use credentials if available */
-    if (config->base.credentials) {
-        username = config->base.credentials->username;
-        password = config->base.credentials->password;
+    if (config->credentials) {
+        username = config->credentials->username;
+        password = config->credentials->password;
     }
 
-    uint8_t* request_bytes =
-        create_connection_request(host, port, username, password, &len, config, is_cluster);
+    uint8_t* request_bytes = create_connection_request(
+        host, port, username, password, &len, config, database_id, periodic_checks, is_cluster);
 
     if (!request_bytes) {
         return NULL;
@@ -160,6 +179,17 @@ const ConnectionResponse* create_glide_client(valkey_glide_client_configuration_
     }
 
     return conn_resp;
+}
+
+/* Create a Valkey Glide client */
+const ConnectionResponse* create_glide_client(valkey_glide_client_configuration_t* config) {
+    return create_base_glide_client(
+        &config->base, config->database_id, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false);
+}
+
+const ConnectionResponse* create_glide_cluster_client(
+    valkey_glide_cluster_client_configuration_t* config) {
+    return create_base_glide_client(&config->base, 0, config->periodic_checks_status, true);
 }
 
 /* Custom result processor for SET commands with GET option support */

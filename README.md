@@ -265,7 +265,8 @@ $client = new ValkeyGlide(
     250,                         // inflight_requests_limit: Max concurrent requests
     'us-east-1a',               // client_az: Client availability zone
     [                            // advanced_config: Advanced configuration options
-        'connection_timeout' => 5000
+        'connection_timeout' => 5000,
+        'tls_config' => ['use_insecure_tls' => false]
     ],
     false                        // lazy_connect: Whether to connect lazily
 );

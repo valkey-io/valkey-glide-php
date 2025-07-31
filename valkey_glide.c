@@ -95,6 +95,225 @@ zend_object* create_valkey_glide_cluster_object(zend_class_entry* ce)  // TODO c
     return &valkey_glide->std;
 }
 
+void valkey_glide_init_common_constructor_params(
+    valkey_glide_php_common_constructor_params_t* params) {
+    params->addresses                       = NULL;
+    params->use_tls                         = 0;
+    params->credentials                     = NULL;
+    params->read_from                       = 0; /* PRIMARY by default */
+    params->request_timeout                 = 0;
+    params->request_timeout_is_null         = 1;
+    params->reconnect_strategy              = NULL;
+    params->client_name                     = NULL;
+    params->client_name_len                 = 0;
+    params->inflight_requests_limit         = 0;
+    params->inflight_requests_limit_is_null = 1;
+    params->client_az                       = NULL;
+    params->client_az_len                   = 0;
+    params->advanced_config                 = NULL;
+    params->lazy_connect                    = 0;
+    params->lazy_connect_is_null            = 1;
+}
+
+void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
+                                           valkey_glide_base_client_configuration_t*     config,
+                                           bool is_cluster) {
+    /* Basic configuration */
+    config->use_tls = params->use_tls;
+    config->request_timeout =
+        params->request_timeout_is_null ? -1 : params->request_timeout; /* -1 means not set */
+    config->client_name = params->client_name ? params->client_name : NULL;
+
+    /* Set inflight requests limit */
+    config->inflight_requests_limit = params->inflight_requests_limit_is_null
+                                          ? -1
+                                          : params->inflight_requests_limit; /* -1 means not set */
+
+    /* Set client availability zone */
+    config->client_az = (params->client_az && params->client_az_len > 0) ? params->client_az : NULL;
+
+    /* Set lazy connect option */
+    config->lazy_connect = params->lazy_connect_is_null ? false : params->lazy_connect;
+
+    /* Map read_from enum value to client's ReadFrom enum */
+    switch (params->read_from) {
+        case 1: /* PREFER_REPLICA */
+            config->read_from = VALKEY_GLIDE_READ_FROM_PREFER_REPLICA;
+            break;
+        case 2: /* AZ_AFFINITY */
+            config->read_from = VALKEY_GLIDE_READ_FROM_AZ_AFFINITY;
+            break;
+        case 3: /* AZ_AFFINITY_REPLICAS_AND_PRIMARY */
+            config->read_from = VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY;
+            break;
+        case 0: /* PRIMARY */
+        default:
+            config->read_from = VALKEY_GLIDE_READ_FROM_PRIMARY;
+            break;
+    }
+
+    /* Process addresses array - handle multiple addresses */
+    HashTable* addresses_ht  = Z_ARRVAL_P(params->addresses);
+    zend_ulong num_addresses = zend_hash_num_elements(addresses_ht);
+
+    int default_port = is_cluster ? 7001 : 6379;
+    if (num_addresses > 0) {
+        /* Allocate addresses array */
+        config->addresses       = ecalloc(num_addresses, sizeof(valkey_glide_node_address_t));
+        config->addresses_count = num_addresses;
+
+        /* Process each address */
+        zend_ulong i = 0;
+        zval*      addr_val;
+        ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
+            if (Z_TYPE_P(addr_val) == IS_ARRAY) {
+                HashTable* addr_ht = Z_ARRVAL_P(addr_val);
+
+                /* Extract host */
+                zval* host_val = zend_hash_str_find(addr_ht, "host", 4);
+                if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
+                    config->addresses[i].host = Z_STRVAL_P(host_val);
+                } else {
+                    config->addresses[i].host = "localhost";
+                }
+
+                /* Extract port */
+                zval* port_val = zend_hash_str_find(addr_ht, "port", 4);
+                if (port_val && Z_TYPE_P(port_val) == IS_LONG) {
+                    config->addresses[i].port = Z_LVAL_P(port_val);
+                } else {
+                    config->addresses[i].port = default_port;
+                }
+
+                i++;
+            } else {
+                /* Invalid address format */
+                const char* error_message =
+                    "Invalid address format. Expected array with 'host' and 'port' keys.";
+                zend_throw_exception(valkey_glide_exception_ce, error_message, 0);
+                valkey_glide_cleanup_client_config(config);
+                return;
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+    } else {
+        /* No addresses provided - set default */
+        config->addresses         = ecalloc(1, sizeof(valkey_glide_node_address_t));
+        config->addresses_count   = 1;
+        config->addresses[0].host = "localhost";
+        config->addresses[0].port = default_port;
+    }
+
+    /* Process credentials if provided */
+    if (params->credentials && Z_TYPE_P(params->credentials) == IS_ARRAY) {
+        HashTable* cred_ht = Z_ARRVAL_P(params->credentials);
+
+        /* Allocate credentials structure */
+        config->credentials = ecalloc(1, sizeof(valkey_glide_server_credentials_t));
+
+        /* Check for username */
+        zval* username_val = zend_hash_str_find(cred_ht, "username", 8);
+        if (username_val && Z_TYPE_P(username_val) == IS_STRING) {
+            config->credentials->username = Z_STRVAL_P(username_val);
+        } else {
+            config->credentials->username = NULL;
+        }
+
+        /* Check for password */
+        zval* password_val = zend_hash_str_find(cred_ht, "password", 8);
+        if (password_val && Z_TYPE_P(password_val) == IS_STRING) {
+            config->credentials->password = Z_STRVAL_P(password_val);
+        } else {
+            config->credentials->password = NULL;
+        }
+    } else {
+        config->credentials = NULL;
+    }
+
+    /* Process reconnect strategy if provided */
+    if (params->reconnect_strategy && Z_TYPE_P(params->reconnect_strategy) == IS_ARRAY) {
+        HashTable* reconnect_ht = Z_ARRVAL_P(params->reconnect_strategy);
+
+        /* Allocate reconnect strategy structure */
+        config->reconnect_strategy = ecalloc(1, sizeof(valkey_glide_backoff_strategy_t));
+
+        /* Check for num_of_retries */
+        zval* retries_val = zend_hash_str_find(reconnect_ht, "num_of_retries", 14);
+        if (retries_val && Z_TYPE_P(retries_val) == IS_LONG) {
+            config->reconnect_strategy->num_of_retries = Z_LVAL_P(retries_val);
+        } else {
+            config->reconnect_strategy->num_of_retries = 3; /* Default */
+        }
+
+        /* Check for factor */
+        zval* factor_val = zend_hash_str_find(reconnect_ht, "factor", 6);
+        if (factor_val && (Z_TYPE_P(factor_val) == IS_DOUBLE || Z_TYPE_P(factor_val) == IS_LONG)) {
+            config->reconnect_strategy->factor = Z_TYPE_P(factor_val) == IS_DOUBLE
+                                                     ? Z_DVAL_P(factor_val)
+                                                     : (double) Z_LVAL_P(factor_val);
+        } else {
+            config->reconnect_strategy->factor = 2.0; /* Default */
+        }
+
+        /* Check for exponent_base */
+        zval* exponent_val = zend_hash_str_find(reconnect_ht, "exponent_base", 13);
+        if (exponent_val &&
+            (Z_TYPE_P(exponent_val) == IS_DOUBLE || Z_TYPE_P(exponent_val) == IS_LONG)) {
+            config->reconnect_strategy->exponent_base = Z_TYPE_P(exponent_val) == IS_DOUBLE
+                                                            ? Z_DVAL_P(exponent_val)
+                                                            : (double) Z_LVAL_P(exponent_val);
+        } else {
+            config->reconnect_strategy->exponent_base = 2; /* Default */
+        }
+
+        /* Check for jitter_percent - optional */
+        zval* jitter_val = zend_hash_str_find(reconnect_ht, "jitter_percent", 14);
+        if (jitter_val && Z_TYPE_P(jitter_val) == IS_LONG) {
+            config->reconnect_strategy->jitter_percent = Z_LVAL_P(jitter_val);
+        } else {
+            config->reconnect_strategy->jitter_percent = -1; /* Not set */
+        }
+    } else {
+        config->reconnect_strategy = NULL;
+    }
+
+    /* Process advanced config if provided */
+    if (params->advanced_config && Z_TYPE_P(params->advanced_config) == IS_ARRAY) {
+        HashTable* advanced_ht = Z_ARRVAL_P(params->advanced_config);
+
+        /* Allocate advanced config structure */
+        config->advanced_config =
+            ecalloc(1, sizeof(valkey_glide_advanced_base_client_configuration_t));
+
+        /* Check for connection_timeout */
+        zval* conn_timeout_val = zend_hash_str_find(advanced_ht, "connection_timeout", 18);
+        if (conn_timeout_val && Z_TYPE_P(conn_timeout_val) == IS_LONG) {
+            config->advanced_config->connection_timeout = Z_LVAL_P(conn_timeout_val);
+        } else {
+            config->advanced_config->connection_timeout = -1; /* Not set */
+        }
+
+        /* Check for TLS config */
+        zval* tls_config_val = zend_hash_str_find(advanced_ht, "tls_config", 10);
+        if (tls_config_val && Z_TYPE_P(tls_config_val) == IS_ARRAY) {
+            HashTable* tls_ht = Z_ARRVAL_P(tls_config_val);
+            config->advanced_config->tls_config =
+                ecalloc(1, sizeof(valkey_glide_tls_advanced_configuration_t));
+
+            zval* use_insecure_tls_val = zend_hash_str_find(tls_ht, "use_insecure_tls", 16);
+            if (use_insecure_tls_val && Z_TYPE_P(use_insecure_tls_val) == IS_TRUE) {
+                config->advanced_config->tls_config->use_insecure_tls = true;
+            } else {
+                config->advanced_config->tls_config->use_insecure_tls = false;
+            }
+        } else {
+            config->advanced_config->tls_config = NULL;
+        }
+    } else {
+        config->advanced_config = NULL;
+    }
+}
+
 const zend_function_entry valkey_glide_cluster_methods[] = {
     PHP_ME(ValkeyGlideCluster,
            __construct,
@@ -155,25 +374,29 @@ void free_valkey_glide_object(zend_object* object) {
 /**
  * Helper function to clean up client configuration structures
  */
-static void cleanup_client_config(valkey_glide_client_configuration_t* config) {
-    if (config->base.addresses) {
-        efree(config->base.addresses);
-        config->base.addresses = NULL;
+void valkey_glide_cleanup_client_config(valkey_glide_base_client_configuration_t* config) {
+    if (config->addresses) {
+        efree(config->addresses);
+        config->addresses = NULL;
     }
 
-    if (config->base.credentials) {
-        efree(config->base.credentials);
-        config->base.credentials = NULL;
+    if (config->credentials) {
+        efree(config->credentials);
+        config->credentials = NULL;
     }
 
-    if (config->base.reconnect_strategy) {
-        efree(config->base.reconnect_strategy);
-        config->base.reconnect_strategy = NULL;
+    if (config->reconnect_strategy) {
+        efree(config->reconnect_strategy);
+        config->reconnect_strategy = NULL;
     }
 
-    if (config->base.advanced_config) {
-        efree(config->base.advanced_config);
-        config->base.advanced_config = NULL;
+    if (config->advanced_config) {
+        if (config->advanced_config->tls_config) {
+            efree(config->advanced_config->tls_config);
+            config->advanced_config->tls_config = NULL;
+        }
+        efree(config->advanced_config);
+        config->advanced_config = NULL;
     }
 }
 
@@ -193,245 +416,58 @@ PHP_MINFO_FUNCTION(redis)
    ?int $database_id, ?string $client_name, ?int $inflight_requests_limit, ?string $client_az,
    ?array $advanced_config, ?bool $lazy_connect) Public constructor */
 PHP_METHOD(ValkeyGlide, __construct) {
-    zval*                addresses                       = NULL;
-    zend_bool            use_tls                         = 0;
-    zval*                credentials                     = NULL;
-    zend_long            read_from                       = 0; /* PRIMARY by default */
-    zend_long            request_timeout                 = 0;
-    zend_bool            request_timeout_is_null         = 1;
-    zval*                reconnect_strategy              = NULL;
-    zend_long            database_id                     = 0;
-    zend_bool            database_id_is_null             = 1;
-    char*                client_name                     = NULL;
-    size_t               client_name_len                 = 0;
-    zend_long            inflight_requests_limit         = 0;
-    zend_bool            inflight_requests_limit_is_null = 1;
-    char*                client_az                       = NULL;
-    size_t               client_az_len                   = 0;
-    zval*                advanced_config                 = NULL;
-    zend_bool            lazy_connect                    = 0;
-    zend_bool            lazy_connect_is_null            = 1;
+    valkey_glide_php_common_constructor_params_t common_params;
+    valkey_glide_init_common_constructor_params(&common_params);
+    zend_long            database_id         = 0;
+    zend_bool            database_id_is_null = 1;
     valkey_glide_object* valkey_glide;
 
     ZEND_PARSE_PARAMETERS_START(1, 12)
-    Z_PARAM_ARRAY(addresses)
+    Z_PARAM_ARRAY(common_params.addresses)
     Z_PARAM_OPTIONAL
-    Z_PARAM_BOOL(use_tls)
-    Z_PARAM_ARRAY_OR_NULL(credentials)
-    Z_PARAM_LONG(read_from)
-    Z_PARAM_LONG_OR_NULL(request_timeout, request_timeout_is_null)
-    Z_PARAM_ARRAY_OR_NULL(reconnect_strategy)
+    Z_PARAM_BOOL(common_params.use_tls)
+    Z_PARAM_ARRAY_OR_NULL(common_params.credentials)
+    Z_PARAM_LONG(common_params.read_from)
+    Z_PARAM_LONG_OR_NULL(common_params.request_timeout, common_params.request_timeout_is_null)
+    Z_PARAM_ARRAY_OR_NULL(common_params.reconnect_strategy)
     Z_PARAM_LONG_OR_NULL(database_id, database_id_is_null)
-    Z_PARAM_STRING_OR_NULL(client_name, client_name_len)
-    Z_PARAM_LONG_OR_NULL(inflight_requests_limit, inflight_requests_limit_is_null)
-    Z_PARAM_STRING_OR_NULL(client_az, client_az_len)
-    Z_PARAM_ARRAY_OR_NULL(advanced_config)
-    Z_PARAM_BOOL_OR_NULL(lazy_connect, lazy_connect_is_null)
+    Z_PARAM_STRING_OR_NULL(common_params.client_name, common_params.client_name_len)
+    Z_PARAM_LONG_OR_NULL(common_params.inflight_requests_limit,
+                         common_params.inflight_requests_limit_is_null)
+    Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
+    Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
+    Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
 
     /* Validate addresses array */
-    if (!addresses || zend_hash_num_elements(Z_ARRVAL_P(addresses)) == 0) {
-        // TODO zend_throw_exception(valkey_glide_exception_ce, "Addresses array cannot be empty",
-        // 0);
+    if (!common_params.addresses ||
+        zend_hash_num_elements(Z_ARRVAL_P(common_params.addresses)) == 0) {
+        const char* error_message = "Addresses array cannot be empty";
+        zend_throw_exception(valkey_glide_exception_ce, error_message, 0);
         return;
     }
 
     /* Build client configuration from individual parameters */
     valkey_glide_client_configuration_t client_config;
     memset(&client_config, 0, sizeof(client_config));
-
-    /* Basic configuration */
-    client_config.base.use_tls = use_tls;
-    client_config.database_id  = database_id_is_null ? -1 : database_id; /* -1 means not set */
-    client_config.base.request_timeout =
-        request_timeout_is_null ? -1 : request_timeout; /* -1 means not set */
-    client_config.base.client_name = client_name ? client_name : NULL;
-
-    /* Set inflight requests limit */
-    client_config.base.inflight_requests_limit =
-        inflight_requests_limit_is_null ? -1 : inflight_requests_limit; /* -1 means not set */
-
-    /* Set client availability zone */
-    client_config.base.client_az = (client_az && client_az_len > 0) ? client_az : NULL;
-
-    /* Set lazy connect option */
-    client_config.base.lazy_connect = lazy_connect_is_null ? false : lazy_connect;
-
-    /* Map read_from enum value to client's ReadFrom enum */
-    switch (read_from) {
-        case 1: /* PREFER_REPLICA */
-            client_config.base.read_from = VALKEY_GLIDE_READ_FROM_PREFER_REPLICA;
-            break;
-        case 2: /* AZ_AFFINITY */
-            client_config.base.read_from = VALKEY_GLIDE_READ_FROM_AZ_AFFINITY;
-            break;
-        case 3: /* AZ_AFFINITY_REPLICAS_AND_PRIMARY */
-            client_config.base.read_from = VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY;
-            break;
-        case 0: /* PRIMARY */
-        default:
-            client_config.base.read_from = VALKEY_GLIDE_READ_FROM_PRIMARY;
-            break;
-    }
-
-    /* Process addresses array - handle multiple addresses */
-    HashTable* addresses_ht  = Z_ARRVAL_P(addresses);
-    zend_ulong num_addresses = zend_hash_num_elements(addresses_ht);
-
-    if (num_addresses > 0) {
-        /* Allocate addresses array */
-        client_config.base.addresses = ecalloc(num_addresses, sizeof(valkey_glide_node_address_t));
-        client_config.base.addresses_count = num_addresses;
-
-        /* Process each address */
-        zend_ulong i = 0;
-        zval*      addr_val;
-        ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
-            if (Z_TYPE_P(addr_val) == IS_ARRAY) {
-                HashTable* addr_ht = Z_ARRVAL_P(addr_val);
-
-                /* Extract host */
-                zval* host_val = zend_hash_str_find(addr_ht, "host", 4);
-                if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
-                    client_config.base.addresses[i].host = Z_STRVAL_P(host_val);
-                } else {
-                    client_config.base.addresses[i].host = "localhost";
-                }
-
-                /* Extract port */
-                zval* port_val = zend_hash_str_find(addr_ht, "port", 4);
-                if (port_val && Z_TYPE_P(port_val) == IS_LONG) {
-                    client_config.base.addresses[i].port = Z_LVAL_P(port_val);
-                } else {
-                    client_config.base.addresses[i].port = 6379;
-                }
-
-                i++;
-            } else {
-                /* Invalid address format */
-                efree(client_config.base.addresses);
-                // TODO zend_throw_exception(valkey_glide_exception_ce, "Invalid address format.
-                // Expected array with 'host' and 'port' keys", 0);
-                return;
-            }
-        }
-        ZEND_HASH_FOREACH_END();
-    } else {
-        /* No addresses provided - set default */
-        client_config.base.addresses         = ecalloc(1, sizeof(valkey_glide_node_address_t));
-        client_config.base.addresses_count   = 1;
-        client_config.base.addresses[0].host = "localhost";
-        client_config.base.addresses[0].port = 6379;
-    }
-
-    /* Process credentials if provided */
-    if (credentials && Z_TYPE_P(credentials) == IS_ARRAY) {
-        HashTable* cred_ht = Z_ARRVAL_P(credentials);
-
-        /* Allocate credentials structure */
-        client_config.base.credentials = ecalloc(1, sizeof(valkey_glide_server_credentials_t));
-
-        /* Check for username */
-        zval* username_val = zend_hash_str_find(cred_ht, "username", 8);
-        if (username_val && Z_TYPE_P(username_val) == IS_STRING) {
-            client_config.base.credentials->username = Z_STRVAL_P(username_val);
-        } else {
-            client_config.base.credentials->username = NULL;
-        }
-
-        /* Check for password */
-        zval* password_val = zend_hash_str_find(cred_ht, "password", 8);
-        if (password_val && Z_TYPE_P(password_val) == IS_STRING) {
-            client_config.base.credentials->password = Z_STRVAL_P(password_val);
-        } else {
-            client_config.base.credentials->password = NULL;
-        }
-    } else {
-        client_config.base.credentials = NULL;
-    }
-
-    /* Process reconnect strategy if provided */
-    if (reconnect_strategy && Z_TYPE_P(reconnect_strategy) == IS_ARRAY) {
-        HashTable* reconnect_ht = Z_ARRVAL_P(reconnect_strategy);
-
-        /* Allocate reconnect strategy structure */
-        client_config.base.reconnect_strategy = ecalloc(1, sizeof(valkey_glide_backoff_strategy_t));
-
-        /* Check for num_of_retries */
-        zval* retries_val = zend_hash_str_find(reconnect_ht, "num_of_retries", 14);
-        if (retries_val && Z_TYPE_P(retries_val) == IS_LONG) {
-            client_config.base.reconnect_strategy->num_of_retries = Z_LVAL_P(retries_val);
-        } else {
-            client_config.base.reconnect_strategy->num_of_retries = 3; /* Default */
-        }
-
-        /* Check for factor */
-        zval* factor_val = zend_hash_str_find(reconnect_ht, "factor", 6);
-        if (factor_val && (Z_TYPE_P(factor_val) == IS_DOUBLE || Z_TYPE_P(factor_val) == IS_LONG)) {
-            client_config.base.reconnect_strategy->factor = Z_TYPE_P(factor_val) == IS_DOUBLE
-                                                                ? Z_DVAL_P(factor_val)
-                                                                : (double) Z_LVAL_P(factor_val);
-        } else {
-            client_config.base.reconnect_strategy->factor = 2.0; /* Default */
-        }
-
-        /* Check for exponent_base */
-        zval* exponent_val = zend_hash_str_find(reconnect_ht, "exponent_base", 13);
-        if (exponent_val &&
-            (Z_TYPE_P(exponent_val) == IS_DOUBLE || Z_TYPE_P(exponent_val) == IS_LONG)) {
-            client_config.base.reconnect_strategy->exponent_base =
-                Z_TYPE_P(exponent_val) == IS_DOUBLE ? Z_DVAL_P(exponent_val)
-                                                    : (double) Z_LVAL_P(exponent_val);
-        } else {
-            client_config.base.reconnect_strategy->exponent_base = 2; /* Default */
-        }
-
-        /* Check for jitter_percent - optional */
-        zval* jitter_val = zend_hash_str_find(reconnect_ht, "jitter_percent", 14);
-        if (jitter_val && Z_TYPE_P(jitter_val) == IS_LONG) {
-            client_config.base.reconnect_strategy->jitter_percent = Z_LVAL_P(jitter_val);
-        } else {
-            client_config.base.reconnect_strategy->jitter_percent = -1; /* Not set */
-        }
-    } else {
-        client_config.base.reconnect_strategy = NULL;
-    }
-
-    /* Process advanced config if provided */
-    if (advanced_config && Z_TYPE_P(advanced_config) == IS_ARRAY) {
-        HashTable* advanced_ht = Z_ARRVAL_P(advanced_config);
-
-        /* Allocate advanced config structure */
-        client_config.base.advanced_config =
-            ecalloc(1, sizeof(valkey_glide_advanced_base_client_configuration_t));
-
-        /* Check for connection_timeout */
-        zval* conn_timeout_val = zend_hash_str_find(advanced_ht, "connection_timeout", 18);
-        if (conn_timeout_val && Z_TYPE_P(conn_timeout_val) == IS_LONG) {
-            client_config.base.advanced_config->connection_timeout = Z_LVAL_P(conn_timeout_val);
-        } else {
-            client_config.base.advanced_config->connection_timeout = -1; /* Not set */
-        }
-
-        /* Check for TLS config - for now just set to NULL */
-        client_config.base.advanced_config->tls_config = NULL;
-    } else {
-        client_config.base.advanced_config = NULL;
-    }
+    client_config.database_id = database_id_is_null ? -1 : database_id; /* -1 means not set */
 
     /* Validate database_id range */
     if (client_config.database_id != -1 &&
         (client_config.database_id < 0 || client_config.database_id > 15)) {
-        // TODO zend_throw_exception(valkey_glide_exception_ce, "Database ID must be between 0 and
-        // 15", 0);
-        cleanup_client_config(&client_config);
+        const char* error_message = "Database ID must be between 0 and 15 inclusive.";
+        zend_throw_exception(valkey_glide_exception_ce, error_message, 0);
+        valkey_glide_cleanup_client_config(&client_config.base);
         return;
     }
 
-    const ConnectionResponse* conn_resp =
-        create_glide_client((valkey_glide_client_configuration_t*) &client_config, false);
+    /* Populate configuration parameters shared between client and cluster connections. */
+    valkey_glide_build_client_config_base(&common_params, &client_config.base, false);
+
+    /* Issue the connection request. */
+    const ConnectionResponse* conn_resp = create_glide_client(&client_config);
 
     if (conn_resp->connection_error_message) {
         zend_throw_exception(valkey_glide_exception_ce, conn_resp->connection_error_message, 0);
@@ -442,7 +478,7 @@ PHP_METHOD(ValkeyGlide, __construct) {
     free_connection_response((ConnectionResponse*) conn_resp);
 
     /* Clean up temporary configuration structures */
-    cleanup_client_config(&client_config);
+    valkey_glide_cleanup_client_config(&client_config.base);
 }
 /* }}} */
 

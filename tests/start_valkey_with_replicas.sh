@@ -26,6 +26,8 @@ valkey-server --port 6381 \
   --daemonize yes \
   --logfile "$BASE_DIR/6381/valkey.log"
 
+../valkey-glide/utils/cluster_manager.py --tls start --prefix tls-standalone -p 6400 -r 0
+
 # Wait a moment for servers to start
 sleep 2
 

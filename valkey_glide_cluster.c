@@ -33,40 +33,27 @@
 
 /* Create a ValkeyGlideCluster Object */
 PHP_METHOD(ValkeyGlideCluster, __construct) {
-    zval*                addresses                       = NULL;
-    zend_bool            use_tls                         = 0;
-    zval*                credentials                     = NULL;
-    zend_long            read_from                       = 0; /* PRIMARY by default */
-    zend_long            request_timeout                 = 0;
-    zend_bool            request_timeout_is_null         = 1;
-    zval*                reconnect_strategy              = NULL;
-    char*                client_name                     = NULL;
-    size_t               client_name_len                 = 0;
-    zend_long            periodic_checks                 = 0;
-    zend_bool            periodic_checks_is_null         = 1;
-    zend_long            inflight_requests_limit         = 1000;
-    zend_bool            inflight_requests_limit_is_null = 1;
-    char*                client_az                       = NULL;
-    size_t               client_az_len                   = 0;
-    zval*                advanced_config                 = NULL;
-    zend_bool            lazy_connect                    = 0;
-    zend_bool            lazy_connect_is_null            = 1;
+    zend_long                                    periodic_checks         = 0;
+    zend_bool                                    periodic_checks_is_null = 1;
+    valkey_glide_php_common_constructor_params_t common_params;
+    valkey_glide_init_common_constructor_params(&common_params);
     valkey_glide_object* valkey_glide;
 
     ZEND_PARSE_PARAMETERS_START(1, 12)
-    Z_PARAM_ARRAY(addresses)
+    Z_PARAM_ARRAY(common_params.addresses)
     Z_PARAM_OPTIONAL
-    Z_PARAM_BOOL(use_tls)
-    Z_PARAM_ARRAY_OR_NULL(credentials)
-    Z_PARAM_LONG(read_from)
-    Z_PARAM_LONG_OR_NULL(request_timeout, request_timeout_is_null)
-    Z_PARAM_ARRAY_OR_NULL(reconnect_strategy)
-    Z_PARAM_STRING_OR_NULL(client_name, client_name_len)
+    Z_PARAM_BOOL(common_params.use_tls)
+    Z_PARAM_ARRAY_OR_NULL(common_params.credentials)
+    Z_PARAM_LONG(common_params.read_from)
+    Z_PARAM_LONG_OR_NULL(common_params.request_timeout, common_params.request_timeout_is_null)
+    Z_PARAM_ARRAY_OR_NULL(common_params.reconnect_strategy)
+    Z_PARAM_STRING_OR_NULL(common_params.client_name, common_params.client_name_len)
     Z_PARAM_LONG_OR_NULL(periodic_checks, periodic_checks_is_null)
-    Z_PARAM_LONG_OR_NULL(inflight_requests_limit, inflight_requests_limit_is_null)
-    Z_PARAM_STRING_OR_NULL(client_az, client_az_len)
-    Z_PARAM_ARRAY_OR_NULL(advanced_config)
-    Z_PARAM_BOOL_OR_NULL(lazy_connect, lazy_connect_is_null)
+    Z_PARAM_LONG_OR_NULL(common_params.inflight_requests_limit,
+                         common_params.inflight_requests_limit_is_null)
+    Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
+    Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
+    Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
@@ -75,84 +62,16 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     valkey_glide_cluster_client_configuration_t client_config;
     memset(&client_config, 0, sizeof(client_config));
 
-    /* Basic configuration */
-    client_config.base.use_tls         = use_tls;
-    client_config.base.request_timeout = request_timeout_is_null ? -1 : request_timeout;
-    client_config.base.inflight_requests_limit =
-        inflight_requests_limit_is_null ? -1 : inflight_requests_limit; /* -1 means not set */
-    client_config.base.client_name = client_name ? client_name : "valkey-glide-cluster-php";
-
     /* Set periodic checks */
     client_config.periodic_checks_status =
         periodic_checks_is_null ? VALKEY_GLIDE_PERIODIC_CHECKS_ENABLED_DEFAULT : periodic_checks;
-    client_config.base.lazy_connect      = lazy_connect_is_null ? false : lazy_connect;
     client_config.periodic_checks_manual = NULL;
 
-    /* Map read_from enum value to client's ReadFrom enum */
-    switch (read_from) {
-        case 1: /* PREFER_REPLICA */
-            client_config.base.read_from = VALKEY_GLIDE_READ_FROM_PREFER_REPLICA;
-            break;
-        case 2: /* AZ_AFFINITY */
-            client_config.base.read_from = VALKEY_GLIDE_READ_FROM_AZ_AFFINITY;
-            break;
-        case 3: /* AZ_AFFINITY_REPLICAS_AND_PRIMARY */
-            client_config.base.read_from = VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY;
-            break;
-        case 0: /* PRIMARY */
-        default:
-            client_config.base.read_from = VALKEY_GLIDE_READ_FROM_PRIMARY;
-            break;
-    }
+    /* Populate configuration parameters shared between client and cluster connections. */
+    valkey_glide_build_client_config_base(&common_params, &client_config.base, true);
 
-    /* Process addresses array - handle multiple addresses */
-    if (addresses && zend_hash_num_elements(Z_ARRVAL_P(addresses)) > 0) {
-        HashTable* addresses_ht  = Z_ARRVAL_P(addresses);
-        zend_ulong num_addresses = zend_hash_num_elements(addresses_ht);
-
-        /* Allocate addresses array */
-        client_config.base.addresses = ecalloc(num_addresses, sizeof(valkey_glide_node_address_t));
-        client_config.base.addresses_count = num_addresses;
-
-        /* Process each address */
-        zend_ulong i = 0;
-        zval*      addr_val;
-        ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
-            if (Z_TYPE_P(addr_val) == IS_ARRAY) {
-                HashTable* addr_ht = Z_ARRVAL_P(addr_val);
-
-                /* Extract host */
-                zval* host_val = zend_hash_str_find(addr_ht, "host", 4);
-                if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
-                    client_config.base.addresses[i].host = Z_STRVAL_P(host_val);
-                } else {
-                    client_config.base.addresses[i].host = "localhost";
-                }
-
-                /* Extract port */
-                zval* port_val = zend_hash_str_find(addr_ht, "port", 4);
-                if (port_val && Z_TYPE_P(port_val) == IS_LONG) {
-                    client_config.base.addresses[i].port = Z_LVAL_P(port_val);
-                } else {
-                    client_config.base.addresses[i].port = 7001; /* Default cluster port */
-                }
-
-                i++;
-            }
-        }
-        ZEND_HASH_FOREACH_END();
-    } else {
-        /* No addresses provided - set default */
-        client_config.base.addresses         = ecalloc(1, sizeof(valkey_glide_node_address_t));
-        client_config.base.addresses_count   = 1;
-        client_config.base.addresses[0].host = "localhost";
-        client_config.base.addresses[0].port = 7001;
-    }
-
-    /* Note: This should use a cluster-specific create function */
-    /* For now, we'll cast to regular client config */
-    const ConnectionResponse* conn_resp =
-        create_glide_client((valkey_glide_client_configuration_t*) &client_config, true);
+    /* Issue the connection request. */
+    const ConnectionResponse* conn_resp = create_glide_cluster_client(&client_config);
 
     if (conn_resp->connection_error_message) {
         zend_throw_exception(
@@ -164,9 +83,7 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     free_connection_response((ConnectionResponse*) conn_resp);
 
     /* Clean up temporary configuration structures */
-    if (client_config.base.addresses) {
-        efree(client_config.base.addresses);
-    }
+    valkey_glide_cleanup_client_config(&client_config);
 }
 
 static zend_function_entry valkey_glide_cluster_methods[] = {

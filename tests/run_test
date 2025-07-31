@@ -2,3 +2,7 @@ php -n -d extension=../modules/valkey_glide.so TestValkeyGlide.php --class valke
 php TestValkeyGlide.php --class valkeyglideclientfeatures 
 php TestValkeyGlide.php --class valkeyglide
 php TestValkeyGlide.php --class valkeyglidecluster
+
+# Run TLS-specific tests
+echo "Running TLS standalone tests"
+php TestValkeyGlide.php --class valkeyglideclientfeatures --tls --port 6400

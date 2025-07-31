@@ -134,7 +134,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', '1');
 
 /* Grab options */
-$opt = getopt('', ['host:', 'port:', 'class:', 'test:', 'nocolors', 'user:', 'auth:']);
+$opt = getopt('', ['host:', 'port:', 'class:', 'test:', 'nocolors', 'user:', 'auth:', 'tls']);
 
 /* The test class(es) we want to run */
 $classes = getClassArray($opt['class'] ?? 'valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,valkeyglideclusterfeatures');
@@ -151,6 +151,12 @@ $port = $opt['port'] ?? 6379;
 /* Get optional username and auth (password) */
 $user = $opt['user'] ?? null;
 $auth = $opt['auth'] ?? null;
+
+/* Check if TLS should be enabled. */
+$tls = isset($opt['tls']);
+if (isset($opt['tls'])) {
+    echo TestSuite::makeBold("Assuming TLS connection for client constructor feature tests.\n");
+}
 
 if ($user && $auth) {
     $auth = [$user, $auth];
@@ -173,7 +179,7 @@ foreach ($classes as $class) {
 
     echo TestSuite::makeBold($class) . "\n";
 
-    if (TestSuite::run("$class", $filter, $host, $port, $auth)) {
+    if (TestSuite::run("$class", $filter, $host, $port, $auth, $tls)) {
         exit(1);
     }
 }

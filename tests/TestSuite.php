@@ -88,6 +88,9 @@ class TestSuite
     /* ValkeyGlide authentication we'll use */
     private $auth;
 
+    /* Indicates if TLS should be enabled during connection. */
+    private bool $tls;
+
     /* ValkeyGlide server version */
     protected $version;
     protected bool $is_valkey;
@@ -108,11 +111,12 @@ class TestSuite
     public static array $errors = [];
     public static array $warnings = [];
 
-    public function __construct(string $host, ?int $port, $auth)
+    public function __construct(string $host, ?int $port, $auth, $tls)
     {
         $this->host = $host;
         $this->port = $port;
         $this->auth = $auth;
+        $this->tls = $tls;
     }
 
     public function getHost()
@@ -126,6 +130,10 @@ class TestSuite
     public function getAuth()
     {
         return $this->auth;
+    }
+
+    public function getTLS(): bool {
+        return $this->tls;
     }
 
     public static function errorMessage(string $fmt, ...$args)
@@ -828,7 +836,8 @@ class TestSuite
         ?string $limit = null,
         ?string $host = null,
         ?int $port = null,
-        $auth = null
+        $auth = null,
+        $tls = null,
     ) {
         echo "Running tests for class '$class_name'...\n";
         if ($limit) {
@@ -856,8 +865,7 @@ class TestSuite
             echo self::makeBold($padded_name);
 
             $count = count($class_name::$errors);
-            $rt = new $class_name($host, $port, $auth);
-
+            $rt = new $class_name($host, $port, $auth, $tls);
             try {
                 $rt->setUp();
                 $rt->$name();

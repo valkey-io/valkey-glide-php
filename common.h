@@ -123,6 +123,32 @@ void free_valkey_glide_client_configuration(valkey_glide_client_configuration_t*
 void free_valkey_glide_cluster_client_configuration(
     valkey_glide_cluster_client_configuration_t* config);
 
+typedef struct {
+    zval*     addresses;
+    zend_bool use_tls;
+    zval*     credentials;
+    zend_long read_from; /* PRIMARY by default */
+    zend_long request_timeout;
+    zend_bool request_timeout_is_null;
+    zval*     reconnect_strategy;
+    char*     client_name;
+    size_t    client_name_len;
+    zend_long inflight_requests_limit;
+    zend_bool inflight_requests_limit_is_null;
+    char*     client_az;
+    size_t    client_az_len;
+    zval*     advanced_config;
+    zend_bool lazy_connect;
+    zend_bool lazy_connect_is_null;
+} valkey_glide_php_common_constructor_params_t;
+
+void valkey_glide_init_common_constructor_params(
+    valkey_glide_php_common_constructor_params_t* params);
+void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
+                                           valkey_glide_base_client_configuration_t*     config,
+                                           bool is_cluster);
+void valkey_glide_cleanup_client_config(valkey_glide_base_client_configuration_t* config);
+
 #if PHP_VERSION_ID < 80000
 #define Z_PARAM_ARRAY_HT_OR_NULL(dest) Z_PARAM_ARRAY_HT_EX(dest, 1, 0)
 #define Z_PARAM_STR_OR_NULL(dest) Z_PARAM_STR_EX(dest, 1, 0)

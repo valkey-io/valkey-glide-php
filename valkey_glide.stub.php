@@ -238,7 +238,7 @@ class ValkeyGlide
         array $addresses,
         bool $use_tls = false,
         ?array $credentials = null,
-        $read_from = READ_FROM_PRIMARY,
+        $read_from = ValkeyGlide::READ_FROM_PRIMARY,
         ?int $request_timeout = null,
         ?array $reconnect_strategy = null,
         ?int $database_id = null,

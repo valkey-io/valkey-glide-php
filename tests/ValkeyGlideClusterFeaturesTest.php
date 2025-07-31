@@ -62,6 +62,20 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $valkey_glide->close();
     }
 
+    public function testConstructorWithTlsEnabled()
+    {
+        // Test with TLS explicitly disabled
+        $valkey_glide = new ValkeyGlideCluster(
+            addresses: [['host' => '127.0.0.1', 'port' => 8001]],
+            use_tls:true, // use_tls disabled
+            credentials: $this->getAuth(),
+            advanced_config: [ 'tls_config' => ['use_insecure_tls' => true]]
+        );
+
+        $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
+        $valkey_glide->close();
+    }
+
     // ==============================================
     // CREDENTIALS PARAMETER TESTS
     // ==============================================
