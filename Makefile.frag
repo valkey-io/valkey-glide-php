@@ -80,7 +80,7 @@ all: $(ARGINFO_HEADERS)
 
 .PHONY: build-modules-pre
 
-build-modules-pre: valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h cluster_scan_cursor_arginfo.h
+build-modules-pre: valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h cluster_scan_cursor_arginfo.h logger_arginfo.h
 	@$(MAKE) generate-proto
 	@$(MAKE) generate-bindings
 
