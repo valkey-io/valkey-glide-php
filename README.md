@@ -176,8 +176,6 @@ try {
         $addresses,                       // addresses
         false,                            // use_tls
         null,                             // credentials  
-        ValkeyGlide::READ_FROM_PRIMARY,   // read_from (PRIMARY)
-        500                               // request_timeout (500ms)
     );
     
     // Basic operations
@@ -216,8 +214,6 @@ try {
         $addresses,                          // addresses
         false,                               // use_tls
         null,                                // credentials
-        ValkeyGlide::READ_FROM_PRIMARY,      // read_from (PRIMARY)
-        500                                  // request_timeout (500ms)
     );
     
     // Basic operations
