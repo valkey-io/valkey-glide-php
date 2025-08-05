@@ -113,6 +113,7 @@ int valkey_glide_logger_get_level(void) {
  * This centralizes the FFI call and state management.
  */
 static int internal_init_logger(const char* level, const char* filename) {
+#if LOGGER_FFI_ENABLED
     /* Prevent concurrent initialization attempts */
     if (initialization_in_progress) {
         return -1;
@@ -133,6 +134,7 @@ static int internal_init_logger(const char* level, const char* filename) {
     logger_initialized    = true;
 
     initialization_in_progress = false;
+#endif
     return 0; /* FFI init always succeeds */
 }
 
@@ -188,8 +190,10 @@ void valkey_glide_logger_log(const char* level, const char* identifier, const ch
     int        level_int = valkey_glide_logger_level_from_string(level);
     enum Level ffi_level = int_to_ffi_level(level_int);
 
+#if LOGGER_FFI_ENABLED
     /* Call the new FFI log function with current logger level */
     valkey_log(ffi_level, current_ffi_log_level, identifier, message);
+#endif
 }
 
 /* ============================================================================
@@ -224,8 +228,10 @@ void valkey_glide_c_log_error(const char* identifier, const char* message) {
         return;
     }
 
-    /* Call the new FFI log function directly */
+/* Call the new FFI log function directly */
+#if LOGGER_FFI_ENABLED
     valkey_log(LEVEL_ERROR, current_ffi_log_level, identifier, message);
+#endif
 }
 
 void valkey_glide_c_log_warn(const char* identifier, const char* message) {
@@ -236,8 +242,10 @@ void valkey_glide_c_log_warn(const char* identifier, const char* message) {
         return;
     }
 
+#if LOGGER_FFI_ENABLED
     /* Call the new FFI log function directly */
     valkey_log(LEVEL_WARN, current_ffi_log_level, identifier, message);
+#endif
 }
 
 void valkey_glide_c_log_info(const char* identifier, const char* message) {
@@ -247,9 +255,10 @@ void valkey_glide_c_log_info(const char* identifier, const char* message) {
     if (identifier == NULL || message == NULL) {
         return;
     }
-
+#if LOGGER_FFI_ENABLED
     /* Call the new FFI log function directly */
     valkey_log(LEVEL_INFO, current_ffi_log_level, identifier, message);
+#endif
 }
 
 void valkey_glide_c_log_debug(const char* identifier, const char* message) {
@@ -259,9 +268,10 @@ void valkey_glide_c_log_debug(const char* identifier, const char* message) {
     if (identifier == NULL || message == NULL) {
         return;
     }
-
+#if LOGGER_FFI_ENABLED
     /* Call the new FFI log function directly */
     valkey_log(LEVEL_DEBUG, current_ffi_log_level, identifier, message);
+#endif
 }
 
 void valkey_glide_c_log_trace(const char* identifier, const char* message) {
@@ -271,7 +281,8 @@ void valkey_glide_c_log_trace(const char* identifier, const char* message) {
     if (identifier == NULL || message == NULL) {
         return;
     }
-
+#if LOGGER_FFI_ENABLED
     /* Call the new FFI log function directly */
     valkey_log(LEVEL_TRACE, current_ffi_log_level, identifier, message);
+#endif
 }

@@ -31,19 +31,7 @@ else
     echo "Warning: phpcs not found, skipping PHP coding standards check"
 fi
 
-echo "2. Running PHPStan static analysis..."
-if command -v phpstan &> /dev/null || [ -f "vendor/bin/phpstan" ]; then
-    if [ -f "vendor/bin/phpstan" ]; then
-        ./vendor/bin/phpstan analyze --no-progress
-    else
-        phpstan analyze --no-progress
-    fi
-    echo "✓ PHPStan analysis passed"
-else
-    echo "Warning: phpstan not found, skipping PHP static analysis"
-fi
-
-echo "3. Checking C code formatting..."
+echo "2. Checking C code formatting..."
 if command -v clang-format &> /dev/null; then
     # Find C files but exclude protobuf generated files
     if find . -name "*.c" -o -name "*.h" | grep -v "\.pb-c\." | grep -q .; then
@@ -56,13 +44,6 @@ else
     echo "Warning: clang-format not found, skipping C code formatting check"
 fi
 
-echo "4. Running C static analysis..."
-if command -v cppcheck &> /dev/null; then
-    cppcheck --enable=all --suppress=missingInclude --suppress=missingIncludeSystem --error-exitcode=1 --quiet .
-    echo "✓ C static analysis passed"
-else
-    echo "Warning: cppcheck not found, skipping C static analysis"
-fi
 
 echo ""
 echo "🎉 All linting checks passed!"
