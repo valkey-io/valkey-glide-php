@@ -327,7 +327,7 @@ const zend_function_entry valkey_glide_cluster_methods[] = {
  */
 PHP_MINIT_FUNCTION(valkey_glide) {
     /* Initialize the logger system early to prevent crashes */
-    int logger_result = valkey_glide_logger_init("warn", "/tmp/valkey_log/valkey_glide.log");
+    int logger_result = valkey_glide_logger_init("warn", NULL);
     if (logger_result != 0) {
         /* Log initialization failed, but continue - logger will auto-init on first use */
         php_error_docref(
@@ -570,24 +570,6 @@ PHP_FUNCTION(valkey_glide_logger_init) {
     RETURN_BOOL(result == 0);
 }
 
-/**
- * PHP function: valkey_glide_logger_set_config(string $level, ?string $filename = null): bool
- */
-PHP_FUNCTION(valkey_glide_logger_set_config) {
-    char*  level;
-    size_t level_len;
-    char*  filename     = NULL;
-    size_t filename_len = 0;
-
-    ZEND_PARSE_PARAMETERS_START(1, 2)
-    Z_PARAM_STRING(level, level_len)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_STRING_OR_NULL(filename, filename_len)
-    ZEND_PARSE_PARAMETERS_END();
-
-    int result = valkey_glide_logger_set_config(level, filename);
-    RETURN_BOOL(result == 0);
-}
 
 /**
  * PHP function: valkey_glide_logger_log(string $level, string $identifier, string $message): void

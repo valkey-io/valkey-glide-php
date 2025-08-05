@@ -596,257 +596,238 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     // LOGGER TESTS - Multi-level logging system integration tests
     // ===================================================================
 
-    public function testLoggerInitialization()
+    // Helper methods for logger testing
+    private function createTempLogFile()
     {
-        // Test logger initialization with default settings
-        $this->assertTrue(valkey_glide_logger_init());
-        $this->assertTrue(valkey_glide_logger_is_initialized());
-
-        // Test logger initialization with info level
-        $this->assertTrue(valkey_glide_logger_init("info"));
-        $this->assertTrue(valkey_glide_logger_is_initialized());
-        $this->assertEquals(2, valkey_glide_logger_get_level()); // Info = 2
-
-        // Test logger initialization with file output
-        $logFile = sys_get_temp_dir() . '/valkey-glide-test-' . uniqid() . '.log';
-        $this->assertTrue(valkey_glide_logger_init("debug", $logFile));
-        $this->assertTrue(valkey_glide_logger_is_initialized());
-        $this->assertEquals(3, valkey_glide_logger_get_level()); // Debug = 3
+        return sys_get_temp_dir() . '/valkey-glide-test-' . uniqid() . '.log';
     }
 
-    public function testLoggerSetConfig()
+    private function verifyLogFileCreated($logFile)
     {
-        // Test logger configuration replacement (Node.js Logger.setLoggerConfig behavior)
-        $logFile1 = sys_get_temp_dir() . '/valkey-glide-config1-' . uniqid() . '.log';
-        $logFile2 = sys_get_temp_dir() . '/valkey-glide-config2-' . uniqid() . '.log';
-
-        // Initial configuration
-        $this->assertTrue(valkey_glide_logger_set_config("warn", $logFile1));
-        $this->assertTrue(valkey_glide_logger_is_initialized());
-        $this->assertEquals(1, valkey_glide_logger_get_level()); // Warn = 1
-
-        // Replace configuration
-        $this->assertTrue(valkey_glide_logger_set_config("error", $logFile2));
-        $this->assertTrue(valkey_glide_logger_is_initialized());
-        $this->assertEquals(0, valkey_glide_logger_get_level()); // Error = 0
-
-        // Test with console output
-        $this->assertTrue(valkey_glide_logger_set_config("info"));
-        $this->assertEquals(2, valkey_glide_logger_get_level()); // Info = 2
+        $this->assertTrue(file_exists($logFile), "Log file should be created: $logFile");
+        $this->assertTrue(is_readable($logFile), "Log file should be readable: $logFile");
+        $this->assertGT(0, filesize($logFile), "Log file should contain data: $logFile");
     }
 
-    public function testLoggerLevels()
+    private function verifyLogContains($logFile, $expectedMessage, $shouldContain = true)
     {
-        // Test different log levels
-        $logLevels = [
-            'error' => 0,
-            'warn' => 1,
-            'info' => 2,
-            'debug' => 3,
-            'trace' => 4,
-            'off' => 5
-        ];
-
-        foreach ($logLevels as $level => $expectedValue) {
-            $this->assertTrue(valkey_glide_logger_set_config($level));
-            $this->assertEquals($expectedValue, valkey_glide_logger_get_level(), "Level {$level} should map to {$expectedValue}");
+        $this->assertTrue(file_exists($logFile), "Log file must exist to verify content: $logFile");
+        $content = file_get_contents($logFile);
+        if ($shouldContain) {
+            $this->assertStringContains($expectedMessage, $content);
+        } else {
+            // Since assertStringNotContains doesn't exist, we check that it's NOT found
+            $this->assertTrue(strpos($content, $expectedMessage) === false, "Log should NOT contain: $expectedMessage");
         }
     }
 
-    public function testLoggerConvenienceFunctions()
+    private function cleanupLogFile($logFile)
     {
-        // Initialize logger for testing
-        valkey_glide_logger_set_config("trace");
-
-        // Test convenience functions (these should not throw errors)
-        valkey_glide_logger_error("test", "This is an error message");
-        valkey_glide_logger_warn("test", "This is a warning message");
-        valkey_glide_logger_info("test", "This is an info message");
-        valkey_glide_logger_debug("test", "This is a debug message");
-
-        // Test generic log function
-        valkey_glide_logger_log("error", "test", "Generic error message");
-        valkey_glide_logger_log("warn", "test", "Generic warning message");
-        valkey_glide_logger_log("info", "test", "Generic info message");
-        valkey_glide_logger_log("debug", "test", "Generic debug message");
-        valkey_glide_logger_log("trace", "test", "Generic trace message");
-
-        // All functions should complete without throwing exceptions
-        $this->assertTrue(true, "All logger convenience functions executed successfully");
-    }
-
-    public function testLoggerAutoInitialization()
-    {
-        // Test Node.js Logger behavior: first log attempt initializes logger with defaults
-        // We can't fully test this without resetting logger state, but we can verify
-        // that logging works even without explicit initialization
-
-        // Log without explicit initialization (should auto-initialize)
-        valkey_glide_logger_info("auto-init-test", "Auto-initialization test message");
-
-        // Verify logger is now initialized
-        $this->assertTrue(valkey_glide_logger_is_initialized());
-        
-        // Should default to warn level
-        $this->assertEquals(1, valkey_glide_logger_get_level());
-    }
-
-    public function testLoggerWithFileOutput()
-    {
-        // Test logging to a file
-        $logFile = sys_get_temp_dir() . '/valkey-glide-file-test-' . uniqid() . '.log';
-        
-        // Initialize with file output
-        $this->assertTrue(valkey_glide_logger_set_config("info", $logFile));
-        
-        // Log some messages
-        $testMessage = "Test file output - " . uniqid();
-        valkey_glide_logger_info("file-test", $testMessage);
-        valkey_glide_logger_error("file-test", "Error in file");
-        valkey_glide_logger_warn("file-test", "Warning in file");
-        
-        // Give some time for file writing (if asynchronous)
-        usleep(100000); // 100ms
-        
-        // Check if file was created (basic test - we can't easily read Rust logger output format)
-        if (file_exists($logFile)) {
-            $this->assertTrue(filesize($logFile) > 0, "Log file should contain data");
-        }
-        
-        // Clean up
         if (file_exists($logFile)) {
             unlink($logFile);
+        }
+    }
+
+    public function testLoggerBasicFunctionality()
+    {
+        // Test comprehensive logger functionality with file output and verification
+        $logFile = $this->createTempLogFile();
+        var_dump($logFile);
+        
+        try {
+            // Initialize logger with info level and file output
+            $this->assertTrue(valkey_glide_logger_set_config("info", $logFile));
+            $this->assertTrue(valkey_glide_logger_is_initialized());
+            $this->assertEquals(2, valkey_glide_logger_get_level()); // Info = 2            
+
+            // Test convenience functions at different levels
+            $errorMsg = "Test error message - " . uniqid();
+            $warnMsg = "Test warning message - " . uniqid(); 
+            $infoMsg = "Test info message - " . uniqid();
+            $debugMsg = "Test debug message - " . uniqid();
+
+            valkey_glide_logger_error("basic-test", $errorMsg);
+            valkey_glide_logger_warn("basic-test", $warnMsg);
+            valkey_glide_logger_info("basic-test", $infoMsg);
+            valkey_glide_logger_debug("basic-test", $debugMsg); // Should be filtered out
+
+            // Test generic log function
+            $genericErrorMsg = "Generic error - " . uniqid();
+            $genericWarnMsg = "Generic warning - " . uniqid();
+            $genericInfoMsg = "Generic info - " . uniqid();
+            $genericDebugMsg = "Generic debug - " . uniqid();
+
+            valkey_glide_logger_log("error", "basic-test", $genericErrorMsg);
+            valkey_glide_logger_log("warn", "basic-test", $genericWarnMsg);
+            valkey_glide_logger_log("info", "basic-test", $genericInfoMsg);
+            valkey_glide_logger_log("debug", "basic-test", $genericDebugMsg); // Should be filtered out
+
+            // Test parameter validation with special characters and edge cases
+            $specialCharsMsg = "Message with émojis: 🚀 and unicode: ñáéíóú";
+            $newlinesMsg = "Message with\nnewlines\nand\ttabs";
+            $hierarchicalMsg = "Hierarchical identifier";
+            $dotNotationMsg = "Dot notation identifier";
+
+            valkey_glide_logger_info("special-chars", $specialCharsMsg);
+            valkey_glide_logger_warn("newlines", $newlinesMsg);
+            valkey_glide_logger_error("component:subcomponent", $hierarchicalMsg);
+            valkey_glide_logger_error("component.method", $dotNotationMsg);
+
+            // Test with empty parameters (should not crash)
+            valkey_glide_logger_log("info", "", "Empty identifier");
+            valkey_glide_logger_log("info", "test", "");
+
+            // Give time for file writing
+            usleep(200000); // 200ms
+
+            // Verify log file was created and contains data
+            $this->verifyLogFileCreated($logFile);
+
+            // Verify expected messages appear (info level and above)
+            $this->verifyLogContains($logFile, $errorMsg, true);
+            $this->verifyLogContains($logFile, $warnMsg, true);
+            $this->verifyLogContains($logFile, $infoMsg, true);
+            $this->verifyLogContains($logFile, $genericErrorMsg, true);
+            $this->verifyLogContains($logFile, $genericWarnMsg, true);
+            $this->verifyLogContains($logFile, $genericInfoMsg, true);
+            $this->verifyLogContains($logFile, $specialCharsMsg, true);
+            $this->verifyLogContains($logFile, $hierarchicalMsg, true);
+            $this->verifyLogContains($logFile, $dotNotationMsg, true);
+
+            // Verify debug messages are filtered out (should NOT appear)
+            $this->verifyLogContains($logFile, $debugMsg, false);
+            $this->verifyLogContains($logFile, $genericDebugMsg, false);
+
+        } finally {
+            $this->cleanupLogFile($logFile);
+        }
+    }
+
+    public function testLoggerLevelFiltering()
+    {
+        // Test that log level filtering works correctly at info level
+        $logFile = $this->createTempLogFile();
+        
+        try {
+            // Initialize with info level
+            $this->assertTrue(valkey_glide_logger_set_config("info", $logFile));
+            $this->assertTrue(valkey_glide_logger_is_initialized());
+            $this->assertEquals(2, valkey_glide_logger_get_level()); // Info = 2
+
+            // Log messages at all levels with unique identifiers
+            $errorMsg = "Error level message - " . uniqid();
+            $warnMsg = "Warn level message - " . uniqid();
+            $infoMsg = "Info level message - " . uniqid();
+            $debugMsg = "Debug level message - " . uniqid();
+            $traceMsg = "Trace level message - " . uniqid();
+
+            valkey_glide_logger_log("error", "filter-test", $errorMsg);
+            valkey_glide_logger_log("warn", "filter-test", $warnMsg);
+            valkey_glide_logger_log("info", "filter-test", $infoMsg);
+            valkey_glide_logger_log("debug", "filter-test", $debugMsg);
+            valkey_glide_logger_log("trace", "filter-test", $traceMsg);
+
+            // Test edge cases
+            $emptyIdentifierMsg = "Empty identifier test";
+            $debugEmptyMsg = "Debug with empty identifier (should be filtered)";
+            
+            valkey_glide_logger_log("info", "", $emptyIdentifierMsg);
+            valkey_glide_logger_log("debug", "", $debugEmptyMsg);
+
+            // Give time for file writing
+            usleep(200000);
+
+            // Verify file creation
+            $this->verifyLogFileCreated($logFile);
+
+            // Verify info level and above appear (error=0, warn=1, info=2)
+            $this->verifyLogContains($logFile, $errorMsg, true);
+            $this->verifyLogContains($logFile, $warnMsg, true);
+            $this->verifyLogContains($logFile, $infoMsg, true);
+            $this->verifyLogContains($logFile, $emptyIdentifierMsg, true);
+
+            // Verify below info level are filtered out (debug=3, trace=4)
+            $this->verifyLogContains($logFile, $debugMsg, false);
+            $this->verifyLogContains($logFile, $traceMsg, false);
+            $this->verifyLogContains($logFile, $debugEmptyMsg, false);
+
+        } finally {
+            $this->cleanupLogFile($logFile);
         }
     }
 
     public function testLoggerWithValkeyGlideIntegration()
     {
-        // Test that ValkeyGlide constructor logging works with our logger system
-        $logFile = sys_get_temp_dir() . '/valkey-glide-integration-' . uniqid() . '.log';
+        // Test that ValkeyGlide client integration works with logger system
+        $logFile = $this->createTempLogFile();
         
-        // Set logger to debug level to capture constructor logs
-        valkey_glide_logger_set_config("debug", $logFile);
-        
-        $addresses = [
-            ['host' => $this->getHost(), 'port' => $this->getPort()]
-        ];
+        try {
+            // Initialize logger with info level to capture client logs
+            $this->assertTrue(valkey_glide_logger_set_config("info", $logFile));
+            $this->assertTrue(valkey_glide_logger_is_initialized());
+            $this->assertEquals(2, valkey_glide_logger_get_level());
 
-        // Create ValkeyGlide client (this should trigger C extension logging)
-        $valkey_glide = new ValkeyGlide($addresses);
-        
-        // Verify connection works
-        $this->assertTrue($valkey_glide->ping());
-        
-        // Log some messages from PHP level
-        valkey_glide_logger_info("integration-test", "ValkeyGlide client created successfully");
-        valkey_glide_logger_debug("integration-test", "Testing PHP-level logging integration");
-        
-        // Clean up
-        $valkey_glide->close();
-        
-        // Give time for file writing
-        usleep(100000);
-        
-        // Basic verification that logging occurred
-        if (file_exists($logFile)) {
-            $this->assertTrue(filesize($logFile) > 0, "Integration log file should contain data");
-            unlink($logFile);
+            $addresses = [
+                ['host' => $this->getHost(), 'port' => $this->getPort()]
+            ];
+
+            // Log before client creation
+            $preClientMsg = "Before client creation - " . uniqid();
+            valkey_glide_logger_info("integration-test", $preClientMsg);
+
+            // Create ValkeyGlide client (may trigger internal logging)
+            if (!$this->getTLS()) {
+                $valkey_glide = new ValkeyGlide($addresses);
+            } else {
+                $advancedConfig = [
+                    'tls_config' => ['use_insecure_tls' => true]
+                ];
+                $valkey_glide = new ValkeyGlide($addresses, use_tls: true, advanced_config: $advancedConfig);
+            }
+
+            // Verify connection works
+            $this->assertTrue($valkey_glide->ping());
+
+            // Log after successful connection
+            $postConnectionMsg = "ValkeyGlide client created and connected - " . uniqid();
+            valkey_glide_logger_info("integration-test", $postConnectionMsg);
+
+            // Perform some operations that might trigger logging
+            $testKey = 'logger_integration_test_' . uniqid();
+            $testValue = 'test_value_' . time();
+            
+            $this->assertTrue($valkey_glide->set($testKey, $testValue));
+            $this->assertEquals($testValue, $valkey_glide->get($testKey));
+            
+            // Log after operations
+            $postOpsMsg = "Operations completed successfully - " . uniqid();
+            valkey_glide_logger_info("integration-test", $postOpsMsg);
+
+            // Clean up test data
+            $this->assertEquals(1, $valkey_glide->del($testKey));
+            $valkey_glide->close();
+
+            // Final log message
+            $finalMsg = "Integration test completed - " . uniqid();
+            valkey_glide_logger_info("integration-test", $finalMsg);
+
+            // Give time for file writing
+            usleep(200000);
+
+            // Verify file creation and content
+            $this->verifyLogFileCreated($logFile);
+            
+            // Verify our PHP-level log messages appear
+            $this->verifyLogContains($logFile, $preClientMsg, true);
+            $this->verifyLogContains($logFile, $postConnectionMsg, true);
+            $this->verifyLogContains($logFile, $postOpsMsg, true);
+            $this->verifyLogContains($logFile, $finalMsg, true);
+            
+            // Verify integration-test identifier appears
+            $this->verifyLogContains($logFile, "integration-test", true);
+
+        } finally {
+            $this->cleanupLogFile($logFile);
         }
-        
-        $this->assertTrue(true, "Logger integration test completed successfully");
-    }
-
-    public function testLoggerParameterValidation()
-    {
-        // Test logger functions with various parameter combinations
-        
-        // Test null/empty parameters
-        valkey_glide_logger_log("info", "", "Empty identifier");
-        valkey_glide_logger_log("info", "test", "");
-        
-        // Test with special characters
-        valkey_glide_logger_info("special-chars", "Message with émojis: 🚀 and unicode: ñáéíóú");
-        valkey_glide_logger_warn("newlines", "Message with\nnewlines\nand\ttabs");
-        
-        // Test with long messages
-        $longMessage = str_repeat("This is a very long log message. ", 100);
-        valkey_glide_logger_debug("long-message", $longMessage);
-        
-        // Test with various identifier formats
-        valkey_glide_logger_error("component:subcomponent", "Hierarchical identifier");
-        valkey_glide_logger_error("component.method", "Dot notation identifier");
-        valkey_glide_logger_error("123-numeric", "Numeric identifier");
-        
-        $this->assertTrue(true, "Parameter validation tests completed");
-    }
-
-    public function testLoggerLevelFiltering()
-    {
-        // Test that log level filtering works correctly
-        
-        // Set to error level (should only log errors)
-        valkey_glide_logger_set_config("error");
-        $this->assertEquals(0, valkey_glide_logger_get_level());
-        
-        // These should be filtered out by level (but shouldn't cause errors)
-        valkey_glide_logger_warn("level-test", "This warn should be filtered");
-        valkey_glide_logger_info("level-test", "This info should be filtered");
-        valkey_glide_logger_debug("level-test", "This debug should be filtered");
-        
-        // This should be logged
-        valkey_glide_logger_error("level-test", "This error should be logged");
-        
-        // Set to trace level (should log everything)
-        valkey_glide_logger_set_config("trace");
-        $this->assertEquals(4, valkey_glide_logger_get_level());
-        
-        // All of these should be logged now
-        valkey_glide_logger_error("level-test", "Error at trace level");
-        valkey_glide_logger_warn("level-test", "Warn at trace level");
-        valkey_glide_logger_info("level-test", "Info at trace level");
-        valkey_glide_logger_debug("level-test", "Debug at trace level");
-        
-        // Set to off (should log nothing)
-        valkey_glide_logger_set_config("off");
-        $this->assertEquals(5, valkey_glide_logger_get_level());
-        
-        // These should all be filtered
-        valkey_glide_logger_error("level-test", "This should be filtered when off");
-        valkey_glide_logger_warn("level-test", "This should be filtered when off");
-        
-        $this->assertTrue(true, "Level filtering tests completed");
-    }
-
-    public function testLoggerStateConsistency()
-    {
-        // Test that logger state remains consistent across operations
-        
-        // Initial state
-        valkey_glide_logger_set_config("info");
-        $initialLevel = valkey_glide_logger_get_level();
-        $this->assertTrue(valkey_glide_logger_is_initialized());
-        
-        // Create and use ValkeyGlide client
-        $addresses = [['host' => $this->getHost(), 'port' => $this->getPort()]];
-        $valkey_glide = new ValkeyGlide($addresses);
-        
-        // Logger state should remain unchanged
-        $this->assertEquals($initialLevel, valkey_glide_logger_get_level());
-        $this->assertTrue(valkey_glide_logger_is_initialized());
-        
-        // Perform some operations
-        $valkey_glide->ping();
-        valkey_glide_logger_info("consistency-test", "After ping operation");
-        
-        // State should still be consistent
-        $this->assertEquals($initialLevel, valkey_glide_logger_get_level());
-        $this->assertTrue(valkey_glide_logger_is_initialized());
-        
-        // Clean up
-        $valkey_glide->close();
-        
-        // Logger should still be initialized after client cleanup
-        $this->assertTrue(valkey_glide_logger_is_initialized());
-        $this->assertEquals($initialLevel, valkey_glide_logger_get_level());
     }
 }

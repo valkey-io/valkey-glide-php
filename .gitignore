@@ -79,6 +79,7 @@ build/**
 coverage_html/**
 src/**
 include/**
+lib/**
 .libs/**
 *.dep
 *.lo
