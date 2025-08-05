@@ -24,8 +24,6 @@ Valkey General Language Independent Driver for the Enterprise (GLIDE) is the off
 - **[Sharded PubSub](https://github.com/valkey-io/valkey-glide/wiki/General-Concepts#pubsub-support:~:text=Receiving%2C%20and%20Unsubscribing.-,Subscribing,routed%20to%20the%20server%20holding%20the%20slot%20for%20the%20command%27s%20channel.,-Receiving)** – Native support for sharded PubSub across cluster slots.
 - **[Cluster-Aware MGET/MSET/DEL/FLUSHALL](https://github.com/valkey-io/valkey-glide/wiki/General-Concepts#multi-slot-command-handling:~:text=Multi%2DSlot%20Command%20Execution,JSON.MGET)** – Execute multi-key commands across cluster slots without manual key grouping.
 - **[Cluster Scan](https://github.com/valkey-io/valkey-glide/wiki/General-Concepts#cluster-scan)** – Unified key iteration across shards using a consistent, high-level API for cluster environments.
-- **Support for TS / CJS / MJS** – Fully compatible with modern and legacy JavaScript/TypeScript runtimes.
-- **Support for asyncio / anyio / trio** – Native compatibility with modern Python async frameworks, enabling efficient and seamless integration into asynchronous workflows.
 - **[Batching (Pipeline and Transaction)](https://github.com/valkey-io/valkey-glide/wiki/General-Concepts#batching-pipeline-and-transaction)** – Efficiently execute multiple commands in a single network roundtrip, significantly reducing latency and improving throughput.
 - **[OpenTelemetry](https://github.com/valkey-io/valkey-glide/wiki/General-Concepts#opentelemetry)** – Integrated tracing support for enhanced observability and easier debugging in distributed environments.
 
@@ -175,11 +173,11 @@ try {
     
     // Create ValkeyGlide client
     $client = new ValkeyGlide(
-        $addresses,           // addresses
-        false,               // use_tls
-        null,                // credentials  
-        0,                   // read_from (PRIMARY)
-        500                  // request_timeout (500ms)
+        $addresses,                       // addresses
+        false,                            // use_tls
+        null,                             // credentials  
+        ValkeyGlide::READ_FROM_PRIMARY,   // read_from (PRIMARY)
+        500                               // request_timeout (500ms)
     );
     
     // Basic operations
@@ -215,11 +213,11 @@ try {
     
     // Create ValkeyGlideCluster client
     $client = new ValkeyGlideCluster(
-        $addresses,           // addresses
-        false,               // use_tls
-        null,                // credentials
-        0,                   // read_from (PRIMARY)
-        500                  // request_timeout (500ms)
+        $addresses,                          // addresses
+        false,                               // use_tls
+        null,                                // credentials
+        ValkeyGlide::READ_FROM_PRIMARY,      // read_from (PRIMARY)
+        500                                  // request_timeout (500ms)
     );
     
     // Basic operations
@@ -238,40 +236,6 @@ try {
 } catch (Exception $e) {
     echo "Error: " . $e->getMessage() . "\n";
 }
-?>
-```
-
-### Configuration Options
-
-The Valkey GLIDE PHP extension supports various configuration options:
-
-```php
-<?php
-// Advanced configuration example
-$client = new ValkeyGlide(
-    $addresses,                    // Required: Array of server addresses
-    true,                         // use_tls: Enable TLS encryption
-    [                            // credentials: Authentication credentials
-        'username' => 'myuser',
-        'password' => 'mypass'
-    ],
-    1,                           // read_from: 0=PRIMARY, 1=PREFER_REPLICA, 2=AZ_AFFINITY
-    1000,                        // request_timeout: Request timeout in milliseconds
-    [                            // reconnect_strategy: Backoff strategy for reconnections
-        'num_of_retries' => 3,
-        'factor' => 2.0,
-        'exponent_base' => 2
-    ],
-    0,                           // database_id: Database number (0-15 for standalone)
-    'my-client',                 // client_name: Client identifier
-    250,                         // inflight_requests_limit: Max concurrent requests
-    'us-east-1a',               // client_az: Client availability zone
-    [                            // advanced_config: Advanced configuration options
-        'connection_timeout' => 5000,
-        'tls_config' => ['use_insecure_tls' => false]
-    ],
-    false                        // lazy_connect: Whether to connect lazily
-);
 ?>
 ```
 
