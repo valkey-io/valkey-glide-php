@@ -132,7 +132,8 @@ class TestSuite
         return $this->auth;
     }
 
-    public function getTLS(): bool {
+    public function getTLS(): bool
+    {
         return $this->tls;
     }
 

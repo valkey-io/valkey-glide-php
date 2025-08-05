@@ -603,8 +603,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     }
 
     private function verifyLogFileCreated($logFile)
-    {        
-        $this->assertTrue(file_exists($logFile), "Log file should be created: $logFile");        
+    {
+        $this->assertTrue(file_exists($logFile), "Log file should be created: $logFile");
         $this->assertTrue(is_readable($logFile), "Log file should be readable: $logFile");
         $this->assertGT(0, filesize($logFile), "Log file should contain data: $logFile");
     }
@@ -613,7 +613,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     {
         $this->assertTrue(file_exists($logFile), "Log file must exist to verify content: $logFile");
         $content = file_get_contents($logFile);
-        
+
         if ($shouldContain) {
             $this->assertStringContains($expectedMessage, $content);
         } else {
@@ -629,7 +629,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         }
     }
 
-    private function findLogSuffix(string $baseFilePath): ?string {
+    private function findLogSuffix(string $baseFilePath): ?string
+    {
         $dir = dirname($baseFilePath);
         $baseName = basename($baseFilePath);
 
@@ -646,17 +647,17 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     {
         return; // Skip this test for now, as it requires logger functionality to be implemented in ValkeyGlide.
         // Test comprehensive logger functionality with file output and verification
-        $logFile = $this->createTempLogFile();        
-        
+        $logFile = $this->createTempLogFile();
+
         try {
             // Initialize logger with info level and file output
             $this->assertTrue(valkey_glide_logger_set_config("info", $logFile));
             $this->assertTrue(valkey_glide_logger_is_initialized());
-            $this->assertEquals(2, valkey_glide_logger_get_level()); // Info = 2            
+            $this->assertEquals(2, valkey_glide_logger_get_level()); // Info = 2
 
             // Test convenience functions at different levels
             $errorMsg = "Test error message - " . uniqid();
-            $warnMsg = "Test warning message - " . uniqid(); 
+            $warnMsg = "Test warning message - " . uniqid();
             $infoMsg = "Test info message - " . uniqid();
             $debugMsg = "Test debug message - " . uniqid();
 
@@ -696,7 +697,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $log_file_with_date = $logFile . $this->findLogSuffix($logFile);
             // Verify log file was created and contains data
             $this->verifyLogFileCreated($log_file_with_date);
-            
+
 
             // Verify expected messages appear (info level and above)
             $this->verifyLogContains($log_file_with_date, $errorMsg, true);
@@ -712,7 +713,6 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             // Verify debug messages are filtered out (should NOT appear)
             $this->verifyLogContains($log_file_with_date, $debugMsg, false);
             $this->verifyLogContains($log_file_with_date, $genericDebugMsg, false);
-
         } finally {
             $this->cleanupLogFile($log_file_with_date);
         }
@@ -723,7 +723,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         return; // Skip this test for now, as it requires logger functionality to be implemented in ValkeyGlide.
         // Test that log level filtering works correctly at info level
         $logFile = $this->createTempLogFile();
-        
+
         try {
             // Initialize with info level
             $this->assertTrue(valkey_glide_logger_set_config("info", $logFile));
@@ -746,7 +746,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             // Test edge cases
             $emptyIdentifierMsg = "Empty identifier test";
             $debugEmptyMsg = "Debug with empty identifier (should be filtered)";
-            
+
             valkey_glide_logger_log("info", "", $emptyIdentifierMsg);
             valkey_glide_logger_log("debug", "", $debugEmptyMsg);
 
@@ -767,7 +767,6 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->verifyLogContains($log_file_with_date, $debugMsg, false);
             $this->verifyLogContains($log_file_with_date, $traceMsg, false);
             $this->verifyLogContains($log_file_with_date, $debugEmptyMsg, false);
-
         } finally {
             $this->cleanupLogFile($log_file_with_date);
         }
@@ -778,7 +777,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         return; // Skip this test for now, as it requires logger functionality to be implemented in ValkeyGlide.
         // Test that ValkeyGlide client integration works with logger system
         $logFile = $this->createTempLogFile();
-        
+
         try {
             // Initialize logger with info level to capture client logs
             $this->assertTrue(valkey_glide_logger_set_config("info", $logFile));
@@ -813,10 +812,10 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             // Perform some operations that might trigger logging
             $testKey = 'logger_integration_test_' . uniqid();
             $testValue = 'test_value_' . time();
-            
+
             $this->assertTrue($valkey_glide->set($testKey, $testValue));
             $this->assertEquals($testValue, $valkey_glide->get($testKey));
-            
+
             // Log after operations
             $postOpsMsg = "Operations completed successfully - " . uniqid();
             valkey_glide_logger_info("integration-test", $postOpsMsg);
@@ -835,16 +834,15 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             // Verify file creation and content
             $log_file_with_date = $logFile . $this->findLogSuffix($logFile);
             $this->verifyLogFileCreated($log_file_with_date);
-            
+
             // Verify our PHP-level log messages appear
             $this->verifyLogContains($log_file_with_date, $preClientMsg, true);
             $this->verifyLogContains($log_file_with_date, $postConnectionMsg, true);
             $this->verifyLogContains($log_file_with_date, $postOpsMsg, true);
             $this->verifyLogContains($log_file_with_date, $finalMsg, true);
-            
+
             // Verify integration-test identifier appears
             $this->verifyLogContains($log_file_with_date, "integration-test", true);
-
         } finally {
             $this->cleanupLogFile($log_file_with_date);
         }
