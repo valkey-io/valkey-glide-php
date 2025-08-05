@@ -52,3 +52,6 @@ echo "Creating cluster..."
 
 # 5. Use cluster_manager.py to create the TLS cluster
 ../valkey-glide/utils/cluster_manager.py --tls start --prefix tls-cluster --cluster-mode -p 8001 8002 8003 8004 8005 8006
+
+# 6. Use cluster_manager.py to create cluster with auth
+../valkey-glide/utils/cluster_manager.py --auth dummy_password start --prefix auth-cluster --cluster-mode -p 5001 5002 5003 5004 5005 5006

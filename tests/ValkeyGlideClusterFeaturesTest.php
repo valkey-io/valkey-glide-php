@@ -96,40 +96,34 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     public function testConstructorWithPasswordCredentials()
     {
         // Test with password-only credentials
-        if ($this->getAuth()) {
-            $valkey_glide = new ValkeyGlideCluster(
-                [['host' => '127.0.0.1', 'port' => 7001]],
-                false,
-                $this->getAuth() // password credentials
-            );
+        $valkey_glide = new ValkeyGlideCluster(
+            [['host' => '127.0.0.1', 'port' => 5001]],
+            false,
+            ['username' => '', 'password' => 'dummy_password'] // password credentials
+        );
 
-            $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
-            $valkey_glide->close();
-        } else {
-            $this->markTestSkipped('No authentication configured');
-        }
+        $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
+        $valkey_glide->close();
     }
 
     public function testConstructorInvalidAuth()
     {
-        if ($this->getAuth()) {
-            // Test constructor with credentials (if auth is configured)
-            $addresses = [
-                [['host' => '127.0.0.1', 'port' => 7001]],
-            ];
+        // Test constructor with credentials (if auth is configured)
+        $addresses = [
+            [['host' => '127.0.0.1', 'port' => 5001]],
+        ];
 
-            // Try to connect with incorrect auth
-            $valkey_glide = null;
-            try {
-                $credentials = ['username' => 'invalid_user', 'password' => 'invalid_password'];
-                $valkey_glide = new ValkeyGlideCluster($addresses, false, $credentials);
-                $this->fail("Should throw an exception when running commands with invalid authentication");
-            } catch (Exception $e) {
-                $this->assertStringContains("WRONGPASS", $e->getMessage(), "Exception should indicate authentication failure");
-            } finally {
-                // Clean up
-                $valkey_glide?->close();
-            }
+        // Try to connect with incorrect auth
+        $valkey_glide = null;
+        try {
+            $credentials = ['username' => 'invalid_user', 'password' => 'invalid_password'];
+            $valkey_glide = new ValkeyGlideCluster($addresses, false, $credentials);
+            $this->fail("Should throw an exception when running commands with invalid authentication");
+        } catch (Exception $e) {
+            $this->assertStringContains("WRONGPASS", $e->getMessage(), "Exception should indicate authentication failure");
+        } finally {
+            // Clean up
+            $valkey_glide?->close();
         }
     }
 
