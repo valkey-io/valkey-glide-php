@@ -603,8 +603,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     }
 
     private function verifyLogFileCreated($logFile)
-    {
-        $this->assertTrue(file_exists($logFile), "Log file should be created: $logFile");
+    {        
+        $this->assertTrue(file_exists($logFile), "Log file should be created: $logFile");        
         $this->assertTrue(is_readable($logFile), "Log file should be readable: $logFile");
         $this->assertGT(0, filesize($logFile), "Log file should contain data: $logFile");
     }
@@ -613,6 +613,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     {
         $this->assertTrue(file_exists($logFile), "Log file must exist to verify content: $logFile");
         $content = file_get_contents($logFile);
+        
         if ($shouldContain) {
             $this->assertStringContains($expectedMessage, $content);
         } else {
@@ -628,11 +629,23 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         }
     }
 
+    private function findLogSuffix(string $baseFilePath): ?string {
+        $dir = dirname($baseFilePath);
+        $baseName = basename($baseFilePath);
+
+        foreach (scandir($dir) as $file) {
+            if (str_starts_with($file, $baseName) && $file !== $baseName) {
+                return substr($file, strlen($baseName)); // Return the suffix
+            }
+        }
+
+        return null; // No match found
+    }
+
     public function testLoggerBasicFunctionality()
     {
         // Test comprehensive logger functionality with file output and verification
-        $logFile = $this->createTempLogFile();
-        var_dump($logFile);
+        $logFile = $this->createTempLogFile();        
         
         try {
             // Initialize logger with info level and file output
@@ -679,27 +692,28 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
             // Give time for file writing
             usleep(200000); // 200ms
-
+            $log_file_with_date = $logFile . $this->findLogSuffix($logFile);
             // Verify log file was created and contains data
-            $this->verifyLogFileCreated($logFile);
+            $this->verifyLogFileCreated($log_file_with_date);
+            
 
             // Verify expected messages appear (info level and above)
-            $this->verifyLogContains($logFile, $errorMsg, true);
-            $this->verifyLogContains($logFile, $warnMsg, true);
-            $this->verifyLogContains($logFile, $infoMsg, true);
-            $this->verifyLogContains($logFile, $genericErrorMsg, true);
-            $this->verifyLogContains($logFile, $genericWarnMsg, true);
-            $this->verifyLogContains($logFile, $genericInfoMsg, true);
-            $this->verifyLogContains($logFile, $specialCharsMsg, true);
-            $this->verifyLogContains($logFile, $hierarchicalMsg, true);
-            $this->verifyLogContains($logFile, $dotNotationMsg, true);
+            $this->verifyLogContains($log_file_with_date, $errorMsg, true);
+            $this->verifyLogContains($log_file_with_date, $warnMsg, true);
+            $this->verifyLogContains($log_file_with_date, $infoMsg, true);
+            $this->verifyLogContains($log_file_with_date, $genericErrorMsg, true);
+            $this->verifyLogContains($log_file_with_date, $genericWarnMsg, true);
+            $this->verifyLogContains($log_file_with_date, $genericInfoMsg, true);
+            $this->verifyLogContains($log_file_with_date, $specialCharsMsg, true);
+            $this->verifyLogContains($log_file_with_date, $hierarchicalMsg, true);
+            $this->verifyLogContains($log_file_with_date, $dotNotationMsg, true);
 
             // Verify debug messages are filtered out (should NOT appear)
-            $this->verifyLogContains($logFile, $debugMsg, false);
-            $this->verifyLogContains($logFile, $genericDebugMsg, false);
+            $this->verifyLogContains($log_file_with_date, $debugMsg, false);
+            $this->verifyLogContains($log_file_with_date, $genericDebugMsg, false);
 
         } finally {
-            $this->cleanupLogFile($logFile);
+            $this->cleanupLogFile($log_file_with_date);
         }
     }
 
@@ -738,21 +752,22 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             usleep(200000);
 
             // Verify file creation
-            $this->verifyLogFileCreated($logFile);
+            $log_file_with_date = $logFile . $this->findLogSuffix($logFile);
+            $this->verifyLogFileCreated($log_file_with_date);
 
             // Verify info level and above appear (error=0, warn=1, info=2)
-            $this->verifyLogContains($logFile, $errorMsg, true);
-            $this->verifyLogContains($logFile, $warnMsg, true);
-            $this->verifyLogContains($logFile, $infoMsg, true);
-            $this->verifyLogContains($logFile, $emptyIdentifierMsg, true);
+            $this->verifyLogContains($log_file_with_date, $errorMsg, true);
+            $this->verifyLogContains($log_file_with_date, $warnMsg, true);
+            $this->verifyLogContains($log_file_with_date, $infoMsg, true);
+            $this->verifyLogContains($log_file_with_date, $emptyIdentifierMsg, true);
 
             // Verify below info level are filtered out (debug=3, trace=4)
-            $this->verifyLogContains($logFile, $debugMsg, false);
-            $this->verifyLogContains($logFile, $traceMsg, false);
-            $this->verifyLogContains($logFile, $debugEmptyMsg, false);
+            $this->verifyLogContains($log_file_with_date, $debugMsg, false);
+            $this->verifyLogContains($log_file_with_date, $traceMsg, false);
+            $this->verifyLogContains($log_file_with_date, $debugEmptyMsg, false);
 
         } finally {
-            $this->cleanupLogFile($logFile);
+            $this->cleanupLogFile($log_file_with_date);
         }
     }
 
@@ -815,19 +830,20 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             usleep(200000);
 
             // Verify file creation and content
-            $this->verifyLogFileCreated($logFile);
+            $log_file_with_date = $logFile . $this->findLogSuffix($logFile);
+            $this->verifyLogFileCreated($log_file_with_date);
             
             // Verify our PHP-level log messages appear
-            $this->verifyLogContains($logFile, $preClientMsg, true);
-            $this->verifyLogContains($logFile, $postConnectionMsg, true);
-            $this->verifyLogContains($logFile, $postOpsMsg, true);
-            $this->verifyLogContains($logFile, $finalMsg, true);
+            $this->verifyLogContains($log_file_with_date, $preClientMsg, true);
+            $this->verifyLogContains($log_file_with_date, $postConnectionMsg, true);
+            $this->verifyLogContains($log_file_with_date, $postOpsMsg, true);
+            $this->verifyLogContains($log_file_with_date, $finalMsg, true);
             
             // Verify integration-test identifier appears
-            $this->verifyLogContains($logFile, "integration-test", true);
+            $this->verifyLogContains($log_file_with_date, "integration-test", true);
 
         } finally {
-            $this->cleanupLogFile($logFile);
+            $this->cleanupLogFile($log_file_with_date);
         }
     }
 }

@@ -355,6 +355,7 @@ PHP_MINIT_FUNCTION(valkey_glide) {
     return SUCCESS;
 }
 
+
 zend_module_entry valkey_glide_module_entry = {STANDARD_MODULE_HEADER,
                                                "valkey_glide",
                                                ext_functions,
@@ -570,6 +571,24 @@ PHP_FUNCTION(valkey_glide_logger_init) {
     RETURN_BOOL(result == 0);
 }
 
+/**
+ * PHP function: valkey_glide_logger_set_config(string $level, ?string $filename = null): bool
+ */
+PHP_FUNCTION(valkey_glide_logger_set_config) {
+    char*  level;
+    size_t level_len;
+    char*  filename     = NULL;
+    size_t filename_len = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_STRING(level, level_len)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_STRING_OR_NULL(filename, filename_len)
+    ZEND_PARSE_PARAMETERS_END();
+
+    int result = valkey_glide_logger_set_config(level, filename);
+    RETURN_BOOL(result == 0);
+}
 
 /**
  * PHP function: valkey_glide_logger_log(string $level, string $identifier, string $message): void
