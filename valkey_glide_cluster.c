@@ -83,7 +83,7 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     free_connection_response((ConnectionResponse*) conn_resp);
 
     /* Clean up temporary configuration structures */
-    valkey_glide_cleanup_client_config(&client_config);
+    valkey_glide_cleanup_client_config(&client_config.base);
 }
 
 static zend_function_entry valkey_glide_cluster_methods[] = {
