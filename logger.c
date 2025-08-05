@@ -14,9 +14,11 @@
  * Internal State Management - Singleton Pattern like Node.js Logger
  * ============================================================================ */
 
-static bool       logger_initialized    = false;
-static int        current_log_level     = VALKEY_LOG_LEVEL_DEFAULT;
+static bool logger_initialized = false;
+static int  current_log_level  = VALKEY_LOG_LEVEL_DEFAULT;
+#if LOGGER_FFI_ENABLED
 static enum Level current_ffi_log_level = LEVEL_WARN; /* FFI level tracking */
+#endif
 
 /* Simple mutex simulation using static variable for initialization protection */
 static volatile bool initialization_in_progress = false;
@@ -25,6 +27,7 @@ static volatile bool initialization_in_progress = false;
  * Level Conversion Functions
  * ============================================================================ */
 
+#if LOGGER_FFI_ENABLED
 /**
  * Convert C integer log level to FFI Level enum
  */
@@ -68,7 +71,7 @@ static int ffi_level_to_int(enum Level level) {
             return VALKEY_LOG_LEVEL_WARN; /* Default fallback */
     }
 }
-
+#endif
 /* ============================================================================
  * Utility Functions
  * ============================================================================ */
@@ -187,10 +190,11 @@ void valkey_glide_logger_log(const char* level, const char* identifier, const ch
         return;
     }
 
-    int        level_int = valkey_glide_logger_level_from_string(level);
+    int level_int = valkey_glide_logger_level_from_string(level);
+#if LOGGER_FFI_ENABLED
     enum Level ffi_level = int_to_ffi_level(level_int);
 
-#if LOGGER_FFI_ENABLED
+
     /* Call the new FFI log function with current logger level */
     valkey_log(ffi_level, current_ffi_log_level, identifier, message);
 #endif

@@ -73,7 +73,8 @@
         "**/frontmatter.json": "jsonc",
         "**/.frontmatter/config/*.json": "jsonc",
         "iosfwd": "cpp",
-        "__node_handle": "c"
+        "__node_handle": "c",
+        "valkey_glide_cluster_arginfo.h": "c"
     },
     "php.validate.enable": true,
     "php.validate.executablePath": "/usr/bin/php",
