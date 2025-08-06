@@ -99,22 +99,20 @@ zend_object* create_valkey_glide_cluster_object(zend_class_entry* ce)  // TODO c
 
 void valkey_glide_init_common_constructor_params(
     valkey_glide_php_common_constructor_params_t* params) {
-    params->addresses                       = NULL;
-    params->use_tls                         = 0;
-    params->credentials                     = NULL;
-    params->read_from                       = 0; /* PRIMARY by default */
-    params->request_timeout                 = 0;
-    params->request_timeout_is_null         = 1;
-    params->reconnect_strategy              = NULL;
-    params->client_name                     = NULL;
-    params->client_name_len                 = 0;
-    params->inflight_requests_limit         = 0;
-    params->inflight_requests_limit_is_null = 1;
-    params->client_az                       = NULL;
-    params->client_az_len                   = 0;
-    params->advanced_config                 = NULL;
-    params->lazy_connect                    = 0;
-    params->lazy_connect_is_null            = 1;
+    params->addresses               = NULL;
+    params->use_tls                 = 0;
+    params->credentials             = NULL;
+    params->read_from               = 0; /* PRIMARY by default */
+    params->request_timeout         = 0;
+    params->request_timeout_is_null = 1;
+    params->reconnect_strategy      = NULL;
+    params->client_name             = NULL;
+    params->client_name_len         = 0;
+    params->client_az               = NULL;
+    params->client_az_len           = 0;
+    params->advanced_config         = NULL;
+    params->lazy_connect            = 0;
+    params->lazy_connect_is_null    = 1;
 }
 
 void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
@@ -126,10 +124,9 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         params->request_timeout_is_null ? -1 : params->request_timeout; /* -1 means not set */
     config->client_name = params->client_name ? params->client_name : NULL;
 
-    /* Set inflight requests limit */
-    config->inflight_requests_limit = params->inflight_requests_limit_is_null
-                                          ? -1
-                                          : params->inflight_requests_limit; /* -1 means not set */
+    /* Set inflight requests limit to -1 (unset). A synchronous API does not need a request limit
+       since it is effectively one-request-at-a-time. */
+    config->inflight_requests_limit = -1;
 
     /* Set client availability zone */
     config->client_az = (params->client_az && params->client_az_len > 0) ? params->client_az : NULL;
@@ -435,7 +432,7 @@ PHP_METHOD(ValkeyGlide, __construct) {
     zend_bool            database_id_is_null = 1;
     valkey_glide_object* valkey_glide;
 
-    ZEND_PARSE_PARAMETERS_START(1, 12)
+    ZEND_PARSE_PARAMETERS_START(1, 11)
     Z_PARAM_ARRAY(common_params.addresses)
     Z_PARAM_OPTIONAL
     Z_PARAM_BOOL(common_params.use_tls)
@@ -445,8 +442,6 @@ PHP_METHOD(ValkeyGlide, __construct) {
     Z_PARAM_ARRAY_OR_NULL(common_params.reconnect_strategy)
     Z_PARAM_LONG_OR_NULL(database_id, database_id_is_null)
     Z_PARAM_STRING_OR_NULL(common_params.client_name, common_params.client_name_len)
-    Z_PARAM_LONG_OR_NULL(common_params.inflight_requests_limit,
-                         common_params.inflight_requests_limit_is_null)
     Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
     Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
     Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)

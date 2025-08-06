@@ -206,7 +206,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $valkey_glide->close();
     }
 
-    public function testConstructorWithShortTimeout()
+    public function testConstructorWithRequestTimeoutExceeded()
     {
         // Test with 1 second timeout
         $valkey_glide = new ValkeyGlideCluster(
@@ -214,11 +214,20 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             false,
             $this->getAuth(),
             ValkeyGlide::READ_FROM_PRIMARY,
-            1000 // 1 second timeout
+            10 // 10 millisecond timeout
         );
 
-        $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
-        $valkey_glide->close();
+        try {
+            $valkey_glide->rawcommand(['type' => 'primarySlotKey', 'key' => 'test'], "DEBUG", "SLEEP", "2");
+            $this->fail("Should have thrown a timeout exception.");
+        } catch (Exception $e) {
+            $this->assertStringContains("timed out", $e->getMessage(), "Exception should indicate authentication failure");
+        } finally {
+            // Sleep the test runner so that the server can finish the sleep command.
+            sleep(2);
+            // Clean up
+            $valkey_glide?->close();
+        }
     }
 
     public function testConstructorWithLongTimeout()
@@ -300,6 +309,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         );
 
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
+        $this->assertStringContains("name=test-cluster-client-", $valkey_glide->client(['type' => 'primarySlotKey', 'key' => 'test'], "info"));
         $valkey_glide->close();
     }
 
@@ -344,48 +354,6 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     }
 
     // ==============================================
-    // INFLIGHT REQUESTS LIMIT PARAMETER TESTS
-    // ==============================================
-
-    public function testConstructorWithInflightRequestsLimit()
-    {
-        // Test with inflight requests limit
-        $valkey_glide = new ValkeyGlideCluster(
-            [['host' => '127.0.0.1', 'port' => 7001]],
-            false,
-            $this->getAuth(),
-            ValkeyGlide::READ_FROM_PRIMARY,
-            null,
-            null,
-            null,
-            null,
-            100 // inflight requests limit
-        );
-
-        $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
-        $valkey_glide->close();
-    }
-
-    public function testConstructorWithHighInflightRequestsLimit()
-    {
-        // Test with high inflight requests limit
-        $valkey_glide = new ValkeyGlideCluster(
-            [['host' => '127.0.0.1', 'port' => 7001]],
-            false,
-            $this->getAuth(),
-            ValkeyGlide::READ_FROM_PRIMARY,
-            null,
-            null,
-            null,
-            null,
-            1000 // high inflight requests limit
-        );
-
-        $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
-        $valkey_glide->close();
-    }
-
-    // ==============================================
     // CLIENT AVAILABILITY ZONE PARAMETER TESTS
     // ==============================================
 
@@ -397,7 +365,6 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             false,
             $this->getAuth(),
             ValkeyGlide::READ_FROM_PRIMARY,
-            null,
             null,
             null,
             null,
@@ -417,7 +384,6 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             false,
             $this->getAuth(),
             ValkeyGlide::READ_FROM_PRIMARY,
-            null,
             null,
             null,
             null,
@@ -446,7 +412,6 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             false,
             $this->getAuth(),
             ValkeyGlide::READ_FROM_PRIMARY,
-            null,
             null,
             null,
             null,
@@ -482,7 +447,6 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 null,
                 null,
                 null,
-                null,
                 false
             );
             $route = ['type' => 'primarySlotKey', 'key' => 'test'];
@@ -495,7 +459,6 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 false,
                 $this->getAuth(),
                 ValkeyGlide::READ_FROM_PRIMARY,
-                null,
                 null,
                 null,
                 null,
@@ -526,7 +489,6 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             false,
             $this->getAuth(),
             ValkeyGlide::READ_FROM_PRIMARY,
-            null,
             null,
             null,
             null,
@@ -565,7 +527,6 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $reconnectStrategy,                             // reconnect_strategy
             $clientName,                                    // client_name
             ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS, // periodic_checks
-            250,                                            // inflight_requests_limit
             'us-west-2a',                                   // client_az
             $advancedConfig,                                // advanced_config
             false                                           // lazy_connect

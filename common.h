@@ -133,8 +133,6 @@ typedef struct {
     zval*     reconnect_strategy;
     char*     client_name;
     size_t    client_name_len;
-    zend_long inflight_requests_limit;
-    zend_bool inflight_requests_limit_is_null;
     char*     client_az;
     size_t    client_az_len;
     zval*     advanced_config;

@@ -99,12 +99,11 @@ class ValkeyGlideCluster
      * @param array $addresses                        Array of server addresses [['host' => '127.0.0.1', 'port' => 7001], ...]
      * @param bool $use_tls                           Whether to use TLS encryption
      * @param array|null $credentials                 Authentication credentials ['password' => 'xxx', 'username' => 'yyy']
-     * @param int $read_from                          Read strategy for the client (Not yet supported.)
+     * @param int $read_from                          Read strategy for the client
      * @param int|null $request_timeout               Request timeout in milliseconds (Not yet supported.)
      * @param array|null $reconnect_strategy          Reconnection strategy ['num_of_retries' => 3, 'factor' => 2, ...] (Not yet supported.)
-     * @param string|null $client_name                Client name identifier (Not yet supported.)
+     * @param string|null $client_name                Client name identifier
      * @param int|null $periodic_checks               Periodic checks configuration (Not yet supported.)
-     * @param int|null $inflight_requests_limit       Maximum number of concurrent requests (Not yet supported.)
      * @param string|null $client_az                  Client availability zone (Not yet supported.)
      * @param array|null $advanced_config             Advanced configuration ['connection_timeout' => 5000, 'tls_config' => [...]]
      * @param bool|null $lazy_connect                 Whether to use lazy connection
@@ -118,7 +117,6 @@ class ValkeyGlideCluster
         ?array $reconnect_strategy = null,
         ?string $client_name = null,
         ?int $periodic_checks = ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS,
-        ?int $inflight_requests_limit = null,
         ?string $client_az = null,
         ?array $advanced_config = null,
         ?bool $lazy_connect = null

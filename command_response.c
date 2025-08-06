@@ -15,6 +15,8 @@
 
 #include "command_response.h"
 
+#include <zend_exceptions.h>
+
 #include "ext/standard/php_var.h"
 #include "include/glide/command_request.pb-c.h"
 #include "include/glide/response.pb-c.h"
@@ -352,10 +354,10 @@ CommandResult* execute_command_with_route(const void*          glide_client,
     if (!result) {
         printf("Error: Command execution returned NULL result\n");
     } else if (result->command_error) {
-        printf("Error: Command execution failed: %s\n",
-               result->command_error->command_error_message
-                   ? result->command_error->command_error_message
-                   : "Unknown error");
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
+        free_command_result(result);
+        return NULL;
     }
 
     return result;
@@ -384,6 +386,12 @@ CommandResult* execute_command(const void*          glide_client,
                                     0             /* span pointer */
     );
 
+    if (result->command_error) {
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
+        free_command_result(result);
+        return NULL;
+    }
     return result;
 }
 
@@ -396,8 +404,8 @@ long handle_int_response(CommandResult* result, long* output_value) {
 
     /* Check if there was an error */
     if (result->command_error) {
-        // printf("%s:%d - Error executing command: %s\n", __FILE__, __LINE__,
-        // result->command_error->command_error_message);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
         free_command_result(result);
         return 0; /* False - failure */
     }
@@ -428,10 +436,8 @@ int handle_string_response(CommandResult* result, char** output, size_t* output_
 
     /* Check if there was an error */
     if (result->command_error) {
-        printf("%s:%d - Error executing command: %s\n",
-               __FILE__,
-               __LINE__,
-               result->command_error->command_error_message);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
         free_command_result(result);
         return -1;
     }
@@ -497,8 +503,8 @@ int handle_bool_response(CommandResult* result) {
 
     /* Check if there was an error */
     if (result->command_error) {
-        // printf("%s:%d - Error executing command: %s\n", __FILE__, __LINE__,
-        // result->command_error->command_error_message);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
         free_command_result(result);
         return -1;
     }
@@ -524,8 +530,8 @@ int handle_ok_response(CommandResult* result) {
 
     /* Check if there was an error */
     if (result->command_error) {
-        // printf("%s:%d - Error executing command: %s\n", __FILE__, __LINE__,
-        // result->command_error->command_error_message);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
         free_command_result(result);
         return -1;
     }
@@ -759,8 +765,8 @@ int handle_array_response(CommandResult* result, zval* output) {
 
     /* Check if there was an error */
     if (result->command_error) {
-        // printf("%s:%d - Error executing command: %s\n", __FILE__, __LINE__,
-        // result->command_error->command_error_message);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
         free_command_result(result);
         return -1;
     }
@@ -794,8 +800,8 @@ int handle_map_response(CommandResult* result, zval* output) {
 
     /* Check if there was an error */
     if (result->command_error) {
-        // printf("%s:%d - Error executing command: %s\n", __FILE__, __LINE__,
-        // result->command_error->command_error_message);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
         free_command_result(result);
         return -1;
     }
@@ -829,8 +835,8 @@ int handle_set_response(CommandResult* result, zval* output) {
 
     /* Check if there was an error */
     if (result->command_error) {
-        // printf("%s:%d - Error executing command: %s\n", __FILE__, __LINE__,
-        // result->command_error->command_error_message);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
         free_command_result(result);
         return -1;
     }

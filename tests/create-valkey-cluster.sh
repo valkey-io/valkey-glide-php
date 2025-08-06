@@ -30,6 +30,7 @@ dbfilename dump.rdb
 dir $NODE_DIR
 logfile "$NODE_DIR/valkey.log"
 protected-mode no
+enable-debug-command yes
 EOF
 done
 
