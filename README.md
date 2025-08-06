@@ -153,7 +153,7 @@ protoc --version
 
 6. Execute the tests:
     ```
-    php -n -d extension=./modules/valkey_glide.so tests/TestValkeyGlide.php
+    make test
     ```
 ## Basic Examples
 
