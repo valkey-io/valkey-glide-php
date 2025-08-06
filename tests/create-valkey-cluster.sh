@@ -51,7 +51,17 @@ echo "Creating cluster..."
   --cluster-yes
 
 # 5. Use cluster_manager.py to create the TLS cluster
-../valkey-glide/utils/cluster_manager.py --tls start --prefix tls-cluster --cluster-mode -p 8001 8002 8003 8004 8005 8006
+echo "Setting up TLS cluster..."
+if ../valkey-glide/utils/cluster_manager.py --tls start --prefix tls-cluster --cluster-mode -p 8001 8002 8003 8004 8005 8006; then
+    echo "✅ TLS cluster started on ports 8001-8006"
+else
+    echo "⚠️  WARNING: TLS cluster setup failed (ports 8001-8006 may be in use), continuing without TLS cluster..."
+fi
 
 # 6. Use cluster_manager.py to create cluster with auth
-../valkey-glide/utils/cluster_manager.py --auth dummy_password start --prefix auth-cluster --cluster-mode -p 5001 5002 5003 5004 5005 5006
+echo "Setting up auth cluster..."
+if ../valkey-glide/utils/cluster_manager.py --auth dummy_password start --prefix auth-cluster --cluster-mode -p 5001 5002 5003 5004 5005 5006; then
+    echo "✅ Auth cluster started on ports 5001-5006"
+else
+    echo "⚠️  WARNING: Auth cluster setup failed (ports 5001-5006 may be in use), continuing without auth cluster..."
+fi

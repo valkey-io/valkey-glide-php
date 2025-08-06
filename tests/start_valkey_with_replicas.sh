@@ -26,7 +26,13 @@ valkey-server --port 6381 \
   --daemonize yes \
   --logfile "$BASE_DIR/6381/valkey.log"
 
-../valkey-glide/utils/cluster_manager.py --tls start --prefix tls-standalone -p 6400 -r 0
+# Handle TLS setup with graceful failure
+echo "Setting up TLS standalone server..."
+if ../valkey-glide/utils/cluster_manager.py --tls start --prefix tls-standalone -p 6400 -r 0; then
+    echo "✅ TLS standalone server started on port 6400"
+else
+    echo "⚠️  WARNING: TLS standalone setup failed (port 6400 may be in use), continuing without TLS..."
+fi
 
 # Wait a moment for servers to start
 sleep 2
@@ -39,4 +45,3 @@ echo "✅ Valkey setup complete:"
 echo "- Primary: 127.0.0.1:6379"
 echo "- Replica: 127.0.0.1:6380"
 echo "- Replica: 127.0.0.1:6381"
-
