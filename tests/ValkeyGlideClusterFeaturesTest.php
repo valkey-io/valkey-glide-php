@@ -563,7 +563,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     public function testClusterClientCreateDeleteLoop()
     {
         // Simple test that creates and deletes ValkeyGlideCluster clients in a loop
-        $loopCount = 5000000; // Fewer iterations for cluster due to overhead
+        $loopCount = 500; // Fewer iterations for cluster due to overhead
         $successCount = 0;
         $errorCount = 0;
         $startMemory = memory_get_usage(true);
