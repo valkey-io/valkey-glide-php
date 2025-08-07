@@ -598,4 +598,65 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
+
+    public function testClusterClientCreateDeleteLoop()
+    {
+        // Simple test that creates and deletes ValkeyGlideCluster clients in a loop
+        $loopCount = 5000000; // Fewer iterations for cluster due to overhead
+        $successCount = 0;
+        $errorCount = 0;
+        $startMemory = memory_get_usage(true);
+
+        echo "Testing cluster client create/delete loop with {$loopCount} iterations...\n";
+
+        for ($i = 1; $i <= $loopCount; $i++) {
+            try {
+                // Create a new cluster client using the base class method
+                $client = $this->newInstance();
+                
+                // Verify the client works with a cluster-specific ping
+                $route = ['type' => 'primarySlotKey', 'key' => 'test'];
+                $this->assertTrue($client->ping($route), "Cluster client ping failed on iteration {$i}");
+                
+                // Close the client
+                $client->close();
+                
+                // Explicitly unset to help with cleanup
+                unset($client);
+                
+                $successCount++;
+                
+                // Log progress every 5 iterations (fewer than standalone due to lower count)
+                if ($i % 100 == 0) {
+                    echo "Completed {$i}/{$loopCount} iterations...\n";
+                }
+                
+            } catch (Exception $e) {
+                $errorCount++;
+                echo "Error on iteration {$i}: " . $e->getMessage() . "\n";
+                
+                // Continue with the test even if some iterations fail
+                continue;
+            }
+        }
+
+        $endMemory = memory_get_usage(true);
+        $memoryGrowth = $endMemory - $startMemory;
+
+        // Log final results
+        echo "Cluster Create/Delete Loop Test Results:\n";
+        echo "- Total iterations: {$loopCount}\n";
+        echo "- Successful iterations: {$successCount}\n";
+        echo "- Failed iterations: {$errorCount}\n";
+        echo "- Memory growth: " . round($memoryGrowth / 1024, 2) . " KB\n";
+
+        // Assert that most iterations were successful
+        $successRate = $successCount / $loopCount;
+        $this->assertTrue($successRate > 0.9, "Success rate should be > 90%, got " . round($successRate * 100, 1) . "%");
+        
+        // Warn if memory growth is significant
+        if ($memoryGrowth > 5 * 1024 * 1024) { // More than 5MB
+            echo "WARNING: Significant memory growth detected: " . round($memoryGrowth / 1024 / 1024, 2) . " MB\n";
+        }
+    }
 }
