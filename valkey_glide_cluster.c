@@ -39,7 +39,7 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     valkey_glide_init_common_constructor_params(&common_params);
     valkey_glide_object* valkey_glide;
 
-    ZEND_PARSE_PARAMETERS_START(1, 12)
+    ZEND_PARSE_PARAMETERS_START(1, 11)
     Z_PARAM_ARRAY(common_params.addresses)
     Z_PARAM_OPTIONAL
     Z_PARAM_BOOL(common_params.use_tls)
@@ -49,8 +49,6 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     Z_PARAM_ARRAY_OR_NULL(common_params.reconnect_strategy)
     Z_PARAM_STRING_OR_NULL(common_params.client_name, common_params.client_name_len)
     Z_PARAM_LONG_OR_NULL(periodic_checks, periodic_checks_is_null)
-    Z_PARAM_LONG_OR_NULL(common_params.inflight_requests_limit,
-                         common_params.inflight_requests_limit_is_null)
     Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
     Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
     Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)

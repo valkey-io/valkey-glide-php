@@ -726,6 +726,7 @@ class TestSuite
         }
 
         self::$errors [] = $this->assertionTrace("'%s' not found in '%s'", $needle, $haystack);
+        return false;
     }
 
     protected function assertPatternMatch(string $pattern, string $value): bool
