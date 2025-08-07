@@ -727,7 +727,6 @@ void close_glide_client(const void* glide_client) {
     if (!glide_client) {
         return;
     }
-
     /* Close the client using the close_client function from glide_bindings.h */
     close_client(glide_client);
 }
