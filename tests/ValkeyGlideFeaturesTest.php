@@ -184,7 +184,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
 
         if (!$this->getTLS()) {
-            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null,  );
+            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PRIMARY);
             $this->assertTrue($valkey_glide->ping());
             $valkey_glide->close();
         }
