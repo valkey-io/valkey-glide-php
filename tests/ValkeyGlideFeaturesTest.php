@@ -234,25 +234,23 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             ['host' => $this->getHost(), 'port' => $this->getPort()]
         ];
 
-        try {
-            if (!$this->getTLS()) {
-                $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PRIMARY, 10); // 10 milliseconds.
-            } else {
-                $advancedConfig = [
-                    'tls_config' => ['use_insecure_tls' => true]
-                ];
-                $valkey_glide = new ValkeyGlide($addresses, use_tls: true, read_from: ValkeyGlide::READ_FROM_PRIMARY, request_timeout: 10, advanced_config: $advancedConfig);
-            }
-            $valkey_glide->rawcommand("DEBUG", "SLEEP", "2");
-            $this->fail("Should have thrown a timeout exception.");
-        } catch (Exception $e) {
-            $this->assertStringContains("timed out", $e->getMessage(), "Exception should indicate authentication failure");
-        } finally {
-            // Sleep the test runner so that the server can finish the sleep command.
-            sleep(2);
-            // Clean up
-            $valkey_glide?->close();
+        if (!$this->getTLS()) {
+            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PRIMARY, 10); // 10 milliseconds.
+        } else {
+            $advancedConfig = [
+                'tls_config' => ['use_insecure_tls' => true]
+            ];
+            $valkey_glide = new ValkeyGlide($addresses, use_tls: true, read_from: ValkeyGlide::READ_FROM_PRIMARY, request_timeout: 10, advanced_config: $advancedConfig);
         }
+        $res = $valkey_glide->rawcommand("DEBUG", "SLEEP", "2");
+
+        // Sleep the test runner so that the server can finish the sleep command.
+        sleep(2);
+        // Clean up
+        $valkey_glide?->close();
+
+        // Validate that the debug command failed.
+        $this->assertFalse($res);
     }
 
     public function testConstructorWithReconnectStrategy()

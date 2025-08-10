@@ -882,7 +882,7 @@ class TestSuite
                 if ($e instanceof TestSkippedException) {
                     $result = self::makeWarning('SKIPPED');
                 } else {
-                    $class_name::$errors[] = "Uncaught exception '" . $e->getMessage() . "' ($name)\n";
+                    $class_name::$errors[] = "Uncaught exception '" . $e->getMessage() . "' ($name)\n" . $e->getTraceAsString() . "\n";
                     $result = self::makeFail('FAILED');
                 }
             }
