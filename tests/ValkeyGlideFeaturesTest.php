@@ -838,4 +838,64 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->cleanupLogFile($log_file_with_date);
         }
     }
+
+    public function testClientCreateDeleteLoop()
+    {
+        // Simple test that creates and deletes ValkeyGlide clients in a loop
+        $loopCount = 100;
+        $successCount = 0;
+        $errorCount = 0;
+        $startMemory = memory_get_usage(true);
+
+        echo "Testing client create/delete loop with {$loopCount} iterations...\n";
+
+        for ($i = 1; $i <= $loopCount; $i++) {
+            try {
+                // Create a new client using the base class method
+                $client = $this->newInstance();
+                
+                // Verify the client works
+                $this->assertTrue($client->ping(), "Client ping failed on iteration {$i}");
+                
+                // Close the client
+                $client->close();
+                
+                // Explicitly unset to help with cleanup
+                unset($client);
+                
+                $successCount++;
+                
+                // Log progress every 10 iterations
+                if ($i % 10 == 0) {
+                    echo "Completed {$i}/{$loopCount} iterations...\n";
+                }
+                
+            } catch (Exception $e) {
+                $errorCount++;
+                echo "Error on iteration {$i}: " . $e->getMessage() . "\n";
+                
+                // Continue with the test even if some iterations fail
+                continue;
+            }
+        }
+
+        $endMemory = memory_get_usage(true);
+        $memoryGrowth = $endMemory - $startMemory;
+
+        // Log final results
+        echo "Create/Delete Loop Test Results:\n";
+        echo "- Total iterations: {$loopCount}\n";
+        echo "- Successful iterations: {$successCount}\n";
+        echo "- Failed iterations: {$errorCount}\n";
+        echo "- Memory growth: " . round($memoryGrowth / 1024, 2) . " KB\n";
+
+        // Assert that most iterations were successful
+        $successRate = $successCount / $loopCount;
+        $this->assertTrue($successRate > 0.9, "Success rate should be > 90%, got " . round($successRate * 100, 1) . "%");
+        
+        // Warn if memory growth is significant
+        if ($memoryGrowth > 5 * 1024 * 1024) { // More than 5MB
+            echo "WARNING: Significant memory growth detected: " . round($memoryGrowth / 1024 / 1024, 2) . " MB\n";
+        }
+    }
 }
