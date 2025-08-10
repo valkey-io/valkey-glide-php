@@ -32,11 +32,13 @@ runs:
     - name: Install system dependencies (Ubuntu)
       if: ${{ inputs.os == 'ubuntu' }}
       shell: bash
+      env:
+        PHP_VER: ${{ inputs.php-version }}
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-            php${{ inputs.php-version }}-dev \
-            php${{ inputs.php-version }}-cli \
+            php$PHP_VER-dev \
+            php$PHP_VER-cli \
             build-essential \
             autoconf \
             automake \
@@ -108,32 +110,37 @@ runs:
 
     - name: Build FFI library
       shell: bash
+      env:
+        TARGET: ${{ inputs.target }}
+        OS: ${{ inputs.os }}
       working-directory: valkey-glide/ffi
       run: |
         # Check if ASAN flags are present - if so, use regular cargo build to avoid Zig linker issues
         if [[ "$CFLAGS" == *"-fsanitize=address"* ]] || [[ "$CXXFLAGS" == *"-fsanitize=address"* ]]; then
             echo "ASAN flags detected, using regular cargo build to ensure proper ASAN runtime linking"
-            cargo build --target ${{ inputs.target }} --release
-        elif [[ "${{ inputs.os }}" == "ubuntu" ]]; then
-            cargo zigbuild --target ${{ inputs.target }} --release
+            cargo build --target $TARGET --release
+        elif [[ "$OS" == "ubuntu" ]]; then
+            cargo zigbuild --target $TARGET --release
         else
-            cargo build --target ${{ inputs.target }} --release
+            cargo build --target $TARGET --release
         fi
 
     - name: Debug FFI library location
       shell: bash
+      env:
+        TARGET: ${{ inputs.target }}
       working-directory: valkey-glide/ffi
       run: |
         echo "=== FFI Target Directory Structure ==="
         find target -name "libglide_ffi.a" -type f 2>/dev/null || echo "No libglide_ffi.a found"
         echo "=== Target directory contents ==="
         ls -la target/ || true
-        if [ -d "target/${{ inputs.target }}" ]; then
+        if [ -d "target/$TARGET" ]; then
             echo "=== Target-specific directory ==="
-            ls -la "target/${{ inputs.target }}/" || true
-            if [ -d "target/${{ inputs.target }}/release" ]; then
+            ls -la "target/$TARGET/" || true
+            if [ -d "target/$TARGET/release" ]; then
                 echo "=== Target release directory ==="
-                ls -la "target/${{ inputs.target }}/release/" || true
+                ls -la "target/$TARGET/release/" || true
             fi
         fi
 
