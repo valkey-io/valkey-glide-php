@@ -16,9 +16,9 @@
 
 static bool logger_initialized = false;
 static int  current_log_level  = VALKEY_LOG_LEVEL_DEFAULT;
-#if LOGGER_FFI_ENABLED
-static enum Level current_ffi_log_level = LEVEL_WARN; /* FFI level tracking */
-#endif
+
+static enum Level current_ffi_log_level = WARN; /* FFI level tracking */
+
 
 /* Simple mutex simulation using static variable for initialization protection */
 static volatile bool initialization_in_progress = false;
@@ -27,26 +27,25 @@ static volatile bool initialization_in_progress = false;
  * Level Conversion Functions
  * ============================================================================ */
 
-#if LOGGER_FFI_ENABLED
 /**
  * Convert C integer log level to FFI Level enum
  */
 static enum Level int_to_ffi_level(int level) {
     switch (level) {
         case VALKEY_LOG_LEVEL_ERROR:
-            return LEVEL_ERROR;
+            return ERROR;
         case VALKEY_LOG_LEVEL_WARN:
-            return LEVEL_WARN;
+            return WARN;
         case VALKEY_LOG_LEVEL_INFO:
-            return LEVEL_INFO;
+            return INFO;
         case VALKEY_LOG_LEVEL_DEBUG:
-            return LEVEL_DEBUG;
+            return DEBUG;
         case VALKEY_LOG_LEVEL_TRACE:
-            return LEVEL_TRACE;
+            return TRACE;
         case VALKEY_LOG_LEVEL_OFF:
-            return LEVEL_OFF;
+            return OFF;
         default:
-            return LEVEL_WARN; /* Default fallback */
+            return WARN; /* Default fallback */
     }
 }
 
@@ -55,26 +54,40 @@ static enum Level int_to_ffi_level(int level) {
  */
 static int ffi_level_to_int(enum Level level) {
     switch (level) {
-        case LEVEL_ERROR:
+        case ERROR:
             return VALKEY_LOG_LEVEL_ERROR;
-        case LEVEL_WARN:
+        case WARN:
             return VALKEY_LOG_LEVEL_WARN;
-        case LEVEL_INFO:
+        case INFO:
             return VALKEY_LOG_LEVEL_INFO;
-        case LEVEL_DEBUG:
+        case DEBUG:
             return VALKEY_LOG_LEVEL_DEBUG;
-        case LEVEL_TRACE:
+        case TRACE:
             return VALKEY_LOG_LEVEL_TRACE;
-        case LEVEL_OFF:
+        case OFF:
             return VALKEY_LOG_LEVEL_OFF;
         default:
             return VALKEY_LOG_LEVEL_WARN; /* Default fallback */
     }
 }
-#endif
+
 /* ============================================================================
  * Utility Functions
  * ============================================================================ */
+int valkey_glide_log_wrapper(enum Level level, const char* identifier, const char* message) {
+    struct LogResult* log_result = glide_log(level, identifier, message);
+    if (log_result != NULL) {
+        if (log_result->log_error != NULL) {
+            if (level == ERROR) {
+                fprintf(stderr, "Log error: %s\n", log_result->log_error);
+            } else {
+                valkey_glide_log_wrapper(ERROR, identifier, "Failed to log message");
+            }
+        }
+        free_log_result(log_result);
+    }
+}
+
 
 int valkey_glide_logger_level_from_string(const char* level_str) {
     if (level_str == NULL) {
@@ -116,7 +129,6 @@ int valkey_glide_logger_get_level(void) {
  * This centralizes the FFI call and state management.
  */
 static int internal_init_logger(const char* level, const char* filename) {
-#if LOGGER_FFI_ENABLED
     /* Prevent concurrent initialization attempts */
     if (initialization_in_progress) {
         return -1;
@@ -127,18 +139,35 @@ static int internal_init_logger(const char* level, const char* filename) {
     int        level_int = valkey_glide_logger_level_from_string(level);
     enum Level ffi_level = int_to_ffi_level(level_int);
 
-    /* Call the new FFI init function */
+    /* Call the FFI init function */
+    struct LogResult* log_result = init(&ffi_level, filename);
 
-    enum Level actual_ffi_level = init(&ffi_level, filename);
+    if (log_result == NULL) {
+        initialization_in_progress = false;
+        fprintf(stderr, "Failed to initialize logger: NULL result\n");
+        return -1; /* Failed to get result */
+    }
+
+    /* Check for initialization error */
+    if (log_result->log_error != NULL) {
+        /* Initialization failed */
+        fprintf(stderr, "Failed to initialize logger: ERROR result, %s\n", log_result->log_error);
+        free_log_result(log_result);
+        initialization_in_progress = false;
+        return -1;
+    }
 
     /* Update our state with the actual level set by FFI */
-    current_ffi_log_level = actual_ffi_level;
-    current_log_level     = ffi_level_to_int(actual_ffi_level);
+    current_ffi_log_level = log_result->level;
+    current_log_level     = ffi_level_to_int(log_result->level);
     logger_initialized    = true;
 
+    /* Clean up the LogResult */
+    free_log_result(log_result);
+
     initialization_in_progress = false;
-#endif
-    return 0; /* FFI init always succeeds */
+
+    return 0; /* Success */
 }
 
 /**
@@ -191,13 +220,16 @@ void valkey_glide_logger_log(const char* level, const char* identifier, const ch
     }
 
     int level_int = valkey_glide_logger_level_from_string(level);
-#if LOGGER_FFI_ENABLED
+
     enum Level ffi_level = int_to_ffi_level(level_int);
 
+    /* Check if message level is at or above current log level */
+    if (current_ffi_log_level == OFF || ffi_level > current_ffi_log_level) {
+        return; /* Don't log if level is below threshold or logging is off */
+    }
 
-    /* Call the new FFI log function with current logger level */
-    valkey_log(ffi_level, current_ffi_log_level, identifier, message);
-#endif
+    /* Call the FFI log function and handle result */
+    valkey_glide_log_wrapper(ffi_level, identifier, message);
 }
 
 /* ============================================================================
@@ -232,10 +264,13 @@ void valkey_glide_c_log_error(const char* identifier, const char* message) {
         return;
     }
 
-/* Call the new FFI log function directly */
-#if LOGGER_FFI_ENABLED
-    valkey_log(LEVEL_ERROR, current_ffi_log_level, identifier, message);
-#endif
+    /* Check if message level is at or above current log level */
+    if (current_ffi_log_level == OFF || ERROR > current_ffi_log_level) {
+        return; /* Don't log if level is below threshold or logging is off */
+    }
+
+    /* Call the FFI log function and handle result */
+    valkey_glide_log_wrapper(ERROR, identifier, message);
 }
 
 void valkey_glide_c_log_warn(const char* identifier, const char* message) {
@@ -246,10 +281,13 @@ void valkey_glide_c_log_warn(const char* identifier, const char* message) {
         return;
     }
 
-#if LOGGER_FFI_ENABLED
-    /* Call the new FFI log function directly */
-    valkey_log(LEVEL_WARN, current_ffi_log_level, identifier, message);
-#endif
+    /* Check if message level is at or above current log level */
+    if (current_ffi_log_level == OFF || WARN > current_ffi_log_level) {
+        return; /* Don't log if level is below threshold or logging is off */
+    }
+
+    /* Call the FFI log function and handle result */
+    valkey_glide_log_wrapper(WARN, identifier, message);
 }
 
 void valkey_glide_c_log_info(const char* identifier, const char* message) {
@@ -259,10 +297,14 @@ void valkey_glide_c_log_info(const char* identifier, const char* message) {
     if (identifier == NULL || message == NULL) {
         return;
     }
-#if LOGGER_FFI_ENABLED
-    /* Call the new FFI log function directly */
-    valkey_log(LEVEL_INFO, current_ffi_log_level, identifier, message);
-#endif
+
+    /* Check if message level is at or above current log level */
+    if (current_ffi_log_level == OFF || INFO > current_ffi_log_level) {
+        return; /* Don't log if level is below threshold or logging is off */
+    }
+
+    /* Call the FFI log function and handle result */
+    valkey_glide_log_wrapper(INFO, identifier, message);
 }
 
 void valkey_glide_c_log_debug(const char* identifier, const char* message) {
@@ -272,10 +314,14 @@ void valkey_glide_c_log_debug(const char* identifier, const char* message) {
     if (identifier == NULL || message == NULL) {
         return;
     }
-#if LOGGER_FFI_ENABLED
-    /* Call the new FFI log function directly */
-    valkey_log(LEVEL_DEBUG, current_ffi_log_level, identifier, message);
-#endif
+
+    /* Check if message level is at or above current log level */
+    if (current_ffi_log_level == OFF || DEBUG > current_ffi_log_level) {
+        return; /* Don't log if level is below threshold or logging is off */
+    }
+
+    /* Call the FFI log function and handle result */
+    valkey_glide_log_wrapper(DEBUG, identifier, message);
 }
 
 void valkey_glide_c_log_trace(const char* identifier, const char* message) {
@@ -285,8 +331,12 @@ void valkey_glide_c_log_trace(const char* identifier, const char* message) {
     if (identifier == NULL || message == NULL) {
         return;
     }
-#if LOGGER_FFI_ENABLED
-    /* Call the new FFI log function directly */
-    valkey_log(LEVEL_TRACE, current_ffi_log_level, identifier, message);
-#endif
+
+    /* Check if message level is at or above current log level */
+    if (current_ffi_log_level == OFF || TRACE > current_ffi_log_level) {
+        return; /* Don't log if level is below threshold or logging is off */
+    }
+
+    /* Call the FFI log function and handle result */
+    valkey_glide_log_wrapper(TRACE, identifier, message);
 }
