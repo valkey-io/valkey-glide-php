@@ -217,17 +217,15 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             10 // 10 millisecond timeout
         );
 
-        try {
-            $valkey_glide->rawcommand(['type' => 'primarySlotKey', 'key' => 'test'], "DEBUG", "SLEEP", "2");
-            $this->fail("Should have thrown a timeout exception.");
-        } catch (Exception $e) {
-            $this->assertStringContains("timed out", $e->getMessage(), "Exception should indicate authentication failure");
-        } finally {
-            // Sleep the test runner so that the server can finish the sleep command.
-            sleep(2);
-            // Clean up
-            $valkey_glide?->close();
-        }
+        $res = $valkey_glide->rawcommand(['type' => 'primarySlotKey', 'key' => 'test'], "DEBUG", "SLEEP", "2");
+
+        // Sleep the test runner so that the server can finish the sleep command.
+        sleep(2);
+        // Clean up
+        $valkey_glide?->close();
+
+        // Now evaluate the result of the DEBUG command (should have failed due to timeout).
+        $this->assertFalse($res);
     }
 
     public function testConstructorWithLongTimeout()
