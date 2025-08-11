@@ -74,6 +74,20 @@ static int ffi_level_to_int(enum Level level) {
 /* ============================================================================
  * Utility Functions
  * ============================================================================ */
+int valkey_glide_log_wrapper(enum Level level, const char* identifier, const char* message) {
+    struct LogResult* log_result = glide_log(level, identifier, message);
+    if (log_result != NULL) {
+        if (log_result->log_error != NULL) {
+            if (level == ERROR) {
+                fprintf(stderr, "Log error: %s\n", log_result->log_error);
+            } else {
+                valkey_glide_log_wrapper(ERROR, identifier, "Failed to log message");
+            }
+        }
+        free_log_result(log_result);
+    }
+}
+
 
 int valkey_glide_logger_level_from_string(const char* level_str) {
     if (level_str == NULL) {
@@ -130,12 +144,14 @@ static int internal_init_logger(const char* level, const char* filename) {
 
     if (log_result == NULL) {
         initialization_in_progress = false;
+        fprintf(stderr, "Failed to initialize logger: NULL result\n");
         return -1; /* Failed to get result */
     }
 
     /* Check for initialization error */
     if (log_result->log_error != NULL) {
         /* Initialization failed */
+        fprintf(stderr, "Failed to initialize logger: ERROR result, %s\n", log_result->log_error);
         free_log_result(log_result);
         initialization_in_progress = false;
         return -1;
@@ -213,10 +229,7 @@ void valkey_glide_logger_log(const char* level, const char* identifier, const ch
     }
 
     /* Call the FFI log function and handle result */
-    struct LogResult* log_result = glide_log(ffi_level, identifier, message);
-    if (log_result != NULL) {
-        free_log_result(log_result);
-    }
+    valkey_glide_log_wrapper(ffi_level, identifier, message);
 }
 
 /* ============================================================================
@@ -257,10 +270,7 @@ void valkey_glide_c_log_error(const char* identifier, const char* message) {
     }
 
     /* Call the FFI log function and handle result */
-    struct LogResult* log_result = glide_log(ERROR, identifier, message);
-    if (log_result != NULL) {
-        free_log_result(log_result);
-    }
+    valkey_glide_log_wrapper(ERROR, identifier, message);
 }
 
 void valkey_glide_c_log_warn(const char* identifier, const char* message) {
@@ -277,10 +287,7 @@ void valkey_glide_c_log_warn(const char* identifier, const char* message) {
     }
 
     /* Call the FFI log function and handle result */
-    struct LogResult* log_result = glide_log(WARN, identifier, message);
-    if (log_result != NULL) {
-        free_log_result(log_result);
-    }
+    valkey_glide_log_wrapper(WARN, identifier, message);
 }
 
 void valkey_glide_c_log_info(const char* identifier, const char* message) {
@@ -297,10 +304,7 @@ void valkey_glide_c_log_info(const char* identifier, const char* message) {
     }
 
     /* Call the FFI log function and handle result */
-    struct LogResult* log_result = glide_log(INFO, identifier, message);
-    if (log_result != NULL) {
-        free_log_result(log_result);
-    }
+    valkey_glide_log_wrapper(INFO, identifier, message);
 }
 
 void valkey_glide_c_log_debug(const char* identifier, const char* message) {
@@ -317,10 +321,7 @@ void valkey_glide_c_log_debug(const char* identifier, const char* message) {
     }
 
     /* Call the FFI log function and handle result */
-    struct LogResult* log_result = glide_log(DEBUG, identifier, message);
-    if (log_result != NULL) {
-        free_log_result(log_result);
-    }
+    valkey_glide_log_wrapper(DEBUG, identifier, message);
 }
 
 void valkey_glide_c_log_trace(const char* identifier, const char* message) {
@@ -337,8 +338,5 @@ void valkey_glide_c_log_trace(const char* identifier, const char* message) {
     }
 
     /* Call the FFI log function and handle result */
-    struct LogResult* log_result = glide_log(TRACE, identifier, message);
-    if (log_result != NULL) {
-        free_log_result(log_result);
-    }
+    valkey_glide_log_wrapper(TRACE, identifier, message);
 }
