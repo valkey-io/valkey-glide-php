@@ -40,8 +40,6 @@ extern char* double_to_string(double value, size_t* len);
 /* Create a connection request in protobuf format */
 static uint8_t* create_connection_request(const char*                               host,
                                           int                                       port,
-                                          const char*                               user,
-                                          const char*                               pass,
                                           size_t*                                   len,
                                           valkey_glide_base_client_configuration_t* config,
                                           int                                       database_id,
@@ -51,20 +49,46 @@ static uint8_t* create_connection_request(const char*                           
     ConnectionRequest__ConnectionRequest conn_req = CONNECTION_REQUEST__CONNECTION_REQUEST__INIT;
 
     /* Set up the node address */
+    ConnectionRequest__NodeAddress default_addr = CONNECTION_REQUEST__NODE_ADDRESS__INIT;
+    default_addr.host                           = (char*) host;
+    default_addr.port                           = port;
+    ConnectionRequest__NodeAddress* default_addr_list[1] = {&default_addr};
+
+    bool request_contains_addresses = config->addresses && config->addresses_count > 0;
+    size_t addresses_count = request_contains_addresses ? config->addresses_count : 0;
+    ConnectionRequest__NodeAddress request_addresses[addresses_count]; // Using a VLA to avoid memory management.
+    ConnectionRequest__NodeAddress* request_addresses_list[addresses_count];
+    for (size_t i = 0; i < addresses_count; ++i) {
+        // Initialize a temporary NodeAddress then copy it to request_addresses. This is not strictly necessary
+        // since we set all fields anyway, but follows the best practice of using protobuf initializers on new
+        // messages.
+        ConnectionRequest__NodeAddress temp_address = CONNECTION_REQUEST__NODE_ADDRESS__INIT;
+        request_addresses[i] = temp_address;
+
+        request_addresses[i].host = (char*) config->addresses[i].host;
+        request_addresses[i].port = config->addresses[i].port;
+        request_addresses_list[i] = &request_addresses[i];
+    }
+
     ConnectionRequest__NodeAddress node_addr = CONNECTION_REQUEST__NODE_ADDRESS__INIT;
     node_addr.host                           = (char*) host;
     node_addr.port                           = port;
 
-    /* Add the node address to the connection request */
-    ConnectionRequest__NodeAddress* addresses[1] = {&node_addr};
-    conn_req.n_addresses                         = 1;
-    conn_req.addresses                           = addresses;
+    /* Add the node address to the connection request. Use the default endpoint if the constructor call did not
+       supply any endpoints. */
+    if (request_contains_addresses) {
+        conn_req.n_addresses = addresses_count;
+        conn_req.addresses = request_addresses_list;
+    } else {
+        conn_req.n_addresses                         = 1;
+        conn_req.addresses                           = default_addr_list;
+    }
 
     /* Set up authentication if provided */
     ConnectionRequest__AuthenticationInfo auth_info = CONNECTION_REQUEST__AUTHENTICATION_INFO__INIT;
-    if (user && pass) {
-        auth_info.username           = (char*) user;
-        auth_info.password           = (char*) pass;
+    if (config->credentials) {
+        auth_info.username           = (char*) config->credentials->username;
+        auth_info.password           = (char*) config->credentials->password;
         conn_req.authentication_info = &auth_info;
     }
 
@@ -137,25 +161,11 @@ static const ConnectionResponse* create_base_glide_client(
     bool                                      is_cluster) {
     /* Create a connection request using first address or default */
     size_t      len;
-    const char* host     = "localhost";
-    int         port     = 6379;
-    const char* username = NULL;
-    const char* password = NULL;
-
-    /* Use first address if available */
-    if (config->addresses && config->addresses_count > 0) {
-        host = config->addresses[0].host;
-        port = config->addresses[0].port;
-    }
-
-    /* Use credentials if available */
-    if (config->credentials) {
-        username = config->credentials->username;
-        password = config->credentials->password;
-    }
+    const char* default_host     = "localhost";
+    int         default_port     = 6379;
 
     uint8_t* request_bytes = create_connection_request(
-        host, port, username, password, &len, config, database_id, periodic_checks, is_cluster);
+        default_host, default_port, &len, config, database_id, periodic_checks, is_cluster);
 
     if (!request_bytes) {
         return NULL;
