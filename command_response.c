@@ -696,6 +696,27 @@ int command_response_to_zval(CommandResponse* response,
             // printf("%s:%d - CommandResponse is Map with length: %ld\n", __FILE__, __LINE__,
             // response->array_value_len);
             array_init(output);
+
+            // Special handling for FUNCTION command - skip server address wrapper
+            if (use_associative_array == COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP_FUNCTION &&
+                response->array_value_len == 1) {
+                CommandResponse* element = &response->array_value[0];
+                // Check if this looks like a server address key (contains ":")
+                if (element->map_key != NULL && element->map_key->response_type == String) {
+                    char* key_str = element->map_key->string_value;
+                    if (strchr(key_str, ':') != NULL) {  // Likely server address format
+                        // Skip the server key and process only the value
+                        if (element->map_value != NULL) {
+                            return command_response_to_zval(element->map_value,
+                                                            output,
+                                                            use_associative_array,
+                                                            use_false_if_null);
+                        }
+                    }
+                }
+            }
+
+            // Normal Map processing
             for (int i = 0; i < response->array_value_len; i++) {
                 zval             key, value;
                 CommandResponse* element = &response->array_value[i];

@@ -411,8 +411,10 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
 
             if (result->response) {
                 /* FUNCTION can return various types based on subcommand */
-                status = command_response_to_zval(
-                    result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+                status = command_response_to_zval(result->response,
+                                                  return_value,
+                                                  COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP_FUNCTION,
+                                                  true);
                 free_command_result(result);
                 return status;
             }
@@ -602,18 +604,141 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     return 0;
 }
 
+/* Internal function to execute FCALL/FCALL_RO commands using the Valkey Glide client */
+static int execute_fcall_command_internal(const void*      glide_client,
+                                          char*            name,
+                                          size_t           name_len,
+                                          zval*            keys_array,
+                                          zval*            args_array,
+                                          enum RequestType command_type,
+                                          zval*            return_value) {
+    /* Check if name is valid */
+    if (!name || name_len <= 0) {
+        return 0;
+    }
+
+    /* Calculate numkeys from keys array */
+    long numkeys = 0;
+    if (keys_array && Z_TYPE_P(keys_array) == IS_ARRAY) {
+        numkeys = zend_hash_num_elements(Z_ARRVAL_P(keys_array));
+    }
+
+    /* Calculate args count from args array */
+    long args_count = 0;
+    if (args_array && Z_TYPE_P(args_array) == IS_ARRAY) {
+        args_count = zend_hash_num_elements(Z_ARRVAL_P(args_array));
+    }
+
+    /* Prepare numkeys as string */
+    char numkeys_str[32];
+    snprintf(numkeys_str, sizeof(numkeys_str), "%ld", numkeys);
+
+    /* Calculate total arguments: function_name + numkeys + keys + args */
+    unsigned long  arg_count = 2 + numkeys + args_count;
+    uintptr_t*     cmd_args  = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    unsigned long* args_len  = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+
+    if (!cmd_args || !args_len) {
+        if (cmd_args)
+            efree(cmd_args);
+        if (args_len)
+            efree(args_len);
+        return 0;
+    }
+
+    /* Set function name and numkeys */
+    cmd_args[0] = (uintptr_t) name;
+    args_len[0] = name_len;
+    cmd_args[1] = (uintptr_t) numkeys_str;
+    args_len[1] = strlen(numkeys_str);
+
+    unsigned long arg_index = 2;
+
+    /* Process keys array */
+    if (keys_array && Z_TYPE_P(keys_array) == IS_ARRAY) {
+        zval* key_val;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(keys_array), key_val) {
+            if (Z_TYPE_P(key_val) != IS_STRING) {
+                zval temp;
+                ZVAL_COPY(&temp, key_val);
+                convert_to_string(&temp);
+                cmd_args[arg_index] = (uintptr_t) Z_STRVAL(temp);
+                args_len[arg_index] = Z_STRLEN(temp);
+                zval_dtor(&temp);
+            } else {
+                cmd_args[arg_index] = (uintptr_t) Z_STRVAL_P(key_val);
+                args_len[arg_index] = Z_STRLEN_P(key_val);
+            }
+            arg_index++;
+        }
+        ZEND_HASH_FOREACH_END();
+    }
+
+    /* Process args array */
+    if (args_array && Z_TYPE_P(args_array) == IS_ARRAY) {
+        zval* arg_val;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(args_array), arg_val) {
+            if (Z_TYPE_P(arg_val) != IS_STRING) {
+                zval temp;
+                ZVAL_COPY(&temp, arg_val);
+                convert_to_string(&temp);
+                cmd_args[arg_index] = (uintptr_t) Z_STRVAL(temp);
+                args_len[arg_index] = Z_STRLEN(temp);
+                zval_dtor(&temp);
+            } else {
+                cmd_args[arg_index] = (uintptr_t) Z_STRVAL_P(arg_val);
+                args_len[arg_index] = Z_STRLEN_P(arg_val);
+            }
+            arg_index++;
+        }
+        ZEND_HASH_FOREACH_END();
+    }
+
+    /* Execute the command */
+    CommandResult* result = execute_command(glide_client,
+                                            command_type, /* FCall or FCallReadOnly */
+                                            arg_count,    /* number of arguments */
+                                            cmd_args,     /* arguments */
+                                            args_len      /* argument lengths */
+    );
+
+    /* Free the argument arrays */
+    efree(cmd_args);
+    efree(args_len);
+
+    /* Handle the result directly */
+    int status = 0;
+    if (result) {
+        if (result->command_error) {
+            /* Command failed */
+            free_command_result(result);
+            return 0;
+        }
+
+        if (result->response) {
+            /* FCALL can return various types */
+            status = command_response_to_zval(
+                result->response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
+            free_command_result(result);
+            return status;
+        }
+        free_command_result(result);
+    }
+
+    return 0;
+}
+
 /* Execute an FCALL command using the Valkey Glide client */
 int execute_fcall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                name = NULL;
     size_t               name_len;
-    long                 numkeys    = 0;
-    zval*                z_args     = NULL;
-    int                  args_count = 0;
+    zval*                keys_array = NULL;
+    zval*                args_array = NULL;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
-            argc, object, "Osl*", &object, ce, &name, &name_len, &numkeys, &z_args, &args_count) ==
+            argc, object, "Osa|a", &object, ce, &name, &name_len, &keys_array, &args_array) ==
         FAILURE) {
         return 0;
     }
@@ -623,83 +748,13 @@ int execute_fcall_command(zval* object, int argc, zval* return_value, zend_class
 
     /* If we have a Glide client, use it */
     if (valkey_glide->glide_client) {
-        /* Check if name is valid */
-        if (!name || name_len <= 0) {
-            return 0;
-        }
-
-        /* Prepare numkeys as string */
-        char numkeys_str[32];
-        snprintf(numkeys_str, sizeof(numkeys_str), "%ld", numkeys);
-
-        /* Calculate total arguments: function_name + numkeys + all additional args */
-        unsigned long  arg_count = 2 + args_count; /* name + numkeys + additional args */
-        uintptr_t*     cmd_args  = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
-        unsigned long* args_len  = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-
-        if (!cmd_args || !args_len) {
-            if (cmd_args)
-                efree(cmd_args);
-            if (args_len)
-                efree(args_len);
-            return 0;
-        }
-
-        /* Set function name and numkeys */
-        cmd_args[0] = (uintptr_t) name;
-        args_len[0] = name_len;
-        cmd_args[1] = (uintptr_t) numkeys_str;
-        args_len[1] = strlen(numkeys_str);
-
-        /* Convert additional arguments to strings if needed */
-        int i;
-        for (i = 0; i < args_count; i++) {
-            zval* arg = &z_args[i];
-
-            /* If not string, convert to one */
-            if (Z_TYPE_P(arg) != IS_STRING) {
-                zval temp;
-                ZVAL_COPY(&temp, arg);
-                convert_to_string(&temp);
-                cmd_args[i + 2] = (uintptr_t) Z_STRVAL(temp);
-                args_len[i + 2] = Z_STRLEN(temp);
-                zval_dtor(&temp);
-            } else {
-                cmd_args[i + 2] = (uintptr_t) Z_STRVAL_P(arg);
-                args_len[i + 2] = Z_STRLEN_P(arg);
-            }
-        }
-
-        /* Execute the command */
-        CommandResult* result = execute_command(valkey_glide->glide_client,
-                                                FCall,     /* command type */
-                                                arg_count, /* number of arguments */
-                                                cmd_args,  /* arguments */
-                                                args_len   /* argument lengths */
-        );
-
-        /* Free the argument arrays */
-        efree(cmd_args);
-        efree(args_len);
-
-        /* Handle the result directly */
-        int status = 0;
-        if (result) {
-            if (result->command_error) {
-                /* Command failed */
-                free_command_result(result);
-                return 0;
-            }
-
-            if (result->response) {
-                /* FCALL can return various types */
-                status = command_response_to_zval(
-                    result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-                free_command_result(result);
-                return status;
-            }
-            free_command_result(result);
-        }
+        return execute_fcall_command_internal(valkey_glide->glide_client,
+                                              name,
+                                              name_len,
+                                              keys_array,
+                                              args_array,
+                                              FCall,
+                                              return_value);
     }
 
     return 0;
@@ -710,13 +765,12 @@ int execute_fcall_ro_command(zval* object, int argc, zval* return_value, zend_cl
     valkey_glide_object* valkey_glide;
     char*                name = NULL;
     size_t               name_len;
-    long                 numkeys    = 0;
-    zval*                z_args     = NULL;
-    int                  args_count = 0;
+    zval*                keys_array = NULL;
+    zval*                args_array = NULL;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
-            argc, object, "Osl*", &object, ce, &name, &name_len, &numkeys, &z_args, &args_count) ==
+            argc, object, "Osa|a", &object, ce, &name, &name_len, &keys_array, &args_array) ==
         FAILURE) {
         return 0;
     }
@@ -726,83 +780,13 @@ int execute_fcall_ro_command(zval* object, int argc, zval* return_value, zend_cl
 
     /* If we have a Glide client, use it */
     if (valkey_glide->glide_client) {
-        /* Check if name is valid */
-        if (!name || name_len <= 0) {
-            return 0;
-        }
-
-        /* Prepare numkeys as string */
-        char numkeys_str[32];
-        snprintf(numkeys_str, sizeof(numkeys_str), "%ld", numkeys);
-
-        /* Calculate total arguments: function_name + numkeys + all additional args */
-        unsigned long  arg_count = 2 + args_count; /* name + numkeys + additional args */
-        uintptr_t*     cmd_args  = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
-        unsigned long* args_len  = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-
-        if (!cmd_args || !args_len) {
-            if (cmd_args)
-                efree(cmd_args);
-            if (args_len)
-                efree(args_len);
-            return 0;
-        }
-
-        /* Set function name and numkeys */
-        cmd_args[0] = (uintptr_t) name;
-        args_len[0] = name_len;
-        cmd_args[1] = (uintptr_t) numkeys_str;
-        args_len[1] = strlen(numkeys_str);
-
-        /* Convert additional arguments to strings if needed */
-        int i;
-        for (i = 0; i < args_count; i++) {
-            zval* arg = &z_args[i];
-
-            /* If not string, convert to one */
-            if (Z_TYPE_P(arg) != IS_STRING) {
-                zval temp;
-                ZVAL_COPY(&temp, arg);
-                convert_to_string(&temp);
-                cmd_args[i + 2] = (uintptr_t) Z_STRVAL(temp);
-                args_len[i + 2] = Z_STRLEN(temp);
-                zval_dtor(&temp);
-            } else {
-                cmd_args[i + 2] = (uintptr_t) Z_STRVAL_P(arg);
-                args_len[i + 2] = Z_STRLEN_P(arg);
-            }
-        }
-
-        /* Execute the command */
-        CommandResult* result = execute_command(valkey_glide->glide_client,
-                                                FCallReadOnly, /* command type */
-                                                arg_count,     /* number of arguments */
-                                                cmd_args,      /* arguments */
-                                                args_len       /* argument lengths */
-        );
-
-        /* Free the argument arrays */
-        efree(cmd_args);
-        efree(args_len);
-
-        /* Handle the result directly */
-        int status = 0;
-        if (result) {
-            if (result->command_error) {
-                /* Command failed */
-                free_command_result(result);
-                return 0;
-            }
-
-            if (result->response) {
-                /* FCALL_RO can return various types */
-                status = command_response_to_zval(
-                    result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-                free_command_result(result);
-                return status;
-            }
-            free_command_result(result);
-        }
+        return execute_fcall_command_internal(valkey_glide->glide_client,
+                                              name,
+                                              name_len,
+                                              keys_array,
+                                              args_array,
+                                              FCallReadOnly,
+                                              return_value);
     }
 
     return 0;

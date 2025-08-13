@@ -7073,12 +7073,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
     }
 
-
-
-
-
-
-
     public function testCopy()
     {
         if (version_compare($this->version, '6.2.0') < 0) {
@@ -7102,7 +7096,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testFunction()
     {
-        $this->markTestSkipped();// TODO support for functions is not implemented yet
         if (version_compare($this->version, '7.0') < 0) {
             $this->markTestSkipped();
         }
