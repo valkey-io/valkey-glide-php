@@ -37,6 +37,12 @@ int         buffer_current_command_generic(valkey_glide_object* valkey_glide,
                                            int                  argc,
                                            zval*                this_ptr);
 
+/* Helper function to process array arguments for FCALL commands */
+static void process_array_to_args(zval*          array,
+                                  uintptr_t*     cmd_args,
+                                  unsigned long* args_len,
+                                  unsigned long* arg_index);
+
 /* Execute a WAIT command using the Valkey Glide client - MIGRATED TO CORE FRAMEWORK */
 int execute_wait_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -302,6 +308,31 @@ int buffer_current_command_generic(valkey_glide_object* valkey_glide,
         efree(arg_lengths);
 
     return result;
+}
+
+/* Helper function to process array arguments for FCALL commands */
+static void process_array_to_args(zval*          array,
+                                  uintptr_t*     cmd_args,
+                                  unsigned long* args_len,
+                                  unsigned long* arg_index) {
+    if (array && Z_TYPE_P(array) == IS_ARRAY) {
+        zval* val;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(array), val) {
+            if (Z_TYPE_P(val) != IS_STRING) {
+                zval temp;
+                ZVAL_COPY(&temp, val);
+                convert_to_string(&temp);
+                cmd_args[*arg_index] = (uintptr_t) Z_STRVAL(temp);
+                args_len[*arg_index] = Z_STRLEN(temp);
+                zval_dtor(&temp);
+            } else {
+                cmd_args[*arg_index] = (uintptr_t) Z_STRVAL_P(val);
+                args_len[*arg_index] = Z_STRLEN_P(val);
+            }
+            (*arg_index)++;
+        }
+        ZEND_HASH_FOREACH_END();
+    }
 }
 
 /* Execute a FUNCTION command using the Valkey Glide client */
@@ -655,44 +686,10 @@ static int execute_fcall_command_internal(const void*      glide_client,
     unsigned long arg_index = 2;
 
     /* Process keys array */
-    if (keys_array && Z_TYPE_P(keys_array) == IS_ARRAY) {
-        zval* key_val;
-        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(keys_array), key_val) {
-            if (Z_TYPE_P(key_val) != IS_STRING) {
-                zval temp;
-                ZVAL_COPY(&temp, key_val);
-                convert_to_string(&temp);
-                cmd_args[arg_index] = (uintptr_t) Z_STRVAL(temp);
-                args_len[arg_index] = Z_STRLEN(temp);
-                zval_dtor(&temp);
-            } else {
-                cmd_args[arg_index] = (uintptr_t) Z_STRVAL_P(key_val);
-                args_len[arg_index] = Z_STRLEN_P(key_val);
-            }
-            arg_index++;
-        }
-        ZEND_HASH_FOREACH_END();
-    }
+    process_array_to_args(keys_array, cmd_args, args_len, &arg_index);
 
     /* Process args array */
-    if (args_array && Z_TYPE_P(args_array) == IS_ARRAY) {
-        zval* arg_val;
-        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(args_array), arg_val) {
-            if (Z_TYPE_P(arg_val) != IS_STRING) {
-                zval temp;
-                ZVAL_COPY(&temp, arg_val);
-                convert_to_string(&temp);
-                cmd_args[arg_index] = (uintptr_t) Z_STRVAL(temp);
-                args_len[arg_index] = Z_STRLEN(temp);
-                zval_dtor(&temp);
-            } else {
-                cmd_args[arg_index] = (uintptr_t) Z_STRVAL_P(arg_val);
-                args_len[arg_index] = Z_STRLEN_P(arg_val);
-            }
-            arg_index++;
-        }
-        ZEND_HASH_FOREACH_END();
-    }
+    process_array_to_args(args_array, cmd_args, args_len, &arg_index);
 
     /* Execute the command */
     CommandResult* result = execute_command(glide_client,
