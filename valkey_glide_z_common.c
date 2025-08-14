@@ -2040,7 +2040,7 @@ int process_z_zadd_result(CommandResult* result, void* output) {
         double* output_value_double;
         int     is_incr;
     }* zadd_data = output;
-
+    printf("process_z_zadd_result: is_incr=%d\n", zadd_data->is_incr);
     if (!result || !result->response || !zadd_data) {
         return 0;
     }
