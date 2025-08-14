@@ -617,6 +617,7 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
                                               arg_count,
                                               args->key,
                                               args->key_len,
+                                              result_ptr,
                                               process_result);
         printf("file = %s, line = %d\n", __FILE__, __LINE__);
         if (arg_values)

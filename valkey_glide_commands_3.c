@@ -151,6 +151,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                              uintptr_t            arg_count,
                              const char*          key,
                              size_t               key_len,
+                             void*                result_ptr,
                              z_result_processor_t process_result) {
     printf("file = %s, line = %d\n", __FILE__, __LINE__);
     if (!valkey_glide || !valkey_glide->is_in_batch_mode) {
@@ -170,7 +171,9 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
     /* Store command details */
     cmd->request_type   = cmd_type;
     cmd->arg_count      = arg_count;
+    cmd->result_ptr     = result_ptr;
     cmd->process_result = process_result;
+
 
     /* Copy arguments */
     if (arg_count > 0 && args && arg_lengths) {
@@ -554,17 +557,15 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
                         /* Create a temporary CommandResponse from the zval */
                         CommandResponse temp_response = {0};
                         temp_result.response          = &temp_response;
-                        /* Create output buffer for the process_result function */
-                        zval processed_result;
-                        ZVAL_UNDEF(&processed_result);
 
+                        zval* return_value_temp;
                         /* Call the specific command's process_result function */
                         int process_status = valkey_glide->buffered_commands[idx].process_result(
-                            &temp_result, &processed_result);
+                            &temp_result, valkey_glide->buffered_commands[idx].result_ptr);
 
                         if (process_status) {
                             /* Add the processed result to return array */
-                            add_next_index_zval(return_value, &processed_result);
+                            add_next_index_zval(return_value, return_value_temp);
                             printf("file = %s, line = %d, successfully processed command %zu\n",
                                    __FILE__,
                                    __LINE__,

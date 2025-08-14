@@ -173,13 +173,16 @@ int execute_zscore_command(zval* object, int argc, zval* return_value, zend_clas
         ZVAL_COPY(return_value, object);
         return 1;
     }
-    efree(score);
+
     if (result == 1) {
         ZVAL_DOUBLE(return_value, *score);
+        efree(score);
         return 1;
     } else if (result == 0) {
+        efree(score);
         return 0; /* Member not found */
     } else {
+        efree(score);
         return -1; /* Error */
     }
 }
@@ -1634,14 +1637,26 @@ int execute_zadd_command_internal(valkey_glide_object* valkey_glide,
         has_incr = zadd_opts.incr;
     }
 
-    struct {
+    typedef struct {
         long*   output_value;
         double* output_value_double;
         int     is_incr;
-    } zadd_data = {output_value, output_value_double, has_incr};
+    } zadd_data_t;
+
+    zadd_data_t* zadd_data         = emalloc(sizeof(zadd_data_t));
+    zadd_data->output_value        = output_value;
+    zadd_data->output_value_double = output_value_double;
+    zadd_data->is_incr             = has_incr;
 
     /* Single call - let execute_z_generic_command handle batch vs normal internally */
-    return execute_z_generic_command(valkey_glide, ZAdd, &args, &zadd_data, process_z_zadd_result);
+    int result =
+        execute_z_generic_command(valkey_glide, ZAdd, &args, zadd_data, process_z_zadd_result);
+
+    if (!valkey_glide->is_in_batch_mode) {
+        efree(zadd_data);
+    }
+
+    return result;
 }
 
 /* Execute a ZRANGESTORE command using the Valkey Glide client */
@@ -1650,7 +1665,6 @@ int execute_zrangestore_command(zval* object, int argc, zval* return_value, zend
     size_t      src_len, dst_len;
     zval *      z_start, *z_end, *options = NULL;
     const void* glide_client = NULL;
-    long        result_count;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(argc,
@@ -1688,8 +1702,9 @@ int execute_zrangestore_command(zval* object, int argc, zval* return_value, zend
     args.z_end            = z_end;
     args.options          = options;
 
-    int result = execute_z_generic_command(
-        valkey_glide, ZRangeStore, &args, &result_count, process_z_int_result);
+    long* result_count = emalloc(sizeof(long));
+    int   result       = execute_z_generic_command(
+        valkey_glide, ZRangeStore, &args, result_count, process_z_int_result);
 
     if (valkey_glide->is_in_batch_mode) {
         /* In batch mode, return $this for method chaining */
@@ -1697,10 +1712,10 @@ int execute_zrangestore_command(zval* object, int argc, zval* return_value, zend
         return 1;
     }
 
-
     if (result) {
-        ZVAL_LONG(return_value, result_count);
+        ZVAL_LONG(return_value, *result_count);
     }
+    efree(result_count);
 
     return result;
 }
@@ -1716,13 +1731,23 @@ int execute_zdiff_command_internal(valkey_glide_object* valkey_glide,
     args.member_count     = zend_hash_num_elements(Z_ARRVAL_P(keys));
     args.options          = options;
 
-    struct {
+    typedef struct {
         zval* return_value;
         int   withscores;
-    } array_data = {return_value, 0};
+    } array_data_t;
 
-    return execute_z_generic_command(
-        valkey_glide, ZDiff, &args, &array_data, process_z_array_result);
+    array_data_t* array_data = emalloc(sizeof(array_data_t));
+    array_data->return_value = return_value;
+    array_data->withscores   = 0;
+
+    int result =
+        execute_z_generic_command(valkey_glide, ZDiff, &args, array_data, process_z_array_result);
+
+    if (!valkey_glide->is_in_batch_mode) {
+        efree(array_data);
+    }
+
+    return result;
 }
 
 int execute_zdiff_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {

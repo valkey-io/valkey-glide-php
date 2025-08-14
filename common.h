@@ -169,6 +169,7 @@ struct batch_command {
     char*                key;         /* Optional key for the command */
     size_t               key_len;
     void*                route_info; /* Optional routing info for cluster mode */
+    void*                result_ptr; /* Pointer to store result */
     z_result_processor_t process_result;
 };
 

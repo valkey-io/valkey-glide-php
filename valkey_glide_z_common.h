@@ -423,6 +423,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                              uintptr_t            arg_count,
                              const char*          key,
                              size_t               key_len,
+                             void*                result_ptr,
                              z_result_processor_t process_result);
 /**
  * Initialize array return value and check for allocation success
