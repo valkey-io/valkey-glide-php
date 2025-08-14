@@ -1422,15 +1422,16 @@ int execute_zpopmin_command(zval* object, int argc, zval* return_value, zend_cla
     return result;
 }
 
-/* Execute a ZADD command using the Valkey Glide client - internal implementation */
-int execute_zadd_command_internal(const void* glide_client,
-                                  const char* key,
-                                  size_t      key_len,
-                                  zval*       z_args,
-                                  int         argc,
-                                  int         flags,
-                                  long*       output_value,
-                                  double*     output_value_double) {
+/* Execute a ZADD command using the Valkey Glide client - internal implementation with batch support
+ */
+int execute_zadd_command_internal(valkey_glide_object* valkey_glide,
+                                  const char*          key,
+                                  size_t               key_len,
+                                  zval*                z_args,
+                                  int                  argc,
+                                  int                  flags,
+                                  long*                output_value,
+                                  double*              output_value_double) {
     z_command_args_t args = {0};
     args.key              = key;
     args.key_len          = key_len;
@@ -1451,7 +1452,8 @@ int execute_zadd_command_internal(const void* glide_client,
         int     is_incr;
     } zadd_data = {output_value, output_value_double, has_incr};
 
-    return execute_z_generic_command(glide_client, ZAdd, &args, &zadd_data, process_z_zadd_result);
+    /* Single call - let execute_z_generic_command handle batch vs normal internally */
+    return execute_z_generic_command(valkey_glide, ZAdd, &args, &zadd_data, process_z_zadd_result);
 }
 
 /* Execute a ZRANGESTORE command using the Valkey Glide client */
@@ -1729,14 +1731,14 @@ int prepare_mpop_arguments(const void*     glide_client,
 }
 
 /* Execute a ZMPOP or BZMPOP command (for sorted set operations) using the Valkey Glide client */
-int execute_zmpop_command1(const void* glide_client,
-                           const char* cmd,
-                           double      timeout,
-                           zval*       keys,
-                           const char* from,
-                           size_t      from_len,
-                           long        count,
-                           zval*       result) {
+int execute_zmpop_command_internal(const void* glide_client,
+                                   const char* cmd,
+                                   double      timeout,
+                                   zval*       keys,
+                                   const char* from,
+                                   size_t      from_len,
+                                   long        count,
+                                   zval*       result) {
     /* Check if client, keys, and from are valid */
     if (!glide_client || !keys || !from) {
         return 0;
@@ -1899,7 +1901,7 @@ int execute_bzmpop_command(zval* object, int argc, zval* return_value, zend_clas
     ZVAL_NULL(return_value);
 
     /* Execute the command - we pass "BZMPOP" as the command name for messaging */
-    return execute_zmpop_command1(
+    return execute_zmpop_command_internal(
         glide_client, "BZMPOP", timeout, z_keys, from, from_len, count, return_value);
 }
 
@@ -1931,20 +1933,19 @@ int execute_zmpop_command(zval* object, int argc, zval* return_value, zend_class
     ZVAL_NULL(return_value);
 
     /* Execute the command */
-    return execute_zmpop_command1(
+    return execute_zmpop_command_internal(
         glide_client, "ZMPOP", 0.0, z_keys, from, from_len, count, return_value);
 }
 
-/* Execute a ZADD command with the new signature pattern */
+/* Execute a ZADD command - simplified to eliminate code duplication */
 int execute_zadd_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    char*       key = NULL;
-    size_t      key_len;
-    zval*       z_args;
-    int         variadic_argc       = 0;
-    const void* glide_client        = NULL;
-    int         flags               = 0; /* No flags by default */
-    long        result_value        = 0;
-    double      result_value_double = 0;
+    char*  key = NULL;
+    size_t key_len;
+    zval*  z_args;
+    int    variadic_argc       = 0;
+    int    flags               = 0; /* No flags by default */
+    long   result_value        = 0;
+    double result_value_double = 0;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
@@ -1955,15 +1956,14 @@ int execute_zadd_command(zval* object, int argc, zval* return_value, zend_class_
     /* Get ValkeyGlide object */
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    glide_client = valkey_glide->glide_client;
 
-    /* Check if we have a valid glide client */
-    if (!glide_client) {
+    /* Check if we have a valid valkey_glide object */
+    if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
 
-    /* Execute the ZADD command using the old function */
-    int result = execute_zadd_command_internal(glide_client,
+
+    int result = execute_zadd_command_internal(valkey_glide,
                                                key,
                                                key_len,
                                                z_args,
@@ -1974,6 +1974,13 @@ int execute_zadd_command(zval* object, int argc, zval* return_value, zend_class_
 
     if (result == 0) {
         return 0; /* Command failed */
+    }
+
+    /* Handle return value based on batch mode */
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
     } else if (result == 1) {
         /* Standard result as long */
         ZVAL_LONG(return_value, result_value);

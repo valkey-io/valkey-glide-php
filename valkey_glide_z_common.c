@@ -344,31 +344,32 @@ int flatten_withscores_array(zval* return_value) {
     return 1;
 }
 
+
 /* ====================================================================
  * COMMON EXECUTION FRAMEWORK IMPLEMENTATION
  * ==================================================================== */
 
 /**
- * Generic Z-command execution framework
+ * Generic Z-command execution framework with integrated batch support
  */
-int execute_z_generic_command(const void*          glide_client,
+int execute_z_generic_command(valkey_glide_object* valkey_glide,
                               enum RequestType     cmd_type,
                               z_command_args_t*    args,
                               void*                result_ptr,
                               z_result_processor_t process_result) {
-    /* Check if client is valid */
-    if (!glide_client) {
+    /* Check if valkey_glide object is valid */
+    if (!valkey_glide) {
         return 0;
     }
-
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
+    /* Prepare arguments ONCE - single switch statement eliminates duplication */
     uintptr_t*     arg_values        = NULL;
     unsigned long* arg_lens          = NULL;
     char**         allocated_strings = NULL;
     int            allocated_count   = 0;
     int            arg_count         = 0;
-    int            success           = 0;
 
-    /* Determine argument preparation method based on command type */
+    /* Single argument preparation logic for both batch and normal modes */
     switch (cmd_type) {
         case ZCard:
             arg_count = prepare_z_key_args(args, &arg_values, &arg_lens);
@@ -590,7 +591,6 @@ int execute_z_generic_command(const void*          glide_client,
             /* Unsupported command type */
             return 0;
     }
-
     /* Check if argument preparation was successful */
     if (arg_count <= 0) {
         if (arg_values)
@@ -601,10 +601,34 @@ int execute_z_generic_command(const void*          glide_client,
             efree(allocated_strings);
         return 0;
     }
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
+    if (valkey_glide->is_in_batch_mode) {
+        printf("file = %s, line = %d\n", __FILE__, __LINE__);
 
+        printf("file = %s, line = %d\n", __FILE__, __LINE__);
+        printf("Buffering command for batch execution arg_values = %p, args = %p arg_count = %d\n",
+               arg_values,
+               args,
+               arg_count);
+        int result = buffer_command_for_batch(valkey_glide,
+                                              cmd_type,
+                                              arg_values,
+                                              arg_lens,
+                                              arg_count,
+                                              args->key,
+                                              args->key_len,
+                                              process_result);
+        printf("file = %s, line = %d\n", __FILE__, __LINE__);
+        if (arg_values)
+            efree(arg_values);
+        if (arg_lens)
+            efree(arg_lens);
+
+        return result;
+    }
     /* Execute the command */
     CommandResult* result =
-        execute_command(glide_client, cmd_type, arg_count, arg_values, arg_lens);
+        execute_command(valkey_glide->glide_client, cmd_type, arg_count, arg_values, arg_lens);
 
     /* Free allocated strings */
     int i;
@@ -632,7 +656,7 @@ int execute_z_generic_command(const void*          glide_client,
     }
 
     /* Process the result */
-    success = process_result(result, result_ptr);
+    int success = process_result(result, result_ptr);
 
     /* Free the result */
     free_command_result(result);
@@ -1311,7 +1335,8 @@ int prepare_z_union_args(z_command_args_t* args,
     store_options_t union_opts = {0};
     parse_store_options(args->weights, args->options, &union_opts);
 
-    /* Calculate total arguments (numkeys + keys + WEIGHTS + AGGREGATE + WITHSCORES if present) */
+    /* Calculate total arguments (numkeys + keys + WEIGHTS + AGGREGATE + WITHSCORES if
+     * present) */
     unsigned long arg_count     = 1 + args->member_count; /* +1 for numkeys */
     int           weights_count = 0;
 

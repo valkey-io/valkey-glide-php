@@ -681,7 +681,7 @@ class ValkeyGlide
      *              ->rpush('list', 'one', 'two', 'three')
      *              ->exec();
      */
-    /* TODO public function exec(): ValkeyGlide|array|false; */
+    public function exec(): ValkeyGlide|array|false;
 
     /**
      * Test if one or more keys exist.
@@ -1682,7 +1682,7 @@ class ValkeyGlide
      * $valkey_glide->get('foo');
      * $valkey_glide->exec();
      */
-    /* TODO public function multi(int $value = ValkeyGlide::MULTI): bool|ValkeyGlide; */
+    public function multi(int $value = ValkeyGlide::MULTI): bool|ValkeyGlide;
 
     public function object(string $subcommand, string $key): ValkeyGlide|int|string|false;
 

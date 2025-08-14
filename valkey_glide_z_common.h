@@ -107,23 +107,42 @@ typedef struct {
     zval*   zval_result;
 } z_command_args_t;
 
+
+/* ====================================================================
+ * BATCH STATE MANAGEMENT
+ * ==================================================================== */
+
 /**
- * Result processing callback type
+ * Z-command batch state for result processing
  */
-typedef int (*z_result_processor_t)(CommandResult* result, void* output);
+typedef struct {
+    z_result_processor_t processor;         /* Result processing function */
+    void*                output_ptr;        /* Output pointer for results */
+    enum RequestType     cmd_type;          /* Command type for reference */
+    char**               allocated_strings; /* Strings to free after batch */
+    int                  allocated_count;   /* Number of allocated strings */
+    int                  withscores;        /* For array result processing */
+} z_batch_state_t;
 
 /* ====================================================================
  * COMMON EXECUTION FRAMEWORK
  * ==================================================================== */
 
 /**
- * Generic Z-command execution framework
+ * Generic Z-command execution framework with integrated batch support
  */
-int execute_z_generic_command(const void*          glide_client,
+int execute_z_generic_command(valkey_glide_object* valkey_glide,
                               enum RequestType     cmd_type,
                               z_command_args_t*    args,
                               void*                result_ptr,
                               z_result_processor_t process_result);
+
+/**
+ * Process Z-command batch results
+ */
+int process_z_batch_results(valkey_glide_object* valkey_glide,
+                            CommandResult*       batch_result,
+                            zval*                return_value);
 
 /**
  * Process integer result (for commands returning count)
@@ -365,14 +384,14 @@ int execute_zrangestore_command(zval* object, int argc, zval* return_value, zend
 
 int execute_zdiffstore_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_zinterstore_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_zmpop_command1(const void* glide_client,
-                           const char* cmd,
-                           double      timeout,
-                           zval*       keys,
-                           const char* from,
-                           size_t      from_len,
-                           long        count,
-                           zval*       result);
+int execute_zmpop_command_internal(const void* glide_client,
+                                   const char* cmd,
+                                   double      timeout,
+                                   zval*       keys,
+                                   const char* from,
+                                   size_t      from_len,
+                                   long        count,
+                                   zval*       result);
 int execute_zintercard_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_zunion_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_zunionstore_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -397,7 +416,14 @@ int execute_bzmpop_command(zval* object, int argc, zval* return_value, zend_clas
 int execute_zmpop_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_bzpopmax_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_bzpopmin_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-
+int buffer_command_for_batch(valkey_glide_object* valkey_glide,
+                             enum RequestType     cmd_type,
+                             uint8_t**            args,
+                             uintptr_t*           arg_lengths,
+                             uintptr_t            arg_count,
+                             const char*          key,
+                             size_t               key_len,
+                             z_result_processor_t process_result);
 /**
  * Initialize array return value and check for allocation success
  */

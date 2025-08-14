@@ -203,11 +203,6 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 
 int execute_del_array(const void* glide_client, HashTable* keys_hash, long* output_value);
 
-/* Batch command buffering function */
-int buffer_current_command_generic(valkey_glide_object* valkey_glide,
-                                   enum RequestType     request_type,
-                                   int                  argc,
-                                   zval*                this_ptr);
 
 /* ====================================================================
  * METHOD IMPLEMENTATION MACROS

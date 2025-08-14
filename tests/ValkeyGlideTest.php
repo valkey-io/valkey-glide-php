@@ -7092,7 +7092,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertKeyEquals('bar', '{key}dst');
     }
 
-
+    public function testAsaf()
+    {
+        $this->valkey_glide->multi(ValkeyGlide::MULTI)
+            ->zAdd('myset', 1, 'member1')
+            ->zAdd('set2', ['CH'], 3.0, 'c', 4.0, 'd')            
+            ->exec(); // Returns array with results from all Z-commands
+    }
 
     public function testFunction()
     {
