@@ -691,7 +691,7 @@ int command_response_to_zval(CommandResponse* response,
             }
             // printf("%s:%d - DEBUG: Finished processing array response\n", __FILE__, __LINE__);
             return 1;
-#if 1
+
         case Map:
             // printf("%s:%d - CommandResponse is Map with length: %ld\n", __FILE__, __LINE__,
             // response->array_value_len);
@@ -701,10 +701,10 @@ int command_response_to_zval(CommandResponse* response,
             if (use_associative_array == COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP_FUNCTION &&
                 response->array_value_len == 1) {
                 CommandResponse* element = &response->array_value[0];
-                // Check if this looks like a server address key (contains ":")
+                // Remove the first field of server address (contains ":")
                 if (element->map_key != NULL && element->map_key->response_type == String) {
                     char* key_str = element->map_key->string_value;
-                    if (strchr(key_str, ':') != NULL) {  // Likely server address format
+                    if (strchr(key_str, ':') != NULL) {
                         // Skip the server key and process only the value
                         if (element->map_value != NULL) {
                             return command_response_to_zval(element->map_value,
@@ -754,7 +754,7 @@ int command_response_to_zval(CommandResponse* response,
             }
             // php_var_dump(output, 2); // No need to modify this as it's not printf
             return 1;
-#endif
+
         case Sets:
             array_init(output);
             for (int i = 0; i < response->sets_value_len; i++) {
