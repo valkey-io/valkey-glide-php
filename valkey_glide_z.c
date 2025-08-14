@@ -57,8 +57,7 @@ int execute_zrandmember_command(zval* object, int argc, zval* return_value, zend
     zend_long count      = 1;
     zend_bool withscores = 0;
 
-    zval*       z_opts       = NULL;
-    const void* glide_client = NULL;
+    zval* z_opts = NULL;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
@@ -69,12 +68,6 @@ int execute_zrandmember_command(zval* object, int argc, zval* return_value, zend
     /* Get ValkeyGlide object */
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    glide_client = valkey_glide->glide_client;
-
-    /* Check if we have a valid glide client */
-    if (!glide_client) {
-        return 0;
-    }
 
     /* Process the options if provided */
     if (argc >= 2) {
@@ -132,15 +125,21 @@ int execute_zrandmember_command(zval* object, int argc, zval* return_value, zend
         int   withscores;
     } array_data = {return_value, withscores};
 
-    return execute_z_generic_command(
-        glide_client, ZRandMember, &args, &array_data, process_z_array_zrand_result);
+    int res = execute_z_generic_command(
+        valkey_glide, ZRandMember, &args, &array_data, process_z_array_zrand_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+    return res;
 }
 
 int execute_zscore_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    char *      key = NULL, *member = NULL;
-    size_t      key_len, member_len;
-    const void* glide_client = NULL;
-    double      score;
+    char * key = NULL, *member = NULL;
+    size_t key_len, member_len;
+    double score;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
@@ -151,12 +150,6 @@ int execute_zscore_command(zval* object, int argc, zval* return_value, zend_clas
     /* Get ValkeyGlide object */
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    glide_client = valkey_glide->glide_client;
-
-    /* Check if we have a valid glide client */
-    if (!glide_client) {
-        return 0;
-    }
 
     /* Use framework for command execution */
     z_command_args_t args = {0};
@@ -166,7 +159,13 @@ int execute_zscore_command(zval* object, int argc, zval* return_value, zend_clas
     args.member_len       = member_len;
 
     int result =
-        execute_z_generic_command(glide_client, ZScore, &args, &score, process_z_double_result);
+        execute_z_generic_command(valkey_glide, ZScore, &args, &score, process_z_double_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
 
     if (result == 1) {
         ZVAL_DOUBLE(return_value, score);
@@ -179,11 +178,10 @@ int execute_zscore_command(zval* object, int argc, zval* return_value, zend_clas
 }
 
 int execute_zmscore_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    char*       key = NULL;
-    size_t      key_len;
-    int         member_count = 0;
-    zval*       z_args       = NULL;
-    const void* glide_client = NULL;
+    char*  key = NULL;
+    size_t key_len;
+    int    member_count = 0;
+    zval*  z_args       = NULL;
 
     /* Method signature can be either of the following:
      * - zMscore(string key, string member [, string ...])
@@ -200,12 +198,6 @@ int execute_zmscore_command(zval* object, int argc, zval* return_value, zend_cla
             /* Get ValkeyGlide object */
             valkey_glide_object* valkey_glide =
                 VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-            glide_client = valkey_glide->glide_client;
-
-            /* Check if we have a valid glide client */
-            if (!glide_client) {
-                return 0;
-            }
 
             HashTable* ht_members = Z_ARRVAL_P(z_members);
             member_count          = zend_hash_num_elements(ht_members);
@@ -240,10 +232,15 @@ int execute_zmscore_command(zval* object, int argc, zval* return_value, zend_cla
             } array_data = {return_value, 0}; /* ZMSCORE doesn't use withscores */
 
             int result = execute_z_generic_command(
-                glide_client, ZMScore, &args, &array_data, process_z_array_result);
+                valkey_glide, ZMScore, &args, &array_data, process_z_array_result);
 
             /* Clean up */
             efree(members);
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
 
             if (!result) {
                 zval_dtor(return_value);
@@ -263,12 +260,7 @@ int execute_zmscore_command(zval* object, int argc, zval* return_value, zend_cla
     /* Get ValkeyGlide object */
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    glide_client = valkey_glide->glide_client;
 
-    /* Check if we have a valid glide client */
-    if (!glide_client) {
-        return 0;
-    }
 
     /* Initialize return array */
     array_init(return_value);
@@ -286,7 +278,13 @@ int execute_zmscore_command(zval* object, int argc, zval* return_value, zend_cla
     } array_data = {return_value, 0}; /* ZMSCORE doesn't use withscores */
 
     int result = execute_z_generic_command(
-        glide_client, ZMScore, &args, &array_data, process_z_array_result);
+        valkey_glide, ZMScore, &args, &array_data, process_z_array_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
 
     if (!result) {
         zval_dtor(return_value);
@@ -332,7 +330,13 @@ int execute_zrank_command(zval* object, int argc, zval* return_value, zend_class
     } rank_data = {&rank, NULL, 0};
 
     int result =
-        execute_z_generic_command(glide_client, ZRank, &args, &rank_data, process_z_rank_result);
+        execute_z_generic_command(valkey_glide, ZRank, &args, &rank_data, process_z_rank_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
 
     if (result == 1) {
         ZVAL_LONG(return_value, rank);
@@ -382,7 +386,13 @@ int execute_zrevrank_command(zval* object, int argc, zval* return_value, zend_cl
     } rank_data = {&rank, NULL, 0};
 
     int result =
-        execute_z_generic_command(glide_client, ZRevRank, &args, &rank_data, process_z_rank_result);
+        execute_z_generic_command(valkey_glide, ZRevRank, &args, &rank_data, process_z_rank_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
 
     if (result == 1) {
         ZVAL_LONG(return_value, rank);
@@ -428,7 +438,13 @@ int execute_zincrby_command(zval* object, int argc, zval* return_value, zend_cla
     args.member_len       = member_len;
 
     int result = execute_z_generic_command(
-        glide_client, ZIncrBy, &args, &new_score, process_z_double_result);
+        valkey_glide, ZIncrBy, &args, &new_score, process_z_double_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
 
     if (result) {
         ZVAL_DOUBLE(return_value, new_score);
@@ -472,7 +488,13 @@ int execute_zcount_command(zval* object, int argc, zval* return_value, zend_clas
     args.max_len          = max_len;
 
     int result =
-        execute_z_generic_command(glide_client, ZCount, &args, &count, process_z_int_result);
+        execute_z_generic_command(valkey_glide, ZCount, &args, &count, process_z_int_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
 
     if (result) {
         ZVAL_LONG(return_value, count);
@@ -481,14 +503,14 @@ int execute_zcount_command(zval* object, int argc, zval* return_value, zend_clas
     return result;
 }
 
-int execute_zlexcount_command_internal(const void* glide_client,
-                                       const char* key,
-                                       size_t      key_len,
-                                       const char* min,
-                                       size_t      min_len,
-                                       const char* max,
-                                       size_t      max_len,
-                                       long*       output_value) {
+int execute_zlexcount_command_internal(valkey_glide_object* valkey_glide,
+                                       const char*          key,
+                                       size_t               key_len,
+                                       const char*          min,
+                                       size_t               min_len,
+                                       const char*          max,
+                                       size_t               max_len,
+                                       long*                output_value) {
     z_command_args_t args = {0};
     args.key              = key;
     args.key_len          = key_len;
@@ -498,7 +520,7 @@ int execute_zlexcount_command_internal(const void* glide_client,
     args.max_len          = max_len;
 
     return execute_z_generic_command(
-        glide_client, ZLexCount, &args, output_value, process_z_int_result);
+        valkey_glide, ZLexCount, &args, output_value, process_z_int_result);
 }
 
 int execute_zrem_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
@@ -532,7 +554,13 @@ int execute_zrem_command(zval* object, int argc, zval* return_value, zend_class_
     args.members          = z_args;
     args.member_count     = variadic_argc;
 
-    int result = execute_z_generic_command(glide_client, ZRem, &args, &count, process_z_int_result);
+    int result = execute_z_generic_command(valkey_glide, ZRem, &args, &count, process_z_int_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
 
     if (result) {
         ZVAL_LONG(return_value, count);
@@ -579,7 +607,14 @@ int execute_zremrangebylex_command(zval*             object,
     args.max_len          = max_len;
 
     int result = execute_z_generic_command(
-        glide_client, ZRemRangeByLex, &args, &count, process_z_int_result);
+        valkey_glide, ZRemRangeByLex, &args, &count, process_z_int_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     if (result) {
         ZVAL_LONG(return_value, count);
@@ -622,7 +657,14 @@ int execute_zremrangebyrank_command(zval*             object,
     args.end              = end;
 
     int result = execute_z_generic_command(
-        glide_client, ZRemRangeByRank, &args, &count, process_z_int_result);
+        valkey_glide, ZRemRangeByRank, &args, &count, process_z_int_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     if (result) {
         ZVAL_LONG(return_value, count);
@@ -669,7 +711,14 @@ int execute_zremrangebyscore_command(zval*             object,
     args.max_len          = max_len;
 
     int result = execute_z_generic_command(
-        glide_client, ZRemRangeByScore, &args, &count, process_z_int_result);
+        valkey_glide, ZRemRangeByScore, &args, &count, process_z_int_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     if (result) {
         ZVAL_LONG(return_value, count);
@@ -679,10 +728,9 @@ int execute_zremrangebyscore_command(zval*             object,
 }
 
 int execute_zrange_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    char*       key = NULL;
-    size_t      key_len;
-    zval *      z_start, *z_end, *options = NULL;
-    const void* glide_client = NULL;
+    char*  key = NULL;
+    size_t key_len;
+    zval * z_start, *z_end, *options = NULL;
 
     /* Parse parameters - allow either boolean or array for the optional 4th parameter */
     if (zend_parse_method_parameters(
@@ -694,12 +742,6 @@ int execute_zrange_command(zval* object, int argc, zval* return_value, zend_clas
     /* Get ValkeyGlide object */
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    glide_client = valkey_glide->glide_client;
-
-    /* Check if we have a valid glide client */
-    if (!glide_client) {
-        return 0;
-    }
 
     /* Initialize return array */
     array_init(return_value);
@@ -722,9 +764,14 @@ int execute_zrange_command(zval* object, int argc, zval* return_value, zend_clas
     } array_data = {return_value, range_opts.withscores};
 
     int result =
-        execute_z_generic_command(glide_client, ZRange, &args, &array_data, process_z_array_result);
+        execute_z_generic_command(valkey_glide, ZRange, &args, &array_data, process_z_array_result);
 
     /* If the command failed, clean up the return array */
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
     if (!result) {
         zval_dtor(return_value);
     }
@@ -758,7 +805,14 @@ int execute_zcard_command(zval* object, int argc, zval* return_value, zend_class
     args.key              = key;
     args.key_len          = key_len;
 
-    int result = execute_z_generic_command(glide_client, ZCard, &args, &card, process_z_int_result);
+    int result = execute_z_generic_command(valkey_glide, ZCard, &args, &card, process_z_int_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     if (result) {
         ZVAL_LONG(return_value, card);
@@ -768,15 +822,15 @@ int execute_zcard_command(zval* object, int argc, zval* return_value, zend_class
 }
 
 /* Helper function for ZDIFFSTORE, ZINTERSTORE and ZUNIONSTORE commands */
-int execute_zstore_command(const void*      glide_client,
-                           enum RequestType cmd_type,
-                           const char*      dst,
-                           size_t           dst_len,
-                           zval*            keys,
-                           int              keys_count,
-                           zval*            weights,
-                           zval*            options,
-                           long*            output_value) {
+int execute_zstore_command(valkey_glide_object* valkey_glide,
+                           enum RequestType     cmd_type,
+                           const char*          dst,
+                           size_t               dst_len,
+                           zval*                keys,
+                           int                  keys_count,
+                           zval*                weights,
+                           zval*                options,
+                           long*                output_value) {
     z_command_args_t args = {0};
     args.key              = dst; /* Store commands use destination as key */
     args.key_len          = dst_len;
@@ -786,7 +840,7 @@ int execute_zstore_command(const void*      glide_client,
     args.options          = options;
 
     return execute_z_generic_command(
-        glide_client, cmd_type, &args, output_value, process_z_int_result);
+        valkey_glide, cmd_type, &args, output_value, process_z_int_result);
 }
 
 /* Execute a ZDIFFSTORE command using the Valkey Glide client */
@@ -822,7 +876,7 @@ int execute_zdiffstore_command(zval* object, int argc, zval* return_value, zend_
     }
 
     /* Use framework for command execution */
-    int result = execute_zstore_command(glide_client,
+    int result = execute_zstore_command(valkey_glide,
                                         ZDiffStore,
                                         dst,
                                         dst_len,
@@ -831,6 +885,13 @@ int execute_zdiffstore_command(zval* object, int argc, zval* return_value, zend_
                                         z_weights,
                                         z_options,
                                         &cardinality);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     if (result) {
         ZVAL_LONG(return_value, cardinality);
@@ -894,7 +955,7 @@ int execute_zinterstore_command(zval* object, int argc, zval* return_value, zend
     }
 
     /* Use framework for command execution */
-    int result = execute_zstore_command(glide_client,
+    int result = execute_zstore_command(valkey_glide,
                                         ZInterStore,
                                         dst,
                                         dst_len,
@@ -903,6 +964,12 @@ int execute_zinterstore_command(zval* object, int argc, zval* return_value, zend
                                         z_weights,
                                         z_options,
                                         &cardinality);
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     /* Free the temporary options array if we created one */
     if (free_options) {
@@ -971,7 +1038,7 @@ int execute_zunionstore_command(zval* object, int argc, zval* return_value, zend
     }
 
     /* Use framework for command execution */
-    int result = execute_zstore_command(glide_client,
+    int result = execute_zstore_command(valkey_glide,
                                         ZUnionStore,
                                         dst,
                                         dst_len,
@@ -980,6 +1047,12 @@ int execute_zunionstore_command(zval* object, int argc, zval* return_value, zend
                                         z_weights,
                                         z_options,
                                         &cardinality);
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     /* Free the temporary options array if we created one */
     if (free_options) {
@@ -1041,7 +1114,14 @@ int execute_zrangebyscore_command(zval*             object,
     } array_data = {return_value, range_opts.withscores};
 
     int result = execute_z_generic_command(
-        glide_client, ZRangeByScore, &args, &array_data, process_z_array_result);
+        valkey_glide, ZRangeByScore, &args, &array_data, process_z_array_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     /* If the command failed, clean up the return array */
     if (!result) {
@@ -1099,7 +1179,14 @@ int execute_zrevrangebyscore_command(zval*             object,
     } array_data = {return_value, range_opts.withscores};
 
     int result = execute_z_generic_command(
-        glide_client, ZRevRangeByScore, &args, &array_data, process_z_array_result);
+        valkey_glide, ZRevRangeByScore, &args, &array_data, process_z_array_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     /* If the command failed, clean up the return array */
     if (!result) {
@@ -1193,7 +1280,14 @@ int execute_zrangebylex_command(zval* object, int argc, zval* return_value, zend
     } array_data = {return_value, range_opts.withscores};
 
     int result = execute_z_generic_command(
-        glide_client, ZRangeByLex, &args, &array_data, process_z_array_result);
+        valkey_glide, ZRangeByLex, &args, &array_data, process_z_array_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     /* Free the temporary options array if we created one */
     if (offset >= 0 && count >= 0) {
@@ -1265,7 +1359,14 @@ int execute_zintercard_command(zval* object, int argc, zval* return_value, zend_
     args.options          = z_options;
 
     int result = execute_z_generic_command(
-        glide_client, ZInterCard, &args, return_value, process_z_long_to_zval_result);
+        valkey_glide, ZInterCard, &args, return_value, process_z_long_to_zval_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     /* If we created a temporary options array, free it */
     if (free_options) {
@@ -1319,7 +1420,14 @@ int execute_zunion_command(zval* object, int argc, zval* return_value, zend_clas
     } array_data = {return_value, 0}; /* withscores determined by options */
 
     int result =
-        execute_z_generic_command(glide_client, ZUnion, &args, &array_data, process_z_array_result);
+        execute_z_generic_command(valkey_glide, ZUnion, &args, &array_data, process_z_array_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     if (!result) {
         zval_dtor(return_value);
@@ -1366,7 +1474,14 @@ int execute_zpopmax_command(zval* object, int argc, zval* return_value, zend_cla
     } array_data = {return_value, 0};
 
     int result = execute_z_generic_command(
-        glide_client, ZPopMax, &args, &array_data, process_z_array_result);
+        valkey_glide, ZPopMax, &args, &array_data, process_z_array_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     if (!result) {
         zval_dtor(return_value);
@@ -1413,7 +1528,14 @@ int execute_zpopmin_command(zval* object, int argc, zval* return_value, zend_cla
     } array_data = {return_value, 0};
 
     int result = execute_z_generic_command(
-        glide_client, ZPopMin, &args, &array_data, process_z_array_result);
+        valkey_glide, ZPopMin, &args, &array_data, process_z_array_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     if (!result) {
         zval_dtor(return_value);
@@ -1501,7 +1623,14 @@ int execute_zrangestore_command(zval* object, int argc, zval* return_value, zend
     args.options          = options;
 
     int result = execute_z_generic_command(
-        glide_client, ZRangeStore, &args, &result_count, process_z_int_result);
+        valkey_glide, ZRangeStore, &args, &result_count, process_z_int_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     if (result) {
         ZVAL_LONG(return_value, result_count);
@@ -1512,10 +1641,10 @@ int execute_zrangestore_command(zval* object, int argc, zval* return_value, zend
 
 /* Execute a ZDIFF command using the Valkey Glide client - standardized version */
 /* Execute a ZDIFF command using the Valkey Glide client - internal implementation */
-int execute_zdiff_command_internal(const void* glide_client,
-                                   zval*       keys,
-                                   zval*       options,
-                                   zval*       return_value) {
+int execute_zdiff_command_internal(valkey_glide_object* valkey_glide,
+                                   zval*                keys,
+                                   zval*                options,
+                                   zval*                return_value) {
     z_command_args_t args = {0};
     args.members          = keys; /* Reuse members field for keys */
     args.member_count     = zend_hash_num_elements(Z_ARRVAL_P(keys));
@@ -1527,7 +1656,7 @@ int execute_zdiff_command_internal(const void* glide_client,
     } array_data = {return_value, 0};
 
     return execute_z_generic_command(
-        glide_client, ZDiff, &args, &array_data, process_z_array_result);
+        valkey_glide, ZDiff, &args, &array_data, process_z_array_result);
 }
 
 int execute_zdiff_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
@@ -1554,7 +1683,13 @@ int execute_zdiff_command(zval* object, int argc, zval* return_value, zend_class
     array_init(return_value);
 
     /* Execute the ZDIFF command using the internal function */
-    if (execute_zdiff_command_internal(glide_client, z_keys, z_opts, return_value)) {
+    if (execute_zdiff_command_internal(valkey_glide, z_keys, z_opts, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
         return 1;
     }
 
@@ -1862,7 +1997,14 @@ int execute_zinter_command(zval* object, int argc, zval* return_value, zend_clas
     } array_data = {return_value, 0};
 
     int result =
-        execute_z_generic_command(glide_client, ZInter, &args, &array_data, process_z_array_result);
+        execute_z_generic_command(valkey_glide, ZInter, &args, &array_data, process_z_array_result);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
 
     if (!result) {
         zval_dtor(return_value);
@@ -1996,12 +2138,12 @@ int execute_zadd_command(zval* object, int argc, zval* return_value, zend_class_
 
 /* Execute ZLEXCOUNT command with the standardized parameter format */
 int execute_zlexcount_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    char*       key = NULL;
-    size_t      key_len;
-    char *      min = NULL, *max = NULL;
-    size_t      min_len, max_len;
-    const void* glide_client = NULL;
-    long        count;
+    char*  key = NULL;
+    size_t key_len;
+    char * min = NULL, *max = NULL;
+    size_t min_len, max_len;
+
+    long count;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
@@ -2013,16 +2155,15 @@ int execute_zlexcount_command(zval* object, int argc, zval* return_value, zend_c
     /* Get ValkeyGlide object */
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    glide_client = valkey_glide->glide_client;
-
-    /* Check if we have a valid glide client */
-    if (!glide_client) {
-        return 0;
-    }
 
     /* Execute the ZLEXCOUNT command using the internal function */
     if (execute_zlexcount_command_internal(
-            glide_client, key, key_len, min, min_len, max, max_len, &count)) {
+            valkey_glide, key, key_len, min, min_len, max, max_len, &count)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
         ZVAL_LONG(return_value, count);
         return 1;
     }

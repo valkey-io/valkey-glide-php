@@ -501,7 +501,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
         efree(cmd_infos[i]);
     }
     efree(cmd_infos);
-
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
     /* Process results and clear batch state */
     int status = 0;
     if (result) {
@@ -514,8 +514,11 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
         }
 
         if (result->response) {
+            printf("file = %s, line = %d\n", __FILE__, __LINE__);
             status = command_response_to_zval(
                 result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+            zend_print_zval_r(return_value, 3);
+            printf("file = %s, line = %d\n", __FILE__, __LINE__);
             free_command_result(result);
             clear_batch_state(valkey_glide);
             return status ? 1 : 0;

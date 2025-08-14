@@ -7094,10 +7094,74 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testAsaf()
     {
-        $this->valkey_glide->multi(ValkeyGlide::MULTI)
-            ->zAdd('myset', 1, 'member1')
-            ->zAdd('set2', ['CH'], 3.0, 'c', 4.0, 'd')            
-            ->exec(); // Returns array with results from all Z-commands
+        // sorted sets
+        $ret = $this->valkey_glide->multi(ValkeyGlide::MULTI)
+            ->del('{z}key1', '{z}key2', '{z}key5', '{z}Inter', '{z}Union')
+            ->zadd('{z}key1', 1, 'zValue1')
+            ->zadd('{z}key1', 5, 'zValue5')
+            ->zadd('{z}key1', 2, 'zValue2')
+            ->zRange('{z}key1', 0, -1)
+            ->zRem('{z}key1', 'zValue2')
+            ->zRange('{z}key1', 0, -1)
+            ->zadd('{z}key1', 11, 'zValue11')
+            ->zadd('{z}key1', 12, 'zValue12')
+            ->zadd('{z}key1', 13, 'zValue13')
+            ->zadd('{z}key1', 14, 'zValue14')
+            ->zadd('{z}key1', 15, 'zValue15')
+            ->zRemRangeByScore('{z}key1', 11, 13)
+            ->zrange('{z}key1', 0, -1)
+            ->zRangeByScore('{z}key1', 1, 6)
+            ->zCard('{z}key1')
+            ->zScore('{z}key1', 'zValue15')
+            ->zadd('{z}key2', 5, 'zValue5')
+            ->zadd('{z}key2', 2, 'zValue2')
+            ->zInterStore('{z}Inter', ['{z}key1', '{z}key2'])
+            ->zRange('{z}key1', 0, -1)
+            ->zRange('{z}key2', 0, -1)
+            ->zRange('{z}Inter', 0, -1)
+            ->zUnionStore('{z}Union', ['{z}key1', '{z}key2'])
+            ->zRange('{z}Union', 0, -1)
+            ->zadd('{z}key5', 5, 'zValue5')
+            ->zIncrBy('{z}key5', 3, 'zValue5') // fix this
+            ->zScore('{z}key5', 'zValue5')
+            ->zScore('{z}key5', 'unknown')
+            ->exec();
+
+        $i = 0;
+        $this->assertIsArray($ret);
+        $this->assertBetween($ret[$i++], 0, 5); // we deleted at most 5 values.
+        $this->assertEquals(1, $ret[$i++]);
+        $this->assertEquals(1, $ret[$i++]);
+        $this->assertEquals(1, $ret[$i++]);
+        $this->assertEquals(['zValue1', 'zValue2', 'zValue5'], $ret[$i++]);
+        $this->assertEquals(1, $ret[$i++]);
+        $this->assertEquals(['zValue1', 'zValue5'], $ret[$i++]);
+        $this->assertEquals(1, $ret[$i++]); // adding zValue11
+        $this->assertEquals(1, $ret[$i++]); // adding zValue12
+        $this->assertEquals(1, $ret[$i++]); // adding zValue13
+        $this->assertEquals(1, $ret[$i++]); // adding zValue14
+        $this->assertEquals(1, $ret[$i++]); // adding zValue15
+        $this->assertEquals(3, $ret[$i++]); // deleted zValue11, zValue12, zValue13
+        $this->assertEquals(['zValue1', 'zValue5', 'zValue14', 'zValue15'], $ret[$i++]);
+        $this->assertEquals(['zValue15', 'zValue14', 'zValue5', 'zValue1'], $ret[$i++]);
+        $this->assertEquals(['zValue1', 'zValue5'], $ret[$i++]);
+        $this->assertEquals(4, $ret[$i++]); // 4 elements
+        $this->assertEquals(15.0, $ret[$i++]);
+        $this->assertEquals(1, $ret[$i++]); // added value
+        $this->assertEquals(1, $ret[$i++]); // added value
+        $this->assertEquals(1, $ret[$i++]); // zinter only has 1 value
+        $this->assertEquals(['zValue1', 'zValue5', 'zValue14', 'zValue15'], $ret[$i++]); // {z}key1 contents
+        $this->assertEquals(['zValue2', 'zValue5'], $ret[$i++]); // {z}key2 contents
+        $this->assertEquals(['zValue5'], $ret[$i++]); // {z}inter contents
+        $this->assertEquals(5, $ret[$i++]); // {z}Union has 5 values (1, 2, 5, 14, 15)
+        $this->assertEquals(['zValue1', 'zValue2', 'zValue5', 'zValue14', 'zValue15'], $ret[$i++]); // {z}Union contents
+        $this->assertEquals(1, $ret[$i++]); // added value to {z}key5, with score 5
+        $this->assertEquals(8.0, $ret[$i++]); // incremented score by 3 → it is now 8.
+        $this->assertEquals(8.0, $ret[$i++]); // current score is 8.
+        $this->assertFalse($ret[$i++]); // score for unknown element.
+
+        $this->assertEquals($i, count($ret));
+
     }
 
     public function testFunction()
