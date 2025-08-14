@@ -356,7 +356,8 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
                               enum RequestType     cmd_type,
                               z_command_args_t*    args,
                               void*                result_ptr,
-                              z_result_processor_t process_result) {
+                              z_result_processor_t process_result,
+                              zval*                return_value) {
     /* Check if valkey_glide object is valid */
     if (!valkey_glide) {
         return 0;
@@ -657,7 +658,7 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
     }
 
     /* Process the result */
-    int success = process_result(result, result_ptr);
+    int success = process_result(result, result_ptr, return_value);
 
     /* Free the result */
     free_command_result(result);
@@ -1852,7 +1853,7 @@ int prepare_z_randmember_args(z_command_args_t* args,
 /**
  * Process integer result (for commands returning count)
  */
-int process_z_int_result(CommandResult* result, void* output) {
+int process_z_int_result(CommandResult* result, void* output, zval* return_value) {
     long* output_value = (long*) output;
 
     if (!result || !result->response || !output_value) {
@@ -1861,6 +1862,7 @@ int process_z_int_result(CommandResult* result, void* output) {
 
     if (result->response->response_type == Int) {
         *output_value = result->response->int_value;
+        ZVAL_LONG(return_value, *output_value);
         return 1;
     }
 
@@ -1870,7 +1872,7 @@ int process_z_int_result(CommandResult* result, void* output) {
 /**
  * Process double result (for commands returning scores)
  */
-int process_z_double_result(CommandResult* result, void* output) {
+int process_z_double_result(CommandResult* result, void* output, zval* return_value) {
     double* output_value = (double*) output;
 
     if (!result || !result->response || !output_value) {
@@ -1883,6 +1885,7 @@ int process_z_double_result(CommandResult* result, void* output) {
         *output_value = strtod(result->response->string_value, &endptr);
         if (*endptr == '\0' ||
             endptr == result->response->string_value + result->response->string_value_len) {
+            ZVAL_DOUBLE(return_value, *output_value);
             return 1;
         }
         return 0;
@@ -1890,6 +1893,7 @@ int process_z_double_result(CommandResult* result, void* output) {
 
     if (result->response->response_type == Float) {
         *output_value = result->response->float_value;
+        ZVAL_DOUBLE(return_value, *output_value);
         return 1;
     }
 
@@ -1897,24 +1901,9 @@ int process_z_double_result(CommandResult* result, void* output) {
 }
 
 /**
- * Process null/exists result (for exists-type commands)
- */
-int process_z_exists_result(CommandResult* result, void* output) {
-    if (!result || !result->response) {
-        return -1;
-    }
-
-    if (result->response->response_type == Null) {
-        return 0; /* Member doesn't exist */
-    }
-
-    return 1; /* Member exists */
-}
-
-/**
  * Process rank result with optional score
  */
-int process_z_rank_result(CommandResult* result, void* output) {
+int process_z_rank_result(CommandResult* result, void* output, zval* return_value) {
     struct {
         long*   rank;
         double* score;
@@ -1926,13 +1915,17 @@ int process_z_rank_result(CommandResult* result, void* output) {
     }
 
     if (result->response->response_type == Null) {
+        ZVAL_NULL(return_value); /* Member doesn't exist */
+
         return 0; /* Member doesn't exist */
     }
 
     if (result->response->response_type == Int) {
         *rank_data->rank = result->response->int_value;
+        ZVAL_LONG(return_value, result->response->int_value);
         return 1;
     }
+
 
     if (result->response->response_type == Array && rank_data->withscore && rank_data->score) {
         /* Array with rank and score [rank, score] */
@@ -1950,7 +1943,7 @@ int process_z_rank_result(CommandResult* result, void* output) {
                 } else {
                     *rank_data->score = score_resp->float_value;
                 }
-
+                ZVAL_LONG(return_value, *rank_data->score);
                 return 1;
             }
         }
@@ -1959,36 +1952,35 @@ int process_z_rank_result(CommandResult* result, void* output) {
     return -1;
 }
 
-int process_z_array_zrand_result(CommandResult* result, void* output) {
+int process_z_array_zrand_result(CommandResult* result, void* output, zval* return_value) {
     struct {
-        zval* return_value;
-        int   withscores;
+        int withscores;
     }* array_data = output;
-    if (!result || !result->response || !array_data || !array_data->return_value) {
+    if (!result || !result->response || !array_data || !return_value) {
         return 0;
     }
 
     /* Process the result */
 
     int success = command_response_to_zval(
-        result->response, array_data->return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+        result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
 
-    if (Z_TYPE_P(array_data->return_value) == IS_STRING) {
+    if (Z_TYPE_P(return_value) == IS_STRING) {
         // Save the string temporarily
         zval tmp;
 
-        ZVAL_COPY(&tmp, array_data->return_value);
+        ZVAL_COPY(&tmp, return_value);
 
         // Convert return_value to an array
-        array_init(array_data->return_value);
+        array_init(return_value);
 
         // Add the original string as the first element (index 0)
-        add_next_index_zval(array_data->return_value, &tmp);
+        add_next_index_zval(return_value, &tmp);
     }
 
-    if (array_data->withscores && success && Z_TYPE_P(array_data->return_value) == IS_ARRAY) {
+    if (array_data->withscores && success && Z_TYPE_P(return_value) == IS_ARRAY) {
         /* Use common helper to flatten withscores array */
-        flatten_withscores_array(array_data->return_value);
+        flatten_withscores_array(return_value);
     }
 
     return success;
@@ -1997,19 +1989,18 @@ int process_z_array_zrand_result(CommandResult* result, void* output) {
 /**
  * Process array result (for commands returning arrays)
  */
-int process_z_array_result(CommandResult* result, void* output) {
+int process_z_array_result(CommandResult* result, void* output, zval* return_value) {
     struct {
-        zval* return_value;
-        int   withscores;
+        int withscores;
     }* array_data = output;
 
-    if (!result || !result->response || !array_data || !array_data->return_value) {
+    if (!result || !result->response || !array_data || !return_value) {
         return 0;
     }
 
     /* Process the result */
     int success = command_response_to_zval(
-        result->response, array_data->return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, true);
+        result->response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, true);
 
     return success;
 }
@@ -2017,25 +2008,18 @@ int process_z_array_result(CommandResult* result, void* output) {
 /**
  * Process integer result and set as ZVAL_LONG (for commands like ZINTERCARD)
  */
-int process_z_long_to_zval_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-
+int process_z_long_to_zval_result(CommandResult* result, void* output, zval* return_value) {
     if (!result || !result->response || !return_value) {
         return 0;
     }
-
-    if (result->response->response_type == Int) {
-        ZVAL_LONG(return_value, result->response->int_value);
-        return 1;
-    }
-
-    return 0;
+    return command_response_to_zval(
+        result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
 }
 
 /**
  * Process ZADD result with dual return types (long for count, double for INCR)
  */
-int process_z_zadd_result(CommandResult* result, void* output) {
+int process_z_zadd_result(CommandResult* result, void* output, zval* return_value) {
     struct {
         long*   output_value;
         double* output_value_double;
@@ -2045,26 +2029,6 @@ int process_z_zadd_result(CommandResult* result, void* output) {
     if (!result || !result->response || !zadd_data) {
         return 0;
     }
-
-    if (zadd_data->is_incr) {
-        if (result->response->response_type == Float) {
-            *zadd_data->output_value_double = result->response->float_value;
-            return 2;
-        } else if (result->response->response_type == String) {
-            char* str_end;
-            if (result->response->string_value && result->response->string_value_len > 0) {
-                *zadd_data->output_value_double = strtod(result->response->string_value, &str_end);
-                return 2;
-            }
-        } else if (result->response->response_type == Null) {
-            return 0;
-        }
-    } else {
-        if (result->response->response_type == Int) {
-            *zadd_data->output_value = result->response->int_value;
-            return 1;
-        }
-    }
-
-    return 0;
+    return command_response_to_zval(
+        result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
 }

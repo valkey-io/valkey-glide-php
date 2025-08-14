@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "common.h"
 #include "include/glide_bindings.h"
 #include "php.h"
 #include "zend.h"
@@ -31,7 +32,8 @@ enum CommandResponseToZvalFlags {
         2,  // Use associative array format for stream entries
     COMMAND_RESPONSE_SCAN_ASSOSIATIVE_ARRAY = 3,
     COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP_FUNCTION =
-        4  // Use associative array format for FUNCTION command responses
+        4,  // Use associative array format for FUNCTION command responses
+    COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_BATCH = 5
 };
 /*
  * Execute a command and handle common error checking

@@ -554,14 +554,13 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
                         CommandResult temp_result = {0};
                         temp_result.command_error = NULL;
 
-                        /* Create a temporary CommandResponse from the zval */
-                        CommandResponse temp_response = {0};
-                        temp_result.response          = &temp_response;
 
                         zval* return_value_temp;
                         /* Call the specific command's process_result function */
                         int process_status = valkey_glide->buffered_commands[idx].process_result(
-                            &temp_result, valkey_glide->buffered_commands[idx].result_ptr);
+                            &temp_result,
+                            valkey_glide->buffered_commands[idx].result_ptr,
+                            return_value_temp);
 
                         if (process_status) {
                             /* Add the processed result to return array */
