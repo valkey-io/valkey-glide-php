@@ -1,6 +1,6 @@
 <?php
 
-define('VALKEY_GLIDE_PHP_TESTRUN', true);
+defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
 /*
 * --------------------------------------------------------------------
 *                   The PHP License, version 3.01
@@ -73,118 +73,45 @@ define('VALKEY_GLIDE_PHP_TESTRUN', true);
 */
 
 require_once __DIR__ . "/TestSuite.php";
-require_once __DIR__ . "/ConnectionRequestTest.php";
-require_once __DIR__ . "/ValkeyGlideBaseTest.php";
-require_once __DIR__ . "/ValkeyGlideClusterBaseTest.php";
-require_once __DIR__ . "/ValkeyGlideTest.php";
-require_once __DIR__ . "/ValkeyGlideClusterTest.php";
-require_once __DIR__ . "/ValkeyGlideFeaturesTest.php";
-require_once __DIR__ . "/ValkeyGlideClusterFeaturesTest.php";
-echo "Loading ValkeyGlide tests...\n";
-function getClassArray($classes)
+require_once __DIR__ . "/../vendor/autoload.php";
+require_once __DIR__ . "/Connection_request/AuthenticationInfo.php";
+require_once __DIR__ . "/Connection_request/ConnectionRequest.php";
+require_once __DIR__ . "/Connection_request/ConnectionRetryStrategy.php";
+require_once __DIR__ . "/Connection_request/NodeAddress.php";
+require_once __DIR__ . "/Connection_request/PeriodicChecksDisabled.php";
+require_once __DIR__ . "/Connection_request/PeriodicChecksManualInterval.php";
+require_once __DIR__ . "/Connection_request/ProtocolVersion.php";
+require_once __DIR__ . "/Connection_request/PubSubChannelsOrPatterns.php";
+require_once __DIR__ . "/Connection_request/PubSubChannelType.php";
+require_once __DIR__ . "/Connection_request/PubSubSubscriptions.php";
+require_once __DIR__ . "/Connection_request/ReadFrom.php";
+require_once __DIR__ . "/Connection_request/TlsMode.php";
+require_once __DIR__ . "/GPBMetadata/ConnectionRequest.php";
+
+/**
+ * ValkeyGlide Base Test Class
+ * Abstract base class providing infrastructure methods for ValkeyGlide tests
+ * Contains no actual test methods - only setup and helper functionality
+ */
+class ConnectionRequestTest extends \TestSuite
 {
-    $result = [];
-
-    if (! is_array($classes)) {
-        $classes = [$classes];
+    /** Internal helper function to call from C to deserialize the message to a ConnectionRequest object */
+    public static function deserialize($data) : \Connection_request\ConnectionRequest {
+        $connection_request = new \Connection_request\ConnectionRequest();
+        $connection_request->mergeFromString($data);
+        return $connection_request;
     }
 
-    foreach ($classes as $class) {
-        $result = array_merge($result, explode(',', $class));
+    public function setUp() {
+        // No-op.
     }
 
-    return array_unique(
-        array_map(function ($v) {
-            return strtolower($v);
-        },
-            $result)
-    );
-}
-
-function getTestClass($class)
-{
-    $valid_classes = [
-        'connectionrequest' => 'ConnectionRequestTest',
-        'valkeyglide'         => 'ValkeyGlideTest',
-        'valkeyglidecluster'  => 'ValkeyGlideClusterTest',
-        'valkeyglideclientfeatures' => 'ValkeyGlideFeaturesTest',
-        'valkeyglideclusterfeatures' => 'ValkeyGlideClusterFeaturesTest'
-    ];
-
-    /* Return early if the class is one of our built-in ones */
-    if (isset($valid_classes[$class])) {
-        return $valid_classes[$class];
-    }
-
-    /* Try to load it */
-    return TestSuite::loadTestClass($class);
-}
-
-function raHosts($host, $ports)
-{
-    if (! is_array($ports)) {
-        $ports = [6379, 6380, 6381, 6382];
-    }
-
-    return array_map(function ($port) use ($host) {
-        return sprintf("%s:%d", $host, $port);
-    }, $ports);
-}
-echo "Running ValkeyGlide tests...\n";
-/* Make sure errors go to stdout and are shown */
-error_reporting(E_ALL);
-ini_set('display_errors', '1');
-
-/* Grab options */
-$opt = getopt('', ['host:', 'port:', 'class:', 'test:', 'nocolors', 'user:', 'auth:', 'tls']);
-
-/* The test class(es) we want to run */
-$classes = getClassArray($opt['class'] ?? 'valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,valkeyglideclusterfeatures');
-
-$colorize = !isset($opt['nocolors']);
-
-/* Get our test filter if provided one */
-$filter = $opt['test'] ?? null;
-
-/* Grab override host/port if it was passed */
-$host = $opt['host'] ?? '127.0.0.1';
-$port = $opt['port'] ?? 6379;
-
-/* Get optional username and auth (password) */
-$user = $opt['user'] ?? null;
-$auth = $opt['auth'] ?? null;
-
-/* Check if TLS should be enabled. */
-$tls = isset($opt['tls']);
-if (isset($opt['tls'])) {
-    echo TestSuite::makeBold("Assuming TLS connection for client constructor feature tests.\n");
-}
-
-if ($user && $auth) {
-    $auth = [$user, $auth];
-} elseif ($user && ! $auth) {
-    echo TestSuite::makeWarning("User passed without a password!\n");
-}
-
-/* Toggle colorization in our TestSuite class */
-TestSuite::flagColorization($colorize);
-
-/* Let the user know this can take a bit of time */
-echo "Note: these tests might take up to a minute. Don't worry :-)\n";
-echo "Using PHP version " . PHP_VERSION . " (" . (PHP_INT_SIZE * 8) . " bits)\n";
-
-foreach ($classes as $class) {
-    $class = getTestClass($class);
-
-    /* Depending on the classes being tested, run our tests on it */
-    echo "Testing class ";
-
-    echo TestSuite::makeBold($class) . "\n";
-
-    if (TestSuite::run("$class", $filter, $host, $port, $auth, $tls)) {
-        exit(1);
+    public function testStandaloneBasicConstructor() {
+        $request = ClientConstructorMock::simulate_standalone_constructor([['host' => 'localhost', 'port' => 8080]]);
+        $addresses = $request->getAddresses();
+        $this->assertEquals(1, count($addresses));
+        $address = $addresses[0];
+        $this->assertEquals('localhost', $address->getHost());
+        $this->assertEquals(8080, $address->getPort());
     }
 }
-
-/* Success */
-exit(0);

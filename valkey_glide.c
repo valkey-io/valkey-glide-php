@@ -32,6 +32,8 @@ extern int  parse_valkey_glide_client_configuration(zval*                       
                                                     valkey_glide_client_configuration_t* config);
 extern void free_valkey_glide_client_configuration(valkey_glide_client_configuration_t* config);
 
+void register_mock_constructor_class(void);
+
 zend_class_entry* valkey_glide_ce;
 zend_class_entry* valkey_glide_exception_ce;
 
@@ -342,6 +344,10 @@ PHP_MINIT_FUNCTION(valkey_glide) {
 
     /* Register ClusterScanCursor class */
     register_cluster_scan_cursor_class();
+
+    /* Register mock constructor class used for testing only. */
+    // TODO   Move test mock classes and code to a separate module.
+    register_mock_constructor_class();
 
     /* ValkeyGlideException class */
     // TODO   valkey_glide_exception_ce =

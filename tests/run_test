@@ -6,3 +6,5 @@ php TestValkeyGlide.php --class valkeyglidecluster
 # Run TLS-specific tests
 echo "Running TLS standalone tests"
 php TestValkeyGlide.php --class valkeyglideclientfeatures --tls --port 6400
+
+php TestValkeyGlide.php --class connectionrequest

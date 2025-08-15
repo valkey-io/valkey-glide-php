@@ -81,6 +81,7 @@ src/**
 include/**
 lib/**
 .libs/**
+tests/.libs/**
 *.dep
 *.lo
 valkey_glide.la
@@ -111,4 +112,6 @@ config.h.in~
 configure~
 tests/Connection_request/**
 tests/GPBMetadata/**
+tests/client_constructor_mock_arginfo.h
+tests/client_constructor_mock_legacy_arginfo.h
 vendor/**

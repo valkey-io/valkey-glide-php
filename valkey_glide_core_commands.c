@@ -37,33 +37,34 @@ extern zend_class_entry* get_valkey_glide_exception_ce();
 extern char* long_to_string(long value, size_t* len);
 extern char* double_to_string(double value, size_t* len);
 
-/* Create a connection request in protobuf format */
-static uint8_t* create_connection_request(const char*                               host,
-                                          int                                       port,
-                                          size_t*                                   len,
-                                          valkey_glide_base_client_configuration_t* config,
-                                          int                                       database_id,
-                                          valkey_glide_periodic_checks_status_t     periodic_checks,
-                                          bool                                      is_cluster) {
+/* Create a connection request in protobuf format. Made visible for testing. */
+uint8_t* create_connection_request(const char*                               host,
+                                   int                                       port,
+                                   size_t*                                   len,
+                                   valkey_glide_base_client_configuration_t* config,
+                                   int                                       database_id,
+                                   valkey_glide_periodic_checks_status_t     periodic_checks,
+                                   bool                                      is_cluster) {
     /* Create a connection request */
     ConnectionRequest__ConnectionRequest conn_req = CONNECTION_REQUEST__CONNECTION_REQUEST__INIT;
 
     /* Set up the node address */
-    ConnectionRequest__NodeAddress default_addr = CONNECTION_REQUEST__NODE_ADDRESS__INIT;
-    default_addr.host                           = (char*) host;
-    default_addr.port                           = port;
+    ConnectionRequest__NodeAddress default_addr          = CONNECTION_REQUEST__NODE_ADDRESS__INIT;
+    default_addr.host                                    = (char*) host;
+    default_addr.port                                    = port;
     ConnectionRequest__NodeAddress* default_addr_list[1] = {&default_addr};
 
-    bool request_contains_addresses = config->addresses && config->addresses_count > 0;
-    size_t addresses_count = request_contains_addresses ? config->addresses_count : 0;
-    ConnectionRequest__NodeAddress request_addresses[addresses_count]; // Using a VLA to avoid memory management.
+    bool   request_contains_addresses = config->addresses && config->addresses_count > 0;
+    size_t addresses_count            = request_contains_addresses ? config->addresses_count : 0;
+    ConnectionRequest__NodeAddress
+        request_addresses[addresses_count];  // Using a VLA to avoid memory management.
     ConnectionRequest__NodeAddress* request_addresses_list[addresses_count];
     for (size_t i = 0; i < addresses_count; ++i) {
-        // Initialize a temporary NodeAddress then copy it to request_addresses. This is not strictly necessary
-        // since we set all fields anyway, but follows the best practice of using protobuf initializers on new
-        // messages.
+        // Initialize a temporary NodeAddress then copy it to request_addresses. This is not
+        // strictly necessary since we set all fields anyway, but follows the best practice of using
+        // protobuf initializers on new messages.
         ConnectionRequest__NodeAddress temp_address = CONNECTION_REQUEST__NODE_ADDRESS__INIT;
-        request_addresses[i] = temp_address;
+        request_addresses[i]                        = temp_address;
 
         request_addresses[i].host = (char*) config->addresses[i].host;
         request_addresses[i].port = config->addresses[i].port;
@@ -74,14 +75,14 @@ static uint8_t* create_connection_request(const char*                           
     node_addr.host                           = (char*) host;
     node_addr.port                           = port;
 
-    /* Add the node address to the connection request. Use the default endpoint if the constructor call did not
-       supply any endpoints. */
+    /* Add the node address to the connection request. Use the default endpoint if the constructor
+       call did not supply any endpoints. */
     if (request_contains_addresses) {
         conn_req.n_addresses = addresses_count;
-        conn_req.addresses = request_addresses_list;
+        conn_req.addresses   = request_addresses_list;
     } else {
-        conn_req.n_addresses                         = 1;
-        conn_req.addresses                           = default_addr_list;
+        conn_req.n_addresses = 1;
+        conn_req.addresses   = default_addr_list;
     }
 
     /* Set up authentication if provided */
@@ -161,8 +162,8 @@ static const ConnectionResponse* create_base_glide_client(
     bool                                      is_cluster) {
     /* Create a connection request using first address or default */
     size_t      len;
-    const char* default_host     = "localhost";
-    int         default_port     = 6379;
+    const char* default_host = "localhost";
+    int         default_port = 6379;
 
     uint8_t* request_bytes = create_connection_request(
         default_host, default_port, &len, config, database_id, periodic_checks, is_cluster);
