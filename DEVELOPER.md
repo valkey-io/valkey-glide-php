@@ -55,7 +55,7 @@ Continue with **Install protobuf compiler** and **Install `ziglang` and `zigbuil
 
 ```bash
 sudo yum update -y
-sudo yum install -y php-devel php-cli git gcc make autoconf automake libtool pkgconfig openssl openssl-devel unzip
+sudo yum install -y php-devel php-cli git gcc make autoconf automake libtool pkgconfig openssl openssl-devel unzip php-bcmath
 # Install rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
@@ -190,6 +190,8 @@ Before starting this step, make sure you've installed all software requirements.
 To run unit tests, use:
 
 ```bash
+protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/ ./valkey-glide/glide-core/src/protobuf/connection_request.proto
+composer install --no-interaction --prefer-dist --optimize-autoloader
 make install
 cd tests
 ./start_valkey_with_replicas.sh 

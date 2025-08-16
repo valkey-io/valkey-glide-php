@@ -27,7 +27,7 @@
 #include "zend_attributes.h"
 #endif
 
-/*f
+/*
  * PHP Methods
  */
 

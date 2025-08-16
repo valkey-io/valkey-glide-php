@@ -68,13 +68,14 @@ Before installing Valkey GLIDE PHP extension, ensure you have the following depe
 - protoc (protobuf compiler) >= v3.20.0
 - openssl and openssl-dev
 - rustup (Rust toolchain)
+- php-bcmath (Protobuf PHP dependency, needed only for testing)
 
 ### Installing Dependencies
 
 **Ubuntu/Debian:**
 ```bash
 sudo apt update -y
-sudo apt install -y php-dev php-cli git gcc make autotools-dev pkg-config openssl libssl-dev unzip
+sudo apt install -y php-dev php-cli git gcc make autotools-dev pkg-config openssl libssl-dev unzip php-bcmath
 # Install rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
@@ -83,7 +84,7 @@ source "$HOME/.cargo/env"
 **CentOS/RHEL:**
 ```bash
 sudo yum update -y
-sudo yum install -y php-devel php-cli git gcc make pkgconfig openssl openssl-devel unzip
+sudo yum install -y php-devel php-cli git gcc make pkgconfig openssl openssl-devel unzip php-bcmath
 # Install rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
@@ -150,8 +151,18 @@ protoc --version
     ```ini
     extension=valkey_glide
     ```
+   
+6. Generate PHP protobuf classes used for testing purposes:
+   ```bash
+   protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/ ./valkey-glide/glide-core/src/protobuf/connection_request.proto
+   ```
 
-6. Execute the tests:
+7. Install PHP dependencies with composer:
+   ```bash
+   composer install --no-interaction --prefer-dist --optimize-autoloader
+   ```
+
+8. Execute the tests:
     ```
     make test
     ```

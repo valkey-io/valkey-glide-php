@@ -32,6 +32,8 @@ extern int  parse_valkey_glide_client_configuration(zval*                       
                                                     valkey_glide_client_configuration_t* config);
 extern void free_valkey_glide_client_configuration(valkey_glide_client_configuration_t* config);
 
+void register_mock_constructor_class(void);
+
 zend_class_entry* valkey_glide_ce;
 zend_class_entry* valkey_glide_exception_ce;
 
@@ -241,26 +243,21 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         if (retries_val && Z_TYPE_P(retries_val) == IS_LONG) {
             config->reconnect_strategy->num_of_retries = Z_LVAL_P(retries_val);
         } else {
-            config->reconnect_strategy->num_of_retries = 3; /* Default */
+            config->reconnect_strategy->num_of_retries = 5; /* Default */
         }
 
         /* Check for factor */
         zval* factor_val = zend_hash_str_find(reconnect_ht, "factor", 6);
-        if (factor_val && (Z_TYPE_P(factor_val) == IS_DOUBLE || Z_TYPE_P(factor_val) == IS_LONG)) {
-            config->reconnect_strategy->factor = Z_TYPE_P(factor_val) == IS_DOUBLE
-                                                     ? Z_DVAL_P(factor_val)
-                                                     : (double) Z_LVAL_P(factor_val);
+        if (factor_val && Z_TYPE_P(factor_val) == IS_LONG) {
+            config->reconnect_strategy->factor = Z_LVAL_P(factor_val);
         } else {
-            config->reconnect_strategy->factor = 2.0; /* Default */
+            config->reconnect_strategy->factor = 100; /* Default */
         }
 
         /* Check for exponent_base */
         zval* exponent_val = zend_hash_str_find(reconnect_ht, "exponent_base", 13);
-        if (exponent_val &&
-            (Z_TYPE_P(exponent_val) == IS_DOUBLE || Z_TYPE_P(exponent_val) == IS_LONG)) {
-            config->reconnect_strategy->exponent_base = Z_TYPE_P(exponent_val) == IS_DOUBLE
-                                                            ? Z_DVAL_P(exponent_val)
-                                                            : (double) Z_LVAL_P(exponent_val);
+        if (exponent_val && Z_TYPE_P(exponent_val) == IS_LONG) {
+            config->reconnect_strategy->exponent_base = Z_LVAL_P(exponent_val);
         } else {
             config->reconnect_strategy->exponent_base = 2; /* Default */
         }
@@ -270,7 +267,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         if (jitter_val && Z_TYPE_P(jitter_val) == IS_LONG) {
             config->reconnect_strategy->jitter_percent = Z_LVAL_P(jitter_val);
         } else {
-            config->reconnect_strategy->jitter_percent = -1; /* Not set */
+            config->reconnect_strategy->jitter_percent = 20; /* Not set */
         }
     } else {
         config->reconnect_strategy = NULL;
@@ -289,7 +286,8 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         if (conn_timeout_val && Z_TYPE_P(conn_timeout_val) == IS_LONG) {
             config->advanced_config->connection_timeout = Z_LVAL_P(conn_timeout_val);
         } else {
-            config->advanced_config->connection_timeout = -1; /* Not set */
+            config->advanced_config->connection_timeout =
+                250; /* Default 250ms from standalone_client.rs */
         }
 
         /* Check for TLS config */
@@ -342,6 +340,10 @@ PHP_MINIT_FUNCTION(valkey_glide) {
 
     /* Register ClusterScanCursor class */
     register_cluster_scan_cursor_class();
+
+    /* Register mock constructor class used for testing only. */
+    // TODO   Move test mock classes and code to a separate module.
+    register_mock_constructor_class();
 
     /* ValkeyGlideException class */
     // TODO   valkey_glide_exception_ce =

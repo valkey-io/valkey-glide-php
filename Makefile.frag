@@ -74,13 +74,17 @@ cluster_scan_cursor_arginfo.h: cluster_scan_cursor.stub.php
 	@echo "Generating arginfo from cluster_scan_cursor.stub.php"
 	$(PHP_EXECUTABLE) build/gen_stub.php --no-legacy-arginfo cluster_scan_cursor.stub.php
 
-ARGINFO_HEADERS = valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h cluster_scan_cursor_arginfo.h logger_arginfo.h
+tests/client_constructor_mock_arginfo.h: tests/client_constructor_mock.stub.php
+	@echo "Generating arginfo from tests/client_constructor_mock_arginfo.stub.php"
+	$(PHP_EXECUTABLE) build/gen_stub.php --no-legacy-arginfo tests/client_constructor_mock.stub.php
+
+ARGINFO_HEADERS = valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h cluster_scan_cursor_arginfo.h logger_arginfo.h tests/client_constructor_mock_arginfo.h
 
 all: $(ARGINFO_HEADERS)
 
 .PHONY: build-modules-pre
 
-build-modules-pre: valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h cluster_scan_cursor_arginfo.h logger_arginfo.h
+build-modules-pre: valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h cluster_scan_cursor_arginfo.h logger_arginfo.h tests/client_constructor_mock_arginfo.h
 	@$(MAKE) generate-proto
 	@$(MAKE) generate-bindings
 

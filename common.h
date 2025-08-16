@@ -68,10 +68,11 @@ typedef struct {
 } valkey_glide_server_credentials_t;
 
 typedef struct {
-    int num_of_retries;
-    int factor;
-    int exponent_base;
-    int jitter_percent; /* -1 if not set */
+    /* Defaults taken from retry_strategies.rs */
+    int num_of_retries; /* 5 if not set */
+    int factor;         /* 100 if not set */
+    int exponent_base;  /* 2 if not set */
+    int jitter_percent; /* 20 if not set */
 } valkey_glide_backoff_strategy_t;
 
 typedef struct {
@@ -79,8 +80,8 @@ typedef struct {
 } valkey_glide_tls_advanced_configuration_t;
 
 typedef struct {
-    int                                        connection_timeout; /* -1 if not set */
-    valkey_glide_tls_advanced_configuration_t* tls_config;         /* NULL if not set */
+    int connection_timeout;                                /* In milliseconds. Default 250ms */
+    valkey_glide_tls_advanced_configuration_t* tls_config; /* NULL if not set */
 } valkey_glide_advanced_base_client_configuration_t;
 
 typedef struct {

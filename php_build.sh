@@ -7,6 +7,8 @@ cd valkey-glide/ffi
 cargo build --release
 cd ../../
 
+protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/generated ./valkey-glide/glide-core/src/protobuf/connection_request.proto
+
 phpize
 ./configure --enable-valkey-glide
 make -j4 build-modules-pre

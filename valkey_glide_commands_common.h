@@ -63,6 +63,16 @@ const ConnectionResponse* create_glide_client(valkey_glide_client_configuration_
 const ConnectionResponse* create_glide_cluster_client(
     valkey_glide_cluster_client_configuration_t* config);
 
+/* Return the protobuf message representing the connection request. Caller must free the result with
+ * efree() */
+uint8_t* create_connection_request(const char*                               host,
+                                   int                                       port,
+                                   size_t*                                   len,
+                                   valkey_glide_base_client_configuration_t* config,
+                                   int                                       database_id,
+                                   valkey_glide_periodic_checks_status_t     periodic_checks,
+                                   bool                                      is_cluster);
+
 /* Bit operations - UNIFIED SIGNATURES */
 int execute_bitcount_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_bitop_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
