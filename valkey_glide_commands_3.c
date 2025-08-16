@@ -516,7 +516,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
             ZVAL_FALSE(return_value);
             return 0;
         }
-
+        status = 1; /* Assume success unless we find issues */
         if (result->response) {
             printf("file = %s, line = %d\n", __FILE__, __LINE__);
             printf("file = %s, line = %d, response type = %d\n",
@@ -527,7 +527,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
                    __FILE__,
                    __LINE__,
                    result->response->array_value_len);
-
+            array_init(return_value);
             for (int64_t idx = 0; idx < result->response->array_value_len; idx++) {
                 zval value;
                 int  process_status = valkey_glide->buffered_commands[idx].process_result(
@@ -535,7 +535,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
                     valkey_glide->buffered_commands[idx].result_ptr,
                     &value);
 
-
+                printf("process_status = %d, idx = %ld\n", process_status, idx);
                 if (process_status) {
                     /* Add the processed result to return array */
                     php_var_dump(&value, 2);
@@ -557,6 +557,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
             }
         } else {
             /* Failed to get responses array, return false */
+            printf("file = %s, line = %d, no response array found\n", __FILE__, __LINE__);
             ZVAL_FALSE(return_value);
             status = 0;
         }

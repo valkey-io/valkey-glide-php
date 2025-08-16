@@ -7099,6 +7099,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $ret = $this->valkey_glide->multi(ValkeyGlide::MULTI)
             
             ->zadd('{z}key1', 1, 'zValue1')
+           
             ->zadd('{z}key1', 5, 'zValue5')
             ->zadd('{z}key1', 2, 'zValue2')
             ->zRange('{z}key1', 0, -1)
@@ -7112,7 +7113,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             ->zRemRangeByScore('{z}key1', 11, 13)
             ->zrange('{z}key1', 0, -1)
             ->zRangeByScore('{z}key1', 1, 6)
-            /*
+             /*
             ->zCard('{z}key1')
             ->zScore('{z}key1', 'zValue15')
             ->zadd('{z}key2', 5, 'zValue5')
@@ -7131,6 +7132,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         $i = 0;
         $this->assertIsArray($ret);
+        var_dump($ret);
+      
         $this->assertEquals(1, $ret[$i++]);
         $this->assertEquals(1, $ret[$i++]);
         $this->assertEquals(1, $ret[$i++]);
