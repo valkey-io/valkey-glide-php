@@ -80,8 +80,8 @@ typedef struct {
 } valkey_glide_tls_advanced_configuration_t;
 
 typedef struct {
-    int                                        connection_timeout; /* In milliseconds. Default 250ms */
-    valkey_glide_tls_advanced_configuration_t* tls_config;         /* NULL if not set */
+    int connection_timeout;                                /* In milliseconds. Default 250ms */
+    valkey_glide_tls_advanced_configuration_t* tls_config; /* NULL if not set */
 } valkey_glide_advanced_base_client_configuration_t;
 
 typedef struct {
