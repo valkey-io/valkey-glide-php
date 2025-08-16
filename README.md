@@ -68,6 +68,7 @@ Before installing Valkey GLIDE PHP extension, ensure you have the following depe
 - protoc (protobuf compiler) >= v3.20.0
 - openssl and openssl-dev
 - rustup (Rust toolchain)
+- bcmath (Protobuf PHP dependency, needed only for testing)
 
 ### Installing Dependencies
 
@@ -83,7 +84,7 @@ source "$HOME/.cargo/env"
 **CentOS/RHEL:**
 ```bash
 sudo yum update -y
-sudo yum install -y php-devel php-cli git gcc make pkgconfig openssl openssl-devel unzip
+sudo yum install -y php-devel php-cli git gcc make pkgconfig openssl openssl-devel unzip php-bcmath
 # Install rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
