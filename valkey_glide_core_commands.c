@@ -153,6 +153,11 @@ uint8_t* create_connection_request(const char*                               hos
     /* Set client name */
     conn_req.client_name = config->client_name ? config->client_name : "valkey-glide-php";
 
+    /* Set client AZ */
+    if (config->client_az) {
+        conn_req.client_az = config->client_az;
+    }
+
     /* Calculate the size of the serialized message */
     *len = connection_request__connection_request__get_packed_size(&conn_req);
 
