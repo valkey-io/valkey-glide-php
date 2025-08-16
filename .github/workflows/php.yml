@@ -131,6 +131,15 @@ jobs:
             ${{ matrix.host.TARGET }}-glide-core
             ${{ matrix.host.TARGET }}
 
+      - name: Build PHP wrapper
+        uses: ./.github/workflows/build-php-wrapper
+        with:
+          os: ${{ matrix.host.OS }}
+          target: ${{ matrix.host.TARGET }}
+          php-version: ${{ matrix.php }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: ${{ matrix.engine.version }}
+
       - name: Generate test protobuf PHP classes
         run: |
           protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/ ./valkey-glide/glide-core/src/protobuf/connection_request.proto
@@ -145,15 +154,6 @@ jobs:
           ls -la composer.lock || echo "Warning: composer.lock not found"
           echo "Current directory contents:"
           ls -la
-
-      - name: Build PHP wrapper
-        uses: ./.github/workflows/build-php-wrapper
-        with:
-          os: ${{ matrix.host.OS }}
-          target: ${{ matrix.host.TARGET }}
-          php-version: ${{ matrix.php }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          engine-version: ${{ matrix.engine.version }}
 
       - name: Start Valkey servers
         working-directory: tests
