@@ -133,8 +133,16 @@ uint8_t* create_connection_request(const char*                               hos
     /* Set the periodic checks for cluster clients. */
     ConnectionRequest__PeriodicChecksDisabled periodic_check_disabled_info =
         CONNECTION_REQUEST__PERIODIC_CHECKS_DISABLED__INIT;
+    ConnectionRequest__PeriodicChecksManualInterval periodic_checks_manual_interval_info =
+        CONNECTION_REQUEST__PERIODIC_CHECKS_MANUAL_INTERVAL__INIT;
     if (is_cluster && periodic_checks == VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED) {
         conn_req.periodic_checks_disabled = &periodic_check_disabled_info;
+        conn_req.periodic_checks_case =
+            CONNECTION_REQUEST__CONNECTION_REQUEST__PERIODIC_CHECKS_PERIODIC_CHECKS_DISABLED;
+    } else {
+        conn_req.periodic_checks_manual_interval = &periodic_checks_manual_interval_info;
+        conn_req.periodic_checks_case =
+            CONNECTION_REQUEST__CONNECTION_REQUEST__PERIODIC_CHECKS_PERIODIC_CHECKS_MANUAL_INTERVAL;
     }
 
     conn_req.protocol = CONNECTION_REQUEST__PROTOCOL_VERSION__RESP3;
