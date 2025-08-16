@@ -27,8 +27,8 @@
     "autoload-dev": {
         "psr-4": {
             "ValkeyGlide\\Tests\\": "tests/",
-            "ValkeyGlide\\Tests\\GeneratedMetadata": "tests/GPBMetadata",
-            "ValkeyGlide\\Tests\\ConnectionRequest": "tests/Connection_request"
+            "ValkeyGlide\\Tests\\GeneratedMetadata\\": "tests/GPBMetadata",
+            "ValkeyGlide\\Tests\\ConnectionRequest\\": "tests/Connection_request"
         }
     },
     "scripts": {
