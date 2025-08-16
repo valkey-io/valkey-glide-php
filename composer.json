@@ -24,13 +24,6 @@
             "ValkeyGlide\\": "src/"
         }
     },
-    "autoload-dev": {
-        "psr-4": {
-            "ValkeyGlide\\Tests\\": "tests/",
-            "ValkeyGlide\\Tests\\GeneratedMetadata\\": "tests/GPBMetadata",
-            "ValkeyGlide\\Tests\\ConnectionRequest\\": "tests/Connection_request"
-        }
-    },
     "scripts": {
         "lint": [
             "phpcs --standard=phpcs.xml"
