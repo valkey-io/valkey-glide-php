@@ -286,7 +286,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         if (conn_timeout_val && Z_TYPE_P(conn_timeout_val) == IS_LONG) {
             config->advanced_config->connection_timeout = Z_LVAL_P(conn_timeout_val);
         } else {
-            config->advanced_config->connection_timeout = -1; /* Not set */
+            config->advanced_config->connection_timeout = 250; /* Default 250ms from standalone_client.rs */
         }
 
         /* Check for TLS config */

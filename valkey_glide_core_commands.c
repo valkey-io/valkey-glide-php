@@ -107,6 +107,10 @@ uint8_t* create_connection_request(const char*                               hos
     conn_req.request_timeout =
         config->request_timeout > 0 ? config->request_timeout : 5000; /* Default 5 seconds */
 
+    if (config->advanced_config) {
+        conn_req.connection_timeout = config->advanced_config->connection_timeout;
+    }
+
     conn_req.lazy_connect = config->lazy_connect;
     /* Map read_from configuration */
     if (config->read_from == VALKEY_GLIDE_READ_FROM_PREFER_REPLICA) {
