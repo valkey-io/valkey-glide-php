@@ -139,7 +139,7 @@ ini_set('display_errors', '1');
 $opt = getopt('', ['host:', 'port:', 'class:', 'test:', 'nocolors', 'user:', 'auth:', 'tls']);
 
 /* The test class(es) we want to run */
-$classes = getClassArray($opt['class'] ?? 'valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,valkeyglideclusterfeatures');
+$classes = getClassArray($opt['class'] ?? 'connectionrequest,valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,valkeyglideclusterfeatures');
 
 $colorize = !isset($opt['nocolors']);
 
