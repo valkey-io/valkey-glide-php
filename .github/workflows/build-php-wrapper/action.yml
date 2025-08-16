@@ -42,6 +42,7 @@ runs:
             build-essential \
             autoconf \
             automake \
+            bcmath \
             libtool \
             pkg-config \
             libssl-dev \
