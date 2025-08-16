@@ -792,7 +792,7 @@ class ValkeyGlide
      *
      * @see https://valkey.io/commands/fcall
      */
-    /* TODO public function fcall(string $fn, array $keys = [], array $args = []): mixed; */
+    public function fcall(string $fn, array $keys = [], array $args = []): mixed; 
 
     /**
      * This is a read-only variant of the FCALL command that cannot execute commands that modify data.
@@ -806,7 +806,7 @@ class ValkeyGlide
      *
      * @see https://valkey.io/commands/fcall_ro
      */
-   /* TODO  public function fcall_ro(string $fn, array $keys = [], array $args = []): mixed; */
+    public function fcall_ro(string $fn, array $keys = [], array $args = []): mixed; 
 
     /**
      * Deletes every key in all ValkeyGlide databases
@@ -846,7 +846,7 @@ class ValkeyGlide
      *
      * @see https://valkey.io/commands/function
      */
-    /* TODO public function function(string $operation, mixed ...$args): ValkeyGlide|bool|string|array; */
+    public function function(string $operation, mixed ...$args): ValkeyGlide|bool|string|array;
 
     /**
      * Add one or more members to a geospacial sorted set
