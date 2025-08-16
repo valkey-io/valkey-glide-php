@@ -150,8 +150,18 @@ protoc --version
     ```ini
     extension=valkey_glide
     ```
+   
+6. Generate PHP protobuf classes used for testing purposes:
+   ```bash
+   protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/ ./valkey-glide/glide-core/src/protobuf/connection_request.proto
+   ```
 
-6. Execute the tests:
+7. Install PHP dependencies with composer:
+   ```bash
+   composer install --no-interaction --prefer-dist --optimize-autoloader
+   ```
+
+8. Execute the tests:
     ```
     make test
     ```

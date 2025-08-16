@@ -190,6 +190,8 @@ Before starting this step, make sure you've installed all software requirements.
 To run unit tests, use:
 
 ```bash
+protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/ ./valkey-glide/glide-core/src/protobuf/connection_request.proto
+composer install --no-interaction --prefer-dist --optimize-autoloader
 make install
 cd tests
 ./start_valkey_with_replicas.sh 
