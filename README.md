@@ -69,14 +69,13 @@ Before installing Valkey GLIDE PHP extension, ensure you have the following depe
 - openssl and openssl-dev
 - rustup (Rust toolchain)
 - php-bcmath (Protobuf PHP dependency, needed only for testing)
-- php-ctype (Protobuf PHP dependency, needed only for testing)
 
 ### Installing Dependencies
 
 **Ubuntu/Debian:**
 ```bash
 sudo apt update -y
-sudo apt install -y php-dev php-cli git gcc make autotools-dev pkg-config openssl libssl-dev unzip
+sudo apt install -y php-dev php-cli git gcc make autotools-dev pkg-config openssl libssl-dev unzip php-bcmath
 # Install rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
@@ -85,7 +84,7 @@ source "$HOME/.cargo/env"
 **CentOS/RHEL:**
 ```bash
 sudo yum update -y
-sudo yum install -y php-devel php-cli git gcc make pkgconfig openssl openssl-devel unzip php-bcmath php-ctype
+sudo yum install -y php-devel php-cli git gcc make pkgconfig openssl openssl-devel unzip php-bcmath
 # Install rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"

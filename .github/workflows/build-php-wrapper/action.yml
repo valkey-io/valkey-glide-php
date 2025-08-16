@@ -46,7 +46,6 @@ runs:
             pkg-config \
             libssl-dev \
             php-bcmath \
-            php$PHP_VER-ctype \
             unzip \
             clang-format \
             cppcheck \
