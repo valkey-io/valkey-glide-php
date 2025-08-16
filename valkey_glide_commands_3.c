@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "command_response.h"
+#include "ext/standard/php_var.h"
 #include "include/glide_bindings.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
@@ -518,108 +519,53 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
 
         if (result->response) {
             printf("file = %s, line = %d\n", __FILE__, __LINE__);
+            printf("file = %s, line = %d, response type = %d\n",
+                   __FILE__,
+                   __LINE__,
+                   result->response->response_type);
+            printf("file = %s, line = %d, response array length = %ld\n",
+                   __FILE__,
+                   __LINE__,
+                   result->response->array_value_len);
 
-            /* First, get the raw array of responses from the batch result */
-            zval raw_responses;
-            ZVAL_UNDEF(&raw_responses);
-            status = command_response_to_zval(
-                result->response, &raw_responses, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-
-            if (status && Z_TYPE(raw_responses) == IS_ARRAY) {
-                /* Initialize return array */
-                array_init(return_value);
-
-                /* Get the hash table from the raw responses array */
-                HashTable* response_ht    = Z_ARRVAL(raw_responses);
-                uint32_t   response_count = zend_hash_num_elements(response_ht);
-
-                printf("file = %s, line = %d, processing %d batch responses\n",
-                       __FILE__,
-                       __LINE__,
-                       response_count);
-
-                /* Process each response through its corresponding process_result function */
-                size_t   i;
-                zval*    response_item;
-                uint32_t idx = 0;
-                ZEND_HASH_FOREACH_VAL(response_ht, response_item) {
-                    if (idx < valkey_glide->command_count &&
-                        valkey_glide->buffered_commands[idx].process_result) {
-                        printf("file = %s, line = %d, processing command %zu with process_result\n",
-                               __FILE__,
-                               __LINE__,
-                               idx);
-
-                        /* Create a temporary CommandResult structure for this response */
-                        CommandResult temp_result = {0};
-                        temp_result.command_error = NULL;
+            for (int64_t idx = 0; idx < result->response->array_value_len; idx++) {
+                zval value;
+                int  process_status = valkey_glide->buffered_commands[idx].process_result(
+                    &result->response->array_value[idx],
+                    valkey_glide->buffered_commands[idx].result_ptr,
+                    &value);
 
 
-                        zval* return_value_temp;
-                        /* Call the specific command's process_result function */
-                        int process_status = valkey_glide->buffered_commands[idx].process_result(
-                            &temp_result,
-                            valkey_glide->buffered_commands[idx].result_ptr,
-                            return_value_temp);
+                if (process_status) {
+                    /* Add the processed result to return array */
+                    php_var_dump(&value, 2);
+                    add_next_index_zval(return_value, &value);
+                    printf("file = %s, line = %d, successfully processed command %zu\n",
+                           __FILE__,
+                           __LINE__,
+                           idx);
+                } else {
+                    /* Process_result failed, use raw response */
 
-                        if (process_status) {
-                            /* Add the processed result to return array */
-                            add_next_index_zval(return_value, return_value_temp);
-                            printf("file = %s, line = %d, successfully processed command %zu\n",
-                                   __FILE__,
-                                   __LINE__,
-                                   idx);
-                        } else {
-                            /* Process_result failed, use raw response */
-                            zval raw_copy;
-                            ZVAL_COPY(&raw_copy, response_item);
-                            add_next_index_zval(return_value, &raw_copy);
-                            printf(
-                                "file = %s, line = %d, process_result failed for command %zu, "
-                                "using raw response\n",
-                                __FILE__,
-                                __LINE__,
-                                idx);
-                        }
-
-                    } else {
-                        /* If no process_result function, just copy the raw response */
-                        zval raw_copy;
-                        ZVAL_COPY(&raw_copy, response_item);
-                        add_next_index_zval(return_value, &raw_copy);
-
-                        printf(
-                            "file = %s, line = %d, copied raw response for command %zu (no "
-                            "process_result)\n",
-                            __FILE__,
-                            __LINE__,
-                            idx);
-                    }
-                    idx++;
+                    printf(
+                        "file = %s, line = %d, process_result failed for command %zu, "
+                        "using raw response\n",
+                        __FILE__,
+                        __LINE__,
+                        idx);
                 }
-                ZEND_HASH_FOREACH_END();
-
-                status = 1;
-            } else {
-                /* Failed to get responses array, return false */
-                ZVAL_FALSE(return_value);
-                status = 0;
             }
-
-            /* Clean up the raw responses */
-            zval_dtor(&raw_responses);
-
-            printf("file = %s, line = %d\n", __FILE__, __LINE__);
-            free_command_result(result);
-            clear_batch_state(valkey_glide);
-            return status;
+        } else {
+            /* Failed to get responses array, return false */
+            ZVAL_FALSE(return_value);
+            status = 0;
         }
-        free_command_result(result);
     }
 
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
+    free_command_result(result);
     clear_batch_state(valkey_glide);
-    ZVAL_FALSE(return_value);
-    return 0;
+    return status;
 }
 
 /* Internal function to execute FCALL/FCALL_RO commands using the Valkey Glide client */
@@ -1548,7 +1494,8 @@ int execute_client_command_internal(
         }
 
         if (result->response) {
-            /* Special handling for CLIENT LIST - convert string to array of associative arrays */
+            /* Special handling for CLIENT LIST - convert string to array of associative arrays
+             */
             if (command_type == ClientList && result->response->response_type == String) {
                 status = parse_client_list_response(result->response->string_value,
                                                     result->response->string_value_len,

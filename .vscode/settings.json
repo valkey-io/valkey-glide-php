@@ -98,7 +98,8 @@
         "charconv": "c",
         "array": "c",
         "functional": "c",
-        "utility": "c"
+        "utility": "c",
+        "valkey_glide_commands_common.h": "c"
     },
     "php.validate.enable": true,
     "php.validate.executablePath": "/usr/bin/php",

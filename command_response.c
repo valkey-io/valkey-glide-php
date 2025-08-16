@@ -673,17 +673,7 @@ int command_response_to_zval(CommandResponse* response,
                     zval_dtor(&value);
                 }
                 // php_var_dump(output, 2);
-            } else if (use_associative_array == COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_BATCH) {
-                for (int64_t i = 0; i < response->array_value_len; i++) {
-                    zval value;
-#if 0
-                    int  process_status = valkey_glide->buffered_commands[i].process_result(
-                        &response->array_value[i],
-                        valkey_glide->buffered_commands[i].result_ptr,
-                        &value);
-#endif
-                    add_next_index_zval(output, &value);
-                }
+
             } else {
                 for (int64_t i = 0; i < response->array_value_len; i++) {
                     zval value;

@@ -148,31 +148,31 @@ int process_z_batch_results(valkey_glide_object* valkey_glide,
 /**
  * Process integer result (for commands returning count)
  */
-int process_z_int_result(CommandResult* result, void* output, zval* return_value);
+int process_z_int_result(CommandResponse* response, void* output, zval* return_value);
 
 /**
  * Process double result (for commands returning scores)
  */
-int process_z_double_result(CommandResult* result, void* output, zval* return_value);
+int process_z_double_result(CommandResponse* response, void* output, zval* return_value);
 
 /**
  * Process array result (for commands returning arrays)
  */
-int process_z_array_result(CommandResult* result, void* output, zval* return_value);
+int process_z_array_result(CommandResponse* response, void* output, zval* return_value);
 
-int process_z_array_zrand_result(CommandResult* result, void* output, zval* return_value);
+int process_z_array_zrand_result(CommandResponse* response, void* output, zval* return_value);
 
-int process_z_long_to_zval_result(CommandResult* result, void* output, zval* return_value);
+int process_z_long_to_zval_result(CommandResponse* response, void* output, zval* return_value);
 
 /**
  * Process ZADD result with dual return types (long for count, double for INCR)
  */
-int process_z_zadd_result(CommandResult* result, void* output, zval* return_value);
+int process_z_zadd_result(CommandResponse* response, void* output, zval* return_value);
 
 /**
  * Process rank result with optional score
  */
-int process_z_rank_result(CommandResult* result, void* output, zval* return_value);
+int process_z_rank_result(CommandResponse* response, void* output, zval* return_value);
 
 /* ====================================================================
  * ARGUMENT PREPARATION UTILITIES
