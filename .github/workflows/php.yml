@@ -131,6 +131,14 @@ jobs:
             ${{ matrix.host.TARGET }}-glide-core
             ${{ matrix.host.TARGET }}
 
+      - name: Install PHP dependencies
+        run: |
+          composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+          echo "Composer install completed. Checking for composer.lock:"
+          ls -la composer.lock || echo "Warning: composer.lock not found"
+          echo "Current directory contents:"
+          ls -la
+
       - name: Build PHP wrapper
         uses: ./.github/workflows/build-php-wrapper
         with:
