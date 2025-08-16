@@ -135,6 +135,17 @@ uint8_t* create_connection_request(const char*                               hos
 
     conn_req.protocol = CONNECTION_REQUEST__PROTOCOL_VERSION__RESP3;
 
+    /* Set the reconnect strategy */
+    ConnectionRequest__ConnectionRetryStrategy retry_strategy =
+        CONNECTION_REQUEST__CONNECTION_RETRY_STRATEGY__INIT;
+    if (config->reconnect_strategy) {
+        conn_req.connection_retry_strategy = &retry_strategy;
+        retry_strategy.number_of_retries   = config->reconnect_strategy->num_of_retries;
+        retry_strategy.factor              = config->reconnect_strategy->factor;
+        retry_strategy.exponent_base       = config->reconnect_strategy->exponent_base;
+        retry_strategy.jitter_percent      = config->reconnect_strategy->jitter_percent;
+    }
+
     /* Set client name */
     conn_req.client_name = config->client_name ? config->client_name : "valkey-glide-php";
 
