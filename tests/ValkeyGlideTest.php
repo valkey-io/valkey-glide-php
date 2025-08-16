@@ -7098,8 +7098,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // sorted sets
         $ret = $this->valkey_glide->multi(ValkeyGlide::MULTI)
             
-            ->zadd('{z}key1', 1, 'zValue1')
-           
+            ->zadd('{z}key1', 1, 'zValue1')           
             ->zadd('{z}key1', 5, 'zValue5')
             ->zadd('{z}key1', 2, 'zValue2')
             ->zRange('{z}key1', 0, -1)
@@ -7111,10 +7110,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             ->zadd('{z}key1', 14, 'zValue14')
             ->zadd('{z}key1', 15, 'zValue15')
             ->zRemRangeByScore('{z}key1', 11, 13)
-            ->zrange('{z}key1', 0, -1)
+            ->zrange('{z}key1', 0, -1)            
             ->zRangeByScore('{z}key1', 1, 6)
-             /*
-            ->zCard('{z}key1')
+            ->zCard('{z}key1')           
             ->zScore('{z}key1', 'zValue15')
             ->zadd('{z}key2', 5, 'zValue5')
             ->zadd('{z}key2', 2, 'zValue2')
@@ -7127,13 +7125,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             ->zadd('{z}key5', 5, 'zValue5')
             ->zIncrBy('{z}key5', 3, 'zValue5') // fix this
             ->zScore('{z}key5', 'zValue5')
-            ->zScore('{z}key5', 'unknown')*/
+            ->zScore('{z}key5', 'unknown')
             ->exec();
 
         $i = 0;
-        $this->assertIsArray($ret);
-        var_dump($ret);
-      
+        $this->assertIsArray($ret);        
         $this->assertEquals(1, $ret[$i++]);
         $this->assertEquals(1, $ret[$i++]);
         $this->assertEquals(1, $ret[$i++]);
@@ -7146,11 +7142,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $ret[$i++]); // adding zValue14
         $this->assertEquals(1, $ret[$i++]); // adding zValue15  ->zadd('{z}key1', 15, 'zValue15')
         $this->assertEquals(3, $ret[$i++]); // deleted zValue11, zValue12, zValue13
-        $this->assertEquals(['zValue1', 'zValue5', 'zValue14', 'zValue15'], $ret[$i++]);        
-        $this->assertEquals(['zValue15', 'zValue14', 'zValue5', 'zValue1'], $ret[$i++]);
-        return;
-        $this->assertEquals(['zValue1', 'zValue5'], $ret[$i++]);
-        $this->assertEquals(4, $ret[$i++]); // 4 elements
+        $this->assertEquals(['zValue1', 'zValue5', 'zValue14', 'zValue15'], $ret[$i++]);                        
+        $this->assertEquals(['zValue1', 'zValue5'], $ret[$i++]);        
+        $this->assertEquals(4, $ret[$i++]); // 4 elements        
         $this->assertEquals(15.0, $ret[$i++]);
         $this->assertEquals(1, $ret[$i++]); // added value
         $this->assertEquals(1, $ret[$i++]); // added value
