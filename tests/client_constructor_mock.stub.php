@@ -83,17 +83,20 @@ class ClientConstructorMock
     /**
      * Mock creation of a standalone connection request instance with the provided configuration.
      *
-     * @param array $addresses                   Array of server addresses [['host' => 'localhost', 'port' => 6379], ...]
-     * @param bool $use_tls                      Whether to use TLS encryption
-     * @param array|null $credentials            Authentication credentials ['password' => 'xxx', 'username' => 'yyy']
-     * @param int $read_from                     Read strategy for the client (Not yet supported.)
-     * @param int|null $request_timeout          Request timeout in milliseconds
-     * @param array|null $reconnect_strategy     Reconnection strategy ['num_of_retries' => 3, 'factor' => 2, ...] (Not yet supported.)
+     * @param array $addresses                   Array of server addresses [['host' => 'localhost', 'port' => 6379], ...].
+     * @param bool $use_tls                      Whether to use TLS encryption.
+     * @param array|null $credentials            Authentication credentials ['password' => 'xxx', 'username' => 'yyy'].
+     * @param int $read_from                     Read strategy for the client.
+     * @param int|null $request_timeout          Request timeout in milliseconds.
+     * @param array|null $reconnect_strategy     Reconnection strategy ['num_of_retries' => 3, 'factor' => 2,
+     *                                           'exponent_base' => 10, 'jitter_percent' => 15].
      * @param int|null $database_id              Database ID to select (0-15)
-     * @param string|null $client_name           Client name identifier
-     * @param string|null $client_az             Client availability zone (Not yet supported.)
-     * @param array|null $advanced_config        Advanced configuration ['connection_timeout' => 5000, 'tls_config' => [...]]
-     * @param bool|null $lazy_connect            Whether to use lazy connection
+     * @param string|null $client_name           Client name identifier.
+     * @param string|null $client_az             Client availability zone.
+     * @param array|null $advanced_config        Advanced configuration ['connection_timeout' => 5000,
+     *                                           'tls_config' => ['use_insecure_tls' => false]].
+     *                                           connection_timeout is in milliseconds.
+     * @param bool|null $lazy_connect            Whether to use lazy connection.
      */
     public static function simulate_standalone_constructor(
         array $addresses,
@@ -112,17 +115,20 @@ class ClientConstructorMock
     /**
      * Mock creation of a cluster connection request instance with the provided configuration.
      *
-     * @param array $addresses                        Array of server addresses [['host' => '127.0.0.1', 'port' => 7001], ...]
-     * @param bool $use_tls                           Whether to use TLS encryption
-     * @param array|null $credentials                 Authentication credentials ['password' => 'xxx', 'username' => 'yyy']
-     * @param int $read_from                          Read strategy for the client
-     * @param int|null $request_timeout               Request timeout in milliseconds (Not yet supported.)
-     * @param array|null $reconnect_strategy          Reconnection strategy ['num_of_retries' => 3, 'factor' => 2, ...] (Not yet supported.)
-     * @param string|null $client_name                Client name identifier
-     * @param int|null $periodic_checks               Periodic checks configuration (Not yet supported.)
-     * @param string|null $client_az                  Client availability zone (Not yet supported.)
-     * @param array|null $advanced_config             Advanced configuration ['connection_timeout' => 5000, 'tls_config' => [...]]
-     * @param bool|null $lazy_connect                 Whether to use lazy connection
+     * @param array $addresses                        Array of server addresses [['host' => '127.0.0.1', 'port' => 7001], ...].
+     * @param bool $use_tls                           Whether to use TLS encryption.
+     * @param array|null $credentials                 Authentication credentials ['password' => 'xxx', 'username' => 'yyy'].
+     * @param int $read_from                          Read strategy for the client.
+     * @param int|null $request_timeout               Request timeout in milliseconds.
+     * @param array|null $reconnect_strategy          Reconnection strategy ['num_of_retries' => 3, 'factor' => 2,
+     *                                                'exponent_base' => 10, 'jitter_percent' => 15].
+     * @param string|null $client_name                Client name identifier.
+     * @param int|null $periodic_checks               Periodic checks configuration.
+     * @param string|null $client_az                  Client availability zone.
+     * @param array|null $advanced_config             Advanced configuration ['connection_timeout' => 5000,
+     *                                                'tls_config' => ['use_insecure_tls' => false]].
+     *                                                connection_timeout is in milliseconds.
+     * @param bool|null $lazy_connect                 Whether to use lazy connection.
      */
     public static function simulate_cluster_constructor(
         array $addresses,
