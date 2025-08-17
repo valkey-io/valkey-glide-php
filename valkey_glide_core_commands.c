@@ -57,7 +57,7 @@ uint8_t* create_connection_request(const char*                               hos
     bool   request_contains_addresses = config->addresses && config->addresses_count > 0;
     size_t addresses_count            = request_contains_addresses ? config->addresses_count : 0;
     ConnectionRequest__NodeAddress
-        request_addresses[addresses_count];  // Using a VLA to avoid memory management.
+        request_addresses[addresses_count];  // Using a variable-length array to avoid memory management.
     ConnectionRequest__NodeAddress* request_addresses_list[addresses_count];
     for (size_t i = 0; i < addresses_count; ++i) {
         // Initialize a temporary NodeAddress then copy it to request_addresses. This is not
