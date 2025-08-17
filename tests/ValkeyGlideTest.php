@@ -3537,11 +3537,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $this->valkey_glide->hLen('h'));
         $this->assertEquals(1, $this->valkey_glide->hSet('h', 'b', 'b-value'));
         $this->assertEquals(2, $this->valkey_glide->hLen('h'));
-
+        
         $this->assertEquals('a-value', $this->valkey_glide->hGet('h', 'a'));  // simple get
         $this->assertEquals('b-value', $this->valkey_glide->hGet('h', 'b'));  // simple get
 
         $this->assertEquals(0, $this->valkey_glide->hSet('h', 'a', 'another-value')); // replacement
+        
         $this->assertEquals('another-value', $this->valkey_glide->hGet('h', 'a'));    // get the new value
 
         $this->assertEquals('b-value', $this->valkey_glide->hGet('h', 'b'));  // simple get
@@ -3549,7 +3550,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->hGet('h', 'c'));  // unknown hash member
 
         $this->assertFalse($this->valkey_glide->hGet('key', 'c'));    // unknownkey
-
         // hDel
         $this->assertEquals(1, $this->valkey_glide->hDel('h', 'a')); // 1 on success
 

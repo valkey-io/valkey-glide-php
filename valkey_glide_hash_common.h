@@ -313,20 +313,20 @@ int execute_h_incrby_command(const void* glide_client,
                              long        increment,
                              long*       output_value);
 
-int execute_h_incrbyfloat_command(const void* glide_client,
-                                  const char* key,
-                                  size_t      key_len,
-                                  char*       field,
-                                  size_t      field_len,
-                                  double      increment,
-                                  zval*       return_value);
+int execute_h_incrbyfloat_command(valkey_glide_object* valkey_glide,
+                                  const char*          key,
+                                  size_t               key_len,
+                                  char*                field,
+                                  size_t               field_len,
+                                  double               increment,
+                                  zval*                return_value);
 
-int execute_h_mget_command(const void* glide_client,
-                           const char* key,
-                           size_t      key_len,
-                           zval*       fields,
-                           int         fields_count,
-                           zval*       return_value);
+int execute_h_mget_command(valkey_glide_object* valkey_glide,
+                           const char*          key,
+                           size_t               key_len,
+                           zval*                fields,
+                           int                  fields_count,
+                           zval*                return_value);
 
 int execute_h_keys_command(const void* glide_client,
                            const char* key,
@@ -338,10 +338,10 @@ int execute_h_vals_command(const void* glide_client,
                            size_t      key_len,
                            zval*       return_value);
 
-int execute_h_getall_command(const void* glide_client,
-                             const char* key,
-                             size_t      key_len,
-                             zval*       return_value);
+int execute_h_getall_command(valkey_glide_object* valkey_glide,
+                             const char*          key,
+                             size_t               key_len,
+                             zval*                return_value);
 
 int execute_h_strlen_command(const void* glide_client,
                              const char* key,
@@ -350,12 +350,12 @@ int execute_h_strlen_command(const void* glide_client,
                              size_t      field_len,
                              long*       output_value);
 
-int execute_h_randfield_command(const void* glide_client,
-                                const char* key,
-                                size_t      key_len,
-                                long        count,
-                                int         withvalues,
-                                zval*       return_value);
+int execute_h_randfield_command(valkey_glide_object* valkey_glide,
+                                const char*          key,
+                                size_t               key_len,
+                                long                 count,
+                                int                  withvalues,
+                                zval*                return_value);
 
 /* ====================================================================
  * HASH COMMAND MACROS

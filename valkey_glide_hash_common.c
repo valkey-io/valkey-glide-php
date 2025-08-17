@@ -953,7 +953,8 @@ int process_h_mget_result(CommandResponse* response, void* output, zval* return_
     if (!response) {
         return 0;
     }
-
+    /* Initialize return array */
+    array_init(return_value);
 
     /* Process the result - map back to original field names */
     int ret_val = 0;
@@ -1125,7 +1126,8 @@ int process_h_getall_result(CommandResponse* response, void* output, zval* retur
     if (!response) {
         return 0;
     }
-
+    /* Initialize return array */
+    array_init(return_value);
     /* Convert response to associative array */
     return command_response_to_zval(
         response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
@@ -1499,15 +1501,15 @@ int execute_h_incrby_command(const void* glide_client,
 /**
  * Execute HINCRBYFLOAT command using the framework
  */
-int execute_h_incrbyfloat_command(const void* glide_client,
-                                  const char* key,
-                                  size_t      key_len,
-                                  char*       field,
-                                  size_t      field_len,
-                                  double      increment,
-                                  zval*       return_value) {
+int execute_h_incrbyfloat_command(valkey_glide_object* valkey_glide,
+                                  const char*          key,
+                                  size_t               key_len,
+                                  char*                field,
+                                  size_t               field_len,
+                                  double               increment,
+                                  zval*                return_value) {
     h_command_args_t args = {0};
-    args.glide_client     = glide_client;
+    args.glide_client     = valkey_glide->glide_client;
     args.key              = key;
     args.key_len          = key_len;
     args.field            = field;
@@ -1515,27 +1517,28 @@ int execute_h_incrbyfloat_command(const void* glide_client,
     args.float_incr       = increment;
 
     return execute_h_generic_command(
-        NULL, HIncrByFloat, &args, NULL, process_h_incrbyfloat_result, return_value);
+        valkey_glide, HIncrByFloat, &args, NULL, process_h_incrbyfloat_result, return_value);
 }
 
 /**
  * Execute HMGET command using the framework
  */
-int execute_h_mget_command(const void* glide_client,
-                           const char* key,
-                           size_t      key_len,
-                           zval*       fields,
-                           int         fields_count,
-                           zval*       return_value) {
+int execute_h_mget_command(valkey_glide_object* valkey_glide,
+                           const char*          key,
+                           size_t               key_len,
+                           zval*                fields,
+                           int                  fields_count,
+                           zval*                return_value) {
     h_command_args_t args = {0};
-    args.glide_client     = glide_client;
+    args.glide_client     = valkey_glide->glide_client;
     args.key              = key;
     args.key_len          = key_len;
     args.fields           = fields;
     args.field_count      = fields_count;
 
     void* output[2] = {&args, return_value};
-    return execute_h_generic_command(NULL, HMGet, &args, output, process_h_mget_result, NULL);
+    return execute_h_generic_command(
+        valkey_glide, HMGet, &args, output, process_h_mget_result, return_value);
 }
 
 /**
@@ -1573,17 +1576,17 @@ int execute_h_vals_command(const void* glide_client,
 /**
  * Execute HGETALL command using the framework
  */
-int execute_h_getall_command(const void* glide_client,
-                             const char* key,
-                             size_t      key_len,
-                             zval*       return_value) {
+int execute_h_getall_command(valkey_glide_object* valkey_glide,
+                             const char*          key,
+                             size_t               key_len,
+                             zval*                return_value) {
     h_command_args_t args = {0};
-    args.glide_client     = glide_client;
+    args.glide_client     = valkey_glide->glide_client;
     args.key              = key;
     args.key_len          = key_len;
 
     return execute_h_generic_command(
-        NULL, HGetAll, &args, return_value, process_h_getall_result, return_value);
+        valkey_glide, HGetAll, &args, return_value, process_h_getall_result, return_value);
 }
 
 /**
@@ -1609,14 +1612,14 @@ int execute_h_strlen_command(const void* glide_client,
 /**
  * Execute HRANDFIELD command using the framework
  */
-int execute_h_randfield_command(const void* glide_client,
-                                const char* key,
-                                size_t      key_len,
-                                long        count,
-                                int         withvalues,
-                                zval*       return_value) {
+int execute_h_randfield_command(valkey_glide_object* valkey_glide,
+                                const char*          key,
+                                size_t               key_len,
+                                long                 count,
+                                int                  withvalues,
+                                zval*                return_value) {
     h_command_args_t args = {0};
-    args.glide_client     = glide_client;
+    args.glide_client     = valkey_glide->glide_client;
     args.key              = key;
     args.key_len          = key_len;
     args.count            = count;
@@ -1624,7 +1627,7 @@ int execute_h_randfield_command(const void* glide_client,
 
     void* output[2] = {&args, return_value};
     return execute_h_generic_command(
-        NULL, HRandField, &args, output, process_h_randfield_result, return_value);
+        valkey_glide, HRandField, &args, output, process_h_randfield_result, return_value);
 }
 
 /* ====================================================================
@@ -1965,7 +1968,7 @@ int execute_hincrbyfloat_command(zval* object, int argc, zval* return_value, zen
 
     /* Execute the HINCRBYFLOAT command */
     if (execute_h_incrbyfloat_command(
-            valkey_glide->glide_client, key, key_len, field, field_len, increment, return_value)) {
+            valkey_glide, key, key_len, field, field_len, increment, return_value)) {
         return 1;
     }
 
@@ -2045,12 +2048,8 @@ int execute_hmget_command(zval* object, int argc, zval* return_value, zend_class
     }
     ZEND_HASH_FOREACH_END();
 
-    /* Initialize return array */
-    array_init(return_value);
-
     /* Execute the HMGET command */
-    int result = execute_h_mget_command(
-        valkey_glide->glide_client, key, key_len, field_array, i, return_value);
+    int result = execute_h_mget_command(valkey_glide, key, key_len, field_array, i, return_value);
 
     /* Free field array */
     for (int j = 0; j < i; j++) {
@@ -2132,11 +2131,8 @@ int execute_hgetall_command(zval* object, int argc, zval* return_value, zend_cla
         return 0;
     }
 
-    /* Initialize return array */
-    array_init(return_value);
-
     /* Execute the HGETALL command */
-    return execute_h_getall_command(valkey_glide->glide_client, key, key_len, return_value);
+    return execute_h_getall_command(valkey_glide, key, key_len, return_value);
 }
 
 /**
@@ -2212,8 +2208,7 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
     array_init(return_value);
 
     /* Execute the HRANDFIELD command */
-    if (execute_h_randfield_command(
-            valkey_glide->glide_client, key, key_len, count, withvalues, return_value)) {
+    if (execute_h_randfield_command(valkey_glide, key, key_len, count, withvalues, return_value)) {
         /* If count is 1 and not withvalues, return single value */
         if (count == 1 && !withvalues && zend_hash_num_elements(Z_ARRVAL_P(return_value)) == 1) {
             zval *z_ele, z_copy;
