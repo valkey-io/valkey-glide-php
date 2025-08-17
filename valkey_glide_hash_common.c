@@ -2048,8 +2048,18 @@ int execute_hmget_command(zval* object, int argc, zval* return_value, zend_class
     }
     ZEND_HASH_FOREACH_END();
 
+    /* Initialize return array */
+    array_init(return_value);
+
     /* Execute the HMGET command */
     int result = execute_h_mget_command(valkey_glide, key, key_len, field_array, i, return_value);
+
+    /* Handle batch mode */
+    if (result && valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        zval_dtor(return_value); /* Clean up the array we initialized */
+        ZVAL_COPY(return_value, object);
+    }
 
     /* Free field array */
     for (int j = 0; j < i; j++) {
