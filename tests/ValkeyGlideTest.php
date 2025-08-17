@@ -3526,8 +3526,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHashes()
     {
-
-
         $this->valkey_glide->del('h', 'key');
 
         $this->assertEquals(0, $this->valkey_glide->hLen('h'));
@@ -7159,6 +7157,48 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(8.0, $ret[$i++]); // current score is 8.
         $this->assertFalse($ret[$i++]); // score for unknown element.
 
+        $this->assertEquals($i, count($ret));
+
+        
+        // hash
+        $this->valkey_glide->del('hkey1');
+        $ret = $this->valkey_glide->multi(ValkeyGlide::MULTI)            
+            ->hset('hkey1', 'key1', 'value1')
+            ->hset('hkey1', 'key2', 'value2')
+            ->hset('hkey1', 'key3', 'value3')
+            /*
+            ->hmget('hkey1', ['key1', 'key2', 'key3'])
+            ->hget('hkey1', 'key1')
+            ->hlen('hkey1')
+            ->hdel('hkey1', 'key2')
+            ->hdel('hkey1', 'key2')
+            ->hexists('hkey1', 'key2')
+            ->hkeys('hkey1')
+            ->hvals('hkey1')
+            ->hgetall('hkey1')
+            ->hset('hkey1', 'valn', 1)
+            ->hset('hkey1', 'val-fail', 'non-string')
+            ->hget('hkey1', 'val-fail')*/
+            ->exec();
+
+        $i = 0;
+        $this->assertIsArray($ret);        
+        $this->assertEquals(1, $ret[$i++]); // added 1 element
+        $this->assertEquals(1, $ret[$i++]); // added 1 element
+        $this->assertEquals(1, $ret[$i++]); // added 1 element
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2', 'key3' => 'value3'], $ret[$i++]); // hmget, 3 elements
+        return;
+        $this->assertEquals('value1', $ret[$i++]); // hget
+        $this->assertEquals(3, $ret[$i++]); // hlen
+        $this->assertEquals(1, $ret[$i++]); // hdel succeeded
+        $this->assertEquals(0, $ret[$i++]); // hdel failed
+        $this->assertFalse($ret[$i++]); // hexists didn't find the deleted key
+        $this->assertEqualsCanonicalizing(['key1', 'key3'], $ret[$i++]); // hkeys
+        $this->assertEqualsCanonicalizing(['value1', 'value3'], $ret[$i++]); // hvals
+        $this->assertEqualsCanonicalizing(['key1' => 'value1', 'key3' => 'value3'], $ret[$i++]); // hgetall
+        $this->assertEquals(1, $ret[$i++]); // added 1 element
+        $this->assertEquals(1, $ret[$i++]); // added the element, so 1.
+        $this->assertEquals('non-string', $ret[$i++]); // hset succeeded
         $this->assertEquals($i, count($ret));
 
     }
