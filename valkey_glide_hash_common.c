@@ -62,6 +62,7 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
             break;
         case HDel:
         case HMGet:
+            printf("file = %s, line = %d\n", __FILE__, __LINE__);
             arg_count = prepare_h_multi_field_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
@@ -97,7 +98,9 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
     }
 
     /* Check for batch mode */
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
     if (valkey_glide->is_in_batch_mode) {
+        printf("file = %s, line = %d\n", __FILE__, __LINE__);
         status = buffer_command_for_batch(valkey_glide,
                                           cmd_type,
                                           (uint8_t**) cmd_args,
@@ -895,59 +898,10 @@ z_result_processor_t get_processor_for_response_type(int response_type) {
  * ==================================================================== */
 
 /**
- * Process results for HMGET (associative field mapping) - batch compatible
- */
-int process_h_mget_result_batch(CommandResponse* response, void* output, zval* return_value) {
-    h_command_args_t* args = (h_command_args_t*) ((void**) output)[0];
-
-    if (!response || !args) {
-        return 0;
-    }
-
-    if (response->response_type == Array) {
-        for (int i = 0; i < args->field_count && i < response->array_value_len; i++) {
-            zval*  field = &args->fields[i];
-            zval   field_value;
-            char*  field_str    = NULL;
-            size_t field_len    = 0;
-            int    need_to_free = 0;
-
-            /* Convert field to string for associative array key */
-            field_str = zval_to_string_safe(field, &field_len, &need_to_free);
-
-            if (!field_str) {
-                continue;
-            }
-
-            /* Set value in result array */
-            struct CommandResponse* element = &response->array_value[i];
-
-            if (element->response_type == String) {
-                ZVAL_STRINGL(&field_value, element->string_value, element->string_value_len);
-            } else if (element->response_type == Null) {
-                ZVAL_FALSE(&field_value);
-            } else {
-                ZVAL_NULL(&field_value);
-            }
-
-            add_assoc_zval_ex(return_value, field_str, field_len, &field_value);
-
-            /* Free the field string if we allocated it */
-            if (need_to_free) {
-                efree(field_str);
-            }
-        }
-        return 1;
-    }
-
-    return 0;
-}
-
-/**
  * Process results for HMGET (associative field mapping) - legacy version
  */
 int process_h_mget_result(CommandResponse* response, void* output, zval* return_value) {
-    h_command_args_t* args = (h_command_args_t*) ((void**) output)[0];
+    h_command_args_t* args = (h_command_args_t*) output;
 
     /* Check if the command was successful */
     if (!response) {
@@ -993,6 +947,13 @@ int process_h_mget_result(CommandResponse* response, void* output, zval* return_
         }
         ret_val = 1;
     }
+
+    /* Free field array */
+    for (int j = 0; j < args->field_count; j++) {
+        zval_ptr_dtor(&args->fields[j]);
+    }
+    efree(args->fields);
+    efree(args);
 
     return ret_val;
 }
@@ -1529,16 +1490,15 @@ int execute_h_mget_command(valkey_glide_object* valkey_glide,
                            zval*                fields,
                            int                  fields_count,
                            zval*                return_value) {
-    h_command_args_t args = {0};
-    args.glide_client     = valkey_glide->glide_client;
-    args.key              = key;
-    args.key_len          = key_len;
-    args.fields           = fields;
-    args.field_count      = fields_count;
+    h_command_args_t* args = ecalloc(0, sizeof(h_command_args_t));
+    args->glide_client     = valkey_glide->glide_client;
+    args->key              = key;
+    args->key_len          = key_len;
+    args->fields           = fields;
+    args->field_count      = fields_count;
 
-    void* output[2] = {&args, return_value};
     return execute_h_generic_command(
-        valkey_glide, HMGet, &args, output, process_h_mget_result, return_value);
+        valkey_glide, HMGet, args, args, process_h_mget_result, return_value);
 }
 
 /**
@@ -2060,12 +2020,6 @@ int execute_hmget_command(zval* object, int argc, zval* return_value, zend_class
         zval_dtor(return_value); /* Clean up the array we initialized */
         ZVAL_COPY(return_value, object);
     }
-
-    /* Free field array */
-    for (int j = 0; j < i; j++) {
-        zval_ptr_dtor(&field_array[j]);
-    }
-    efree(field_array);
 
     return result;
 }

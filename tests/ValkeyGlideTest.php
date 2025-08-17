@@ -7166,8 +7166,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             ->hset('hkey1', 'key1', 'value1')
             ->hset('hkey1', 'key2', 'value2')
             ->hset('hkey1', 'key3', 'value3')
-            /*
+            
             ->hmget('hkey1', ['key1', 'key2', 'key3'])
+            /*
             ->hget('hkey1', 'key1')
             ->hlen('hkey1')
             ->hdel('hkey1', 'key2')
