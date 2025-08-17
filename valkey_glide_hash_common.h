@@ -333,11 +333,6 @@ int execute_h_keys_command(const void* glide_client,
                            size_t      key_len,
                            zval*       return_value);
 
-int execute_h_vals_command(const void* glide_client,
-                           const char* key,
-                           size_t      key_len,
-                           zval*       return_value);
-
 int execute_h_getall_command(valkey_glide_object* valkey_glide,
                              const char*          key,
                              size_t               key_len,

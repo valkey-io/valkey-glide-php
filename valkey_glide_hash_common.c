@@ -845,8 +845,10 @@ int process_h_string_result_batch(CommandResponse* response, void* output, zval*
  * Batch-compatible wrapper for array responses
  */
 int process_h_array_result_batch(CommandResponse* response, void* output, zval* return_value) {
+    /* Initialize return array */
+    array_init(return_value);
     return command_response_to_zval(
-        response, (zval*) output, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+        response, (zval*) return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
 }
 
 /**
@@ -854,7 +856,7 @@ int process_h_array_result_batch(CommandResponse* response, void* output, zval* 
  */
 int process_h_map_result_batch(CommandResponse* response, void* output, zval* return_value) {
     return command_response_to_zval(
-        response, (zval*) output, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
+        response, (zval*) return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
 }
 
 /**
@@ -1517,21 +1519,6 @@ int execute_h_keys_command(const void* glide_client,
         glide_client, HKeys, &args, return_value, H_RESPONSE_ARRAY);
 }
 
-/**
- * Execute HVALS command using the framework
- */
-int execute_h_vals_command(const void* glide_client,
-                           const char* key,
-                           size_t      key_len,
-                           zval*       return_value) {
-    h_command_args_t args = {0};
-    args.glide_client     = glide_client;
-    args.key              = key;
-    args.key_len          = key_len;
-
-    return execute_h_simple_command_legacy(
-        glide_client, HVals, &args, return_value, H_RESPONSE_ARRAY);
-}
 
 /**
  * Execute HGETALL command using the framework
@@ -1668,9 +1655,21 @@ int execute_hlen_command(zval* object, int argc, zval* return_value, zend_class_
         return 0;
     }
 
-    /* Execute the HLEN command */
-    if (execute_h_len_command(valkey_glide->glide_client, key, key_len, &result_value)) {
-        ZVAL_LONG(return_value, result_value);
+    /* Set up command args */
+    h_command_args_t args = {0};
+    args.key              = key;
+    args.key_len          = key_len;
+
+    /* Execute with batch support */
+    if (execute_h_simple_command(
+            valkey_glide, HLen, &args, &result_value, H_RESPONSE_INT, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
+        /* In non-batch mode, result is already set by process_h_int_result_batch */
         return 1;
     }
 
@@ -1698,10 +1697,23 @@ int execute_hexists_command(zval* object, int argc, zval* return_value, zend_cla
         return 0;
     }
 
-    /* Execute the HEXISTS command */
-    if (execute_h_exists_command(
-            valkey_glide->glide_client, key, key_len, field, field_len, &result)) {
-        ZVAL_BOOL(return_value, result == 1);
+    /* Set up command args */
+    h_command_args_t args = {0};
+    args.key              = key;
+    args.key_len          = key_len;
+    args.field            = field;
+    args.field_len        = field_len;
+
+    /* Execute with batch support */
+    if (execute_h_simple_command(
+            valkey_glide, HExists, &args, &result, H_RESPONSE_BOOL, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
+        /* In non-batch mode, result is already set by process_h_bool_result_batch */
         return 1;
     }
 
@@ -1731,10 +1743,23 @@ int execute_hdel_command(zval* object, int argc, zval* return_value, zend_class_
         return 0;
     }
 
-    /* Execute the HDEL command */
-    if (execute_h_del_command(
-            valkey_glide->glide_client, key, key_len, fields, fields_count, &result_value)) {
-        ZVAL_LONG(return_value, result_value);
+    /* Set up command args */
+    h_command_args_t args = {0};
+    args.key              = key;
+    args.key_len          = key_len;
+    args.fields           = fields;
+    args.field_count      = fields_count;
+
+    /* Execute with batch support */
+    if (execute_h_simple_command(
+            valkey_glide, HDel, &args, &result_value, H_RESPONSE_INT, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
+        /* In non-batch mode, result is already set by process_h_int_result_batch */
         return 1;
     }
 
@@ -2069,11 +2094,26 @@ int execute_hvals_command(zval* object, int argc, zval* return_value, zend_class
         return 0;
     }
 
-    /* Initialize return array */
-    array_init(return_value);
+    /* Set up command args */
+    h_command_args_t args = {0};
+    args.key              = key;
+    args.key_len          = key_len;
 
-    /* Execute the HVALS command */
-    return execute_h_vals_command(valkey_glide->glide_client, key, key_len, return_value);
+    /* Execute with batch support */
+    if (execute_h_simple_command(
+            valkey_glide, HVals, &args, return_value, H_RESPONSE_ARRAY, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            zval_dtor(return_value); /* Clean up the array we initialized */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
+        /* In non-batch mode, result is already set by process_h_array_result_batch */
+        return 1;
+    }
+
+    return 0;
 }
 
 /**
