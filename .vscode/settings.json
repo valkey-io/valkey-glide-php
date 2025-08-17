@@ -99,7 +99,12 @@
         "array": "c",
         "functional": "c",
         "utility": "c",
-        "valkey_glide_commands_common.h": "c"
+        "valkey_glide_commands_common.h": "c",
+        "common.h": "c",
+        "command_response.h": "c",
+        "valkey_glide_hash_common.h": "c",
+        "php_var.h": "c",
+        "valkey_glide_z_common.h": "c"
     },
     "php.validate.enable": true,
     "php.validate.executablePath": "/usr/bin/php",

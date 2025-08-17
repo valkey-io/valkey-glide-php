@@ -13,10 +13,10 @@
   | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
 */
-
 #include "valkey_glide_hash_common.h"
 
 #include "common.h"
+#include "ext/standard/php_var.h"
 #include "valkey_glide_z_common.h"
 
 extern zend_class_entry* ce;
@@ -62,7 +62,6 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
             break;
         case HDel:
         case HMGet:
-
             arg_count = prepare_h_multi_field_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
@@ -301,13 +300,12 @@ int execute_h_simple_command(valkey_glide_object* valkey_glide,
     }
 
     /* Check for batch mode */
+    z_result_processor_t processor = get_processor_for_response_type(response_type);
+    if (!processor) {
+        status = 0;
+        goto cleanup;
+    }
     if (valkey_glide->is_in_batch_mode) {
-        z_result_processor_t processor = get_processor_for_response_type(response_type);
-        if (!processor) {
-            status = 0;
-            goto cleanup;
-        }
-
         status = buffer_command_for_batch(valkey_glide,
                                           cmd_type,
                                           (uint8_t**) cmd_args,
@@ -324,38 +322,10 @@ int execute_h_simple_command(valkey_glide_object* valkey_glide,
     CommandResult* result =
         execute_command(valkey_glide->glide_client, cmd_type, arg_count, cmd_args, args_len);
 
+
     /* Process result using standard handlers */
     if (result) {
-        switch (response_type) {
-            case H_RESPONSE_INT:
-                status = handle_int_response(result, (long*) result_ptr);
-                break;
-            case H_RESPONSE_STRING:
-                status = handle_string_response(
-                    result, ((char***) result_ptr)[0], ((size_t**) result_ptr)[1]);
-                break;
-            case H_RESPONSE_BOOL:
-                status = handle_bool_response(result);
-                if (status >= 0 && result_ptr) {
-                    *((int*) result_ptr) = status;
-                    status               = status >= 0 ? 1 : 0;
-                }
-                break;
-            case H_RESPONSE_ARRAY:
-                status = handle_array_response(result, (zval*) result_ptr);
-                break;
-            case H_RESPONSE_MAP:
-                status = handle_map_response(result, (zval*) result_ptr);
-                break;
-            case H_RESPONSE_OK:
-                status = handle_ok_response(result);
-                break;
-            default:
-                free_command_result(result);
-                status = 0;
-                break;
-        }
-        /* Note: handle_* functions free the result internally */
+        status = processor(result->response, result_ptr, return_value);
     } else {
         status = 0;
     }
@@ -810,12 +780,13 @@ int process_h_bool_result_batch(CommandResponse* response, void* output, zval* r
     if (!response)
         return 0;
 
-    int result_val = (response->response_type == Int) ? (int) response->int_value : 0;
-    ZVAL_BOOL(return_value, result_val);
+    int ret_val = -1;
+    if (response && response->response_type == Bool) {
+        ret_val = response->bool_value ? 1 : 0;
+        ZVAL_BOOL(return_value, ret_val);
+    }
 
-    if (output)
-        *((int*) output) = result_val;
-    return 1;
+    return ret_val;
 }
 
 /**
@@ -1491,7 +1462,7 @@ int execute_h_mget_command(valkey_glide_object* valkey_glide,
                            zval*                fields,
                            int                  fields_count,
                            zval*                return_value) {
-    h_command_args_t* args = ecalloc(0, sizeof(h_command_args_t));
+    h_command_args_t* args = ecalloc(1, sizeof(h_command_args_t));
     args->glide_client     = valkey_glide->glide_client;
     args->key              = key;
     args->key_len          = key_len;

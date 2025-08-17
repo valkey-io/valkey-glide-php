@@ -796,8 +796,7 @@ int execute_move_command(zval* object, int argc, zval* return_value, zend_class_
     }
 
     /* Execute the MOVE command using the Glide client */
-    if (execute_move_command_internal(
-            valkey_glide->glide_client, key, key_len, dbindex, &result_value)) {
+    if (execute_move_command_internal(valkey_glide, key, key_len, dbindex, &result_value)) {
         ZVAL_TRUE(return_value);
         return 1;
     }
