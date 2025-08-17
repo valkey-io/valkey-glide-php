@@ -154,7 +154,6 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                              size_t               key_len,
                              void*                result_ptr,
                              z_result_processor_t process_result) {
-    printf("file = %s, line = %d\n", __FILE__, __LINE__);
     if (!valkey_glide || !valkey_glide->is_in_batch_mode) {
         return 0;
     }
@@ -166,7 +165,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
             return 0; /* Failed to expand */
         }
     }
-    printf("file = %s, line = %d\n", __FILE__, __LINE__);
+
     struct batch_command* cmd = &valkey_glide->buffered_commands[valkey_glide->command_count];
 
     /* Store command details */
@@ -505,7 +504,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
         efree(cmd_infos[i]);
     }
     efree(cmd_infos);
-    printf("file = %s, line = %d\n", __FILE__, __LINE__);
+
     /* Process results and clear batch state */
     int status = 0;
     if (result) {
@@ -518,7 +517,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
         }
         status = 1; /* Assume success unless we find issues */
         if (result->response) {
-            printf("file = %s, line = %d\n", __FILE__, __LINE__);
+            /*printf("file = %s, line = %d\n", __FILE__, __LINE__);
             printf("file = %s, line = %d, response type = %d\n",
                    __FILE__,
                    __LINE__,
@@ -526,7 +525,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
             printf("file = %s, line = %d, response array length = %ld\n",
                    __FILE__,
                    __LINE__,
-                   result->response->array_value_len);
+                   result->response->array_value_len);*/
             array_init(return_value);
             for (int64_t idx = 0; idx < result->response->array_value_len; idx++) {
                 zval value;
@@ -535,35 +534,35 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
                     valkey_glide->buffered_commands[idx].result_ptr,
                     &value);
 
-                printf("process_status = %d, idx = %ld\n", process_status, idx);
                 if (process_status) {
                     /* Add the processed result to return array */
-                    php_var_dump(&value, 2);
+                    // php_var_dump(&value, 2);
                     add_next_index_zval(return_value, &value);
-                    printf("file = %s, line = %d, successfully processed command %zu\n",
-                           __FILE__,
-                           __LINE__,
-                           idx);
+                    /*  printf("file = %s, line = %d, successfully processed command %zu\n",
+                             __FILE__,
+                             __LINE__,
+                             idx);*/
                 } else {
                     /* Process_result failed, use raw response */
 
-                    printf(
-                        "file = %s, line = %d, process_result failed for command %zu, "
-                        "using raw response\n",
-                        __FILE__,
-                        __LINE__,
-                        idx);
+                    /*  printf(
+                          "file = %s, line = %d, process_result failed for command %zu, "
+                          "using false response\n",
+                          __FILE__,
+                          __LINE__,
+                          idx);*/
+                    ZVAL_FALSE(&value);
+                    add_next_index_zval(return_value, &value);
                 }
             }
         } else {
             /* Failed to get responses array, return false */
-            printf("file = %s, line = %d, no response array found\n", __FILE__, __LINE__);
+            // printf("file = %s, line = %d, no response array found\n", __FILE__, __LINE__);
             ZVAL_FALSE(return_value);
             status = 0;
         }
     }
 
-    printf("file = %s, line = %d\n", __FILE__, __LINE__);
     free_command_result(result);
     clear_batch_state(valkey_glide);
     return status;

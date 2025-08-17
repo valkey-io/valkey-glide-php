@@ -362,7 +362,7 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
     if (!valkey_glide) {
         return 0;
     }
-    printf("file = %s, line = %d\n", __FILE__, __LINE__);
+
     /* Prepare arguments ONCE - single switch statement eliminates duplication */
     uintptr_t*     arg_values        = NULL;
     unsigned long* arg_lens          = NULL;
@@ -602,15 +602,8 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             efree(allocated_strings);
         return 0;
     }
-    printf("file = %s, line = %d\n", __FILE__, __LINE__);
-    if (valkey_glide->is_in_batch_mode) {
-        printf("file = %s, line = %d\n", __FILE__, __LINE__);
 
-        printf("file = %s, line = %d\n", __FILE__, __LINE__);
-        printf("Buffering command for batch execution arg_values = %p, args = %p arg_count = %d\n",
-               arg_values,
-               args,
-               arg_count);
+    if (valkey_glide->is_in_batch_mode) {
         int result = buffer_command_for_batch(valkey_glide,
                                               cmd_type,
                                               arg_values,
@@ -620,7 +613,7 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
                                               args->key_len,
                                               result_ptr,
                                               process_result);
-        printf("file = %s, line = %d\n", __FILE__, __LINE__);
+
         if (arg_values)
             efree(arg_values);
         if (arg_lens)
@@ -1859,8 +1852,7 @@ int process_z_int_result(CommandResponse* response, void* output, zval* return_v
     if (!response || !output_value) {
         return 0;
     }
-    printf("file = %s, line = %d\n", __FILE__, __LINE__);
-    printf("process_z_int_result: response_type=%d\n", response->response_type);
+
     if (response->response_type == Int) {
         *output_value = response->int_value;
         ZVAL_LONG(return_value, *output_value);
@@ -1993,7 +1985,7 @@ int process_z_array_result(CommandResponse* response, void* output, zval* return
     struct {
         int withscores;
     }* array_data = output;
-    printf("process_z_array_result: withscores=%d\n", array_data->withscores);
+
     if (!response || !array_data || !return_value) {
         return 0;
     }
@@ -2025,7 +2017,7 @@ int process_z_zadd_result(CommandResponse* response, void* output, zval* return_
         double* output_value_double;
         int     is_incr;
     }* zadd_data = output;
-    printf("process_z_zadd_result: is_incr=%d\n", zadd_data->is_incr);
+
     if (!response || !zadd_data) {
         return 0;
     }

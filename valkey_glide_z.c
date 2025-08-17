@@ -772,11 +772,6 @@ int execute_zrange_command(zval* object, int argc, zval* return_value, zend_clas
 
     array_data_t* array_data = emalloc(sizeof(array_data_t));
     array_data->withscores   = range_opts.withscores;
-    printf(
-        "Executing ZRange!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! with key: %s,  "
-        "withscores: %d\n",
-        key,
-        array_data->withscores);
 
     int result = execute_z_generic_command(
         valkey_glide, ZRange, &args, array_data, process_z_array_result, return_value);
@@ -1125,11 +1120,7 @@ int execute_zrangebyscore_command(zval*             object,
 
     array_data_t* array_data = emalloc(sizeof(array_data_t));
     array_data->withscores   = range_opts.withscores;
-    printf(
-        "Executing ZRangeByScore!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! with key: %s, "
-        "withscores: %d\n",
-        key,
-        array_data->withscores);
+
     int result = execute_z_generic_command(
         valkey_glide, ZRangeByScore, &args, array_data, process_z_array_result, return_value);
 
