@@ -298,7 +298,7 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::exec()
      */
-    /* TODOpublic function exec(): array|false;*/
+    public function exec(): array|false;
 
     /**
      * @see ValkeyGlide::exists
@@ -602,7 +602,7 @@ class ValkeyGlideCluster
     /* We only support ValkeyGlide::MULTI in ValkeyGlideCluster but take the argument
        so we can test MULTI..EXEC with ValkeyGlideTest.php and in the event
        we add pipeline support in the future. */
-    /* TODO public function multi(int $value = ValkeyGlide::MULTI): ValkeyGlideCluster|bool; */
+    public function multi(int $value = ValkeyGlide::MULTI): ValkeyGlideCluster|bool;
 
     /**
      * @see ValkeyGlide::object
