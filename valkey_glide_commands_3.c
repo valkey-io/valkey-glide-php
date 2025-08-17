@@ -61,7 +61,14 @@ int execute_wait_command(zval* object, int argc, zval* return_value, zend_class_
         args.arg_count                   = 2;
 
         long result_value;
-        if (execute_core_command(&args, &result_value, process_core_int_result)) {
+        if (execute_core_command(
+                valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
+
             /* Return the number of replicas that acknowledged the write */
             ZVAL_LONG(return_value, result_value);
             return 1;
@@ -420,7 +427,13 @@ int execute_discard_command(zval* object, int argc, zval* return_value, zend_cla
     args.glide_client        = valkey_glide->glide_client;
     args.cmd_type            = Discard;
 
-    if (execute_core_command(&args, NULL, process_core_bool_result)) {
+    if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
         ZVAL_TRUE(return_value);
         return 1;
     }
@@ -785,7 +798,14 @@ int execute_dump_command(zval* object, int argc, zval* return_value, zend_class_
             size_t* result_len;
         } out = {&output, &output_len};
 
-        if (execute_core_command(&args, &out, process_core_string_result)) {
+        if (execute_core_command(
+                valkey_glide, &args, &out, process_core_string_result, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
+
             if (output) {
                 /* Return serialized value */
                 ZVAL_STRINGL(return_value, output, output_len);
@@ -1769,7 +1789,14 @@ int execute_dbsize_command(zval* object, int argc, zval* return_value, zend_clas
     }
 
     /* Execute using unified core framework */
-    if (execute_core_command(&core_args, &dbsize, process_core_int_result)) {
+    if (execute_core_command(
+            valkey_glide, &core_args, &dbsize, process_core_int_result, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
         ZVAL_LONG(return_value, dbsize);
         return 1;
     }

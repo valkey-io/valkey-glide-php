@@ -138,9 +138,11 @@ typedef int (*core_result_processor_t)(CommandResult* result, void* output);
  * ==================================================================== */
 
 /* Main command execution framework */
-int execute_core_command(core_command_args_t*    args,
+int execute_core_command(valkey_glide_object*    valkey_glide,
+                         core_command_args_t*    args,
                          void*                   result_ptr,
-                         core_result_processor_t processor);
+                         core_result_processor_t processor,
+                         zval*                   return_value);
 
 /* Command argument preparation utilities */
 int prepare_core_args(core_command_args_t* args,

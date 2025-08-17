@@ -69,15 +69,16 @@ int execute_bitop_command(zval* object, int argc, zval* return_value, zend_class
 int execute_bitpos_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 /* String operations */
-int execute_set_command_internal(const void* glide_client,
-                                 const char* key,
-                                 size_t      key_len,
-                                 const char* val,
-                                 size_t      val_len,
-                                 long        expire,
-                                 zval*       opts,
-                                 char**      old_val,
-                                 size_t*     old_val_len);
+int execute_set_command_internal(valkey_glide_object* valkey_glide,
+                                 const char*          key,
+                                 size_t               key_len,
+                                 const char*          val,
+                                 size_t               val_len,
+                                 long                 expire,
+                                 zval*                opts,
+                                 char**               old_val,
+                                 size_t*              old_val_len,
+                                 zval*                return_value);
 int execute_set_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_setex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_psetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -1277,60 +1278,5 @@ int execute_del_array(const void* glide_client, HashTable* keys_hash, long* outp
         RETURN_FALSE;                                                             \
     }
 
-/* ====================================================================
- * BATCH-AWARE METHOD IMPLEMENTATION MACRO
- * ==================================================================== */
-
-/* Generic batch-aware macro that handles batch mode checking and method chaining */
-#define BATCH_AWARE_METHOD_IMPL(class_name, method_name, request_type, execute_func) \
-    PHP_METHOD(class_name, method_name) {                                            \
-        valkey_glide_object* valkey_glide =                                          \
-            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());        \
-                                                                                     \
-        /* Check for batch mode first */                                             \
-        if (valkey_glide && valkey_glide->is_in_batch_mode) {                        \
-            /* Buffer the command and return $this for chaining */                   \
-            extern int buffer_current_command_generic(                               \
-                valkey_glide_object*, enum RequestType, int, zval*);                 \
-            if (buffer_current_command_generic(                                      \
-                    valkey_glide, request_type, ZEND_NUM_ARGS(), getThis())) {       \
-                ZVAL_COPY(return_value, getThis());                                  \
-                return;                                                              \
-            }                                                                        \
-        }                                                                            \
-                                                                                     \
-        /* Normal execution if not in batch mode */                                  \
-        if (execute_func(getThis(),                                                  \
-                         ZEND_NUM_ARGS(),                                            \
-                         return_value,                                               \
-                         strcmp(#class_name, "ValkeyGlideCluster") == 0              \
-                             ? get_valkey_glide_cluster_ce()                         \
-                             : get_valkey_glide_ce())) {                             \
-            return;                                                                  \
-        }                                                                            \
-        zval_dtor(return_value);                                                     \
-        RETURN_FALSE;                                                                \
-    }
-
-/* Updated method implementations using batch-aware macro */
-#undef SET_METHOD_IMPL
-#define SET_METHOD_IMPL(class_name) \
-    BATCH_AWARE_METHOD_IMPL(class_name, set, Set, execute_set_command)
-
-#undef GET_METHOD_IMPL
-#define GET_METHOD_IMPL(class_name) \
-    BATCH_AWARE_METHOD_IMPL(class_name, get, Get, execute_get_command)
-
-#undef EXISTS_METHOD_IMPL
-#define EXISTS_METHOD_IMPL(class_name) \
-    BATCH_AWARE_METHOD_IMPL(class_name, exists, Exists, execute_exists_command)
-
-#undef DEL_METHOD_IMPL
-#define DEL_METHOD_IMPL(class_name) \
-    BATCH_AWARE_METHOD_IMPL(class_name, del, Del, execute_del_command)
-
-#undef TYPE_METHOD_IMPL
-#define TYPE_METHOD_IMPL(class_name) \
-    BATCH_AWARE_METHOD_IMPL(class_name, type, Type, execute_type_command)
 
 #endif /* VALKEY_GLIDE_COMMANDS_COMMON_H */

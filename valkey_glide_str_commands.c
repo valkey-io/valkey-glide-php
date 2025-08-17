@@ -49,7 +49,14 @@ int execute_type_command(zval* object, int argc, zval* return_value, zend_class_
         args.key                 = key;
         args.key_len             = key_len;
 
-        if (execute_core_command(&args, &type_value, process_core_type_result)) {
+        if (execute_core_command(
+                valkey_glide, &args, &type_value, process_core_type_result, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
+
             ZVAL_LONG(return_value, type_value);
             return 1;
         }
@@ -88,7 +95,14 @@ int execute_append_command(zval* object, int argc, zval* return_value, zend_clas
         args.args[0].data.string_arg.len   = value_len;
         args.arg_count                     = 1;
 
-        if (execute_core_command(&args, &result_value, process_core_int_result)) {
+        if (execute_core_command(
+                valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
+
             ZVAL_LONG(return_value, result_value);
             return 1;
         }
@@ -134,9 +148,16 @@ int execute_getrange_command(zval* object, int argc, zval* return_value, zend_cl
             size_t* result_len;
         } output = {&result, &result_len};
 
-        int ret = execute_core_command(&args, &output, process_core_string_result);
+        int ret = execute_core_command(
+            valkey_glide, &args, &output, process_core_string_result, return_value);
 
         if (ret > 0) {
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
+
             /* Command succeeded with data */
             RETVAL_STRINGL(result, result_len);
             efree(result);

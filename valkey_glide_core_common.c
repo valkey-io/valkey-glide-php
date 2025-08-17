@@ -20,6 +20,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "valkey_glide_z_common.h"
+z_result_processor_t create_batch_processor_wrapper(core_result_processor_t processor);
 /* ====================================================================
  * CORE FRAMEWORK IMPLEMENTATION
  * ==================================================================== */
@@ -28,10 +30,12 @@
  * Main command execution framework
  * This is the central function that handles all ValkeyGlide/Valkey commands
  */
-int execute_core_command(core_command_args_t*    args,
+int execute_core_command(valkey_glide_object*    valkey_glide,
+                         core_command_args_t*    args,
                          void*                   result_ptr,
-                         core_result_processor_t processor) {
-    if (!args || !args->glide_client || !processor) {
+                         core_result_processor_t processor,
+                         zval*                   return_value) {
+    if (!valkey_glide || !args || !args->glide_client || !processor) {
         return 0;
     }
 
@@ -51,6 +55,29 @@ int execute_core_command(core_command_args_t*    args,
 
     if (arg_count < 0) {
         return 0;
+    }
+
+    /* Check for batch mode */
+    if (valkey_glide->is_in_batch_mode) {
+        /* Create batch-compatible processor wrapper */
+        z_result_processor_t batch_processor = create_batch_processor_wrapper(processor);
+        if (!batch_processor) {
+            free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
+            return 0;
+        }
+
+        res = buffer_command_for_batch(valkey_glide,
+                                       args->cmd_type,
+                                       (uint8_t**) cmd_args,
+                                       (uintptr_t*) cmd_args_len,
+                                       arg_count,
+                                       args->key,
+                                       args->key_len,
+                                       result_ptr,
+                                       batch_processor);
+
+        free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
+        return res;
     }
 
     /* Execute the command - use routing if cluster mode and route provided */
@@ -1569,6 +1596,117 @@ int parse_expire_options(zval* options, core_options_t* opts) {
 }
 
 /* ====================================================================
+ * BATCH PROCESSOR WRAPPERS
+ * ==================================================================== */
+
+/**
+ * Batch-compatible wrapper for integer results
+ */
+static int process_core_int_result_batch(CommandResponse* response,
+                                         void*            output,
+                                         zval*            return_value) {
+    long* output_value = (long*) output;
+
+    if (!response || !output_value) {
+        return 0;
+    }
+
+    if (response->response_type == Int) {
+        *output_value = response->int_value;
+        ZVAL_LONG(return_value, *output_value);
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Batch-compatible wrapper for string results
+ */
+static int process_core_string_result_batch(CommandResponse* response,
+                                            void*            output,
+                                            zval*            return_value) {
+    struct {
+        char**  result;
+        size_t* result_len;
+    }* string_output = output;
+
+    if (!response || !string_output) {
+        return 0;
+    }
+
+    if (response->response_type == String) {
+        if (response->string_value_len == 0) {
+            *string_output->result = emalloc(1);
+            if (*string_output->result) {
+                (*string_output->result)[0] = '\0';
+            }
+            *string_output->result_len = 0;
+        } else {
+            *string_output->result = emalloc(response->string_value_len + 1);
+            if (*string_output->result) {
+                memcpy(*string_output->result, response->string_value, response->string_value_len);
+                (*string_output->result)[response->string_value_len] = '\0';
+            }
+            *string_output->result_len = response->string_value_len;
+        }
+        if (*string_output->result) {
+            ZVAL_STRINGL(return_value, *string_output->result, *string_output->result_len);
+        } else {
+            ZVAL_FALSE(return_value);
+        }
+        return 1;
+    } else if (response->response_type == Null) {
+        *string_output->result     = NULL;
+        *string_output->result_len = 0;
+        ZVAL_FALSE(return_value);
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Batch-compatible wrapper for boolean results
+ */
+static int process_core_bool_result_batch(CommandResponse* response,
+                                          void*            output,
+                                          zval*            return_value) {
+    if (!response) {
+        return 0;
+    }
+
+    int result_val = 0;
+    if (response->response_type == Bool) {
+        result_val = response->bool_value ? 1 : 0;
+    } else if (response->response_type == Int) {
+        result_val = response->int_value ? 1 : 0;
+    } else if (response->response_type == Ok) {
+        result_val = 1;
+    }
+
+    ZVAL_BOOL(return_value, result_val);
+    if (output) {
+        *((int*) output) = result_val;
+    }
+    return 1;
+}
+
+/**
+ * Create batch-compatible processor wrapper
+ */
+z_result_processor_t create_batch_processor_wrapper(core_result_processor_t processor) {
+    if (processor == process_core_int_result) {
+        return process_core_int_result_batch;
+    } else if (processor == process_core_string_result) {
+        return process_core_string_result_batch;
+    } else if (processor == process_core_bool_result) {
+        return process_core_bool_result_batch;
+    }
+
+    /* Add more mappings as needed */
+    return NULL;
+}
+
+/* ====================================================================
  * SPECIALIZED COMMAND HELPERS
  * ==================================================================== */
 
@@ -1614,14 +1752,53 @@ int execute_multi_key_command(const void*      glide_client,
         args.args[0].data.array_arg.count = keys_count;
         args.arg_count                    = 1; /* Triggers multi-key mode in core framework */
 
-        /* Execute command and return result */
-        return execute_core_command(&args, output_value, process_core_int_result);
+        /* Execute command and return result - Note: This is a legacy function, no valkey_glide
+         * object available */
+        /* For now, call the original execute_command directly since this is a legacy path */
+        uintptr_t*     cmd_args          = NULL;
+        unsigned long* cmd_args_len      = NULL;
+        char**         allocated_strings = NULL;
+        int            allocated_count   = 0;
+        int            arg_count         = 0;
+        int            result            = 0;
+
+        arg_count = prepare_core_args(
+            &args, &cmd_args, &cmd_args_len, &allocated_strings, &allocated_count);
+        if (arg_count >= 0) {
+            CommandResult* cmd_result = execute_command(
+                args.glide_client, args.cmd_type, arg_count, cmd_args, cmd_args_len);
+            if (cmd_result) {
+                result = process_core_int_result(cmd_result, output_value);
+                free_command_result(cmd_result);
+            }
+        }
+        free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
+        return result;
     } else {
         /* Invalid input - neither single string, array, nor multiple strings */
         return 0;
     }
 
-    return execute_core_command(&args, output_value, process_core_int_result);
+    /* Legacy path - call execute_command directly since no valkey_glide object available */
+    uintptr_t*     cmd_args          = NULL;
+    unsigned long* cmd_args_len      = NULL;
+    char**         allocated_strings = NULL;
+    int            allocated_count   = 0;
+    int            arg_count         = 0;
+    int            result            = 0;
+
+    arg_count =
+        prepare_core_args(&args, &cmd_args, &cmd_args_len, &allocated_strings, &allocated_count);
+    if (arg_count >= 0) {
+        CommandResult* cmd_result =
+            execute_command(args.glide_client, args.cmd_type, arg_count, cmd_args, cmd_args_len);
+        if (cmd_result) {
+            result = process_core_int_result(cmd_result, output_value);
+            free_command_result(cmd_result);
+        }
+    }
+    free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
+    return result;
 }
 
 
