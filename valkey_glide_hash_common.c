@@ -62,7 +62,7 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
             break;
         case HDel:
         case HMGet:
-            printf("file = %s, line = %d\n", __FILE__, __LINE__);
+
             arg_count = prepare_h_multi_field_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
@@ -98,9 +98,8 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
     }
 
     /* Check for batch mode */
-    printf("file = %s, line = %d\n", __FILE__, __LINE__);
+
     if (valkey_glide->is_in_batch_mode) {
-        printf("file = %s, line = %d\n", __FILE__, __LINE__);
         status = buffer_command_for_batch(valkey_glide,
                                           cmd_type,
                                           (uint8_t**) cmd_args,
@@ -2153,8 +2152,29 @@ int execute_hgetall_command(zval* object, int argc, zval* return_value, zend_cla
         return 0;
     }
 
-    /* Execute the HGETALL command */
-    return execute_h_getall_command(valkey_glide, key, key_len, return_value);
+    /* Set up command args */
+    h_command_args_t args = {0};
+    args.key              = key;
+    args.key_len          = key_len;
+
+    /* Initialize return array */
+    array_init(return_value);
+
+    /* Execute with batch support */
+    if (execute_h_simple_command(
+            valkey_glide, HGetAll, &args, return_value, H_RESPONSE_MAP, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            zval_dtor(return_value); /* Clean up the array we initialized */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
+        /* In non-batch mode, result is already set by process_h_map_result_batch */
+        return 1;
+    }
+
+    return 0;
 }
 
 /**

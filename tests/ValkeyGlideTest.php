@@ -7166,25 +7166,18 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             ->hset('hkey1', 'key1', 'value1')
             ->hset('hkey1', 'key2', 'value2')
             ->hset('hkey1', 'key3', 'value3')
-            
             ->hmget('hkey1', ['key1', 'key2', 'key3'])
-            
             ->hget('hkey1', 'key1')
             ->hlen('hkey1')
-          
             ->hdel('hkey1', 'key2')
             ->hdel('hkey1', 'key2')
-                 
             ->hexists('hkey1', 'key2')
-         
             ->hkeys('hkey1')
-               /*
             ->hvals('hkey1')
-         
-            ->hgetall('hkey1')
+            ->hgetall('hkey1')    
             ->hset('hkey1', 'valn', 1)
             ->hset('hkey1', 'val-fail', 'non-string')
-            ->hget('hkey1', 'val-fail')*/
+            ->hget('hkey1', 'val-fail')
             ->exec();
         
         $i = 0;
@@ -7198,9 +7191,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $ret[$i++]); // hdel succeeded
         $this->assertEquals(0, $ret[$i++]); // hdel failed
         $this->assertFalse($ret[$i++]); // hexists didn't find the deleted key
-    
         $this->assertEqualsCanonicalizing(['key1', 'key3'], $ret[$i++]); // hkeys
-            return;
         $this->assertEqualsCanonicalizing(['value1', 'value3'], $ret[$i++]); // hvals
         $this->assertEqualsCanonicalizing(['key1' => 'value1', 'key3' => 'value3'], $ret[$i++]); // hgetall
         $this->assertEquals(1, $ret[$i++]); // added 1 element
