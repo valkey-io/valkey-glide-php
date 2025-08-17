@@ -2068,11 +2068,29 @@ int execute_hkeys_command(zval* object, int argc, zval* return_value, zend_class
         return 0;
     }
 
+    /* Set up command args */
+    h_command_args_t args = {0};
+    args.key              = key;
+    args.key_len          = key_len;
+
     /* Initialize return array */
     array_init(return_value);
 
-    /* Execute the HKEYS command */
-    return execute_h_keys_command(valkey_glide->glide_client, key, key_len, return_value);
+    /* Execute with batch support */
+    if (execute_h_simple_command(
+            valkey_glide, HKeys, &args, return_value, H_RESPONSE_ARRAY, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            zval_dtor(return_value); /* Clean up the array we initialized */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
+        /* In non-batch mode, result is already set by process_h_array_result_batch */
+        return 1;
+    }
+
+    return 0;
 }
 
 /**
