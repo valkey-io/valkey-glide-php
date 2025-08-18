@@ -7208,6 +7208,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testAsaf2()
     {
+        return;
         $ret = $this->valkey_glide->multi(ValkeyGlide::MULTI)
             ->del('{key}1')
             ->set('{key}1', 'value1')

@@ -556,7 +556,7 @@ int execute_set_command(zval* object, int argc, zval* return_value, zend_class_e
     if (!val) {
         return 0;
     }
-    printf("Executing SET command2 with key: %s, value: %s, expire: %ld\n", key, val, expire_int);
+
     /* Execute the SET command using the internal helper function */
     int result = execute_set_command_internal(valkey_glide,
                                               key,
@@ -651,7 +651,7 @@ int execute_set_command_internal(valkey_glide_object* valkey_glide,
 
     /* Prepare result data for GET option */
     struct set_result_data result_data = {old_val, old_val_len, args.options.get_old_value};
-    printf("Executing SET command1 with key: %s, value: %s, expire: %ld\n", key, val, expire);
+
     return execute_core_command(
         valkey_glide, &args, &result_data, process_set_result, return_value);
 }
@@ -1529,7 +1529,8 @@ int execute_del_array(const void* glide_client,
         CommandResult* cmd_result =
             execute_command(args.glide_client, args.cmd_type, arg_count, cmd_args, cmd_args_len);
         if (cmd_result) {
-            result = process_core_int_result_batch(cmd_result, output_value, return_value);
+            result =
+                process_core_int_result_batch(cmd_result->response, output_value, return_value);
             free_command_result(cmd_result);
         }
     }
@@ -1620,7 +1621,8 @@ int execute_unlink_array(const void* glide_client,
         CommandResult* cmd_result =
             execute_command(args.glide_client, args.cmd_type, arg_count, cmd_args, cmd_args_len);
         if (cmd_result) {
-            result = process_core_int_result_batch(cmd_result, output_value, return_value);
+            result =
+                process_core_int_result_batch(cmd_result->response, output_value, return_value);
             free_command_result(cmd_result);
         }
     }

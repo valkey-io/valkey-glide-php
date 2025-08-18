@@ -96,7 +96,6 @@ int execute_msetnx_command(zval* object, int argc, zval* return_value, zend_clas
                 return 1;
             }
 
-            ZVAL_TRUE(return_value);
             return 1;
         }
     }
@@ -571,10 +570,8 @@ int execute_copy_command(zval* object, int argc, zval* return_value, zend_class_
             return 1;
         }
 
-        ZVAL_TRUE(return_value);
         return 1;
     } else {
-        ZVAL_FALSE(return_value);
         return 0;
     }
 }

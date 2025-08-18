@@ -73,8 +73,6 @@ int execute_expire_command(zval* object, int argc, zval* return_value, zend_clas
                 ZVAL_COPY(return_value, object);
                 return 1;
             }
-
-            ZVAL_TRUE(return_value);
             return 1;
         }
     }
@@ -300,7 +298,6 @@ int execute_persist_command(zval* object, int argc, zval* return_value, zend_cla
                 return 1;
             }
 
-            ZVAL_TRUE(return_value);
             return 1;
         }
     }

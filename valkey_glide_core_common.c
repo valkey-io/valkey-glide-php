@@ -37,7 +37,7 @@ int execute_core_command(valkey_glide_object* valkey_glide,
     if (!valkey_glide || !args || !args->glide_client || !processor) {
         return 0;
     }
-    printf("Executing command: %d with key: %s\n", args->cmd_type, args->key ? args->key : "NULL");
+
     uintptr_t*     cmd_args          = NULL;
     unsigned long* cmd_args_len      = NULL;
     char**         allocated_strings = NULL;
@@ -55,12 +55,12 @@ int execute_core_command(valkey_glide_object* valkey_glide,
     if (arg_count < 0) {
         return 0;
     }
-    printf("Prepared %d arguments for command execution\n", arg_count);
+
     /* Check for batch mode */
     if (valkey_glide->is_in_batch_mode) {
         /* Create batch-compatible processor wrapper */
 
-        printf("Executing command in batch mode:\n");
+
         res = buffer_command_for_batch(valkey_glide,
                                        args->cmd_type,
                                        (uint8_t**) cmd_args,
@@ -96,7 +96,7 @@ int execute_core_command(valkey_glide_object* valkey_glide,
     if (result) {
         if (!result->command_error && result->response) {
             /* Non-routed commands use standard processor */
-            res = processor(result, result_ptr, return_value);
+            res = processor(result->response, result_ptr, return_value);
         }
 
         /* Free the result - handle_string_response doesn't free it */
@@ -1560,6 +1560,7 @@ int process_core_string_result_batch(CommandResponse* response, void* output, zv
  */
 int process_core_bool_result_batch(CommandResponse* response, void* output, zval* return_value) {
     if (!response) {
+        ZVAL_FALSE(return_value);
         return 0;
     }
 

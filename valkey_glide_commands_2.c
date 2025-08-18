@@ -115,18 +115,16 @@ int execute_renamenx_command(zval* object, int argc, zval* return_value, zend_cl
     int result = execute_core_command(
         valkey_glide, &args, NULL, process_core_bool_result_batch, return_value);
 
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
     /* Return TRUE if successful, FALSE otherwise */
     if (result == 1) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-
-        ZVAL_TRUE(return_value);
         return 1;
     } else {
-        ZVAL_FALSE(return_value);
         return 0;
     }
 }
