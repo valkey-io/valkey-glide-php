@@ -96,7 +96,7 @@ int execute_append_command(zval* object, int argc, zval* return_value, zend_clas
         args.arg_count                     = 1;
 
         if (execute_core_command(
-                valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+                valkey_glide, &args, &result_value, process_core_int_result_batch, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
                 ZVAL_COPY(return_value, object);
@@ -149,7 +149,7 @@ int execute_getrange_command(zval* object, int argc, zval* return_value, zend_cl
         } output = {&result, &result_len};
 
         int ret = execute_core_command(
-            valkey_glide, &args, &output, process_core_string_result, return_value);
+            valkey_glide, &args, &output, process_core_string_result_batch, return_value);
 
         if (ret > 0) {
             if (valkey_glide->is_in_batch_mode) {

@@ -61,8 +61,8 @@ int execute_rename_command(zval* object, int argc, zval* return_value, zend_clas
     args.args[0].data.string_arg.len   = dst_len;
     args.arg_count                     = 1;
 
-    int result =
-        execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value);
+    int result = execute_core_command(
+        valkey_glide, &args, NULL, process_core_bool_result_batch, return_value);
 
     /* Return TRUE if successful, FALSE otherwise */
     if (result == 1) {
@@ -112,8 +112,8 @@ int execute_renamenx_command(zval* object, int argc, zval* return_value, zend_cl
     args.args[0].data.string_arg.len   = dst_len;
     args.arg_count                     = 1;
 
-    int result =
-        execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value);
+    int result = execute_core_command(
+        valkey_glide, &args, NULL, process_core_bool_result_batch, return_value);
 
     /* Return TRUE if successful, FALSE otherwise */
     if (result == 1) {
@@ -163,7 +163,7 @@ int execute_getdel_command(zval* object, int argc, zval* return_value, zend_clas
     } output = {&response, &response_len};
 
     int result = execute_core_command(
-        valkey_glide, &args, &output, process_core_string_result, return_value);
+        valkey_glide, &args, &output, process_core_string_result_batch, return_value);
 
     /* Process the result */
     if (result == 1) {
@@ -234,7 +234,7 @@ int execute_getex_command(zval* object, int argc, zval* return_value, zend_class
     } output = {&response, &response_len};
 
     int result = execute_core_command(
-        valkey_glide, &args, &output, process_core_string_result, return_value);
+        valkey_glide, &args, &output, process_core_string_result_batch, return_value);
 
     /* Process the result */
     if (result == 1) {
@@ -306,7 +306,7 @@ int execute_incr_command(zval* object, int argc, zval* return_value, zend_class_
         result_value = 0;
         /* Standard INCR command if only key is provided */
         if (execute_core_command(
-                valkey_glide, &args, &result, process_core_int_result, return_value)) {
+                valkey_glide, &args, &result, process_core_int_result_batch, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
                 ZVAL_COPY(return_value, object);
@@ -332,7 +332,7 @@ int execute_incr_command(zval* object, int argc, zval* return_value, zend_class_
         result_value = 0;
 
         if (execute_core_command(
-                valkey_glide, &args, &result, process_core_int_result, return_value)) {
+                valkey_glide, &args, &result, process_core_int_result_batch, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
                 ZVAL_COPY(return_value, object);
@@ -382,7 +382,8 @@ int execute_incrby_command(zval* object, int argc, zval* return_value, zend_clas
     result_value = 0;
 
     /* Execute the INCRBY command using the Glide client */
-    if (execute_core_command(valkey_glide, &args, &result, process_core_int_result, return_value)) {
+    if (execute_core_command(
+            valkey_glide, &args, &result, process_core_int_result_batch, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -435,7 +436,6 @@ int execute_incrbyfloat_command(zval* object, int argc, zval* return_value, zend
             return 1;
         }
 
-        ZVAL_DOUBLE(return_value, result);
         return 1;
     } else {
         return 0;
@@ -483,7 +483,7 @@ int execute_decr_command(zval* object, int argc, zval* return_value, zend_class_
         args.key_len             = key_len;
 
         if (execute_core_command(
-                valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+                valkey_glide, &args, &result_value, process_core_int_result_batch, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
                 ZVAL_COPY(return_value, object);
@@ -506,7 +506,7 @@ int execute_decr_command(zval* object, int argc, zval* return_value, zend_class_
         args.args[0].data.long_arg.value = value;
         args.arg_count                   = 1;
         if (execute_core_command(
-                valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+                valkey_glide, &args, &result_value, process_core_int_result_batch, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
                 ZVAL_COPY(return_value, object);
@@ -554,7 +554,7 @@ int execute_decrby_command(zval* object, int argc, zval* return_value, zend_clas
     args.arg_count                   = 1;
 
     if (execute_core_command(
-            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+            valkey_glide, &args, &result_value, process_core_int_result_batch, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -740,7 +740,8 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
     /* Check if we have a single array argument */
     if (argc == 1 && Z_TYPE(z_args[0]) == IS_ARRAY) {
         /* Use array elements as keys */
-        if (execute_unlink_array(valkey_glide->glide_client, Z_ARRVAL(z_args[0]), &result_value)) {
+        if (execute_unlink_array(
+                valkey_glide->glide_client, Z_ARRVAL(z_args[0]), &result_value, return_value)) {
             ZVAL_LONG(return_value, result_value);
             return 1;
         }

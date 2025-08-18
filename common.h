@@ -158,7 +158,7 @@ void valkey_glide_cleanup_client_config(valkey_glide_base_client_configuration_t
  * Result processing callback type
  */
 
-typedef int (*z_result_processor_t)(CommandResponse* result, void* output, zval* return_value);
+typedef int (*z_result_processor_t)(CommandResponse* response, void* output, zval* return_value);
 
 /* Batch command structure for buffering commands - FFI aligned */
 struct batch_command {

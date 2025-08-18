@@ -98,8 +98,14 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
 int execute_getbit_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_setbit_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_del_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_del_array(const void* glide_client, HashTable* keys_hash, long* output_value);
-int execute_unlink_array(const void* glide_client, HashTable* keys_hash, long* output_value);
+int execute_del_array(const void* glide_client,
+                      HashTable*  keys_hash,
+                      long*       output_value,
+                      zval*       return_value);
+int execute_unlink_array(const void* glide_client,
+                         HashTable*  keys_hash,
+                         long*       output_value,
+                         zval*       return_value);
 int execute_strlen_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_setrange_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_getset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -199,10 +205,6 @@ int execute_mget_command(zval* object, int argc, zval* return_value, zend_class_
 int execute_exists_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_touch_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_unlink_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-
-/* DEL command uses different signature - handled separately */
-
-int execute_del_array(const void* glide_client, HashTable* keys_hash, long* output_value);
 
 
 /* ====================================================================

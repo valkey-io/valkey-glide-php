@@ -130,19 +130,16 @@ typedef struct {
     zval*          raw_options; /* Raw PHP options array for complex parsing */
 } core_command_args_t;
 
-/* Result processor function pointer */
-typedef int (*core_result_processor_t)(CommandResult* result, void* output);
-
 /* ====================================================================
  * CORE FRAMEWORK FUNCTIONS
  * ==================================================================== */
 
 /* Main command execution framework */
-int execute_core_command(valkey_glide_object*    valkey_glide,
-                         core_command_args_t*    args,
-                         void*                   result_ptr,
-                         core_result_processor_t processor,
-                         zval*                   return_value);
+int execute_core_command(valkey_glide_object* valkey_glide,
+                         core_command_args_t* args,
+                         void*                result_ptr,
+                         z_result_processor_t processor,
+                         zval*                return_value);
 
 /* Command argument preparation utilities */
 int prepare_core_args(core_command_args_t* args,
@@ -220,25 +217,23 @@ int prepare_zero_args(core_command_args_t* args,
  * ==================================================================== */
 
 /* Integer result processor */
-int process_core_int_result(CommandResult* result, void* output);
+int process_core_int_result_batch(CommandResponse* response, void* output, zval* return_value);
 
 /* String result processor */
-int process_core_string_result(CommandResult* result, void* output);
+int process_core_string_result_batch(CommandResponse* response, void* output, zval* return_value);
 
 /* Boolean result processor */
-int process_core_bool_result(CommandResult* result, void* output);
+int process_core_bool_result_batch(CommandResponse* response, void* output, zval* return_value);
 
 /* Array result processor */
-int process_core_array_result(CommandResult* result, void* output);
+int process_core_array_result(CommandResponse* response, void* output, zval* return_value);
 
 /* Double result processor */
-int process_core_double_result(CommandResult* result, void* output);
+int process_core_double_result(CommandResponse* response, void* output, zval* return_value);
 
-/* Null-or-value result processor */
-int process_core_null_or_value_result(CommandResult* result, void* output);
 
 /* Core type result processor */
-int process_core_type_result(CommandResult* result, void* output);
+int process_core_type_result(CommandResponse* response, void* output, zval* return_value);
 
 /* ====================================================================
  * MEMORY MANAGEMENT UTILITIES

@@ -48,7 +48,7 @@ int execute_mset_command(zval* object, int argc, zval* return_value, zend_class_
         args.arg_count                    = 1;
 
         if (execute_core_command(
-                valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+                valkey_glide, &args, NULL, process_core_bool_result_batch, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
                 ZVAL_COPY(return_value, object);
@@ -89,7 +89,7 @@ int execute_msetnx_command(zval* object, int argc, zval* return_value, zend_clas
         args.arg_count                    = 1;
 
         if (execute_core_command(
-                valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+                valkey_glide, &args, NULL, process_core_bool_result_batch, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
                 ZVAL_COPY(return_value, object);
@@ -163,7 +163,7 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Execute using unified core framework */
     if (execute_core_command(
-            valkey_glide, &core_args, NULL, process_core_bool_result, return_value)) {
+            valkey_glide, &core_args, NULL, process_core_bool_result_batch, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -237,7 +237,7 @@ int execute_flushall_command(zval* object, int argc, zval* return_value, zend_cl
 
     /* Execute using unified core framework */
     if (execute_core_command(
-            valkey_glide, &core_args, NULL, process_core_bool_result, return_value)) {
+            valkey_glide, &core_args, NULL, process_core_bool_result_batch, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -338,7 +338,8 @@ int execute_watch_command(zval* object, int argc, zval* return_value, zend_class
     args.args[0].data.array_arg.count = arg_count;
     args.arg_count                    = 1;
 
-    if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+    if (execute_core_command(
+            valkey_glide, &args, NULL, process_core_bool_result_batch, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -373,7 +374,8 @@ int execute_unwatch_command(zval* object, int argc, zval* return_value, zend_cla
     args.glide_client        = valkey_glide->glide_client;
     args.cmd_type            = UnWatch;
 
-    if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+    if (execute_core_command(
+            valkey_glide, &args, NULL, process_core_bool_result_batch, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -561,7 +563,8 @@ int execute_copy_command(zval* object, int argc, zval* return_value, zend_class_
     args.arg_count = arg_count;
 
     /* Execute the COPY command using the Glide client */
-    if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+    if (execute_core_command(
+            valkey_glide, &args, NULL, process_core_bool_result_batch, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -613,7 +616,7 @@ int execute_pfadd_command(zval* object, int argc, zval* return_value, zend_class
 
     long result;
     if (execute_core_command(
-            valkey_glide, &args, &result, process_core_bool_result, return_value)) {
+            valkey_glide, &args, &result, process_core_bool_result_batch, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -692,7 +695,8 @@ int execute_pfmerge_command(zval* object, int argc, zval* return_value, zend_cla
     args.args[0].data.array_arg.count = keys_count;
     args.arg_count                    = 1;
 
-    if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+    if (execute_core_command(
+            valkey_glide, &args, NULL, process_core_bool_result_batch, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -721,7 +725,8 @@ int execute_select_command_internal(valkey_glide_object* valkey_glide, long dbin
     zval dummy_return;
     ZVAL_NULL(&dummy_return);
 
-    return execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, &dummy_return);
+    return execute_core_command(
+        valkey_glide, &args, NULL, process_core_bool_result_batch, &dummy_return);
 }
 
 /* Execute a SELECT command - UNIFIED IMPLEMENTATION */
@@ -770,7 +775,7 @@ int execute_move_command_internal(valkey_glide_object* valkey_glide,
     ZVAL_NULL(&dummy_return);
 
     return execute_core_command(
-        valkey_glide, &args, output_value, process_core_bool_result, &dummy_return);
+        valkey_glide, &args, output_value, process_core_bool_result_batch, &dummy_return);
 }
 
 /* Execute a MOVE command - UNIFIED IMPLEMENTATION */
