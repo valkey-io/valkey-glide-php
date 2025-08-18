@@ -1551,8 +1551,8 @@ int execute_del_command(zval* object, int argc, zval* return_value, zend_class_e
     if (keys_count == 1 && Z_TYPE(keys[0]) == IS_ARRAY) {
         result = execute_del_array(valkey_glide->glide_client, Z_ARRVAL(keys[0]), &result_value);
     } else {
-        result = execute_multi_key_command(
-            valkey_glide->glide_client, Del, keys, keys_count, &result_value);
+        result =
+            execute_multi_key_command(valkey_glide, Del, keys, keys_count, object, return_value);
     }
 
     if (result) {
@@ -1562,8 +1562,6 @@ int execute_del_command(zval* object, int argc, zval* return_value, zend_class_e
             return 1;
         }
 
-        /* Normal mode - return actual result */
-        ZVAL_LONG(return_value, result_value);
         return 1;
     }
 

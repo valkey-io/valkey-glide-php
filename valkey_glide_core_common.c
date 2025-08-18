@@ -1712,17 +1712,22 @@ z_result_processor_t create_batch_processor_wrapper(core_result_processor_t proc
 
 
 /**
- * Generic multi-key command handler for DEL, UNLINK, and similar commands
+ * Generic multi-key command handler for DEL, UNLINK, and similar commands with batch support
  * Supports all 3 usage patterns: single key, array, and multiple arguments
  */
-int execute_multi_key_command(const void*      glide_client,
-                              enum RequestType cmd_type,
-                              zval*            keys,
-                              int              keys_count,
-                              long*            output_value) {
-    core_command_args_t args = {0};
-    args.glide_client        = glide_client;
-    args.cmd_type            = cmd_type;
+int execute_multi_key_command(valkey_glide_object* valkey_glide,
+                              enum RequestType     cmd_type,
+                              zval*                keys,
+                              int                  keys_count,
+                              zval*                object,
+                              zval*                return_value) {
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+    long                output_value = 0;
+    core_command_args_t args         = {0};
+    args.glide_client                = valkey_glide->glide_client;
+    args.cmd_type                    = cmd_type;
 
     /* Detect single key vs multi-key scenario */
     if (keys_count == 1 && Z_TYPE_P(keys) == IS_STRING) {
@@ -1752,52 +1757,46 @@ int execute_multi_key_command(const void*      glide_client,
         args.args[0].data.array_arg.count = keys_count;
         args.arg_count                    = 1; /* Triggers multi-key mode in core framework */
 
-        /* Execute command and return result - Note: This is a legacy function, no valkey_glide
-         * object available */
-        /* For now, call the original execute_command directly since this is a legacy path */
-        uintptr_t*     cmd_args          = NULL;
-        unsigned long* cmd_args_len      = NULL;
-        char**         allocated_strings = NULL;
-        int            allocated_count   = 0;
-        int            arg_count         = 0;
-        int            result            = 0;
+        /* Execute using core framework with batch support */
+        int result = execute_core_command(
+            valkey_glide, &args, &output_value, process_core_int_result, return_value);
 
-        arg_count = prepare_core_args(
-            &args, &cmd_args, &cmd_args_len, &allocated_strings, &allocated_count);
-        if (arg_count >= 0) {
-            CommandResult* cmd_result = execute_command(
-                args.glide_client, args.cmd_type, arg_count, cmd_args, cmd_args_len);
-            if (cmd_result) {
-                result = process_core_int_result(cmd_result, output_value);
-                free_command_result(cmd_result);
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object); /* return_value should already contain $this */
+        } else {
+            /* Set the actual result value in return_value */
+            if (result) {
+                ZVAL_LONG(return_value, output_value);
+            } else {
+                ZVAL_FALSE(return_value);
             }
         }
-        free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
+
         return result;
     } else {
         /* Invalid input - neither single string, array, nor multiple strings */
         return 0;
     }
 
-    /* Legacy path - call execute_command directly since no valkey_glide object available */
-    uintptr_t*     cmd_args          = NULL;
-    unsigned long* cmd_args_len      = NULL;
-    char**         allocated_strings = NULL;
-    int            allocated_count   = 0;
-    int            arg_count         = 0;
-    int            result            = 0;
+    /* Use batch-aware core framework */
+    int result = execute_core_command(
+        valkey_glide, &args, &output_value, process_core_int_result, return_value);
 
-    arg_count =
-        prepare_core_args(&args, &cmd_args, &cmd_args_len, &allocated_strings, &allocated_count);
-    if (arg_count >= 0) {
-        CommandResult* cmd_result =
-            execute_command(args.glide_client, args.cmd_type, arg_count, cmd_args, cmd_args_len);
-        if (cmd_result) {
-            result = process_core_int_result(cmd_result, output_value);
-            free_command_result(cmd_result);
-        }
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        /* execute_core_command already handles this case */
+        ZVAL_COPY(return_value, object); /* return_value should already contain $this */
+        return result;
     }
-    free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
+
+    /* In normal mode, set the result value */
+    if (result) {
+        ZVAL_LONG(return_value, output_value);
+    } else {
+        ZVAL_FALSE(return_value);
+    }
+
     return result;
 }
 

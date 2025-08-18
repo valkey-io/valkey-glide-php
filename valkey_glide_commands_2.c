@@ -632,9 +632,7 @@ int execute_exists_command(zval* object, int argc, zval* return_value, zend_clas
     /* Check if we received an array as a single argument */
     if (argc == 1 && Z_TYPE_P(z_args) == IS_ARRAY) {
         /* Single array argument - pass directly to EXISTS command */
-        if (execute_multi_key_command(
-                valkey_glide->glide_client, Exists, z_args, argc, &result_value)) {
-            ZVAL_LONG(return_value, result_value);
+        if (execute_multi_key_command(valkey_glide, Exists, z_args, argc, object, return_value)) {
             return 1;
         } else {
             return 0;
@@ -657,9 +655,8 @@ int execute_exists_command(zval* object, int argc, zval* return_value, zend_clas
         int actual_key_count = zend_hash_num_elements(Z_ARRVAL(temp_array));
 
         if (execute_multi_key_command(
-                valkey_glide->glide_client, Exists, &temp_array, actual_key_count, &result_value)) {
+                valkey_glide, Exists, &temp_array, actual_key_count, object, return_value)) {
             zval_dtor(&temp_array);
-            ZVAL_LONG(return_value, result_value);
             return 1;
         } else {
             zval_dtor(&temp_array);
@@ -690,9 +687,7 @@ int execute_touch_command(zval* object, int argc, zval* return_value, zend_class
         /* Single array argument - pass directly to TOUCH command */
         /* Execute a TOUCH command using the Valkey Glide client - MIGRATED TO CORE FRAMEWORK */
 
-        if (execute_multi_key_command(
-                valkey_glide->glide_client, Touch, z_args, argc, &result_value)) {
-            ZVAL_LONG(return_value, result_value);
+        if (execute_multi_key_command(valkey_glide, Touch, z_args, argc, object, return_value)) {
             return 1;
         } else {
             return 0;
@@ -715,9 +710,8 @@ int execute_touch_command(zval* object, int argc, zval* return_value, zend_class
         int actual_key_count = zend_hash_num_elements(Z_ARRVAL(temp_array));
 
         if (execute_multi_key_command(
-                valkey_glide->glide_client, Touch, &temp_array, actual_key_count, &result_value)) {
+                valkey_glide, Touch, &temp_array, actual_key_count, object, return_value)) {
             zval_dtor(&temp_array);
-            ZVAL_LONG(return_value, result_value);
             return 1;
         } else {
             zval_dtor(&temp_array);
@@ -751,9 +745,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             return 1;
         }
     } else {
-        if (execute_multi_key_command(
-                valkey_glide->glide_client, Unlink, z_args, argc, &result_value)) {
-            ZVAL_LONG(return_value, result_value);
+        if (execute_multi_key_command(valkey_glide, Unlink, z_args, argc, object, return_value)) {
             return 1;
         }
     }

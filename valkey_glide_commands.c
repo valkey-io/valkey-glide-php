@@ -651,9 +651,7 @@ int execute_pfcount_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Execute the PFCOUNT command using the Glide client */
 
-    if (execute_multi_key_command(
-            valkey_glide->glide_client, PfCount, z_args, arg_count, &result_value)) {
-        ZVAL_LONG(return_value, result_value);
+    if (execute_multi_key_command(valkey_glide, PfCount, z_args, arg_count, object, return_value)) {
         return 1;
     }
 

@@ -281,12 +281,13 @@ int parse_expire_options(zval* options, core_options_t* opts);
  * ==================================================================== */
 
 
-/* Multi-key commands (DEL, UNLINK) with all usage patterns */
-int execute_multi_key_command(const void*      glide_client,
-                              enum RequestType cmd_type,
-                              zval*            keys,
-                              int              keys_count,
-                              long*            output_value);
+/* Multi-key commands (DEL, UNLINK) with all usage patterns and batch support */
+int execute_multi_key_command(valkey_glide_object* valkey_glide,
+                              enum RequestType     cmd_type,
+                              zval*                keys,
+                              int                  keys_count,
+                              zval*                object,
+                              zval*                return_value);
 
 /* ====================================================================
  * ERROR HANDLING AND DEBUGGING
