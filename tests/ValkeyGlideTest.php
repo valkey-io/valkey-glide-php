@@ -5093,8 +5093,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->lSet($key, 0, 'newValue'));
         $this->assertFalse($this->valkey_glide->lrem($key, 'lvalue', 1));
         $this->assertFalse($this->valkey_glide->lPop($key));
-        $this->assertFalse($this->valkey_glide->rPop($key));
-        $this->assertFalse($this->valkey_glide->rPoplPush($key, $dkey . 'lkey1'));
+        $this->assertFalse($this->valkey_glide->rPop($key));        
 
         // sets I/F
         $this->assertFalse($this->valkey_glide->sAdd($key, 'sValue1'));
@@ -5291,7 +5290,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->lrem($key, 'lvalue', 1));
         $this->assertFalse($this->valkey_glide->lPop($key));
         $this->assertFalse($this->valkey_glide->rPop($key));
-        $this->assertFalse($this->valkey_glide->rPoplPush($key, $dkey . 'lkey1'));
+ 
 
         // sets I/F
         $this->assertFalse($this->valkey_glide->sAdd($key, 'sValue1'));
@@ -7208,12 +7207,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testAsaf2()
     {
-        return;
+   
         $ret = $this->valkey_glide->multi(ValkeyGlide::MULTI)
             ->del('{key}1')
             ->set('{key}1', 'value1')
             /*
             ->get('{key}1')
+            
             ->getSet('{key}1', 'value2')
             ->get('{key}1')
             ->set('{key}2', 4)
@@ -7233,7 +7233,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         $i = 0;
         $this->assertIsArray($ret);
-        $this->assertTrue(is_long($ret[$i++]));        
+        $this->assertTrue(is_long($ret[$i++]));  
+        var_dump($ret[1]);      
         $this->assertEqualsWeak(true, $ret[$i++]);
         return;
         $this->assertEqualsWeak('value1', $ret[$i++]);

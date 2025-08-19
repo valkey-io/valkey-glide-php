@@ -194,9 +194,7 @@ const ConnectionResponse* create_glide_cluster_client(
 
 /* Custom result processor for SET commands with GET option support */
 struct set_result_data {
-    char**  old_val;
-    size_t* old_val_len;
-    int     has_get;
+    int has_get;
 };
 
 static int process_set_result(CommandResponse* response, void* output, zval* return_value) {
@@ -208,21 +206,32 @@ static int process_set_result(CommandResponse* response, void* output, zval* ret
 
     switch (response->response_type) {
         case Ok:
+            efree(output);
+            ZVAL_TRUE(return_value);
             return 1; /* Success */
         case Null:
+            efree(output);
+            ZVAL_FALSE(return_value);
             return 0; /* Not set (NX/XX condition not met) */
         case String:
             /* GET option returned a value */
-            if (data->has_get && data->old_val && data->old_val_len && response->string_value) {
-                *data->old_val = emalloc(response->string_value_len + 1);
-                if (*data->old_val) {
-                    memcpy(*data->old_val, response->string_value, response->string_value_len);
-                    (*data->old_val)[response->string_value_len] = '\0';
-                    *data->old_val_len                           = response->string_value_len;
+            if (data->has_get && response->string_value) {
+                char*  old_val     = emalloc(response->string_value_len + 1);
+                size_t old_val_len = response->string_value_len;
+                if (old_val) {
+                    memcpy(old_val, response->string_value, response->string_value_len);
+                    (old_val)[response->string_value_len] = '\0';
                 }
+
+                printf("SET command returned old value: %s\n", response->string_value);
+                ZVAL_STRINGL(return_value, old_val, old_val_len);
+                efree(old_val);
             }
+            efree(output);
             return 2; /* GET option returned a value */
         default:
+            efree(output);
+            ZVAL_FALSE(return_value);
             return 0; /* Error */
     }
 }
@@ -575,39 +584,19 @@ int execute_set_command(zval* object, int argc, zval* return_value, zend_class_e
     }
 
     /* Check for batch mode after successful execution */
-    if (result && valkey_glide->is_in_batch_mode) {
-        /* Clean up old_val if it was allocated */
-        if (old_val) {
-            efree(old_val);
+    if (result) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* Clean up old_val if it was allocated */
+            if (old_val) {
+                efree(old_val);
+            }
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
         }
-        /* In batch mode, return $this for method chaining */
-        ZVAL_COPY(return_value, object);
         return 1;
     }
 
-    /* Process the result */
-    switch (result) {
-        case 1: /* Success */
-            ZVAL_TRUE(return_value);
-            return 1;
-        case 0: /* Not set (NX/XX/IFEQ condition not met) */
-            ZVAL_FALSE(return_value);
-            return 1;
-        case 2: /* GET option returned a value */
-            /* If GET option was used and old value was returned */
-            if (old_val != NULL) {
-                /* Return the old value */
-                ZVAL_STRINGL(return_value, old_val, old_val_len);
-                efree(old_val); /* Free the allocated old value */
-                return 1;
-            }
-            /* Fallback to returning TRUE when GET is used but handling fails */
-            ZVAL_TRUE(return_value);
-            return 1;
-        default: /* Error */
-            ZVAL_FALSE(return_value);
-            return 0;
-    }
+
     return 0; /* Should not reach here, but just in case */
 }
 
@@ -650,10 +639,10 @@ int execute_set_command_internal(valkey_glide_object* valkey_glide,
     }
 
     /* Prepare result data for GET option */
-    struct set_result_data result_data = {old_val, old_val_len, args.options.get_old_value};
+    struct set_result_data* result_data = emalloc(sizeof(struct set_result_data));
+    result_data->has_get                = args.options.get_old_value;
 
-    return execute_core_command(
-        valkey_glide, &args, &result_data, process_set_result, return_value);
+    return execute_core_command(valkey_glide, &args, result_data, process_set_result, return_value);
 }
 
 /* Execute a SETEX command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
@@ -684,12 +673,10 @@ int execute_setex_command(zval* object, int argc, zval* return_value, zend_class
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
-            return 1;
         }
-        ZVAL_TRUE(return_value);
+
         return 1;
     } else {
-        ZVAL_FALSE(return_value);
         return 0;
     }
 }
@@ -732,12 +719,10 @@ int execute_psetex_command(zval* object, int argc, zval* return_value, zend_clas
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
-            return 1;
         }
-        ZVAL_TRUE(return_value);
+
         return 1;
     } else {
-        ZVAL_FALSE(return_value);
         return 0;
     }
 }
@@ -780,12 +765,9 @@ int execute_setnx_command(zval* object, int argc, zval* return_value, zend_class
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
-            return 1;
         }
-        ZVAL_TRUE(return_value);
         return 1;
     } else {
-        ZVAL_FALSE(return_value);
         return 0;
     }
 }
@@ -1890,12 +1872,12 @@ int execute_getset_command(zval* object, int argc, zval* return_value, zend_clas
     /* Process the result */
     if ((result == 1 || result == 2) && response != NULL) {
         /* Return the old value */
-        ZVAL_STRINGL(return_value, response, response_len);
+        //  ZVAL_STRINGL(return_value, response, response_len);
         efree(response);
         return 1;
     } else if (result == 0 || (result == 2 && response == NULL)) {
         /* Key didn't exist */
-        ZVAL_FALSE(return_value);
+        //      ZVAL_FALSE(return_value);
         return 1;
     } else {
         /* Error */
