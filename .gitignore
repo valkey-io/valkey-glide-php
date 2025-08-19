@@ -81,6 +81,7 @@ src/**
 include/**
 lib/**
 .libs/**
+tests/.libs/**
 *.dep
 *.lo
 valkey_glide.la
@@ -88,12 +89,15 @@ valkey_glide_arginfo.h
 valkey_glide_cluster_arginfo.h
 valkey_glide_cluster_legacy_arginfo.h
 valkey_glide_legacy_arginfo.h
+logger_arginfo.h
+logger_legacy_arginfo.h
 run-tests.php
 modules/valkey_glide.so
 libtool
 cluster_scan_cursor_legacy_arginfo.h
 cluster_scan_cursor_arginfo.h
 tests/valkey_data/*/valkey.log
+composer.lock
 configure
 configure.ac
 config.h.in
@@ -106,3 +110,8 @@ Makefile.objects
 autom4te.cache
 config.h.in~
 configure~
+tests/Connection_request/**
+tests/GPBMetadata/**
+tests/client_constructor_mock_arginfo.h
+tests/client_constructor_mock_legacy_arginfo.h
+vendor/**
