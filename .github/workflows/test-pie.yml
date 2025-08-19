@@ -1,0 +1,362 @@
+name: Install and test PIE package
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  get-matrices:
+    runs-on: ubuntu-latest
+    outputs:
+      engine-matrix-output: ${{ steps.get-matrices.outputs.engine-matrix-output }}
+      host-matrix-output: ${{ steps.get-matrices.outputs.host-matrix-output }}
+      version-matrix-output: ${{ steps.get-matrices.outputs.version-matrix-output }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - id: get-matrices
+        uses: ./.github/workflows/create-test-matrices
+        with:
+          language-name: php
+          # Run full test matrix if job started by cron or it was explicitly specified by a person who triggered the workflow
+          run-full-matrix: ${{ github.event.inputs.full-matrix == 'true' || github.event_name == 'schedule' }}
+
+  test-php:
+    name: PHP Tests - ${{ matrix.php }}, EngineVersion - ${{ matrix.engine.version }}, Target - ${{ matrix.host.TARGET }}
+    needs: get-matrices
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ${{ fromJson(needs.get-matrices.outputs.version-matrix-output) }}
+        engine: ${{ fromJson(needs.get-matrices.outputs.engine-matrix-output) }}
+        host: ${{ fromJson(needs.get-matrices.outputs.host-matrix-output) }}
+    runs-on: ${{ matrix.host.RUNNER }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Output Matrix Parameters for this job
+        run: |
+          echo "Job running with the following matrix configuration:"
+          echo "${{ toJson(matrix) }}"
+
+  test-pie-install:
+    name: PHP Tests - ${{ matrix.php }}, EngineVersion - ${{ matrix.engine.version }}, Target - ${{ matrix.host.TARGET }}
+    needs: get-matrices
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ${{ fromJson(needs.get-matrices.outputs.version-matrix-output) }}
+        engine: ${{ fromJson(needs.get-matrices.outputs.engine-matrix-output) }}
+        host: ${{ fromJson(needs.get-matrices.outputs.host-matrix-output) }}
+    runs-on: ${{ matrix.host.RUNNER }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install shared dependencies
+        uses: ./.github/workflows/install-shared-dependencies
+        with:
+          target: x86_64-unknown-linux-gnu
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: "7.2.5"
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.BASE_PHP_VERSION }}
+          extensions: none
+          tools: pie, jq
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+              php${{ env.BASE_PHP_VERSION }}-dev \
+              php${{ env.BASE_PHP_VERSION }}-curl \
+              php${{ env.BASE_PHP_VERSION }}-xml \
+              build-essential \
+              autoconf \
+              automake \
+              libtool \
+              pkg-config \
+              libssl-dev \
+              clang-format \
+              protobuf-c-compiler \
+              libprotobuf-c-dev \
+              libprotobuf-c1
+
+      - name: Install Rust and protoc
+        uses: ./.github/workflows/install-rust-and-protoc
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cbindgen
+        run: cargo install cbindgen
+
+      - name: Install Composer dependencies
+        run: composer install --ignore-platform-reqs
+
+      - name: Generate test protobuf PHP classes
+        run: |
+          protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/ ./valkey-glide/glide-core/src/protobuf/connection_request.proto
+          echo "tests directory contents:"
+          cd tests
+          ls -la
+
+      - name: Create manual Composer repository
+        run: |
+          mkdir -p web
+
+          # Create packages.json manually
+          cat > web/packages.json << EOF
+          {
+            "packages": {
+              "valkey-io/valkey-glide-php": {
+                "1.0.0": {
+                  "name": "valkey-io/valkey-glide-php",
+                  "version": "1.0.0",
+                  "version_normalized": "1.0.0.0",
+                  "source": {
+                    "type": "git",
+                    "url": "https://github.com/jduo/valkey-glide-php.git",
+                    "reference": "${{ github.head_ref || github.ref_name }}"
+                  },
+                  "type": "php-ext",
+                  "php-ext": {
+                    "extension-name": "valkey_glide"
+                  },
+                  "description": "Valkey GLIDE PHP Extension",
+                  "provide": {
+                    "ext-valkey_glide": "*"
+                  },
+                  "require": {
+                    "php": ">=8.1"
+                  }
+                }
+              }
+            }
+          }
+          EOF
+
+          # Start HTTP server
+          cd web && python3 -m http.server 8000 &
+          echo $! > ../server.pid
+          sleep 3
+
+      - name: Test PIE with manual repository
+        run: |
+          # Allow HTTP for localhost for both user and root
+          composer config --global secure-http false
+          sudo composer config --global secure-http false
+
+          # Initialize composer config directories and fix permissions
+          mkdir -p "$HOME/.config/composer"
+          sudo mkdir -p /root/.config/composer
+
+          # Make sure root can read the user's composer config
+          sudo chmod -R 755 "$HOME/.config/composer"
+          sudo chown -R root:root "$HOME/.config/composer" || true
+
+          # Add local repository
+          pie repository:add composer http://localhost:8000
+
+          # Test PIE installation
+          echo "=== Attempting PIE installation with verbose output ==="
+          set +e
+          # Make Rust available to root by preserving environment
+          sudo -E env "PATH=$PATH" pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -j1 -vvv 2>&1 | tee pie_install.log
+          PIE_EXIT_CODE=$?
+          set -e
+
+          echo "=== PIE exit code: $PIE_EXIT_CODE ==="
+          echo "=== PIE log content ==="
+          cat pie_install.log || echo "No PIE log found"
+
+          # Check if .so file was built regardless of exit code
+          echo "=== Checking if extension was built ==="
+          PIE_WORK_DIR=$(find "$HOME/.config/pie" -name "valkey-glide-php" -type d | head -1)
+          if [ -n "$PIE_WORK_DIR" ]; then
+            echo "PIE working directory: $PIE_WORK_DIR"
+            find "$PIE_WORK_DIR" -name "*.so" -type f 2>/dev/null && echo "SUCCESS: .so file was built!" || echo "No .so files found - build failed"
+            find "$PIE_WORK_DIR" -name "valkey_glide*" -type f 2>/dev/null | head -5 || echo "No valkey_glide files found"
+            echo "=== Contents of modules directory ==="
+            ls -la "$PIE_WORK_DIR/modules/" 2>/dev/null || echo "No modules directory"
+            echo "=== Contents of .libs directory ==="
+            ls -la "$PIE_WORK_DIR/.libs/" 2>/dev/null || echo "No .libs directory"
+          fi
+
+          if [ $PIE_EXIT_CODE -eq 0 ]; then
+            echo "=== PIE installation completed successfully ==="
+            echo "=== Shared object file location ==="
+            if [ -n "$PIE_WORK_DIR" ]; then
+              SO_FILE=$(find "$PIE_WORK_DIR" -name "valkey_glide.so" -type f 2>/dev/null | head -1)
+              if [ -n "$SO_FILE" ]; then
+                echo "SUCCESS: Shared object built at: $SO_FILE"
+                ls -la "$SO_FILE"
+                echo "File size: $(stat -c%s "$SO_FILE" 2>/dev/null || echo "unknown") bytes"
+              else
+                echo "WARNING: PIE reported success but valkey_glide.so not found"
+                find "$PIE_WORK_DIR" -name "*.so" -type f 2>/dev/null || echo "No .so files found at all"
+              fi
+            fi
+          else
+            echo "=== PIE installation failed or had errors, showing debugging ==="
+
+            echo "=== Looking for PIE build output files ==="
+            find /tmp -name "pie_*output*" -type f -exec echo "File: {}" \; -exec cat {} \; 2>/dev/null || echo "No PIE output files found"
+
+            echo "=== Checking makefile debug log ==="
+            cat /tmp/makefile_debug.log 2>/dev/null || echo "No makefile debug log found"
+
+            echo "=== PIE working directory contents ==="
+            PIE_WORK_DIR=$(find "$HOME/.config/pie" -name "valkey-glide-php" -type d | head -1)
+            if [ -n "$PIE_WORK_DIR" ]; then
+              echo "PIE working directory: $PIE_WORK_DIR"
+              cd "$PIE_WORK_DIR"
+              ls -la
+              echo "=== Generated Makefile targets ==="
+              grep "^[a-zA-Z].*:" Makefile | head -10 2>/dev/null || echo "No Makefile found"
+              echo "=== Checking if Makefile.frag was included ==="
+              grep -A10 -B5 "Platform-specific configuration\|VALKEY_GLIDE_SHARED_LIBADD" Makefile 2>/dev/null || echo "Makefile.frag content not found in Makefile"
+              echo "=== Full Makefile.frag content ==="
+              cat Makefile.frag 2>/dev/null || echo "Cannot read Makefile.frag"
+              echo "=== valkey-glide directory contents ==="
+              ls -la valkey-glide/ 2>/dev/null || echo "valkey-glide directory not found"
+              echo "=== .gitmodules file ==="
+              cat .gitmodules 2>/dev/null || echo ".gitmodules not found"
+              echo "=== git submodule status ==="
+              git submodule status 2>/dev/null || echo "git submodule status failed"
+              echo "=== valkey-glide/ffi directory ==="
+              ls -la valkey-glide/ffi/ 2>/dev/null || echo "ffi directory not found"
+              echo "=== target directory ==="
+              ls -la valkey-glide/ffi/target/ 2>/dev/null || echo "target directory not found"
+              echo "=== Rust build artifacts ==="
+              find valkey-glide/ffi/target -name "*.h" 2>/dev/null | head -10 || echo "No Rust build artifacts found"
+            fi
+          fi
+
+      - name: Verify PIE installation
+        run: |
+          echo "=== Checking PHP extension directory ==="
+          php-config --extension-dir
+          ls -la $(php-config --extension-dir) | grep valkey || echo "valkey_glide.so not found in extension directory"
+
+          echo "=== Looking for built extension in PIE working directory ==="
+          PIE_WORK_DIR=$(find "$HOME/.config/pie" -name "valkey-glide-php" -type d | head -1)
+          if [ -n "$PIE_WORK_DIR" ]; then
+            echo "PIE working directory: $PIE_WORK_DIR"
+            find "$PIE_WORK_DIR" -name "*.so" -type f 2>/dev/null || echo "No .so files found in PIE directory"
+            find "$PIE_WORK_DIR" -name "valkey_glide*" -type f 2>/dev/null || echo "No valkey_glide files found"
+
+            # Check if extension was built but not installed
+            SO_FILE=$(find "$PIE_WORK_DIR" -name "valkey_glide.so" -type f 2>/dev/null | head -1)
+            if [ -n "$SO_FILE" ]; then
+              echo "Extension was built at: $SO_FILE"
+              echo "But PIE failed to install it to: $(php-config --extension-dir)"
+              echo "=== Checking PIE install log for 'make install' ==="
+              grep -i "make install\|install.*valkey\|copying.*valkey" pie_install.log || echo "No 'make install' found in PIE log"
+              echo "=== Checking if PIE created ini file ==="
+              find /etc/php* -name "*valkey*" 2>/dev/null || echo "No PIE-generated ini files found"
+              echo "=== This indicates PIE build succeeded but install step failed ==="
+            else
+              echo "Extension was not built - build step failed"
+            fi
+          fi
+
+          echo "=== Checking if extension is loaded ==="
+          php -m | grep -i valkey || echo "valkey extension not loaded"
+
+          echo "=== Checking PHP configuration ==="
+          php --ini
+
+          echo "=== Looking for PIE-generated ini files ==="
+          find /etc/php* -name "*valkey*" 2>/dev/null || echo "No valkey ini files found"
+          find /usr/local/etc/php* -name "*valkey*" 2>/dev/null || echo "No valkey ini files in /usr/local"
+
+          echo "=== Manually enabling extension ==="
+          php -d extension=valkey_glide -m | grep -i valkey && echo "Extension works when manually enabled!" || echo "Extension still not working"
+
+          echo "=== Testing extension functionality ==="
+          php -d extension=valkey_glide -r "if (extension_loaded('valkey_glide')) { echo 'SUCCESS: Extension loaded and functional!'; } else { echo 'ERROR: Extension not functional'; }"
+
+      - name: Start Valkey servers
+        working-directory: tests
+        run: |
+          set -e  # Exit on any error
+
+          # Ensure /usr/local/bin is in PATH (where valkey-server is installed)
+          export PATH="/usr/local/bin:$PATH"
+
+          echo "=== DEBUG: Current directory and files ==="
+          pwd
+          ls -la
+
+          echo "=== DEBUG: Current PATH ==="
+          echo "PATH=$PATH"
+
+          echo "=== DEBUG: Checking for installed binaries in /usr/local/bin ==="
+          ls -la /usr/local/bin/ | grep -E "(valkey|redis)" || echo "No valkey/redis binaries in /usr/local/bin"
+
+          echo "=== DEBUG: Checking script permissions ==="
+          ls -la start_valkey_with_replicas.sh create-valkey-cluster.sh
+
+          # Make scripts executable
+          chmod +x start_valkey_with_replicas.sh create-valkey-cluster.sh
+
+          echo "=== DEBUG: After chmod ==="
+          ls -la start_valkey_with_replicas.sh create-valkey-cluster.sh
+
+          # Check if valkey-server is available
+          echo "=== DEBUG: Checking for valkey-server ==="
+          which valkey-server || echo "valkey-server not found in PATH"
+
+          # Check alternative locations and names
+          echo "=== DEBUG: Checking alternative binary names ==="
+          which redis-server || echo "redis-server not found in PATH"
+          which valkey-cli || echo "valkey-cli not found in PATH"
+          which redis-cli || echo "redis-cli not found in PATH"
+
+          # Start standalone servers (6379, 6380, 6381)
+          echo "=== Starting standalone Valkey servers ==="
+          ./start_valkey_with_replicas.sh
+
+          # Wait a moment for servers to start
+          echo "=== Waiting for standalone servers to start ==="
+          sleep 3
+
+          # Check if servers are running
+          echo "=== Checking standalone server status ==="
+          ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
+
+          # Start cluster servers (7001-7006)
+          echo "=== Starting Valkey cluster ==="
+          ./create-valkey-cluster.sh
+
+          # Final server status check
+          echo "=== Final server status check ==="
+          ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
+          echo "=== Valkey servers startup completed ==="
+
+      - name: Run PIE package tests
+        run: |
+          # Test extension functions exist
+          php -d extension=valkey_glide -r "print_r(get_extension_funcs('valkey_glide'));"
+
+          # Run any integration tests
+          php -d extension=valkey_glide tests/TestValkeyGlide.php
+
+      - name: Cleanup
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) || true
+          fi

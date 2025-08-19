@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ --------------------------------------------------------------------
+                   The PHP License, version 3.01
+ Copyright (c) 1999 - 2010 The PHP Group. All rights reserved.
+ --------------------------------------------------------------------
+
+ Redistribution and use in source and binary forms, with or without
+ modification, is permitted provided that the following conditions
+ are met:
+
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in
+      the documentation and/or other materials provided with the
+      distribution.
+
+   3. The name "PHP" must not be used to endorse or promote products
+      derived from this software without prior written permission. For
+      written permission, please contact group@php.net.
+
+   4. Products derived from this software may not be called "PHP", nor
+      may "PHP" appear in their name, without prior written permission
+      from group@php.net.  You may indicate that your software works in
+      conjunction with PHP by saying "Foo for PHP" instead of calling
+      it "PHP Foo" or "phpfoo"
+
+   5. The PHP Group may publish revised and/or new versions of the
+      license from time to time. Each version will be given a
+      distinguishing version number.
+      Once covered code has been published under a particular version
+      of the license, you may always continue to use it under the terms
+      of that version. You may also choose to use such covered code
+      under the terms of any subsequent version of the license
+      published by the PHP Group. No one other than the PHP Group has
+      the right to modify the terms applicable to covered code created
+      under this License.
+
+   6. Redistributions of any form whatsoever must retain the following
+      acknowledgment:
+      "This product includes PHP software, freely available from
+      <http://www.php.net/software/>".
+
+ THIS SOFTWARE IS PROVIDED BY THE PHP DEVELOPMENT TEAM ``AS IS'' AND
+ ANY EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE PHP
+ DEVELOPMENT TEAM OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ OF THE POSSIBILITY OF SUCH DAMAGE.
+
+ --------------------------------------------------------------------
+
+ This software consists of voluntary contributions made by many
+ individuals on behalf of the PHP Group.
+
+ The PHP Group can be contacted via Email at group@php.net.
+
+ For more information on the PHP Group and the PHP project,
+ please see <http://www.php.net>.
+
+ PHP includes the Zend Engine, freely available at
+ <http://www.zend.com>.
+-->
+<package packagerversion="1.10.13" version="2.0" xmlns="http://pear.php.net/dtd/package-2.0">
+    <name>valkey-glide</name>
+    <channel>pecl.php.net</channel>
+    <summary>Your PHP extension for high-performance operations</summary>
+    <description>
+        A PHP extension that provides high-performance implementations of common operations.
+        Available through both PECL and PIE (Composer).
+    </description>
+    <lead>
+        <name>Valkey GLIDE contributors</name>
+<!--        <user>yourusername</user>
+        <email>your@email.com</email>
+        <active>yes</active> -->
+    </lead>
+    <date>2024-08-18</date>
+    <version>
+        <release>1.0.0</release>
+        <api>1.0.0</api>
+    </version>
+    <stability>
+        <release>stable</release>
+        <api>stable</api>
+    </stability>
+    <license uri="http://www.php.net/license">PHP License</license>
+    <notes>
+        Initial release.
+    </notes>
+    <contents>
+        <dir name="/">
+            <!-- TODO: FFI source files -->
+
+            <!-- PHP Extension source files -->
+            <file name="cluster_scan_cursor.c" role="src"/>
+            <file name="cluster_scan_cursor.h" role="src"/>
+            <file name="cluster_scan_cursor.stub.php" role="src"/>
+            <file name="command_response.c" role="src"/>
+            <file name="command_response.h" role="src"/>
+            <file name="common.h" role="src"/>
+            <file name="config.h" role="src"/>
+            <file name="config.m4" role="src"/>
+            <file name="ext.ini" role="src"/>
+            <file name="lint.sh" role="src"/>
+            <file name="logger.c" role="src"/>
+            <file name="logger.h" role="src"/>
+            <file name="logger.stub.php" role="src"/>
+            <file name="php_valkey_glide.h" role="src"/>
+            <file name="valkey_glide.c" role="src"/>
+            <file name="valkey_glide.stub.php" role="src"/>
+            <file name="valkey_glide_commands.c" role="src"/>
+            <file name="valkey_glide_commands_2.c" role="src"/>
+            <file name="valkey_glide_commands_3.c" role="src"/>
+            <file name="valkey_glide_commands_common.c" role="src"/>
+            <file name="valkey_glide_core_common.c" role="src"/>
+            <file name="valkey_glide_core_common.h" role="src"/>
+            <file name="valkey_glide_expire_commands.c" role="src"/>
+            <file name="valkey_glide_geo_commands.c" role="src"/>
+            <file name="valkey_glide_geo_common.c" role="src"/>
+            <file name="valkey_glide_geo_common.h" role="src"/>
+            <file name="valkey_glide_hash_common.c" role="src"/>
+            <file name="valkey_glide_hash_common.h" role="src"/>
+            <file name="valkey_glide_list_common.c" role="src"/>
+            <file name="valkey_glide_list_common.h" role="src"/>
+            <file name="valkey_glide_s_common.c" role="src"/>
+            <file name="valkey_glide_s_common.h" role="src"/>
+            <file name="valkey_glide_str_commands.c" role="src"/>
+            <file name="valkey_glide_x_commands.c" role="src"/>
+            <file name="valkey_glide_x_common.c" role="src"/>
+            <file name="valkey_glide_x_commands.h" role="src"/>
+            <file name="valkey_glide_z.c" role="src"/>
+            <file name="valkey_glide_z_common.c" role="src"/>
+            <file name="valkey_glide_z_common.h" role="src"/>
+            <file name="valkey_z_php_methods.c" role="src"/>
+
+            <!-- Linter inputs -->
+            <file name="phpcs.xml" role="src"/>
+            <file name="phpstan.neon" role="src"/>
+
+            <!-- Documentation -->
+            <file name="ASAN.md" role="doc"/>
+            <file name="CONTRIBUTING.md" role="doc"/>
+            <file name="DEVELOPER.md" role="doc"/>
+            <file name="LICENSE" role="doc"/>
+            <file name="NOTICE" role="doc"/>
+            <file name="README.md" role="doc"/>
+            <file name="SECURITY.md" role="doc"/>
+            <file name="THIRD_PARTY_LICENSES_PHP" role="doc"/>
+
+            <!-- Tests -- TODO -->
+<!--            <dir name="tests">
+                <file name="001.phpt" role="test"/>
+                <file name="002.phpt" role="test"/>
+                <file name="003.phpt" role="test"/>
+            </dir> -->
+        </dir>
+    </contents>
+    <dependencies>
+        <required>
+            <php>
+                <min>8.0.0</min>
+            </php>
+            <pearinstaller>
+                <min>1.4.0</min>
+            </pearinstaller>
+        </required>
+    </dependencies>
+    <providesextension>valkey-glide</providesextension>
+    <extsrcrelease/>
+    <changelog>
+        <release>
+            <version>
+                <release>1.0.0</release>
+                <api>1.0.0</api>
+            </version>
+            <stability>
+                <release>stable</release>
+                <api>stable</api>
+            </stability>
+            <date>2024-08-18</date>
+            <notes>Initial release</notes>
+        </release>
+    </changelog>
+</package>
