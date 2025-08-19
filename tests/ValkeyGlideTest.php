@@ -7091,7 +7091,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertKeyEquals('bar', '{key}dst');
     }
 
-    public function testAsaf1()
+    public function testMultiZ()
     {   
         $this->valkey_glide->del('{z}key1', '{z}key2', '{z}key5', '{z}Inter', '{z}Union');
         // sorted sets
@@ -7159,8 +7159,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($ret[$i++]); // score for unknown element.
 
         $this->assertEquals($i, count($ret));
+    }
 
-        
+    public function testMultiHash()
+    {
         // hash
         $this->valkey_glide->del('hkey1');
         $ret = $this->valkey_glide->multi(ValkeyGlide::MULTI)            
@@ -7205,48 +7207,43 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     }
 
-    public function testAsaf2()
-    {
-   
+    public function testMultiString()
+    {   
         $ret = $this->valkey_glide->multi(ValkeyGlide::MULTI)
             ->del('{key}1')
-            ->set('{key}1', 'value1')
-            /*
-            ->get('{key}1')
-            
-            ->getSet('{key}1', 'value2')
+            ->set('{key}1', 'value1')            
+            ->get('{key}1')            
+            ->getSet('{key}1', 'value2')           
             ->get('{key}1')
             ->set('{key}2', 4)
-            ->incr('{key}2')
+            ->incr('{key}2')             
             ->get('{key}2')
-            ->decr('{key}2')
+            ->decr('{key}2')          
             ->get('{key}2')
-            ->rename('{key}2', '{key}3')
+            ->rename('{key}2', '{key}3')            
             ->get('{key}3')
             ->renameNx('{key}3', '{key}1')
             ->rename('{key}3', '{key}2')
             ->incrby('{key}2', 5)
             ->get('{key}2')
             ->decrby('{key}2', 5)
-            ->get('{key}2')*/
+            ->get('{key}2')
             ->exec();
 
         $i = 0;
         $this->assertIsArray($ret);
-        $this->assertTrue(is_long($ret[$i++]));  
-        var_dump($ret[1]);      
-        $this->assertEqualsWeak(true, $ret[$i++]);
-        return;
-        $this->assertEqualsWeak('value1', $ret[$i++]);
-        $this->assertEqualsWeak('value1', $ret[$i++]);
+        $this->assertTrue(is_long($ret[$i++]));               
+        $this->assertEqualsWeak(true, $ret[$i++]);        
+        $this->assertEqualsWeak('value1', $ret[$i++]);        
+        $this->assertEqualsWeak('value1', $ret[$i++]);       
         $this->assertEqualsWeak('value2', $ret[$i++]);
         $this->assertEqualsWeak(true, $ret[$i++]);
+        $this->assertEqualsWeak(5, $ret[$i++]);      
         $this->assertEqualsWeak(5, $ret[$i++]);
-        $this->assertEqualsWeak(5, $ret[$i++]);
+        $this->assertEqualsWeak(4, $ret[$i++]);           
         $this->assertEqualsWeak(4, $ret[$i++]);
-        $this->assertEqualsWeak(4, $ret[$i++]);
-        $this->assertEqualsWeak(true, $ret[$i++]);
-        $this->assertEqualsWeak(4, $ret[$i++]);
+        $this->assertEqualsWeak(true, $ret[$i++]);       
+        $this->assertEqualsWeak(4, $ret[$i++]);        
         $this->assertEqualsWeak(false, $ret[$i++]);
         $this->assertEqualsWeak(true, $ret[$i++]);
         $this->assertEqualsWeak(true, $ret[$i++]);

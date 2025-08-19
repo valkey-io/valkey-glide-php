@@ -223,7 +223,6 @@ static int process_set_result(CommandResponse* response, void* output, zval* ret
                     (old_val)[response->string_value_len] = '\0';
                 }
 
-                printf("SET command returned old value: %s\n", response->string_value);
                 ZVAL_STRINGL(return_value, old_val, old_val_len);
                 efree(old_val);
             }
@@ -846,17 +845,21 @@ int execute_echo_command(zval* object, int argc, zval* return_value, zend_class_
     core_args.args[0].data.string_arg.len   = msg_len;
     core_args.arg_count                     = 1;
 
-    /* Use string result processor */
+    /* Allocate string result processor on heap for batch support */
     struct {
         char**  result;
         size_t* result_len;
-    } output = {&response, &response_len};
+    }* output = emalloc(sizeof(*output));
+
+    output->result     = &response;
+    output->result_len = &response_len;
 
     /* Execute using unified core framework */
     if (execute_core_command(
-            valkey_glide, &core_args, &output, process_core_string_result_batch, return_value)) {
+            valkey_glide, &core_args, output, process_core_string_result_batch, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
+            /* Note: output will be freed later in process_core_string_result_batch */
             ZVAL_COPY(return_value, object);
             return 1;
         }
@@ -866,9 +869,10 @@ int execute_echo_command(zval* object, int argc, zval* return_value, zend_class_
             efree(response);
             return 1;
         }
+    } else {
+        /* Cleanup on failure */
+        efree(output);
     }
-
-    /* Error or empty response */
     return 0;
 }
 
@@ -1260,20 +1264,23 @@ int execute_get_command(zval* object, int argc, zval* return_value, zend_class_e
     args.key                 = key;
     args.key_len             = key_len;
 
-    /* Use string result processor */
+    /* Allocate string result processor on heap for batch support */
     struct {
         char**  result;
         size_t* result_len;
-    } output = {&response, &response_len};
+    }* output = emalloc(sizeof(*output));
+
+    output->result     = &response;
+    output->result_len = &response_len;
 
     if (execute_core_command(
-            valkey_glide, &args, &output, process_core_string_result_batch, return_value)) {
+            valkey_glide, &args, output, process_core_string_result_batch, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
+            /* Note: output will be freed later in process_core_string_result_batch */
             ZVAL_COPY(return_value, object);
             return 1;
         }
-
         if (response != NULL) {
             ZVAL_STRINGL(return_value, response, response_len);
             efree(response);
@@ -1282,7 +1289,11 @@ int execute_get_command(zval* object, int argc, zval* return_value, zend_class_e
             ZVAL_FALSE(return_value);
             return 1;
         }
+    } else {
+        /* Cleanup on failure */
+        efree(output);
     }
+
 
     return 0;
 }
@@ -1332,23 +1343,28 @@ int execute_randomkey_command(zval* object, int argc, zval* return_value, zend_c
         core_args.glide_client        = valkey_glide->glide_client;
         core_args.cmd_type            = RandomKey;
 
-        /* Use string result processor */
+        /* Allocate string result processor on heap for batch support */
         struct {
             char**  result;
             size_t* result_len;
-        } output = {&response, &response_len};
+        }* output = emalloc(sizeof(*output));
 
-        if (execute_core_command(valkey_glide,
-                                 &core_args,
-                                 &output,
-                                 process_core_string_result_batch,
-                                 return_value)) {
+        output->result     = &response;
+        output->result_len = &response_len;
+
+        if (execute_core_command(
+                valkey_glide, &core_args, output, process_core_string_result_batch, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
+                /* Note: output will be freed later in process_core_string_result_batch */
                 ZVAL_COPY(return_value, object);
                 return 1;
             }
+
             result = 1;
+        } else {
+            /* Cleanup on failure */
+            efree(output);
         }
     }
 

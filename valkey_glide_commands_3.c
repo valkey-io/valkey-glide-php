@@ -794,18 +794,25 @@ int execute_dump_command(zval* object, int argc, zval* return_value, zend_class_
 
         char*  output     = NULL;
         size_t output_len = 0;
+
+        /* Allocate string result processor on heap for batch support */
         struct {
             char**  result;
             size_t* result_len;
-        } out = {&output, &output_len};
+        }* out = emalloc(sizeof(*out));
+
+        out->result     = &output;
+        out->result_len = &output_len;
 
         if (execute_core_command(
-                valkey_glide, &args, &out, process_core_string_result_batch, return_value)) {
+                valkey_glide, &args, out, process_core_string_result_batch, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
+                /* Note: out will be freed later in process_core_string_result_batch */
                 ZVAL_COPY(return_value, object);
                 return 1;
             }
+
 
             if (output) {
                 /* Return serialized value */
@@ -817,6 +824,9 @@ int execute_dump_command(zval* object, int argc, zval* return_value, zend_class_
                 ZVAL_FALSE(return_value);
                 return 1;
             }
+        } else {
+            /* Cleanup on failure */
+            efree(out);
         }
     }
 

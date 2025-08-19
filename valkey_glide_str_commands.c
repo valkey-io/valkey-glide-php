@@ -142,18 +142,22 @@ int execute_getrange_command(zval* object, int argc, zval* return_value, zend_cl
         args.args[1].data.long_arg.value = end;
         args.arg_count                   = 2;
 
-        /* Use string result processor */
+        /* Allocate string result processor on heap for batch support */
         struct {
             char**  result;
             size_t* result_len;
-        } output = {&result, &result_len};
+        }* output = emalloc(sizeof(*output));
+
+        output->result     = &result;
+        output->result_len = &result_len;
 
         int ret = execute_core_command(
-            valkey_glide, &args, &output, process_core_string_result_batch, return_value);
+            valkey_glide, &args, output, process_core_string_result_batch, return_value);
 
         if (ret > 0) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
+                /* Note: output will be freed later in process_core_string_result_batch */
                 ZVAL_COPY(return_value, object);
                 return 1;
             }
@@ -164,8 +168,12 @@ int execute_getrange_command(zval* object, int argc, zval* return_value, zend_cl
             return 1;
         } else if (ret == 0) {
             /* Key didn't exist, return empty string */
+            efree(output);
             ZVAL_EMPTY_STRING(return_value);
             return 1;
+        } else {
+            /* Error */
+            efree(output);
         }
     }
 

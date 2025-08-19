@@ -1545,13 +1545,21 @@ int process_core_string_result_batch(CommandResponse* response, void* output, zv
         } else {
             ZVAL_FALSE(return_value);
         }
+
+        /* Free the heap-allocated output struct */
+        efree(string_output);
         return 1;
     } else if (response->response_type == Null) {
         *string_output->result     = NULL;
         *string_output->result_len = 0;
         ZVAL_FALSE(return_value);
+
+        /* Free the heap-allocated output struct */
+        efree(string_output);
         return 1;
     }
+
+    /* Free the heap-allocated output struct on unknown response type */
     return 0;
 }
 

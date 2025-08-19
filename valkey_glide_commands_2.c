@@ -154,22 +154,27 @@ int execute_getdel_command(zval* object, int argc, zval* return_value, zend_clas
     args.key                 = key;
     args.key_len             = key_len;
 
-    /* Use string result processor */
+    /* Allocate string result processor on heap for batch support */
     struct {
         char**  result;
         size_t* result_len;
-    } output = {&response, &response_len};
+    }* output = emalloc(sizeof(*output));
+
+    output->result     = &response;
+    output->result_len = &response_len;
 
     int result = execute_core_command(
-        valkey_glide, &args, &output, process_core_string_result_batch, return_value);
+        valkey_glide, &args, output, process_core_string_result_batch, return_value);
 
     /* Process the result */
     if (result == 1) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
+            /* Note: output will be freed later in process_core_string_result_batch */
             ZVAL_COPY(return_value, object);
             return 1;
         }
+
 
         if (response != NULL) {
             /* Return the value */
@@ -183,10 +188,12 @@ int execute_getdel_command(zval* object, int argc, zval* return_value, zend_clas
         }
     } else if (result == 0) {
         /* Key didn't exist */
+        efree(output);
         ZVAL_NULL(return_value);
         return 1;
     } else {
         /* Error */
+        efree(output);
         return 0;
     }
 }
@@ -225,23 +232,26 @@ int execute_getex_command(zval* object, int argc, zval* return_value, zend_class
         parse_core_options(opts, &args.options);
     }
 
-    /* Use string result processor */
+    /* Allocate string result processor on heap for batch support */
     struct {
         char**  result;
         size_t* result_len;
-    } output = {&response, &response_len};
+    }* output = emalloc(sizeof(*output));
+
+    output->result     = &response;
+    output->result_len = &response_len;
 
     int result = execute_core_command(
-        valkey_glide, &args, &output, process_core_string_result_batch, return_value);
+        valkey_glide, &args, output, process_core_string_result_batch, return_value);
 
     /* Process the result */
     if (result == 1) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
+            /* Note: output will be freed later in process_core_string_result_batch */
             ZVAL_COPY(return_value, object);
             return 1;
         }
-
         if (response != NULL) {
             /* Return the value */
             ZVAL_STRINGL(return_value, response, response_len);
@@ -254,10 +264,12 @@ int execute_getex_command(zval* object, int argc, zval* return_value, zend_class
         }
     } else if (result == 0) {
         /* Key didn't exist */
+        efree(output);
         ZVAL_NULL(return_value);
         return 1;
     } else {
         /* Error */
+        efree(output);
         return 0;
     }
 }
