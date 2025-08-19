@@ -73,6 +73,7 @@ define('VALKEY_GLIDE_PHP_TESTRUN', true);
 */
 
 require_once __DIR__ . "/TestSuite.php";
+require_once __DIR__ . "/ConnectionRequestTest.php";
 require_once __DIR__ . "/ValkeyGlideBaseTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterBaseTest.php";
 require_once __DIR__ . "/ValkeyGlideTest.php";
@@ -103,6 +104,7 @@ function getClassArray($classes)
 function getTestClass($class)
 {
     $valid_classes = [
+        'connectionrequest' => 'ConnectionRequestTest',
         'valkeyglide'         => 'ValkeyGlideTest',
         'valkeyglidecluster'  => 'ValkeyGlideClusterTest',
         'valkeyglideclientfeatures' => 'ValkeyGlideFeaturesTest',
@@ -137,7 +139,7 @@ ini_set('display_errors', '1');
 $opt = getopt('', ['host:', 'port:', 'class:', 'test:', 'nocolors', 'user:', 'auth:', 'tls']);
 
 /* The test class(es) we want to run */
-$classes = getClassArray($opt['class'] ?? 'valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,valkeyglideclusterfeatures');
+$classes = getClassArray($opt['class'] ?? 'connectionrequest,valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,valkeyglideclusterfeatures');
 
 $colorize = !isset($opt['nocolors']);
 

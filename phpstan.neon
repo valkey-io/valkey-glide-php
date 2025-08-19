@@ -5,6 +5,8 @@ parameters:
         - examples
     excludePaths:
         - tests/generated
+        - tests/Connection_request
+        - tests/GPBMetadata
         - vendor
         - autom4te.cache
         - build
