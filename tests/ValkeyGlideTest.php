@@ -3816,11 +3816,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue(is_numeric($this->valkey_glide->object('idletime', 'key')));
     }
 
-    public function testMultiExec()
-    {
-        $this->MarkTestSkipped();
+    public function testMultiExec()    {
+        
         $this->sequence(ValkeyGlide::MULTI);
-
+        return;
         $this->differentType(ValkeyGlide::MULTI);
 
         // with prefix as well
@@ -3963,6 +3962,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     protected function sequence($mode)
     {
+         
         $ret = $this->valkey_glide->multi($mode)
             ->set('x', 42)
             ->type('x')
@@ -3974,7 +3974,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($ret[$i++]);
         $this->assertEquals(ValkeyGlide::VALKEY_GLIDE_STRING, $ret[$i++]);
         $this->assertEqualsWeak('42', $ret[$i]);
-        return;
+         
         $ret = $this->valkey_glide->multi($mode)
             ->del('{key}1')
             ->set('{key}1', 'value1')
@@ -4018,8 +4018,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEqualsWeak(4, $ret[$i++]);
         $this->assertEquals($i, count($ret));
 
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_SERIALIZER, $serializer);
-
+      
         $ret = $this->valkey_glide->multi($mode)
             ->del('{key}1')
             ->del('{key}2')
@@ -4062,7 +4061,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(5, $ret[$i++]);    // ttl
         $this->assertTrue($ret[$i++]); // expireAt
         $this->assertEquals($i, count($ret));
-
+        return;
         $ret = $this->valkey_glide->multi($mode)
             ->set('{list}lkey', 'x')
             ->set('{list}lDest', 'y')
