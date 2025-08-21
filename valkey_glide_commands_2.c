@@ -339,7 +339,7 @@ int execute_incrby_command(zval* object, int argc, zval* return_value, zend_clas
 
 
     /* Execute the INCRBY command using the Glide client */
-    if (execute_core_command(valkey_glide, &args, &result, process_core_int_result, return_value)) {
+    if (execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);

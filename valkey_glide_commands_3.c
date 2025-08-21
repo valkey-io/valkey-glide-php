@@ -789,7 +789,7 @@ int execute_dump_command(zval* object, int argc, zval* return_value, zend_class_
 
 
         if (execute_core_command(
-                valkey_glide, &args, NUL, process_core_string_result, return_value)) {
+                valkey_glide, &args, NULL, process_core_string_result, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
                 /* Note: out will be freed later in process_core_string_result */
