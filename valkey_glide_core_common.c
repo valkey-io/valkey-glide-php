@@ -1604,10 +1604,10 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
     if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
-    long                output_value = 0;
-    core_command_args_t args         = {0};
-    args.glide_client                = valkey_glide->glide_client;
-    args.cmd_type                    = cmd_type;
+
+    core_command_args_t args = {0};
+    args.glide_client        = valkey_glide->glide_client;
+    args.cmd_type            = cmd_type;
 
     /* Detect single key vs multi-key scenario */
     if (keys_count == 1 && Z_TYPE_P(keys) == IS_STRING) {
@@ -1638,19 +1638,12 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
         args.arg_count                    = 1; /* Triggers multi-key mode in core framework */
 
         /* Execute using core framework with batch support */
-        int result = execute_core_command(
-            valkey_glide, &args, &output_value, process_core_int_result, return_value);
+        int result =
+            execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value);
 
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object); /* return_value should already contain $this */
-        } else {
-            /* Set the actual result value in return_value */
-            if (result) {
-                ZVAL_LONG(return_value, output_value);
-            } else {
-                ZVAL_FALSE(return_value);
-            }
         }
 
         return result;
@@ -1660,8 +1653,8 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
     }
 
     /* Use batch-aware core framework */
-    int result = execute_core_command(
-        valkey_glide, &args, &output_value, process_core_int_result, return_value);
+    int result =
+        execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value);
 
     if (valkey_glide->is_in_batch_mode) {
         /* In batch mode, return $this for method chaining */
@@ -1670,12 +1663,6 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
         return result;
     }
 
-    /* In normal mode, set the result value */
-    if (result) {
-        ZVAL_LONG(return_value, output_value);
-    } else {
-        ZVAL_FALSE(return_value);
-    }
 
     return result;
 }

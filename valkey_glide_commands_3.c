@@ -66,17 +66,15 @@ int execute_wait_command(zval* object, int argc, zval* return_value, zend_class_
         args.args[1].data.long_arg.value = timeout;
         args.arg_count                   = 2;
 
-        long result_value;
+
         if (execute_core_command(
-                valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+                valkey_glide, &args, NULL, process_core_int_result, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
                 ZVAL_COPY(return_value, object);
                 return 1;
             }
 
-            /* Return the number of replicas that acknowledged the write */
-            ZVAL_LONG(return_value, result_value);
             return 1;
         }
     }
