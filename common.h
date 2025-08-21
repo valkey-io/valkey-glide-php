@@ -163,15 +163,23 @@ void valkey_glide_cleanup_client_config(valkey_glide_base_client_configuration_t
 #define Z_PARAM_BOOL_OR_NULL(dest, is_null) Z_PARAM_BOOL_EX(dest, is_null, 1, 0)
 #endif
 
+/**
+ * Result processing callback type
+ */
+
+typedef int (*z_result_processor_t)(CommandResponse* response, void* output, zval* return_value);
+
 /* Batch command structure for buffering commands - FFI aligned */
 struct batch_command {
-    enum RequestType request_type;
-    uint8_t**        args;        /* FFI expects uint8_t** */
-    uintptr_t*       arg_lengths; /* FFI expects uintptr_t* */
-    uintptr_t        arg_count;   /* FFI expects uintptr_t */
-    char*            key;         /* Optional key for the command */
-    size_t           key_len;
-    void*            route_info; /* Optional routing info for cluster mode */
+    enum RequestType     request_type;
+    uint8_t**            args;        /* FFI expects uint8_t** */
+    uintptr_t*           arg_lengths; /* FFI expects uintptr_t* */
+    uintptr_t            arg_count;   /* FFI expects uintptr_t */
+    char*                key;         /* Optional key for the command */
+    size_t               key_len;
+    void*                route_info; /* Optional routing info for cluster mode */
+    void*                result_ptr; /* Pointer to store result */
+    z_result_processor_t process_result;
 };
 
 typedef struct {

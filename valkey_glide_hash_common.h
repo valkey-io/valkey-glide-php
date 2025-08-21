@@ -62,10 +62,6 @@ typedef struct _h_command_args_t {
     int  withvalues; /* Whether to return values with fields */
 } h_command_args_t;
 
-/**
- * Function pointer types for result processing
- */
-typedef int (*h_result_processor_t)(CommandResult* result, void* output);
 
 /**
  * Argument preparation function type
@@ -83,20 +79,22 @@ typedef int (*h_arg_preparer_t)(h_command_args_t* args,
 /**
  * Generic hash command execution framework
  */
-int execute_h_generic_command(const void*          glide_client,
+int execute_h_generic_command(valkey_glide_object* valkey_glide,
                               enum RequestType     cmd_type,
                               h_command_args_t*    args,
                               void*                result_ptr,
-                              h_result_processor_t process_result);
+                              z_result_processor_t process_result,
+                              zval*                return_value);
 
 /**
  * Simplified execution for commands using standard response handlers
  */
-int execute_h_simple_command(const void*       glide_client,
-                             enum RequestType  cmd_type,
-                             h_command_args_t* args,
-                             void*             result_ptr,
-                             int               response_type);
+int execute_h_simple_command(valkey_glide_object* valkey_glide,
+                             enum RequestType     cmd_type,
+                             h_command_args_t*    args,
+                             void*                result_ptr,
+                             int                  response_type,
+                             zval*                return_value);
 
 /* ====================================================================
  * ARGUMENT PREPARATION FUNCTIONS
@@ -181,17 +179,17 @@ int prepare_h_randfield_args(h_command_args_t* args,
 /**
  * Process results for HMGET (associative field mapping)
  */
-int process_h_mget_result(CommandResult* result, void* output);
+int process_h_mget_result(CommandResponse* respone, void* output, zval* return_value);
 
 /**
  * Process results for HRANDFIELD
  */
-int process_h_randfield_result(CommandResult* result, void* output);
+int process_h_randfield_result(CommandResponse* respone, void* output, zval* return_value);
 
 /**
  * Process results for HINCRBYFLOAT
  */
-int process_h_incrbyfloat_result(CommandResult* result, void* output);
+int process_h_incrbyfloat_result(CommandResponse* respone, void* output, zval* return_value);
 
 /* ====================================================================
  * UTILITY FUNCTIONS
@@ -315,35 +313,30 @@ int execute_h_incrby_command(const void* glide_client,
                              long        increment,
                              long*       output_value);
 
-int execute_h_incrbyfloat_command(const void* glide_client,
-                                  const char* key,
-                                  size_t      key_len,
-                                  char*       field,
-                                  size_t      field_len,
-                                  double      increment,
-                                  double*     output_value);
+int execute_h_incrbyfloat_command(valkey_glide_object* valkey_glide,
+                                  const char*          key,
+                                  size_t               key_len,
+                                  char*                field,
+                                  size_t               field_len,
+                                  double               increment,
+                                  zval*                return_value);
 
-int execute_h_mget_command(const void* glide_client,
-                           const char* key,
-                           size_t      key_len,
-                           zval*       fields,
-                           int         fields_count,
-                           zval*       return_value);
+int execute_h_mget_command(valkey_glide_object* valkey_glide,
+                           const char*          key,
+                           size_t               key_len,
+                           zval*                fields,
+                           int                  fields_count,
+                           zval*                return_value);
 
 int execute_h_keys_command(const void* glide_client,
                            const char* key,
                            size_t      key_len,
                            zval*       return_value);
 
-int execute_h_vals_command(const void* glide_client,
-                           const char* key,
-                           size_t      key_len,
-                           zval*       return_value);
-
-int execute_h_getall_command(const void* glide_client,
-                             const char* key,
-                             size_t      key_len,
-                             zval*       return_value);
+int execute_h_getall_command(valkey_glide_object* valkey_glide,
+                             const char*          key,
+                             size_t               key_len,
+                             zval*                return_value);
 
 int execute_h_strlen_command(const void* glide_client,
                              const char* key,
@@ -352,12 +345,12 @@ int execute_h_strlen_command(const void* glide_client,
                              size_t      field_len,
                              long*       output_value);
 
-int execute_h_randfield_command(const void* glide_client,
-                                const char* key,
-                                size_t      key_len,
-                                long        count,
-                                int         withvalues,
-                                zval*       return_value);
+int execute_h_randfield_command(valkey_glide_object* valkey_glide,
+                                const char*          key,
+                                size_t               key_len,
+                                long                 count,
+                                int                  withvalues,
+                                zval*                return_value);
 
 /* ====================================================================
  * HASH COMMAND MACROS

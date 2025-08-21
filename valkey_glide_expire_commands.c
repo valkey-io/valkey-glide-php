@@ -66,8 +66,13 @@ int execute_expire_command(zval* object, int argc, zval* return_value, zend_clas
             args.arg_count                     = 2;
         }
 
-        if (execute_core_command(&args, NULL, process_core_bool_result)) {
-            ZVAL_TRUE(return_value);
+        if (execute_core_command(
+                valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
             return 1;
         }
     }
@@ -121,8 +126,15 @@ int execute_expireat_command(zval* object, int argc, zval* return_value, zend_cl
             args.arg_count                     = 2;
         }
 
-        if (execute_core_command(&args, NULL, process_core_bool_result)) {
-            ZVAL_TRUE(return_value);
+        if (execute_core_command(
+                valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
+
+
             return 1;
         }
     }
@@ -176,8 +188,15 @@ int execute_pexpire_command(zval* object, int argc, zval* return_value, zend_cla
             args.arg_count                     = 2;
         }
 
-        if (execute_core_command(&args, NULL, process_core_bool_result)) {
-            ZVAL_TRUE(return_value);
+        if (execute_core_command(
+                valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
+
+
             return 1;
         }
     }
@@ -231,8 +250,15 @@ int execute_pexpireat_command(zval* object, int argc, zval* return_value, zend_c
             args.arg_count                     = 2;
         }
 
-        if (execute_core_command(&args, NULL, process_core_bool_result)) {
-            ZVAL_TRUE(return_value);
+        if (execute_core_command(
+                valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
+
+
             return 1;
         }
     }
@@ -264,8 +290,14 @@ int execute_persist_command(zval* object, int argc, zval* return_value, zend_cla
         args.key_len             = key_len;
         args.arg_count           = 0; /* No additional arguments for PERSIST */
 
-        if (execute_core_command(&args, NULL, process_core_bool_result)) {
-            ZVAL_TRUE(return_value);
+        if (execute_core_command(
+                valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
+
             return 1;
         }
     }
@@ -297,9 +329,16 @@ int execute_expiretime_command(zval* object, int argc, zval* return_value, zend_
         args.key_len             = key_len;
         args.arg_count           = 0; /* No additional arguments for EXPIRETIME */
 
-        long output_value;
-        if (execute_core_command(&args, &output_value, process_core_int_result)) {
-            ZVAL_LONG(return_value, output_value);
+
+        if (execute_core_command(
+                valkey_glide, &args, NULL, process_core_int_result, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
+
+
             return 1;
         }
     }
@@ -333,8 +372,15 @@ int execute_pexpiretime_command(zval* object, int argc, zval* return_value, zend
         args.arg_count           = 0; /* No additional arguments for PEXPIRETIME */
 
         long output_value;
-        if (execute_core_command(&args, &output_value, process_core_int_result)) {
-            ZVAL_LONG(return_value, output_value);
+        if (execute_core_command(
+                valkey_glide, &args, &output_value, process_core_int_result, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
+
+
             return 1;
         }
     }

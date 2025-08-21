@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "common.h"
 #include "include/glide_bindings.h"
 #include "php.h"
 #include "zend.h"

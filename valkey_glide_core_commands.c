@@ -234,82 +234,109 @@ const ConnectionResponse* create_glide_cluster_client(
 
 /* Custom result processor for SET commands with GET option support */
 struct set_result_data {
-    char**  old_val;
-    size_t* old_val_len;
-    int     has_get;
+    int has_get;
 };
 
-static int process_set_result(CommandResult* result, void* output) {
+static int process_set_result(CommandResponse* response, void* output, zval* return_value) {
     struct set_result_data* data = (struct set_result_data*) output;
 
-    if (!result || !result->response) {
+    if (!response) {
         return 0;
     }
 
-    switch (result->response->response_type) {
+    switch (response->response_type) {
         case Ok:
+            efree(output);
+            ZVAL_TRUE(return_value);
             return 1; /* Success */
         case Null:
+            efree(output);
+            ZVAL_FALSE(return_value);
             return 0; /* Not set (NX/XX condition not met) */
         case String:
             /* GET option returned a value */
-            if (data->has_get && data->old_val && data->old_val_len &&
-                result->response->string_value) {
-                *data->old_val = emalloc(result->response->string_value_len + 1);
-                if (*data->old_val) {
-                    memcpy(*data->old_val,
-                           result->response->string_value,
-                           result->response->string_value_len);
-                    (*data->old_val)[result->response->string_value_len] = '\0';
-                    *data->old_val_len = result->response->string_value_len;
+            if (data->has_get && response->string_value) {
+                char*  old_val     = emalloc(response->string_value_len + 1);
+                size_t old_val_len = response->string_value_len;
+                if (old_val) {
+                    memcpy(old_val, response->string_value, response->string_value_len);
+                    (old_val)[response->string_value_len] = '\0';
                 }
+
+                ZVAL_STRINGL(return_value, old_val, old_val_len);
+                efree(old_val);
             }
+            efree(output);
             return 2; /* GET option returned a value */
         default:
+            efree(output);
+            ZVAL_FALSE(return_value);
             return 0; /* Error */
     }
 }
 
 /* Custom result processor for PING command */
-static int process_ping_result(CommandResult* result, void* output) {
+int process_ping_result(CommandResponse* response, void* output, zval* return_value) {
     struct {
-        char**  result;
-        size_t* result_len;
+        char*  msg;
+        size_t msg_len;
     }* string_output = output;
 
-    if (!result || !result->response || !string_output) {
-        return 0;
-    }
-    if (result->response->response_type == Ok) {
-        /* PONG response with no message */
-        *string_output->result     = estrdup("PONG");
-        *string_output->result_len = 4;
-        return 1;
-    } else if (result->response->response_type == String) {
-        /* PING with message - echo the message back */
-        if (result->response->string_value_len == 0) {
-            *string_output->result = emalloc(1);
-            if (*string_output->result) {
-                (*string_output->result)[0] = '\0';
-            }
-            *string_output->result_len = 0;
-        } else {
-            *string_output->result = emalloc(result->response->string_value_len + 1);
-            if (*string_output->result) {
-                memcpy(*string_output->result,
-                       result->response->string_value,
-                       result->response->string_value_len);
-                (*string_output->result)[result->response->string_value_len] = '\0';
-            }
-            *string_output->result_len = result->response->string_value_len;
-        }
-        return *string_output->result ? 1 : 0;
-    } else if (result->response->response_type == Null) {
-        *string_output->result     = NULL;
-        *string_output->result_len = 0;
-        return 0;
-    }
+    char*  result;
+    size_t result_len;
 
+    if (!response || !string_output) {
+        return 0;
+    }
+    int status = 0;
+    if (response->response_type == Ok) {
+        /* PONG response with no message */
+        result     = estrdup("PONG");
+        result_len = 4;
+        status     = 1;
+    } else if (response->response_type == String) {
+        /* PING with message - echo the message back */
+        if (response->string_value_len == 0) {
+            result = emalloc(1);
+            if (result) {
+                (result)[0] = '\0';
+            }
+            result_len = 0;
+        } else {
+            result = emalloc(response->string_value_len + 1);
+            if (result) {
+                memcpy(result, response->string_value, response->string_value_len);
+                (result)[response->string_value_len] = '\0';
+            }
+            result_len = response->string_value_len;
+        }
+        status = result ? 1 : 0;
+    } else if (response->response_type == Null) {
+        result     = NULL;
+        result_len = 0;
+        return 0;
+    }
+    if (status == 1) {
+        if (response != NULL) {
+            /* Check if message was provided */
+            int has_message = (string_output->msg != NULL && string_output->msg_len > 0);
+
+            /* If no message was provided and response is "PONG", return true */
+            if (!has_message && result_len == 4 && strncmp(result, "PONG", 4) == 0) {
+                efree(result);
+                ZVAL_TRUE(return_value);
+                return 1;
+            }
+            /* Otherwise, return the actual response string */
+            ZVAL_STRINGL(return_value, result, result_len);
+            efree(result);
+            return 1;
+        } else {
+            /* Success but no response (should return TRUE for PONG) */
+            ZVAL_TRUE(return_value);
+            return 1;
+        }
+    }
     return 0;
 }
 
@@ -349,7 +376,14 @@ int execute_bitcount_command(zval* object, int argc, zval* return_value, zend_cl
     args.options.has_range = 1;
     args.options.bybit     = bybit;
 
-    if (execute_core_command(&args, &result_value, process_core_int_result)) {
+    if (execute_core_command(
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
         ZVAL_LONG(return_value, result_value);
         return 1;
     }
@@ -399,7 +433,14 @@ int execute_bitop_command(zval* object, int argc, zval* return_value, zend_class
     }
     args.arg_count = 1 + keys_count; /* operation + source keys */
 
-    if (execute_core_command(&args, &result_value, process_core_int_result)) {
+    if (execute_core_command(
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
         ZVAL_LONG(return_value, result_value);
         return 1;
     }
@@ -447,7 +488,14 @@ int execute_bitpos_command(zval* object, int argc, zval* return_value, zend_clas
     args.options.has_range = 1;
     args.options.bybit     = bybit;
 
-    if (execute_core_command(&args, &result_value, process_core_int_result)) {
+    if (execute_core_command(
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
         ZVAL_LONG(return_value, result_value);
         return 1;
     }
@@ -558,7 +606,7 @@ int execute_set_command(zval* object, int argc, zval* return_value, zend_class_e
     }
 
     /* Execute the SET command using the internal helper function */
-    int result = execute_set_command_internal(valkey_glide->glide_client,
+    int result = execute_set_command_internal(valkey_glide,
                                               key,
                                               key_len,
                                               val,
@@ -566,51 +614,44 @@ int execute_set_command(zval* object, int argc, zval* return_value, zend_class_e
                                               expire_int,
                                               z_set_opts,
                                               &old_val,
-                                              &old_val_len);
+                                              &old_val_len,
+                                              return_value);
 
     /* Free the allocated string if needed */
     if (free_val) {
         efree(val);
     }
 
-    /* Process the result */
-    switch (result) {
-        case 1: /* Success */
-            ZVAL_TRUE(return_value);
-            return 1;
-        case 0: /* Not set (NX/XX/IFEQ condition not met) */
-            ZVAL_FALSE(return_value);
-            return 1;
-        case 2: /* GET option returned a value */
-            /* If GET option was used and old value was returned */
-            if (old_val != NULL) {
-                /* Return the old value */
-                ZVAL_STRINGL(return_value, old_val, old_val_len);
-                efree(old_val); /* Free the allocated old value */
-                return 1;
+    /* Check for batch mode after successful execution */
+    if (result) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* Clean up old_val if it was allocated */
+            if (old_val) {
+                efree(old_val);
             }
-            /* Fallback to returning TRUE when GET is used but handling fails */
-            ZVAL_TRUE(return_value);
-            return 1;
-        default: /* Error */
-            ZVAL_FALSE(return_value);
-            return 0;
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+        }
+        return 1;
     }
+
+
     return 0; /* Should not reach here, but just in case */
 }
 
 /* Execute a SET command using the Valkey Glide client - INTERNAL HELPER FUNCTION */
-int execute_set_command_internal(const void* glide_client,
-                                 const char* key,
-                                 size_t      key_len,
-                                 const char* val,
-                                 size_t      val_len,
-                                 long        expire,
-                                 zval*       opts,
-                                 char**      old_val,
-                                 size_t*     old_val_len) {
+int execute_set_command_internal(valkey_glide_object* valkey_glide,
+                                 const char*          key,
+                                 size_t               key_len,
+                                 const char*          val,
+                                 size_t               val_len,
+                                 long                 expire,
+                                 zval*                opts,
+                                 char**               old_val,
+                                 size_t*              old_val_len,
+                                 zval*                return_value) {
     core_command_args_t args = {0};
-    args.glide_client        = glide_client;
+    args.glide_client        = valkey_glide->glide_client;
     args.cmd_type            = Set;
     args.key                 = key;
     args.key_len             = key_len;
@@ -637,9 +678,10 @@ int execute_set_command_internal(const void* glide_client,
     }
 
     /* Prepare result data for GET option */
-    struct set_result_data result_data = {old_val, old_val_len, args.options.get_old_value};
+    struct set_result_data* result_data = emalloc(sizeof(struct set_result_data));
+    result_data->has_get                = args.options.get_old_value;
 
-    return execute_core_command(&args, &result_data, process_set_result);
+    return execute_core_command(valkey_glide, &args, result_data, process_set_result, return_value);
 }
 
 /* Execute a SETEX command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
@@ -664,13 +706,16 @@ int execute_setex_command(zval* object, int argc, zval* return_value, zend_class
 
     /* Call execute_set_command_internal with expire in seconds (EX) and no special options */
     int result = execute_set_command_internal(
-        valkey_glide->glide_client, key, key_len, val, val_len, expire, NULL, NULL, NULL);
+        valkey_glide, key, key_len, val, val_len, expire, NULL, NULL, NULL, return_value);
 
     if (result == 1) {
-        ZVAL_TRUE(return_value);
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+        }
+
         return 1;
     } else {
-        ZVAL_FALSE(return_value);
         return 0;
     }
 }
@@ -704,16 +749,19 @@ int execute_psetex_command(zval* object, int argc, zval* return_value, zend_clas
 
     /* Call execute_set_command_internal with the PX option */
     int result = execute_set_command_internal(
-        valkey_glide->glide_client, key, key_len, val, val_len, 0, &options, NULL, NULL);
+        valkey_glide, key, key_len, val, val_len, 0, &options, NULL, NULL, return_value);
 
     /* Clean up options array */
     zval_dtor(&options);
 
     if (result == 1) {
-        ZVAL_TRUE(return_value);
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+        }
+
         return 1;
     } else {
-        ZVAL_FALSE(return_value);
         return 0;
     }
 }
@@ -747,16 +795,18 @@ int execute_setnx_command(zval* object, int argc, zval* return_value, zend_class
 
     /* Call execute_set_command_internal with the NX option and no expiration */
     int result = execute_set_command_internal(
-        valkey_glide->glide_client, key, key_len, val, val_len, 0, &options, NULL, NULL);
+        valkey_glide, key, key_len, val, val_len, 0, &options, NULL, NULL, return_value);
 
     /* Clean up options array */
     zval_dtor(&options);
 
     if (result == 1) {
-        ZVAL_TRUE(return_value);
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+        }
         return 1;
     } else {
-        ZVAL_FALSE(return_value);
         return 0;
     }
 }
@@ -835,22 +885,34 @@ int execute_echo_command(zval* object, int argc, zval* return_value, zend_class_
     core_args.args[0].data.string_arg.len   = msg_len;
     core_args.arg_count                     = 1;
 
-    /* Use string result processor */
+    /* Allocate string result processor on heap for batch support */
     struct {
         char**  result;
         size_t* result_len;
-    } output = {&response, &response_len};
+    }* output = emalloc(sizeof(*output));
+
+    output->result     = &response;
+    output->result_len = &response_len;
 
     /* Execute using unified core framework */
-    if (execute_core_command(&core_args, &output, process_core_string_result)) {
+    if (execute_core_command(
+            valkey_glide, &core_args, output, process_core_string_result, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: output will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
         if (response != NULL) {
             ZVAL_STRINGL(return_value, response, response_len);
             efree(response);
             return 1;
         }
+    } else {
+        /* Cleanup on failure */
+        efree(output);
     }
-
-    /* Error or empty response */
     return 0;
 }
 
@@ -924,31 +986,20 @@ int execute_ping_command(zval* object, int argc, zval* return_value, zend_class_
 
     /* Use ping result processor */
     struct {
-        char**  result;
-        size_t* result_len;
-    } output = {&response, &response_len};
+        char*  msg;
+        size_t msg_len;
+    } output = {msg, msg_len};
 
     /* Execute using unified core framework */
-    if (execute_core_command(&core_args, &output, process_ping_result)) {
-        if (response != NULL) {
-            /* Check if message was provided */
-            int has_message = (msg != NULL && msg_len > 0);
-
-            /* If no message was provided and response is "PONG", return true */
-            if (!has_message && response_len == 4 && strncmp(response, "PONG", 4) == 0) {
-                efree(response);
-                ZVAL_TRUE(return_value);
-                return 1;
-            }
-            /* Otherwise, return the actual response string */
-            ZVAL_STRINGL(return_value, response, response_len);
-            efree(response);
-            return 1;
-        } else {
-            /* Success but no response (should return TRUE for PONG) */
-            ZVAL_TRUE(return_value);
+    if (execute_core_command(
+            valkey_glide, &core_args, &output, process_ping_result, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
             return 1;
         }
+
+        return 1;
     }
 
     /* Error or empty response */
@@ -1253,13 +1304,23 @@ int execute_get_command(zval* object, int argc, zval* return_value, zend_class_e
     args.key                 = key;
     args.key_len             = key_len;
 
-    /* Use string result processor */
+    /* Allocate string result processor on heap for batch support */
     struct {
         char**  result;
         size_t* result_len;
-    } output = {&response, &response_len};
+    }* output = emalloc(sizeof(*output));
 
-    if (execute_core_command(&args, &output, process_core_string_result)) {
+    output->result     = &response;
+    output->result_len = &response_len;
+
+    if (execute_core_command(
+            valkey_glide, &args, output, process_core_string_result, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: output will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
         if (response != NULL) {
             ZVAL_STRINGL(return_value, response, response_len);
             efree(response);
@@ -1268,7 +1329,11 @@ int execute_get_command(zval* object, int argc, zval* return_value, zend_class_e
             ZVAL_FALSE(return_value);
             return 1;
         }
+    } else {
+        /* Cleanup on failure */
+        efree(output);
     }
+
 
     return 0;
 }
@@ -1318,14 +1383,28 @@ int execute_randomkey_command(zval* object, int argc, zval* return_value, zend_c
         core_args.glide_client        = valkey_glide->glide_client;
         core_args.cmd_type            = RandomKey;
 
-        /* Use string result processor */
+        /* Allocate string result processor on heap for batch support */
         struct {
             char**  result;
             size_t* result_len;
-        } output = {&response, &response_len};
+        }* output = emalloc(sizeof(*output));
 
-        if (execute_core_command(&core_args, &output, process_core_string_result)) {
+        output->result     = &response;
+        output->result_len = &response_len;
+
+        if (execute_core_command(
+                valkey_glide, &core_args, output, process_core_string_result, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                /* Note: output will be freed later in process_core_string_result */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
+
             result = 1;
+        } else {
+            /* Cleanup on failure */
+            efree(output);
         }
     }
 
@@ -1377,7 +1456,14 @@ int execute_getbit_command(zval* object, int argc, zval* return_value, zend_clas
     args.args[0].data.long_arg.value = offset;
     args.arg_count                   = 1;
 
-    if (execute_core_command(&args, &result_value, process_core_int_result)) {
+    if (execute_core_command(
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
         ZVAL_LONG(return_value, result_value);
         return 1;
     }
@@ -1422,7 +1508,14 @@ int execute_setbit_command(zval* object, int argc, zval* return_value, zend_clas
     args.args[1].data.long_arg.value = value ? 1 : 0;
     args.arg_count                   = 2;
 
-    if (execute_core_command(&args, &result_value, process_core_int_result)) {
+    if (execute_core_command(
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
         ZVAL_LONG(return_value, result_value);
         return 1;
     }
@@ -1431,7 +1524,10 @@ int execute_setbit_command(zval* object, int argc, zval* return_value, zend_clas
 }
 
 /* Helper function to execute del_command with arrays - MIGRATED TO CORE FRAMEWORK */
-int execute_del_array(const void* glide_client, HashTable* keys_hash, long* output_value) {
+int execute_del_array(const void* glide_client,
+                      HashTable*  keys_hash,
+                      long*       output_value,
+                      zval*       return_value) {
     /* Convert HashTable to zval array for core framework */
     if (!glide_client || !keys_hash || zend_hash_num_elements(keys_hash) <= 0) {
         return 0;
@@ -1457,8 +1553,25 @@ int execute_del_array(const void* glide_client, HashTable* keys_hash, long* outp
     args.args[0].data.array_arg.count = zend_hash_num_elements(keys_hash);
     args.arg_count                    = 1;
 
-    int result = execute_core_command(&args, output_value, process_core_int_result);
+    /* Use direct command execution for legacy function */
+    uintptr_t*     cmd_args          = NULL;
+    unsigned long* cmd_args_len      = NULL;
+    char**         allocated_strings = NULL;
+    int            allocated_count   = 0;
+    int            arg_count         = 0;
+    int            result            = 0;
 
+    arg_count =
+        prepare_core_args(&args, &cmd_args, &cmd_args_len, &allocated_strings, &allocated_count);
+    if (arg_count >= 0) {
+        CommandResult* cmd_result =
+            execute_command(args.glide_client, args.cmd_type, arg_count, cmd_args, cmd_args_len);
+        if (cmd_result) {
+            result = process_core_int_result(cmd_result->response, output_value, return_value);
+            free_command_result(cmd_result);
+        }
+    }
+    free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
     return result;
 }
 
@@ -1468,6 +1581,7 @@ int execute_del_command(zval* object, int argc, zval* return_value, zend_class_e
     long                 result_value = 0;
     zval*                keys         = NULL;
     int                  keys_count   = 0;
+    int                  result       = 0;
 
     if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &keys, &keys_count) ==
         FAILURE) {
@@ -1480,22 +1594,31 @@ int execute_del_command(zval* object, int argc, zval* return_value, zend_class_e
     }
 
     if (keys_count == 1 && Z_TYPE(keys[0]) == IS_ARRAY) {
-        if (execute_del_array(valkey_glide->glide_client, Z_ARRVAL(keys[0]), &result_value)) {
-            ZVAL_LONG(return_value, result_value);
-            return 1;
-        }
+        result = execute_del_array(
+            valkey_glide->glide_client, Z_ARRVAL(keys[0]), &result_value, return_value);
     } else {
-        if (execute_multi_key_command(
-                valkey_glide->glide_client, Del, keys, keys_count, &result_value)) {
-            ZVAL_LONG(return_value, result_value);
+        result =
+            execute_multi_key_command(valkey_glide, Del, keys, keys_count, object, return_value);
+    }
+
+    if (result) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
             return 1;
         }
+
+        return 1;
     }
+
     return 0;
 }
 
 /* Helper function to execute unlink_command with arrays - MIGRATED TO CORE FRAMEWORK */
-int execute_unlink_array(const void* glide_client, HashTable* keys_hash, long* output_value) {
+int execute_unlink_array(const void* glide_client,
+                         HashTable*  keys_hash,
+                         long*       output_value,
+                         zval*       return_value) {
     /* Convert HashTable to zval array for core framework */
     if (!glide_client || !keys_hash || zend_hash_num_elements(keys_hash) <= 0) {
         return 0;
@@ -1521,7 +1644,26 @@ int execute_unlink_array(const void* glide_client, HashTable* keys_hash, long* o
     args.args[0].data.array_arg.count = zend_hash_num_elements(keys_hash);
     args.arg_count                    = 1;
 
-    return execute_core_command(&args, output_value, process_core_int_result);
+    /* Use direct command execution for legacy function */
+    uintptr_t*     cmd_args          = NULL;
+    unsigned long* cmd_args_len      = NULL;
+    char**         allocated_strings = NULL;
+    int            allocated_count   = 0;
+    int            arg_count         = 0;
+    int            result            = 0;
+
+    arg_count =
+        prepare_core_args(&args, &cmd_args, &cmd_args_len, &allocated_strings, &allocated_count);
+    if (arg_count >= 0) {
+        CommandResult* cmd_result =
+            execute_command(args.glide_client, args.cmd_type, arg_count, cmd_args, cmd_args_len);
+        if (cmd_result) {
+            result = process_core_int_result(cmd_result->response, output_value, return_value);
+            free_command_result(cmd_result);
+        }
+    }
+    free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
+    return result;
 }
 
 /* Execute a STRLEN command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
@@ -1549,7 +1691,14 @@ int execute_strlen_command(zval* object, int argc, zval* return_value, zend_clas
     args.key                 = key;
     args.key_len             = key_len;
 
-    if (execute_core_command(&args, &result_value, process_core_int_result)) {
+    if (execute_core_command(
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
         ZVAL_LONG(return_value, result_value);
         return 1;
     }
@@ -1595,7 +1744,14 @@ int execute_setrange_command(zval* object, int argc, zval* return_value, zend_cl
     args.args[1].data.string_arg.len   = val_len;
     args.arg_count                     = 2;
 
-    if (execute_core_command(&args, &result_value, process_core_int_result)) {
+    if (execute_core_command(
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
         ZVAL_LONG(return_value, result_value);
         return 1;
     }
@@ -1661,27 +1817,19 @@ int execute_ttl_command(zval* object, int argc, zval* return_value, zend_class_e
     args.key                 = key;
     args.key_len             = key_len;
 
-    if (execute_core_command(&args, &result_value, process_core_int_result)) {
+    if (execute_core_command(
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
         ZVAL_LONG(return_value, result_value);
         return 1;
     }
 
     return 0;
-}
-
-/* Execute a single-key DEL command using the Valkey Glide client - MIGRATED TO CORE FRAMEWORK */
-int execute_del_single_key(const void* glide_client,
-                           const char* key,
-                           size_t      key_len,
-                           long*       output_value) {
-    core_command_args_t args = {0};
-    args.glide_client        = glide_client;
-    args.cmd_type            = Del;
-    args.key                 = key;
-    args.key_len             = key_len;
-    /* arg_count = 0 for single key mode */
-
-    return execute_core_command(&args, output_value, process_core_int_result);
 }
 
 /* Execute a PTTL command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
@@ -1709,7 +1857,14 @@ int execute_pttl_command(zval* object, int argc, zval* return_value, zend_class_
     args.key                 = key;
     args.key_len             = key_len;
 
-    if (execute_core_command(&args, &result_value, process_core_int_result)) {
+    if (execute_core_command(
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
         ZVAL_LONG(return_value, result_value);
         return 1;
     }
@@ -1743,7 +1898,7 @@ int execute_getset_command(zval* object, int argc, zval* return_value, zend_clas
     add_next_index_string(&z_opts, "GET");
 
     /* Execute the SET command with GET option using the Glide client */
-    int result = execute_set_command_internal(valkey_glide->glide_client,
+    int result = execute_set_command_internal(valkey_glide,
                                               key,
                                               key_len,
                                               val,
@@ -1751,20 +1906,32 @@ int execute_getset_command(zval* object, int argc, zval* return_value, zend_clas
                                               0,       /* No expiry */
                                               &z_opts, /* Use GET option */
                                               &response,
-                                              &response_len);
+                                              &response_len,
+                                              return_value);
 
     /* Free the zval array */
     zval_dtor(&z_opts);
 
+    /* Check for batch mode after successful execution */
+    if (result && valkey_glide->is_in_batch_mode) {
+        /* Clean up response if it was allocated */
+        if (response) {
+            efree(response);
+        }
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+
     /* Process the result */
     if ((result == 1 || result == 2) && response != NULL) {
         /* Return the old value */
-        ZVAL_STRINGL(return_value, response, response_len);
+        //  ZVAL_STRINGL(return_value, response, response_len);
         efree(response);
         return 1;
     } else if (result == 0 || (result == 2 && response == NULL)) {
         /* Key didn't exist */
-        ZVAL_FALSE(return_value);
+        //      ZVAL_FALSE(return_value);
         return 1;
     } else {
         /* Error */
