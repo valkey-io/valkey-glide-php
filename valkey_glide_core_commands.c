@@ -377,7 +377,7 @@ int execute_bitcount_command(zval* object, int argc, zval* return_value, zend_cl
     args.options.bybit     = bybit;
 
     if (execute_core_command(
-            valkey_glide, &args, &result_value, process_core_int_result_batch, return_value)) {
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -434,7 +434,7 @@ int execute_bitop_command(zval* object, int argc, zval* return_value, zend_class
     args.arg_count = 1 + keys_count; /* operation + source keys */
 
     if (execute_core_command(
-            valkey_glide, &args, &result_value, process_core_int_result_batch, return_value)) {
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -489,7 +489,7 @@ int execute_bitpos_command(zval* object, int argc, zval* return_value, zend_clas
     args.options.bybit     = bybit;
 
     if (execute_core_command(
-            valkey_glide, &args, &result_value, process_core_int_result_batch, return_value)) {
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -896,10 +896,10 @@ int execute_echo_command(zval* object, int argc, zval* return_value, zend_class_
 
     /* Execute using unified core framework */
     if (execute_core_command(
-            valkey_glide, &core_args, output, process_core_string_result_batch, return_value)) {
+            valkey_glide, &core_args, output, process_core_string_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
-            /* Note: output will be freed later in process_core_string_result_batch */
+            /* Note: output will be freed later in process_core_string_result */
             ZVAL_COPY(return_value, object);
             return 1;
         }
@@ -1314,10 +1314,10 @@ int execute_get_command(zval* object, int argc, zval* return_value, zend_class_e
     output->result_len = &response_len;
 
     if (execute_core_command(
-            valkey_glide, &args, output, process_core_string_result_batch, return_value)) {
+            valkey_glide, &args, output, process_core_string_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
-            /* Note: output will be freed later in process_core_string_result_batch */
+            /* Note: output will be freed later in process_core_string_result */
             ZVAL_COPY(return_value, object);
             return 1;
         }
@@ -1393,10 +1393,10 @@ int execute_randomkey_command(zval* object, int argc, zval* return_value, zend_c
         output->result_len = &response_len;
 
         if (execute_core_command(
-                valkey_glide, &core_args, output, process_core_string_result_batch, return_value)) {
+                valkey_glide, &core_args, output, process_core_string_result, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
-                /* Note: output will be freed later in process_core_string_result_batch */
+                /* Note: output will be freed later in process_core_string_result */
                 ZVAL_COPY(return_value, object);
                 return 1;
             }
@@ -1457,7 +1457,7 @@ int execute_getbit_command(zval* object, int argc, zval* return_value, zend_clas
     args.arg_count                   = 1;
 
     if (execute_core_command(
-            valkey_glide, &args, &result_value, process_core_int_result_batch, return_value)) {
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -1509,7 +1509,7 @@ int execute_setbit_command(zval* object, int argc, zval* return_value, zend_clas
     args.arg_count                   = 2;
 
     if (execute_core_command(
-            valkey_glide, &args, &result_value, process_core_int_result_batch, return_value)) {
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -1567,8 +1567,7 @@ int execute_del_array(const void* glide_client,
         CommandResult* cmd_result =
             execute_command(args.glide_client, args.cmd_type, arg_count, cmd_args, cmd_args_len);
         if (cmd_result) {
-            result =
-                process_core_int_result_batch(cmd_result->response, output_value, return_value);
+            result = process_core_int_result(cmd_result->response, output_value, return_value);
             free_command_result(cmd_result);
         }
     }
@@ -1659,8 +1658,7 @@ int execute_unlink_array(const void* glide_client,
         CommandResult* cmd_result =
             execute_command(args.glide_client, args.cmd_type, arg_count, cmd_args, cmd_args_len);
         if (cmd_result) {
-            result =
-                process_core_int_result_batch(cmd_result->response, output_value, return_value);
+            result = process_core_int_result(cmd_result->response, output_value, return_value);
             free_command_result(cmd_result);
         }
     }
@@ -1694,7 +1692,7 @@ int execute_strlen_command(zval* object, int argc, zval* return_value, zend_clas
     args.key_len             = key_len;
 
     if (execute_core_command(
-            valkey_glide, &args, &result_value, process_core_int_result_batch, return_value)) {
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -1747,7 +1745,7 @@ int execute_setrange_command(zval* object, int argc, zval* return_value, zend_cl
     args.arg_count                     = 2;
 
     if (execute_core_command(
-            valkey_glide, &args, &result_value, process_core_int_result_batch, return_value)) {
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -1820,7 +1818,7 @@ int execute_ttl_command(zval* object, int argc, zval* return_value, zend_class_e
     args.key_len             = key_len;
 
     if (execute_core_command(
-            valkey_glide, &args, &result_value, process_core_int_result_batch, return_value)) {
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -1860,7 +1858,7 @@ int execute_pttl_command(zval* object, int argc, zval* return_value, zend_class_
     args.key_len             = key_len;
 
     if (execute_core_command(
-            valkey_glide, &args, &result_value, process_core_int_result_batch, return_value)) {
+            valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);

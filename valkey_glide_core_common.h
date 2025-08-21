@@ -217,13 +217,13 @@ int prepare_zero_args(core_command_args_t* args,
  * ==================================================================== */
 
 /* Integer result processor */
-int process_core_int_result_batch(CommandResponse* response, void* output, zval* return_value);
+int process_core_int_result(CommandResponse* response, void* output, zval* return_value);
 
 /* String result processor */
-int process_core_string_result_batch(CommandResponse* response, void* output, zval* return_value);
+int process_core_string_result(CommandResponse* response, void* output, zval* return_value);
 
 /* Boolean result processor */
-int process_core_bool_result_batch(CommandResponse* response, void* output, zval* return_value);
+int process_core_bool_result(CommandResponse* response, void* output, zval* return_value);
 
 /* Array result processor */
 int process_core_array_result(CommandResponse* response, void* output, zval* return_value);

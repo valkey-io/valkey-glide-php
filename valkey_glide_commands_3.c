@@ -68,7 +68,7 @@ int execute_wait_command(zval* object, int argc, zval* return_value, zend_class_
 
         long result_value;
         if (execute_core_command(
-                valkey_glide, &args, &result_value, process_core_int_result_batch, return_value)) {
+                valkey_glide, &args, &result_value, process_core_int_result, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
                 ZVAL_COPY(return_value, object);
@@ -458,15 +458,13 @@ int execute_discard_command(zval* object, int argc, zval* return_value, zend_cla
     args.glide_client        = valkey_glide->glide_client;
     args.cmd_type            = Discard;
 
-    if (execute_core_command(
-            valkey_glide, &args, NULL, process_core_bool_result_batch, return_value)) {
+    if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
             return 1;
         }
 
-        ZVAL_TRUE(return_value);
         return 1;
     }
 
@@ -789,41 +787,21 @@ int execute_dump_command(zval* object, int argc, zval* return_value, zend_class_
         args.key                 = key;
         args.key_len             = key_len;
 
-        char*  output     = NULL;
-        size_t output_len = 0;
-
-        /* Allocate string result processor on heap for batch support */
-        struct {
-            char**  result;
-            size_t* result_len;
-        }* out = emalloc(sizeof(*out));
-
-        out->result     = &output;
-        out->result_len = &output_len;
 
         if (execute_core_command(
-                valkey_glide, &args, out, process_core_string_result_batch, return_value)) {
+                valkey_glide, &args, NUL, process_core_string_result, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
-                /* Note: out will be freed later in process_core_string_result_batch */
+                /* Note: out will be freed later in process_core_string_result */
                 ZVAL_COPY(return_value, object);
                 return 1;
             }
 
 
-            if (output) {
-                /* Return serialized value */
-                ZVAL_STRINGL(return_value, output, output_len);
-                efree(output);
-                return 1;
-            } else {
-                /* Key doesn't exist */
-                ZVAL_FALSE(return_value);
-                return 1;
-            }
+            return 1; /* Success */
         } else {
-            /* Cleanup on failure */
-            efree(out);
+            /* Key doesn't exist */
+            return 1;
         }
     }
 
@@ -1798,14 +1776,13 @@ int execute_dbsize_command(zval* object, int argc, zval* return_value, zend_clas
 
     /* Execute using unified core framework */
     if (execute_core_command(
-            valkey_glide, &core_args, &dbsize, process_core_int_result_batch, return_value)) {
+            valkey_glide, &core_args, &dbsize, process_core_int_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
             return 1;
         }
 
-        ZVAL_LONG(return_value, dbsize);
         return 1;
     }
 

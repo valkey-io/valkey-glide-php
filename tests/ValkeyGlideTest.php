@@ -5092,7 +5092,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->lSet($key, 0, 'newValue'));
         $this->assertFalse($this->valkey_glide->lrem($key, 'lvalue', 1));
         $this->assertFalse($this->valkey_glide->lPop($key));
-        $this->assertFalse($this->valkey_glide->rPop($key));        
+        $this->assertFalse($this->valkey_glide->rPop($key));
 
         // sets I/F
         $this->assertFalse($this->valkey_glide->sAdd($key, 'sValue1'));

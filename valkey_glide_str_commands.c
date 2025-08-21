@@ -57,7 +57,6 @@ int execute_type_command(zval* object, int argc, zval* return_value, zend_class_
                 return 1;
             }
 
-            ZVAL_LONG(return_value, type_value);
             return 1;
         }
     }
@@ -70,7 +69,7 @@ int execute_append_command(zval* object, int argc, zval* return_value, zend_clas
     valkey_glide_object* valkey_glide;
     char *               key = NULL, *value = NULL;
     size_t               key_len = 0, value_len = 0;
-    long                 result_value = 0;
+
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
@@ -96,14 +95,13 @@ int execute_append_command(zval* object, int argc, zval* return_value, zend_clas
         args.arg_count                     = 1;
 
         if (execute_core_command(
-                valkey_glide, &args, &result_value, process_core_int_result_batch, return_value)) {
+                valkey_glide, &args, NULL, process_core_int_result, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
                 ZVAL_COPY(return_value, object);
                 return 1;
             }
 
-            ZVAL_LONG(return_value, result_value);
             return 1;
         }
     }
@@ -143,37 +141,29 @@ int execute_getrange_command(zval* object, int argc, zval* return_value, zend_cl
         args.arg_count                   = 2;
 
         /* Allocate string result processor on heap for batch support */
-        struct {
-            char**  result;
-            size_t* result_len;
-        }* output = emalloc(sizeof(*output));
 
-        output->result     = &result;
-        output->result_len = &result_len;
 
         int ret = execute_core_command(
-            valkey_glide, &args, output, process_core_string_result_batch, return_value);
+            valkey_glide, &args, NULL, process_core_string_result, return_value);
 
         if (ret > 0) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
-                /* Note: output will be freed later in process_core_string_result_batch */
+                /* Note: output will be freed later in process_core_string_result */
                 ZVAL_COPY(return_value, object);
                 return 1;
             }
 
             /* Command succeeded with data */
-            RETVAL_STRINGL(result, result_len);
-            efree(result);
+
+
             return 1;
         } else if (ret == 0) {
             /* Key didn't exist, return empty string */
-            efree(output);
-            ZVAL_EMPTY_STRING(return_value);
+
             return 1;
         } else {
             /* Error */
-            efree(output);
         }
     }
 
