@@ -198,9 +198,8 @@ typedef struct _x_command_def_t {
 } x_command_def_t;
 
 /* Utility functions */
-int   allocate_command_args(int count, uintptr_t** args_out, unsigned long** args_len_out);
-void  free_command_args(uintptr_t* args, unsigned long* args_len);
-char* alloc_number_string(long value, size_t* len_out);
+int  allocate_command_args(int count, uintptr_t** args_out, unsigned long** args_len_out);
+void free_command_args(uintptr_t* args, unsigned long* args_len);
 
 /* Generic command execution framework */
 int execute_x_generic_command(const void*          glide_client,
@@ -268,7 +267,6 @@ int parse_x_info_options(zval* options, x_command_args_t* args);
 /* Result processing */
 int process_x_int_result(CommandResult* result, void* output);
 int process_x_double_result(CommandResult* result, void* output);
-int process_x_string_result(CommandResult* result, void* output);
 int process_x_array_result(CommandResult* result, void* output);
 int process_x_stream_result(CommandResult* result, void* output);
 int process_x_add_result(CommandResult* result, void* output);

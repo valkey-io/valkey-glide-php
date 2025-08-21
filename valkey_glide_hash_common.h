@@ -276,22 +276,6 @@ int execute_h_mget_command(valkey_glide_object* valkey_glide,
                            int                  fields_count,
                            zval*                return_value);
 
-int execute_h_keys_command(valkey_glide_object* valkey_glide,
-                           const char*          key,
-                           size_t               key_len,
-                           zval*                return_value);
-
-int execute_h_getall_command(valkey_glide_object* valkey_glide,
-                             const char*          key,
-                             size_t               key_len,
-                             zval*                return_value);
-
-int execute_h_strlen_command(const void* glide_client,
-                             const char* key,
-                             size_t      key_len,
-                             char*       field,
-                             size_t      field_len,
-                             long*       output_value);
 
 int execute_h_randfield_command(valkey_glide_object* valkey_glide,
                                 const char*          key,

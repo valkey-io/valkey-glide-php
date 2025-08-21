@@ -355,21 +355,6 @@ void free_command_args(uintptr_t* args, unsigned long* args_len) {
         efree(args_len);
 }
 
-/**
- * Allocate a string representation of a number
- */
-char* alloc_number_string(long value, size_t* len_out) {
-    char   temp[32];
-    size_t len    = snprintf(temp, sizeof(temp), "%ld", value);
-    char*  result = emalloc(len + 1);
-    if (result) {
-        memcpy(result, temp, len);
-        result[len] = '\0';
-        if (len_out)
-            *len_out = len;
-    }
-    return result;
-}
 
 /**
  * Generic command execution framework
@@ -535,20 +520,6 @@ int process_x_int_result(CommandResult* result, void* output) {
     return 0;
 }
 
-/**
- * Process a string result from a command
- */
-int process_x_string_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-
-    if (result->response->response_type == String) {
-        ZVAL_STRINGL(
-            return_value, result->response->string_value, result->response->string_value_len);
-        return 1;
-    }
-
-    return 0;
-}
 
 /**
  * Process a stream result from a command

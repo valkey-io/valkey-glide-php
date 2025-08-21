@@ -133,7 +133,6 @@ int prepare_geo_search_store_args(geo_command_args_t* args,
 /* Result processing */
 int process_geo_int_result(CommandResult* result, void* output);
 int process_geo_double_result(CommandResult* result, void* output);
-int process_geo_array_result(CommandResult* result, void* output);
 int process_geo_hash_result(CommandResult* result, void* output);
 int process_geo_pos_result(CommandResult* result, void* output);
 int process_geo_search_result(CommandResult* result, void* output);

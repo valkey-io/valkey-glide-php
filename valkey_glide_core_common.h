@@ -242,9 +242,6 @@ int process_core_type_result(CommandResponse* response, void* output, zval* retu
 /* Allocate command argument arrays */
 int allocate_core_arg_arrays(int count, uintptr_t** args_out, unsigned long** args_len_out);
 
-/* Free command argument arrays */
-void free_core_arg_arrays(uintptr_t* args, unsigned long* args_len);
-
 /* Track allocated strings for cleanup */
 char** create_string_tracker(int max_strings);
 void   add_tracked_string(char** tracker, int* count, char* str);
@@ -253,7 +250,6 @@ void   free_tracked_strings(char** tracker, int count);
 /* Convert various types to string arguments */
 char* core_long_to_string(long value, size_t* len);
 char* core_double_to_string(double value, size_t* len);
-char* core_zval_to_string(zval* z, size_t* len, int* need_free);
 
 /* ====================================================================
  * OPTION PARSING UTILITIES
@@ -265,11 +261,6 @@ int parse_core_options(zval* options, core_options_t* opts);
 /* Parse SET command specific options */
 int parse_set_options(zval* options, core_options_t* opts);
 
-/* Parse bit operation options */
-int parse_bit_options(zval* options, core_options_t* opts);
-
-/* Parse expire command options */
-int parse_expire_options(zval* options, core_options_t* opts);
 
 /* ====================================================================
  * SPECIALIZED COMMAND HELPERS

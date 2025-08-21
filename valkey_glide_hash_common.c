@@ -945,21 +945,6 @@ int process_h_incrbyfloat_result(CommandResponse* response, void* output, zval* 
     return 0;
 }
 
-/**
- * Process results for HGETALL (convert flat array to associative)
- */
-int process_h_getall_result(CommandResponse* response, void* output, zval* return_value) {
-    /* Check if the command was successful */
-    if (!response) {
-        return 0;
-    }
-    /* Initialize return array */
-    array_init(return_value);
-    /* Convert response to associative array */
-    return command_response_to_zval(
-        response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
-}
-
 /* ====================================================================
  * UTILITY FUNCTIONS
  * ==================================================================== */
@@ -1230,49 +1215,6 @@ int execute_h_mget_command(valkey_glide_object* valkey_glide,
         valkey_glide, HMGet, args, args, process_h_mget_result, return_value);
 }
 
-/**
- * Execute HKEYS command using the framework
- */
-int execute_h_keys_command(valkey_glide_object* valkey_glide,
-                           const char*          key,
-                           size_t               key_len,
-                           zval*                return_value) {
-    h_command_args_t args = {0};
-    args.glide_client     = valkey_glide->glide_client;
-    args.key              = key;
-    args.key_len          = key_len;
-
-    return execute_h_simple_command(
-        valkey_glide, HKeys, &args, NULL, H_RESPONSE_ARRAY, return_value);
-}
-
-
-/**
- * Execute HGETALL command using the framework
- */
-int execute_h_getall_command(valkey_glide_object* valkey_glide,
-                             const char*          key,
-                             size_t               key_len,
-                             zval*                return_value) {
-    h_command_args_t args = {0};
-    args.glide_client     = valkey_glide->glide_client;
-    args.key              = key;
-    args.key_len          = key_len;
-
-    return execute_h_generic_command(
-        valkey_glide, HGetAll, &args, return_value, process_h_getall_result, return_value);
-}
-
-/**
- * Execute HSTRLEN command using the framework
- */
-int execute_h_strlen_command(const void* glide_client,
-                             const char* key,
-                             size_t      key_len,
-                             char*       field,
-                             size_t      field_len,
-                             long*       output_value) {
-}
 
 /**
  * Execute HRANDFIELD command using the framework

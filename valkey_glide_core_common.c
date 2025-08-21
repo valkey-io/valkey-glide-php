@@ -1135,15 +1135,6 @@ int allocate_core_arg_arrays(int count, uintptr_t** args_out, unsigned long** ar
     return 1;
 }
 
-/**
- * Free command argument arrays
- */
-void free_core_arg_arrays(uintptr_t* args, unsigned long* args_len) {
-    if (args)
-        efree(args);
-    if (args_len)
-        efree(args_len);
-}
 
 /**
  * Create string tracker for memory management
@@ -1202,13 +1193,6 @@ char* core_double_to_string(double value, size_t* len) {
         str[*len] = '\0';
     }
     return str;
-}
-
-/**
- * Convert zval to string safely
- */
-char* core_zval_to_string(zval* z, size_t* len, int* need_free) {
-    return zval_to_string_safe(z, len, need_free);
 }
 
 /* ====================================================================
@@ -1467,31 +1451,6 @@ int parse_set_options(zval* options, core_options_t* opts) {
     return 1;
 }
 
-/**
- * Parse bit operation options
- */
-int parse_bit_options(zval* options, core_options_t* opts) {
-    /* Use common option parsing as base */
-    if (!parse_core_options(options, opts)) {
-        return 0;
-    }
-
-    /* Bit operation specific parsing can be added here */
-    return 1;
-}
-
-/**
- * Parse expire command options
- */
-int parse_expire_options(zval* options, core_options_t* opts) {
-    /* Use common option parsing as base */
-    if (!parse_core_options(options, opts)) {
-        return 0;
-    }
-
-    /* Expire command specific parsing can be added here */
-    return 1;
-}
 
 /* ====================================================================
  * BATCH PROCESSOR WRAPPERS
