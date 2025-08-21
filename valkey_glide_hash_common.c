@@ -129,111 +129,6 @@ cleanup:
     return status;
 }
 
-/**
- * Legacy version for internal framework functions (no batch support)
- */
-int execute_h_simple_command_legacy(const void*       glide_client,
-                                    enum RequestType  cmd_type,
-                                    h_command_args_t* args,
-                                    void*             result_ptr,
-                                    int               response_type) {
-    uintptr_t*     cmd_args          = NULL;
-    unsigned long* args_len          = NULL;
-    char**         allocated_strings = NULL;
-    int            allocated_count   = 0;
-    int            arg_count         = 0;
-    int            status            = 0;
-
-    /* Validate basic arguments */
-    VALIDATE_HASH_ARGS(glide_client, args->key);
-
-    /* Prepare arguments based on command type */
-    switch (cmd_type) {
-        case HLen:
-        case HKeys:
-        case HVals:
-        case HGetAll:
-            arg_count = prepare_h_key_only_args(
-                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
-            break;
-        case HGet:
-        case HExists:
-        case HStrlen:
-            arg_count = prepare_h_single_field_args(
-                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
-            break;
-        case HSetNX:
-            arg_count = prepare_h_field_value_args(
-                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
-            break;
-        case HDel:
-            arg_count = prepare_h_multi_field_args(
-                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
-            break;
-        case HSet:
-            arg_count = prepare_h_set_args(
-                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
-            break;
-        case HMSet:
-            arg_count = prepare_h_mset_args(
-                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
-            break;
-        case HIncrBy:
-            arg_count = prepare_h_incr_args(
-                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
-            break;
-        default:
-            goto cleanup;
-    }
-
-    if (arg_count <= 0) {
-        goto cleanup;
-    }
-
-    /* Execute the command */
-    CommandResult* result = execute_command(glide_client, cmd_type, arg_count, cmd_args, args_len);
-
-    /* Process result using standard handlers */
-    if (result) {
-        switch (response_type) {
-            case H_RESPONSE_INT:
-                status = handle_int_response(result, (long*) result_ptr);
-                break;
-            case H_RESPONSE_STRING:
-                status = handle_string_response(
-                    result, ((char***) result_ptr)[0], ((size_t**) result_ptr)[1]);
-                break;
-            case H_RESPONSE_BOOL:
-                status = handle_bool_response(result);
-                if (status >= 0 && result_ptr) {
-                    *((int*) result_ptr) = status;
-                    status               = status >= 0 ? 1 : 0;
-                }
-                break;
-            case H_RESPONSE_ARRAY:
-                status = handle_array_response(result, (zval*) result_ptr);
-                break;
-            case H_RESPONSE_MAP:
-                status = handle_map_response(result, (zval*) result_ptr);
-                break;
-            case H_RESPONSE_OK:
-                status = handle_ok_response(result);
-                break;
-            default:
-                free_command_result(result);
-                status = 0;
-                break;
-        }
-        /* Note: handle_* functions free the result internally */
-    } else {
-        status = 0;
-    }
-
-cleanup:
-    /* Clean up allocated resources */
-    cleanup_h_command_args(allocated_strings, allocated_count, cmd_args, args_len);
-    return status;
-}
 
 z_result_processor_t get_processor_for_response_type(int response_type);
 
@@ -759,15 +654,13 @@ int prepare_h_randfield_args(h_command_args_t* args,
  * Batch-compatible wrapper for integer responses
  */
 int process_h_int_result_batch(CommandResponse* response, void* output, zval* return_value) {
-    long* output_value = (long*) output;
-
-    if (!response || !output_value) {
+    if (!response) {
+        ZVAL_LONG(return_value, 0);
         return 0;
     }
 
     if (response->response_type == Int) {
-        *output_value = response->int_value;
-        ZVAL_LONG(return_value, *output_value);
+        ZVAL_LONG(return_value, response->int_value);
         return 1;
     }
     return 0;
@@ -793,16 +686,16 @@ int process_h_bool_result_batch(CommandResponse* response, void* output, zval* r
  * Batch-compatible wrapper for string responses
  */
 int process_h_string_result_batch(CommandResponse* response, void* output, zval* return_value) {
-    if (!response || !output)
+    if (!response)
         return 0;
 
-    char**  result_str = ((char***) output)[0];
-    size_t* result_len = ((size_t**) output)[1];
+    char*  result_str = NULL;
+    size_t result_len = 0;
 
     if (response->response_type == String) {
-        *result_str = estrndup(response->string_value, response->string_value_len);
-        *result_len = response->string_value_len;
-        ZVAL_STRINGL(return_value, *result_str, *result_len);
+        result_str = estrndup(response->string_value, response->string_value_len);
+        result_len = response->string_value_len;
+        ZVAL_STRINGL(return_value, result_str, result_len);
         return 1;
     } else if (response->response_type == Null) {
         ZVAL_FALSE(return_value);
@@ -825,6 +718,7 @@ int process_h_array_result_batch(CommandResponse* response, void* output, zval* 
  * Batch-compatible wrapper for map responses
  */
 int process_h_map_result_batch(CommandResponse* response, void* output, zval* return_value) {
+    array_init(return_value);
     return command_response_to_zval(
         response, (zval*) return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
 }
@@ -1273,163 +1167,26 @@ void cleanup_h_command_args(char**         allocated_strings,
  * HASH COMMAND EXECUTION FUNCTIONS
  * ==================================================================== */
 
-/**
- * Execute HGET command using the framework
- */
-int execute_h_get_command(const void* glide_client,
-                          const char* key,
-                          size_t      key_len,
-                          char*       field,
-                          size_t      field_len,
-                          char**      result,
-                          size_t*     result_len) {
-    h_command_args_t args = {0};
-    args.glide_client     = glide_client;
-    args.key              = key;
-    args.key_len          = key_len;
-    args.field            = field;
-    args.field_len        = field_len;
-
-    void* result_ptr[2] = {(void*) result, (void*) result_len};
-    return execute_h_simple_command_legacy(
-        glide_client, HGet, &args, result_ptr, H_RESPONSE_STRING);
-}
-
-/**
- * Execute HLEN command using the framework
- */
-int execute_h_len_command(const void* glide_client,
-                          const char* key,
-                          size_t      key_len,
-                          long*       output_value) {
-    h_command_args_t args = {0};
-    args.glide_client     = glide_client;
-    args.key              = key;
-    args.key_len          = key_len;
-
-    return execute_h_simple_command_legacy(glide_client, HLen, &args, output_value, H_RESPONSE_INT);
-}
-
-/**
- * Execute HEXISTS command using the framework
- */
-int execute_h_exists_command(const void* glide_client,
-                             const char* key,
-                             size_t      key_len,
-                             char*       field,
-                             size_t      field_len,
-                             int*        output_value) {
-    h_command_args_t args = {0};
-    args.glide_client     = glide_client;
-    args.key              = key;
-    args.key_len          = key_len;
-    args.field            = field;
-    args.field_len        = field_len;
-
-    return execute_h_simple_command_legacy(
-        glide_client, HExists, &args, output_value, H_RESPONSE_BOOL);
-}
-
-/**
- * Execute HDEL command using the framework
- */
-int execute_h_del_command(const void* glide_client,
-                          const char* key,
-                          size_t      key_len,
-                          zval*       fields,
-                          int         fields_count,
-                          long*       output_value) {
-    h_command_args_t args = {0};
-    args.glide_client     = glide_client;
-    args.key              = key;
-    args.key_len          = key_len;
-    args.fields           = fields;
-    args.field_count      = fields_count;
-
-    return execute_h_simple_command_legacy(glide_client, HDel, &args, output_value, H_RESPONSE_INT);
-}
-
-/**
- * Execute HSET command using the framework
- */
-int execute_h_set_command(const void* glide_client,
-                          const char* key,
-                          size_t      key_len,
-                          zval*       z_args,
-                          int         argc,
-                          long*       output_value,
-                          int         is_array_arg) {
-    h_command_args_t args = {0};
-    args.glide_client     = glide_client;
-    args.key              = key;
-    args.key_len          = key_len;
-    args.field_values     = z_args;
-    args.fv_count         = argc;
-    args.is_array_arg     = is_array_arg;
-
-    return execute_h_simple_command_legacy(glide_client, HSet, &args, output_value, H_RESPONSE_INT);
-}
-
-/**
- * Execute HSETNX command using the framework
- */
-int execute_h_setnx_command(const void* glide_client,
-                            const char* key,
-                            size_t      key_len,
-                            char*       field,
-                            size_t      field_len,
-                            char*       value,
-                            size_t      value_len,
-                            int*        output_value) {
-    h_command_args_t args = {0};
-    args.glide_client     = glide_client;
-    args.key              = key;
-    args.key_len          = key_len;
-    args.field            = field;
-    args.field_len        = field_len;
-    args.value            = value;
-    args.value_len        = value_len;
-
-    return execute_h_simple_command_legacy(
-        glide_client, HSetNX, &args, output_value, H_RESPONSE_BOOL);
-}
 
 /**
  * Execute HMSET command using the framework
  */
-int execute_h_mset_command(
-    const void* glide_client, const char* key, size_t key_len, zval* keyvals, int keyvals_count) {
+int execute_h_mset_command(valkey_glide_object* valkey_glide,
+                           const char*          key,
+                           size_t               key_len,
+                           zval*                keyvals,
+                           int                  keyvals_count,
+                           zval*                return_value) {
     h_command_args_t args = {0};
-    args.glide_client     = glide_client;
+    args.glide_client     = valkey_glide->glide_client;
     args.key              = key;
     args.key_len          = key_len;
     args.field_values     = keyvals;
     args.fv_count         = keyvals_count;
 
-    return execute_h_simple_command_legacy(glide_client, HMSet, &args, NULL, H_RESPONSE_OK);
+    return execute_h_simple_command(valkey_glide, HMSet, &args, NULL, H_RESPONSE_OK, return_value);
 }
 
-/**
- * Execute HINCRBY command using the framework
- */
-int execute_h_incrby_command(const void* glide_client,
-                             const char* key,
-                             size_t      key_len,
-                             char*       field,
-                             size_t      field_len,
-                             long        increment,
-                             long*       output_value) {
-    h_command_args_t args = {0};
-    args.glide_client     = glide_client;
-    args.key              = key;
-    args.key_len          = key_len;
-    args.field            = field;
-    args.field_len        = field_len;
-    args.increment        = increment;
-
-    return execute_h_simple_command_legacy(
-        glide_client, HIncrBy, &args, output_value, H_RESPONSE_INT);
-}
 
 /**
  * Execute HINCRBYFLOAT command using the framework
@@ -1476,17 +1233,17 @@ int execute_h_mget_command(valkey_glide_object* valkey_glide,
 /**
  * Execute HKEYS command using the framework
  */
-int execute_h_keys_command(const void* glide_client,
-                           const char* key,
-                           size_t      key_len,
-                           zval*       return_value) {
+int execute_h_keys_command(valkey_glide_object* valkey_glide,
+                           const char*          key,
+                           size_t               key_len,
+                           zval*                return_value) {
     h_command_args_t args = {0};
-    args.glide_client     = glide_client;
+    args.glide_client     = valkey_glide->glide_client;
     args.key              = key;
     args.key_len          = key_len;
 
-    return execute_h_simple_command_legacy(
-        glide_client, HKeys, &args, return_value, H_RESPONSE_ARRAY);
+    return execute_h_simple_command(
+        valkey_glide, HKeys, &args, NULL, H_RESPONSE_ARRAY, return_value);
 }
 
 
@@ -1515,15 +1272,6 @@ int execute_h_strlen_command(const void* glide_client,
                              char*       field,
                              size_t      field_len,
                              long*       output_value) {
-    h_command_args_t args = {0};
-    args.glide_client     = glide_client;
-    args.key              = key;
-    args.key_len          = key_len;
-    args.field            = field;
-    args.field_len        = field_len;
-
-    return execute_h_simple_command_legacy(
-        glide_client, HStrlen, &args, output_value, H_RESPONSE_INT);
 }
 
 /**
@@ -1580,11 +1328,10 @@ int execute_hget_command(zval* object, int argc, zval* return_value, zend_class_
     args.field            = field;
     args.field_len        = field_len;
 
-    void* result_ptr[2] = {(void*) &response, (void*) &response_len};
 
     /* Execute with batch support */
     if (execute_h_simple_command(
-            valkey_glide, HGet, &args, result_ptr, H_RESPONSE_STRING, return_value)) {
+            valkey_glide, HGet, &args, NULL, H_RESPONSE_STRING, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -1592,14 +1339,7 @@ int execute_hget_command(zval* object, int argc, zval* return_value, zend_class_
         }
 
         /* Process the result */
-        if (response != NULL) {
-            ZVAL_STRINGL(return_value, response, response_len);
-            efree(response);
-            return 1;
-        } else {
-            ZVAL_FALSE(return_value);
-            return 1;
-        }
+        return 1;
     }
 
     return 0;
@@ -1699,7 +1439,6 @@ int execute_hdel_command(zval* object, int argc, zval* return_value, zend_class_
     size_t               key_len;
     zval*                fields       = NULL;
     int                  fields_count = 0;
-    long                 result_value;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
@@ -1721,8 +1460,7 @@ int execute_hdel_command(zval* object, int argc, zval* return_value, zend_class_
     args.field_count      = fields_count;
 
     /* Execute with batch support */
-    if (execute_h_simple_command(
-            valkey_glide, HDel, &args, &result_value, H_RESPONSE_INT, return_value)) {
+    if (execute_h_simple_command(valkey_glide, HDel, &args, NULL, H_RESPONSE_INT, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -1745,7 +1483,6 @@ int execute_hset_command(zval* object, int argc, zval* return_value, zend_class_
     size_t               key_len;
     zval*                z_args = NULL;
     int                  arg_count;
-    long                 result_value;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
@@ -1774,15 +1511,13 @@ int execute_hset_command(zval* object, int argc, zval* return_value, zend_class_
     args.is_array_arg     = is_array_arg;
 
     /* Execute with batch support */
-    if (execute_h_simple_command(
-            valkey_glide, HSet, &args, &result_value, H_RESPONSE_INT, return_value)) {
+    if (execute_h_simple_command(valkey_glide, HSet, &args, NULL, H_RESPONSE_INT, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
             return 1;
         }
 
-        ZVAL_LONG(return_value, result_value);
         return 1;
     }
 
@@ -1818,11 +1553,19 @@ int execute_hsetnx_command(zval* object, int argc, zval* return_value, zend_clas
     if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
+    h_command_args_t args = {0};
+    args.glide_client     = valkey_glide->glide_client;
+    args.key              = key;
+    args.key_len          = key_len;
+    args.field            = field;
+    args.field_len        = field_len;
+    args.value            = val;
+    args.value_len        = val_len;
+
 
     /* Execute the HSETNX command */
-    if (execute_h_setnx_command(
-            valkey_glide->glide_client, key, key_len, field, field_len, val, val_len, &result)) {
-        ZVAL_BOOL(return_value, result == 1);
+    if (execute_h_simple_command(
+            valkey_glide, HSetNX, &args, NULL, H_RESPONSE_BOOL, return_value)) {
         return 1;
     }
 
@@ -1857,8 +1600,7 @@ int execute_hmset_command(zval* object, int argc, zval* return_value, zend_class
 
     if (keyvals_count > 0) {
         if (execute_h_mset_command(
-                valkey_glide->glide_client, key, key_len, arr_keyvals, keyvals_count)) {
-            ZVAL_TRUE(return_value);
+                valkey_glide, key, key_len, arr_keyvals, keyvals_count, return_value)) {
             return 1;
         }
     }
@@ -1874,7 +1616,6 @@ int execute_hincrby_command(zval* object, int argc, zval* return_value, zend_cla
     char *               key = NULL, *field = NULL;
     size_t               key_len, field_len;
     zend_long            increment;
-    long                 result_value;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
@@ -1889,10 +1630,18 @@ int execute_hincrby_command(zval* object, int argc, zval* return_value, zend_cla
         return 0;
     }
 
+    h_command_args_t args = {0};
+    args.glide_client     = valkey_glide->glide_client;
+    args.key              = key;
+    args.key_len          = key_len;
+    args.field            = field;
+    args.field_len        = field_len;
+    args.increment        = increment;
+
+
     /* Execute the HINCRBY command */
-    if (execute_h_incrby_command(
-            valkey_glide->glide_client, key, key_len, field, field_len, increment, &result_value)) {
-        ZVAL_LONG(return_value, result_value);
+    if (execute_h_simple_command(
+            valkey_glide, HIncrBy, &args, NULL, H_RESPONSE_INT, return_value)) {
         return 1;
     }
 
@@ -2043,15 +1792,12 @@ int execute_hkeys_command(zval* object, int argc, zval* return_value, zend_class
     args.key              = key;
     args.key_len          = key_len;
 
-    /* Initialize return array */
-    array_init(return_value);
 
     /* Execute with batch support */
     if (execute_h_simple_command(
             valkey_glide, HKeys, &args, return_value, H_RESPONSE_ARRAY, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
-            zval_dtor(return_value); /* Clean up the array we initialized */
             ZVAL_COPY(return_value, object);
             return 1;
         }
@@ -2092,7 +1838,6 @@ int execute_hvals_command(zval* object, int argc, zval* return_value, zend_class
             valkey_glide, HVals, &args, return_value, H_RESPONSE_ARRAY, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
-            zval_dtor(return_value); /* Clean up the array we initialized */
             ZVAL_COPY(return_value, object);
             return 1;
         }
@@ -2128,15 +1873,12 @@ int execute_hgetall_command(zval* object, int argc, zval* return_value, zend_cla
     args.key              = key;
     args.key_len          = key_len;
 
-    /* Initialize return array */
-    array_init(return_value);
 
     /* Execute with batch support */
     if (execute_h_simple_command(
             valkey_glide, HGetAll, &args, return_value, H_RESPONSE_MAP, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
-            zval_dtor(return_value); /* Clean up the array we initialized */
             ZVAL_COPY(return_value, object);
             return 1;
         }
@@ -2170,9 +1912,17 @@ int execute_hstrlen_command(zval* object, int argc, zval* return_value, zend_cla
     }
 
     /* Execute the HSTRLEN command */
-    if (execute_h_strlen_command(
-            valkey_glide->glide_client, key, key_len, field, field_len, &result_value)) {
-        ZVAL_LONG(return_value, result_value);
+
+    h_command_args_t args = {0};
+    args.glide_client     = valkey_glide->glide_client;
+    args.key              = key;
+    args.key_len          = key_len;
+    args.field            = field;
+    args.field_len        = field_len;
+
+
+    if (execute_h_simple_command(
+            valkey_glide, HStrlen, &args, NULL, H_RESPONSE_INT, return_value)) {
         return 1;
     }
 
