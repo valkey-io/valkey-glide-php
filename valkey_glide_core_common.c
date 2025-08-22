@@ -1538,9 +1538,7 @@ int process_core_bool_result(CommandResponse* response, void* output, zval* retu
     }
 
     ZVAL_BOOL(return_value, result_val);
-    if (output) {
-        *((int*) output) = result_val;
-    }
+
     return 1;
 }
 

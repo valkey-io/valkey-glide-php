@@ -289,7 +289,7 @@ int process_ping_result(CommandResponse* response, void* output, zval* return_va
         efree(output);
         return 0;
     }
-    int status = 0;
+    int status = 0; /* 1 = success, 0 = failure */
     if (response->response_type == Ok) {
         /* PONG response with no message */
         result     = estrdup("PONG");
@@ -315,8 +315,7 @@ int process_ping_result(CommandResponse* response, void* output, zval* return_va
     } else if (response->response_type == Null) {
         result     = NULL;
         result_len = 0;
-        efree(output);
-        return 0;
+        status     = 0;
     }
     if (status == 1) {
         if (response != NULL) {
@@ -327,23 +326,21 @@ int process_ping_result(CommandResponse* response, void* output, zval* return_va
             if (!has_message && result_len == 4 && strncmp(result, "PONG", 4) == 0) {
                 efree(result);
                 ZVAL_TRUE(return_value);
-                efree(output);
-                return 1;
+                status = 1;
+            } else {
+                /* Otherwise, return the actual response string */
+                ZVAL_STRINGL(return_value, result, result_len);
+                efree(result);
+                status = 1;
             }
-            /* Otherwise, return the actual response string */
-            ZVAL_STRINGL(return_value, result, result_len);
-            efree(result);
-            efree(output);
-            return 1;
         } else {
             /* Success but no response (should return TRUE for PONG) */
             ZVAL_TRUE(return_value);
-            efree(output);
-            return 1;
+            status = 1;
         }
     }
     efree(output);
-    return 0;
+    return status;
 }
 
 /* These functions are now defined in command_response.c */

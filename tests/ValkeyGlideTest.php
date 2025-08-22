@@ -86,10 +86,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         /* Reply literal off */
         $this->assertTrue($this->valkey_glide->ping());
-
+        
         //$this->assertTrue($this->valkey_glide->ping(NULL));
         $this->assertEquals('BEEP', $this->valkey_glide->ping('BEEP'));
-        return;
+        
         /* Make sure we're good in MULTI mode */
         if ($this->haveMulti()) {
             $this->assertEquals(

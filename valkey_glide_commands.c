@@ -737,7 +737,7 @@ int execute_move_command_internal(valkey_glide_object* valkey_glide,
                                   const char*          key,
                                   size_t               key_len,
                                   long                 db,
-                                  int*                 output_value) {
+                                  zval*                return_value) {
     core_command_args_t args = {0};
     args.glide_client        = valkey_glide->glide_client;
     args.cmd_type            = Move;
@@ -749,11 +749,8 @@ int execute_move_command_internal(valkey_glide_object* valkey_glide,
     args.args[0].data.long_arg.value = db;
     args.arg_count                   = 1;
 
-    zval dummy_return;
-    ZVAL_NULL(&dummy_return);
 
-    return execute_core_command(
-        valkey_glide, &args, output_value, process_core_bool_result, &dummy_return);
+    return execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value);
 }
 
 /* Execute a MOVE command - UNIFIED IMPLEMENTATION */
@@ -762,7 +759,7 @@ int execute_move_command(zval* object, int argc, zval* return_value, zend_class_
     char*                key = NULL;
     size_t               key_len;
     long                 dbindex;
-    int                  result_value = 0;
+
 
     /* Parse parameters */
     if (zend_parse_method_parameters(argc, object, "Osl", &object, ce, &key, &key_len, &dbindex) ==
@@ -777,10 +774,9 @@ int execute_move_command(zval* object, int argc, zval* return_value, zend_class_
     }
 
     /* Execute the MOVE command using the Glide client */
-    if (execute_move_command_internal(valkey_glide, key, key_len, dbindex, &result_value)) {
-        ZVAL_TRUE(return_value);
+    if (execute_move_command_internal(valkey_glide, key, key_len, dbindex, return_value)) {
         return 1;
     }
-    ZVAL_FALSE(return_value);
+
     return 0;
 }
