@@ -1847,18 +1847,15 @@ int prepare_z_randmember_args(z_command_args_t* args,
  * Process integer result (for commands returning count)
  */
 int process_z_int_result(CommandResponse* response, void* output, zval* return_value) {
-    long* output_value = (long*) output;
-
-    if (!response || !output_value) {
+    if (!response) {
         return 0;
     }
 
     if (response->response_type == Int) {
-        *output_value = response->int_value;
-        ZVAL_LONG(return_value, *output_value);
+        ZVAL_LONG(return_value, response->int_value);
         return 1;
     }
-
+    ZVAL_FALSE(return_value);
     return 0;
 }
 
@@ -1866,26 +1863,24 @@ int process_z_int_result(CommandResponse* response, void* output, zval* return_v
  * Process double result (for commands returning scores)
  */
 int process_z_double_result(CommandResponse* response, void* output, zval* return_value) {
-    double* output_value = (double*) output;
-
-    if (!response || !output_value) {
+    if (!response) {
         return 0;
     }
 
     if (response->response_type == String) {
         /* Parse string as double */
-        char* endptr;
-        *output_value = strtod(response->string_value, &endptr);
+        char*  endptr;
+        double output_value = strtod(response->string_value, &endptr);
         if (*endptr == '\0' || endptr == response->string_value + response->string_value_len) {
-            ZVAL_DOUBLE(return_value, *output_value);
+            ZVAL_DOUBLE(return_value, output_value);
             return 1;
         }
         return 0;
     }
 
     if (response->response_type == Float) {
-        *output_value = response->float_value;
-        ZVAL_DOUBLE(return_value, *output_value);
+        double output_value = response->float_value;
+        ZVAL_DOUBLE(return_value, output_value);
         return 1;
     }
 
@@ -1896,50 +1891,20 @@ int process_z_double_result(CommandResponse* response, void* output, zval* retur
  * Process rank result with optional score
  */
 int process_z_rank_result(CommandResponse* response, void* output, zval* return_value) {
-    struct {
-        long*   rank;
-        double* score;
-        int     withscore;
-    }* rank_data = output;
-
-    if (!response || !rank_data || !rank_data->rank) {
+    if (!response) {
         return -1;
     }
 
     if (response->response_type == Null) {
         ZVAL_NULL(return_value); /* Member doesn't exist */
-
-        return 0; /* Member doesn't exist */
+        return 0;                /* Member doesn't exist */
     }
 
     if (response->response_type == Int) {
-        *rank_data->rank = response->int_value;
         ZVAL_LONG(return_value, response->int_value);
         return 1;
     }
 
-
-    if (response->response_type == Array && rank_data->withscore && rank_data->score) {
-        /* Array with rank and score [rank, score] */
-        if (response->array_value_len >= 2) {
-            CommandResponse* rank_resp  = &response->array_value[0];
-            CommandResponse* score_resp = &response->array_value[1];
-
-            if (rank_resp->response_type == Int &&
-                (score_resp->response_type == String || score_resp->response_type == Float)) {
-                *rank_data->rank = rank_resp->int_value;
-
-                if (score_resp->response_type == String) {
-                    char* endptr;
-                    *rank_data->score = strtod(score_resp->string_value, &endptr);
-                } else {
-                    *rank_data->score = score_resp->float_value;
-                }
-                ZVAL_LONG(return_value, *rank_data->score);
-                return 1;
-            }
-        }
-    }
 
     return -1;
 }
@@ -1974,7 +1939,7 @@ int process_z_array_zrand_result(CommandResponse* response, void* output, zval* 
         /* Use common helper to flatten withscores array */
         flatten_withscores_array(return_value);
     }
-
+    efree(output);
     return success;
 }
 
@@ -1982,14 +1947,11 @@ int process_z_array_zrand_result(CommandResponse* response, void* output, zval* 
  * Process array result (for commands returning arrays)
  */
 int process_z_array_result(CommandResponse* response, void* output, zval* return_value) {
-    struct {
-        int withscores;
-    }* array_data = output;
-
-    if (!response || !array_data || !return_value) {
+    if (!response || !return_value) {
         return 0;
     }
-
+    /* Initialize return array */
+    array_init(return_value);
     /* Process the result */
     int success = command_response_to_zval(
         response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, true);
@@ -2002,23 +1964,6 @@ int process_z_array_result(CommandResponse* response, void* output, zval* return
  */
 int process_z_long_to_zval_result(CommandResponse* response, void* output, zval* return_value) {
     if (!response || !return_value) {
-        return 0;
-    }
-    return command_response_to_zval(
-        response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-}
-
-/**
- * Process ZADD result with dual return types (long for count, double for INCR)
- */
-int process_z_zadd_result(CommandResponse* response, void* output, zval* return_value) {
-    struct {
-        long*   output_value;
-        double* output_value_double;
-        int     is_incr;
-    }* zadd_data = output;
-
-    if (!response || !zadd_data) {
         return 0;
     }
     return command_response_to_zval(

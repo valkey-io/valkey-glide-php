@@ -165,11 +165,6 @@ int process_z_array_zrand_result(CommandResponse* response, void* output, zval* 
 int process_z_long_to_zval_result(CommandResponse* response, void* output, zval* return_value);
 
 /**
- * Process ZADD result with dual return types (long for count, double for INCR)
- */
-int process_z_zadd_result(CommandResponse* response, void* output, zval* return_value);
-
-/**
  * Process rank result with optional score
  */
 int process_z_rank_result(CommandResponse* response, void* output, zval* return_value);
