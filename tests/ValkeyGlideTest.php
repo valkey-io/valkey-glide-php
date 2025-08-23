@@ -7261,6 +7261,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $payload = $this->valkey_glide->function('dump');
         $this->assertEquals('mylib', $this->valkey_glide->function('load', 'replace', "#!lua name=mylib\nredis.register_function{function_name='myfunc', callback=function(keys, args) return args[1] end, flags={'no-writes'}}"));
         $this->assertEquals('foo', $this->valkey_glide->fcall_ro('myfunc', [], ['foo']));
+        var_dump($this->valkey_glide->function('list'));
+        var_dump($this->valkey_glide->function('stats'));
         $this->assertEquals(['running_script' => false, 'engines' => ['LUA' => ['libraries_count' => 1, 'functions_count' => 1]]], $this->valkey_glide->function('stats'));
         $this->assertTrue($this->valkey_glide->function('delete', 'mylib'));
         $this->assertTrue($this->valkey_glide->function('restore', $payload));
