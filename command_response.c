@@ -408,6 +408,7 @@ long handle_int_response(CommandResult* result, long* output_value) {
     if (result->response && result->response->response_type == Int) {
         *output_value = result->response->int_value;
 
+
         /* Free the result */
         free_command_result(result);
         return 1; /* True - success */
@@ -673,6 +674,7 @@ int command_response_to_zval(CommandResponse* response,
                     zval_dtor(&value);
                 }
                 // php_var_dump(output, 2);
+
             } else {
                 for (int64_t i = 0; i < response->array_value_len; i++) {
                     zval value;

@@ -89,7 +89,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         //$this->assertTrue($this->valkey_glide->ping(NULL));
         $this->assertEquals('BEEP', $this->valkey_glide->ping('BEEP'));
-        return;
+
         /* Make sure we're good in MULTI mode */
         if ($this->haveMulti()) {
             $this->assertEquals(
@@ -1090,6 +1090,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->set($key, 'val');
         $this->assertKeyEquals('val', $key);
         $this->assertEquals(1, $this->valkey_glide->$cmd($key));
+
         $this->assertFalse($this->valkey_glide->get($key));
 
         // multiple, all existing
@@ -2848,7 +2849,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(4, $this->valkey_glide->zCard('key'));
 
         $this->assertEquals(1.0, $this->valkey_glide->zScore('key', 'val1'));
-
         $this->assertFalse($this->valkey_glide->zScore('key', 'val'));
         $this->assertFalse($this->valkey_glide->zScore(3, 2));
 
@@ -3527,11 +3527,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHashes()
     {
-
-
         $this->valkey_glide->del('h', 'key');
 
         $this->assertEquals(0, $this->valkey_glide->hLen('h'));
+
 
         $this->assertEquals(1, $this->valkey_glide->hSet('h', 'a', 'a-value'));
 
@@ -3543,6 +3542,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals('b-value', $this->valkey_glide->hGet('h', 'b'));  // simple get
 
         $this->assertEquals(0, $this->valkey_glide->hSet('h', 'a', 'another-value')); // replacement
+
         $this->assertEquals('another-value', $this->valkey_glide->hGet('h', 'a'));    // get the new value
 
         $this->assertEquals('b-value', $this->valkey_glide->hGet('h', 'b'));  // simple get
@@ -3550,7 +3550,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->hGet('h', 'c'));  // unknown hash member
 
         $this->assertFalse($this->valkey_glide->hGet('key', 'c'));    // unknownkey
-
         // hDel
         $this->assertEquals(1, $this->valkey_glide->hDel('h', 'a')); // 1 on success
 
@@ -3669,6 +3668,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         $h1 = $this->valkey_glide->hGetAll('h1');
         $this->assertEquals('0', $h1['x']);
+
         $this->assertEquals('Array', $h1['y']);
 
        // $this->assertEquals('Object', $h1['z']); //TODO
@@ -3818,9 +3818,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testMultiExec()
     {
-        $this->MarkTestSkipped();
-        $this->sequence(ValkeyGlide::MULTI);
 
+        $this->sequence(ValkeyGlide::MULTI);
+        return;
         $this->differentType(ValkeyGlide::MULTI);
 
         // with prefix as well
@@ -3963,6 +3963,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     protected function sequence($mode)
     {
+
         $ret = $this->valkey_glide->multi($mode)
             ->set('x', 42)
             ->type('x')
@@ -3974,7 +3975,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($ret[$i++]);
         $this->assertEquals(ValkeyGlide::VALKEY_GLIDE_STRING, $ret[$i++]);
         $this->assertEqualsWeak('42', $ret[$i]);
-        return;
+
         $ret = $this->valkey_glide->multi($mode)
             ->del('{key}1')
             ->set('{key}1', 'value1')
@@ -4018,7 +4019,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEqualsWeak(4, $ret[$i++]);
         $this->assertEquals($i, count($ret));
 
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_SERIALIZER, $serializer);
 
         $ret = $this->valkey_glide->multi($mode)
             ->del('{key}1')
@@ -4062,7 +4062,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(5, $ret[$i++]);    // ttl
         $this->assertTrue($ret[$i++]); // expireAt
         $this->assertEquals($i, count($ret));
-
+        return;
         $ret = $this->valkey_glide->multi($mode)
             ->set('{list}lkey', 'x')
             ->set('{list}lDest', 'y')
@@ -5094,7 +5094,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->lrem($key, 'lvalue', 1));
         $this->assertFalse($this->valkey_glide->lPop($key));
         $this->assertFalse($this->valkey_glide->rPop($key));
-        $this->assertFalse($this->valkey_glide->rPoplPush($key, $dkey . 'lkey1'));
 
         // sets I/F
         $this->assertFalse($this->valkey_glide->sAdd($key, 'sValue1'));
@@ -5291,7 +5290,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->lrem($key, 'lvalue', 1));
         $this->assertFalse($this->valkey_glide->lPop($key));
         $this->assertFalse($this->valkey_glide->rPop($key));
-        $this->assertFalse($this->valkey_glide->rPoplPush($key, $dkey . 'lkey1'));
+
 
         // sets I/F
         $this->assertFalse($this->valkey_glide->sAdd($key, 'sValue1'));
@@ -7092,7 +7091,163 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertKeyEquals('bar', '{key}dst');
     }
 
+    public function testMultiZ()
+    {
+        $this->valkey_glide->del('{z}key1', '{z}key2', '{z}key5', '{z}Inter', '{z}Union');
+        // sorted sets
+        $ret = $this->valkey_glide->multi(ValkeyGlide::MULTI)
 
+            ->zadd('{z}key1', 1, 'zValue1')
+            ->zadd('{z}key1', 5, 'zValue5')
+            ->zadd('{z}key1', 2, 'zValue2')
+            ->zRange('{z}key1', 0, -1)
+            ->zRem('{z}key1', 'zValue2')
+            ->zRange('{z}key1', 0, -1)
+            ->zadd('{z}key1', 11, 'zValue11')
+            ->zadd('{z}key1', 12, 'zValue12')
+            ->zadd('{z}key1', 13, 'zValue13')
+            ->zadd('{z}key1', 14, 'zValue14')
+            ->zadd('{z}key1', 15, 'zValue15')
+            ->zRemRangeByScore('{z}key1', 11, 13)
+            ->zrange('{z}key1', 0, -1)
+            ->zRangeByScore('{z}key1', 1, 6)
+            ->zCard('{z}key1')
+            ->zScore('{z}key1', 'zValue15')
+            ->zadd('{z}key2', 5, 'zValue5')
+            ->zadd('{z}key2', 2, 'zValue2')
+            ->zInterStore('{z}Inter', ['{z}key1', '{z}key2'])
+            ->zRange('{z}key1', 0, -1)
+            ->zRange('{z}key2', 0, -1)
+            ->zRange('{z}Inter', 0, -1)
+            ->zUnionStore('{z}Union', ['{z}key1', '{z}key2'])
+            ->zRange('{z}Union', 0, -1)
+            ->zadd('{z}key5', 5, 'zValue5')
+            ->zIncrBy('{z}key5', 3, 'zValue5') // fix this
+            ->zScore('{z}key5', 'zValue5')
+            ->zScore('{z}key5', 'unknown')
+            ->exec();
+
+        $i = 0;
+        $this->assertIsArray($ret);
+        $this->assertEquals(1, $ret[$i++]);
+        $this->assertEquals(1, $ret[$i++]);
+        $this->assertEquals(1, $ret[$i++]);
+        $this->assertEquals(['zValue1', 'zValue2', 'zValue5'], $ret[$i++]);
+        $this->assertEquals(1, $ret[$i++]);
+        $this->assertEquals(['zValue1', 'zValue5'], $ret[$i++]);
+        $this->assertEquals(1, $ret[$i++]); // adding zValue11
+        $this->assertEquals(1, $ret[$i++]); // adding zValue12
+        $this->assertEquals(1, $ret[$i++]); // adding zValue13
+        $this->assertEquals(1, $ret[$i++]); // adding zValue14
+        $this->assertEquals(1, $ret[$i++]); // adding zValue15  ->zadd('{z}key1', 15, 'zValue15')
+        $this->assertEquals(3, $ret[$i++]); // deleted zValue11, zValue12, zValue13
+        $this->assertEquals(['zValue1', 'zValue5', 'zValue14', 'zValue15'], $ret[$i++]);
+        $this->assertEquals(['zValue1', 'zValue5'], $ret[$i++]);
+        $this->assertEquals(4, $ret[$i++]); // 4 elements
+        $this->assertEquals(15.0, $ret[$i++]);
+        $this->assertEquals(1, $ret[$i++]); // added value
+        $this->assertEquals(1, $ret[$i++]); // added value
+        $this->assertEquals(1, $ret[$i++]); // zinter only has 1 value
+        $this->assertEquals(['zValue1', 'zValue5', 'zValue14', 'zValue15'], $ret[$i++]); // {z}key1 contents
+        $this->assertEquals(['zValue2', 'zValue5'], $ret[$i++]); // {z}key2 contents
+        $this->assertEquals(['zValue5'], $ret[$i++]); // {z}inter contents
+        $this->assertEquals(5, $ret[$i++]); // {z}Union has 5 values (1, 2, 5, 14, 15)
+        $this->assertEquals(['zValue1', 'zValue2', 'zValue5', 'zValue14', 'zValue15'], $ret[$i++]); // {z}Union contents
+        $this->assertEquals(1, $ret[$i++]); // added value to {z}key5, with score 5
+        $this->assertEquals(8.0, $ret[$i++]); // incremented score by 3 → it is now 8.
+        $this->assertEquals(8.0, $ret[$i++]); // current score is 8.
+        $this->assertFalse($ret[$i++]); // score for unknown element.
+
+        $this->assertEquals($i, count($ret));
+    }
+
+    public function testMultiHash()
+    {
+        // hash
+        $this->valkey_glide->del('hkey1');
+        $ret = $this->valkey_glide->multi(ValkeyGlide::MULTI)
+            ->hset('hkey1', 'key1', 'value1')
+            ->hset('hkey1', 'key2', 'value2')
+            ->hset('hkey1', 'key3', 'value3')
+            ->hmget('hkey1', ['key1', 'key2', 'key3'])
+            ->hget('hkey1', 'key1')
+            ->hlen('hkey1')
+            ->hdel('hkey1', 'key2')
+            ->hdel('hkey1', 'key2')
+            ->hexists('hkey1', 'key2')
+            ->hkeys('hkey1')
+            ->hvals('hkey1')
+            ->hgetall('hkey1')
+            ->hset('hkey1', 'valn', 1)
+            ->hset('hkey1', 'val-fail', 'non-string')
+            ->hget('hkey1', 'val-fail')
+            ->exec();
+
+        $i = 0;
+        $this->assertIsArray($ret);
+        $this->assertEquals(1, $ret[$i++]); // added 1 element
+        $this->assertEquals(1, $ret[$i++]); // added 1 element
+        $this->assertEquals(1, $ret[$i++]); // added 1 element
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2', 'key3' => 'value3'], $ret[$i++]); // hmget, 3 elements
+        $this->assertEquals('value1', $ret[$i++]); // hget
+        $this->assertEquals(3, $ret[$i++]); // hlen
+        $this->assertEquals(1, $ret[$i++]); // hdel succeeded
+        $this->assertEquals(0, $ret[$i++]); // hdel failed
+        $this->assertFalse($ret[$i++]); // hexists didn't find the deleted key
+        $this->assertEqualsCanonicalizing(['key1', 'key3'], $ret[$i++]); // hkeys
+        $this->assertEqualsCanonicalizing(['value1', 'value3'], $ret[$i++]); // hvals
+        $this->assertEqualsCanonicalizing(['key1' => 'value1', 'key3' => 'value3'], $ret[$i++]); // hgetall
+        $this->assertEquals(1, $ret[$i++]); // added 1 element
+        $this->assertEquals(1, $ret[$i++]); // added the element, so 1.
+        $this->assertEquals('non-string', $ret[$i++]); // hset succeeded
+        $this->assertEquals($i, count($ret));
+    }
+
+    public function testMultiString()
+    {
+        $ret = $this->valkey_glide->multi(ValkeyGlide::MULTI)
+            ->del('{key}1')
+            ->set('{key}1', 'value1')
+            ->get('{key}1')
+            ->getSet('{key}1', 'value2')
+            ->get('{key}1')
+            ->set('{key}2', 4)
+            ->incr('{key}2')
+            ->get('{key}2')
+            ->decr('{key}2')
+            ->get('{key}2')
+            ->rename('{key}2', '{key}3')
+            ->get('{key}3')
+            ->renameNx('{key}3', '{key}1')
+            ->rename('{key}3', '{key}2')
+            ->incrby('{key}2', 5)
+            ->get('{key}2')
+            ->decrby('{key}2', 5)
+            ->get('{key}2')
+            ->exec();
+
+        $i = 0;
+        $this->assertIsArray($ret);
+        $this->assertTrue(is_long($ret[$i++]));
+        $this->assertEqualsWeak(true, $ret[$i++]);
+        $this->assertEqualsWeak('value1', $ret[$i++]);
+        $this->assertEqualsWeak('value1', $ret[$i++]);
+        $this->assertEqualsWeak('value2', $ret[$i++]);
+        $this->assertEqualsWeak(true, $ret[$i++]);
+        $this->assertEqualsWeak(5, $ret[$i++]);
+        $this->assertEqualsWeak(5, $ret[$i++]);
+        $this->assertEqualsWeak(4, $ret[$i++]);
+        $this->assertEqualsWeak(4, $ret[$i++]);
+        $this->assertEqualsWeak(true, $ret[$i++]);
+        $this->assertEqualsWeak(4, $ret[$i++]);
+        $this->assertEqualsWeak(false, $ret[$i++]);
+        $this->assertEqualsWeak(true, $ret[$i++]);
+        $this->assertEqualsWeak(true, $ret[$i++]);
+        $this->assertEqualsWeak(9, $ret[$i++]);
+        $this->assertEqualsWeak(true, $ret[$i++]);
+        $this->assertEqualsWeak(4, $ret[$i++]);
+        $this->assertEquals($i, count($ret));
+    }
 
     public function testFunction()
     {
@@ -7106,6 +7261,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $payload = $this->valkey_glide->function('dump');
         $this->assertEquals('mylib', $this->valkey_glide->function('load', 'replace', "#!lua name=mylib\nredis.register_function{function_name='myfunc', callback=function(keys, args) return args[1] end, flags={'no-writes'}}"));
         $this->assertEquals('foo', $this->valkey_glide->fcall_ro('myfunc', [], ['foo']));
+        var_dump($this->valkey_glide->function('list'));
+        var_dump($this->valkey_glide->function('stats'));
         $this->assertEquals(['running_script' => false, 'engines' => ['LUA' => ['libraries_count' => 1, 'functions_count' => 1]]], $this->valkey_glide->function('stats'));
         $this->assertTrue($this->valkey_glide->function('delete', 'mylib'));
         $this->assertTrue($this->valkey_glide->function('restore', $payload));

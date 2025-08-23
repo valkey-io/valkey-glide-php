@@ -3,5 +3,13 @@
     "type": "valkey",
     "version": "8.1",
     "run": "always"
+  },
+  {
+    "type": "valkey",
+    "version": "8.0"
+  },
+  {
+    "type": "valkey",
+    "version": "7.2"
   }
 ]

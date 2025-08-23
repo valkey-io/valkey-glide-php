@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "valkey_glide_z_common.h"
 /* ====================================================================
  * CORE FRAMEWORK IMPLEMENTATION
  * ==================================================================== */
@@ -28,10 +29,13 @@
  * Main command execution framework
  * This is the central function that handles all ValkeyGlide/Valkey commands
  */
-int execute_core_command(core_command_args_t*    args,
-                         void*                   result_ptr,
-                         core_result_processor_t processor) {
-    if (!args || !args->glide_client || !processor) {
+int execute_core_command(valkey_glide_object* valkey_glide,
+                         core_command_args_t* args,
+                         void*                result_ptr,
+                         z_result_processor_t processor,
+                         zval*                return_value) {
+    if (!valkey_glide || !args || !args->glide_client || !processor) {
+        efree(result_ptr);
         return 0;
     }
 
@@ -50,7 +54,30 @@ int execute_core_command(core_command_args_t*    args,
         prepare_core_args(args, &cmd_args, &cmd_args_len, &allocated_strings, &allocated_count);
 
     if (arg_count < 0) {
+        efree(result_ptr);
         return 0;
+    }
+
+    /* Check for batch mode */
+    if (valkey_glide->is_in_batch_mode) {
+        /* Create batch-compatible processor wrapper */
+
+
+        res = buffer_command_for_batch(valkey_glide,
+                                       args->cmd_type,
+                                       (uint8_t**) cmd_args,
+                                       (uintptr_t*) cmd_args_len,
+                                       arg_count,
+                                       args->key,
+                                       args->key_len,
+                                       result_ptr,
+                                       processor);
+
+        free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
+        if (res == 0) {
+            efree(result_ptr);
+        }
+        return res;
     }
 
     /* Execute the command - use routing if cluster mode and route provided */
@@ -74,7 +101,7 @@ int execute_core_command(core_command_args_t*    args,
     if (result) {
         if (!result->command_error && result->response) {
             /* Non-routed commands use standard processor */
-            res = processor(result, result_ptr);
+            res = processor(result->response, result_ptr, return_value);
         }
 
         /* Free the result - handle_string_response doesn't free it */
@@ -1005,186 +1032,84 @@ int prepare_range_args(core_command_args_t* args,
  * RESULT PROCESSORS
  * ==================================================================== */
 
-/**
- * Process integer result
- */
-int process_core_int_result(CommandResult* result, void* output) {
-    long* output_value = (long*) output;
-
-    if (!result || !result->response || !output_value) {
-        return 0;
-    }
-
-    if (result->response->response_type == Int) {
-        *output_value = result->response->int_value;
-
-        return 1;
-    }
-
-    return 0;
-}
-
-/**
- * Process string result
- */
-int process_core_string_result(CommandResult* result, void* output) {
-    struct {
-        char**  result;
-        size_t* result_len;
-    }* string_output = output;
-
-    if (!result || !result->response || !string_output) {
-        return 0;
-    }
-    if (result->response->response_type == String) {
-        if (result->response->string_value_len == 0) {
-            *string_output->result = emalloc(1);
-            if (*string_output->result) {
-                (*string_output->result)[0] = '\0';
-            }
-            *string_output->result_len = 0;
-        } else {
-            *string_output->result = emalloc(result->response->string_value_len + 1);
-            if (*string_output->result) {
-                memcpy(*string_output->result,
-                       result->response->string_value,
-                       result->response->string_value_len);
-                (*string_output->result)[result->response->string_value_len] = '\0';
-            }
-            *string_output->result_len = result->response->string_value_len;
-        }
-        return *string_output->result ? 1 : 0;
-    } else if (result->response->response_type == Null) {
-        *string_output->result     = NULL;
-        *string_output->result_len = 0;
-        return 0;
-    }
-
-    return 0;
-}
-
-/**
- * Process boolean result
- * Handles Bool, Int, and Ok response types from ValkeyGlide/Valkey
- */
-int process_core_bool_result(CommandResult* result, void* output) {
-    if (!result || !result->response) {
-        return -1;
-    }
-
-    if (result->response->response_type == Bool) {
-        return result->response->bool_value ? 1 : 0;
-    } else if (result->response->response_type == Int) {
-        /* Handle ValkeyGlide integer responses: 0 = false, non-zero = true */
-        /* This handles EXPIRE commands with NX/XX modes correctly */
-        return result->response->int_value ? 1 : 0;
-    } else if (result->response->response_type == Ok) {
-        return 1;
-    }
-
-    return -1;
-}
 
 /**
  * Process array result
  */
-int process_core_array_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-
-    if (!result || !result->response || !return_value) {
+int process_core_array_result(CommandResponse* response, void* output, zval* return_value) {
+    if (!response || !return_value) {
         return 0;
     }
 
-    return command_response_to_zval(
-        result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, true);
+    return command_response_to_zval(response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, true);
 }
 
 /**
  * Process double result
  */
-int process_core_double_result(CommandResult* result, void* output) {
-    double* output_value = (double*) output;
-
-    if (!result || !result->response || !output_value) {
+int process_core_double_result(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        ZVAL_DOUBLE(return_value, 0.0);
         return 0;
     }
 
-    if (result->response->response_type == Float) {
-        *output_value = result->response->float_value;
+    if (response->response_type == Float) {
+        ZVAL_DOUBLE(return_value, response->float_value);
         return 1;
-    } else if (result->response->response_type == String) {
-        char* endptr;
-        *output_value = strtod(result->response->string_value, &endptr);
-        if (endptr != result->response->string_value && *endptr == '\0') {
+    } else if (response->response_type == String) {
+        char*  endptr;
+        double res = strtod(response->string_value, &endptr);
+        ZVAL_DOUBLE(return_value, res);
+        if (endptr != response->string_value && *endptr == '\0') {
             return 1;
         }
     }
-
+    ZVAL_DOUBLE(return_value, 0.0);
     return 0;
 }
 
-/**
- * Process null-or-value result
- */
-int process_core_null_or_value_result(CommandResult* result, void* output) {
-    struct {
-        char**  result;
-        size_t* result_len;
-    }* string_output = output;
-
-    if (!result || !result->response || !string_output) {
-        return -1;
-    }
-
-    if (result->response->response_type == Null) {
-        *string_output->result     = NULL;
-        *string_output->result_len = 0;
-        return 0;
-    }
-
-    return process_core_string_result(result, output);
-}
 
 /**
  * Process TYPE command result (maps ValkeyGlide type strings to PHP constants)
  */
-int process_core_type_result(CommandResult* result, void* output) {
-    long* type_code = (long*) output;
+int process_core_type_result(CommandResponse* response, void* output, zval* return_value) {
+    long type_code = -1;
 
-    if (!result || !result->response || !type_code) {
+    if (!response) {
         return -1;
     }
 
-    if (result->response->response_type == String && result->response->string_value) {
-        char* type_str = result->response->string_value;
+    if (response->response_type == String && response->string_value) {
+        char* type_str = response->string_value;
 
         /* Map ValkeyGlide type strings to PHP constants */
         if (strncmp(type_str, "string", 6) == 0) {
-            *type_code = 1; /* VALKEY_GLIDE_STRING */
+            type_code = 1; /* VALKEY_GLIDE_STRING */
         } else if (strncmp(type_str, "list", 4) == 0) {
-            *type_code = 3; /* VALKEY_GLIDE_LIST */
+            type_code = 3; /* VALKEY_GLIDE_LIST */
         } else if (strncmp(type_str, "set", 3) == 0) {
-            *type_code = 2; /* VALKEY_GLIDE_SET */
+            type_code = 2; /* VALKEY_GLIDE_SET */
         } else if (strncmp(type_str, "zset", 4) == 0) {
-            *type_code = 4; /* VALKEY_GLIDE_ZSET */
+            type_code = 4; /* VALKEY_GLIDE_ZSET */
         } else if (strncmp(type_str, "hash", 4) == 0) {
-            *type_code = 5; /* VALKEY_GLIDE_HASH */
+            type_code = 5; /* VALKEY_GLIDE_HASH */
         } else if (strncmp(type_str, "stream", 6) == 0) {
-            *type_code = 6; /* VALKEY_GLIDE_STREAM */
+            type_code = 6; /* VALKEY_GLIDE_STREAM */
         } else if (strncmp(type_str, "none", 4) == 0) {
-            *type_code = 0; /* VALKEY_GLIDE_NOT_FOUND */
+            type_code = 0; /* VALKEY_GLIDE_NOT_FOUND */
         } else {
             /* Unknown type, default to NOT_FOUND */
-            *type_code = 0;
+            type_code = 0;
         }
-
+        ZVAL_LONG(return_value, type_code);
         return 1; /* Success */
-    } else if (result->response->response_type == Null) {
+    } else if (response->response_type == Null) {
         /* Key doesn't exist */
-        *type_code = 0; /* VALKEY_GLIDE_NOT_FOUND */
+        type_code = 0; /* VALKEY_GLIDE_NOT_FOUND */
+        ZVAL_LONG(return_value, type_code);
         return 1;
     }
-
+    ZVAL_LONG(return_value, -1);
     return -1; /* Error */
 }
 
@@ -1210,15 +1135,6 @@ int allocate_core_arg_arrays(int count, uintptr_t** args_out, unsigned long** ar
     return 1;
 }
 
-/**
- * Free command argument arrays
- */
-void free_core_arg_arrays(uintptr_t* args, unsigned long* args_len) {
-    if (args)
-        efree(args);
-    if (args_len)
-        efree(args_len);
-}
 
 /**
  * Create string tracker for memory management
@@ -1277,13 +1193,6 @@ char* core_double_to_string(double value, size_t* len) {
         str[*len] = '\0';
     }
     return str;
-}
-
-/**
- * Convert zval to string safely
- */
-char* core_zval_to_string(zval* z, size_t* len, int* need_free) {
-    return zval_to_string_safe(z, len, need_free);
 }
 
 /* ====================================================================
@@ -1542,31 +1451,97 @@ int parse_set_options(zval* options, core_options_t* opts) {
     return 1;
 }
 
+
+/* ====================================================================
+ * BATCH PROCESSOR WRAPPERS
+ * ==================================================================== */
+
 /**
- * Parse bit operation options
+ * Batch-compatible wrapper for integer results
  */
-int parse_bit_options(zval* options, core_options_t* opts) {
-    /* Use common option parsing as base */
-    if (!parse_core_options(options, opts)) {
+int process_core_int_result(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        ZVAL_LONG(return_value, 0);
         return 0;
     }
 
-    /* Bit operation specific parsing can be added here */
-    return 1;
+    if (response->response_type == Int) {
+        ZVAL_LONG(return_value, response->int_value);
+        return 1;
+    }
+    ZVAL_LONG(return_value, 0);
+    return 0;
 }
 
 /**
- * Parse expire command options
+ * Batch-compatible wrapper for string results
  */
-int parse_expire_options(zval* options, core_options_t* opts) {
-    /* Use common option parsing as base */
-    if (!parse_core_options(options, opts)) {
+int process_core_string_result(CommandResponse* response, void* output, zval* return_value) {
+    char*  result = NULL;
+    size_t result_len;
+
+
+    if (!response) {
+        ZVAL_NULL(return_value);
         return 0;
     }
 
-    /* Expire command specific parsing can be added here */
+    if (response->response_type == String) {
+        if (response->string_value_len == 0) {
+            result = emalloc(1);
+            if (result) {
+                (result)[0] = '\0';
+            }
+            result_len = 0;
+        } else {
+            result = emalloc(response->string_value_len + 1);
+            if (result) {
+                memcpy(result, response->string_value, response->string_value_len);
+                (result)[response->string_value_len] = '\0';
+            }
+            result_len = response->string_value_len;
+        }
+        if (result) {
+            ZVAL_STRINGL(return_value, result, result_len);
+            efree(result);
+        } else {
+            ZVAL_NULL(return_value);
+        }
+
+        return 1;
+    } else if (response->response_type == Null) {
+        ZVAL_FALSE(return_value);
+        return 1;
+    }
+
+    /* Free the heap-allocated output struct on unknown response type */
+    ZVAL_NULL(return_value);
+    return 0;
+}
+
+/**
+ * Batch-compatible wrapper for boolean results
+ */
+int process_core_bool_result(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        ZVAL_FALSE(return_value);
+        return 0;
+    }
+
+    int result_val = 0;
+    if (response->response_type == Bool) {
+        result_val = response->bool_value ? 1 : 0;
+    } else if (response->response_type == Int) {
+        result_val = response->int_value ? 1 : 0;
+    } else if (response->response_type == Ok) {
+        result_val = 1;
+    }
+
+    ZVAL_BOOL(return_value, result_val);
+
     return 1;
 }
+
 
 /* ====================================================================
  * SPECIALIZED COMMAND HELPERS
@@ -1574,16 +1549,21 @@ int parse_expire_options(zval* options, core_options_t* opts) {
 
 
 /**
- * Generic multi-key command handler for DEL, UNLINK, and similar commands
+ * Generic multi-key command handler for DEL, UNLINK, and similar commands with batch support
  * Supports all 3 usage patterns: single key, array, and multiple arguments
  */
-int execute_multi_key_command(const void*      glide_client,
-                              enum RequestType cmd_type,
-                              zval*            keys,
-                              int              keys_count,
-                              long*            output_value) {
+int execute_multi_key_command(valkey_glide_object* valkey_glide,
+                              enum RequestType     cmd_type,
+                              zval*                keys,
+                              int                  keys_count,
+                              zval*                object,
+                              zval*                return_value) {
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
     core_command_args_t args = {0};
-    args.glide_client        = glide_client;
+    args.glide_client        = valkey_glide->glide_client;
     args.cmd_type            = cmd_type;
 
     /* Detect single key vs multi-key scenario */
@@ -1614,14 +1594,34 @@ int execute_multi_key_command(const void*      glide_client,
         args.args[0].data.array_arg.count = keys_count;
         args.arg_count                    = 1; /* Triggers multi-key mode in core framework */
 
-        /* Execute command and return result */
-        return execute_core_command(&args, output_value, process_core_int_result);
+        /* Execute using core framework with batch support */
+        int result =
+            execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value);
+
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object); /* return_value should already contain $this */
+        }
+
+        return result;
     } else {
         /* Invalid input - neither single string, array, nor multiple strings */
         return 0;
     }
 
-    return execute_core_command(&args, output_value, process_core_int_result);
+    /* Use batch-aware core framework */
+    int result =
+        execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value);
+
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        /* execute_core_command already handles this case */
+        ZVAL_COPY(return_value, object); /* return_value should already contain $this */
+        return result;
+    }
+
+
+    return result;
 }
 
 

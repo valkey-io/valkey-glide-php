@@ -2076,28 +2076,6 @@ int execute_cluster_scan_command(const void* glide_client,
     return success;
 }
 
-/**
- * Execute SCAN command using the generic framework - ORIGINAL SIGNATURE
- */
-int execute_scan_command_internal(const void* glide_client,
-                                  long*       it,
-                                  const char* pattern,
-                                  size_t      pattern_len,
-                                  long        count,
-                                  zval*       return_value) {
-    s_command_args_t args;
-    INIT_S_COMMAND_ARGS(args);
-
-    args.glide_client = glide_client;
-    args.cursor       = it;
-    args.pattern      = pattern;
-    args.pattern_len  = pattern_len;
-    args.count        = count;
-    args.has_count    = (count > 0);
-
-    return execute_s_generic_command(
-        glide_client, Scan, S_CMD_SCAN, S_RESPONSE_SCAN, &args, return_value);
-}
 
 /**
  * Execute SCAN command with unified signature

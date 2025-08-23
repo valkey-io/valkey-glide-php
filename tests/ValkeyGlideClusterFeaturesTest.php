@@ -572,28 +572,27 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             try {
                 // Create a new cluster client using the base class method
                 $client = $this->newInstance();
-                
+
                 // Verify the client works with a cluster-specific ping
                 $route = ['type' => 'primarySlotKey', 'key' => 'test'];
                 $this->assertTrue($client->ping($route), "Cluster client ping failed on iteration {$i}");
-                
+
                 // Close the client
                 $client->close();
-                
+
                 // Explicitly unset to help with cleanup
                 unset($client);
-                
+
                 $successCount++;
-                
+
                 // Log progress every 5 iterations (fewer than standalone due to lower count)
                 if ($i % 100 == 0) {
                     echo "Completed {$i}/{$loopCount} iterations...\n";
                 }
-                
             } catch (Exception $e) {
                 $errorCount++;
                 echo "Error on iteration {$i}: " . $e->getMessage() . "\n";
-                
+
                 // Continue with the test even if some iterations fail
                 continue;
             }
@@ -612,7 +611,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         // Assert that most iterations were successful
         $successRate = $successCount / $loopCount;
         $this->assertTrue($successRate > 0.9, "Success rate should be > 90%, got " . round($successRate * 100, 1) . "%");
-        
+
         // Warn if memory growth is significant
         if ($memoryGrowth > 5 * 1024 * 1024) { // More than 5MB
             echo "WARNING: Significant memory growth detected: " . round($memoryGrowth / 1024 / 1024, 2) . " MB\n";

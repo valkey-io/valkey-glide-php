@@ -564,21 +564,6 @@ int process_geo_double_result(CommandResult* result, void* output) {
     return 0;
 }
 
-/**
- * Process array result (generic handler for array responses)
- * Returns 1 on success, 0 on failure
- */
-int process_geo_array_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-
-    if (!result || !result->response || !return_value) {
-        return 0;
-    }
-
-    /* Use command_response utility to convert to PHP array */
-    return command_response_to_zval(
-        result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-}
 
 /**
  * Process GEOHASH command result (array of geohash strings or nil)
