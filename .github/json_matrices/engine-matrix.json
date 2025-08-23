@@ -11,15 +11,5 @@
   {
     "type": "valkey",
     "version": "7.2"
-  },
-  {
-    "type": "redis",
-    "version": "7.0",
-    "run": "always"
-  },
-  {
-    "type": "redis",
-    "version": "6.2",
-    "run": "always"
   }
 ]
