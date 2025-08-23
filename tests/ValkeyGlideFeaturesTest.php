@@ -330,7 +330,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         }
 
         $this->assertTrue($valkey_glide->ping());
-        $this->assertStringContains("name=".$clientName, $valkey_glide->client("info"));
+        $this->assertStringContains("name=" . $clientName, $valkey_glide->client("info"));
         $valkey_glide->close();
     }
 
@@ -635,7 +635,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     }
 
     public function testLoggerBasicFunctionality()
-    {        
+    {
         // Test comprehensive logger functionality with file output and verification
         $logFile = $this->createTempLogFile();
 
@@ -709,7 +709,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     }
 
     public function testLoggerLevelFiltering()
-    {        
+    {
         // Test that log level filtering works correctly at info level
         $logFile = $this->createTempLogFile();
 
@@ -762,7 +762,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     }
 
     public function testLoggerWithValkeyGlideIntegration()
-    {        
+    {
         // Test that ValkeyGlide client integration works with logger system
         $logFile = $this->createTempLogFile();
 
@@ -850,27 +850,26 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             try {
                 // Create a new client using the base class method
                 $client = $this->newInstance();
-                
+
                 // Verify the client works
                 $this->assertTrue($client->ping(), "Client ping failed on iteration {$i}");
-                
+
                 // Close the client
                 $client->close();
-                
+
                 // Explicitly unset to help with cleanup
                 unset($client);
-                
+
                 $successCount++;
-                
+
                 // Log progress every 10 iterations
                 if ($i % 10 == 0) {
                     echo "Completed {$i}/{$loopCount} iterations...\n";
                 }
-                
             } catch (Exception $e) {
                 $errorCount++;
                 echo "Error on iteration {$i}: " . $e->getMessage() . "\n";
-                
+
                 // Continue with the test even if some iterations fail
                 continue;
             }
@@ -889,7 +888,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         // Assert that most iterations were successful
         $successRate = $successCount / $loopCount;
         $this->assertTrue($successRate > 0.9, "Success rate should be > 90%, got " . round($successRate * 100, 1) . "%");
-        
+
         // Warn if memory growth is significant
         if ($memoryGrowth > 5 * 1024 * 1024) { // More than 5MB
             echo "WARNING: Significant memory growth detected: " . round($memoryGrowth / 1024 / 1024, 2) . " MB\n";

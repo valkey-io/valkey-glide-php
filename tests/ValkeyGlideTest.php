@@ -86,10 +86,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         /* Reply literal off */
         $this->assertTrue($this->valkey_glide->ping());
-        
+
         //$this->assertTrue($this->valkey_glide->ping(NULL));
         $this->assertEquals('BEEP', $this->valkey_glide->ping('BEEP'));
-        
+
         /* Make sure we're good in MULTI mode */
         if ($this->haveMulti()) {
             $this->assertEquals(
@@ -1090,7 +1090,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->set($key, 'val');
         $this->assertKeyEquals('val', $key);
         $this->assertEquals(1, $this->valkey_glide->$cmd($key));
-        
+
         $this->assertFalse($this->valkey_glide->get($key));
 
         // multiple, all existing
@@ -2848,7 +2848,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->assertEquals(4, $this->valkey_glide->zCard('key'));
 
-        $this->assertEquals(1.0, $this->valkey_glide->zScore('key', 'val1'));        
+        $this->assertEquals(1.0, $this->valkey_glide->zScore('key', 'val1'));
         $this->assertFalse($this->valkey_glide->zScore('key', 'val'));
         $this->assertFalse($this->valkey_glide->zScore(3, 2));
 
@@ -3530,19 +3530,19 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del('h', 'key');
 
         $this->assertEquals(0, $this->valkey_glide->hLen('h'));
-        
+
 
         $this->assertEquals(1, $this->valkey_glide->hSet('h', 'a', 'a-value'));
 
         $this->assertEquals(1, $this->valkey_glide->hLen('h'));
         $this->assertEquals(1, $this->valkey_glide->hSet('h', 'b', 'b-value'));
         $this->assertEquals(2, $this->valkey_glide->hLen('h'));
-        
+
         $this->assertEquals('a-value', $this->valkey_glide->hGet('h', 'a'));  // simple get
         $this->assertEquals('b-value', $this->valkey_glide->hGet('h', 'b'));  // simple get
 
         $this->assertEquals(0, $this->valkey_glide->hSet('h', 'a', 'another-value')); // replacement
-        
+
         $this->assertEquals('another-value', $this->valkey_glide->hGet('h', 'a'));    // get the new value
 
         $this->assertEquals('b-value', $this->valkey_glide->hGet('h', 'b'));  // simple get
@@ -3587,7 +3587,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // hExists
         $this->assertTrue($this->valkey_glide->hExists('h', 'x'));
-        
+
         $this->assertTrue($this->valkey_glide->hExists('h', 'y'));
         $this->assertFalse($this->valkey_glide->hExists('h', 'w'));
         $this->valkey_glide->del('h');
@@ -3666,9 +3666,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del('h1');
         $this->assertTrue($this->valkey_glide->hMSet('h1', ['x' => 0, 'y' => [], 'z' => new stdclass(), 't' => null]));
 
-        $h1 = $this->valkey_glide->hGetAll('h1');        
+        $h1 = $this->valkey_glide->hGetAll('h1');
         $this->assertEquals('0', $h1['x']);
-        
+
         $this->assertEquals('Array', $h1['y']);
 
        // $this->assertEquals('Object', $h1['z']); //TODO
@@ -3816,8 +3816,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue(is_numeric($this->valkey_glide->object('idletime', 'key')));
     }
 
-    public function testMultiExec()    {
-        
+    public function testMultiExec()
+    {
+
         $this->sequence(ValkeyGlide::MULTI);
         return;
         $this->differentType(ValkeyGlide::MULTI);
@@ -3962,7 +3963,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     protected function sequence($mode)
     {
-         
+
         $ret = $this->valkey_glide->multi($mode)
             ->set('x', 42)
             ->type('x')
@@ -3974,7 +3975,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($ret[$i++]);
         $this->assertEquals(ValkeyGlide::VALKEY_GLIDE_STRING, $ret[$i++]);
         $this->assertEqualsWeak('42', $ret[$i]);
-         
+
         $ret = $this->valkey_glide->multi($mode)
             ->del('{key}1')
             ->set('{key}1', 'value1')
@@ -4018,7 +4019,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEqualsWeak(4, $ret[$i++]);
         $this->assertEquals($i, count($ret));
 
-      
+
         $ret = $this->valkey_glide->multi($mode)
             ->del('{key}1')
             ->del('{key}2')
@@ -5289,7 +5290,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->lrem($key, 'lvalue', 1));
         $this->assertFalse($this->valkey_glide->lPop($key));
         $this->assertFalse($this->valkey_glide->rPop($key));
- 
+
 
         // sets I/F
         $this->assertFalse($this->valkey_glide->sAdd($key, 'sValue1'));
@@ -7091,12 +7092,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testMultiZ()
-    {   
+    {
         $this->valkey_glide->del('{z}key1', '{z}key2', '{z}key5', '{z}Inter', '{z}Union');
         // sorted sets
         $ret = $this->valkey_glide->multi(ValkeyGlide::MULTI)
-            
-            ->zadd('{z}key1', 1, 'zValue1')           
+
+            ->zadd('{z}key1', 1, 'zValue1')
             ->zadd('{z}key1', 5, 'zValue5')
             ->zadd('{z}key1', 2, 'zValue2')
             ->zRange('{z}key1', 0, -1)
@@ -7108,9 +7109,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             ->zadd('{z}key1', 14, 'zValue14')
             ->zadd('{z}key1', 15, 'zValue15')
             ->zRemRangeByScore('{z}key1', 11, 13)
-            ->zrange('{z}key1', 0, -1)            
+            ->zrange('{z}key1', 0, -1)
             ->zRangeByScore('{z}key1', 1, 6)
-            ->zCard('{z}key1')           
+            ->zCard('{z}key1')
             ->zScore('{z}key1', 'zValue15')
             ->zadd('{z}key2', 5, 'zValue5')
             ->zadd('{z}key2', 2, 'zValue2')
@@ -7127,7 +7128,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             ->exec();
 
         $i = 0;
-        $this->assertIsArray($ret);        
+        $this->assertIsArray($ret);
         $this->assertEquals(1, $ret[$i++]);
         $this->assertEquals(1, $ret[$i++]);
         $this->assertEquals(1, $ret[$i++]);
@@ -7140,9 +7141,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $ret[$i++]); // adding zValue14
         $this->assertEquals(1, $ret[$i++]); // adding zValue15  ->zadd('{z}key1', 15, 'zValue15')
         $this->assertEquals(3, $ret[$i++]); // deleted zValue11, zValue12, zValue13
-        $this->assertEquals(['zValue1', 'zValue5', 'zValue14', 'zValue15'], $ret[$i++]);                        
-        $this->assertEquals(['zValue1', 'zValue5'], $ret[$i++]);        
-        $this->assertEquals(4, $ret[$i++]); // 4 elements        
+        $this->assertEquals(['zValue1', 'zValue5', 'zValue14', 'zValue15'], $ret[$i++]);
+        $this->assertEquals(['zValue1', 'zValue5'], $ret[$i++]);
+        $this->assertEquals(4, $ret[$i++]); // 4 elements
         $this->assertEquals(15.0, $ret[$i++]);
         $this->assertEquals(1, $ret[$i++]); // added value
         $this->assertEquals(1, $ret[$i++]); // added value
@@ -7164,7 +7165,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         // hash
         $this->valkey_glide->del('hkey1');
-        $ret = $this->valkey_glide->multi(ValkeyGlide::MULTI)            
+        $ret = $this->valkey_glide->multi(ValkeyGlide::MULTI)
             ->hset('hkey1', 'key1', 'value1')
             ->hset('hkey1', 'key2', 'value2')
             ->hset('hkey1', 'key3', 'value3')
@@ -7176,18 +7177,18 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             ->hexists('hkey1', 'key2')
             ->hkeys('hkey1')
             ->hvals('hkey1')
-            ->hgetall('hkey1')    
+            ->hgetall('hkey1')
             ->hset('hkey1', 'valn', 1)
             ->hset('hkey1', 'val-fail', 'non-string')
             ->hget('hkey1', 'val-fail')
             ->exec();
-        
+
         $i = 0;
-        $this->assertIsArray($ret);        
+        $this->assertIsArray($ret);
         $this->assertEquals(1, $ret[$i++]); // added 1 element
         $this->assertEquals(1, $ret[$i++]); // added 1 element
         $this->assertEquals(1, $ret[$i++]); // added 1 element
-        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2', 'key3' => 'value3'], $ret[$i++]); // hmget, 3 elements        
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2', 'key3' => 'value3'], $ret[$i++]); // hmget, 3 elements
         $this->assertEquals('value1', $ret[$i++]); // hget
         $this->assertEquals(3, $ret[$i++]); // hlen
         $this->assertEquals(1, $ret[$i++]); // hdel succeeded
@@ -7200,26 +7201,22 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $ret[$i++]); // added the element, so 1.
         $this->assertEquals('non-string', $ret[$i++]); // hset succeeded
         $this->assertEquals($i, count($ret));
-
-        
-        
-
     }
 
     public function testMultiString()
-    {   
+    {
         $ret = $this->valkey_glide->multi(ValkeyGlide::MULTI)
             ->del('{key}1')
-            ->set('{key}1', 'value1')            
-            ->get('{key}1')            
-            ->getSet('{key}1', 'value2')           
+            ->set('{key}1', 'value1')
+            ->get('{key}1')
+            ->getSet('{key}1', 'value2')
             ->get('{key}1')
             ->set('{key}2', 4)
-            ->incr('{key}2')             
+            ->incr('{key}2')
             ->get('{key}2')
-            ->decr('{key}2')          
+            ->decr('{key}2')
             ->get('{key}2')
-            ->rename('{key}2', '{key}3')            
+            ->rename('{key}2', '{key}3')
             ->get('{key}3')
             ->renameNx('{key}3', '{key}1')
             ->rename('{key}3', '{key}2')
@@ -7231,18 +7228,18 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         $i = 0;
         $this->assertIsArray($ret);
-        $this->assertTrue(is_long($ret[$i++]));               
-        $this->assertEqualsWeak(true, $ret[$i++]);        
-        $this->assertEqualsWeak('value1', $ret[$i++]);        
-        $this->assertEqualsWeak('value1', $ret[$i++]);       
+        $this->assertTrue(is_long($ret[$i++]));
+        $this->assertEqualsWeak(true, $ret[$i++]);
+        $this->assertEqualsWeak('value1', $ret[$i++]);
+        $this->assertEqualsWeak('value1', $ret[$i++]);
         $this->assertEqualsWeak('value2', $ret[$i++]);
         $this->assertEqualsWeak(true, $ret[$i++]);
-        $this->assertEqualsWeak(5, $ret[$i++]);      
         $this->assertEqualsWeak(5, $ret[$i++]);
-        $this->assertEqualsWeak(4, $ret[$i++]);           
+        $this->assertEqualsWeak(5, $ret[$i++]);
         $this->assertEqualsWeak(4, $ret[$i++]);
-        $this->assertEqualsWeak(true, $ret[$i++]);       
-        $this->assertEqualsWeak(4, $ret[$i++]);        
+        $this->assertEqualsWeak(4, $ret[$i++]);
+        $this->assertEqualsWeak(true, $ret[$i++]);
+        $this->assertEqualsWeak(4, $ret[$i++]);
         $this->assertEqualsWeak(false, $ret[$i++]);
         $this->assertEqualsWeak(true, $ret[$i++]);
         $this->assertEqualsWeak(true, $ret[$i++]);

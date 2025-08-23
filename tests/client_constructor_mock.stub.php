@@ -79,7 +79,6 @@
 
 class ClientConstructorMock
 {
-
     /**
      * Mock creation of a standalone connection request instance with the provided configuration.
      *
@@ -110,7 +109,7 @@ class ClientConstructorMock
         ?string $client_az = null,
         ?array $advanced_config = null,
         ?bool $lazy_connect = null
-    ) : \Connection_request\ConnectionRequest;
+    ): \Connection_request\ConnectionRequest;
 
     /**
      * Mock creation of a cluster connection request instance with the provided configuration.
@@ -142,5 +141,5 @@ class ClientConstructorMock
         ?string $client_az = null,
         ?array $advanced_config = null,
         ?bool $lazy_connect = null
-    )  : \Connection_request\ConnectionRequest;
+    ): \Connection_request\ConnectionRequest;
 }

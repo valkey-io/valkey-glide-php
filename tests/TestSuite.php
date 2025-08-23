@@ -744,6 +744,79 @@ class TestSuite
         return false;
     }
 
+    protected function assertCount($expectedCount, $array): bool
+    {
+        if (!is_array($array)) {
+            self::$errors [] = $this->assertionTrace("%s is not an array", $this->printArg($array));
+            return false;
+        }
+
+        if (count($array) === $expectedCount) {
+            return true;
+        }
+
+        self::$errors [] = $this->assertionTrace(
+            "Array count %d !== %d",
+            count($array),
+            $expectedCount
+        );
+
+        return false;
+    }
+
+    protected function assertContains($needle, $haystack): bool
+    {
+        if (!is_array($haystack)) {
+            self::$errors [] = $this->assertionTrace("%s is not an array", $this->printArg($haystack));
+            return false;
+        }
+
+        if (in_array($needle, $haystack, true)) {
+            return true;
+        }
+
+        self::$errors [] = $this->assertionTrace(
+            "%s not found in %s",
+            $this->printArg($needle),
+            $this->printArg($haystack)
+        );
+
+        return false;
+    }
+
+    protected function assertArrayHasKey($key, $array): bool
+    {
+        if (!is_array($array)) {
+            self::$errors [] = $this->assertionTrace("%s is not an array", $this->printArg($array));
+            return false;
+        }
+
+        if (array_key_exists($key, $array)) {
+            return true;
+        }
+
+        self::$errors [] = $this->assertionTrace(
+            "Key %s not found in array %s",
+            $this->printArg($key),
+            $this->printArg($array)
+        );
+
+        return false;
+    }
+
+    protected function assertNotNull($value): bool
+    {
+        if ($value !== null) {
+            return true;
+        }
+
+        self::$errors [] = $this->assertionTrace(
+            "Value is null but should not be"
+        );
+
+        return false;
+    }
+
     protected function fail(string $message): bool
     {
         self::$errors [] = $this->assertionTrace("'%s'", $message);

@@ -262,7 +262,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testHashFieldOperationsBatch()
     {
         $key1 = 'batch_hash_fields_1_' . uniqid();
-        
+
         // Setup initial hash
         $this->valkey_glide->hset($key1, 'field1', 'value1', 'field2', 'value2', 'field3', 'value3');
 
@@ -292,7 +292,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testHashIncrementOperationsBatch()
     {
         $key1 = 'batch_hash_incr_' . uniqid();
-        
+
         // Setup initial hash with numeric values
         $this->valkey_glide->hset($key1, 'counter1', '10', 'counter2', '20', 'float_counter', '3.14');
 
@@ -355,7 +355,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testListPopOperationsBatch()
     {
         $key1 = 'batch_list_pop_' . uniqid();
-        
+
         // Setup initial list
         $this->valkey_glide->rpush($key1, 'item1', 'item2', 'item3', 'item4');
 
@@ -385,7 +385,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testListRangeOperationsBatch()
     {
         $key1 = 'batch_list_range_' . uniqid();
-        
+
         // Setup initial list
         $this->valkey_glide->rpush($key1, 'a', 'b', 'c', 'd', 'e', 'f');
 
@@ -448,7 +448,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testSetRemoveOperationsBatch()
     {
         $key1 = 'batch_set_rem_' . uniqid();
-        
+
         // Setup initial set
         $this->valkey_glide->sadd($key1, 'member1', 'member2', 'member3', 'member4');
 
@@ -508,7 +508,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testSortedSetScoreOperationsBatch()
     {
         $key1 = 'batch_zset_score_' . uniqid();
-        
+
         // Setup initial sorted set
         $this->valkey_glide->zadd($key1, 10, 'member1', 20, 'member2', 30, 'member3');
 
@@ -537,7 +537,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testSortedSetRemoveOperationsBatch()
     {
         $key1 = 'batch_zset_rem_' . uniqid();
-        
+
         // Setup initial sorted set
         $this->valkey_glide->zadd($key1, 1, 'a', 2, 'b', 3, 'c', 4, 'd', 5, 'e');
 
@@ -1188,7 +1188,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
         $this->assertEquals(2, $results[0]); // ZREMRANGEBYRANK result
-        $this->assertEquals(2, $results[1]); // ZREMRANGEBYLEX result  
+        $this->assertEquals(2, $results[1]); // ZREMRANGEBYLEX result
         $this->assertEquals(1, $results[2]); // ZCARD result (only 'c' remains)
 
         // Verify server-side effects
@@ -1201,7 +1201,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     }
 
     // ===================================================================
-    // EXPIRATION TIME OPERATIONS BATCH TESTS  
+    // EXPIRATION TIME OPERATIONS BATCH TESTS
     // ===================================================================
 
     public function testExpirationTimeBatch()
@@ -1354,10 +1354,17 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $key1 = 'batch_geo_adv_' . uniqid();
 
         // Setup initial geo data
-        $this->valkey_glide->geoadd($key1, 
-            -122.27652, 37.805186, 'Golden Gate Bridge',
-            -122.2674626, 37.8062344, 'Crissy Field',
-            -122.258814, 37.827429, 'Lombard Street'
+        $this->valkey_glide->geoadd(
+            $key1,
+            -122.27652,
+            37.805186,
+            'Golden Gate Bridge',
+            -122.2674626,
+            37.8062344,
+            'Crissy Field',
+            -122.258814,
+            37.827429,
+            'Lombard Street'
         );
 
         // Execute GEOHASH, GEOSEARCH, GEOSEARCHSTORE in multi/exec batch

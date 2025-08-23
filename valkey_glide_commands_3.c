@@ -114,9 +114,6 @@ static void clear_batch_state(valkey_glide_object* valkey_glide) {
                 efree(cmd->arg_lengths);
             }
 
-            if (cmd->key) {
-                efree(cmd->key);
-            }
 
             if (cmd->route_info) {
                 efree(cmd->route_info);
@@ -218,21 +215,6 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
     } else {
         cmd->args        = NULL;
         cmd->arg_lengths = NULL;
-    }
-
-    /* Copy key if provided */
-    if (key && key_len > 0) {
-        cmd->key = (char*) emalloc(key_len + 1);
-        if (cmd->key) {
-            memcpy(cmd->key, key, key_len);
-            cmd->key[key_len] = '\0';
-            cmd->key_len      = key_len;
-        } else {
-            cmd->key_len = 0;
-        }
-    } else {
-        cmd->key     = NULL;
-        cmd->key_len = 0;
     }
 
     cmd->route_info = NULL; /* TODO: Handle routing info if needed */
