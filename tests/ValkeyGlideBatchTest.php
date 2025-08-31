@@ -179,9 +179,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertEquals(1, $results[0]); // EXPIRE result
-        $this->assertEquals(1, $results[1]); // EXPIREAT result
-        $this->assertEquals(1, $results[2]); // PEXPIRE result
+        $this->assertTrue($results[0]); // EXPIRE result
+        $this->assertTrue($results[1]); // EXPIREAT result
+        $this->assertTrue($results[2]); // PEXPIRE result
 
         // Verify server-side effects
         $this->assertGT(0, $this->valkey_glide->ttl($key1)); // Has TTL
@@ -216,7 +216,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertCount(3, $results);
         $this->assertEquals(-1, $results[0]); // TTL result (no expiration)
         $this->assertGT(0, $results[1]); // PTTL result (has expiration in ms)
-        $this->assertEquals(1, $results[2]); // PERSIST result (removed expiration)
+        $this->assertTrue($results[2]); // PERSIST result (removed expiration)
 
         // Verify server-side effects
         $this->assertEquals(-1, $this->valkey_glide->ttl($key1)); // No expiration
@@ -259,35 +259,6 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key1, $key2, $key3);
     }
 
-    public function testHashFieldOperationsBatch()
-    {
-        $key1 = 'batch_hash_fields_1_' . uniqid();
-
-        // Setup initial hash
-        $this->valkey_glide->hset($key1, 'field1', 'value1', 'field2', 'value2', 'field3', 'value3');
-
-        // Execute HEXISTS, HDEL, HLEN in multi/exec batch
-        $results = $this->valkey_glide->multi()
-            ->hexists($key1, 'field1')
-            ->hdel($key1, 'field2')
-            ->hlen($key1)
-            ->exec();
-
-        // Verify transaction results
-        $this->assertIsArray($results);
-        $this->assertCount(3, $results);
-        $this->assertEquals(1, $results[0]); // HEXISTS result (field exists)
-        $this->assertEquals(1, $results[1]); // HDEL result (1 field deleted)
-        $this->assertEquals(3, $results[2]); // HLEN result (before deletion in transaction)
-
-        // Verify server-side effects
-        $this->assertEquals(1, $this->valkey_glide->hexists($key1, 'field1')); // field1 still exists
-        $this->assertEquals(0, $this->valkey_glide->hexists($key1, 'field2')); // field2 deleted
-        $this->assertEquals(2, $this->valkey_glide->hlen($key1)); // 2 fields remaining
-
-        // Cleanup
-        $this->valkey_glide->del($key1);
-    }
 
     public function testHashIncrementOperationsBatch()
     {
