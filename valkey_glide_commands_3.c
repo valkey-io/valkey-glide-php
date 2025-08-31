@@ -113,11 +113,6 @@ static void clear_batch_state(valkey_glide_object* valkey_glide) {
             if (cmd->arg_lengths) {
                 efree(cmd->arg_lengths);
             }
-
-
-            if (cmd->route_info) {
-                efree(cmd->route_info);
-            }
         }
 
         efree(valkey_glide->buffered_commands);
@@ -216,8 +211,6 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
         cmd->args        = NULL;
         cmd->arg_lengths = NULL;
     }
-
-    cmd->route_info = NULL; /* TODO: Handle routing info if needed */
 
     valkey_glide->command_count++;
     return 1;

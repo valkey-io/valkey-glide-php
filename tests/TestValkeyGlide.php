@@ -80,6 +80,7 @@ require_once __DIR__ . "/ValkeyGlideTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterTest.php";
 require_once __DIR__ . "/ValkeyGlideFeaturesTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterFeaturesTest.php";
+require_once __DIR__ . "/ValkeyGlideBatchTest.php";
 echo "Loading ValkeyGlide tests...\n";
 function getClassArray($classes)
 {
@@ -108,7 +109,8 @@ function getTestClass($class)
         'valkeyglide'         => 'ValkeyGlideTest',
         'valkeyglidecluster'  => 'ValkeyGlideClusterTest',
         'valkeyglideclientfeatures' => 'ValkeyGlideFeaturesTest',
-        'valkeyglideclusterfeatures' => 'ValkeyGlideClusterFeaturesTest'
+        'valkeyglideclusterfeatures' => 'ValkeyGlideClusterFeaturesTest',
+        'valkeyglideclientbatch' => 'ValkeyGlideBatchTest'
     ];
 
     /* Return early if the class is one of our built-in ones */
@@ -139,7 +141,7 @@ ini_set('display_errors', '1');
 $opt = getopt('', ['host:', 'port:', 'class:', 'test:', 'nocolors', 'user:', 'auth:', 'tls']);
 
 /* The test class(es) we want to run */
-$classes = getClassArray($opt['class'] ?? 'connectionrequest,valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,valkeyglideclusterfeatures');
+$classes = getClassArray($opt['class'] ?? 'connectionrequest,valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,valkeyglideclusterfeatures,valkeyglideclientbatch');
 
 $colorize = !isset($opt['nocolors']);
 
