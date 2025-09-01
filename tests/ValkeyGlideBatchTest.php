@@ -356,7 +356,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertCount(3, $results);
         $this->assertTrue($results[0]); // SELECT result
         $this->assertIsInt($results[1]); // DBSIZE result
-        $this->assertEquals('string', $results[2]); // TYPE result
+        $this->assertEquals(ValkeyGlide::VALKEY_GLIDE_STRING, $results[2]); // TYPE result
 
         // Verify server-side effects
         $this->assertGTE(1, $this->valkey_glide->dbsize()); // At least 1 key (our test key)

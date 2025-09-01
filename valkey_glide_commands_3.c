@@ -1738,7 +1738,6 @@ int execute_dbsize_command(zval* object, int argc, zval* return_value, zend_clas
             return 0;
         }
     }
-
     /* Execute using unified core framework */
     if (execute_core_command(
             valkey_glide, &core_args, &dbsize, process_core_int_result, return_value)) {
@@ -1747,7 +1746,6 @@ int execute_dbsize_command(zval* object, int argc, zval* return_value, zend_clas
             ZVAL_COPY(return_value, object);
             return 1;
         }
-
         return 1;
     }
 

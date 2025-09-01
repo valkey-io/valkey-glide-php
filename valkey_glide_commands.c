@@ -691,7 +691,9 @@ int execute_pfmerge_command(zval* object, int argc, zval* return_value, zend_cla
 }
 
 /* Execute a SELECT command using the Valkey Glide client */
-int execute_select_command_internal(valkey_glide_object* valkey_glide, long dbindex) {
+int execute_select_command_internal(valkey_glide_object* valkey_glide,
+                                    long                 dbindex,
+                                    zval*                return_value) {
     core_command_args_t args = {0};
     args.glide_client        = valkey_glide->glide_client;
     args.cmd_type            = Select;
@@ -701,10 +703,7 @@ int execute_select_command_internal(valkey_glide_object* valkey_glide, long dbin
     args.args[0].data.long_arg.value = dbindex;
     args.arg_count                   = 1;
 
-    zval dummy_return;
-    ZVAL_NULL(&dummy_return);
-
-    return execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, &dummy_return);
+    return execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value);
 }
 
 /* Execute a SELECT command - UNIFIED IMPLEMENTATION */
@@ -724,8 +723,12 @@ int execute_select_command(zval* object, int argc, zval* return_value, zend_clas
     }
 
     /* Execute the SELECT command using the Glide client */
-    if (execute_select_command_internal(valkey_glide, dbindex)) {
-        ZVAL_TRUE(return_value);
+    if (execute_select_command_internal(valkey_glide, dbindex, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
         return 1;
     }
 
