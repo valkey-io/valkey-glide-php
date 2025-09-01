@@ -72,10 +72,8 @@ int execute_rename_command(zval* object, int argc, zval* return_value, zend_clas
             return 1;
         }
 
-        ZVAL_TRUE(return_value);
         return 1;
     } else {
-        ZVAL_FALSE(return_value);
         return 0;
     }
 }
