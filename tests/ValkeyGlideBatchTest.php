@@ -342,23 +342,23 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testDatabaseOperationsBatch()
     {
         $key1 = 'batch_db_' . uniqid();
-        $this->valkey_glide->set($key1, 'test_value');
 
         // Execute SELECT, DBSIZE, TYPE in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->select(0) // Select database 0 (likely current)
             ->flushDB()
             ->set('x', 'y')
+            ->set($key1, 'test_value')
             ->dbsize()
             ->type($key1)
             ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
-        $this->assertCount(3, $results);
+        $this->assertCount(6, $results);
         $this->assertTrue($results[0]); // SELECT result
-        $this->assertEquals(1, $results[1]);
-        $this->assertEquals(ValkeyGlide::VALKEY_GLIDE_STRING, $results[2]); // TYPE result
+        $this->assertEquals(2, $results[4]);
+        $this->assertEquals(ValkeyGlide::VALKEY_GLIDE_STRING, $results[5]); // TYPE result
 
         // Verify server-side effects
         $this->assertGTE(1, $this->valkey_glide->dbsize()); // At least 1 key (our test key)
