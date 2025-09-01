@@ -47,7 +47,7 @@ int execute_core_command(valkey_glide_object* valkey_glide,
     int            res               = 0;
     CommandResult* result            = NULL;
 
-    debug_print_core_args(args);
+    // debug_print_core_args(args);
 
     /* Prepare command arguments based on command type */
     arg_count =
@@ -95,7 +95,7 @@ int execute_core_command(valkey_glide_object* valkey_glide,
             execute_command(args->glide_client, args->cmd_type, arg_count, cmd_args, cmd_args_len);
     }
 
-    debug_print_command_result(result);
+    // debug_print_command_result(result);
 
     /* Process result using appropriate handler */
     if (result) {
@@ -1629,7 +1629,7 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
  * DEBUG FUNCTIONS (only in debug builds)
  * ==================================================================== */
 
-#ifdef DEBUG
+#ifdef DEBUG23
 void debug_print_core_args(core_command_args_t* args) {
     if (!args) {
         printf("DEBUG: core_args is NULL\n");

@@ -829,88 +829,25 @@ int process_h_mget_result(CommandResponse* response, void* output, zval* return_
  * Process results for HRANDFIELD
  */
 int process_h_randfield_result(CommandResponse* response, void* output, zval* return_value) {
-    h_command_args_t* args = (h_command_args_t*) ((void**) output)[0];
-
     /* Check if the command was successful */
     if (!response) {
+        efree(output);
         return 0;
     }
+    bool* withvalues_ptr = output;
 
+    int ret_val = command_response_to_zval(
+        response,
+        return_value,
+        *withvalues_ptr ? COMMAND_RESPONSE_ARRAY_ASSOCIATIVE : COMMAND_RESPONSE_NOT_ASSOSIATIVE,
+        false);
 
-    /* Process the result */
-    int ret_val = 0;
-    if (response) {
-        /* Single field case */
-        if (args->count == 1 && !args->withvalues) {
-            if (response->response_type == String) {
-                add_next_index_stringl(
-                    return_value, response->string_value, response->string_value_len);
-                ret_val = 1;
-            } else if (response->response_type == Null) {
-                add_next_index_null(return_value);
-                ret_val = 0;
-            }
-        }
-        /* Multiple fields without values */
-        else if (args->count != 1 && !args->withvalues && response->response_type == Array) {
-            size_t i;
-            for (i = 0; i < response->array_value_len; i++) {
-                struct CommandResponse* element = &response->array_value[i];
-                if (element->response_type == String) {
-                    add_next_index_stringl(
-                        return_value, element->string_value, element->string_value_len);
-                } else if (element->response_type == Null) {
-                    add_next_index_null(return_value);
-                }
-            }
-            ret_val = 1;
-        }
-        /* Fields with values (associative) */
-        else if (args->withvalues) {
-            // ret_val = command_response_to_zval(response, return_value,
-            // COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
-            size_t i;
-            for (i = 0; i < response->array_value_len; i++) {
-                ret_val                         = 1;
-                struct CommandResponse* element = &response->array_value[i];
-
-                // Each element should be an array with a field and value
-                if (element->response_type == Array && element->array_value_len == 2) {
-                    struct CommandResponse* field = &element->array_value[0];
-                    struct CommandResponse* value = &element->array_value[1];
-
-                    if (field->response_type == String) {
-                        if (value->response_type == String) {
-                            add_assoc_stringl_ex(return_value,
-                                                 field->string_value,
-                                                 field->string_value_len,
-                                                 value->string_value,
-                                                 value->string_value_len);
-                        } else if (value->response_type == Null) {
-                            add_assoc_null_ex(
-                                return_value, field->string_value, field->string_value_len);
-                        } else if (value->response_type == Int) {
-                            add_assoc_long_ex(return_value,
-                                              field->string_value,
-                                              field->string_value_len,
-                                              value->int_value);
-                        } else if (value->response_type == Float) {
-                            add_assoc_double_ex(return_value,
-                                                field->string_value,
-                                                field->string_value_len,
-                                                value->float_value);
-                        } else if (value->response_type == Bool) {
-                            add_assoc_bool_ex(return_value,
-                                              field->string_value,
-                                              field->string_value_len,
-                                              value->bool_value);
-                        }
-                    }
-                }
-            }
-        }
+    if (ret_val && Z_TYPE_P(return_value) == IS_ARRAY &&
+        zend_hash_num_elements(Z_ARRVAL_P(return_value)) == 0) {
+        zval_dtor(return_value);  /* clean up the array */
+        ZVAL_FALSE(return_value); /* set to boolean false */
     }
-
+    efree(output);
     return ret_val;
 }
 
@@ -1233,9 +1170,11 @@ int execute_h_randfield_command(valkey_glide_object* valkey_glide,
     args.count            = count;
     args.withvalues       = withvalues;
 
-    void* output[2] = {&args, return_value};
+    bool* withvalues_ptr = emalloc(sizeof(bool));
+    *withvalues_ptr      = withvalues ? true : false;
+
     return execute_h_generic_command(
-        valkey_glide, HRandField, &args, output, process_h_randfield_result, return_value);
+        valkey_glide, HRandField, &args, withvalues_ptr, process_h_randfield_result, return_value);
 }
 
 /* ====================================================================
@@ -1932,8 +1871,6 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
         }
     }
 
-    /* Initialize return array */
-    array_init(return_value);
 
     /* Execute the HRANDFIELD command */
     if (execute_h_randfield_command(valkey_glide, key, key_len, count, withvalues, return_value)) {
@@ -1943,17 +1880,6 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
             return 1;
         }
 
-        /* If count is 1 and not withvalues, return single value */
-        if (count == 1 && !withvalues && zend_hash_num_elements(Z_ARRVAL_P(return_value)) == 1) {
-            zval *z_ele, z_copy;
-            zend_hash_internal_pointer_reset(Z_ARRVAL_P(return_value));
-            z_ele = zend_hash_get_current_data(Z_ARRVAL_P(return_value));
-            if (z_ele) {
-                ZVAL_COPY(&z_copy, z_ele);
-                zval_dtor(return_value);
-                ZVAL_COPY_VALUE(return_value, &z_copy);
-            }
-        }
         return 1;
     }
 

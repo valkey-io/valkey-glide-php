@@ -175,17 +175,6 @@ install-build-tools:
 		echo "Warning: cargo not found, please install Rust first"; \
 	fi
 
-install-lint-tools:
-	@echo "Installing linting tools..."
-	@if command -v composer >/dev/null 2>&1; then \
-		composer install --dev --no-progress; \
-		echo "✓ PHP linting tools installed via Composer"; \
-	else \
-		echo "Warning: composer not found, please install composer first"; \
-	fi
-	@echo "Please ensure clang-format are installed for C code linting"
-	@echo "Ubuntu/Debian: sudo apt-get install clang-format"
-	@echo "macOS: brew install clang-format"
 
 install-tools: install-build-tools install-lint-tools
 

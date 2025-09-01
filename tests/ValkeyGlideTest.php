@@ -3704,7 +3704,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         $this->assertEquals(2, count($result));
         $xx = ['a' => 0, 'b' => 1, 'c' => 'foo', 'd' => 'bar', 'e' => null];
-        $this->assertEquals(array_intersect_key($result, $xx), $result);
+        $this->assertEquals(array_intersect_key($result, $xx), $result);       
+        
 
         /* Make sure PhpValkeyGlide sends COUNt (1) when `WITHVALUES` is set */
         $result = $this->valkey_glide->hRandField('key', ['withvalues' => true]);
@@ -5328,7 +5329,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse(@$this->valkey_glide->xGroup('CREATECONSUMER'));
 
         $this->assertFalse(@$this->valkey_glide->xGroup('create'));
-        return;
+      
         if (! $this->minVersionCheck('7.0.0')) {
             return;
         }
