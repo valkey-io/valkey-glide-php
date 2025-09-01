@@ -347,6 +347,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Execute SELECT, DBSIZE, TYPE in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->select(0) // Select database 0 (likely current)
+            ->flushDB()
+            ->set('x', 'y')
             ->dbsize()
             ->type($key1)
             ->exec();
@@ -355,7 +357,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
         $this->assertTrue($results[0]); // SELECT result
-        $this->assertIsInt($results[1]); // DBSIZE result
+        $this->assertEquals(1, $results[1]);
         $this->assertEquals(ValkeyGlide::VALKEY_GLIDE_STRING, $results[2]); // TYPE result
 
         // Verify server-side effects
