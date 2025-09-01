@@ -1451,19 +1451,11 @@ int execute_client_command_internal(
     for (i = 0; i < allocated_idx; i++)
         efree(allocated[i]);
     efree(allocated);
-
-    /* If we created a new args array for CustomCommand, free it */
-    if (command_type == CustomCommand) {
-        efree(final_args);
-        efree(final_args_len);
-    }
-
     efree(cmd_args);
     efree(args_len);
 
     /* Process the result */
     int status = 0;
-
 
     if (result) {
         if (result->command_error) {

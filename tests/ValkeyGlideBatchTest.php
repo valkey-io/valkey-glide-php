@@ -290,250 +290,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key1);
     }
 
-    // ===================================================================
-    // LIST OPERATIONS BATCH TESTS
-    // ===================================================================
-
-    public function testListPushOperationsBatch()
-    {
-        $key1 = 'batch_list_1_' . uniqid();
-        $key2 = 'batch_list_2_' . uniqid();
-        $key3 = 'batch_list_3_' . uniqid();
-
-        // Execute LPUSH, RPUSH, LLEN in multi/exec batch
-        $results = $this->valkey_glide->multi()
-            ->lpush($key1, 'left1', 'left2')
-            ->rpush($key1, 'right1', 'right2')
-            ->llen($key1)
-            ->exec();
-
-        // Verify transaction results
-        $this->assertIsArray($results);
-        $this->assertCount(3, $results);
-        $this->assertEquals(2, $results[0]); // LPUSH result (list length after push)
-        $this->assertEquals(4, $results[1]); // RPUSH result (list length after push)
-        $this->assertEquals(4, $results[2]); // LLEN result
-
-        // Verify server-side effects
-        $this->assertEquals(4, $this->valkey_glide->llen($key1));
-        $listContents = $this->valkey_glide->lrange($key1, 0, -1);
-        $this->assertEquals(['left2', 'left1', 'right1', 'right2'], $listContents);
-
-        // Cleanup
-        $this->valkey_glide->del($key1, $key2, $key3);
-    }
-
-    public function testListPopOperationsBatch()
-    {
-        $key1 = 'batch_list_pop_' . uniqid();
-
-        // Setup initial list
-        $this->valkey_glide->rpush($key1, 'item1', 'item2', 'item3', 'item4');
-
-        // Execute LPOP, RPOP, LLEN in multi/exec batch
-        $results = $this->valkey_glide->multi()
-            ->lpop($key1)
-            ->rpop($key1)
-            ->llen($key1)
-            ->exec();
-
-        // Verify transaction results
-        $this->assertIsArray($results);
-        $this->assertCount(3, $results);
-        $this->assertEquals('item1', $results[0]); // LPOP result
-        $this->assertEquals('item4', $results[1]); // RPOP result
-        $this->assertEquals(4, $results[2]); // LLEN result (before pops in transaction)
-
-        // Verify server-side effects
-        $this->assertEquals(2, $this->valkey_glide->llen($key1)); // 2 items remaining
-        $listContents = $this->valkey_glide->lrange($key1, 0, -1);
-        $this->assertEquals(['item2', 'item3'], $listContents);
-
-        // Cleanup
-        $this->valkey_glide->del($key1);
-    }
-
-    public function testListRangeOperationsBatch()
-    {
-        $key1 = 'batch_list_range_' . uniqid();
-
-        // Setup initial list
-        $this->valkey_glide->rpush($key1, 'a', 'b', 'c', 'd', 'e', 'f');
-
-        // Execute LRANGE, LTRIM, LRANGE in multi/exec batch
-        $results = $this->valkey_glide->multi()
-            ->lrange($key1, 0, 2)
-            ->ltrim($key1, 1, 4)
-            ->lrange($key1, 0, -1)
-            ->exec();
-
-        // Verify transaction results
-        $this->assertIsArray($results);
-        $this->assertCount(3, $results);
-        $this->assertEquals(['a', 'b', 'c'], $results[0]); // LRANGE result (first 3)
-        $this->assertTrue($results[1]); // LTRIM result
-        $this->assertEquals(['a', 'b', 'c', 'd', 'e', 'f'], $results[2]); // LRANGE (before trim in transaction)
-
-        // Verify server-side effects after transaction
-        $finalContents = $this->valkey_glide->lrange($key1, 0, -1);
-        $this->assertEquals(['b', 'c', 'd', 'e'], $finalContents); // After trim
-
-        // Cleanup
-        $this->valkey_glide->del($key1);
-    }
-
-    // ===================================================================
-    // SET OPERATIONS BATCH TESTS
-    // ===================================================================
-
-    public function testSetAddOperationsBatch()
-    {
-        $key1 = 'batch_set_1_' . uniqid();
-        $key2 = 'batch_set_2_' . uniqid();
-
-        // Execute SADD, SCARD, SMEMBERS in multi/exec batch
-        $results = $this->valkey_glide->multi()
-            ->sadd($key1, 'member1', 'member2', 'member3')
-            ->scard($key1)
-            ->smembers($key1)
-            ->exec();
-
-        // Verify transaction results
-        $this->assertIsArray($results);
-        $this->assertCount(3, $results);
-        $this->assertEquals(3, $results[0]); // SADD result (3 new members)
-        $this->assertEquals(3, $results[1]); // SCARD result
-        $this->assertCount(3, $results[2]); // SMEMBERS result
-        $this->assertContains('member1', $results[2]);
-        $this->assertContains('member2', $results[2]);
-        $this->assertContains('member3', $results[2]);
-
-        // Verify server-side effects
-        $this->assertEquals(3, $this->valkey_glide->scard($key1));
-        $this->assertEquals(1, $this->valkey_glide->sismember($key1, 'member1'));
-
-        // Cleanup
-        $this->valkey_glide->del($key1, $key2);
-    }
-
-    public function testSetRemoveOperationsBatch()
-    {
-        $key1 = 'batch_set_rem_' . uniqid();
-
-        // Setup initial set
-        $this->valkey_glide->sadd($key1, 'member1', 'member2', 'member3', 'member4');
-
-        // Execute SREM, SISMEMBER, SCARD in multi/exec batch
-        $results = $this->valkey_glide->multi()
-            ->srem($key1, 'member2', 'member3')
-            ->sismember($key1, 'member1')
-            ->scard($key1)
-            ->exec();
-
-        // Verify transaction results
-        $this->assertIsArray($results);
-        $this->assertCount(3, $results);
-        $this->assertEquals(2, $results[0]); // SREM result (2 members removed)
-        $this->assertEquals(1, $results[1]); // SISMEMBER result (member exists)
-        $this->assertEquals(4, $results[2]); // SCARD result (before removal in transaction)
-
-        // Verify server-side effects
-        $this->assertEquals(2, $this->valkey_glide->scard($key1)); // 2 members remaining
-        $this->assertEquals(1, $this->valkey_glide->sismember($key1, 'member1')); // member1 exists
-        $this->assertEquals(0, $this->valkey_glide->sismember($key1, 'member2')); // member2 removed
-
-        // Cleanup
-        $this->valkey_glide->del($key1);
-    }
-
-    // ===================================================================
-    // SORTED SET OPERATIONS BATCH TESTS
-    // ===================================================================
-
-    public function testSortedSetAddOperationsBatch()
-    {
-        $key1 = 'batch_zset_1_' . uniqid();
-
-        // Execute ZADD, ZCARD, ZRANGE in multi/exec batch
-        $results = $this->valkey_glide->multi()
-            ->zadd($key1, 1, 'member1', 2, 'member2', 3, 'member3')
-            ->zcard($key1)
-            ->zrange($key1, 0, -1)
-            ->exec();
-
-        // Verify transaction results
-        $this->assertIsArray($results);
-        $this->assertCount(3, $results);
-        $this->assertEquals(3, $results[0]); // ZADD result (3 new members)
-        $this->assertEquals(3, $results[1]); // ZCARD result
-        $this->assertEquals(['member1', 'member2', 'member3'], $results[2]); // ZRANGE result
-
-        // Verify server-side effects
-        $this->assertEquals(3, $this->valkey_glide->zcard($key1));
-        $this->assertEquals(1, $this->valkey_glide->zscore($key1, 'member1'));
-
-        // Cleanup
-        $this->valkey_glide->del($key1);
-    }
-
-    public function testSortedSetScoreOperationsBatch()
-    {
-        $key1 = 'batch_zset_score_' . uniqid();
-
-        // Setup initial sorted set
-        $this->valkey_glide->zadd($key1, 10, 'member1', 20, 'member2', 30, 'member3');
-
-        // Execute ZSCORE, ZINCRBY, ZRANK in multi/exec batch
-        $results = $this->valkey_glide->multi()
-            ->zscore($key1, 'member2')
-            ->zincrby($key1, 5, 'member1')
-            ->zrank($key1, 'member2')
-            ->exec();
-
-        // Verify transaction results
-        $this->assertIsArray($results);
-        $this->assertCount(3, $results);
-        $this->assertEquals(20, $results[0]); // ZSCORE result
-        $this->assertEquals(15, $results[1]); // ZINCRBY result
-        $this->assertEquals(1, $results[2]); // ZRANK result (0-based)
-
-        // Verify server-side effects
-        $this->assertEquals(15, $this->valkey_glide->zscore($key1, 'member1')); // Score updated
-        $this->assertEquals(1, $this->valkey_glide->zrank($key1, 'member1')); // Rank updated
-
-        // Cleanup
-        $this->valkey_glide->del($key1);
-    }
-
-    public function testSortedSetRemoveOperationsBatch()
-    {
-        $key1 = 'batch_zset_rem_' . uniqid();
-
-        // Setup initial sorted set
-        $this->valkey_glide->zadd($key1, 1, 'a', 2, 'b', 3, 'c', 4, 'd', 5, 'e');
-
-        // Execute ZREM, ZREMRANGEBYSCORE, ZCARD in multi/exec batch
-        $results = $this->valkey_glide->multi()
-            ->zrem($key1, 'c')
-            ->zremrangebyscore($key1, 4, 5)
-            ->zcard($key1)
-            ->exec();
-
-        // Verify transaction results
-        $this->assertIsArray($results);
-        $this->assertCount(3, $results);
-        $this->assertEquals(1, $results[0]); // ZREM result (1 member removed)
-        $this->assertEquals(2, $results[1]); // ZREMRANGEBYSCORE result (2 members removed)
-        $this->assertEquals(5, $results[2]); // ZCARD result (before removals in transaction)
-
-        // Verify server-side effects
-        $this->assertEquals(2, $this->valkey_glide->zcard($key1)); // 2 members remaining (a, b)
-        $remainingMembers = $this->valkey_glide->zrange($key1, 0, -1);
-        $this->assertEquals(['a', 'b'], $remainingMembers);
-
-        // Cleanup
-        $this->valkey_glide->del($key1);
-    }
+   
 
     // ===================================================================
     // SERVER & CONFIG OPERATIONS BATCH TESTS
@@ -872,6 +629,87 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals('new_value', $this->valkey_glide->hget($key1, 'new_field'));
         $this->assertEquals('existing_value', $this->valkey_glide->hget($key1, 'existing_field')); // Not overwritten
         $this->assertEquals(14, $this->valkey_glide->hstrlen($key1, 'existing_field'));
+
+        // Cleanup
+        $this->valkey_glide->del($key1);
+    }
+
+    public function testHashMsetBatch()
+    {
+        $key1 = 'batch_hash_mset_' . uniqid();
+
+        // Execute HMSET, HGETALL, HLEN in multi/exec batch
+        $results = $this->valkey_glide->multi()
+            ->hmset($key1, ['field1' => 'value1', 'field2' => 'value2', 'field3' => 'value3'])
+            ->hgetall($key1)
+            ->hlen($key1)
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(3, $results);
+        $this->assertTrue($results[0]); // HMSET result (success)
+        $this->assertEquals(['field1' => 'value1', 'field2' => 'value2', 'field3' => 'value3'], $results[1]); // HGETALL result
+        $this->assertEquals(3, $results[2]); // HLEN result
+
+        // Verify server-side effects
+        $this->assertEquals('value1', $this->valkey_glide->hget($key1, 'field1'));
+        $this->assertEquals('value2', $this->valkey_glide->hget($key1, 'field2'));
+        $this->assertEquals('value3', $this->valkey_glide->hget($key1, 'field3'));
+        $this->assertEquals(3, $this->valkey_glide->hlen($key1));
+        $allFields = $this->valkey_glide->hgetall($key1);
+        $this->assertEquals(['field1' => 'value1', 'field2' => 'value2', 'field3' => 'value3'], $allFields);
+
+        // Cleanup
+        $this->valkey_glide->del($key1);
+    }
+
+    public function testHashRandfieldBatch()
+    {
+        $key1 = 'batch_hash_randfield_' . uniqid();
+
+        // Setup initial hash with multiple fields
+        $this->valkey_glide->hset($key1, 'alpha', 'value_a', 'beta', 'value_b', 'gamma', 'value_c', 'delta', 'value_d');
+
+        // Execute HRANDFIELD (single), HRANDFIELD (multiple), HRANDFIELD (with values) in multi/exec batch
+        $results = $this->valkey_glide->multi()
+            ->hrandfield($key1) // Single random field
+            ->hrandfield($key1, ['count' => 2]) // Multiple random fields
+            ->hrandfield($key1, ['count' => 2, 'withvalues' => true]) // Random fields with values
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(3, $results);
+        
+        // Single field result - should be a string (field name)
+        $this->assertIsString($results[0]); // HRANDFIELD single result
+        $this->assertContains($results[0], ['alpha', 'beta', 'gamma', 'delta']);
+        
+        // Multiple fields result - should be array of field names
+        $this->assertIsArray($results[1]); // HRANDFIELD multiple result
+        $this->assertCount(2, $results[1]);
+        foreach ($results[1] as $field) {
+            $this->assertContains($field, ['alpha', 'beta', 'gamma', 'delta']);
+        }
+        
+        // Fields with values result - should be associative array
+        $this->assertIsArray($results[2]); // HRANDFIELD with values result
+        $this->assertCount(2, $results[2]);
+        foreach ($results[2] as $field => $value) {
+            $this->assertContains($field, ['alpha', 'beta', 'gamma', 'delta']);
+            $expectedValue = $field === 'alpha' ? 'value_a' : 
+                           ($field === 'beta' ? 'value_b' : 
+                           ($field === 'gamma' ? 'value_c' : 'value_d'));
+            $this->assertEquals($expectedValue, $value);
+        }
+
+        // Verify server-side effects (HRANDFIELD is read-only, so hash should be unchanged)
+        $this->assertEquals(4, $this->valkey_glide->hlen($key1)); // Hash length unchanged
+        $this->assertEquals('value_a', $this->valkey_glide->hget($key1, 'alpha')); // Fields unchanged
+        $this->assertEquals('value_b', $this->valkey_glide->hget($key1, 'beta'));
+        $this->assertEquals('value_c', $this->valkey_glide->hget($key1, 'gamma'));
+        $this->assertEquals('value_d', $this->valkey_glide->hget($key1, 'delta'));
 
         // Cleanup
         $this->valkey_glide->del($key1);
@@ -3015,6 +2853,250 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals($i, count($ret));
     }
 
+     // ===================================================================
+    // LIST OPERATIONS BATCH TESTS
+    // ===================================================================
+
+    public function testListPushOperationsBatch()
+    {
+        $key1 = 'batch_list_1_' . uniqid();
+        $key2 = 'batch_list_2_' . uniqid();
+        $key3 = 'batch_list_3_' . uniqid();
+
+        // Execute LPUSH, RPUSH, LLEN in multi/exec batch
+        $results = $this->valkey_glide->multi()
+            ->lpush($key1, 'left1', 'left2')
+            ->rpush($key1, 'right1', 'right2')
+            ->llen($key1)
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(3, $results);
+        $this->assertEquals(2, $results[0]); // LPUSH result (list length after push)
+        $this->assertEquals(4, $results[1]); // RPUSH result (list length after push)
+        $this->assertEquals(4, $results[2]); // LLEN result
+
+        // Verify server-side effects
+        $this->assertEquals(4, $this->valkey_glide->llen($key1));
+        $listContents = $this->valkey_glide->lrange($key1, 0, -1);
+        $this->assertEquals(['left2', 'left1', 'right1', 'right2'], $listContents);
+
+        // Cleanup
+        $this->valkey_glide->del($key1, $key2, $key3);
+    }
+
+    public function testListPopOperationsBatch()
+    {
+        $key1 = 'batch_list_pop_' . uniqid();
+
+        // Setup initial list
+        $this->valkey_glide->rpush($key1, 'item1', 'item2', 'item3', 'item4');
+
+        // Execute LPOP, RPOP, LLEN in multi/exec batch
+        $results = $this->valkey_glide->multi()
+            ->lpop($key1)
+            ->rpop($key1)
+            ->llen($key1)
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(3, $results);
+        $this->assertEquals('item1', $results[0]); // LPOP result
+        $this->assertEquals('item4', $results[1]); // RPOP result
+        $this->assertEquals(4, $results[2]); // LLEN result (before pops in transaction)
+
+        // Verify server-side effects
+        $this->assertEquals(2, $this->valkey_glide->llen($key1)); // 2 items remaining
+        $listContents = $this->valkey_glide->lrange($key1, 0, -1);
+        $this->assertEquals(['item2', 'item3'], $listContents);
+
+        // Cleanup
+        $this->valkey_glide->del($key1);
+    }
+
+    public function testListRangeOperationsBatch()
+    {
+        $key1 = 'batch_list_range_' . uniqid();
+
+        // Setup initial list
+        $this->valkey_glide->rpush($key1, 'a', 'b', 'c', 'd', 'e', 'f');
+
+        // Execute LRANGE, LTRIM, LRANGE in multi/exec batch
+        $results = $this->valkey_glide->multi()
+            ->lrange($key1, 0, 2)
+            ->ltrim($key1, 1, 4)
+            ->lrange($key1, 0, -1)
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(3, $results);
+        $this->assertEquals(['a', 'b', 'c'], $results[0]); // LRANGE result (first 3)
+        $this->assertTrue($results[1]); // LTRIM result
+        $this->assertEquals(['a', 'b', 'c', 'd', 'e', 'f'], $results[2]); // LRANGE (before trim in transaction)
+
+        // Verify server-side effects after transaction
+        $finalContents = $this->valkey_glide->lrange($key1, 0, -1);
+        $this->assertEquals(['b', 'c', 'd', 'e'], $finalContents); // After trim
+
+        // Cleanup
+        $this->valkey_glide->del($key1);
+    }
+
+    // ===================================================================
+    // SET OPERATIONS BATCH TESTS
+    // ===================================================================
+
+    public function testSetAddOperationsBatch()
+    {
+        $key1 = 'batch_set_1_' . uniqid();
+        $key2 = 'batch_set_2_' . uniqid();
+
+        // Execute SADD, SCARD, SMEMBERS in multi/exec batch
+        $results = $this->valkey_glide->multi()
+            ->sadd($key1, 'member1', 'member2', 'member3')
+            ->scard($key1)
+            ->smembers($key1)
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(3, $results);
+        $this->assertEquals(3, $results[0]); // SADD result (3 new members)
+        $this->assertEquals(3, $results[1]); // SCARD result
+        $this->assertCount(3, $results[2]); // SMEMBERS result
+        $this->assertContains('member1', $results[2]);
+        $this->assertContains('member2', $results[2]);
+        $this->assertContains('member3', $results[2]);
+
+        // Verify server-side effects
+        $this->assertEquals(3, $this->valkey_glide->scard($key1));
+        $this->assertEquals(1, $this->valkey_glide->sismember($key1, 'member1'));
+
+        // Cleanup
+        $this->valkey_glide->del($key1, $key2);
+    }
+
+    public function testSetRemoveOperationsBatch()
+    {
+        $key1 = 'batch_set_rem_' . uniqid();
+
+        // Setup initial set
+        $this->valkey_glide->sadd($key1, 'member1', 'member2', 'member3', 'member4');
+
+        // Execute SREM, SISMEMBER, SCARD in multi/exec batch
+        $results = $this->valkey_glide->multi()
+            ->srem($key1, 'member2', 'member3')
+            ->sismember($key1, 'member1')
+            ->scard($key1)
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(3, $results);
+        $this->assertEquals(2, $results[0]); // SREM result (2 members removed)
+        $this->assertEquals(1, $results[1]); // SISMEMBER result (member exists)
+        $this->assertEquals(4, $results[2]); // SCARD result (before removal in transaction)
+
+        // Verify server-side effects
+        $this->assertEquals(2, $this->valkey_glide->scard($key1)); // 2 members remaining
+        $this->assertEquals(1, $this->valkey_glide->sismember($key1, 'member1')); // member1 exists
+        $this->assertEquals(0, $this->valkey_glide->sismember($key1, 'member2')); // member2 removed
+
+        // Cleanup
+        $this->valkey_glide->del($key1);
+    }
+
+    // ===================================================================
+    // SORTED SET OPERATIONS BATCH TESTS
+    // ===================================================================
+
+    public function testSortedSetAddOperationsBatch()
+    {
+        $key1 = 'batch_zset_1_' . uniqid();
+
+        // Execute ZADD, ZCARD, ZRANGE in multi/exec batch
+        $results = $this->valkey_glide->multi()
+            ->zadd($key1, 1, 'member1', 2, 'member2', 3, 'member3')
+            ->zcard($key1)
+            ->zrange($key1, 0, -1)
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(3, $results);
+        $this->assertEquals(3, $results[0]); // ZADD result (3 new members)
+        $this->assertEquals(3, $results[1]); // ZCARD result
+        $this->assertEquals(['member1', 'member2', 'member3'], $results[2]); // ZRANGE result
+
+        // Verify server-side effects
+        $this->assertEquals(3, $this->valkey_glide->zcard($key1));
+        $this->assertEquals(1, $this->valkey_glide->zscore($key1, 'member1'));
+
+        // Cleanup
+        $this->valkey_glide->del($key1);
+    }
+
+    public function testSortedSetScoreOperationsBatch()
+    {
+        $key1 = 'batch_zset_score_' . uniqid();
+
+        // Setup initial sorted set
+        $this->valkey_glide->zadd($key1, 10, 'member1', 20, 'member2', 30, 'member3');
+
+        // Execute ZSCORE, ZINCRBY, ZRANK in multi/exec batch
+        $results = $this->valkey_glide->multi()
+            ->zscore($key1, 'member2')
+            ->zincrby($key1, 5, 'member1')
+            ->zrank($key1, 'member2')
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(3, $results);
+        $this->assertEquals(20, $results[0]); // ZSCORE result
+        $this->assertEquals(15, $results[1]); // ZINCRBY result
+        $this->assertEquals(1, $results[2]); // ZRANK result (0-based)
+
+        // Verify server-side effects
+        $this->assertEquals(15, $this->valkey_glide->zscore($key1, 'member1')); // Score updated
+        $this->assertEquals(1, $this->valkey_glide->zrank($key1, 'member1')); // Rank updated
+
+        // Cleanup
+        $this->valkey_glide->del($key1);
+    }
+
+    public function testSortedSetRemoveOperationsBatch()
+    {
+        $key1 = 'batch_zset_rem_' . uniqid();
+
+        // Setup initial sorted set
+        $this->valkey_glide->zadd($key1, 1, 'a', 2, 'b', 3, 'c', 4, 'd', 5, 'e');
+
+        // Execute ZREM, ZREMRANGEBYSCORE, ZCARD in multi/exec batch
+        $results = $this->valkey_glide->multi()
+            ->zrem($key1, 'c')
+            ->zremrangebyscore($key1, 4, 5)
+            ->zcard($key1)
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(3, $results);
+        $this->assertEquals(1, $results[0]); // ZREM result (1 member removed)
+        $this->assertEquals(2, $results[1]); // ZREMRANGEBYSCORE result (2 members removed)
+        $this->assertEquals(5, $results[2]); // ZCARD result (before removals in transaction)
+
+        // Verify server-side effects
+        $this->assertEquals(2, $this->valkey_glide->zcard($key1)); // 2 members remaining (a, b)
+        $remainingMembers = $this->valkey_glide->zrange($key1, 0, -1);
+        $this->assertEquals(['a', 'b'], $remainingMembers);
+
+        // Cleanup
+        $this->valkey_glide->del($key1);
+    }
     // ===================================================================
     // CLOSING CLASS
     // ===================================================================

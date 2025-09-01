@@ -734,6 +734,7 @@ int process_h_ok_result_batch(CommandResponse* response, void* output, zval* ret
         ZVAL_TRUE(return_value);
         return 1;
     }
+    ZVAL_FALSE(return_value);
     return 0;
 }
 
@@ -1508,6 +1509,11 @@ int execute_hsetnx_command(zval* object, int argc, zval* return_value, zend_clas
     /* Execute the HSETNX command */
     if (execute_h_simple_command(
             valkey_glide, HSetNX, &args, NULL, H_RESPONSE_BOOL, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
         return 1;
     }
 
@@ -1543,6 +1549,11 @@ int execute_hmset_command(zval* object, int argc, zval* return_value, zend_class
     if (keyvals_count > 0) {
         if (execute_h_mset_command(
                 valkey_glide, key, key_len, arr_keyvals, keyvals_count, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
             return 1;
         }
     }
@@ -1584,6 +1595,11 @@ int execute_hincrby_command(zval* object, int argc, zval* return_value, zend_cla
     /* Execute the HINCRBY command */
     if (execute_h_simple_command(
             valkey_glide, HIncrBy, &args, NULL, H_RESPONSE_INT, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
         return 1;
     }
 
@@ -1615,6 +1631,11 @@ int execute_hincrbyfloat_command(zval* object, int argc, zval* return_value, zen
     /* Execute the HINCRBYFLOAT command */
     if (execute_h_incrbyfloat_command(
             valkey_glide, key, key_len, field, field_len, increment, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
         return 1;
     }
 
@@ -1862,6 +1883,11 @@ int execute_hstrlen_command(zval* object, int argc, zval* return_value, zend_cla
 
     if (execute_h_simple_command(
             valkey_glide, HStrlen, &args, NULL, H_RESPONSE_INT, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
         return 1;
     }
 
@@ -1911,6 +1937,12 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
 
     /* Execute the HRANDFIELD command */
     if (execute_h_randfield_command(valkey_glide, key, key_len, count, withvalues, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+
         /* If count is 1 and not withvalues, return single value */
         if (count == 1 && !withvalues && zend_hash_num_elements(Z_ARRVAL_P(return_value)) == 1) {
             zval *z_ele, z_copy;
