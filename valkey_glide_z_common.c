@@ -438,7 +438,7 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             /* Add increment parameter */
             char increment_str[64];
             int  increment_str_len =
-                snprintf(increment_str, sizeof(increment_str), "%.17g", args->increment);
+                snprintf(increment_str, sizeof(increment_str), "%.6g", args->increment);
             char* increment_str_copy = estrndup(increment_str, increment_str_len);
             if (!increment_str_copy) {
                 efree(arg_values);

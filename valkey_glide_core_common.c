@@ -1214,7 +1214,7 @@ char* core_long_to_string(long value, size_t* len) {
  */
 char* core_double_to_string(double value, size_t* len) {
     char buffer[64];
-    *len      = snprintf(buffer, sizeof(buffer), "%.17g", value);
+    *len      = snprintf(buffer, sizeof(buffer), "%.6g", value);
     char* str = (char*) emalloc(*len + 1);
     if (str) {
         memcpy(str, buffer, *len);
