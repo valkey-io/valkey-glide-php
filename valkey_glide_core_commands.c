@@ -413,14 +413,7 @@ int execute_bitop_command(zval* object, int argc, zval* return_value, zend_class
         return 0;
     }
 
-    /* Create temporary array containing all source keys for multi-key processing */
-    zval temp_keys_array;
-    array_init(&temp_keys_array);
-
-    /* Add all source keys to the temporary array */
-    for (int i = 0; i < keys_count; i++) {
-        add_next_index_zval(&temp_keys_array, &keys[i]);
-    }
+    printf("Number of source keys: %d\n", keys_count);
 
     /* Execute using core framework */
     core_command_args_t args = {0};
@@ -436,15 +429,12 @@ int execute_bitop_command(zval* object, int argc, zval* return_value, zend_class
 
     /* Add source keys as array argument (no limit on number of keys) */
     args.args[1].type                 = CORE_ARG_TYPE_ARRAY;
-    args.args[1].data.array_arg.array = &temp_keys_array;
+    args.args[1].data.array_arg.array = &keys;
     args.args[1].data.array_arg.count = keys_count;
     args.arg_count                    = 2; /* operation + source keys array */
 
     int result =
         execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value);
-
-    /* Clean up temporary array */
-    zval_dtor(&temp_keys_array);
 
     if (result) {
         if (valkey_glide->is_in_batch_mode) {

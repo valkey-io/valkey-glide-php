@@ -813,13 +813,9 @@ int prepare_bit_operation_args(core_command_args_t* args,
             break;
         case BitOp:
             total_args += 1; /* operation */
-            total_args += 1; /* destination */
             /* Handle array of source keys */
             if (args->arg_count > 1 && args->args[1].type == CORE_ARG_TYPE_ARRAY) {
                 total_args += args->args[1].data.array_arg.count;
-            } else {
-                /* Fallback for old format */
-                total_args += args->arg_count - 1; /* subtract 1 for operation */
             }
             break;
         default:
