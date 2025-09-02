@@ -1576,12 +1576,8 @@ int execute_list_blocking_pop_command(
         args.blocking_opts.timeout     = timeout;
         args.blocking_opts.has_timeout = 1;
 
-        int status = execute_list_generic_command(valkey_glide->glide_client,
-                                                  cmd_type,
-                                                  &args,
-                                                  NULL,
-                                                  process_list_blocking_result_async,
-                                                  return_value);
+        int status = execute_list_generic_command(
+            valkey_glide, cmd_type, &args, NULL, process_list_blocking_result_async, return_value);
 
         /* Return value is already set by execute_list_generic_command if successful */
         if (status) {
@@ -1621,12 +1617,8 @@ int execute_list_len_command(zval* object, int argc, zval* return_value, zend_cl
         args.glide_client = valkey_glide->glide_client;
         SET_LIST_KEY(args, key, key_len);
 
-        int status = execute_list_generic_command(valkey_glide->glide_client,
-                                                  LLen,
-                                                  &args,
-                                                  NULL,
-                                                  process_list_int_result_async,
-                                                  return_value);
+        int status = execute_list_generic_command(
+            valkey_glide, LLen, &args, NULL, process_list_int_result_async, return_value);
 
         if (status) {
             if (valkey_glide->is_in_batch_mode) {
@@ -1665,12 +1657,8 @@ int execute_list_range_command(zval* object, int argc, zval* return_value, zend_
         SET_LIST_KEY(args, key, key_len);
         SET_LIST_RANGE(args, start, end);
 
-        int status = execute_list_generic_command(valkey_glide->glide_client,
-                                                  LRange,
-                                                  &args,
-                                                  NULL,
-                                                  process_list_array_result_async,
-                                                  return_value);
+        int status = execute_list_generic_command(
+            valkey_glide, LRange, &args, NULL, process_list_array_result_async, return_value);
 
         if (status) {
             if (valkey_glide->is_in_batch_mode) {
@@ -1714,12 +1702,8 @@ int execute_list_index_command(zval* object, int argc, zval* return_value, zend_
         args.index = index;
 
 
-        int status = execute_list_generic_command(valkey_glide->glide_client,
-                                                  LIndex,
-                                                  &args,
-                                                  NULL,
-                                                  process_list_string_result_async,
-                                                  return_value);
+        int status = execute_list_generic_command(
+            valkey_glide, LIndex, &args, NULL, process_list_string_result_async, return_value);
         if (status) {
             if (valkey_glide->is_in_batch_mode) {
                 ZVAL_COPY(return_value, object);
@@ -1762,12 +1746,8 @@ int execute_list_set_command(zval* object, int argc, zval* return_value, zend_cl
         args.value_len = val_len;
 
 
-        int status = execute_list_generic_command(valkey_glide->glide_client,
-                                                  LSet,
-                                                  &args,
-                                                  NULL,
-                                                  process_list_ok_result_async,
-                                                  return_value);
+        int status = execute_list_generic_command(
+            valkey_glide, LSet, &args, NULL, process_list_ok_result_async, return_value);
 
         if (status) {
             if (valkey_glide->is_in_batch_mode) {
@@ -1842,12 +1822,8 @@ int execute_list_insert_command(zval* object, int argc, zval* return_value, zend
         args.value                      = val;
         args.value_len                  = val_len;
 
-        int status = execute_list_generic_command(valkey_glide->glide_client,
-                                                  LInsert,
-                                                  &args,
-                                                  NULL,
-                                                  process_list_int_result_async,
-                                                  return_value);
+        int status = execute_list_generic_command(
+            valkey_glide, LInsert, &args, NULL, process_list_int_result_async, return_value);
 
         /* Clean up */
         if (upper_pos)
@@ -1916,8 +1892,8 @@ int execute_list_position_command(zval*             object,
                                              ? process_list_array_result_async
                                              : process_list_int_result_async;
 
-        int status = execute_list_generic_command(
-            valkey_glide->glide_client, LPos, &args, NULL, processor, return_value);
+        int status =
+            execute_list_generic_command(valkey_glide, LPos, &args, NULL, processor, return_value);
 
         if (status) {
             if (valkey_glide->is_in_batch_mode) {
@@ -1962,12 +1938,8 @@ int execute_list_rem_command(zval* object, int argc, zval* return_value, zend_cl
         args.value     = value;
         args.value_len = value_len;
 
-        int status = execute_list_generic_command(valkey_glide->glide_client,
-                                                  LRem,
-                                                  &args,
-                                                  NULL,
-                                                  process_list_int_result_async,
-                                                  return_value);
+        int status = execute_list_generic_command(
+            valkey_glide, LRem, &args, NULL, process_list_int_result_async, return_value);
 
         if (status) {
             if (valkey_glide->is_in_batch_mode) {
@@ -2009,12 +1981,8 @@ int execute_list_trim_command(zval* object, int argc, zval* return_value, zend_c
         SET_LIST_RANGE(args, start, end);
 
 
-        int status = execute_list_generic_command(valkey_glide->glide_client,
-                                                  LTrim,
-                                                  &args,
-                                                  NULL,
-                                                  process_list_ok_result_async,
-                                                  return_value);
+        int status = execute_list_generic_command(
+            valkey_glide, LTrim, &args, NULL, process_list_ok_result_async, return_value);
 
         if (status) {
             if (valkey_glide->is_in_batch_mode) {

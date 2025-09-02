@@ -727,14 +727,15 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // lists
         $this->valkey_glide->del('{key}0');
         $this->valkey_glide->del('{key}1');
-        return;
+        
         $this->valkey_glide->lPush('{key}0', 'val0');
+     
         $this->valkey_glide->lPush('{key}0', 'val1');
         $this->valkey_glide->lPush('{key}1', 'val1-0');
         $this->valkey_glide->lPush('{key}1', 'val1-1');
+       
         $this->assertFalse($this->valkey_glide->renameNx('{key}0', '{key}1'));
-        $this->assertEquals(['val1', 'val0'], $this->valkey_glide->lRange('{key}0', 0, -1));
-
+        $this->assertEquals(['val1', 'val0'], $this->valkey_glide->lRange('{key}0', 0, -1));            
         $this->assertEquals(['val1-1', 'val1-0'], $this->valkey_glide->lRange('{key}1', 0, -1));
 
         $this->valkey_glide->del('{key}2');
