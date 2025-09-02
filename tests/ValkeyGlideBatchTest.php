@@ -3043,7 +3043,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortedSetAddOperationsBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_zset_1_' . uniqid();
 
         // Execute ZADD, ZCARD, ZRANGE in multi/exec batch
@@ -3062,7 +3062,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         // Verify server-side effects
         $this->assertEquals(3, $this->valkey_glide->zcard($key1));
-        $this->assertEquals(1, $this->valkey_glide->zscore($key1, 'member1'));
+        $this->assertEquals(1.0, $this->valkey_glide->zscore($key1, 'member1'));
 
         // Cleanup
         $this->valkey_glide->del($key1);
@@ -3070,7 +3070,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortedSetScoreOperationsBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_zset_score_' . uniqid();
 
         // Setup initial sorted set
@@ -3079,28 +3079,27 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Execute ZSCORE, ZINCRBY, ZRANK in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->zscore($key1, 'member2')
-            ->zincrby($key1, 5, 'member1')
+            ->zincrby($key1, 15, 'member1')
             ->zrank($key1, 'member2')
             ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertEquals(20, $results[0]); // ZSCORE result
-        $this->assertEquals(15, $results[1]); // ZINCRBY result
-        $this->assertEquals(1, $results[2]); // ZRANK result (0-based)
+        $this->assertEquals(20.0, $results[0]); // ZSCORE result
+        $this->assertEquals(25.0, $results[1]); // ZINCRBY result
+        $this->assertEquals(0, $results[2]); // ZRANK result (0-based)
 
         // Verify server-side effects
-        $this->assertEquals(15, $this->valkey_glide->zscore($key1, 'member1')); // Score updated
+        $this->assertEquals(25.0, $this->valkey_glide->zscore($key1, 'member1')); // Score updated
         $this->assertEquals(1, $this->valkey_glide->zrank($key1, 'member1')); // Rank updated
 
-        // Cleanup
+        // Cleanup        
         $this->valkey_glide->del($key1);
     }
 
     public function testSortedSetRemoveOperationsBatch()
-    {
-        $this->markTestSkipped();//TODO
+    {        
         $key1 = 'batch_zset_rem_' . uniqid();
 
         // Setup initial sorted set
@@ -3108,17 +3107,17 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         // Execute ZREM, ZREMRANGEBYSCORE, ZCARD in multi/exec batch
         $results = $this->valkey_glide->multi()
-            ->zrem($key1, 'c')
-            ->zremrangebyscore($key1, 4, 5)
             ->zcard($key1)
+            ->zrem($key1, 'c')            
+            ->zremrangebyscore($key1, 4, 5)            
             ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertEquals(1, $results[0]); // ZREM result (1 member removed)
-        $this->assertEquals(2, $results[1]); // ZREMRANGEBYSCORE result (2 members removed)
-        $this->assertEquals(5, $results[2]); // ZCARD result (before removals in transaction)
+        $this->assertEquals(5, $results[0]); // ZCARD result (before removals in transaction)
+        $this->assertEquals(1, $results[1]); // ZREM result (1 member removed)                
+        $this->assertEquals(2, $results[2]); // ZREMRANGEBYSCORE result (2 members removed)
 
         // Verify server-side effects
         $this->assertEquals(2, $this->valkey_glide->zcard($key1)); // 2 members remaining (a, b)
