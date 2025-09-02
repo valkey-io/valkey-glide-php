@@ -413,7 +413,6 @@ int execute_bitop_command(zval* object, int argc, zval* return_value, zend_class
         return 0;
     }
 
-    printf("Number of source keys: %d\n", keys_count);
     zval keys_array;
     array_init_size(&keys_array, keys_count);
 

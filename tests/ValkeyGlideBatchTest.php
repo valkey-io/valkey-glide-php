@@ -962,7 +962,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortedSetPopBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_zset_pop_' . uniqid();
 
         // Setup initial sorted set
@@ -977,9 +977,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         // Verify transaction results
         $this->assertIsArray($results);
-        $this->assertCount(3, $results);
-        $this->assertEquals(['a', '1'], $results[0]); // ZPOPMIN result
-        $this->assertEquals(['e', '5'], $results[1]); // ZPOPMAX result
+        $this->assertCount(3, $results);        
+        $this->assertEquals(['a' => 1.0], $results[0]); // ZPOPMIN result        
+        $this->assertEquals(['e' => 5.0], $results[1]); // ZPOPMAX result
         $this->assertEquals(3, $results[2]); // ZCARD result (after pops)
 
         // Verify server-side effects
@@ -1027,7 +1027,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testExpirationTimeBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_exptime_1_' . uniqid();
         $key2 = 'batch_exptime_2_' . uniqid();
         $key3 = 'batch_exptime_3_' . uniqid();
@@ -1051,7 +1051,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertCount(3, $results);
         $this->assertEquals(-1, $results[0]); // EXPIRETIME result (no expiration)
         $this->assertGT(0, $results[1]); // PEXPIRETIME result (has expiration)
-        $this->assertEquals(1, $results[2]); // PEXPIREAT result (success)
+        $this->assertTrue($results[2]); // PEXPIREAT result (success)
 
         // Verify server-side effects
         $this->assertEquals(-1, $this->valkey_glide->expiretime($key1)); // No expiration
