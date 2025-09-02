@@ -725,8 +725,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     // ===================================================================
 
     public function testListAdvancedOperationsBatch()
-    {
-        $this->markTestSkipped();//TODO
+    {        
         $key1 = 'batch_list_adv_' . uniqid();
         $key2 = 'batch_list_adv_2_' . uniqid();
 
@@ -736,7 +735,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Execute LINDEX, LREM, LINSERT in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->lindex($key1, 2)
-            ->lrem($key1, 1, 'b') // Remove first occurrence of 'b'
+            ->lrem($key1,'b', 1) // Remove first occurrence of 'b'
             ->linsert($key1, 'BEFORE', 'c', 'inserted')
             ->exec();
 
@@ -758,7 +757,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testListPositionBatch()
     {
-        $this->markTestSkipped();//TODO
+     
         $key1 = 'batch_list_pos_' . uniqid();
 
         // Setup initial list
@@ -788,7 +787,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testListMoveBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_list_move_src_' . uniqid();
         $key2 = 'batch_list_move_dst_' . uniqid();
 
@@ -2881,7 +2880,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testListPushOperationsBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_list_1_' . uniqid();
         $key2 = 'batch_list_2_' . uniqid();
         $key3 = 'batch_list_3_' . uniqid();
@@ -2911,7 +2910,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testListPopOperationsBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_list_pop_' . uniqid();
 
         // Setup initial list
@@ -2929,8 +2928,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertCount(3, $results);
         $this->assertEquals('item1', $results[0]); // LPOP result
         $this->assertEquals('item4', $results[1]); // RPOP result
-        $this->assertEquals(4, $results[2]); // LLEN result (before pops in transaction)
-
+        $this->assertEquals(2, $results[2]); 
         // Verify server-side effects
         $this->assertEquals(2, $this->valkey_glide->llen($key1)); // 2 items remaining
         $listContents = $this->valkey_glide->lrange($key1, 0, -1);
@@ -2942,7 +2940,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testListRangeOperationsBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_list_range_' . uniqid();
 
         // Setup initial list
@@ -2960,7 +2958,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertCount(3, $results);
         $this->assertEquals(['a', 'b', 'c'], $results[0]); // LRANGE result (first 3)
         $this->assertTrue($results[1]); // LTRIM result
-        $this->assertEquals(['a', 'b', 'c', 'd', 'e', 'f'], $results[2]); // LRANGE (before trim in transaction)
+        $this->assertEquals(['b', 'c', 'd', 'e'], $results[2]); 
 
         // Verify server-side effects after transaction
         $finalContents = $this->valkey_glide->lrange($key1, 0, -1);
