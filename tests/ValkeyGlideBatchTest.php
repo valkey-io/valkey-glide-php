@@ -1444,7 +1444,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testObjectOperationsBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_object_' . uniqid();
 
         // Setup test data

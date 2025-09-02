@@ -21,6 +21,7 @@
 #include "include/glide_bindings.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
+#include "valkey_glide_z_common.h"
 
 /* Execute an MSET command using the Valkey Glide client - MIGRATED TO CORE FRAMEWORK */
 int execute_mset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
@@ -377,15 +378,94 @@ int execute_unwatch_command(zval* object, int argc, zval* return_value, zend_cla
     }
 }
 
-/* Implementation of the OBJECT command with the original signature */
-int execute_object_command_impl(const void* glide_client,
-                                const char* subcommand,
-                                size_t      subcommand_len,
-                                const char* key,
-                                size_t      key_len,
-                                zval*       return_value) {
-    CommandResult* result  = NULL;
-    int            ret_val = -1; /* Default to error */
+/* Shared utility function to process OBJECT command results */
+static int process_object_command_result(CommandResponse* response,
+                                         const char*      subcommand,
+                                         size_t           subcommand_len,
+                                         zval*            return_value) {
+    if (!response || !subcommand || !return_value) {
+        return -1;
+    }
+
+    /* Handle different result types based on the subcommand */
+    if (strncasecmp(subcommand, "REFCOUNT", subcommand_len) == 0 ||
+        strncasecmp(subcommand, "IDLETIME", subcommand_len) == 0 ||
+        strncasecmp(subcommand, "FREQ", subcommand_len) == 0) {
+        /* These subcommands return integers */
+        if (response->response_type == Int) {
+            /* Success, set return value */
+            ZVAL_LONG(return_value, (long) response->int_value);
+            return 1;
+        } else if (response->response_type == Null) {
+            /* Key doesn't exist */
+            ZVAL_FALSE(return_value);
+            return 0;
+        }
+    } else if (strncasecmp(subcommand, "ENCODING", subcommand_len) == 0) {
+        /* ENCODING returns a string */
+        if (response->response_type == String) {
+            /* Success, set return value */
+            ZVAL_STRINGL(return_value, response->string_value, response->string_value_len);
+            return 1;
+        } else if (response->response_type == Null) {
+            /* Key doesn't exist */
+            ZVAL_FALSE(return_value);
+            return 0;
+        }
+    } else if (strncasecmp(subcommand, "HELP", subcommand_len) == 0) {
+        /* HELP returns an array of strings */
+        if (response->response_type == Array) {
+            if (command_response_to_zval(
+                    response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false) == 1) {
+                return 1;
+            } else {
+                return -1;
+            }
+        } else {
+            return -1;
+        }
+    } else {
+        /* Unsupported subcommand */
+        return -1;
+    }
+
+    return -1;
+}
+
+/* Result processor callback for OBJECT command */
+static int process_object_result(CommandResponse* response, void* output, zval* return_value) {
+    if (!response || !return_value) {
+        return 0;
+    }
+
+    /* Get subcommand from output parameter */
+    char* subcommand = (char*) output;
+    if (!subcommand) {
+        return 0;
+    }
+
+    /* Use the shared utility function */
+    int result =
+        process_object_command_result(response, subcommand, strlen(subcommand), return_value);
+
+    /* Free the subcommand memory that was allocated in batch mode */
+    efree(subcommand);
+
+    /* Convert return values: shared function returns -1/0/1, callback expects 0/1 */
+    return (result >= 0) ? 1 : 0;
+}
+
+/* Implementation of the OBJECT command with batching support */
+int execute_object_command_impl(valkey_glide_object* valkey_glide,
+                                const char*          subcommand,
+                                size_t               subcommand_len,
+                                const char*          key,
+                                size_t               key_len,
+                                zval*                object,
+                                zval*                return_value) {
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return -1;
+    }
 
     /* Create command array: ["OBJECT", subcommand, key] */
     uintptr_t     args[1];
@@ -408,53 +488,52 @@ int execute_object_command_impl(const void* glide_client,
     }
     /* For HELP and other subcommands, use CustomCommand (default) */
 
+    char* subcommand_copy = emalloc(subcommand_len + 1);
+    if (!subcommand_copy) {
+        return -1;
+    }
+    memcpy(subcommand_copy, subcommand, subcommand_len);
+    subcommand_copy[subcommand_len] = '\0';
+
+    /* Check for batch mode */
+    if (valkey_glide->is_in_batch_mode) {
+        /* Create a copy of subcommand for the callback */
+
+
+        /* Buffer command for batch execution */
+        int result = buffer_command_for_batch(valkey_glide,
+                                              req_type,
+                                              (uint8_t**) args,
+                                              (uintptr_t*) args_len,
+                                              1,
+                                              key,
+                                              key_len,
+                                              subcommand_copy,
+                                              process_object_result);
+
+        if (result) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        } else {
+            efree(subcommand_copy);
+            return -1;
+        }
+    }
+
     /* Execute the command */
-    result = execute_command(glide_client, req_type, 1, args, args_len);
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, req_type, 1, args, args_len);
     if (result == NULL) {
+        efree(subcommand_copy);
         return -1;
     }
 
-    /* Handle different result types based on the subcommand */
-    if (strncasecmp(subcommand, "REFCOUNT", subcommand_len) == 0 ||
-        strncasecmp(subcommand, "IDLETIME", subcommand_len) == 0 ||
-        strncasecmp(subcommand, "FREQ", subcommand_len) == 0) {
-        /* These subcommands return integers */
-        if (result->response && result->response->response_type == Int) {
-            /* Success, set return value */
-            ZVAL_LONG(return_value, (long) result->response->int_value);
-            ret_val = 1;
-        } else if (result->response && result->response->response_type == Null) {
-            /* Key doesn't exist */
-            ZVAL_FALSE(return_value);
-            ret_val = 0;
-        }
-    } else if (strncasecmp(subcommand, "ENCODING", subcommand_len) == 0) {
-        /* ENCODING returns a string */
-        if (result->response && result->response->response_type == String) {
-            /* Success, set return value */
-            ZVAL_STRINGL(
-                return_value, result->response->string_value, result->response->string_value_len);
-            ret_val = 1;
-        } else if (result->response && result->response->response_type == Null) {
-            /* Key doesn't exist */
-            ZVAL_FALSE(return_value);
-            ret_val = 0;
-        }
-    } else if (strncasecmp(subcommand, "HELP", subcommand_len) == 0) {
-        /* HELP returns an array of strings */
-        if (result->response && result->response->response_type == Array) {
-            if (command_response_to_zval(
-                    result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false) == 1) {
-                ret_val = 1;
-            } else {
-                ret_val = -1;
-            }
-        } else {
-            ret_val = -1;
-        }
-    } else {
-        /* Unsupported subcommand */
-        ret_val = -1;
+    /* Use the shared utility function to process the result */
+    int ret_val = -1; /* Default to error */
+    if (result->response) {
+        ret_val = process_object_command_result(
+            result->response, subcommand_copy, subcommand_len, return_value);
     }
 
     /* Clean up */
@@ -482,12 +561,9 @@ int execute_object_command(zval* object, int argc, zval* return_value, zend_clas
     /* If we have a Glide client, use it */
     if (valkey_glide->glide_client) {
         /* Execute the OBJECT command using the Glide client via the implementation function */
-        if (execute_object_command_impl(valkey_glide->glide_client,
-                                        subcommand,
-                                        subcommand_len,
-                                        key,
-                                        key_len,
-                                        return_value) >= 0) {
+        if (execute_object_command_impl(
+                valkey_glide, subcommand, subcommand_len, key, key_len, object, return_value) >=
+            0) {
             return 1;
         }
     }
