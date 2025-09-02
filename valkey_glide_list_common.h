@@ -130,7 +130,7 @@ typedef struct _list_command_args_t {
 } list_command_args_t;
 
 /* Function pointer types */
-typedef int (*list_result_processor_t)(CommandResult* result, void* output);
+typedef int (*z_result_processor_t)(CommandResponse* response, void* output, zval* return_value);
 typedef int (*list_arg_preparation_func_t)(list_command_args_t* args,
                                            uintptr_t**          args_out,
                                            unsigned long**      args_len_out,
@@ -148,11 +148,12 @@ char* alloc_list_number_string(long value, size_t* len_out);
 char* alloc_list_double_string(double value, size_t* len_out);
 
 /* Generic command execution framework */
-int execute_list_generic_command(const void*             glide_client,
-                                 enum RequestType        cmd_type,
-                                 list_command_args_t*    args,
-                                 void*                   result_ptr,
-                                 list_result_processor_t process_result);
+int execute_list_generic_command(valkey_glide_object* valkey_glide,
+                                 enum RequestType     cmd_type,
+                                 list_command_args_t* args,
+                                 void*                result_ptr,
+                                 z_result_processor_t process_result,
+                                 zval*                return_value);
 
 /* Option parsing functions */
 int parse_list_position_options(zval* options, list_position_options_t* opts);
@@ -228,13 +229,13 @@ int prepare_list_trim_args(list_command_args_t* args,
                            int*                 allocated_count);
 
 /* Result processing functions */
-int process_list_int_result(CommandResult* result, void* output);
-int process_list_string_result(CommandResult* result, void* output);
-int process_list_array_result(CommandResult* result, void* output);
-int process_list_pop_result(CommandResult* result, void* output);
-int process_list_blocking_result(CommandResult* result, void* output);
-int process_list_ok_result(CommandResult* result, void* output);
-int process_list_mpop_result(CommandResult* result, void* output);
+int process_list_int_result_async(CommandResponse* response, void* output, zval* return_value);
+int process_list_string_result_async(CommandResponse* response, void* output, zval* return_value);
+int process_list_array_result_async(CommandResponse* response, void* output, zval* return_value);
+int process_list_pop_result_async(CommandResponse* response, void* output, zval* return_value);
+int process_list_blocking_result_async(CommandResponse* response, void* output, zval* return_value);
+int process_list_ok_result_async(CommandResponse* response, void* output, zval* return_value);
+int process_list_mpop_result_async(CommandResponse* response, void* output, zval* return_value);
 
 /* High-level command execution functions */
 int execute_list_push_command(

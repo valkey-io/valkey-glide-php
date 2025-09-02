@@ -16,6 +16,7 @@
 #include "valkey_glide_list_common.h"
 
 #include "common.h"
+#include "valkey_glide_z_common.h"
 extern zend_class_entry* ce;
 extern zend_class_entry* get_valkey_glide_exception_ce();
 
@@ -51,21 +52,120 @@ void free_list_command_args(uintptr_t* args, unsigned long* args_len) {
         efree(args_len);
 }
 
-/**
- * Process a blocking result from a command
- */
-int process_list_blocking_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-
-    if (!result || !result->response) {
+int process_list_ok_result_async(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        ZVAL_FALSE(return_value);
         return 0;
     }
 
-    if (result->response->response_type == Array) {
+    if (response->response_type == Ok) {
+        ZVAL_TRUE(return_value);
+        return 1;
+    }
+
+    ZVAL_FALSE(return_value);
+    return 0;
+}
+
+int process_list_int_result_async(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        ZVAL_LONG(return_value, 0);
+        return 0;
+    }
+
+    if (response->response_type == Int) {
+        ZVAL_LONG(return_value, response->int_value);
+        return 1;
+    } else if (response->response_type == Null) {
+        ZVAL_NULL(return_value);
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Batch-compatible wrapper for string responses
+ */
+int process_list_string_result_async(CommandResponse* response, void* output, zval* return_value) {
+    if (!response)
+        return 0;
+
+    if (response->response_type == String) {
+        ZVAL_STRINGL(return_value, response->string_value, response->string_value_len);
+        return 1;
+    } else if (response->response_type == Null) {
+        ZVAL_FALSE(return_value);
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Batch-compatible wrapper for array responses
+ */
+int process_list_array_result_async(CommandResponse* response, void* output, zval* return_value) {
+    array_init(return_value);
+    return command_response_to_zval(
+        response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+}
+
+/**
+ * Batch-compatible wrapper for boolean responses
+ */
+int process_list_bool_result_async(CommandResponse* response, void* output, zval* return_value) {
+    if (!response)
+        return 0;
+
+    if (response->response_type == Bool) {
+        ZVAL_BOOL(return_value, response->bool_value);
+        return 1;
+    } else if (response->response_type == Ok) {
+        ZVAL_TRUE(return_value);
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Batch-compatible wrapper for pop result responses (handles both single values and arrays)
+ */
+int process_list_pop_result_async(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        return 0;
+    }
+
+    if (response->response_type == String) {
+        /* Single value returned */
+        ZVAL_STRINGL(return_value, response->string_value, response->string_value_len);
+        return 1;
+    } else if (response->response_type == Array) {
+        /* Multiple values returned (when count > 1) */
+        return command_response_to_zval(
+            response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+    } else if (response->response_type == Null) {
+        /* No elements in the list */
+        ZVAL_FALSE(return_value);
+        return 1;
+    }
+
+    return 0;
+}
+
+/**
+ * Batch-compatible wrapper for blocking result responses
+ */
+int process_list_blocking_result_async(CommandResponse* response,
+                                       void*            output,
+                                       zval*            return_value) {
+    if (!response) {
+        return 0;
+    }
+
+    if (response->response_type == Array) {
         /* Got a result, convert to PHP array [key, value] */
         return command_response_to_zval(
-            result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-    } else if (result->response->response_type == Null) {
+            response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+    } else if (response->response_type == Null) {
         /* Timeout reached, no elements available */
         ZVAL_NULL(return_value);
         return 1;
@@ -74,24 +174,50 @@ int process_list_blocking_result(CommandResult* result, void* output) {
     return 0;
 }
 
+/**
+ * Batch-compatible wrapper for MPOP result responses
+ */
+int process_list_mpop_result_async(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        ZVAL_FALSE(return_value);
+        return 1; /* Return success but with FALSE value when no results */
+    }
+
+    /* Handle NULL response (empty list or list doesn't exist) */
+    if (response->response_type == Null) {
+        ZVAL_FALSE(return_value);
+        return 1; /* Return success but with FALSE value */
+    }
+
+    /* MPOP returns associative array format for the values */
+    return command_response_to_zval(
+        response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+}
+
 /* ====================================================================
  * GENERIC COMMAND EXECUTION FRAMEWORK
  * ==================================================================== */
 
 /**
- * Generic command execution framework
+ * Generic command execution framework with batch support
  */
-int execute_list_generic_command(const void*             glide_client,
-                                 enum RequestType        cmd_type,
-                                 list_command_args_t*    args,
-                                 void*                   result_ptr,
-                                 list_result_processor_t process_result) {
+int execute_list_generic_command(valkey_glide_object* valkey_glide,
+                                 enum RequestType     cmd_type,
+                                 list_command_args_t* args,
+                                 void*                result_ptr,
+                                 z_result_processor_t process_result,
+                                 zval*                return_value) {
     uintptr_t*     cmd_args          = NULL;
     unsigned long* args_len          = NULL;
     char**         allocated_strings = NULL;
     int            allocated_count   = 0;
     int            arg_count         = 0;
     int            status            = 0;
+
+    /* Validate basic arguments */
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
 
     /* Prepare arguments based on command type */
     switch (cmd_type) {
@@ -159,13 +285,32 @@ int execute_list_generic_command(const void*             glide_client,
         goto cleanup;
     }
 
+    /* Check for batch mode */
+    if (valkey_glide->is_in_batch_mode) {
+        /* For batch mode, we need to use batch-compatible result processors */
+
+
+        status = buffer_command_for_batch(valkey_glide,
+                                          cmd_type,
+                                          (uint8_t**) cmd_args,
+                                          (uintptr_t*) args_len,
+                                          arg_count,
+                                          args->key,
+                                          args->key_len,
+                                          result_ptr,
+                                          process_result);
+
+        goto cleanup;
+    }
+
     /* Execute the command */
-    CommandResult* result = execute_command(glide_client, cmd_type, arg_count, cmd_args, args_len);
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, cmd_type, arg_count, cmd_args, args_len);
 
     /* Process result */
     if (result) {
         if (!result->command_error && result->response && process_result) {
-            status = process_result(result, result_ptr);
+            status = process_result(result->response, result_ptr, return_value);
         }
         free_command_result(result);
     }
@@ -433,26 +578,6 @@ int prepare_list_key_values_args(list_command_args_t* args,
     return total_args;
 }
 
-/**
- * Process an integer result for LPOS and other commands that return to zval
- */
-int process_list_zval_int_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-
-    if (!result || !result->response) {
-        return 0;
-    }
-
-    if (result->response->response_type == Int) {
-        ZVAL_LONG(return_value, result->response->int_value);
-        return 1;
-    } else if (result->response->response_type == Null) {
-        ZVAL_NULL(return_value);
-        return 1;
-    }
-
-    return 0;
-}
 
 /**
  * Prepare arguments for key+count commands (LPOP, RPOP)
@@ -507,104 +632,6 @@ int prepare_list_key_count_args(list_command_args_t* args,
     }
 
     return arg_count;
-}
-
-/* ====================================================================
- * RESULT PROCESSING FUNCTIONS
- * ==================================================================== */
-
-/**
- * Process an integer result from a command
- */
-int process_list_int_result(CommandResult* result, void* output) {
-    long* output_value = (long*) output;
-
-    if (!result || !result->response) {
-        return 0;
-    }
-
-    if (result->response->response_type == Int) {
-        *output_value = result->response->int_value;
-        return 1;
-    }
-
-    return 0;
-}
-
-/**
- * Process a string result from a command
- */
-int process_list_string_result(CommandResult* result, void* output) {
-    void**  output_array = (void**) output;
-    char**  output_value = (char**) output_array[0];
-    size_t* output_len   = (size_t*) output_array[1];
-
-    if (!result || !result->response) {
-        return 0;
-    }
-
-    if (result->response->response_type == String) {
-        size_t len      = result->response->string_value_len;
-        char*  str_copy = emalloc(len + 1);
-        if (!str_copy) {
-            return 0;
-        }
-
-        memcpy(str_copy, result->response->string_value, len);
-        str_copy[len] = '\0';
-
-        *output_value = str_copy;
-        *output_len   = len;
-        return 1;
-    } else if (result->response->response_type == Null) {
-        *output_value = NULL;
-        *output_len   = 0;
-        return 1;
-    }
-
-    return 0;
-}
-
-/**
- * Process an array result from a command
- */
-int process_list_array_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-
-    if (!result || !result->response) {
-        return 0;
-    }
-
-    return command_response_to_zval(
-        result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-}
-
-/**
- * Process a pop result from a command (handles both single values and arrays)
- */
-int process_list_pop_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-
-    if (!result || !result->response) {
-        return 0;
-    }
-
-    if (result->response->response_type == String) {
-        /* Single value returned */
-        ZVAL_STRINGL(
-            return_value, result->response->string_value, result->response->string_value_len);
-        return 1;
-    } else if (result->response->response_type == Array) {
-        /* Multiple values returned (when count > 1) */
-        return command_response_to_zval(
-            result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-    } else if (result->response->response_type == Null) {
-        /* No elements in the list */
-        ZVAL_FALSE(return_value);
-        return 1;
-    }
-
-    return 0;
 }
 
 /**
@@ -762,29 +789,17 @@ int execute_list_move_command(
         args.move_opts.has_timeout          = (timeout >= 0.0);
 
         /* Create array to pass both output_value and output_len */
-        void* output_array[2] = {&output_value, &output_len};
 
-        int result = execute_list_generic_command(
-            valkey_glide->glide_client, cmd_type, &args, output_array, process_list_string_result);
+        int status = execute_list_generic_command(
+            valkey_glide, cmd_type, &args, NULL, process_list_string_result_async, return_value);
 
-        if (result > 0) {
-            /* Success with data */
-            if (output_value) {
-                ZVAL_STRINGL(return_value, output_value, output_len);
-                efree(output_value);
-                return 1;
-            } else {
-                ZVAL_FALSE(return_value);
-                return 1;
+        if (status) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
             }
-        } else if (result == 0) {
-            /* Key didn't exist or list was empty */
-            ZVAL_FALSE(return_value);
             return 1;
-        } else {
-            /* Error */
-            return 0;
         }
+        return 0;
     }
 
     return 0;
@@ -835,16 +850,16 @@ int execute_list_mpop_command(
         args.mpop_opts.has_count     = (count > 0);
         args.mpop_opts.has_timeout   = (cmd_type == BLMPop);
 
-        int result = execute_list_generic_command(
-            valkey_glide->glide_client, cmd_type, &args, return_value, process_list_mpop_result);
+        int status = execute_list_generic_command(
+            valkey_glide, cmd_type, &args, NULL, process_list_mpop_result_async, return_value);
 
-        if (result) {
-            /* Return value already set by process function */
+        if (status) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
-        } else {
-            /* Error */
-            return 0;
         }
+        return 0;
     }
 
     return 0;
@@ -1458,30 +1473,30 @@ int execute_list_push_command(
 
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-
-    /* If we have a Glide client, use it */
-    if (valkey_glide->glide_client) {
-        list_command_args_t args;
-        INIT_LIST_COMMAND_ARGS(args);
-
-        args.glide_client = valkey_glide->glide_client;
-        SET_LIST_KEY(args, key, key_len);
-        args.values      = z_args;
-        args.value_count = arg_count;
-
-        long output_value = 0;
-        int  result       = execute_list_generic_command(
-            valkey_glide->glide_client, cmd_type, &args, &output_value, process_list_int_result);
-
-        /* Return the result directly if successful, otherwise return FALSE */
-        if (result) {
-            ZVAL_LONG(return_value, output_value);
-            return 1;
-        } else {
-            return 0;
-        }
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
     }
 
+    /* Set up command args */
+    list_command_args_t args;
+    INIT_LIST_COMMAND_ARGS(args);
+
+    args.glide_client = valkey_glide->glide_client;
+    SET_LIST_KEY(args, key, key_len);
+    args.values      = z_args;
+    args.value_count = arg_count;
+
+
+    /* In batch mode, buffer the command and return $this for method chaining */
+    int status = execute_list_generic_command(
+        valkey_glide, cmd_type, &args, NULL, process_list_int_result_async, return_value);
+
+    if (status) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+        }
+        return 1;
+    }
     return 0;
 }
 
@@ -1517,23 +1532,17 @@ int execute_list_pop_command(
         SET_LIST_KEY(args, key, key_len);
         SET_LIST_COUNT(args, has_count ? count : 0);
 
-        /* Execute the command */
-        if (has_count && count > 1) {
-            /* When count > 1, return an array */
-            array_init(return_value);
-        }
-        int result = execute_list_generic_command(
-            valkey_glide->glide_client, cmd_type, &args, return_value, process_list_pop_result);
+        int status = execute_list_generic_command(
+            valkey_glide, cmd_type, &args, NULL, process_list_pop_result_async, return_value);
 
         /* Return value is already set by execute_list_generic_command if successful */
-        if (result != 1) {
-            /* Command failed */
-            if (has_count && count > 1) {
-                zval_dtor(return_value);
+        if (status) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
             }
-            return 0;
+            return 1;
         }
-        return 1;
+        return 0;
     }
 
     return 0;
@@ -1567,18 +1576,21 @@ int execute_list_blocking_pop_command(
         args.blocking_opts.timeout     = timeout;
         args.blocking_opts.has_timeout = 1;
 
-        int result = execute_list_generic_command(valkey_glide->glide_client,
+        int status = execute_list_generic_command(valkey_glide->glide_client,
                                                   cmd_type,
                                                   &args,
-                                                  return_value,
-                                                  process_list_blocking_result);
+                                                  NULL,
+                                                  process_list_blocking_result_async,
+                                                  return_value);
 
         /* Return value is already set by execute_list_generic_command if successful */
-        if (result != 1) {
-            /* Command failed */
-            return 0;
+        if (status) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
+            return 1;
         }
-        return 1;
+        return 0;
     }
 
     return 0;
@@ -1609,17 +1621,20 @@ int execute_list_len_command(zval* object, int argc, zval* return_value, zend_cl
         args.glide_client = valkey_glide->glide_client;
         SET_LIST_KEY(args, key, key_len);
 
-        int result = execute_list_generic_command(
-            valkey_glide->glide_client, LLen, &args, &output_value, process_list_int_result);
+        int status = execute_list_generic_command(valkey_glide->glide_client,
+                                                  LLen,
+                                                  &args,
+                                                  NULL,
+                                                  process_list_int_result_async,
+                                                  return_value);
 
-        if (result) {
-            /* Return the length */
-            ZVAL_LONG(return_value, output_value);
+        if (status) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
-        } else {
-            /* Error */
-            return 0;
         }
+        return 0;
     }
 
     return 0;
@@ -1650,16 +1665,20 @@ int execute_list_range_command(zval* object, int argc, zval* return_value, zend_
         SET_LIST_KEY(args, key, key_len);
         SET_LIST_RANGE(args, start, end);
 
-        int result = execute_list_generic_command(
-            valkey_glide->glide_client, LRange, &args, return_value, process_list_array_result);
+        int status = execute_list_generic_command(valkey_glide->glide_client,
+                                                  LRange,
+                                                  &args,
+                                                  NULL,
+                                                  process_list_array_result_async,
+                                                  return_value);
 
-        if (result) {
-            /* Return value already set by process_list_array_result */
+        if (status) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
-        } else {
-            /* Error */
-            return 0;
         }
+        return 0;
     }
 
     return 0;
@@ -1694,30 +1713,20 @@ int execute_list_index_command(zval* object, int argc, zval* return_value, zend_
         SET_LIST_KEY(args, key, key_len);
         args.index = index;
 
-        /* Create array to pass both output_value and output_len */
-        void* output_array[2] = {&output_value, &output_len};
 
-        int result = execute_list_generic_command(
-            valkey_glide->glide_client, LIndex, &args, output_array, process_list_string_result);
-
-        if (result > 0) {
-            /* Success with data */
-            if (output_value) {
-                ZVAL_STRINGL(return_value, output_value, output_len);
-                efree(output_value);
-                return 1;
-            } else {
-                ZVAL_FALSE(return_value);
-                return 1;
+        int status = execute_list_generic_command(valkey_glide->glide_client,
+                                                  LIndex,
+                                                  &args,
+                                                  NULL,
+                                                  process_list_string_result_async,
+                                                  return_value);
+        if (status) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
             }
-        } else if (result == 0) {
-            /* Index is out of range or key doesn't exist */
-            ZVAL_FALSE(return_value);
             return 1;
-        } else {
-            /* Error */
-            return 0;
         }
+        return 0;
     }
 
     return 0;
@@ -1752,17 +1761,19 @@ int execute_list_set_command(zval* object, int argc, zval* return_value, zend_cl
         args.value     = val;
         args.value_len = val_len;
 
-        int status;
-        int result = execute_list_generic_command(
-            valkey_glide->glide_client, LSet, &args, &status, process_list_ok_result);
 
-        if (result) {
-            /* Success */
-            ZVAL_TRUE(return_value);
+        int status = execute_list_generic_command(valkey_glide->glide_client,
+                                                  LSet,
+                                                  &args,
+                                                  NULL,
+                                                  process_list_ok_result_async,
+                                                  return_value);
+
+        if (status) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
-        } else {
-            /* Error */
-            return 0;
         }
     }
 
@@ -1831,20 +1842,22 @@ int execute_list_insert_command(zval* object, int argc, zval* return_value, zend
         args.value                      = val;
         args.value_len                  = val_len;
 
-        int result = execute_list_generic_command(
-            valkey_glide->glide_client, LInsert, &args, &output_value, process_list_int_result);
+        int status = execute_list_generic_command(valkey_glide->glide_client,
+                                                  LInsert,
+                                                  &args,
+                                                  NULL,
+                                                  process_list_int_result_async,
+                                                  return_value);
 
         /* Clean up */
         if (upper_pos)
             efree(upper_pos);
 
-        if (result) {
-            /* Return the result value */
-            ZVAL_LONG(return_value, output_value);
+        if (status) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
-        } else {
-            /* Error */
-            return 0;
         }
     }
 
@@ -1862,7 +1875,6 @@ int execute_list_position_command(zval*             object,
     zval *               z_value, *z_opts = NULL;
     char *               key = NULL, *val = NULL;
     size_t               key_len, val_len;
-    int                  val_free = 0;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
@@ -1900,23 +1912,20 @@ int execute_list_position_command(zval*             object,
         }
 
         /* Use the correct processor depending on whether COUNT option is used */
-        list_result_processor_t processor =
-            args.position_opts.has_count ? process_list_array_result : process_list_zval_int_result;
+        z_result_processor_t processor = args.position_opts.has_count
+                                             ? process_list_array_result_async
+                                             : process_list_int_result_async;
 
-        int result = execute_list_generic_command(
-            valkey_glide->glide_client, LPos, &args, return_value, processor);
+        int status = execute_list_generic_command(
+            valkey_glide->glide_client, LPos, &args, NULL, processor, return_value);
 
-        /* Free allocated memory */
-        if (val_free)
-            efree(val);
-
-        if (result) {
-            /* Return value already set in execute function */
+        if (status) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
-        } else {
-            /* Error */
-            return 0;
         }
+        return 0;
     }
 
     return 0;
@@ -1953,17 +1962,20 @@ int execute_list_rem_command(zval* object, int argc, zval* return_value, zend_cl
         args.value     = value;
         args.value_len = value_len;
 
-        int result = execute_list_generic_command(
-            valkey_glide->glide_client, LRem, &args, &output_value, process_list_int_result);
+        int status = execute_list_generic_command(valkey_glide->glide_client,
+                                                  LRem,
+                                                  &args,
+                                                  NULL,
+                                                  process_list_int_result_async,
+                                                  return_value);
 
-        if (result) {
-            /* Return the number of removed elements */
-            ZVAL_LONG(return_value, output_value);
+        if (status) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
-        } else {
-            /* Error */
-            return 0;
         }
+        return 0;
     }
 
     return 0;
@@ -1996,66 +2008,22 @@ int execute_list_trim_command(zval* object, int argc, zval* return_value, zend_c
         SET_LIST_KEY(args, key, key_len);
         SET_LIST_RANGE(args, start, end);
 
-        int status;
-        int result = execute_list_generic_command(
-            valkey_glide->glide_client, LTrim, &args, &status, process_list_ok_result);
 
-        if (result) {
-            /* Success */
-            ZVAL_TRUE(return_value);
+        int status = execute_list_generic_command(valkey_glide->glide_client,
+                                                  LTrim,
+                                                  &args,
+                                                  NULL,
+                                                  process_list_ok_result_async,
+                                                  return_value);
+
+        if (status) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
-        } else {
-            /* Error */
-            return 0;
         }
-    }
-
-    return 0;
-}
-
-/**
- * Process an OK result from a command
- */
-int process_list_ok_result(CommandResult* result, void* output) {
-    int* status = (int*) output;
-
-    if (!result) {
-        *status = 0;
         return 0;
     }
 
-    if (result->command_error) {
-        *status = 0;
-        return 0;
-    }
-
-    if (result->response && result->response->response_type == Ok) {
-        *status = 1;
-        return 1;
-    }
-
-    *status = 0;
     return 0;
-}
-
-/**
- * Process an MPOP result from a command
- */
-int process_list_mpop_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-
-    if (!result || !result->response) {
-        ZVAL_FALSE(return_value);
-        return 1; /* Return success but with FALSE value when no results */
-    }
-
-    /* Handle NULL response (empty list or list doesn't exist) */
-    if (result->response->response_type == Null) {
-        ZVAL_FALSE(return_value);
-        return 1; /* Return success but with FALSE value */
-    }
-
-    /* MPOP returns associative array format for the values */
-    return command_response_to_zval(
-        result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
 }
