@@ -15,11 +15,6 @@
 
 #include "valkey_glide_core_common.h"
 
-/* ====================================================================
- * MIGRATED EXPIRE COMMANDS USING CORE FRAMEWORK
- * All functions dramatically reduced from ~70 lines each to 1-5 lines
- * ==================================================================== */
-
 /* Execute an EXPIRE command using the Valkey Glide client */
 int execute_expire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;

@@ -812,9 +812,15 @@ int prepare_bit_operation_args(core_command_args_t* args,
             total_args += 2; /* offset, value */
             break;
         case BitOp:
-            total_args += 1;               /* operation */
-            total_args += 1;               /* destination */
-            total_args += args->arg_count; /* source keys */
+            total_args += 1; /* operation */
+            total_args += 1; /* destination */
+            /* Handle array of source keys */
+            if (args->arg_count > 1 && args->args[1].type == CORE_ARG_TYPE_ARRAY) {
+                total_args += args->args[1].data.array_arg.count;
+            } else {
+                /* Fallback for old format */
+                total_args += args->arg_count - 1; /* subtract 1 for operation */
+            }
             break;
         default:
             return 0;
@@ -841,12 +847,37 @@ int prepare_bit_operation_args(core_command_args_t* args,
         (*cmd_args_len)[arg_idx] = args->key_len;
         arg_idx++;
 
-        /* Add source keys */
-        for (int i = 1; i < args->arg_count; i++) {
-            if (args->args[i].type == CORE_ARG_TYPE_STRING) {
-                (*cmd_args)[arg_idx]     = (uintptr_t) args->args[i].data.string_arg.value;
-                (*cmd_args_len)[arg_idx] = args->args[i].data.string_arg.len;
-                arg_idx++;
+        /* Add source keys from array */
+        if (args->arg_count > 1 && args->args[1].type == CORE_ARG_TYPE_ARRAY) {
+            zval* array = args->args[1].data.array_arg.array;
+            if (Z_TYPE_P(array) == IS_ARRAY) {
+                HashTable* ht = Z_ARRVAL_P(array);
+                zval*      element;
+
+                ZEND_HASH_FOREACH_VAL(ht, element) {
+                    if (Z_TYPE_P(element) == IS_STRING) {
+                        (*cmd_args)[arg_idx]     = (uintptr_t) Z_STRVAL_P(element);
+                        (*cmd_args_len)[arg_idx] = Z_STRLEN_P(element);
+                        arg_idx++;
+                    } else {
+                        /* Convert non-string to string */
+                        zend_string* str = zval_get_string(element);
+                        if (str) {
+                            size_t len      = ZSTR_LEN(str);
+                            char*  str_copy = emalloc(len + 1);
+                            if (str_copy) {
+                                memcpy(str_copy, ZSTR_VAL(str), len);
+                                str_copy[len]            = '\0';
+                                (*cmd_args)[arg_idx]     = (uintptr_t) str_copy;
+                                (*cmd_args_len)[arg_idx] = len;
+                                add_tracked_string(*allocated_strings, allocated_count, str_copy);
+                                arg_idx++;
+                            }
+                            zend_string_release(str);
+                        }
+                    }
+                }
+                ZEND_HASH_FOREACH_END();
             }
         }
     } else {

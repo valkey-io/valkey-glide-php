@@ -400,7 +400,6 @@ int execute_bitop_command(zval* object, int argc, zval* return_value, zend_class
     zval*                keys       = NULL;
     int                  keys_count = 0;
 
-
     /* Parse parameters */
     if (zend_parse_method_parameters(
             argc, object, "Oss*", &object, ce, &op, &op_len, &key, &key_len, &keys, &keys_count) ==
@@ -412,6 +411,15 @@ int execute_bitop_command(zval* object, int argc, zval* return_value, zend_class
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
+    }
+
+    /* Create temporary array containing all source keys for multi-key processing */
+    zval temp_keys_array;
+    array_init(&temp_keys_array);
+
+    /* Add all source keys to the temporary array */
+    for (int i = 0; i < keys_count; i++) {
+        add_next_index_zval(&temp_keys_array, &keys[i]);
     }
 
     /* Execute using core framework */
@@ -426,22 +434,24 @@ int execute_bitop_command(zval* object, int argc, zval* return_value, zend_class
     args.args[0].data.string_arg.value = op;
     args.args[0].data.string_arg.len   = op_len;
 
-    /* Add source keys as remaining arguments */
-    for (int i = 0; i < keys_count && i < 7; i++) {
-        args.args[i + 1].type                  = CORE_ARG_TYPE_STRING;
-        args.args[i + 1].data.string_arg.value = Z_STRVAL(keys[i]);
-        args.args[i + 1].data.string_arg.len   = Z_STRLEN(keys[i]);
-    }
-    args.arg_count = 1 + keys_count; /* operation + source keys */
+    /* Add source keys as array argument (no limit on number of keys) */
+    args.args[1].type                 = CORE_ARG_TYPE_ARRAY;
+    args.args[1].data.array_arg.array = &temp_keys_array;
+    args.args[1].data.array_arg.count = keys_count;
+    args.arg_count                    = 2; /* operation + source keys array */
 
-    if (execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value)) {
+    int result =
+        execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value);
+
+    /* Clean up temporary array */
+    zval_dtor(&temp_keys_array);
+
+    if (result) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
             return 1;
         }
-
-
         return 1;
     }
 

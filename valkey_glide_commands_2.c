@@ -578,7 +578,9 @@ int execute_exists_command(zval* object, int argc, zval* return_value, zend_clas
     /* Check if we received an array as a single argument */
     if (argc == 1 && Z_TYPE_P(z_args) == IS_ARRAY) {
         /* Single array argument - pass directly to EXISTS command */
-        if (execute_multi_key_command(valkey_glide, Exists, z_args, argc, object, return_value)) {
+        int actual_key_count = zend_hash_num_elements(Z_ARRVAL_P(z_args));
+        if (execute_multi_key_command(
+                valkey_glide, Exists, z_args, actual_key_count, object, return_value)) {
             return 1;
         } else {
             return 0;
@@ -632,8 +634,9 @@ int execute_touch_command(zval* object, int argc, zval* return_value, zend_class
     if (argc == 1 && Z_TYPE_P(z_args) == IS_ARRAY) {
         /* Single array argument - pass directly to TOUCH command */
         /* Execute a TOUCH command using the Valkey Glide client - MIGRATED TO CORE FRAMEWORK */
-
-        if (execute_multi_key_command(valkey_glide, Touch, z_args, argc, object, return_value)) {
+        int actual_key_count = zend_hash_num_elements(Z_ARRVAL_P(z_args));
+        if (execute_multi_key_command(
+                valkey_glide, Touch, z_args, actual_key_count, object, return_value)) {
             return 1;
         } else {
             return 0;
@@ -691,7 +694,9 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             return 1;
         }
     } else {
-        if (execute_multi_key_command(valkey_glide, Unlink, z_args, argc, object, return_value)) {
+        int actual_key_count = argc;
+        if (execute_multi_key_command(
+                valkey_glide, Unlink, z_args, actual_key_count, object, return_value)) {
             return 1;
         }
     }

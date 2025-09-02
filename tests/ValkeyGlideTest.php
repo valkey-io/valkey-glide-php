@@ -176,24 +176,50 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
     }
 
+    
+
     public function testBitop()
     {
-
         if (! $this->minVersionCheck('2.6.0')) {
             $this->markTestSkipped();
         }
 
+        // Test basic functionality with 2 keys
         $this->valkey_glide->set('{key}1', 'foobar');
         $this->valkey_glide->set('{key}2', 'abcdef');
 
         // Regression test for GitHub issue #2210
-        $this->assertEquals(6, $this->valkey_glide->bitop('AND', '{key}1', '{key}2'));
+        $this->assertEquals(6, $this->valkey_glide->bitop('AND', '{key}dest1', '{key}1', '{key}2'));
 
-        // Make sure ValkeyGlideCluster doesn't even send the command.  We don't care
-        // about what ValkeyGlide returns
-        @$this->valkey_glide->bitop('AND', 'key1', 'key2', 'key3');
+        // Test with exactly 7 keys (should work with current implementation)
+        for ($i = 1; $i <= 7; $i++) {
+            $this->valkey_glide->set("{key}src{$i}", 'test' . $i);
+        }
+        
+        $result7 = $this->valkey_glide->bitop('OR', '{key}dest7', '{key}src1', '{key}src2', '{key}src3', '{key}src4', '{key}src5', '{key}src6', '{key}src7');
+        $this->assertEquals(5, $result7);        
+        
 
-        $this->valkey_glide->del('{key}1', '{key}2');
+        // Test with 8 keys (should fail with current implementation due to 7-key limit)
+        $this->valkey_glide->set('{key}src8', 'test8');
+        
+        $result8 = $this->valkey_glide->bitop('OR', '{key}dest8', '{key}src1', '{key}src2', '{key}src3', '{key}src4', '{key}src5', '{key}src6', '{key}src7', '{key}src8');
+        $this->assertIsInt($result8);
+        $this->assertEquals(5, $result8);   
+
+        // Test with 10 keys (should definitely fail with current implementation)
+        $this->valkey_glide->set('{key}src9', 'test9');
+        $this->valkey_glide->set('{key}src10', 'test10');
+        
+        $result10 = $this->valkey_glide->bitop('AND', '{key}dest10', '{key}src1', '{key}src2', '{key}src3', '{key}src4', '{key}src5', '{key}src6', '{key}src7', '{key}src8', '{key}src9', '{key}src10');
+        $this->assertEquals(6, $result10);   
+
+        // Clean up
+        $keysToDelete = ['{key}1', '{key}2', '{key}dest1', '{key}dest7', '{key}dest8', '{key}dest10'];
+        for ($i = 1; $i <= 10; $i++) {
+            $keysToDelete[] = "{key}src{$i}";
+        }
+        $this->valkey_glide->del(...$keysToDelete);
     }
 
     public function testBitsets()
@@ -1034,8 +1060,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertKeyMissing('key');
         $this->valkey_glide->set('key', 'val');
         $this->assertKeyExists('key');
-        return;
-
+        
         /* Add multiple keys */
         $mkeys = [];
         for ($i = 0; $i < 10; $i++) {
@@ -1045,10 +1070,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
                 $mkeys[] = $mkey;
             }
         }
-
+        
         /* Test passing an array as well as the keys variadic */
-        $this->assertEquals(count($mkeys), $this->valkey_glide->exists($mkeys));
-        if (count($mkeys)) {
+        $this->assertEquals(count($mkeys), $this->valkey_glide->exists($mkeys));        
+        if (count($mkeys)) {        
             $this->assertEquals(count($mkeys), $this->valkey_glide->exists(...$mkeys));
         }
     }
