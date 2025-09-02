@@ -59,4 +59,4 @@
 #define STDC_HEADERS 1
 
 /* Define if AddressSanitizer is enabled */
-/* #undef VALKEY_GLIDE_ASAN_ENABLED */
+#define VALKEY_GLIDE_ASAN_ENABLED 1

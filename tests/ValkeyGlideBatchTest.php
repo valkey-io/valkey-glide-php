@@ -448,7 +448,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testAdvancedKeyOperationsBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_adv_1_' . uniqid();
         $key2 = 'batch_adv_2_' . uniqid();
         $key3 = 'batch_adv_3_' . uniqid();
@@ -569,7 +569,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertGTE(0, $this->valkey_glide->bitcount($key3));
 
         // Cleanup
-        $this->valkey_glide->del($key1, $key2, $key3);
+       $this->valkey_glide->del($key1, $key2, $key3);
     }
 
     // ===================================================================
