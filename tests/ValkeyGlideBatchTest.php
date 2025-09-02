@@ -1367,8 +1367,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     // ===================================================================
 
     public function testMoveBatch()
-    {
-        $this->markTestSkipped();//TODO
+    {        
         $key1 = 'batch_move_' . uniqid();
 
         // Setup test data in database 0
@@ -1385,7 +1384,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertEquals(1, $results[0]); // MOVE result (success)
+        $this->assertTrue($results[0]); // MOVE result (success)
         $this->assertTrue($results[1]); // SELECT result
         $this->assertEquals(1, $results[2]); // EXISTS result (key exists in db 1)
 

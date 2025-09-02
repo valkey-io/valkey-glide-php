@@ -778,6 +778,11 @@ int execute_move_command(zval* object, int argc, zval* return_value, zend_class_
 
     /* Execute the MOVE command using the Glide client */
     if (execute_move_command_internal(valkey_glide, key, key_len, dbindex, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
         return 1;
     }
 
