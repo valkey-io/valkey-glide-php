@@ -817,6 +817,7 @@ int prepare_bit_operation_args(core_command_args_t* args,
             if (args->arg_count > 1 && args->args[1].type == CORE_ARG_TYPE_ARRAY) {
                 total_args += args->args[1].data.array_arg.count;
             }
+            printf("Total args for BitOp: %d\n", total_args);
             break;
         default:
             return 0;
@@ -839,19 +840,24 @@ int prepare_bit_operation_args(core_command_args_t* args,
         arg_idx++;
 
         /* Add destination key */
+        printf("Adding destination key: %s\n", args->key);
         (*cmd_args)[arg_idx]     = (uintptr_t) args->key;
         (*cmd_args_len)[arg_idx] = args->key_len;
         arg_idx++;
 
         /* Add source keys from array */
+        printf("BitOp source keys arg count: %d\n", args->arg_count);
+        printf("BitOp source keys arg type: %d\n", (args->arg_count > 1) ? args->args[1].type : -1);
         if (args->arg_count > 1 && args->args[1].type == CORE_ARG_TYPE_ARRAY) {
             zval* array = args->args[1].data.array_arg.array;
+            printf("Processing source keys array Z_TYPE_P(array) = %d\n", Z_TYPE_P(array));
             if (Z_TYPE_P(array) == IS_ARRAY) {
                 HashTable* ht = Z_ARRVAL_P(array);
                 zval*      element;
 
                 ZEND_HASH_FOREACH_VAL(ht, element) {
                     if (Z_TYPE_P(element) == IS_STRING) {
+                        printf("Adding source key: %s\n", Z_STRVAL_P(element));
                         (*cmd_args)[arg_idx]     = (uintptr_t) Z_STRVAL_P(element);
                         (*cmd_args_len)[arg_idx] = Z_STRLEN_P(element);
                         arg_idx++;

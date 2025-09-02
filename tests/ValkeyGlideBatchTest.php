@@ -552,11 +552,11 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         // Execute BITPOS, BITOP AND, BITCOUNT in multi/exec batch
         $results = $this->valkey_glide->multi()
-           // ->bitpos($key1, 1)
+             ->bitpos($key1, 1)
              ->bitop('AND', $key3, $key1, $key2)
-            // ->bitcount($key3)
+             ->bitcount($key3)
             ->exec();
-        return;
+        
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
