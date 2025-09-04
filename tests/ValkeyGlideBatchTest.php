@@ -2622,13 +2622,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     {
         
         $this->sequence(ValkeyGlide::MULTI);        
-        $this->differentType(ValkeyGlide::MULTI);
         return;
-        // with prefix as well
-
-        $this->sequence(ValkeyGlide::MULTI);
         $this->differentType(ValkeyGlide::MULTI);
-
+       
         $this->valkey_glide->set('x', '42');
 
         $this->assertTrue($this->valkey_glide->watch('x'));
