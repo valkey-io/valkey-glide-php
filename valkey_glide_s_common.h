@@ -123,7 +123,7 @@ typedef struct _s_command_def_t {
  * ==================================================================== */
 
 /* Core execution framework */
-int execute_s_generic_command(const void*          glide_client,
+int execute_s_generic_command(valkey_glide_object* valkey_glide,
                               enum RequestType     cmd_type,
                               s_command_category_t category,
                               s_response_type_t    response_type,
@@ -244,21 +244,6 @@ int execute_scan_command_generic(
         (args).members_count = (m_count);   \
     } while (0)
 
-/**
- * Set multi-key arguments
- */
-#define SET_S_KEYS_ARGS(args, k, k_count) \
-    do {                                  \
-        (args).keys       = (k);          \
-        (args).keys_count = (k_count);    \
-    } while (0)
-
-/**
- * Execute a simple S command with standard error handling
- */
-#define EXECUTE_S_COMMAND(client, cmd_type, category, response_type, args, return_val) \
-    execute_s_generic_command(                                                         \
-        (client), (cmd_type), (category), (response_type), &(args), (return_val))
 
 /* ====================================================================
  * S COMMAND MACROS

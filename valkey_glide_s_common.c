@@ -18,6 +18,7 @@
 #include "cluster_scan_cursor.h"
 #include "command_response.h"
 #include "common.h"
+#include "valkey_glide_z_common.h"
 
 /* Import the string conversion functions from command_response.c */
 extern char* long_to_string(long value, size_t* len);
@@ -429,6 +430,98 @@ int prepare_s_scan_args(s_command_args_t* args,
  * ==================================================================== */
 
 /**
+ * Batch-compatible async result processor for integer responses
+ */
+int process_s_int_result_async(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        ZVAL_LONG(return_value, 0);
+        return 0;
+    }
+
+    if (response->response_type == Int) {
+        ZVAL_LONG(return_value, response->int_value);
+        return 1;
+    } else if (response->response_type == Null) {
+        ZVAL_NULL(return_value);
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Batch-compatible async result processor for boolean responses
+ */
+int process_s_bool_result_async(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        ZVAL_FALSE(return_value);
+        return 0;
+    }
+
+    if (response->response_type == Bool) {
+        ZVAL_BOOL(return_value, response->bool_value);
+        return 1;
+    } else if (response->response_type == Ok) {
+        ZVAL_TRUE(return_value);
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Batch-compatible async result processor for set/array responses
+ */
+int process_s_set_result_async(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        array_init(return_value);
+        return 0;
+    }
+
+    if (response->response_type == Null) {
+        ZVAL_NULL(return_value);
+        return 1;
+    } else if (response->response_type == Sets || response->response_type == Array) {
+        return command_response_to_zval(
+            response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+    }
+
+    array_init(return_value);
+    return 0;
+}
+
+/**
+ * Batch-compatible async result processor for mixed responses (string or array)
+ */
+int process_s_mixed_result_async(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        ZVAL_FALSE(return_value);
+        return 0;
+    }
+
+    return command_response_to_zval(
+        response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+}
+
+/**
+ * Batch-compatible async result processor for scan responses
+ */
+int process_s_scan_result_async(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        array_init(return_value);
+        return 0;
+    }
+
+    /* For batch mode, we can't update cursor state, so just return the elements array */
+    if (response->response_type == Array && response->array_value_len >= 2) {
+        CommandResponse* elements_resp = &response->array_value[1];
+        return command_response_to_zval(
+            elements_resp, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+    }
+
+    array_init(return_value);
+    return 0;
+}
+
+/**
  * Process integer response
  */
 int process_s_int_response(CommandResult* result, s_command_args_t* args, zval* return_value) {
@@ -593,9 +686,9 @@ int process_s_scan_response(CommandResult*    result,
  * ==================================================================== */
 
 /**
- * Generic command execution for S commands
+ * Generic command execution for S commands with batch support
  */
-int execute_s_generic_command(const void*          glide_client,
+int execute_s_generic_command(valkey_glide_object* valkey_glide,
                               enum RequestType     cmd_type,
                               s_command_category_t category,
                               s_response_type_t    response_type,
@@ -608,9 +701,10 @@ int execute_s_generic_command(const void*          glide_client,
     CommandResult* result    = NULL;
 
     /* Validate basic parameters */
-    if (!glide_client || !args) {
+    if (!valkey_glide->glide_client || !args) {
         return 0;
     }
+
 
     /* Prepare arguments based on category */
     switch (category) {
@@ -649,8 +743,47 @@ int execute_s_generic_command(const void*          glide_client,
         goto cleanup;
     }
 
-    /* Execute the command */
-    result = execute_command(glide_client, cmd_type, arg_count, cmd_args, args_len);
+    /* Check for batch mode */
+    if (valkey_glide && valkey_glide->is_in_batch_mode) {
+        /* Select appropriate async result processor */
+        z_result_processor_t process_result = NULL;
+        switch (response_type) {
+            case S_RESPONSE_INT:
+                process_result = process_s_int_result_async;
+                break;
+            case S_RESPONSE_BOOL:
+                process_result = process_s_bool_result_async;
+                break;
+            case S_RESPONSE_SET:
+                process_result = process_s_set_result_async;
+                break;
+            case S_RESPONSE_MIXED:
+                process_result = process_s_mixed_result_async;
+                break;
+            case S_RESPONSE_SCAN:
+                process_result = process_s_scan_result_async;
+                break;
+            default:
+                process_result = process_s_mixed_result_async;
+                break;
+        }
+
+        /* Buffer command for batch execution */
+        status = buffer_command_for_batch(valkey_glide,
+                                          cmd_type,
+                                          (uint8_t**) cmd_args,
+                                          (uintptr_t*) args_len,
+                                          arg_count,
+                                          args->key,
+                                          args->key_len,
+                                          NULL,
+                                          process_result);
+
+        goto cleanup;
+    }
+
+    /* Execute the command synchronously */
+    result = execute_command(valkey_glide->glide_client, cmd_type, arg_count, cmd_args, args_len);
 
     /* Process response based on type */
     if (result) {
@@ -774,12 +907,11 @@ int execute_sadd_command(zval* object, int argc, zval* return_value, zend_class_
         args.members       = z_args;
         args.members_count = members_count;
 
-        if (execute_s_generic_command(valkey_glide->glide_client,
-                                      SAdd,
-                                      S_CMD_KEY_MEMBERS,
-                                      S_RESPONSE_INT,
-                                      &args,
-                                      return_value)) {
+        if (execute_s_generic_command(
+                valkey_glide, SAdd, S_CMD_KEY_MEMBERS, S_RESPONSE_INT, &args, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
         }
     }
@@ -813,12 +945,11 @@ int execute_scard_command(zval* object, int argc, zval* return_value, zend_class
         args.key          = key;
         args.key_len      = key_len;
 
-        if (execute_s_generic_command(valkey_glide->glide_client,
-                                      SCard,
-                                      S_CMD_KEY_ONLY,
-                                      S_RESPONSE_INT,
-                                      &args,
-                                      return_value)) {
+        if (execute_s_generic_command(
+                valkey_glide, SCard, S_CMD_KEY_ONLY, S_RESPONSE_INT, &args, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
         }
     }
@@ -859,12 +990,15 @@ int execute_srandmember_command(zval* object, int argc, zval* return_value, zend
         args.count        = has_count ? count : 1;
         args.has_count    = has_count;
 
-        if (execute_s_generic_command(valkey_glide->glide_client,
+        if (execute_s_generic_command(valkey_glide,
                                       SRandMember,
                                       S_CMD_KEY_COUNT,
                                       S_RESPONSE_MIXED,
                                       &args,
                                       return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
         }
     }
@@ -900,12 +1034,11 @@ int execute_sismember_command(zval* object, int argc, zval* return_value, zend_c
         args.member       = member;
         args.member_len   = member_len;
 
-        if (execute_s_generic_command(valkey_glide->glide_client,
-                                      SIsMember,
-                                      S_CMD_KEY_MEMBER,
-                                      S_RESPONSE_BOOL,
-                                      &args,
-                                      return_value)) {
+        if (execute_s_generic_command(
+                valkey_glide, SIsMember, S_CMD_KEY_MEMBER, S_RESPONSE_BOOL, &args, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
         }
     }
@@ -938,12 +1071,11 @@ int execute_smembers_command(zval* object, int argc, zval* return_value, zend_cl
         args.key          = key;
         args.key_len      = key_len;
 
-        if (execute_s_generic_command(valkey_glide->glide_client,
-                                      SMembers,
-                                      S_CMD_KEY_ONLY,
-                                      S_RESPONSE_SET,
-                                      &args,
-                                      return_value)) {
+        if (execute_s_generic_command(
+                valkey_glide, SMembers, S_CMD_KEY_ONLY, S_RESPONSE_SET, &args, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
         }
     }
@@ -981,12 +1113,11 @@ int execute_srem_command(zval* object, int argc, zval* return_value, zend_class_
         args.members       = z_args;
         args.members_count = members_count;
 
-        if (execute_s_generic_command(valkey_glide->glide_client,
-                                      SRem,
-                                      S_CMD_KEY_MEMBERS,
-                                      S_RESPONSE_INT,
-                                      &args,
-                                      return_value)) {
+        if (execute_s_generic_command(
+                valkey_glide, SRem, S_CMD_KEY_MEMBERS, S_RESPONSE_INT, &args, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
         }
     }
@@ -1033,12 +1164,11 @@ int execute_smove_command(zval* object, int argc, zval* return_value, zend_class
         args.member       = member;
         args.member_len   = member_len;
 
-        if (execute_s_generic_command(valkey_glide->glide_client,
-                                      SMove,
-                                      S_CMD_TWO_KEY_MEMBER,
-                                      S_RESPONSE_BOOL,
-                                      &args,
-                                      return_value)) {
+        if (execute_s_generic_command(
+                valkey_glide, SMove, S_CMD_TWO_KEY_MEMBER, S_RESPONSE_BOOL, &args, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
         }
     }
@@ -1079,12 +1209,11 @@ int execute_spop_command(zval* object, int argc, zval* return_value, zend_class_
         args.count        = has_count ? count : 1;
         args.has_count    = has_count;
 
-        if (execute_s_generic_command(valkey_glide->glide_client,
-                                      SPop,
-                                      S_CMD_KEY_COUNT,
-                                      S_RESPONSE_MIXED,
-                                      &args,
-                                      return_value)) {
+        if (execute_s_generic_command(
+                valkey_glide, SPop, S_CMD_KEY_COUNT, S_RESPONSE_MIXED, &args, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
         }
     }
@@ -1122,12 +1251,15 @@ int execute_smismember_command(zval* object, int argc, zval* return_value, zend_
         args.members       = z_args;
         args.members_count = members_count;
 
-        if (execute_s_generic_command(valkey_glide->glide_client,
+        if (execute_s_generic_command(valkey_glide,
                                       SMIsMember,
                                       S_CMD_KEY_MEMBERS,
                                       S_RESPONSE_MIXED,
                                       &args,
                                       return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             return 1;
         }
     }
@@ -1196,12 +1328,8 @@ int execute_sinter_command(zval* object, int argc, zval* return_value, zend_clas
         args.keys         = z_args;
         args.keys_count   = keys_count;
 
-        int result = execute_s_generic_command(valkey_glide->glide_client,
-                                               SInter,
-                                               S_CMD_MULTI_KEY,
-                                               S_RESPONSE_SET,
-                                               &args,
-                                               return_value);
+        int result = execute_s_generic_command(
+            valkey_glide, SInter, S_CMD_MULTI_KEY, S_RESPONSE_SET, &args, return_value);
 
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
@@ -1284,12 +1412,8 @@ int execute_sintercard_command(zval* object, int argc, zval* return_value, zend_
         args.limit        = has_limit ? limit : 0;
         args.has_limit    = has_limit;
 
-        int result = execute_s_generic_command(valkey_glide->glide_client,
-                                               SInterCard,
-                                               S_CMD_MULTI_KEY_LIMIT,
-                                               S_RESPONSE_INT,
-                                               &args,
-                                               return_value);
+        int result = execute_s_generic_command(
+            valkey_glide, SInterCard, S_CMD_MULTI_KEY_LIMIT, S_RESPONSE_INT, &args, return_value);
 
         /* Clean up allocated array */
         for (int i = 0; i < keys_count; i++) {
@@ -1439,12 +1563,8 @@ int execute_sinterstore_command(zval* object, int argc, zval* return_value, zend
         args.keys         = z_args;
         args.keys_count   = keys_count;
 
-        int result = execute_s_generic_command(valkey_glide->glide_client,
-                                               SInterStore,
-                                               S_CMD_DST_MULTI_KEY,
-                                               S_RESPONSE_INT,
-                                               &args,
-                                               return_value);
+        int result = execute_s_generic_command(
+            valkey_glide, SInterStore, S_CMD_DST_MULTI_KEY, S_RESPONSE_INT, &args, return_value);
 
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
@@ -1529,12 +1649,8 @@ int execute_sunion_command(zval* object, int argc, zval* return_value, zend_clas
         args.keys         = z_args;
         args.keys_count   = keys_count;
 
-        int result = execute_s_generic_command(valkey_glide->glide_client,
-                                               SUnion,
-                                               S_CMD_MULTI_KEY,
-                                               S_RESPONSE_SET,
-                                               &args,
-                                               return_value);
+        int result = execute_s_generic_command(
+            valkey_glide, SUnion, S_CMD_MULTI_KEY, S_RESPONSE_SET, &args, return_value);
 
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
@@ -1688,12 +1804,8 @@ int execute_sunionstore_command(zval* object, int argc, zval* return_value, zend
         args.keys         = z_args;
         args.keys_count   = keys_count;
 
-        int result = execute_s_generic_command(valkey_glide->glide_client,
-                                               SUnionStore,
-                                               S_CMD_DST_MULTI_KEY,
-                                               S_RESPONSE_INT,
-                                               &args,
-                                               return_value);
+        int result = execute_s_generic_command(
+            valkey_glide, SUnionStore, S_CMD_DST_MULTI_KEY, S_RESPONSE_INT, &args, return_value);
 
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
@@ -1778,12 +1890,8 @@ int execute_sdiff_command(zval* object, int argc, zval* return_value, zend_class
         args.keys         = z_args;
         args.keys_count   = keys_count;
 
-        int result = execute_s_generic_command(valkey_glide->glide_client,
-                                               SDiff,
-                                               S_CMD_MULTI_KEY,
-                                               S_RESPONSE_SET,
-                                               &args,
-                                               return_value);
+        int result = execute_s_generic_command(
+            valkey_glide, SDiff, S_CMD_MULTI_KEY, S_RESPONSE_SET, &args, return_value);
 
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
@@ -1937,12 +2045,8 @@ int execute_sdiffstore_command(zval* object, int argc, zval* return_value, zend_
         args.keys         = z_args;
         args.keys_count   = keys_count;
 
-        int result = execute_s_generic_command(valkey_glide->glide_client,
-                                               SDiffStore,
-                                               S_CMD_DST_MULTI_KEY,
-                                               S_RESPONSE_INT,
-                                               &args,
-                                               return_value);
+        int result = execute_s_generic_command(
+            valkey_glide, SDiffStore, S_CMD_DST_MULTI_KEY, S_RESPONSE_INT, &args, return_value);
 
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
@@ -2245,12 +2349,8 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
         args.has_type     = has_type;
 
         /* Execute the SCAN command using the S-command framework */
-        if (execute_s_generic_command(valkey_glide->glide_client,
-                                      Scan,
-                                      S_CMD_SCAN,
-                                      S_RESPONSE_SCAN,
-                                      &args,
-                                      return_value)) {
+        if (execute_s_generic_command(
+                valkey_glide, Scan, S_CMD_SCAN, S_RESPONSE_SCAN, &args, return_value)) {
             /* Update iterator value */
             ZVAL_STRING(z_iter, cursor_ptr);
             efree(cursor_ptr);
