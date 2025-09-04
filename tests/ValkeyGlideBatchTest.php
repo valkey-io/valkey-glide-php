@@ -2102,7 +2102,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertFalse($ret[$i++]); // lpush
         $this->assertFalse($ret[$i++]); // llen
         $this->assertFalse($ret[$i++]); // lpop
-        $this->assertFalse($ret[$i++]); // lrange        
+        $this->assertFalse($ret[$i++]); // lrange         
         $this->assertFalse($ret[$i++]); // ltrim
         $this->assertFalse($ret[$i++]); // lindex
         $this->assertFalse($ret[$i++]); // lset
@@ -2619,9 +2619,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentType()
-    {
-        $this->markTestSkipped();
-        $this->differentType(ValkeyGlide::MULTI);
+    {        
+        $this->differentType(ValkeyGlide::MULTI);        
+        $this->differentType(ValkeyGlide::PIPELINE);
     }
     public function testMultiExec()
     {        
@@ -2670,7 +2670,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         }
 
         $this->sequence(ValkeyGlide::PIPELINE);
-        $this->differentType(ValkeyGlide::PIPELINE);
+        
 
         // with prefix as well
         $this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, 'test:');

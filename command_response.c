@@ -780,6 +780,9 @@ int command_response_to_zval(CommandResponse* response,
             // ZVAL_STRING(output, "OK");
             ZVAL_BOOL(output, true);
             return 1;
+        case Error:
+            ZVAL_BOOL(output, false);
+            return 1;
         default:
             ZVAL_NULL(output);
             return -1;
