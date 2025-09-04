@@ -1218,7 +1218,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     // ===================================================================
 
     public function testScanOperationsBatch()
-    {
+    {        
         $this->markTestSkipped();//TODO
         $key1 = 'batch_scan_set_' . uniqid();
         $key2 = 'batch_scan_hash_' . uniqid();
@@ -1230,8 +1230,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->zadd($key3, 1, 'zmember1', 2, 'zmember2');
 
         // Execute SCAN, SSCAN, HSCAN in multi/exec batch
+        $it = null;
         $results = $this->valkey_glide->multi()
-            ->scan(0)
+            ->scan($it)
             ->sscan($key1, 0)
             ->hscan($key2, 0)
             ->exec();
@@ -1256,24 +1257,25 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testZscanBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_zscan_' . uniqid();
 
         // Setup test data
         $this->valkey_glide->zadd($key1, 1, 'a', 2, 'b', 3, 'c', 4, 'd', 5, 'e');
 
         // Execute ZSCAN, ZLEXCOUNT, ZRANDMEMBER in multi/exec batch
+        $it = null;
         $results = $this->valkey_glide->multi()
-            ->zscan($key1, 0)
+            ->zscan($key1, $it)
             ->zlexcount($key1, '-', '+')
-            ->zrandmember($key1, 2)
+            ->zrandmember($key1, ['count' => 2])
             ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
         $this->assertIsArray($results[0]); // ZSCAN result [cursor, members_scores]
-        $this->assertCount(2, $results[0]);
+        $this->assertCount(10, $results[0]);
         $this->assertEquals(5, $results[1]); // ZLEXCOUNT result
         $this->assertIsArray($results[2]); // ZRANDMEMBER result
         $this->assertCount(2, $results[2]);
