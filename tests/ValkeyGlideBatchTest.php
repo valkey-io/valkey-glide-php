@@ -1417,8 +1417,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Execute GETDEL, GETEX with expiration, GETEX with persist in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->getdel($key1)
-            ->getex($key2, 'EX', 3600) // Set expiration
-            ->getex($key3, 'PERSIST') // Remove expiration
+            ->getex($key2, ['EX' => 3600]) // Set expiration
+            ->getex($key3, ['PERSIST' => true]) // Remove expiration
             ->exec();
 
         // Verify transaction results
