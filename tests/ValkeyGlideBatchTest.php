@@ -2618,12 +2618,16 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals($i, count($ret));
     }
 
-    public function testMultiExec()
+    public function testDifferentType()
     {
-        
+        $this->markTestSkipped();
+        $this->differentType(ValkeyGlide::MULTI);
+    }
+    public function testMultiExec()
+    {        
         $this->sequence(ValkeyGlide::MULTI);        
         return;
-        $this->differentType(ValkeyGlide::MULTI);
+        
        
         $this->valkey_glide->set('x', '42');
 

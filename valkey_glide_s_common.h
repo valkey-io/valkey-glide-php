@@ -199,15 +199,15 @@ int execute_sscan_command(zval* object, int argc, zval* return_value, zend_class
 int execute_hscan_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 
-int execute_gen_scan_command_internal(const void*      glide_client,
-                                      enum RequestType cmd_type,
-                                      const char*      key,
-                                      size_t           key_len,
-                                      char**           cursor,
-                                      const char*      pattern,
-                                      size_t           pattern_len,
-                                      long             count,
-                                      zval*            return_value);
+int execute_gen_scan_command_internal(valkey_glide_object* valkey_glide,
+                                      enum RequestType     cmd_type,
+                                      const char*          key,
+                                      size_t               key_len,
+                                      char**               cursor,
+                                      const char*          pattern,
+                                      size_t               pattern_len,
+                                      long                 count,
+                                      zval*                return_value);
 
 /* Generic scan command wrapper for HSCAN, ZSCAN, SSCAN */
 int execute_scan_command_generic(

@@ -509,7 +509,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
         array_init(return_value);
         return 0;
     }
-
+    printf("file = %s, line = %d\n", __FILE__, __LINE__);
     /* For batch mode, we can't update cursor state, so just return the elements array */
     if (response->response_type == Array && response->array_value_len >= 2) {
         CommandResponse* elements_resp = &response->array_value[1];
@@ -2360,19 +2360,19 @@ int execute_sscan_command(zval* object, int argc, zval* return_value, zend_class
 /**
  * Execute generic SCAN command using the generic framework - Updated for string cursors
  */
-int execute_gen_scan_command_internal(const void*      glide_client,
-                                      enum RequestType cmd_type,
-                                      const char*      key,
-                                      size_t           key_len,
-                                      char**           cursor,
-                                      const char*      pattern,
-                                      size_t           pattern_len,
-                                      long             count,
-                                      zval*            return_value) {
+int execute_gen_scan_command_internal(valkey_glide_object* valkey_glide,
+                                      enum RequestType     cmd_type,
+                                      const char*          key,
+                                      size_t               key_len,
+                                      char**               cursor,
+                                      const char*          pattern,
+                                      size_t               pattern_len,
+                                      long                 count,
+                                      zval*                return_value) {
     s_command_args_t args;
     INIT_S_COMMAND_ARGS(args);
 
-    args.glide_client = glide_client;
+    args.glide_client = valkey_glide->glide_client;
     args.key          = key;
     args.key_len      = key_len;
     args.cursor       = cursor;
@@ -2382,7 +2382,7 @@ int execute_gen_scan_command_internal(const void*      glide_client,
     args.has_count    = (count > 0);
 
     int result = execute_s_generic_command(
-        glide_client, cmd_type, S_CMD_SCAN, S_RESPONSE_SCAN, &args, return_value);
+        valkey_glide, cmd_type, S_CMD_SCAN, S_RESPONSE_SCAN, &args, return_value);
 
 
     return result;
@@ -2457,7 +2457,7 @@ int execute_scan_command_generic(
     long scan_count = has_count ? count : 10;
 
     /* Execute the scan command using the generic internal function */
-    if (execute_gen_scan_command_internal(valkey_glide->glide_client,
+    if (execute_gen_scan_command_internal(valkey_glide,
                                           cmd_type,
                                           key,
                                           key_len,
