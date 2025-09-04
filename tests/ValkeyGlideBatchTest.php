@@ -839,7 +839,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
        
         // Verify transaction results
         $this->assertIsArray($results);
-         return;
+         
         $this->assertCount(3, $results);
         $this->assertNotNull($results[0]); // SPOP result (random removed member)
         $this->assertIsArray($results[1]); // SRANDMEMBER result
@@ -848,7 +848,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         // Verify server-side effects
         $this->assertEquals(4, $this->valkey_glide->scard($key1)); // One member removed
-        $this->assertEquals(0, $this->valkey_glide->sismember($key1, $results[0])); // Popped member no longer exists
+        $this->assertFalse($this->valkey_glide->sismember($key1, $results[0])); // Popped member no longer exists
 
         // Cleanup
         $this->valkey_glide->del($key1);
@@ -1404,7 +1404,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testGetDelExBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_getdel_' . uniqid();
         $key2 = 'batch_getex_' . uniqid();
         $key3 = 'batch_getex2_' . uniqid();
@@ -1475,7 +1475,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSetMembershipBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_smember_' . uniqid();
         $key2 = 'batch_smove_src_' . uniqid();
         $key3 = 'batch_smove_dst_' . uniqid();
@@ -1489,19 +1489,19 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $results = $this->valkey_glide->multi()
             ->smismember($key1, 'member1', 'member2', 'nonexistent')
             ->smove($key2, $key3, 'move_me')
-            ->sintercard($key1, $key2)
+            ->sintercard([$key1, $key2])
             ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertEquals([1, 1, 0], $results[0]); // SMISMEMBER result
-        $this->assertEquals(1, $results[1]); // SMOVE result (success)
+        $this->assertEquals([true, true, false], $results[0]); // SMISMEMBER result
+        $this->assertTrue($results[1]); // SMOVE result (success)
         $this->assertIsInt($results[2]); // SINTERCARD result
 
         // Verify server-side effects
-        $this->assertEquals(0, $this->valkey_glide->sismember($key2, 'move_me')); // Moved from src
-        $this->assertEquals(1, $this->valkey_glide->sismember($key3, 'move_me')); // Moved to dst
+        $this->assertFalse($this->valkey_glide->sismember($key2, 'move_me')); // Moved from src
+        $this->assertTrue($this->valkey_glide->sismember($key3, 'move_me')); // Moved to dst
 
         // Cleanup
         $this->valkey_glide->del($key1, $key2, $key3);
@@ -2974,7 +2974,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSetAddOperationsBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_set_1_' . uniqid();
         $key2 = 'batch_set_2_' . uniqid();
 
@@ -2997,7 +2997,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         // Verify server-side effects
         $this->assertEquals(3, $this->valkey_glide->scard($key1));
-        $this->assertEquals(1, $this->valkey_glide->sismember($key1, 'member1'));
+        $this->assertTrue($this->valkey_glide->sismember($key1, 'member1'));
 
         // Cleanup
         $this->valkey_glide->del($key1, $key2);
@@ -3005,7 +3005,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSetRemoveOperationsBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_set_rem_' . uniqid();
 
         // Setup initial set
@@ -3022,13 +3022,13 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
         $this->assertEquals(2, $results[0]); // SREM result (2 members removed)
-        $this->assertEquals(1, $results[1]); // SISMEMBER result (member exists)
-        $this->assertEquals(4, $results[2]); // SCARD result (before removal in transaction)
+        $this->assertTrue($results[1]); // SISMEMBER result (member exists)
+        $this->assertEquals(2, $results[2]); // SCARD result (after removal in transaction)
 
         // Verify server-side effects
         $this->assertEquals(2, $this->valkey_glide->scard($key1)); // 2 members remaining
-        $this->assertEquals(1, $this->valkey_glide->sismember($key1, 'member1')); // member1 exists
-        $this->assertEquals(0, $this->valkey_glide->sismember($key1, 'member2')); // member2 removed
+        $this->assertTrue($this->valkey_glide->sismember($key1, 'member1')); // member1 exists
+        $this->assertFalse($this->valkey_glide->sismember($key1, 'member2')); // member2 removed
 
         // Cleanup
         $this->valkey_glide->del($key1);

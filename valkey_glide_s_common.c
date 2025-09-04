@@ -1339,15 +1339,11 @@ int execute_sinter_command(zval* object, int argc, zval* return_value, zend_clas
             efree(z_extracted_keys);
         }
 
-        return result;
-    }
-
-    /* Clean up if we allocated memory for the array keys but didn't execute the command */
-    if (z_extracted_keys) {
-        for (int i = 0; i < keys_count; i++) {
-            zval_dtor(&z_extracted_keys[i]);
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
         }
-        efree(z_extracted_keys);
+
+        return result;
     }
 
     return 0;
@@ -1414,6 +1410,10 @@ int execute_sintercard_command(zval* object, int argc, zval* return_value, zend_
 
         int result = execute_s_generic_command(
             valkey_glide, SInterCard, S_CMD_MULTI_KEY_LIMIT, S_RESPONSE_INT, &args, return_value);
+
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+        }
 
         /* Clean up allocated array */
         for (int i = 0; i < keys_count; i++) {
@@ -1566,6 +1566,10 @@ int execute_sinterstore_command(zval* object, int argc, zval* return_value, zend
         int result = execute_s_generic_command(
             valkey_glide, SInterStore, S_CMD_DST_MULTI_KEY, S_RESPONSE_INT, &args, return_value);
 
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+        }
+
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
@@ -1575,14 +1579,6 @@ int execute_sinterstore_command(zval* object, int argc, zval* return_value, zend
         }
 
         return result;
-    }
-
-    /* Clean up if we allocated memory for the array keys but didn't execute the command */
-    if (z_extracted_keys) {
-        for (int i = 0; i < keys_count; i++) {
-            zval_dtor(&z_extracted_keys[i]);
-        }
-        efree(z_extracted_keys);
     }
 
     return 0;
@@ -1652,6 +1648,10 @@ int execute_sunion_command(zval* object, int argc, zval* return_value, zend_clas
         int result = execute_s_generic_command(
             valkey_glide, SUnion, S_CMD_MULTI_KEY, S_RESPONSE_SET, &args, return_value);
 
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+        }
+
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
@@ -1661,14 +1661,6 @@ int execute_sunion_command(zval* object, int argc, zval* return_value, zend_clas
         }
 
         return result;
-    }
-
-    /* Clean up if we allocated memory for the array keys but didn't execute the command */
-    if (z_extracted_keys) {
-        for (int i = 0; i < keys_count; i++) {
-            zval_dtor(&z_extracted_keys[i]);
-        }
-        efree(z_extracted_keys);
     }
 
     return 0;
@@ -1807,6 +1799,10 @@ int execute_sunionstore_command(zval* object, int argc, zval* return_value, zend
         int result = execute_s_generic_command(
             valkey_glide, SUnionStore, S_CMD_DST_MULTI_KEY, S_RESPONSE_INT, &args, return_value);
 
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+        }
+
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
@@ -1818,13 +1814,6 @@ int execute_sunionstore_command(zval* object, int argc, zval* return_value, zend
         return result;
     }
 
-    /* Clean up if we allocated memory for the array keys but didn't execute the command */
-    if (z_extracted_keys) {
-        for (int i = 0; i < keys_count; i++) {
-            zval_dtor(&z_extracted_keys[i]);
-        }
-        efree(z_extracted_keys);
-    }
 
     return 0;
 }
@@ -1893,6 +1882,10 @@ int execute_sdiff_command(zval* object, int argc, zval* return_value, zend_class
         int result = execute_s_generic_command(
             valkey_glide, SDiff, S_CMD_MULTI_KEY, S_RESPONSE_SET, &args, return_value);
 
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+        }
+
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
@@ -1904,13 +1897,6 @@ int execute_sdiff_command(zval* object, int argc, zval* return_value, zend_class
         return result;
     }
 
-    /* Clean up if we allocated memory for the array keys but didn't execute the command */
-    if (z_extracted_keys) {
-        for (int i = 0; i < keys_count; i++) {
-            zval_dtor(&z_extracted_keys[i]);
-        }
-        efree(z_extracted_keys);
-    }
 
     return 0;
 }
@@ -2048,6 +2034,10 @@ int execute_sdiffstore_command(zval* object, int argc, zval* return_value, zend_
         int result = execute_s_generic_command(
             valkey_glide, SDiffStore, S_CMD_DST_MULTI_KEY, S_RESPONSE_INT, &args, return_value);
 
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+        }
+
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
@@ -2059,13 +2049,6 @@ int execute_sdiffstore_command(zval* object, int argc, zval* return_value, zend_
         return result;
     }
 
-    /* Clean up if we allocated memory for the array keys but didn't execute the command */
-    if (z_extracted_keys) {
-        for (int i = 0; i < keys_count; i++) {
-            zval_dtor(&z_extracted_keys[i]);
-        }
-        efree(z_extracted_keys);
-    }
 
     return 0;
 }
@@ -2351,6 +2334,9 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
         /* Execute the SCAN command using the S-command framework */
         if (execute_s_generic_command(
                 valkey_glide, Scan, S_CMD_SCAN, S_RESPONSE_SCAN, &args, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                ZVAL_COPY(return_value, object);
+            }
             /* Update iterator value */
             ZVAL_STRING(z_iter, cursor_ptr);
             efree(cursor_ptr);
@@ -2397,6 +2383,7 @@ int execute_gen_scan_command_internal(const void*      glide_client,
 
     int result = execute_s_generic_command(
         glide_client, cmd_type, S_CMD_SCAN, S_RESPONSE_SCAN, &args, return_value);
+
 
     return result;
 }
@@ -2479,6 +2466,9 @@ int execute_scan_command_generic(
                                           scan_pattern_len,
                                           scan_count,
                                           return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+        }
         /* Update iterator value */
         ZVAL_STRING(z_iter, cursor_ptr);
         efree(cursor_ptr);
