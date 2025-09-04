@@ -1618,7 +1618,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
             ->lpush('{list}lkey', 'lvalue')
             ->lpush('{list}lkey', 'lvalue')
             ->lpush('{list}lkey', 'lvalue')
-            ->rpoplpush('{list}lkey', '{list}lDest')
+            ->lmove('{list}lkey', '{list}lDest', 'RIGHT', 'LEFT')   //->rpoplpush('{list}lkey', '{list}lDest')
             ->lrange('{list}lDest', 0, -1)
             ->lpop('{list}lkey')
             ->llen('{list}lkey')
@@ -1642,7 +1642,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals(4, $ret[$i++]); // lpush, now 4 elements
         $this->assertEquals(5, $ret[$i++]); // lpush, now 5 elements
         $this->assertEquals(6, $ret[$i++]); // lpush, now 6 elements
-        $this->assertEquals('lvalue', $ret[$i++]); // rpoplpush returns the element: 'lvalue'
+        $this->assertEquals('lvalue', $ret[$i++]); // lmove returns the element: 'lvalue'
         $this->assertEquals(['lvalue'], $ret[$i++]); // lDest contains only that one element.
         $this->assertEquals('lvalue', $ret[$i++]); // removing a second element from lkey, now 4 elements left ↓
         $this->assertEquals(4, $ret[$i++]); // 4 elements left, after 2 pops.
@@ -1660,7 +1660,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
             ->rpush('{list}lkey', 'lvalue')
             ->lpush('{list}lkey', 'lvalue')
             ->lpush('{list}lkey', 'lvalue')
-            ->rpoplpush('{list}lkey', '{list}lDest')
+            ->lmove('{list}lkey', '{list}lDest', 'RIGHT', 'LEFT')//->rpoplpush('{list}lkey', '{list}lDest')
             ->lrange('{list}lDest', 0, -1)
             ->lpop('{list}lkey')
             ->exec();
@@ -1675,11 +1675,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals('lvalue', $ret[$i++]); // rpoplpush returns the element: 'lvalue'
         $this->assertEquals(['lvalue'], $ret[$i++]); // rpoplpush returns the element: 'lvalue'
         $this->assertEquals('lvalue', $ret[$i++]); // pop returns the front element: 'lvalue'
-        $this->assertEquals($i, count($ret));
-
-
-        $serializer = $this->valkey_glide->getOption(ValkeyGlide::OPT_SERIALIZER);
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_SERIALIZER, ValkeyGlide::SERIALIZER_NONE); // testing incr, which doesn't work with the serializer
+        $this->assertEquals($i, count($ret));       
+        
         $ret = $this->valkey_glide->multi($mode)
             ->del('{key}1')
             ->set('{key}1', 'value1')
@@ -1723,7 +1720,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals(4, $ret[$i++]);          // decrby('{key}2', 5)
         $this->assertEqualsWeak(4, $ret[$i++]);      // get('{key}2')
         $this->assertTrue($ret[$i++]);
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_SERIALIZER, $serializer);
+        
 
         $ret = $this->valkey_glide->multi($mode)
             ->del('{key}1')
@@ -1777,7 +1774,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
             ->lpush('{l}key', 'lvalue')
             ->lpush('{l}key', 'lvalue')
             ->lpush('{l}key', 'lvalue')
-            ->rpoplpush('{l}key', '{l}Dest')
+            ->lmove('{l}key', '{l}lDest', 'RIGHT', 'LEFT')//->rpoplpush('{l}key', '{l}Dest')
             ->lrange('{l}Dest', 0, -1)
             ->lpop('{l}key')
             ->llen('{l}key')
@@ -1957,7 +1954,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals(8.0, $ret[$i++]); // current score is 8.
         $this->assertFalse($ret[$i++]); // score for unknown element.
 
-        $this->assertEquals($i, count($ret));
+        $this->assertEquals($i, count($ret));       
 
         // hash
         $ret = $this->valkey_glide->multi($mode)
@@ -2049,7 +2046,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
             ->lrem($key, 'lvalue', 1)
             ->lPop($key)
             ->rPop($key)
-            ->rPoplPush($key, $dkey . 'lkey1')
+            ->lMove($key, $dkey . 'lkey1', 'RIGHT', 'LEFT')//  ->rPoplPush($key, $dkey . 'lkey1')
 
             // sets I/F
             ->sAdd($key, 'sValue1')
@@ -2298,7 +2295,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
             ->lrem($key, 'lvalue', 1)
             ->lPop($key)
             ->rPop($key)
-            ->rPoplPush($key, $dkey . 'lkey1')
+            ->lMove($key, $dkey . 'lkey1', 'RIGHT', 'LEFT')//->rPoplPush($key, $dkey . 'lkey1')
 
             // sorted sets I/F
             ->zAdd($key, 1, 'zValue1')
@@ -2415,7 +2412,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
             ->lrem($key, 'lvalue', 1)
             ->lPop($key)
             ->rPop($key)
-            ->rPoplPush($key, $dkey . 'lkey1')
+            ->lMove($key, $dkey . 'lkey1', 'RIGHT', 'LEFT')//->rPoplPush($key, $dkey . 'lkey1')
 
             // sets I/F
             ->sAdd($key, 'sValue1')
@@ -2529,7 +2526,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
             ->lrem($key, 'lvalue', 1)
             ->lPop($key)
             ->rPop($key)
-            ->rPoplPush($key, $dkey . 'lkey1')
+            ->lMove($key, $dkey . 'lkey1', 'RIGHT', 'LEFT')//->rPoplPush($key, $dkey . 'lkey1')
 
             // sets I/F
             ->sAdd($key, 'sValue1')
@@ -2619,7 +2616,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testMultiExec()
     {
-        $this->markTestSkipped();//TODO
+        
         $this->sequence(ValkeyGlide::MULTI);
         $this->differentType(ValkeyGlide::MULTI);
 
