@@ -856,7 +856,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSetOperationsBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_set_ops_1_' . uniqid();
         $key2 = 'batch_set_ops_2_' . uniqid();
         $key3 = 'batch_set_ops_3_' . uniqid();
@@ -892,7 +892,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSetStoreBatch()
     {        
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_set_store_1_' . uniqid();
         $key2 = 'batch_set_store_2_' . uniqid();
         $key3 = 'batch_set_store_3_' . uniqid();
