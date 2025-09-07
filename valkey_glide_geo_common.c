@@ -642,25 +642,25 @@ int process_geo_pos_result_async(CommandResponse* response, void* output, zval* 
  */
 int process_geo_search_result_async(CommandResponse* response, void* output, zval* return_value) {
     struct {
-        zval* return_value;
-        int   withcoord;
-        int   withdist;
-        int   withhash;
+        int withcoord;
+        int withdist;
+        int withhash;
     }* search_data = (void*) output;
 
     if (!response || !return_value || !search_data) {
+        efree(search_data);
         array_init(return_value);
         return 0;
     }
 
-    zval* result_zval = search_data->return_value;
-    int   withcoord   = search_data->withcoord;
-    int   withdist    = search_data->withdist;
-    int   withhash    = search_data->withhash;
+    int withcoord = search_data->withcoord;
+    int withdist  = search_data->withdist;
+    int withhash  = search_data->withhash;
 
     /* If no WITH* options, just return the array of names */
     if (!withcoord && !withdist && !withhash) {
         /* Simple case - just return the array */
+        efree(search_data);
         return command_response_to_zval(
             response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
     }
@@ -753,12 +753,13 @@ int process_geo_search_result_async(CommandResponse* response, void* output, zva
                 }
             }
         }
-
+        efree(search_data);
         return 1;
     }
 
     /* If not an array, initialize empty array and return */
     array_init(return_value);
+    efree(search_data);
     return 0;
 }
 

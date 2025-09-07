@@ -1145,7 +1145,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testGeospatialOperationsBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_geo_' . uniqid();
 
         // Execute GEOADD, GEOPOS, GEODIST in multi/exec batch
@@ -1174,7 +1174,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testGeospatialAdvancedBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_geo_adv_' . uniqid();
 
         // Setup initial geo data
@@ -1195,17 +1195,16 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $storeKey = 'batch_geo_store_' . uniqid();
         $results = $this->valkey_glide->multi()
             ->geohash($key1, 'Golden Gate Bridge')
-            ->geosearch($key1, 'FROMLONLAT', -122.27652, 37.805186, 'BYRADIUS', 5, 'km')
-            ->geosearchstore($storeKey, $key1, 'FROMLONLAT', -122.27652, 37.805186, 'BYRADIUS', 10, 'km')
+            ->geosearch($key1, [-122.27652, 37.805186], 5, 'km')
+            ->geosearchstore($storeKey, $key1, [-122.27652, 37.805186], 10, 'km')
             ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertIsArray($results[0]); // GEOHASH result
-        $this->assertIsArray($results[1]); // GEOSEARCH result
-        $this->assertGTE(0, $results[2]); // GEOSEARCHSTORE result
-
+        $this->assertIsArray($results[0]); // GEOHASH result        
+        $this->assertEquals(["Golden Gate Bridge", "Crissy Field", "Lombard Street"], $results[1]); // GEOSEARCH result
+        $this->assertEquals(3, $results[2]); // GEOSEARCHSTORE result        
         // Verify server-side effects
         $this->assertEquals(1, $this->valkey_glide->exists($storeKey)); // Store key created
 

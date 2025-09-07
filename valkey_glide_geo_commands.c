@@ -297,25 +297,25 @@ int execute_geosearch_command(zval* object, int argc, zval* return_value, zend_c
     }
 
     /* Create a data structure to pass the WITH* options to the result processor */
-    struct {
-        zval* return_value;
-        int   withcoord;
-        int   withdist;
-        int   withhash;
-    } search_data = {return_value,
-                     args.radius_opts.with_opts.withcoord,
-                     args.radius_opts.with_opts.withdist,
-                     args.radius_opts.with_opts.withhash};
+    typedef struct {
+        int withcoord;
+        int withdist;
+        int withhash;
+    } search_data_t;
 
+    search_data_t* search_data = emalloc(sizeof(search_data_t));
+
+    search_data->withcoord = args.radius_opts.with_opts.withcoord;
+    search_data->withdist  = args.radius_opts.with_opts.withdist;
+    search_data->withhash  = args.radius_opts.with_opts.withhash;
 
     /* Execute the generic command with appropriate result processor */
-    int result = execute_geo_generic_command(valkey_glide,
-                                             GeoSearch,
-                                             &args,
-                                             &search_data,
-                                             process_geo_search_result_async,
-                                             return_value);
-
+    int result = execute_geo_generic_command(
+        valkey_glide, GeoSearch, &args, search_data, process_geo_search_result_async, return_value);
+    if (result == 0) {
+        efree(search_data);
+        return result;
+    }
     /* Handle batch mode return value */
     if (valkey_glide->is_in_batch_mode) {
         ZVAL_COPY(return_value, object);
