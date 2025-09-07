@@ -663,6 +663,9 @@ PHP_METHOD(ValkeyGlideCluster, evalsha_ro) {
 /* {{{ proto bool ValkeyGlideCluster::multi() */
 MULTI_METHOD_IMPL(ValkeyGlideCluster)
 
+/* {{{ proto bool ValkeyGlideCluster::pipeline() */
+PIPELINE_METHOD_IMPL(ValkeyGlideCluster)
+
 /* {{{ proto bool ValkeyGlideCluster::watch() */
 WATCH_METHOD_IMPL(ValkeyGlideCluster)
 

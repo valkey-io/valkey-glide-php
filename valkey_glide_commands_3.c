@@ -363,6 +363,32 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
     return 0;
 }
 
+/* Common function to initialize batch mode */
+static int initialize_batch_mode(valkey_glide_object* valkey_glide,
+                                 int                  batch_type,
+                                 zval*                object,
+                                 zval*                return_value) {
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    /* Initialize batch mode */
+    valkey_glide->is_in_batch_mode = true;
+    valkey_glide->batch_type       = batch_type;
+    valkey_glide->command_count    = 0;
+
+    /* Initialize buffer if needed */
+    if (!valkey_glide->buffered_commands) {
+        valkey_glide->command_capacity  = 16; /* Initial capacity */
+        valkey_glide->buffered_commands = (struct batch_command*) ecalloc(
+            valkey_glide->command_capacity, sizeof(struct batch_command));
+    }
+
+    /* Return $this for method chaining */
+    ZVAL_COPY(return_value, object);
+    return 1;
+}
+
 /* Execute a MULTI command using the Valkey Glide client - UPDATED FOR BUFFERING */
 int execute_multi_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -382,25 +408,22 @@ int execute_multi_command(zval* object, int argc, zval* return_value, zend_class
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
 
-    if (!valkey_glide || !valkey_glide->glide_client) {
+    return initialize_batch_mode(valkey_glide, (int) batch_type, object, return_value);
+}
+
+/* Execute a PIPELINE command using the Valkey Glide client - wrapper using common function */
+int execute_pipeline_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+
+    /* Parse parameters - pipeline takes no additional parameters */
+    if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
         return 0;
     }
 
-    /* Initialize batch mode */
-    valkey_glide->is_in_batch_mode = true;
-    valkey_glide->batch_type       = (int) batch_type;
-    valkey_glide->command_count    = 0;
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
 
-    /* Initialize buffer if needed */
-    if (!valkey_glide->buffered_commands) {
-        valkey_glide->command_capacity  = 16; /* Initial capacity */
-        valkey_glide->buffered_commands = (struct batch_command*) ecalloc(
-            valkey_glide->command_capacity, sizeof(struct batch_command));
-    }
-
-    /* Return $this for method chaining */
-    ZVAL_COPY(return_value, object);
-    return 1;
+    return initialize_batch_mode(valkey_glide, PIPELINE, object, return_value);
 }
 
 /* Execute a DISCARD command using the Valkey Glide client - UPDATED FOR BUFFERING */

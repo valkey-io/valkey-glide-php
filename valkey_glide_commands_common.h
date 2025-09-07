@@ -180,6 +180,7 @@ int execute_wait_command(zval* object, int argc, zval* return_value, zend_class_
 int execute_config_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_multi_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_pipeline_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_discard_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_fcall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -993,6 +994,20 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         }                                                                        \
         zval_dtor(return_value);                                                 \
         RETURN_FALSE;                                                            \
+    }
+
+#define PIPELINE_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, pipeline) {                                              \
+        if (execute_pipeline_command(getThis(),                                     \
+                                     ZEND_NUM_ARGS(),                               \
+                                     return_value,                                  \
+                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                         ? get_valkey_glide_cluster_ce()            \
+                                         : get_valkey_glide_ce())) {                \
+            return;                                                                 \
+        }                                                                           \
+        zval_dtor(return_value);                                                    \
+        RETURN_FALSE;                                                               \
     }
 
 #define DISCARD_METHOD_IMPL(class_name)                                            \

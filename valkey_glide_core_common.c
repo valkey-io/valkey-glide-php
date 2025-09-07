@@ -1494,6 +1494,10 @@ int process_core_int_result(CommandResponse* response, void* output, zval* retur
         ZVAL_LONG(return_value, response->int_value);
         return 1;
     }
+    if (response->response_type == Ok) {
+        ZVAL_TRUE(return_value);
+        return 1;
+    }
     ZVAL_LONG(return_value, 0);
     return 0;
 }

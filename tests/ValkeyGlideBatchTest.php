@@ -2627,8 +2627,6 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testMultiExec()
     {        
         $this->sequence(ValkeyGlide::MULTI);        
-        return;
-        
        
         $this->valkey_glide->set('x', '42');
 

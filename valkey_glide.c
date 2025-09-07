@@ -513,8 +513,7 @@ PHP_METHOD(ValkeyGlide, close) {
 /* }}} */
 
 /* Basic method stubs - these need to be implemented with ValkeyGlide */
-PHP_METHOD(ValkeyGlide, pipeline) { /* TODO: Implement */
-}
+
 PHP_METHOD(ValkeyGlide, publish) { /* TODO: Implement */
 }
 PHP_METHOD(ValkeyGlide, psubscribe) { /* TODO: Implement */

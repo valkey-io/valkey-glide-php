@@ -1790,7 +1790,7 @@ class ValkeyGlide
      *       ->rpush('mylist', 'a', 'b', 'c')
      *       ->exec();
      */
-   /* TODO  public function pipeline(): bool|ValkeyGlide; */
+     public function pipeline(): bool|ValkeyGlide;
 
 
     /**
