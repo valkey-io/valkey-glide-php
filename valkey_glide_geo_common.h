@@ -96,7 +96,7 @@ typedef struct _geo_command_args_t {
 } geo_command_args_t;
 
 /* Function pointer type for result processors */
-typedef int (*geo_result_processor_t)(CommandResult* result, void* output);
+typedef int (*geo_result_processor_t)(CommandResponse* response, void* output, zval* return_value);
 
 /* ====================================================================
  * FUNCTION PROTOTYPES
@@ -130,12 +130,13 @@ int prepare_geo_search_store_args(geo_command_args_t* args,
                                   char***             allocated_strings,
                                   int*                allocated_count);
 
-/* Result processing */
-int process_geo_int_result(CommandResult* result, void* output);
-int process_geo_double_result(CommandResult* result, void* output);
-int process_geo_hash_result(CommandResult* result, void* output);
-int process_geo_pos_result(CommandResult* result, void* output);
-int process_geo_search_result(CommandResult* result, void* output);
+
+/* Batch-compatible async result processors */
+int process_geo_int_result_async(CommandResponse* response, void* output, zval* return_value);
+int process_geo_double_result_async(CommandResponse* response, void* output, zval* return_value);
+int process_geo_hash_result_async(CommandResponse* response, void* output, zval* return_value);
+int process_geo_pos_result_async(CommandResponse* response, void* output, zval* return_value);
+int process_geo_search_result_async(CommandResponse* response, void* output, zval* return_value);
 
 int execute_geoadd_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_geohash_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -149,11 +150,12 @@ int execute_geosearchstore_command(zval*             object,
                                    zend_class_entry* ce);
 
 /* Execution framework */
-int execute_geo_generic_command(const void*            glide_client,
+int execute_geo_generic_command(valkey_glide_object*   valkey_glide,
                                 enum RequestType       cmd_type,
                                 geo_command_args_t*    args,
                                 void*                  result_ptr,
-                                geo_result_processor_t process_result);
+                                geo_result_processor_t process_result,
+                                zval*                  return_value);
 
 /* ====================================================================
  * GEO COMMAND MACROS

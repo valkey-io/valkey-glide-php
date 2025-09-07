@@ -30,7 +30,7 @@ int execute_geoadd_command(zval* object, int argc, zval* return_value, zend_clas
     zval*       z_args;
     int         variadic_argc = 0;
     const void* glide_client  = NULL;
-    long        result_value  = 0;
+
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
@@ -64,11 +64,14 @@ int execute_geoadd_command(zval* object, int argc, zval* return_value, zend_clas
 
     /* Execute the generic command with appropriate result processor */
     int result = execute_geo_generic_command(
-        glide_client, GeoAdd, &args, &result_value, process_geo_int_result);
+        valkey_glide, GeoAdd, &args, NULL, process_geo_int_result_async, return_value);
 
-    if (result) {
-        ZVAL_LONG(return_value, result_value);
+    /* Handle batch mode return value */
+    if (valkey_glide->is_in_batch_mode) {
+        ZVAL_COPY(return_value, object);
+        return 1;
     }
+
 
     return result;
 }
@@ -78,7 +81,6 @@ int execute_geodist_command(zval* object, int argc, zval* return_value, zend_cla
     char *      key = NULL, *src = NULL, *dst = NULL, *unit = NULL;
     size_t      key_len, src_len, dst_len, unit_len         = 0;
     const void* glide_client = NULL;
-    double      result_value;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(argc,
@@ -120,14 +122,12 @@ int execute_geodist_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Execute the generic command with appropriate result processor */
     int ret = execute_geo_generic_command(
-        glide_client, GeoDist, &args, &result_value, process_geo_double_result);
+        valkey_glide, GeoDist, &args, NULL, process_geo_double_result_async, return_value);
 
-    if (ret == 1) {
-        /* Command succeeded, return the value */
-        ZVAL_DOUBLE(return_value, result_value);
-    } else if (ret == 0) {
-        /* Key or member doesn't exist */
-        ZVAL_NULL(return_value);
+    /* Handle batch mode return value */
+    if (valkey_glide->is_in_batch_mode) {
+        ZVAL_COPY(return_value, object);
+        return 1;
     }
 
     return ret;
@@ -170,12 +170,16 @@ int execute_geohash_command(zval* object, int argc, zval* return_value, zend_cla
     args.members            = z_args;
     args.member_count       = variadic_argc;
 
-    /* Initialize return value as array */
-    array_init(return_value);
 
     /* Execute the generic command with appropriate result processor */
-    return execute_geo_generic_command(
-        glide_client, GeoHash, &args, return_value, process_geo_hash_result);
+    int result = execute_geo_generic_command(
+        valkey_glide, GeoHash, &args, NULL, process_geo_hash_result_async, return_value);
+    /* Handle batch mode return value */
+    if (valkey_glide->is_in_batch_mode) {
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+    return result;
 }
 
 /* Execute a GEOPOS command using the Valkey Glide client */
@@ -215,12 +219,17 @@ int execute_geopos_command(zval* object, int argc, zval* return_value, zend_clas
     args.members            = z_args;
     args.member_count       = variadic_argc;
 
-    /* Initialize return value as array */
-    array_init(return_value);
 
     /* Execute the generic command with appropriate result processor */
-    return execute_geo_generic_command(
-        glide_client, GeoPos, &args, return_value, process_geo_pos_result);
+    int result = execute_geo_generic_command(
+        valkey_glide, GeoPos, &args, NULL, process_geo_pos_result_async, return_value);
+
+    /* Handle batch mode return value */
+    if (valkey_glide->is_in_batch_mode) {
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+    return result;
 }
 
 /* GEOSEARCH implementation */
@@ -298,12 +307,21 @@ int execute_geosearch_command(zval* object, int argc, zval* return_value, zend_c
                      args.radius_opts.with_opts.withdist,
                      args.radius_opts.with_opts.withhash};
 
-    /* Initialize return value as array */
-    array_init(return_value);
 
     /* Execute the generic command with appropriate result processor */
-    return execute_geo_generic_command(
-        glide_client, GeoSearch, &args, &search_data, process_geo_search_result);
+    int result = execute_geo_generic_command(valkey_glide,
+                                             GeoSearch,
+                                             &args,
+                                             &search_data,
+                                             process_geo_search_result_async,
+                                             return_value);
+
+    /* Handle batch mode return value */
+    if (valkey_glide->is_in_batch_mode) {
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
+    return result;
 }
 
 /* GEOSEARCHSTORE implementation */
@@ -317,7 +335,6 @@ int execute_geosearchstore_command(zval*             object,
     double      radius;
     zval*       options      = NULL;
     const void* glide_client = NULL;
-    long        result_value = 0;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(argc,
@@ -386,10 +403,12 @@ int execute_geosearchstore_command(zval*             object,
 
     /* Execute the generic command with appropriate result processor */
     int result = execute_geo_generic_command(
-        glide_client, GeoSearchStore, &args, &result_value, process_geo_int_result);
+        valkey_glide, GeoSearchStore, &args, NULL, process_geo_int_result_async, return_value);
 
-    if (result) {
-        ZVAL_LONG(return_value, result_value);
+    /* Handle batch mode return value */
+    if (valkey_glide->is_in_batch_mode) {
+        ZVAL_COPY(return_value, object);
+        return 1;
     }
 
     return result;
