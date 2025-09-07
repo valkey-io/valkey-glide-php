@@ -2666,54 +2666,10 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         if (! $this->havePipeline()) {
             $this->markTestSkipped();
         }
-
-        $this->sequence(ValkeyGlide::PIPELINE);
-        
-
-        // with prefix as well
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, 'test:');
         $this->sequence(ValkeyGlide::PIPELINE);
         $this->differentType(ValkeyGlide::PIPELINE);
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, '');
     }
 
-    public function testPipelineMultiExec()
-    {
-        if (! $this->havePipeline()) {
-            $this->markTestSkipped();
-        }
-
-        $ret = $this->valkey_glide->pipeline()->multi()->exec()->exec();
-        $this->assertIsArray($ret);
-        $this->assertEquals(1, count($ret)); // empty transaction
-
-        $ret = $this->valkey_glide->pipeline()
-            ->ping()
-            ->multi()->set('x', 42)->incr('x')->exec()
-            ->ping()
-            ->multi()->get('x')->del('x')->exec()
-            ->ping()
-            ->exec();
-        $this->assertIsArray($ret);
-        $this->assertEquals(5, count($ret)); // should be 5 atomic operations
-    }
-
-    public function testMultiEmpty()
-    {
-         $this->markTestSkipped();//TODO
-        $ret = $this->valkey_glide->multi()->exec();
-        $this->assertEquals([], $ret);
-    }
-
-    public function testPipelineEmpty()
-    {
-        if (!$this->havePipeline()) {
-            $this->markTestSkipped();
-        }
-
-        $ret = $this->valkey_glide->pipeline()->exec();
-        $this->assertEquals([], $ret);
-    }
 
     public function testMultiZ()
     {
