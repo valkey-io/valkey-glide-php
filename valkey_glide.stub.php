@@ -565,7 +565,7 @@ class ValkeyGlide
     public function del(array|string $key, string ...$other_keys): ValkeyGlide|int|false;
 
     /**
-     * TODO Discard a transaction currently in progress.
+     * Discard a transaction currently in progress.
      *
      * @return ValkeyGlide|bool  True if we could discard the transaction.
      *
@@ -573,7 +573,7 @@ class ValkeyGlide
      * $valkey_glide->set('foo', 'bar');
      * $valkey_glide->discard();
      */
-    /* public function discard(): ValkeyGlide|bool;*/
+    public function discard(): ValkeyGlide|bool;
 
     /**
      * Dump ValkeyGlide' internal binary representation of a key.
@@ -2760,7 +2760,7 @@ class ValkeyGlide
      *
      * @return True on success and false on failure.
      */
-    /* TODO public function unwatch(): ValkeyGlide|bool; */
+    public function unwatch(): ValkeyGlide|bool;
 
     /**
      * Watch one or more keys for conditional execution of a transaction.
@@ -2800,7 +2800,7 @@ class ValkeyGlide
      * // bool(false)
      * var_dump($res);
      */
-   /* TODO  public function watch(array|string $key, string ...$other_keys): ValkeyGlide|bool; */
+    public function watch(array|string $key, string ...$other_keys): ValkeyGlide|bool;
 
     /**
      * Block the client up to the provided timeout until a certain number of replicas have confirmed

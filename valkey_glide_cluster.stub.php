@@ -266,7 +266,7 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::discard
      */
-    /* TODO public function discard(): bool; */
+    public function discard(): bool;
 
     /**
      * @see ValkeyGlide::dump
@@ -905,12 +905,12 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::unwatch
      */
-    /* TODO public function unwatch(): bool; */
+    public function unwatch(): bool;
 
     /**
      * @see ValkeyGlide::watch
      */
-    /* TODO public function watch(string $key, string ...$other_keys): ValkeyGlideCluster|bool; */
+    public function watch(string $key, string ...$other_keys): ValkeyGlideCluster|bool;
 
     /**
      * @see ValkeyGlide::xack

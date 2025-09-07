@@ -202,9 +202,6 @@ int prepare_core_args(core_command_args_t* args,
         case Touch:
         case MGet:
         case Watch:
-            return prepare_multi_key_args(args, cmd_args, cmd_args_len);
-
-        /* PFCOUNT: Support both single-key and multi-key operations */
         case PfCount:
             /* Check if single key or multi-key operation */
             if (args->key && args->key_len > 0 && args->arg_count == 0) {
@@ -1597,8 +1594,9 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
     /* Detect single key vs multi-key scenario */
     if (keys_count == 1 && Z_TYPE_P(keys) == IS_STRING) {
         /* Single key case - use single-key mode for efficiency */
-        args.key       = Z_STRVAL_P(keys);
-        args.key_len   = Z_STRLEN_P(keys);
+        args.key     = Z_STRVAL_P(keys);
+        args.key_len = Z_STRLEN_P(keys);
+
         args.arg_count = 0; /* Triggers single-key mode in core framework */
     } else if (keys_count > 0 && Z_TYPE_P(keys) == IS_ARRAY) {
         /* Multi-key array case */

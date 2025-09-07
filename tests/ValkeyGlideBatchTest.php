@@ -2641,18 +2641,17 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testFailedTransactions()
     {
-        $this->markTestSkipped();//TODO
         $this->valkey_glide->set('x', 42);
 
         // failed transaction
-        $this->valkey_glide->watch('x');
-
+        $this->valkey_glide->watch('x');      
+         
         $r = $this->newInstance(); // new instance, modifying `x'.
         $r->incr('x');
 
         $ret = $this->valkey_glide->multi()->get('x')->exec();
         $this->assertFalse($ret); // failed because another client changed our watched key between WATCH and EXEC.
-
+               
         // watch and unwatch
         $this->valkey_glide->watch('x');
         $r->incr('x'); // other instance

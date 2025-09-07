@@ -306,11 +306,11 @@ int execute_time_command(zval* object, int argc, zval* return_value, zend_class_
 /* Execute a WATCH command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
 int execute_watch_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
-    zval*                z_args;
-    int                  arg_count;
+    zval*                z_args    = NULL;
+    int                  arg_count = 0;
 
-    /* Parse parameters */
-    if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &z_args, &arg_count) ==
+    /* Parse parameters - handle both array and variadic string parameters */
+    if (zend_parse_method_parameters(argc, object, "O+", &object, ce, &z_args, &arg_count) ==
         FAILURE) {
         return 0;
     }
@@ -321,28 +321,32 @@ int execute_watch_command(zval* object, int argc, zval* return_value, zend_class
         return 0;
     }
 
-    /* Execute using core framework */
-    core_command_args_t args = {0};
-    args.glide_client        = valkey_glide->glide_client;
-    args.cmd_type            = Watch;
-
-    /* Set up array argument for keys */
-    args.args[0].type                 = CORE_ARG_TYPE_ARRAY;
-    args.args[0].data.array_arg.array = z_args;
-    args.args[0].data.array_arg.count = arg_count;
-    args.arg_count                    = 1;
-
-    if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-
-        return 1;
-    } else {
+    /* Need at least one key to watch */
+    if (arg_count == 0) {
         return 0;
     }
+
+    /* Handle different parameter patterns:
+     * 1. watch(['key1', 'key2']) - first arg is array
+     * 2. watch('key1', 'key2', 'key3') - multiple string args
+     */
+
+    if (arg_count == 1 && Z_TYPE(z_args[0]) == IS_ARRAY) {
+        /* Pattern 1: Single array argument */
+        int keys_count = zend_hash_num_elements(Z_ARRVAL(z_args[0]));
+        if (execute_multi_key_command(
+                valkey_glide, Watch, &z_args[0], keys_count, object, return_value)) {
+            return 1;
+        }
+    } else {
+        /* Pattern 2: Multiple string arguments or single string */
+        if (execute_multi_key_command(
+                valkey_glide, Watch, z_args, arg_count, object, return_value)) {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 /* Execute an UNWATCH command using the Valkey Glide client - UNIFIED IMPLEMENTATION */

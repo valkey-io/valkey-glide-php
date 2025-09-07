@@ -532,15 +532,18 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
         }
         status = 1; /* Assume success unless we find issues */
         if (result->response) {
-            /*printf("file = %s, line = %d\n", __FILE__, __LINE__);
-            printf("file = %s, line = %d, response type = %d\n",
-                   __FILE__,
-                   __LINE__,
-                   result->response->response_type);
-            printf("file = %s, line = %d, response array length = %ld\n",
-                   __FILE__,
-                   __LINE__,
-                   result->response->array_value_len);*/
+            if (result->response->response_type != Array ||
+                result->response->array_value_len != valkey_glide->command_count) {
+                /* Unexpected response type or length */
+                // printf("file = %s, line = %d, unexpected response type or length\n",
+                //        __FILE__,
+                //        __LINE__);
+                ZVAL_FALSE(return_value);
+                status = 0;
+                free_command_result(result);
+                clear_batch_state(valkey_glide);
+                return status;
+            }
             array_init(return_value);
             for (int64_t idx = 0; idx < result->response->array_value_len; idx++) {
                 zval value;
