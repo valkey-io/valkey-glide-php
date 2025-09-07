@@ -374,8 +374,8 @@ int execute_multi_command(zval* object, int argc, zval* return_value, zend_class
     }
 
     /* Validate batch type using existing constants */
-    if (batch_type != MULTI && batch_type != PIPELINE && batch_type != ATOMIC) {
-        php_error_docref(NULL, E_WARNING, "Invalid batch type. Use MULTI, PIPELINE, or ATOMIC");
+    if (batch_type != MULTI && batch_type != PIPELINE) {
+        php_error_docref(NULL, E_WARNING, "Invalid batch type. Use MULTI or PIPELINE");
         return 0;
     }
 
@@ -501,10 +501,9 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     }
 
     /* Create BatchInfo structure */
-    struct BatchInfo batch_info = {
-        .cmd_count = valkey_glide->command_count,
-        .cmds      = (const struct CmdInfo* const*) cmd_infos,
-        .is_atomic = (valkey_glide->batch_type == MULTI || valkey_glide->batch_type == ATOMIC)};
+    struct BatchInfo batch_info = {.cmd_count = valkey_glide->command_count,
+                                   .cmds      = (const struct CmdInfo* const*) cmd_infos,
+                                   .is_atomic = (valkey_glide->batch_type == MULTI)};
 
     /* Execute via FFI batch() function */
     struct CommandResult* result = batch(valkey_glide->glide_client,

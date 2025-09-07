@@ -198,13 +198,6 @@ class ValkeyGlide
     /**
      *
      * @var int
-     * @cvalue ATOMIC
-     *
-     */
-    public const ATOMIC = UNKNOWN;
-    /**
-     *
-     * @var int
      * @cvalue MULTI
      *
      */

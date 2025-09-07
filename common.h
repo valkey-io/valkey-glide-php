@@ -39,9 +39,8 @@
 #define VALKEY_GLIDE_STREAM 6
 
 /* Transaction modes */
-#define ATOMIC 0
-#define MULTI 1
-#define PIPELINE 2
+#define MULTI 0
+#define PIPELINE 1
 
 /* ValkeyGlide Configuration Enums */
 typedef enum {

@@ -509,7 +509,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
         array_init(return_value);
         return 0;
     }
-    printf("file = %s, line = %d\n", __FILE__, __LINE__);
+
     /* For batch mode, we can't update cursor state, so just return the elements array */
     if (response->response_type == Array && response->array_value_len >= 2) {
         CommandResponse* elements_resp = &response->array_value[1];
