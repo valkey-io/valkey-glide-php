@@ -447,24 +447,10 @@ int execute_discard_command(zval* object, int argc, zval* return_value, zend_cla
         clear_batch_state(valkey_glide);
         ZVAL_TRUE(return_value);
         return 1;
+    } else {
+        ZVAL_FALSE(return_value);
+        return 0;
     }
-
-    /* If not in batch mode, execute normal DISCARD command */
-    core_command_args_t args = {0};
-    args.glide_client        = valkey_glide->glide_client;
-    args.cmd_type            = Discard;
-
-    if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-
-        return 1;
-    }
-
-    return 0;
 }
 
 /* Execute an EXEC command using the Valkey Glide client - UPDATED FOR BUFFERING */

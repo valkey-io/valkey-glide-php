@@ -320,8 +320,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testInfoOperationsBatch()
     {
-        $this->markTestSkipped();//TODO
-
+        
         // Execute INFO, CLIENT ID, CLIENT GETNAME in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->info()

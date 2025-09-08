@@ -356,7 +356,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $allNodesInfo = $this->valkey_glide->info("allNodes", "cpu");
         // Should return an array
         $this->assertIsArray($allNodesInfo, 12);
-
+        var_dump($allNodesInfo);
         // Should have 6 entries (one per node)
         $this->assertEquals(12, count($allNodesInfo), "Should have 6 node entries");
 

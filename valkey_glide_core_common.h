@@ -235,6 +235,9 @@ int process_core_double_result(CommandResponse* response, void* output, zval* re
 /* Core type result processor */
 int process_core_type_result(CommandResponse* response, void* output, zval* return_value);
 
+/* INFO command result processor - handles both single and multi-node responses */
+int process_info_result(CommandResponse* response, void* output, zval* return_value);
+
 /* ====================================================================
  * MEMORY MANAGEMENT UTILITIES
  * ==================================================================== */

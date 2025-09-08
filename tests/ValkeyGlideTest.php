@@ -3856,14 +3856,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testDiscard()
     {
-         $this->markTestSkipped();//TODO
         foreach ([ValkeyGlide::PIPELINE, ValkeyGlide::MULTI] as $mode) {
             /* start transaction */
             $this->valkey_glide->multi($mode);
 
             /* Set and get in our transaction */
             $this->valkey_glide->set('pipecount', 'over9000')->get('pipecount');
-
+ 
             /* first call closes transaction and clears commands queue */
             $this->assertTrue($this->valkey_glide->discard());
 
@@ -3871,8 +3870,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->assertFalse($this->valkey_glide->discard());
         }
     }
-
-    
 
     public function testDifferentTypeString()
     {
