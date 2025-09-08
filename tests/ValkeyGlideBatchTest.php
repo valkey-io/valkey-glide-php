@@ -324,19 +324,21 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Execute INFO, CLIENT ID, CLIENT GETNAME in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->info()
-            ->client('id')
+            ->client('id')            
+            ->client('setname', 'phpredis_unit_tests')
             ->client('getname')
+            ->client('list')
             ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
-        $this->assertCount(3, $results);
+        $this->assertCount(5, $results);
         $this->assertIsArray($results[0]); // INFO result (array of server info)
         $this->assertIsInt($results[1]); // CLIENT ID result (integer)
         // CLIENT GETNAME might return null if no name is set
-
+        $this->assertEquals('phpredis_unit_tests', $results[3]); // CLIENT SETNAME result
         // Verify server info contains expected keys
-        $this->assertArrayHasKey('server', $results[0]);
+        $this->assertArrayHasKey('server_name', $results[0]);
         $this->assertGT(0, $results[1]); // Client ID should be positive
     }
 

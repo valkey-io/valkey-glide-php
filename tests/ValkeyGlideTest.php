@@ -4491,6 +4491,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         /* CLIENT LIST */
         $clients = $this->valkey_glide->client('list');
+      //  var_dump($clients);
         $this->assertIsArray($clients);
 
         // Figure out which ip:port is us!
