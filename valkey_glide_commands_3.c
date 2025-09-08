@@ -268,7 +268,6 @@ static int convert_zval_args_to_strings(zval*           args,
     if (!args || args_count <= 0) {
         return 0;
     }
-    printf("file = %s, line = %d, converting %d args to strings\n", __FILE__, __LINE__, args_count);
     *cmd_args          = (uintptr_t*) emalloc(args_count * sizeof(uintptr_t));
     *args_len          = (unsigned long*) emalloc(args_count * sizeof(unsigned long));
     *allocated_strings = (char**) emalloc(args_count * sizeof(char*));
@@ -283,7 +282,6 @@ static int convert_zval_args_to_strings(zval*           args,
             efree(*allocated_strings);
         return 0;
     }
-    printf("file = %s, line = %d, allocated arrays for %d args\n", __FILE__, __LINE__, args_count);
     for (int i = 0; i < args_count; i++) {
         zval* arg = &args[i];
 
@@ -304,11 +302,7 @@ static int convert_zval_args_to_strings(zval*           args,
             str     = emalloc(str_len + 1);
             memcpy(str, Z_STRVAL(copy), str_len);
             str[str_len] = '\0';
-            printf("file = %s, line = %d, converted arg %d to string: %s\n",
-                   __FILE__,
-                   __LINE__,
-                   i,
-                   str);
+
             (*cmd_args)[i] = (uintptr_t) str;
             (*args_len)[i] = str_len;
 
@@ -372,10 +366,7 @@ static int parse_client_list_response(const char* response_str,
         array_init(return_value);
         return 1;
     }
-    printf("file = %s, line = %d, parsing CLIENT LIST responseresponse_str = %s\n",
-           __FILE__,
-           __LINE__,
-           response_str);
+
     array_init(return_value);
 
     /* Split response by newlines to get individual client entries */
@@ -472,11 +463,9 @@ static int command_response_to_zval_wrapper(CommandResponse* response,
     enum RequestType command_type = *((enum RequestType*) output);
 
     if (command_type == ClientList && response->response_type == String) {
-        printf("file = %s, line = %d, parsing CLIENT LIST response\n", __FILE__, __LINE__);
         return parse_client_list_response(
             response->string_value, response->string_value_len, return_value);
     } else {
-        printf("file = %s, line = %d, converting CommandResponse to zval\n", __FILE__, __LINE__);
         return command_response_to_zval(
             response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
     }
@@ -1468,10 +1457,7 @@ int execute_client_command_internal(
     if (!glide_client || !args || args_count <= 0 || !return_value) {
         return 0;
     }
-    printf("file = %s, line = %d, executing CLIENT command with %d args\n",
-           __FILE__,
-           __LINE__,
-           args_count);
+
     /* Use helper function to convert arguments (skip first argument which is the command) */
     uintptr_t*     cmd_args          = NULL;
     unsigned long* args_len          = NULL;
@@ -1488,14 +1474,7 @@ int execute_client_command_internal(
             return 0;
         }
     }
-    printf(
-        "file = %s, line = %d, converted arguments to strings allocated_count = %d, "
-        "allocated_strings[0] = %s\n",
-        __FILE__,
-        __LINE__,
-        allocated_count,
-        allocated_count > 0 ? allocated_strings[0] : "N/A");
-    printf("file = %s, line = %d, first arg = %s\n", __FILE__, __LINE__, Z_STRVAL(args[0]));
+
 
     /* Use helper function to determine command type */
     enum RequestType command_type = determine_client_command_type(args, args_count);
@@ -1513,12 +1492,10 @@ int execute_client_command_internal(
             return 0; /* Unknown command */
         }
     }
-    printf(
-        "file = %s, line = %d, determined command type = %d\n", __FILE__, __LINE__, command_type);
+
     /* Execute the command with or without routing */
     CommandResult* result;
     unsigned long  final_arg_count = args_count - 1;
-    printf("file = %s, line = %d, final_arg_count = %d\n", __FILE__, __LINE__, final_arg_count);
 
     if (route) {
         /* Use cluster routing */
@@ -1538,7 +1515,6 @@ int execute_client_command_internal(
                                  args_len         /* argument lengths */
         );
     }
-    printf("file = %s, line = %d, command executed\n", __FILE__, __LINE__);
     /* Free allocated memory using helper function */
     cleanup_allocated_strings(allocated_strings, allocated_count);
     efree(cmd_args);
@@ -1552,14 +1528,10 @@ int execute_client_command_internal(
             free_command_result(result);
             return 0;
         }
-        printf("file = %s, line = %d, got response type = %d\n",
-               __FILE__,
-               __LINE__,
-               result->response->response_type);
+
         if (result->response) {
             /* Special handling for CLIENT LIST - convert string to array of associative arrays */
             if (command_type == ClientList && result->response->response_type == String) {
-                printf("file = %s, line = %d, parsing CLIENT LIST response\n", __FILE__, __LINE__);
                 status = parse_client_list_response(result->response->string_value,
                                                     result->response->string_value_len,
                                                     return_value);
@@ -1571,7 +1543,6 @@ int execute_client_command_internal(
         }
         free_command_result(result);
     }
-    printf("file = %s, line = %d, finished processing CLIENT command\n", __FILE__, __LINE__);
     return status;
 }
 
@@ -1704,7 +1675,6 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
 
     /* Check if we're in batch mode */
     if (valkey_glide->is_in_batch_mode) {
-        printf("file = %s, line = %d, in batch mode with %d args\n", __FILE__, __LINE__, arg_count);
         /* In batch mode, ignore routing and treat all arguments as command arguments */
         if (arg_count == 0) {
             /* Need at least one command argument */
@@ -1713,19 +1683,11 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
 
         /* Use helper function to determine command type */
         enum RequestType command_type = determine_client_command_type(z_args, arg_count);
-        printf("file = %s, line = %d, determined command type = %d\n",
-               __FILE__,
-               __LINE__,
-               command_type);
         /* Convert arguments to uint8_t** format for batch processing */
         uint8_t**  batch_args  = NULL;
         uintptr_t* arg_lengths = NULL;
 
         if (arg_count > 1) {
-            printf("file = %s, line = %d, converting %d args to strings\n",
-                   __FILE__,
-                   __LINE__,
-                   arg_count - 1);
             batch_args  = (uint8_t**) emalloc((arg_count - 1) * sizeof(uint8_t*));
             arg_lengths = (uintptr_t*) emalloc((arg_count - 1) * sizeof(uintptr_t));
 
@@ -1744,22 +1706,14 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
                 if (Z_TYPE_P(arg) == IS_STRING) {
                     /* Already a string, use directly */
                     batch_args[i - 1] = (uint8_t*) Z_STRVAL_P(arg);
-                    printf("file = %s, line = %d, arg %d is string: %s\n",
-                           __FILE__,
-                           __LINE__,
-                           i - 1,
-                           Z_STRVAL_P(arg));
+
                     arg_lengths[i - 1] = Z_STRLEN_P(arg);
                 } else {
                     /* Convert to string */
                     zval temp;
                     ZVAL_COPY(&temp, arg);
                     convert_to_string(&temp);
-                    printf("file = %s, line = %d, arg %d converted to string: %s\n",
-                           __FILE__,
-                           __LINE__,
-                           i - 1,
-                           Z_STRVAL(temp));
+
                     batch_args[i - 1]  = (uint8_t*) Z_STRVAL(temp);
                     arg_lengths[i - 1] = Z_STRLEN(temp);
 
@@ -1785,10 +1739,7 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
             efree(batch_args);
         if (arg_lengths)
             efree(arg_lengths);
-        printf("file = %s, line = %d, buffered command for batch: %d\n",
-               __FILE__,
-               __LINE__,
-               buffer_result);
+
         if (buffer_result) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
