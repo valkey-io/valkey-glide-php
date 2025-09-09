@@ -1037,36 +1037,11 @@ static void valkey_glide_parse_info_response(char* response, zval* z_ret) {
                     default:
                         add_assoc_string_ex(z_ret, p1, p - p1, p + 1);
                 }
-            } else {
-                add_next_index_string(z_ret, p1);
             }
         } while ((p1 = php_strtok_r(NULL, _NL, &s1)) != NULL);
     }
 }
-/* Helper function to convert zval to string argument for INFO command */
-static int convert_zval_to_string_arg(zval*   section,
-                                      char**  str_out,
-                                      size_t* len_out,
-                                      int*    needs_free) {
-    *needs_free = 0;
 
-    if (Z_TYPE_P(section) == IS_STRING) {
-        /* Already a string */
-        *str_out = Z_STRVAL_P(section);
-        *len_out = Z_STRLEN_P(section);
-        return 1;
-    } else {
-        /* Convert to string */
-        zval temp;
-        ZVAL_COPY(&temp, section);
-        convert_to_string(&temp);
-
-        *str_out    = Z_STRVAL(temp);
-        *len_out    = Z_STRLEN(temp);
-        *needs_free = 1; /* Caller needs to call zval_dtor on temp */
-        return 1;
-    }
-}
 
 /* Helper function to process INFO command sections into argument arrays */
 static int process_info_sections(
@@ -1091,24 +1066,14 @@ static int process_info_sections(
 
     /* Process each section argument */
     for (int i = 0; i < count; i++) {
-        zval*  section = &args[start_idx + i];
-        char*  str;
-        size_t len;
-        int    needs_free;
+        zval* section = &args[start_idx + i];
 
-        if (convert_zval_to_string_arg(section, &str, &len, &needs_free)) {
-            (*cmd_args)[i]     = (uintptr_t) str;
-            (*cmd_args_len)[i] = len;
-            printf("str = %s\n", str);
-            /* Note: We're not handling the needs_free case here because
-             * the temporary zval cleanup is complex. The original code
-             * had the same issue. This could be improved in a future refactor. */
-        } else {
-            /* Cleanup on failure */
-            efree(*cmd_args);
-            efree(*cmd_args_len);
-            return -1;
-        }
+        zend_string* sec   = zval_get_string((zval*) section);
+        char*        str   = estrndup(ZSTR_VAL(sec), ZSTR_LEN(sec));
+        size_t       len   = ZSTR_LEN(sec);
+        (*cmd_args)[i]     = (uintptr_t) str;
+        (*cmd_args_len)[i] = len;
+        zend_string_release(sec);
     }
 
     return count;
@@ -1119,7 +1084,7 @@ int process_info_result(CommandResponse* response, void* output, zval* return_va
     if (!response) {
         return 0;
     }
-    printf("Processing INFO response of type %d\n", response->response_type);
+
     if (response->response_type == String) {
         /* Single node response - parse INFO string into associative array */
         valkey_glide_parse_info_response(response->string_value, return_value);
@@ -1159,7 +1124,6 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
     unsigned long*       cmd_args_len = NULL;
 
     zend_bool is_cluster = (ce == get_valkey_glide_cluster_ce());
-    printf("INFO command - is_cluster=%d\n", is_cluster);
 
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
@@ -1241,7 +1205,6 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
 
         /* Process sections (if any) using helper function */
         int section_count = args_count - 1; /* Subtract 1 for route parameter */
-        printf("args_count = %d\n", args_count);
         int processed_args =
             process_info_sections(args, 1, section_count, &cmd_args, &cmd_args_len);
 
@@ -1265,8 +1228,6 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
             efree(cmd_args_len);
 
     } else {
-        printf("INFO command - non-cluster case\n");
-
         /* Process sections using helper function */
         int processed_args = process_info_sections(args, 0, args_count, &cmd_args, &cmd_args_len);
 
@@ -1275,7 +1236,6 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
             return 0;
         }
 
-        printf("INFO command - executing with %d sections\n", processed_args);
         /* Execute the command */
         cmd_result = execute_command(
             valkey_glide->glide_client, Info, processed_args, cmd_args, cmd_args_len);
@@ -1287,10 +1247,8 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
             efree(cmd_args_len);
     }
 
-    printf("INFO command - command executed, processing result\n");
     /* Process the result */
     if (cmd_result && cmd_result->response != NULL) {
-        printf("INFO command - processing result\n");
         process_info_result(cmd_result->response, NULL, return_value);
         free_command_result(cmd_result);
         return 1;

@@ -2539,21 +2539,20 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testInfoCommandStats()
     {
+        
         // INFO COMMANDSTATS is new in 2.6.0
         if (version_compare($this->version, '2.5.0') < 0) {
             $this->markTestSkipped();
         }
 
         $info = $this->valkey_glide->info('COMMANDSTATS');
-
-
         if (! $this->assertIsArray($info)) {
             return;
         }
 
         foreach ($info as $k => $value) {
             if (! is_string($k)) {
-                self::$errors [] = $this->assertionTrace("'%s' is not a string", $this->printArg($haystack));
+                self::$errors [] = $this->assertionTrace("'%s' is not a string", $this->printArg($k));
                 return false;
             }
             $this->assertStringContains('cmdstat_', $k);
@@ -4491,7 +4490,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         /* CLIENT LIST */
         $clients = $this->valkey_glide->client('list');
-      //  var_dump($clients);
         $this->assertIsArray($clients);
 
         // Figure out which ip:port is us!
