@@ -1152,27 +1152,11 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
             return 0;
         }
 
-        /* Convert uintptr_t* to uint8_t** for buffer_command_for_batch */
-        uint8_t** batch_args = NULL;
-        if (processed_args > 0) {
-            batch_args = (uint8_t**) emalloc(processed_args * sizeof(uint8_t*));
-            if (!batch_args) {
-                if (cmd_args)
-                    efree(cmd_args);
-                if (cmd_args_len)
-                    efree(cmd_args_len);
-                return 0;
-            }
-
-            for (int i = 0; i < processed_args; i++) {
-                batch_args[i] = (uint8_t*) cmd_args[i];
-            }
-        }
 
         /* Buffer the command for batch execution */
         int buffer_result = buffer_command_for_batch(valkey_glide,
                                                      Info,
-                                                     batch_args,
+                                                     cmd_args,
                                                      cmd_args_len,
                                                      processed_args,
                                                      NULL, /* key */
@@ -1181,8 +1165,7 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
                                                      process_info_result);
 
         /* Free the argument arrays */
-        if (batch_args)
-            efree(batch_args);
+
         if (cmd_args)
             efree(cmd_args);
         if (cmd_args_len)

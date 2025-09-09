@@ -1068,7 +1068,6 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testConfigOperationsBatch()
     {
-        $this->markTestSkipped();//TODO
         // Execute CONFIG GET, CONFIG SET, CONFIG RESETSTAT in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->config('get', 'maxmemory')

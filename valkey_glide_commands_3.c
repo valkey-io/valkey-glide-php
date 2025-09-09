@@ -1197,13 +1197,37 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
     return 0;
 }
 
+static int process_config_command_respose(CommandResponse* response,
+                                          void*            output,
+                                          zval*            return_value) {
+    int              status       = 0;
+    enum RequestType command_type = *(enum RequestType*) output;
+    if (command_type == ConfigGet) {
+        /* CONFIG GET returns a Map - convert to associative array */
+        status = command_response_to_zval(
+            response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
+    } else {
+        /* CONFIG SET/RESETSTAT/REWRITE return OK */
+        if (response->response_type == Ok) {
+            ZVAL_TRUE(return_value);
+            status = 1;
+        } else {
+            ZVAL_FALSE(return_value);
+            status = 0;
+        }
+    }
+    return status;
+}
+
+
 /* Execute a CONFIG command using the Valkey Glide client */
 int execute_config_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                operation = NULL;
     size_t               operation_len;
     zval *               key = NULL, *value = NULL;
-
+    /* Handle the result */
+    int status = 0;
     /* Parse parameters */
     if (zend_parse_method_parameters(
             argc, object, "Os|z!z!", &object, ce, &operation, &operation_len, &key, &value) ==
@@ -1380,56 +1404,49 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
             return 0;
         }
 
-        /* Execute the command */
-        CommandResult* result =
-            execute_command(valkey_glide->glide_client, command_type, arg_count, args, args_len);
-
-        /* Free temporary strings */
-        if (temp_strings) {
-            for (int i = 0; i < temp_string_count; i++) {
-                if (temp_strings[i])
-                    efree(temp_strings[i]);
+        if (valkey_glide->is_in_batch_mode) {
+            enum RequestType* output = emalloc(sizeof(enum RequestType));
+            *output                  = command_type;
+            /* In batch mode, buffer the command and return $this for method chaining */
+            if (buffer_command_for_batch(valkey_glide,
+                                         command_type,
+                                         args,
+                                         args_len,
+                                         arg_count,
+                                         NULL,
+                                         0,
+                                         output,
+                                         process_config_command_respose)) {
+                /* Return $this */
+                ZVAL_COPY(return_value, object);
+                status = 1;
+                goto cleanup;
+            } else {
+                php_error_docref(
+                    NULL, E_WARNING, "Command buffer full, cannot buffer more commands");
+                status = 0;
+                goto cleanup;
             }
-            efree(temp_strings);
-        }
+        } else {
+            /* Execute the command */
+            CommandResult* result = execute_command(
+                valkey_glide->glide_client, command_type, arg_count, args, args_len);
 
-        /* Free the argument arrays */
-        if (args)
-            efree(args);
-        if (args_len)
-            efree(args_len);
-
-        /* Handle the result */
-        int status = 0;
-        if (result) {
-            if (result->command_error) {
-                /* Command failed */
-                free_command_result(result);
-                return 0;
-            }
-
-            if (result->response) {
-                if (command_type == ConfigGet) {
-                    /* CONFIG GET returns a Map - convert to associative array */
-                    status = command_response_to_zval(result->response,
-                                                      return_value,
-                                                      COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP,
-                                                      false);
-                } else {
-                    /* CONFIG SET/RESETSTAT/REWRITE return OK */
-                    if (result->response->response_type == Ok) {
-                        ZVAL_TRUE(return_value);
-                        status = 1;
-                    } else {
-                        ZVAL_FALSE(return_value);
-                        status = 0;
-                    }
+            if (result) {
+                if (result->command_error) {
+                    /* Command failed */
+                    free_command_result(result);
+                    return 0;
                 }
+
+                if (result->response) {
+                    status = process_config_command_respose(
+                        result->response, &command_type, return_value);
+                }
+                free_command_result(result);
             }
-            free_command_result(result);
         }
 
-        return status;
 
     cleanup:
         /* Cleanup on error */
@@ -1446,7 +1463,7 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
             efree(args_len);
     }
 
-    return 0;
+    return status;
 }
 
 
@@ -1530,7 +1547,8 @@ int execute_client_command_internal(
         }
 
         if (result->response) {
-            /* Special handling for CLIENT LIST - convert string to array of associative arrays */
+            /* Special handling for CLIENT LIST - convert string to array of associative arrays
+             */
             if (command_type == ClientList && result->response->response_type == String) {
                 status = parse_client_list_response(result->response->string_value,
                                                     result->response->string_value_len,
@@ -1717,7 +1735,8 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
                     batch_args[i - 1]  = (uint8_t*) Z_STRVAL(temp);
                     arg_lengths[i - 1] = Z_STRLEN(temp);
 
-                    /* Note: We're not freeing temp here as batch_args points to its string data */
+                    /* Note: We're not freeing temp here as batch_args points to its string data
+                     */
                 }
             }
         }
