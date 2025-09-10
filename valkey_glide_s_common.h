@@ -94,7 +94,8 @@ typedef struct _s_command_args_t {
     int  has_limit; /* Whether limit is specified */
 
     /* Scan-specific parameters */
-    char** cursor; /* Cursor pointer for scan operations */
+    char** cursor;    /* Cursor pointer for scan operations */
+    zval*  scan_iter; /* Iterator for scan operations */
 
     const char* pattern;     /* MATCH pattern */
     size_t      pattern_len; /* Pattern length */
@@ -107,6 +108,8 @@ typedef struct _s_command_args_t {
     int*    output_int;        /* For boolean outputs */
     char**  output_string;     /* For string outputs */
     size_t* output_string_len; /* For string output length */
+
+
 } s_command_args_t;
 
 /**
@@ -157,15 +160,6 @@ int prepare_s_two_key_member_args(s_command_args_t* args,
                                   unsigned long**   args_len_out);
 int prepare_s_scan_args(s_command_args_t* args, uintptr_t** args_out, unsigned long** args_len_out);
 
-/* Response processing functions */
-int process_s_int_response(CommandResult* result, s_command_args_t* args, zval* return_value);
-int process_s_bool_response(CommandResult* result, s_command_args_t* args, zval* return_value);
-int process_s_set_response(CommandResult* result, s_command_args_t* args, zval* return_value);
-int process_s_mixed_response(CommandResult* result, s_command_args_t* args, zval* return_value);
-int process_s_scan_response(CommandResult*    result,
-                            enum RequestType  cmd_type,
-                            s_command_args_t* args,
-                            zval*             return_value);
 
 /* Utility functions */
 int  allocate_s_command_args(int count, uintptr_t** args_out, unsigned long** args_len_out);
@@ -207,6 +201,7 @@ int execute_gen_scan_command_internal(valkey_glide_object* valkey_glide,
                                       const char*          pattern,
                                       size_t               pattern_len,
                                       long                 count,
+                                      zval*                scan_iter,
                                       zval*                return_value);
 
 /* Generic scan command wrapper for HSCAN, ZSCAN, SSCAN */

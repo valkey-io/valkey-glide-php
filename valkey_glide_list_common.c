@@ -296,8 +296,7 @@ int execute_list_generic_command(valkey_glide_object* valkey_glide,
                                           (uint8_t**) cmd_args,
                                           (uintptr_t*) args_len,
                                           arg_count,
-                                          args->key,
-                                          args->key_len,
+
                                           result_ptr,
                                           process_result);
 

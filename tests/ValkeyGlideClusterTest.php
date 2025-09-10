@@ -356,7 +356,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $allNodesInfo = $this->valkey_glide->info("allNodes", "cpu");
         // Should return an array
         $this->assertIsArray($allNodesInfo, 12);
-        var_dump($allNodesInfo);
         // Should have 6 entries (one per node)
         $this->assertEquals(12, count($allNodesInfo), "Should have 6 node entries");
 
@@ -422,7 +421,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         /* Scan the keys here using ClusterScanCursor - create new cursor each iteration */
         $cursor = new ClusterScanCursor(); // Create fresh cursor each time
         while (true) {
-            $keys = $this->valkey_glide->scan($cursor);
+            $keys = $this->valkey_glide->scan($cursor);            
             if ($keys) {
                 $scan_count += count($keys);
             }
@@ -563,7 +562,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     /* INFO COMMANDSTATS requires a key or ip:port for node direction */
     public function testInfoCommandStats()
     {
-        $info = $this->valkey_glide->info(uniqid(), "COMMANDSTATS");
+        $info = $this->valkey_glide->info("3", "COMMANDSTATS");
 
         $this->assertIsArray($info);
         if (is_array($info)) {

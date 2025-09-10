@@ -510,8 +510,7 @@ int execute_object_command_impl(valkey_glide_object* valkey_glide,
                                               (uint8_t**) args,
                                               (uintptr_t*) args_len,
                                               1,
-                                              key,
-                                              key_len,
+
                                               subcommand_copy,
                                               process_object_result);
 

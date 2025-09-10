@@ -43,8 +43,7 @@ extern int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                                     uint8_t**            args,
                                     uintptr_t*           arg_lengths,
                                     uintptr_t            arg_count,
-                                    const char*          key,
-                                    size_t               key_len,
+
                                     void*                result_ptr,
                                     z_result_processor_t process_result);
 
@@ -1159,8 +1158,7 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
                                                      cmd_args,
                                                      cmd_args_len,
                                                      processed_args,
-                                                     NULL, /* key */
-                                                     0,    /* key_len */
+
                                                      NULL, /* result_ptr */
                                                      process_info_result);
 

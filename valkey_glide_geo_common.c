@@ -858,8 +858,7 @@ int execute_geo_generic_command(valkey_glide_object*   valkey_glide,
                                               (uint8_t**) arg_values,
                                               (uintptr_t*) arg_lens,
                                               arg_count,
-                                              args->key,
-                                              args->key_len,
+
                                               result_ptr,
                                               (z_result_processor_t) process_result);
 

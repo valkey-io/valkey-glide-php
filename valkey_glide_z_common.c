@@ -609,8 +609,7 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
                                               arg_values,
                                               arg_lens,
                                               arg_count,
-                                              args->key,
-                                              args->key_len,
+
                                               result_ptr,
                                               process_result);
 

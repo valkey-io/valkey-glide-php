@@ -504,120 +504,43 @@ int process_s_mixed_result_async(CommandResponse* response, void* output, zval* 
 /**
  * Batch-compatible async result processor for scan responses
  */
+
+typedef struct {
+    enum RequestType cmd_type;
+    char*            cursor;
+    zval*            scan_iter;
+} scan_data_t;
 int process_s_scan_result_async(CommandResponse* response, void* output, zval* return_value) {
+    scan_data_t* args   = (scan_data_t*) output;
+    int          status = 0;
+
+
     if (!response) {
+        if (args->scan_iter) {
+            ZVAL_STRING(args->scan_iter, "0");
+            efree(args->cursor);
+        } else {
+            args->cursor = "0";
+        }
+        efree(args);
         array_init(return_value);
         return 0;
     }
 
-    /* For batch mode, we can't update cursor state, so just return the elements array */
-    if (response->response_type == Array && response->array_value_len >= 2) {
-        CommandResponse* elements_resp = &response->array_value[1];
-        return command_response_to_zval(
-            elements_resp, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-    }
-
-    array_init(return_value);
-    return 0;
-}
-
-/**
- * Process integer response
- */
-int process_s_int_response(CommandResult* result, s_command_args_t* args, zval* return_value) {
-    if (result && result->response && !result->command_error) {
-        if (result->response->response_type == Int) {
-            if (args->output_long) {
-                *args->output_long = result->response->int_value;
-                return 1;
-            }
-            if (return_value) {
-                ZVAL_LONG(return_value, result->response->int_value);
-                return 1;
-            }
+    if (response->response_type != Array || response->array_value_len < 2) {
+        if (args->scan_iter) {
+            ZVAL_STRING(args->scan_iter, "0");
+            efree(args->cursor);
+        } else {
+            args->cursor = "0";
         }
-    }
-    return 0;
-}
-
-/**
- * Process boolean response
- */
-int process_s_bool_response(CommandResult* result, s_command_args_t* args, zval* return_value) {
-    if (result && result->response && !result->command_error) {
-        if (result->response->response_type == Bool) {
-            int bool_val = result->response->bool_value ? 1 : 0;
-            if (args->output_int) {
-                *args->output_int = bool_val;
-                return 1;
-            }
-            if (return_value) {
-                ZVAL_BOOL(return_value, bool_val);
-                return 1;
-            }
-        }
-    }
-    return 0;
-}
-
-/**
- * Process set/array response
- */
-int process_s_set_response(CommandResult* result, s_command_args_t* args, zval* return_value) {
-    if (!result || !return_value) {
-        return 0;
-    }
-
-    /* Check if there was an error */
-    if (result->command_error) {
-        return 0;
-    }
-
-    /* Process the result */
-    if (result->response) {
-        if (result->response->response_type == Null) {
-            ZVAL_NULL(return_value);
-            return 0;
-        } else if (result->response->response_type == Sets) {
-            return command_response_to_zval(
-                result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-        }
-    }
-
-    return 0;
-}
-
-/**
- * Process mixed response (string or array)
- */
-int process_s_mixed_response(CommandResult* result, s_command_args_t* args, zval* return_value) {
-    if (result && result->response && !result->command_error && return_value) {
-        return command_response_to_zval(
-            result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-    }
-    return 0;
-}
-
-
-/**
- * Process scan response (cursor + array) - Updated for string cursors
- * Refactored to use command_response_to_zval utility for better robustness
- */
-int process_s_scan_response(CommandResult*    result,
-                            enum RequestType  cmd_type,
-                            s_command_args_t* args,
-                            zval*             return_value) {
-    if (!result || !result->response || result->command_error || !return_value || !args->cursor) {
-        return 0;
-    }
-
-    /* Validate response structure: should be Array with at least 2 elements [cursor, elements] */
-    if (result->response->response_type != Array || result->response->array_value_len < 2) {
+        array_init(return_value);
+        efree(args);
         return 0;
     }
 
     /* Extract cursor from first element */
-    CommandResponse* cursor_resp    = &result->response->array_value[0];
+    CommandResponse* cursor_resp    = &response->array_value[0];
     const char*      new_cursor_str = NULL;
     if (cursor_resp->response_type == String) {
         new_cursor_str = cursor_resp->string_value;
@@ -626,60 +549,98 @@ int process_s_scan_response(CommandResult*    result,
         fprintf(stderr,
                 "[SCAN_DEBUG] process_s_scan_response: Unexpected cursor type %d\n",
                 cursor_resp->response_type);
+        if (args->scan_iter) {
+            ZVAL_STRING(args->scan_iter, "0");
+            efree(args->cursor);
+        } else {
+            args->cursor = "0";
+        }
+        array_init(return_value);
+        efree(args);
         return 0;
     }
 
     /* Extract elements from second element */
-    CommandResponse* elements_resp = &result->response->array_value[1];
+    CommandResponse* elements_resp = &response->array_value[1];
     if (elements_resp->response_type != Array) {
+        array_init(return_value);
+        if (args->scan_iter) {
+            ZVAL_STRING(args->scan_iter, "0");
+            efree(args->cursor);
+        } else {
+            args->cursor = "0";
+        }
+        efree(args);
         return 0;
     }
-
     /* Handle scan completion: when server returns cursor="0", scan is complete */
     if (cursor_resp->string_value_len == 1 && cursor_resp->string_value[0] == '0') {
         /* Free old cursor and keep it as "0" to indicate completion */
-        if (*args->cursor) {
-            efree(*args->cursor);
+        if (args->cursor) {
+            efree(args->cursor);
         }
-        *args->cursor = emalloc(2);
-        strcpy(*args->cursor, "0");
+        args->cursor = emalloc(2);
+        strcpy(args->cursor, "0");
 
 
         /* If there are elements in this final batch, return them using robust conversion */
         if (elements_resp->array_value_len > 0) {
-            return command_response_to_zval(elements_resp,
-                                            return_value,
-                                            (cmd_type == HScan || cmd_type == ZScan)
-                                                ? COMMAND_RESPONSE_SCAN_ASSOSIATIVE_ARRAY
-                                                : COMMAND_RESPONSE_NOT_ASSOSIATIVE,
-                                            false);
+            status = command_response_to_zval(elements_resp,
+                                              return_value,
+                                              (args->cmd_type == HScan || args->cmd_type == ZScan)
+                                                  ? COMMAND_RESPONSE_SCAN_ASSOSIATIVE_ARRAY
+                                                  : COMMAND_RESPONSE_NOT_ASSOSIATIVE,
+                                              false);
+            if (args->scan_iter) {
+                ZVAL_STRING(args->scan_iter, args->cursor);
+                efree(args->cursor);
+            }
+            efree(args);
+
+            return status;
+
         } else {
             /* No elements in final batch - return FALSE to terminate loop */
             array_init(return_value);
+            if (args->scan_iter) {
+                ZVAL_STRING(args->scan_iter, "0");
+                efree(args->cursor);
+            } else {
+                args->cursor = "0";
+            }
+            efree(args);
             return 1;
         }
     }
 
     /* Normal case: cursor != "0", update cursor string and return elements array */
-    if (*args->cursor) {
-        efree(*args->cursor);
+    if (args->cursor) {
+        efree(args->cursor);
     }
 
     /* Use length-controlled string copying to prevent reading beyond string boundary */
     size_t cursor_len = cursor_resp->string_value_len;
-    *args->cursor     = emalloc(cursor_len + 1);
-    memcpy(*args->cursor, new_cursor_str, cursor_len);
-    (*args->cursor)[cursor_len] = '\0';
+    args->cursor      = emalloc(cursor_len + 1);
+    memcpy(args->cursor, new_cursor_str, cursor_len);
+    (args->cursor)[cursor_len] = '\0';
 
 
     /* Use command_response_to_zval for robust element processing */
-    return command_response_to_zval(elements_resp,
-                                    return_value,
-                                    (cmd_type == HScan || cmd_type == ZScan)
-                                        ? COMMAND_RESPONSE_SCAN_ASSOSIATIVE_ARRAY
-                                        : COMMAND_RESPONSE_NOT_ASSOSIATIVE,
-                                    false);
+    status = command_response_to_zval(elements_resp,
+                                      return_value,
+                                      (args->cmd_type == HScan || args->cmd_type == ZScan)
+                                          ? COMMAND_RESPONSE_SCAN_ASSOSIATIVE_ARRAY
+                                          : COMMAND_RESPONSE_NOT_ASSOSIATIVE,
+                                      false);
+    if (args->scan_iter) {
+        ZVAL_STRING(args->scan_iter, args->cursor);
+        efree(args->cursor);
+    }
+
+    efree(args);
+    return status;
 }
+
 
 /* ====================================================================
  * CORE EXECUTION FRAMEWORK
@@ -742,77 +703,61 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
     if (arg_count <= 0 || !cmd_args || !args_len) {
         goto cleanup;
     }
+    scan_data_t*         scan_data      = NULL;
+    z_result_processor_t process_result = NULL;
+    switch (response_type) {
+        case S_RESPONSE_INT:
+            process_result = process_s_int_result_async;
+            break;
+        case S_RESPONSE_BOOL:
+            process_result = process_s_bool_result_async;
+            break;
+        case S_RESPONSE_SET:
+            process_result = process_s_set_result_async;
+            break;
+        case S_RESPONSE_MIXED:
+            process_result = process_s_mixed_result_async;
+            break;
+        case S_RESPONSE_SCAN:
+            process_result = process_s_scan_result_async;
+
+            scan_data            = emalloc(sizeof(scan_data_t));
+            scan_data->cmd_type  = cmd_type;
+            scan_data->cursor    = *args->cursor;
+            scan_data->scan_iter = args->scan_iter;
+
+            break;
+        default:
+            process_result = process_s_mixed_result_async;
+            break;
+    }
+
 
     /* Check for batch mode */
     if (valkey_glide && valkey_glide->is_in_batch_mode) {
-        /* Select appropriate async result processor */
-        z_result_processor_t process_result = NULL;
-        switch (response_type) {
-            case S_RESPONSE_INT:
-                process_result = process_s_int_result_async;
-                break;
-            case S_RESPONSE_BOOL:
-                process_result = process_s_bool_result_async;
-                break;
-            case S_RESPONSE_SET:
-                process_result = process_s_set_result_async;
-                break;
-            case S_RESPONSE_MIXED:
-                process_result = process_s_mixed_result_async;
-                break;
-            case S_RESPONSE_SCAN:
-                process_result = process_s_scan_result_async;
-                break;
-            default:
-                process_result = process_s_mixed_result_async;
-                break;
-        }
-
         /* Buffer command for batch execution */
         status = buffer_command_for_batch(valkey_glide,
                                           cmd_type,
                                           (uint8_t**) cmd_args,
                                           (uintptr_t*) args_len,
                                           arg_count,
-                                          args->key,
-                                          args->key_len,
-                                          NULL,
+                                          scan_data,
                                           process_result);
+
 
         goto cleanup;
     }
 
     /* Execute the command synchronously */
     result = execute_command(valkey_glide->glide_client, cmd_type, arg_count, cmd_args, args_len);
-
-    /* Process response based on type */
     if (result) {
-        switch (response_type) {
-            case S_RESPONSE_INT:
-                status = process_s_int_response(result, args, return_value);
-                break;
-            case S_RESPONSE_BOOL:
-                status = process_s_bool_response(result, args, return_value);
-                break;
-            case S_RESPONSE_SET:
-                status = process_s_set_response(result, args, return_value);
-                break;
-            case S_RESPONSE_MIXED:
-                status = process_s_mixed_response(result, args, return_value);
-                break;
-
-            case S_RESPONSE_SCAN:
-                status = process_s_scan_response(result, cmd_type, args, return_value);
-                break;
-            default:
-                status = 0;
-                break;
-        }
-
-        free_command_result(result);
+        status = process_result(result->response, scan_data, return_value);
     }
+    free_command_result(result);
+
 
 cleanup:
+
     /* Clean up allocated strings for specific categories */
     if (cmd_args && args_len) {
         if (category == S_CMD_KEY_COUNT && args->has_count && arg_count > 1) {
@@ -2135,13 +2080,15 @@ int execute_cluster_scan_command(const void* glide_client,
 
     if (result) {
         /* Create temporary args structure for response processing */
-        s_command_args_t scan_args;
-        INIT_S_COMMAND_ARGS(scan_args);
-        scan_args.cursor = cursor;
+        scan_data_t* scan_args = emalloc(sizeof(scan_data_t));
+        scan_args->cursor      = *cursor;
+        scan_args->cmd_type    = Scan;
+        scan_args->scan_iter   = NULL;
 
         /* Process scan response */
-        success = process_s_scan_response(result, Scan, &scan_args, return_value);
+        success = process_s_scan_result_async(result->response, scan_args, return_value);
         /* Convert legacy "finished" cursor to "0" for backward compatibility */
+        *cursor = scan_args->cursor;
         if (*cursor && strcmp(*cursor, "finished") == 0) {
             efree(*cursor);
             *cursor = estrdup("0");
@@ -2330,6 +2277,8 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
         args.type         = has_type ? type : NULL;
         args.type_len     = has_type ? type_len : 0;
         args.has_type     = has_type;
+        args.scan_iter    = z_iter;
+
 
         /* Execute the SCAN command using the S-command framework */
         if (execute_s_generic_command(
@@ -2338,13 +2287,10 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
                 ZVAL_COPY(return_value, object);
             }
             /* Update iterator value */
-            ZVAL_STRING(z_iter, cursor_ptr);
-            efree(cursor_ptr);
             return 1;
         }
 
-        /* Clean up on failure */
-        efree(cursor_ptr);
+
         return 0;
     }
 }
@@ -2368,6 +2314,7 @@ int execute_gen_scan_command_internal(valkey_glide_object* valkey_glide,
                                       const char*          pattern,
                                       size_t               pattern_len,
                                       long                 count,
+                                      zval*                scan_iter,
                                       zval*                return_value) {
     s_command_args_t args;
     INIT_S_COMMAND_ARGS(args);
@@ -2380,6 +2327,7 @@ int execute_gen_scan_command_internal(valkey_glide_object* valkey_glide,
     args.pattern_len  = pattern_len;
     args.count        = count;
     args.has_count    = (count > 0);
+    args.scan_iter    = scan_iter;
 
     int result = execute_s_generic_command(
         valkey_glide, cmd_type, S_CMD_SCAN, S_RESPONSE_SCAN, &args, return_value);
@@ -2465,18 +2413,16 @@ int execute_scan_command_generic(
                                           scan_pattern,
                                           scan_pattern_len,
                                           scan_count,
+                                          z_iter,
                                           return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
         }
-        /* Update iterator value */
-        ZVAL_STRING(z_iter, cursor_ptr);
-        efree(cursor_ptr);
+
         return 1;
     }
 
     /* Clean up on failure */
-    efree(cursor_ptr);
     return 0;
 }
 

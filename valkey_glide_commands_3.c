@@ -169,8 +169,6 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                              uint8_t**            args,
                              uintptr_t*           arg_lengths,
                              uintptr_t            arg_count,
-                             const char*          key,
-                             size_t               key_len,
                              void*                result_ptr,
                              z_result_processor_t process_result) {
     if (!valkey_glide || !valkey_glide->is_in_batch_mode) {
@@ -1413,8 +1411,7 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
                                          args,
                                          args_len,
                                          arg_count,
-                                         NULL,
-                                         0,
+
                                          output,
                                          process_config_command_respose)) {
                 /* Return $this */
@@ -1748,9 +1745,8 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
                                                      batch_args,
                                                      arg_lengths,
                                                      arg_count - 1, /* number of args */
-                                                     NULL,          /* key */
-                                                     0,             /* key_len */
-                                                     output,        /* result_ptr */
+
+                                                     output, /* result_ptr */
                                                      command_response_to_zval_wrapper);
 
         /* Free the argument arrays */
