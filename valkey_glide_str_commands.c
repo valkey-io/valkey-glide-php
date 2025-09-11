@@ -178,7 +178,8 @@ static void build_sort_args(const char*     key,
                             zend_bool*      desc_out,
                             uintptr_t**     args_ptr,
                             unsigned long** args_len_ptr,
-                            unsigned long*  arg_count_ptr) {
+                            unsigned long*  arg_count_ptr,
+                            bool*           is_store_out) {
     zend_bool alpha = 0, desc = 0, explicit_asc = 0;
 
     /* Parse sort options from the pattern array first */
@@ -398,6 +399,7 @@ static void build_sort_args(const char*     key,
                 args[arg_idx]     = (uintptr_t) "STORE";
                 args_len[arg_idx] = 5;
                 arg_idx++;
+                *is_store_out = true;
 
                 /* Add STORE destination key */
                 args[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_ele);
@@ -456,6 +458,38 @@ static void free_sort_args(uintptr_t* args, unsigned long* args_len, unsigned lo
     }
 }
 
+int process_sort_result(CommandResponse* response, void* output, zval* return_value) {
+    int   ret_val  = 0;
+    bool* is_store = (bool*) output;
+
+    ret_val =
+        command_response_to_zval(response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+#if 0
+
+    if (*is_store) {
+        /* With STORE option, we get the number of stored elements */
+        long result_value = 0;
+        if (handle_int_response(cmd_result, &result_value)) {
+            ZVAL_LONG(return_value, result_value);
+            free_command_result(cmd_result);
+            return 1;
+        }
+        free_command_result(cmd_result);
+        return 0;
+    }
+    if (response->response_type == Array) {
+        array_init(return_value);
+        ret_val = command_response_to_zval(
+            response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+    } else if (response->response_type == Null) {
+        /* Empty array */
+        array_init(return_value);
+        ret_val = 1;
+    }
+#endif
+    return ret_val;
+}
+
 /* Execute a SORT command using the Valkey Glide client */
 int execute_sort_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -479,7 +513,9 @@ int execute_sort_command(zval* object, int argc, zval* return_value, zend_class_
         uintptr_t*     args      = NULL;
         unsigned long* args_len  = NULL;
         unsigned long  arg_count = 0;
-        build_sort_args(key, key_len, z_opts, &alpha, &desc, &args, &args_len, &arg_count);
+        bool           is_store  = false;
+        build_sort_args(
+            key, key_len, z_opts, &alpha, &desc, &args, &args_len, &arg_count, &is_store);
 
         if (!args || !args_len || arg_count == 0) {
             if (args)
@@ -511,31 +547,9 @@ int execute_sort_command(zval* object, int argc, zval* return_value, zend_class_
         int ret_val = 0;
 
         /* Check for STORE option */
-        if (z_opts && Z_TYPE_P(z_opts) == IS_ARRAY) {
-            zval* z_store = zend_hash_str_find(Z_ARRVAL_P(z_opts), "store", sizeof("store") - 1);
-            if (z_store && Z_TYPE_P(z_store) == IS_STRING) {
-                /* With STORE option, we get the number of stored elements */
-                long result_value = 0;
-                if (handle_int_response(cmd_result, &result_value)) {
-                    ZVAL_LONG(return_value, result_value);
-                    free_command_result(cmd_result);
-                    return 1;
-                }
-                free_command_result(cmd_result);
-                return 0;
-            }
-        }
 
-        /* Without STORE option, we get an array of sorted values */
-        if (cmd_result->response->response_type == Array) {
-            array_init(return_value);
-            ret_val = command_response_to_zval(
-                cmd_result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-        } else if (cmd_result->response->response_type == Null) {
-            /* Empty array */
-            array_init(return_value);
-            ret_val = 1;
-        }
+
+        ret_val = process_sort_result(cmd_result->response, &is_store, return_value);
 
         free_command_result(cmd_result);
         return ret_val;
@@ -568,7 +582,9 @@ int execute_sort_ro_command(zval* object, int argc, zval* return_value, zend_cla
         uintptr_t*     args      = NULL;
         unsigned long* args_len  = NULL;
         unsigned long  arg_count = 0;
-        build_sort_args(key, key_len, z_opts, &alpha, &desc, &args, &args_len, &arg_count);
+        bool           is_store  = false;
+        build_sort_args(
+            key, key_len, z_opts, &alpha, &desc, &args, &args_len, &arg_count, &is_store);
 
         if (!args || !args_len || arg_count == 0) {
             if (args)
@@ -598,17 +614,7 @@ int execute_sort_ro_command(zval* object, int argc, zval* return_value, zend_cla
 
         /* Process the result */
         int ret_val = 0;
-
-        /* SORT_RO doesn't support STORE option, so we always get an array of values */
-        if (cmd_result->response->response_type == Array) {
-            array_init(return_value);
-            ret_val = command_response_to_zval(
-                cmd_result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-        } else if (cmd_result->response->response_type == Null) {
-            /* Empty array */
-            array_init(return_value);
-            ret_val = 1;
-        }
+        ret_val     = process_sort_result(cmd_result->response, NULL, return_value);
 
         free_command_result(cmd_result);
         return ret_val;

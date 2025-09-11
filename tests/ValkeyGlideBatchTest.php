@@ -1299,7 +1299,6 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortOperationsBatch()
     {
-        $this->markTestSkipped();//TODO
         $key1 = 'batch_sort_list_' . uniqid();
         $key2 = 'batch_sort_store_' . uniqid();
 
