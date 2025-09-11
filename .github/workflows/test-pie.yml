@@ -20,16 +20,11 @@ jobs:
         uses: ./.github/workflows/create-test-matrices
         with:
           language-name: php
-          # Run full test matrix if job started by cron or it was explicitly
-          # specified by a person who triggered the workflow
-          run-full-matrix: >-
-            ${{ github.event.inputs.full-matrix == 'true' ||
-                github.event_name == 'schedule' }}
+          # Run full test matrix if job started by cron or it was explicitly specified by a person who triggered the workflow
+          run-full-matrix: ${{ github.event.inputs.full-matrix == 'true' || github.event_name == 'schedule' }}
 
   test-php:
-    name: >-
-      PHP Tests - ${{ matrix.php }}, EngineVersion - ${{ matrix.engine.version }},
-      Target - ${{ matrix.host.TARGET }}
+    name: PHP Tests - ${{ matrix.php }}, EngineVersion - ${{ matrix.engine.version }}, Target - ${{ matrix.host.TARGET }}
     needs: get-matrices
     timeout-minutes: 35
     strategy:
@@ -51,9 +46,7 @@ jobs:
           echo "${{ toJson(matrix) }}"
 
   test-pie-install:
-    name: >-
-      PHP Tests - ${{ matrix.php }}, EngineVersion - ${{ matrix.engine.version }},
-      Target - ${{ matrix.host.TARGET }}
+    name: PHP Tests - ${{ matrix.php }}, EngineVersion - ${{ matrix.engine.version }}, Target - ${{ matrix.host.TARGET }}
     needs: get-matrices
     timeout-minutes: 35
     strategy:
