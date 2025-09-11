@@ -68,7 +68,7 @@ jobs:
         uses: ./.github/workflows/setup-php-extension
         with:
           php-version: ${{ env.BASE_PHP_VERSION }}
-          install-composer-deps: 'true'
+          install-composer-deps: "true"
 
       - name: Create manual Composer repository
         run: |
