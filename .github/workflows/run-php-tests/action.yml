@@ -81,16 +81,7 @@ runs:
         echo "=== Extension Debug Info ==="
         echo "Extension path: $EXTENSION_PATH"
 
-        # Use proper syntax for absolute path vs extension name
-        if [[ "$EXTENSION_PATH" == /* ]] || [[ "$EXTENSION_PATH" == */* ]]; then
-          # Absolute or relative path - load directly
-          LOAD_CMD="php -n -d extension=\"$EXTENSION_PATH\""
-        else
-          # Extension name only
-          LOAD_CMD="php -n -d extension=\"$EXTENSION_PATH\""
-        fi
-
-        eval "$LOAD_CMD" -r "
+        php -n -d "extension=$EXTENSION_PATH" -r "
           echo 'Extension loaded: ' . (extension_loaded('valkey_glide') ? 'YES' : 'NO') . PHP_EOL;
           echo 'Extension version: ' . phpversion('valkey_glide') . PHP_EOL;
           echo 'Extension functions: ' . PHP_EOL;
@@ -112,8 +103,8 @@ runs:
           }
         "
 
-        # Run tests using the same loading method
-        eval "$LOAD_CMD" tests/TestValkeyGlide.php
+        # Run tests using extension loading
+        php -n -d "extension=$EXTENSION_PATH" tests/TestValkeyGlide.php
 
     - name: Run integration tests
       shell: bash
