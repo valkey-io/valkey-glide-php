@@ -1308,17 +1308,17 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Execute SORT, SORT_RO, SORT with STORE in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->sort($key1)
-            ->sort_ro($key1, 'DESC')
-            ->sort($key1, 'ASC', 'STORE', $key2)
+            ->sort_ro($key1, ['sort' => 'DESC'])
+            ->sort($key1, ['sort' => 'ASC', 'STORE'=> $key2])
             ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
         $this->assertEquals(['1', '2', '3', '4', '5'], $results[0]); // SORT result
-        $this->assertEquals(['5', '4', '3', '2', '1'], $results[1]); // SORT_RO result
+        $this->assertEquals(['5', '4', '3', '2', '1'], $results[1]); // SORT_RO result   
         $this->assertEquals(5, $results[2]); // SORT with STORE result (count of stored elements)
-
+        
         // Verify server-side effects
         $this->assertEquals(5, $this->valkey_glide->llen($key2)); // Sorted list stored
         $storedList = $this->valkey_glide->lrange($key2, 0, -1);
