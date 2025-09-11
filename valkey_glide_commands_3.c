@@ -22,6 +22,7 @@
 #include "include/glide_bindings.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
+#include "valkey_glide_hash_common.h"
 #include "valkey_glide_z_common.h"
 
 /* Helper functions for batch state management */
@@ -1145,15 +1146,20 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
                 arg_count++;
             }
         }
-
-        /* Execute the command */
-        CommandResult* result = execute_command(valkey_glide->glide_client,
-                                                Restore,   /* command type */
-                                                arg_count, /* number of arguments */
-                                                args,      /* arguments */
-                                                args_len   /* argument lengths */
-        );
-
+        CommandResult* result = NULL;
+        if (valkey_glide->is_in_batch_mode) {
+            /* Create batch-compatible processor wrapper */
+            int res = buffer_command_for_batch(
+                valkey_glide, Restore, args, args_len, arg_count, NULL, process_h_ok_result_batch);
+        } else {
+            /* Execute the command */
+            result = execute_command(valkey_glide->glide_client,
+                                     Restore,   /* command type */
+                                     arg_count, /* number of arguments */
+                                     args,      /* arguments */
+                                     args_len   /* argument lengths */
+            );
+        }
         /* Free any dynamically allocated option values */
         int i;
         for (i = base_arg_count; i < arg_count; i++) {
@@ -1170,25 +1176,21 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
 
         /* Process the result */
         int status = 0;
-        if (result) {
-            if (result->command_error) {
-                /* Command failed */
-                free_command_result(result);
-                return 0;
-            }
-
-            if (result->response) {
-                if (result->response->response_type == Ok) {
-                    ZVAL_TRUE(return_value);
-                    status = 1;
-                } else {
-                    ZVAL_FALSE(return_value);
-                    status = 0;
+        if (valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            ZVAL_COPY(return_value, object);
+            status = 1;
+        } else {
+            if (result) {
+                if (result->command_error) {
+                    /* Command failed */
+                    free_command_result(result);
+                    return 0;
                 }
+                status = process_h_ok_result_batch(result->response, NULL, return_value);
             }
-            free_command_result(result);
         }
-
+        free_command_result(result);
         return status;
     }
 

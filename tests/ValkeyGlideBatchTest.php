@@ -1334,34 +1334,32 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testCopyDumpRestoreBatch()
     {
-        $this->markTestSkipped();//TODO
+        
         $key1 = 'batch_copy_src_' . uniqid();
         $key2 = 'batch_copy_dst_' . uniqid();
         $key3 = 'batch_restore_' . uniqid();
 
         // Setup test data
         $this->valkey_glide->set($key1, 'test_value');
-
+        $res_key1 = $this->valkey_glide->dump($key1);
         // Execute COPY, DUMP, RESTORE in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->copy($key1, $key2)
             ->dump($key1)
-            ->restore($key3, 0, $results[1] ?? '') // Note: This won't work in multi, just for structure
+            ->restore($key3, 0, $res_key1) 
             ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertEquals(1, $results[0]); // COPY result (success)
+        $this->assertTrue($results[0]); // COPY result (success)
         $this->assertIsString($results[1]); // DUMP result (serialized data)
         // RESTORE result depends on having valid dump data
-
+        
         // Verify server-side effects
         $this->assertEquals('test_value', $this->valkey_glide->get($key2)); // Copied value
 
         // Now properly restore using the dump data
-        $dumpData = $this->valkey_glide->dump($key1);
-        $this->assertTrue($this->valkey_glide->restore($key3, 0, $dumpData));
         $this->assertEquals('test_value', $this->valkey_glide->get($key3));
 
         // Cleanup

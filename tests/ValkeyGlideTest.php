@@ -2483,9 +2483,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testInfo()
     {
         $sequence = [false];
-     /*   if ($this->haveMulti()) {
+        if ($this->haveMulti()) {
             $sequence[] = true;
-        }*/
+        }
 
         foreach ($sequence as $boo_multi) {
             if ($boo_multi) {
