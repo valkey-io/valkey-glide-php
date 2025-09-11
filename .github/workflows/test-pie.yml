@@ -1,11 +1,11 @@
 name: Install and test PIE package
 
-on:
-  - push
-  - pull_request
-
 permissions:
   contents: read
+
+on:
+  push: {}
+  pull_request: {}
 
 jobs:
   get-matrices:
