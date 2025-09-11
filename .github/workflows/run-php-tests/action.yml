@@ -74,9 +74,10 @@ runs:
 
     - name: Run PHP extension tests
       shell: bash
+      env:
+        EXTENSION_PATH: ${{ inputs.extension-path }}
       run: |
         # Run tests using extension loading (supports both absolute path and extension name)
-        EXTENSION_PATH="${{ inputs.extension-path }}"
         php -n -d "extension=$EXTENSION_PATH" tests/TestValkeyGlide.php
 
     - name: Run integration tests
