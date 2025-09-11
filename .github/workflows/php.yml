@@ -511,7 +511,7 @@ jobs:
           echo "Test file exists: $(ls -la tests/TestValkeyGlide.php 2>/dev/null || echo 'NOT FOUND')"
           echo "Suppressions file exists: $(ls -la valgrind.supp 2>/dev/null || echo 'NOT FOUND')"
           echo "Valgrind version: $(valgrind --version)"
-                                             
+
           # Step 7: Run Valgrind tests
           echo ""
           echo "=== Step 7: Running Valgrind memory analysis ==="
@@ -542,19 +542,19 @@ jobs:
           if [ -f "./valgrind_logs/valgrind_output.log" ]; then
               LOG_SIZE=$(wc -c < ./valgrind_logs/valgrind_output.log)
               echo "=== Valgrind log file found (${LOG_SIZE} bytes) ==="
-              
+
               # Since we used tee, the output should already be visible above
               # But let's extract key information for summary
               echo ""
               echo "=== Extracting Key Results ==="
-              
+
               # Show test completion status
               if grep -q "All tests passed" ./valgrind_logs/valgrind_output.log; then
                   echo "✅ All tests passed"
               elif grep -q "FAILED" ./valgrind_logs/valgrind_output.log; then
                   echo "❌ Some tests failed"
               fi
-              
+
               # Check for memory leaks
               if grep -q "definitely lost:" ./valgrind_logs/valgrind_output.log; then
                   echo "⚠️  CRITICAL: Definite memory leaks detected"
@@ -562,31 +562,31 @@ jobs:
               else
                   echo "✅ No definite memory leaks detected"
               fi
-              
+
               # Check for possible leaks
               if grep -q "possibly lost:" ./valgrind_logs/valgrind_output.log; then
                   POSSIBLY_LOST=$(grep "possibly lost:" ./valgrind_logs/valgrind_output.log | head -1)
                   echo "⚠️  Possible leaks: $POSSIBLY_LOST"
               fi
-              
+
               # Show leak summary if present
               if grep -q "LEAK SUMMARY:" ./valgrind_logs/valgrind_output.log; then
                   echo ""
                   echo "=== Memory Leak Summary ==="
                   grep -A 6 "LEAK SUMMARY:" ./valgrind_logs/valgrind_output.log | head -7 || true
               fi
-              
+
               # Show error summary
               if grep -q "ERROR SUMMARY:" ./valgrind_logs/valgrind_output.log; then
                   echo ""
                   echo "=== Error Summary ==="
                   grep "ERROR SUMMARY:" ./valgrind_logs/valgrind_output.log || true
               fi
-              
+
               echo ""
               echo "📝 Full Valgrind output was displayed above during test execution"
               echo "📎 Complete log is also saved as artifact for detailed analysis"
-              
+
           else
               echo "❌ No Valgrind output file found"
               echo "This indicates the Valgrind command may have failed to execute properly"

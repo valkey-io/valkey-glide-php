@@ -31,11 +31,12 @@ runs:
     - name: Install system dependencies
       shell: bash
       run: |
+        PHP_VERSION="${{ inputs.php-version }}"
         sudo apt-get update
         sudo apt-get install -y \
-            php${{ inputs.php-version }}-dev \
-            php${{ inputs.php-version }}-curl \
-            php${{ inputs.php-version }}-xml \
+            "php${PHP_VERSION}-dev" \
+            "php${PHP_VERSION}-curl" \
+            "php${PHP_VERSION}-xml" \
             build-essential \
             autoconf \
             automake \

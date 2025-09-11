@@ -76,7 +76,8 @@ runs:
       shell: bash
       run: |
         # Run tests using extension loading (supports both absolute path and extension name)
-        php -n -d extension=${{ inputs.extension-path }} tests/TestValkeyGlide.php
+        EXTENSION_PATH="${{ inputs.extension-path }}"
+        php -n -d "extension=$EXTENSION_PATH" tests/TestValkeyGlide.php
 
     - name: Run integration tests
       shell: bash
