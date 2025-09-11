@@ -158,7 +158,7 @@ jobs:
       - name: Run PHP Extension Tests
         uses: ./.github/workflows/run-php-tests
         with:
-          extension-path: $(pwd)/modules/valkey_glide.so
+          extension-path: ${{ github.workspace }}/modules/valkey_glide.so
           php-version: ${{ matrix.php }}
 
       - uses: ./.github/workflows/test-benchmark
