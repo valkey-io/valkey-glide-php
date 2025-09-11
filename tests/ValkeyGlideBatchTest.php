@@ -3123,7 +3123,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testAdvancedListMoveOperationsBatch()
     {
-        $this->markTestSkipped();
+        
         $key1 = 'batch_list_move_1_' . uniqid();
         $key2 = 'batch_list_move_2_' . uniqid();
         $key3 = 'batch_list_move_3_' . uniqid();
@@ -3142,8 +3142,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertEquals('a', $results[0]); // BLMOVE result (moved element)
-        $this->assertEquals([$key1 => ['c']], $results[1]); // LMPOP result
+        $this->assertEquals('a', $results[0]); // BLMOVE result (moved element)        
+        $this->assertEquals([$key1, ['c']], $results[1]); // LMPOP result        
         $this->assertEquals(1, $results[2]); // LLEN result (after moves)
 
         // Verify server-side effects
