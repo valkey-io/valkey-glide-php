@@ -77,6 +77,19 @@ runs:
       env:
         EXTENSION_PATH: ${{ inputs.extension-path }}
       run: |
+        # Debug: Check if extension is loaded and classes exist
+        echo "=== Extension Debug Info ==="
+        php -n -d "extension=$EXTENSION_PATH" -r "
+          echo 'Extension loaded: ' . (extension_loaded('valkey_glide') ? 'YES' : 'NO') . PHP_EOL;
+          echo 'Available classes: ' . PHP_EOL;
+          foreach (get_declared_classes() as \$class) {
+            if (strpos(\$class, 'Valkey') !== false || strpos(\$class, 'Client') !== false) {
+              echo '  - ' . \$class . PHP_EOL;
+            }
+          }
+          echo 'ClientConstructorMock exists: ' . (class_exists('ClientConstructorMock') ? 'YES' : 'NO') . PHP_EOL;
+        "
+        
         # Run tests using extension loading (supports both absolute path and extension name)
         php -n -d "extension=$EXTENSION_PATH" tests/TestValkeyGlide.php
 
