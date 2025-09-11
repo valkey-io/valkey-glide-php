@@ -81,13 +81,24 @@ runs:
         echo "=== Extension Debug Info ==="
         php -n -d "extension=$EXTENSION_PATH" -r "
           echo 'Extension loaded: ' . (extension_loaded('valkey_glide') ? 'YES' : 'NO') . PHP_EOL;
-          echo 'Available classes: ' . PHP_EOL;
+          echo 'Extension version: ' . phpversion('valkey_glide') . PHP_EOL;
+          echo 'Extension functions: ' . PHP_EOL;
+          foreach (get_extension_funcs('valkey_glide') as \$func) {
+            echo '  - ' . \$func . PHP_EOL;
+          }
+          echo 'All declared classes: ' . PHP_EOL;
           foreach (get_declared_classes() as \$class) {
-            if (strpos(\$class, 'Valkey') !== false || strpos(\$class, 'Client') !== false) {
+            if (strpos(\$class, 'Valkey') !== false || strpos(\$class, 'Client') !== false || strpos(\$class, 'Mock') !== false) {
               echo '  - ' . \$class . PHP_EOL;
             }
           }
           echo 'ClientConstructorMock exists: ' . (class_exists('ClientConstructorMock') ? 'YES' : 'NO') . PHP_EOL;
+          if (class_exists('ClientConstructorMock')) {
+            echo 'ClientConstructorMock methods: ' . PHP_EOL;
+            foreach (get_class_methods('ClientConstructorMock') as \$method) {
+              echo '  - ' . \$method . PHP_EOL;
+            }
+          }
         "
 
         # Run tests using extension loading (supports both absolute path and extension name)
