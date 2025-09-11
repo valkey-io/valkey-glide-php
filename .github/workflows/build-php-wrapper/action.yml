@@ -158,7 +158,15 @@ runs:
     - name: Generate protobuf and bindings
       shell: bash
       run: |
-        make build-modules-pre
+        make include/glide_bindings.h
+
+    - name: Generate stub arginfo headers
+      shell: bash
+      run: |
+        echo "=== Generating stub arginfo headers ==="
+        php -f build/gen_stub.php tests/client_constructor_mock.stub.php || echo "client_constructor_mock arginfo generation failed"
+        echo "=== Checking generated headers ==="
+        ls -la tests/client_constructor_mock_arginfo.h || echo "client_constructor_mock_arginfo.h not found"
 
     - name: Debug PHP extension linking
       shell: bash
