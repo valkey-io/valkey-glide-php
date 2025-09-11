@@ -62,55 +62,11 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install shared dependencies
-        uses: ./.github/workflows/install-shared-dependencies
-        with:
-          target: x86_64-unknown-linux-gnu
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          engine-version: "7.2.5"
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - name: Setup PHP Extension Build Environment
+        uses: ./.github/workflows/setup-php-extension
         with:
           php-version: ${{ env.BASE_PHP_VERSION }}
-          extensions: none
-          tools: pie, jq
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-              php${{ env.BASE_PHP_VERSION }}-dev \
-              php${{ env.BASE_PHP_VERSION }}-curl \
-              php${{ env.BASE_PHP_VERSION }}-xml \
-              build-essential \
-              autoconf \
-              automake \
-              libtool \
-              pkg-config \
-              libssl-dev \
-              clang-format \
-              protobuf-c-compiler \
-              libprotobuf-c-dev \
-              libprotobuf-c1
-
-      - name: Install Rust and protoc
-        uses: ./.github/workflows/install-rust-and-protoc
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install cbindgen
-        run: cargo install cbindgen
-
-      - name: Install Composer dependencies
-        run: composer install --ignore-platform-reqs
-
-      - name: Generate test protobuf PHP classes
-        run: |
-          protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/ ./valkey-glide/glide-core/src/protobuf/connection_request.proto
-          echo "tests directory contents:"
-          cd tests
-          ls -la
+          install-composer-deps: 'true'
 
       - name: Create manual Composer repository
         run: |
