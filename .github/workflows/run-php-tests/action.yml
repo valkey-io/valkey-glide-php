@@ -80,7 +80,7 @@ runs:
         # Debug: Check if extension is loaded and classes exist
         echo "=== Extension Debug Info ==="
         echo "Extension path: $EXTENSION_PATH"
-        
+
         # Use proper syntax for absolute path vs extension name
         if [[ "$EXTENSION_PATH" == /* ]] || [[ "$EXTENSION_PATH" == */* ]]; then
           # Absolute or relative path - load directly
@@ -89,7 +89,7 @@ runs:
           # Extension name only
           LOAD_CMD="php -n -d extension=\"$EXTENSION_PATH\""
         fi
-        
+
         eval "$LOAD_CMD" -r "
           echo 'Extension loaded: ' . (extension_loaded('valkey_glide') ? 'YES' : 'NO') . PHP_EOL;
           echo 'Extension version: ' . phpversion('valkey_glide') . PHP_EOL;
