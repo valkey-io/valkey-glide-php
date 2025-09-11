@@ -1,9 +1,6 @@
 <?php
 
 defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
-
-// Load the ClientConstructorMock stub
-require_once __DIR__ . '/client_constructor_mock.stub.php';
 /*
 * --------------------------------------------------------------------
 *                   The PHP License, version 3.01
