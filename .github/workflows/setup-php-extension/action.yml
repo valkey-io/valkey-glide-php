@@ -1,18 +1,18 @@
-name: 'Setup PHP Extension Build Environment'
-description: 'Common setup steps for building PHP extension'
+name: Setup PHP Extension Build Environment
+description: Common setup steps for building PHP extension
 
 inputs:
   php-version:
-    description: 'PHP version to use'
+    description: PHP version to use
     required: true
-    default: '8.1'
+    default: "8.1"
   install-composer-deps:
-    description: 'Whether to install composer dependencies'
+    description: Whether to install composer dependencies
     required: false
-    default: 'true'
+    default: "true"
 
 runs:
-  using: 'composite'
+  using: composite
   steps:
     - name: Install shared dependencies
       uses: ./.github/workflows/install-shared-dependencies

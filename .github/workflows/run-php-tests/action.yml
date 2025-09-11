@@ -1,17 +1,17 @@
-name: 'Run PHP Extension Tests'
-description: 'Common steps for running PHP extension tests with Valkey servers'
+name: Run PHP Extension Tests
+description: Common steps for running PHP extension tests with Valkey servers
 
 inputs:
   extension-path:
-    description: 'Path to the built extension (.so file)'
+    description: Path to the built extension (.so file)
     required: true
   php-version:
-    description: 'PHP version to use for testing'
+    description: PHP version to use for testing
     required: true
-    default: '8.1'
+    default: "8.1"
 
 runs:
-  using: 'composite'
+  using: composite
   steps:
     - name: Start Valkey servers
       working-directory: tests
