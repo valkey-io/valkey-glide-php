@@ -89,7 +89,7 @@ runs:
           }
           echo 'ClientConstructorMock exists: ' . (class_exists('ClientConstructorMock') ? 'YES' : 'NO') . PHP_EOL;
         "
-        
+
         # Run tests using extension loading (supports both absolute path and extension name)
         php -n -d "extension=$EXTENSION_PATH" tests/TestValkeyGlide.php
 
