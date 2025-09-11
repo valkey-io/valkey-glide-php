@@ -244,71 +244,11 @@ jobs:
           echo "=== Testing extension functionality ==="
           php -d extension=valkey_glide -r "if (extension_loaded('valkey_glide')) { echo 'SUCCESS: Extension loaded and functional!'; } else { echo 'ERROR: Extension not functional'; }"
 
-      - name: Start Valkey servers
-        working-directory: tests
-        run: |
-          set -e  # Exit on any error
-
-          # Ensure /usr/local/bin is in PATH (where valkey-server is installed)
-          export PATH="/usr/local/bin:$PATH"
-
-          echo "=== DEBUG: Current directory and files ==="
-          pwd
-          ls -la
-
-          echo "=== DEBUG: Current PATH ==="
-          echo "PATH=$PATH"
-
-          echo "=== DEBUG: Checking for installed binaries in /usr/local/bin ==="
-          ls -la /usr/local/bin/ | grep -E "(valkey|redis)" || echo "No valkey/redis binaries in /usr/local/bin"
-
-          echo "=== DEBUG: Checking script permissions ==="
-          ls -la start_valkey_with_replicas.sh create-valkey-cluster.sh
-
-          # Make scripts executable
-          chmod +x start_valkey_with_replicas.sh create-valkey-cluster.sh
-
-          echo "=== DEBUG: After chmod ==="
-          ls -la start_valkey_with_replicas.sh create-valkey-cluster.sh
-
-          # Check if valkey-server is available
-          echo "=== DEBUG: Checking for valkey-server ==="
-          which valkey-server || echo "valkey-server not found in PATH"
-
-          # Check alternative locations and names
-          echo "=== DEBUG: Checking alternative binary names ==="
-          which redis-server || echo "redis-server not found in PATH"
-          which valkey-cli || echo "valkey-cli not found in PATH"
-          which redis-cli || echo "redis-cli not found in PATH"
-
-          # Start standalone servers (6379, 6380, 6381)
-          echo "=== Starting standalone Valkey servers ==="
-          ./start_valkey_with_replicas.sh
-
-          # Wait a moment for servers to start
-          echo "=== Waiting for standalone servers to start ==="
-          sleep 3
-
-          # Check if servers are running
-          echo "=== Checking standalone server status ==="
-          ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
-
-          # Start cluster servers (7001-7006)
-          echo "=== Starting Valkey cluster ==="
-          ./create-valkey-cluster.sh
-
-          # Final server status check
-          echo "=== Final server status check ==="
-          ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
-          echo "=== Valkey servers startup completed ==="
-
-      - name: Run PIE package tests
-        run: |
-          # Test extension functions exist
-          php -d extension=valkey_glide -r "print_r(get_extension_funcs('valkey_glide'));"
-
-          # Run any integration tests
-          php -d extension=valkey_glide tests/TestValkeyGlide.php
+      - name: Run PHP Extension Tests
+        uses: ./.github/workflows/run-php-tests
+        with:
+          extension-path: valkey_glide
+          php-version: ${{ env.BASE_PHP_VERSION }}
 
       - name: Cleanup
         if: always()
