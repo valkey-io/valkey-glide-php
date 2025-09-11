@@ -2063,7 +2063,7 @@ int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_e
             return 0;
         }
         if (cmd_result->response) {
-            process_lcs_result(cmd_result->response, NULL, return_value);
+            ret_val = process_lcs_result(cmd_result->response, NULL, return_value);
         }
     }
 

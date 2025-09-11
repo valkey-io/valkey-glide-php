@@ -375,14 +375,15 @@ int execute_zrangestore_command(zval* object, int argc, zval* return_value, zend
 
 int execute_zdiffstore_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_zinterstore_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_zmpop_command_internal(const void* glide_client,
-                                   const char* cmd,
-                                   double      timeout,
-                                   zval*       keys,
-                                   const char* from,
-                                   size_t      from_len,
-                                   long        count,
-                                   zval*       result);
+int execute_zmpop_command_internal(valkey_glide_object* valkey_glide,
+                                   zval*                object,
+                                   const char*          cmd,
+                                   double               timeout,
+                                   zval*                keys,
+                                   const char*          from,
+                                   size_t               from_len,
+                                   long                 count,
+                                   zval*                return_value);
 int execute_zintercard_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_zunion_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_zunionstore_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);

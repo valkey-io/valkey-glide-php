@@ -390,12 +390,11 @@ static void build_sort_args(const char*     key,
                 arg_idx++;
             }
         }
-        printf("After GET patterns, arg_idx=%lu\n", arg_idx);
+
         /* Check for STORE destination (case-insensitive) */
         if ((z_ele = zend_hash_str_find(ht, "store", sizeof("store") - 1)) != NULL ||
             (z_ele = zend_hash_str_find(ht, "STORE", sizeof("STORE") - 1)) != NULL) {
             if (Z_TYPE_P(z_ele) == IS_STRING) {
-                printf("store key: %s\n", Z_STRVAL_P(z_ele));
                 /* Add STORE keyword */
                 args[arg_idx]     = (uintptr_t) "STORE";
                 args_len[arg_idx] = 5;

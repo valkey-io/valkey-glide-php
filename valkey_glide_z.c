@@ -1713,18 +1713,26 @@ int prepare_mpop_arguments(const void*     glide_client,
 
     return keys_count;
 }
+int process_zmpop_result(CommandResponse* response,
+                         void*            output,
+                         zval*            return_value) { /* Process the result */
+    return command_response_to_zval(
+        response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
+}
 
-/* Execute a ZMPOP or BZMPOP command (for sorted set operations) using the Valkey Glide client */
-int execute_zmpop_command_internal(const void* glide_client,
-                                   const char* cmd,
-                                   double      timeout,
-                                   zval*       keys,
-                                   const char* from,
-                                   size_t      from_len,
-                                   long        count,
-                                   zval*       result) {
+/* Execute a ZMPOP or BZMPOP command (for sorted set operations) using the Valkey Glide client
+ */
+int execute_zmpop_command_internal(valkey_glide_object* valkey_glide,
+                                   zval*                object,
+                                   const char*          cmd,
+                                   double               timeout,
+                                   zval*                keys,
+                                   const char*          from,
+                                   size_t               from_len,
+                                   long                 count,
+                                   zval*                return_value) {
     /* Check if client, keys, and from are valid */
-    if (!glide_client || !keys || !from) {
+    if (!valkey_glide || !keys || !from) {
         return 0;
     }
 
@@ -1740,7 +1748,7 @@ int execute_zmpop_command_internal(const void* glide_client,
     char*          count_str   = NULL;
 
     /* Prepare the arguments */
-    int keys_count = prepare_mpop_arguments(glide_client,
+    int keys_count = prepare_mpop_arguments(valkey_glide->glide_client,
                                             is_blocking,
                                             timeout,
                                             keys,
@@ -1759,19 +1767,26 @@ int execute_zmpop_command_internal(const void* glide_client,
     }
 
     /* Determine the command type */
-    enum RequestType cmd_type = is_blocking ? BZMPop : ZMPop;
-
-    /* Execute the command */
-    CommandResult* cmd_result = command(glide_client,
-                                        0,         /* channel */
-                                        cmd_type,  /* command type */
-                                        arg_count, /* number of arguments */
-                                        args,      /* arguments */
-                                        args_len,  /* argument lengths */
-                                        NULL,      /* route bytes */
-                                        0,         /* route bytes length */
-                                        0          /* span_ptr */
-    );
+    enum RequestType cmd_type   = is_blocking ? BZMPop : ZMPop;
+    CommandResult*   cmd_result = NULL;
+    /* Check for batch mode */
+    if (valkey_glide->is_in_batch_mode) {
+        /* Create batch-compatible processor wrapper */
+        int res = buffer_command_for_batch(
+            valkey_glide, cmd_type, args, args_len, arg_count, NULL, process_zmpop_result);
+    } else {
+        /* Execute the command */
+        cmd_result = command(valkey_glide->glide_client,
+                             0,         /* channel */
+                             cmd_type,  /* command type */
+                             arg_count, /* number of arguments */
+                             args,      /* arguments */
+                             args_len,  /* argument lengths */
+                             NULL,      /* route bytes */
+                             0,         /* route bytes length */
+                             0          /* span_ptr */
+        );
+    }
 
     /* Free the argument strings */
     if (numkeys_str)
@@ -1782,29 +1797,31 @@ int execute_zmpop_command_internal(const void* glide_client,
         efree(count_str);
     efree(args);
     efree(args_len);
+    int ret_val = 0;
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        ret_val = 1;
+    } else {
+        /* Check if the command was successful */
+        if (!cmd_result) {
+            return 0;
+        }
 
-    /* Check if the command was successful */
-    if (!cmd_result) {
-        return 0;
-    }
+        /* Check if there was an error */
+        if (cmd_result->command_error) {
+            printf("Error executing %s command: %s\n",
+                   cmd,
+                   cmd_result->command_error->command_error_message);
+            free_command_result(cmd_result);
+            return 0;
+        }
 
-    /* Check if there was an error */
-    if (cmd_result->command_error) {
-        printf("Error executing %s command: %s\n",
-               cmd,
-               cmd_result->command_error->command_error_message);
+        ret_val = process_zmpop_result(cmd_result->response, NULL, return_value);
+
+        /* Free the result */
         free_command_result(cmd_result);
-        return 0;
     }
-
-    /* Process the result */
-    /* For ZMPOP, use associative array format for the values */
-    int use_assoc = COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP; /* Always use associative arrays for
-                                                               sorted set responses */
-    int ret_val = command_response_to_zval(cmd_result->response, result, use_assoc, false);
-
-    /* Free the result */
-    free_command_result(cmd_result);
 
     return ret_val;
 }
@@ -1882,7 +1899,7 @@ int execute_bzmpop_command(zval* object, int argc, zval* return_value, zend_clas
 
     /* Execute the command - we pass "BZMPOP" as the command name for messaging */
     return execute_zmpop_command_internal(
-        glide_client, "BZMPOP", timeout, z_keys, from, from_len, count, return_value);
+        valkey_glide, object, "BZMPOP", timeout, z_keys, from, from_len, count, return_value);
 }
 
 /* Execute ZMPOP command using the Valkey Glide client */
@@ -1909,12 +1926,9 @@ int execute_zmpop_command(zval* object, int argc, zval* return_value, zend_class
         return 0;
     }
 
-    /* Initialize result zval */
-    ZVAL_NULL(return_value);
-
     /* Execute the command */
     return execute_zmpop_command_internal(
-        glide_client, "ZMPOP", 0.0, z_keys, from, from_len, count, return_value);
+        valkey_glide, object, "ZMPOP", 0.0, z_keys, from, from_len, count, return_value);
 }
 
 /* Execute a ZADD command - simplified to eliminate code duplication */

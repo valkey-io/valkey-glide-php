@@ -3729,7 +3729,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortedSetMultiPopBatch()
     {
-        $this->markTestSkipped();
+        
         $key1 = 'batch_zset_mpop_1_' . uniqid();
         $key2 = 'batch_zset_mpop_2_' . uniqid();
 
@@ -3747,8 +3747,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertEquals([$key1 => ['one' => 1.0, 'two' => 2.0]], $results[0]); // ZMPOP result
-        $this->assertEquals([$key2 => ['twenty' => 20.0]], $results[1]); // BZMPOP result
+        $this->assertEquals([$key1, ['one' => 1.0, 'two' => 2.0]], $results[0]); // ZMPOP result
+        $this->assertEquals([$key2, ['twenty' => 20.0]], $results[1]); // BZMPOP result
         $this->assertEquals(1, $results[2]); // ZCARD result (after ZMPOP)
 
         // Verify server-side effects

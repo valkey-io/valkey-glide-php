@@ -275,8 +275,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($this->valkey_glide->set($key1, '12244447777777'));
         $this->assertTrue($this->valkey_glide->set($key2, '6666662244441'));
 
-        $this->assertEquals('224444', $this->valkey_glide->lcs($key1, $key2));
-
+        $this->assertEquals('224444', $this->valkey_glide->lcs($key1, $key2));        
         $this->assertEquals(
             ['matches', [[[1, 6], [6, 11]]], 'len', 6],
             $this->valkey_glide->lcs($key1, $key2, ['idx'])
