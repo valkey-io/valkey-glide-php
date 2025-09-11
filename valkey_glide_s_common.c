@@ -519,10 +519,12 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
         if (args->scan_iter) {
             ZVAL_STRING(args->scan_iter, "0");
             efree(args->cursor);
+            efree(args);
         } else {
+            printf("No response received in process_s_scan_result_async\n");
             args->cursor = "0";
         }
-        efree(args);
+
         array_init(return_value);
         return 0;
     }
@@ -531,11 +533,16 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
         if (args->scan_iter) {
             ZVAL_STRING(args->scan_iter, "0");
             efree(args->cursor);
+            efree(args);
         } else {
+            printf(
+                "Unexpected response type %d or insufficient elements in "
+                "process_s_scan_result_async\n",
+                response->response_type);
             args->cursor = "0";
         }
         array_init(return_value);
-        efree(args);
+
         return 0;
     }
 
@@ -552,11 +559,12 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
         if (args->scan_iter) {
             ZVAL_STRING(args->scan_iter, "0");
             efree(args->cursor);
+            efree(args);
         } else {
+            printf("Setting cursor to '0' due to unexpected cursor type\n");
             args->cursor = "0";
         }
         array_init(return_value);
-        efree(args);
         return 0;
     }
 
@@ -567,10 +575,12 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
         if (args->scan_iter) {
             ZVAL_STRING(args->scan_iter, "0");
             efree(args->cursor);
+            efree(args);
         } else {
+            printf("Setting cursor to '0' due to unexpected elements type\n");
             args->cursor = "0";
         }
-        efree(args);
+
         return 0;
     }
     /* Handle scan completion: when server returns cursor="0", scan is complete */
@@ -594,8 +604,8 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
             if (args->scan_iter) {
                 ZVAL_STRING(args->scan_iter, args->cursor);
                 efree(args->cursor);
+                efree(args);
             }
-            efree(args);
 
             return status;
 
@@ -605,10 +615,11 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
             if (args->scan_iter) {
                 ZVAL_STRING(args->scan_iter, "0");
                 efree(args->cursor);
+                efree(args);
             } else {
                 args->cursor = "0";
             }
-            efree(args);
+
             return 1;
         }
     }
@@ -635,9 +646,10 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
     if (args->scan_iter) {
         ZVAL_STRING(args->scan_iter, args->cursor);
         efree(args->cursor);
+        efree(args);
     }
 
-    efree(args);
+
     return status;
 }
 
@@ -2080,19 +2092,20 @@ int execute_cluster_scan_command(const void* glide_client,
 
     if (result) {
         /* Create temporary args structure for response processing */
-        scan_data_t* scan_args = emalloc(sizeof(scan_data_t));
-        scan_args->cursor      = *cursor;
-        scan_args->cmd_type    = Scan;
-        scan_args->scan_iter   = NULL;
+        scan_data_t scan_args;
+        scan_args.cursor    = *cursor;
+        scan_args.cmd_type  = Scan;
+        scan_args.scan_iter = NULL;
 
         /* Process scan response */
-        success = process_s_scan_result_async(result->response, scan_args, return_value);
+        success = process_s_scan_result_async(result->response, &scan_args, return_value);
         /* Convert legacy "finished" cursor to "0" for backward compatibility */
-        *cursor = scan_args->cursor;
+        *cursor = scan_args.cursor;
         if (*cursor && strcmp(*cursor, "finished") == 0) {
             efree(*cursor);
             *cursor = estrdup("0");
         }
+
         free_command_result(result);
     }
 

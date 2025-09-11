@@ -417,7 +417,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         /* Iterate over our masters, scanning each one */
         $key_count = $this->valkey_glide->dbsize("allPrimaries");
-
         /* Scan the keys here using ClusterScanCursor - create new cursor each iteration */
         $cursor = new ClusterScanCursor(); // Create fresh cursor each time
         while (true) {
