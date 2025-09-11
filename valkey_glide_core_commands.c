@@ -1879,6 +1879,41 @@ static int array_has_string_value(HashTable* ht, const char* value, size_t value
     ZEND_HASH_FOREACH_END();
     return 0;
 }
+
+static int process_lcs_result(CommandResponse* response, void* output, zval* return_value) {
+    int ret_val = 0;
+    /* Force Map handling if IDX option was requested, regardless of the response type */
+    switch (response->response_type) {
+        case String:
+            /* If no options were specified, LCS returns the longest common substring as
+             * a string */
+            command_response_to_zval(
+                response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+            ret_val = 1;
+            break;
+
+        case Int:
+            /* If LEN option was specified, LCS returns the length as an integer */
+            ZVAL_LONG(return_value, response->int_value);
+            ret_val = 1;
+            break;
+
+        case Map:
+            ret_val = command_response_to_zval(
+                response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+            break;
+
+
+        default:
+            printf("default response\n");
+            /* Unsupported response type */
+            ZVAL_FALSE(return_value);
+            ret_val = 0;
+            break;
+    }
+    return ret_val;
+}
+
 /* Execute an LCS command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
 int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -2000,53 +2035,35 @@ int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_e
     }
 
     /* Execute the command */
-    CommandResult* cmd_result = execute_command(valkey_glide->glide_client,
-                                                LCS,       /* command type */
-                                                arg_count, /* number of arguments */
-                                                args,      /* arguments */
-                                                args_len   /* argument lengths */
-    );
-
-    /* Check if the command was successful */
-    if (!cmd_result) {
-        return 0;
+    CommandResult* cmd_result = NULL;
+    /* Check for batch mode */
+    if (valkey_glide->is_in_batch_mode) {
+        /* Create batch-compatible processor wrapper */
+        int res = buffer_command_for_batch(
+            valkey_glide, LCS, args, args_len, arg_count, NULL, process_lcs_result);
+    } else {
+        cmd_result = execute_command(valkey_glide->glide_client,
+                                     LCS,       /* command type */
+                                     arg_count, /* number of arguments */
+                                     args,      /* arguments */
+                                     args_len   /* argument lengths */
+        );
     }
+
 
     /* Process the result based on the response type */
     int ret_val = 0;
-    if (cmd_result->response) {
-        /* Force Map handling if IDX option was requested, regardless of the response type */
-
-        {
-            switch (cmd_result->response->response_type) {
-                case String:
-                    /* If no options were specified, LCS returns the longest common substring as a
-                     * string */
-                    command_response_to_zval(cmd_result->response,
-                                             return_value,
-                                             COMMAND_RESPONSE_NOT_ASSOSIATIVE,
-                                             false);
-                    ret_val = 1;
-                    break;
-
-                case Int:
-
-                    /* If LEN option was specified, LCS returns the length as an integer */
-                    ZVAL_LONG(return_value, cmd_result->response->int_value);
-                    ret_val = 1;
-                    break;
-
-                case Map:
-                    /* If IDX option was specified, LCS returns a map structure */
-                    ret_val = handle_map_response(cmd_result, return_value);
-                    return ret_val; /* handle_map_response already frees cmd_result */
-
-                default:
-                    printf("default response\n");
-                    /* Unsupported response type */
-                    ret_val = 0;
-                    break;
-            }
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        ret_val = 1;
+    } else {
+        /* Check if the command was successful */
+        if (!cmd_result) {
+            return 0;
+        }
+        if (cmd_result->response) {
+            process_lcs_result(cmd_result->response, NULL, return_value);
         }
     }
 

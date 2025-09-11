@@ -3766,7 +3766,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testLongestCommonSubsequenceBatch()
     {
-        $this->markTestSkipped();
+        
         $key1 = 'batch_lcs_1_' . uniqid();
         $key2 = 'batch_lcs_2_' . uniqid();
         $key3 = 'batch_lcs_3_' . uniqid();
@@ -3778,14 +3778,14 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Execute LCS, LCS with LEN, LCS with IDX in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->lcs($key1, $key2)
-            ->lcs($key1, $key2, ['LEN'])
-            ->lcs($key1, $key2, ['IDX'])
+            ->lcs($key1, $key2, ['len'])
+            ->lcs($key1, $key2, ['idx'])
             ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertIsString($results[0]); // LCS result (common subsequence)
+        $this->assertIsString($results[0]); // LCS result (common subsequence)        
         $this->assertIsInt($results[1]); // LCS LEN result (length)
         $this->assertIsArray($results[2]); // LCS IDX result (with indexes)
 

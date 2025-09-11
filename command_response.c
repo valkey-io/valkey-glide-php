@@ -826,42 +826,6 @@ int handle_array_response(CommandResult* result, zval* output) {
     return ret_val;
 }
 
-/* Handle a map response */
-int handle_map_response(CommandResult* result, zval* output) {
-    /* Check if the command was successful */
-    if (!result) {
-        return -1;
-    }
-
-    /* Check if there was an error */
-    if (result->command_error) {
-        printf("%s:%d - Error executing command: %s\n",
-               __FILE__,
-               __LINE__,
-               result->command_error->command_error_message);
-        free_command_result(result);
-        return -1;
-    }
-
-    /* Process the result */
-    int ret_val = -1;
-    if (result->response) {
-        if (result->response->response_type == Null) {
-            ZVAL_NULL(output);
-            ret_val = 0;
-        } else if (result->response->response_type == Map) {
-            ret_val = command_response_to_zval(
-                result->response, output, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-        } else {
-            ret_val = -1;
-        }
-    }
-
-    /* Free the result */
-    free_command_result(result);
-
-    return ret_val;
-}
 
 /* Handle a set response */
 int handle_set_response(CommandResult* result, zval* output) {
