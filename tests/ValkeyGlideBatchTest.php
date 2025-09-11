@@ -1235,22 +1235,20 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         $results = $this->valkey_glide->multi()
             ->scan($it)
-          //  ->sscan($key1, $sscan_it)
-           // ->hscan($key2, $hscan_it)
+            ->sscan($key1, $sscan_it)
+            ->hscan($key2, $hscan_it)
             ->exec();
-        return;
+        
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertIsArray($results[0]); // SCAN result [cursor, keys]
-        var_dump($results[1]);
-        $this->assertCount(10, $results[0]);
+        $this->assertIsArray($results[0]); // SCAN result [cursor, keys]      
+        $temp_it = null;    
+        $this->assertEquals($this->valkey_glide->scan($temp_it), $results[0]);
         $this->assertIsArray($results[1]); // SSCAN result [cursor, members]
         $sscan_it = null;
-        $this->assertEquals($results[1],$this->valkey_glide->sscan($key1, $sscan_it));
-        $this->assertCount(3, $results[1]);
-        $this->assertIsArray($results[2]); // HSCAN result [cursor, fields_values]
-        $this->assertCount(4, $results[2]);
+        $this->assertEquals($results[1],$this->valkey_glide->sscan($key1, $sscan_it));        
+        $this->assertIsArray($results[2]); // HSCAN result [cursor, fields_values]        
         $hscan_it = null;
         $this->assertEquals($results[2],$this->valkey_glide->hscan($key2, $hscan_it));
         // Verify server-side effects (scan operations don't modify data)
@@ -3188,7 +3186,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testBlockingListMultiPopBatch()
     {
-        $this->markTestSkipped();
+        
         $key1 = 'batch_blmpop_1_' . uniqid();
         $key2 = 'batch_blmpop_2_' . uniqid();
         $key3 = 'batch_blmpop_3_' . uniqid();
@@ -3207,7 +3205,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertEquals([$key1 => ['a1', 'a2']], $results[0]); // BLMPOP result
+        $this->assertEquals([$key1, ['a1', 'a2']], $results[0]); // BLMPOP result
         $this->assertEquals(1, $results[1]); // LLEN result (key1 after pop)
         $this->assertEquals(2, $results[2]); // LLEN result (key2 unchanged)
 
@@ -3574,6 +3572,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testSortedSetBlockingPopBatch()
     {
         $this->markTestSkipped();
+
         $key1 = 'batch_zset_blocking_1_' . uniqid();
         $key2 = 'batch_zset_blocking_2_' . uniqid();
 
@@ -3697,7 +3696,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortedSetInterUnionBatch()
     {
-        $this->markTestSkipped();
+        
         $key1 = 'batch_zset_inter_1_' . uniqid();
         $key2 = 'batch_zset_inter_2_' . uniqid();
         $key3 = 'batch_zset_inter_3_' . uniqid();
@@ -3717,7 +3716,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
         $this->assertEquals(['b', 'c'], $results[0]); // ZINTER result
-        $this->assertEquals(['a', 'b', 'c', 'd'], $results[1]); // ZUNION result
+        $this->assertEquals(['a', 'b', 'd', 'c'], $results[1]); // ZUNION result        
         $this->assertEquals(2, $results[2]); // ZINTERCARD result
 
         // Verify server-side effects (original sets unchanged)
