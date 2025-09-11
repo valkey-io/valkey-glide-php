@@ -54,11 +54,5 @@
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true
         }
-    },
-    "extra": {
-        "pecl": {
-            "package-name": "valkey-glide",
-            "channel": "pecl.php.net"
-        }
     }
 }
