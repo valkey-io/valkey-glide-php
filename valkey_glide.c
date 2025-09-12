@@ -329,7 +329,7 @@ PHP_MINIT_FUNCTION(valkey_glide) {
             E_WARNING,
             "Failed to initialize ValkeyGlide logger, will auto-initialize on first use");
     }
-    valkey_glide_logger_error("php_init", "Initializing Valkey Glide PHP extension");
+    valkey_glide_logger_debug("php_init", "Initializing Valkey Glide PHP extension");
     /* ValkeyGlide class - use generated registration function */
     valkey_glide_ce = register_class_ValkeyGlide();
 
