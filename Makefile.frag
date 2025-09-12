@@ -20,10 +20,10 @@ GEN_INCLUDE_DIR = include/glide
 GEN_SRC_DIR = src
 
 # Force header generation before any compilation
-$(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h
+$(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
 
 # Backward compatibility alias
-build-modules-pre: include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h
+build-modules-pre: include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
 
 # Arginfo header dependencies
 cluster_scan_cursor_arginfo.h: cluster_scan_cursor.stub.php
@@ -40,6 +40,15 @@ logger_arginfo.h: logger.stub.php
 
 src/client_constructor_mock_arginfo.h: src/client_constructor_mock.stub.php
 	@php -f $(top_srcdir)/build/gen_stub.php src/client_constructor_mock.stub.php || echo "client_constructor_mock arginfo generation failed"
+
+valkey-glide/ffi/target/release/libglide_ffi.a:
+	@echo "=== BUILDING FFI LIBRARY ==="
+	@if [ -f .gitmodules ] && [ -d .git ]; then \
+		git submodule update --init --recursive; \
+	fi
+	@if [ -d valkey-glide/ffi ]; then \
+		cd valkey-glide/ffi && cargo build --release && cd ../..; \
+	fi
 
 include/glide_bindings.h:
 	@echo "=== GENERATING HEADER FILE ==="
