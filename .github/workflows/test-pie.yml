@@ -85,7 +85,7 @@ jobs:
                   "version_normalized": "1.0.0.0",
                   "source": {
                     "type": "git",
-                    "url": "https://github.com/jduo/valkey-glide-php.git",
+                    "url": "${{ github.event.pull_request.head.repo.clone_url || format('{0}/{1}', github.server_url, github.repository) }}",
                     "reference": "${{ github.head_ref || github.ref_name }}"
                   },
                   "type": "php-ext",

@@ -81,7 +81,16 @@ runs:
         echo "=== Extension Debug Info ==="
         echo "Extension path: $EXTENSION_PATH"
 
-        php -n -d "extension=$EXTENSION_PATH" -r "
+        # Check if this is a file path or extension name
+        if [[ -f "$EXTENSION_PATH" ]]; then
+          echo "Loading extension from file: $EXTENSION_PATH"
+          EXTENSION_ARG="extension=$EXTENSION_PATH"
+        else
+          echo "Loading extension by name: $EXTENSION_PATH"
+          EXTENSION_ARG="extension=$EXTENSION_PATH"
+        fi
+
+        php -n -d "$EXTENSION_ARG" -r "
           echo 'Extension loaded: ' . (extension_loaded('valkey_glide') ? 'YES' : 'NO') . PHP_EOL;
           echo 'Extension version: ' . phpversion('valkey_glide') . PHP_EOL;
           echo 'Extension functions: ' . PHP_EOL;
@@ -104,7 +113,7 @@ runs:
         "
 
         # Run tests using extension loading
-        php -n -d "extension=$EXTENSION_PATH" tests/TestValkeyGlide.php
+        php -n -d "$EXTENSION_ARG" tests/TestValkeyGlide.php
 
     - name: Run integration tests
       shell: bash
