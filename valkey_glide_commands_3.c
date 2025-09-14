@@ -344,6 +344,31 @@ static enum RequestType determine_client_command_type(zval* args, int args_count
     return ClientInfo; /* Default */
 }
 
+/* Helper function to determine FUNCTION command type - reduces duplication */
+static enum RequestType determine_function_command_type(zval* args, int args_count) {
+    if (args_count > 0 && Z_TYPE(args[0]) == IS_STRING) {
+        const char* subcmd = Z_STRVAL(args[0]);
+        if (strcasecmp(subcmd, "DELETE") == 0) {
+            return FunctionDelete;
+        } else if (strcasecmp(subcmd, "DUMP") == 0) {
+            return FunctionDump;
+        } else if (strcasecmp(subcmd, "FLUSH") == 0) {
+            return FunctionFlush;
+        } else if (strcasecmp(subcmd, "KILL") == 0) {
+            return FunctionKill;
+        } else if (strcasecmp(subcmd, "LIST") == 0) {
+            return FunctionList;
+        } else if (strcasecmp(subcmd, "LOAD") == 0) {
+            return FunctionLoad;
+        } else if (strcasecmp(subcmd, "RESTORE") == 0) {
+            return FunctionRestore;
+        } else if (strcasecmp(subcmd, "STATS") == 0) {
+            return FunctionStats;
+        }
+    }
+    return InvalidRequest; /* Invalid function subcommand */
+}
+
 /* Helper function to cleanup allocated strings - reduces duplication */
 static void cleanup_allocated_strings(char** allocated_strings, int allocated_count) {
     if (allocated_strings) {
@@ -470,6 +495,13 @@ static int command_response_to_zval_wrapper(CommandResponse* response,
     }
 }
 
+static int process_function_command_reposonse(CommandResponse* response,
+                                              void*            output,
+                                              zval*            return_value) {
+    return command_response_to_zval(
+        response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP_FUNCTION, true);
+}
+
 /* Execute a FUNCTION command using the Valkey Glide client */
 int execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -492,78 +524,126 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
             return 0;
         }
 
-        /* Use helper function to convert arguments to strings */
-        uintptr_t*     cmd_args;
-        unsigned long* args_len;
-        char**         allocated_strings;
-        int            allocated_count;
-
-        if (!convert_zval_args_to_strings(
-                z_args, args_count, &cmd_args, &args_len, &allocated_strings, &allocated_count)) {
+        /* Determine the specific function command type */
+        enum RequestType function_command_type =
+            determine_function_command_type(z_args, args_count);
+        if (function_command_type == InvalidRequest) {
+            /* Unknown function subcommand */
             return 0;
         }
 
-        /* Set the first argument as "FUNCTION" */
-        const char*    function_cmd = "FUNCTION";
-        uintptr_t*     final_args   = (uintptr_t*) emalloc((args_count + 1) * sizeof(uintptr_t));
-        unsigned long* final_args_len =
-            (unsigned long*) emalloc((args_count + 1) * sizeof(unsigned long));
+        /* Use helper function to convert remaining arguments to strings (skip the subcommand) */
+        uintptr_t*     cmd_args          = NULL;
+        unsigned long* args_len          = NULL;
+        char**         allocated_strings = NULL;
+        int            allocated_count   = 0;
+        unsigned long  final_arg_count   = 0;
 
-        if (!final_args || !final_args_len) {
-            cleanup_allocated_strings(allocated_strings, allocated_count);
-            efree(cmd_args);
-            efree(args_len);
-            if (final_args)
-                efree(final_args);
-            if (final_args_len)
-                efree(final_args_len);
-            return 0;
-        }
-
-        final_args[0]     = (uintptr_t) function_cmd;
-        final_args_len[0] = strlen(function_cmd);
-
-        /* Copy the rest of the arguments */
-        for (int i = 0; i < args_count; i++) {
-            final_args[i + 1]     = cmd_args[i];
-            final_args_len[i + 1] = args_len[i];
-        }
-
-        /* Execute the command */
-        CommandResult* result =
-            execute_command(valkey_glide->glide_client,
-                            CustomCommand,  /* FUNCTION commands use custom command type */
-                            args_count + 1, /* FUNCTION command + args */
-                            final_args,     /* arguments */
-                            final_args_len  /* argument lengths */
-            );
-
-        /* Free the argument arrays using helper function */
-        cleanup_allocated_strings(allocated_strings, allocated_count);
-        efree(cmd_args);
-        efree(args_len);
-        efree(final_args);
-        efree(final_args_len);
-
-        /* Handle the result directly */
-        int status = 0;
-        if (result) {
-            if (result->command_error) {
-                /* Command failed */
-                free_command_result(result);
+        /* If there are arguments after the subcommand, convert them */
+        if (args_count > 1) {
+            if (!convert_zval_args_to_strings(&z_args[1],
+                                              args_count - 1,
+                                              &cmd_args,
+                                              &args_len,
+                                              &allocated_strings,
+                                              &allocated_count)) {
                 return 0;
             }
+            final_arg_count = args_count - 1;
+        }
 
-            if (result->response) {
-                /* FUNCTION can return various types based on subcommand */
-                status = command_response_to_zval(result->response,
-                                                  return_value,
-                                                  COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP_FUNCTION,
-                                                  true);
-                free_command_result(result);
-                return status;
+        /* Check if we're in batch mode */
+        if (valkey_glide->is_in_batch_mode) {
+            /* Convert arguments to uint8_t** format for batch processing */
+            uint8_t**  batch_args  = NULL;
+            uintptr_t* arg_lengths = NULL;
+
+            if (final_arg_count > 0) {
+                batch_args  = (uint8_t**) emalloc(final_arg_count * sizeof(uint8_t*));
+                arg_lengths = (uintptr_t*) emalloc(final_arg_count * sizeof(uintptr_t));
+
+                if (!batch_args || !arg_lengths) {
+                    cleanup_allocated_strings(allocated_strings, allocated_count);
+                    if (cmd_args)
+                        efree(cmd_args);
+                    if (args_len)
+                        efree(args_len);
+                    if (batch_args)
+                        efree(batch_args);
+                    if (arg_lengths)
+                        efree(arg_lengths);
+                    return 0;
+                }
+
+                /* Copy arguments to batch format */
+                for (unsigned long i = 0; i < final_arg_count; i++) {
+                    batch_args[i]  = (uint8_t*) cmd_args[i];
+                    arg_lengths[i] = args_len[i];
+                }
             }
-            free_command_result(result);
+
+            enum RequestType* output = emalloc(sizeof(enum RequestType));
+            *output                  = function_command_type;
+
+            /* Buffer the command for batch execution */
+            int buffer_result = buffer_command_for_batch(valkey_glide,
+                                                         function_command_type,
+                                                         batch_args,
+                                                         arg_lengths,
+                                                         final_arg_count,
+                                                         output,
+                                                         process_function_command_reposonse);
+
+            /* Free the argument arrays */
+            cleanup_allocated_strings(allocated_strings, allocated_count);
+            if (cmd_args)
+                efree(cmd_args);
+            if (args_len)
+                efree(args_len);
+            if (batch_args)
+                efree(batch_args);
+            if (arg_lengths)
+                efree(arg_lengths);
+
+            if (buffer_result) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
+            return 0;
+        } else {
+            /* Execute the command directly */
+            CommandResult* result = execute_command(valkey_glide->glide_client,
+                                                    function_command_type,
+                                                    final_arg_count,
+                                                    cmd_args,
+                                                    args_len);
+
+            /* Free the argument arrays using helper function */
+            cleanup_allocated_strings(allocated_strings, allocated_count);
+            if (cmd_args)
+                efree(cmd_args);
+            if (args_len)
+                efree(args_len);
+
+            /* Handle the result directly */
+            int status = 0;
+            if (result) {
+                if (result->command_error) {
+                    /* Command failed */
+                    free_command_result(result);
+                    return 0;
+                }
+
+                if (result->response) {
+                    /* FUNCTION can return various types based on subcommand */
+                    status =
+                        process_function_command_reposonse(result->response, NULL, return_value);
+                    free_command_result(result);
+                    return status;
+                }
+                free_command_result(result);
+            }
         }
     }
 
