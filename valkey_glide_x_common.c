@@ -402,11 +402,13 @@ int execute_x_generic_command(valkey_glide_object* valkey_glide,
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case XTrim:
-            arg_count = prepare_x_trim_args(args, &cmd_args, &args_len);
+            arg_count = prepare_x_trim_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case XRange:
         case XRevRange:
-            arg_count = prepare_x_range_args(args, &cmd_args, &args_len);
+            arg_count = prepare_x_range_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case XPending:
             arg_count = prepare_x_pending_args(args, &cmd_args, &args_len);
@@ -1028,7 +1030,9 @@ int prepare_x_del_args(x_command_args_t* args, uintptr_t** args_out, unsigned lo
  */
 int prepare_x_range_args(x_command_args_t* args,
                          uintptr_t**       args_out,
-                         unsigned long**   args_len_out) {
+                         unsigned long**   args_len_out,
+                         char***           allocated_strings,
+                         int*              allocated_count) {
     /* Check if client and arguments are valid */
     if (!args->glide_client || !args->key || args->key_len <= 0 || !args->start ||
         args->start_len <= 0 || !args->end || args->end_len <= 0) {
@@ -1039,6 +1043,7 @@ int prepare_x_range_args(x_command_args_t* args,
     unsigned long arg_count = 1 + 1 + 1 + (args->range_opts.has_count ? 2 : 0);
     *args_out               = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out           = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+
 
     /* Check if memory allocation was successful */
     if (!*args_out || !*args_len_out) {
@@ -1074,13 +1079,17 @@ int prepare_x_range_args(x_command_args_t* args,
         (*args_len_out)[arg_idx] = sizeof("COUNT") - 1;
         arg_idx++;
 
+
         /* Convert count to string */
         char          count_str[32];
         unsigned long count_str_len =
             snprintf(count_str, sizeof(count_str), "%ld", args->range_opts.count);
 
         /* Allocate memory for the string */
-        char* count_str_copy = emalloc(count_str_len + 1);
+        char* count_str_copy                 = emalloc(count_str_len + 1);
+        *allocated_strings                   = (char**) ecalloc(1, sizeof(char*));
+        *allocated_count                     = 0;
+        *allocated_strings[*allocated_count] = count_str_copy;
         if (count_str_copy) {
             memcpy(count_str_copy, count_str, count_str_len);
             count_str_copy[count_str_len] = '\0';
@@ -1909,7 +1918,9 @@ int prepare_x_autoclaim_args(x_command_args_t* args,
  */
 int prepare_x_trim_args(x_command_args_t* args,
                         uintptr_t**       args_out,
-                        unsigned long**   args_len_out) {
+                        unsigned long**   args_len_out,
+                        char***           allocated_strings,
+                        int*              allocated_count) {
     /* Check if client and arguments are valid */
     if (!args->glide_client || !args->key || args->key_len <= 0 || !args->strategy ||
         args->strategy_len <= 0 || !args->threshold || args->threshold_len <= 0) {
@@ -1968,7 +1979,10 @@ int prepare_x_trim_args(x_command_args_t* args,
         char* limit_str_copy = emalloc(limit_str_len + 1);
         if (limit_str_copy) {
             memcpy(limit_str_copy, limit_str, limit_str_len);
-            limit_str_copy[limit_str_len] = '\0';
+            *allocated_strings                   = (char**) ecalloc(1, sizeof(char*));
+            *allocated_count                     = 0;
+            *allocated_strings[*allocated_count] = limit_str_copy;
+            limit_str_copy[limit_str_len]        = '\0';
 
             (*args_out)[arg_idx]     = (uintptr_t) limit_str_copy;
             (*args_len_out)[arg_idx] = limit_str_len;

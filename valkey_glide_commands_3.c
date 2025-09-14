@@ -502,6 +502,13 @@ static int process_function_command_reposonse(CommandResponse* response,
         response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP_FUNCTION, true);
 }
 
+static int process_fcall_command_reposonse(CommandResponse* response,
+                                           void*            output,
+                                           zval*            return_value) {
+    return command_response_to_zval(
+        response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
+}
+
 /* Execute a FUNCTION command using the Valkey Glide client */
 int execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -883,13 +890,14 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
 }
 
 /* Internal function to execute FCALL/FCALL_RO commands using the Valkey Glide client */
-static int execute_fcall_command_internal(const void*      glide_client,
-                                          char*            name,
-                                          size_t           name_len,
-                                          zval*            keys_array,
-                                          zval*            args_array,
-                                          enum RequestType command_type,
-                                          zval*            return_value) {
+static int execute_fcall_command_internal(zval*                object,
+                                          valkey_glide_object* valkey_glide,
+                                          char*                name,
+                                          size_t               name_len,
+                                          zval*                keys_array,
+                                          zval*                args_array,
+                                          enum RequestType     command_type,
+                                          zval*                return_value) {
     /* Check if name is valid */
     if (!name || name_len <= 0) {
         return 0;
@@ -938,13 +946,27 @@ static int execute_fcall_command_internal(const void*      glide_client,
     /* Process args array */
     process_array_to_args(args_array, cmd_args, args_len, &arg_index);
 
-    /* Execute the command */
-    CommandResult* result = execute_command(glide_client,
-                                            command_type, /* FCall or FCallReadOnly */
-                                            arg_count,    /* number of arguments */
-                                            cmd_args,     /* arguments */
-                                            args_len      /* argument lengths */
-    );
+
+    CommandResult* result = NULL;
+    /* Check for batch mode */
+    if (valkey_glide->is_in_batch_mode) {
+        /* Create batch-compatible processor wrapper */
+        int res = buffer_command_for_batch(valkey_glide,
+                                           command_type,
+                                           cmd_args,
+                                           args_len,
+                                           arg_count,
+                                           NULL,
+                                           process_fcall_command_reposonse);
+    } else {
+        result = execute_command(valkey_glide->glide_client,
+                                 command_type, /* command type */
+                                 arg_count,    /* number of arguments */
+                                 cmd_args,     /* arguments */
+                                 args_len      /* argument lengths */
+        );
+    }
+
 
     /* Free the argument arrays */
     efree(cmd_args);
@@ -952,6 +974,11 @@ static int execute_fcall_command_internal(const void*      glide_client,
 
     /* Handle the result directly */
     int status = 0;
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+        return 1;
+    }
     if (result) {
         if (result->command_error) {
             /* Command failed */
@@ -959,10 +986,9 @@ static int execute_fcall_command_internal(const void*      glide_client,
             return 0;
         }
 
-        if (result->response) {
+        else if (result->response) {
             /* FCALL can return various types */
-            status = command_response_to_zval(
-                result->response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
+            status = process_fcall_command_reposonse(result->response, NULL, return_value);
             free_command_result(result);
             return status;
         }
@@ -992,13 +1018,8 @@ int execute_fcall_command(zval* object, int argc, zval* return_value, zend_class
 
     /* If we have a Glide client, use it */
     if (valkey_glide->glide_client) {
-        return execute_fcall_command_internal(valkey_glide->glide_client,
-                                              name,
-                                              name_len,
-                                              keys_array,
-                                              args_array,
-                                              FCall,
-                                              return_value);
+        return execute_fcall_command_internal(
+            object, valkey_glide, name, name_len, keys_array, args_array, FCall, return_value);
     }
 
     return 0;
@@ -1024,7 +1045,8 @@ int execute_fcall_ro_command(zval* object, int argc, zval* return_value, zend_cl
 
     /* If we have a Glide client, use it */
     if (valkey_glide->glide_client) {
-        return execute_fcall_command_internal(valkey_glide->glide_client,
+        return execute_fcall_command_internal(object,
+                                              valkey_glide,
                                               name,
                                               name_len,
                                               keys_array,

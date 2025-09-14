@@ -3799,15 +3799,21 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $results = $this->valkey_glide->multi()
             ->function('LOAD', $functionCode)
             ->function('LIST')
+            ->fcall('myfunc', [], ['foo'])  
+            ->function('load', 'replace',"#!lua name=mylib\nredis.register_function{function_name='myfunc_ro', callback=function(keys, args) return args[1] end, flags={'no-writes'}}")
+            ->fcall_ro('myfunc_ro', [], ['foo'])                      
             ->function('DELETE', 'mylib')
             ->exec();
         
         // Verify transaction results
         $this->assertIsArray($results);
-        $this->assertCount(3, $results);
+        $this->assertCount(6, $results);
         $this->assertEquals('mylib', $results[0]); // FUNCTION LOAD result        
-        $this->assertIsArray($results[1]); // FUNCTION LIST result
-        $this->assertTrue($results[2]); // FUNCTION DELETE result
+        $this->assertIsArray($results[1]); // FUNCTION LIST result        
+        $this->assertEquals('foo',$results[2]); // fcall result
+        $this->assertEquals('mylib', $results[3]); // FUNCTION LOAD result                
+        $this->assertEquals('foo',$results[4]); // fcall_ro result
+        $this->assertTrue($results[5]); // FUNCTION DELETE result
 
         // Verify server-side effects
         $functions = $this->valkey_glide->function('LIST');
