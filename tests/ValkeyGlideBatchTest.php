@@ -3501,8 +3501,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     // ===================================================================
 
     public function testHyperLogLogOperationsBatch()
-    {
-        $this->markTestSkipped();
+    {        
         $key1 = 'batch_hll_1_' . uniqid();
         $key2 = 'batch_hll_2_' . uniqid();
         $key3 = 'batch_hll_3_' . uniqid();
@@ -3521,7 +3520,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $results[1]); // PFADD result (HLL was altered)
         $this->assertGTE(4, $results[2]); // PFCOUNT result (approximate count >= 4)
         $this->assertLTE(6, $results[2]); // PFCOUNT result (approximate count <= 6)
-
+        
         // Verify server-side effects
         $count1 = $this->valkey_glide->pfcount($key1);
         $count2 = $this->valkey_glide->pfcount($key2);
@@ -3534,7 +3533,6 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testHyperLogLogMergeBatch()
     {
-        $this->markTestSkipped();
         $key1 = 'batch_hll_merge_1_' . uniqid();
         $key2 = 'batch_hll_merge_2_' . uniqid();
         $key3 = 'batch_hll_merge_3_' . uniqid();

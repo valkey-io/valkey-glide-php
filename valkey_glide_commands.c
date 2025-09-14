@@ -677,8 +677,7 @@ int execute_pfadd_command(zval* object, int argc, zval* return_value, zend_class
     args.args[0].data.array_arg.count = elements_count;
     args.arg_count                    = 1;
 
-
-    if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+    if (execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -713,6 +712,10 @@ int execute_pfcount_command(zval* object, int argc, zval* return_value, zend_cla
     }
 
     /* Execute the PFCOUNT command using the Glide client */
+
+    if (Z_TYPE_P(z_args) == IS_ARRAY) {
+        arg_count = zend_hash_num_elements(Z_ARRVAL_P(z_args));
+    }
 
     if (execute_multi_key_command(valkey_glide, PfCount, z_args, arg_count, object, return_value)) {
         return 1;
