@@ -3466,9 +3466,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del('{zs}1', '{zs}2');
         $this->valkey_glide->zAdd('{zs}1', 0, 'a', 1, 'b', 2, 'c');
         $this->valkey_glide->zAdd('{zs}2', 3, 'A', 4, 'B', 5, 'D');
-
+        
         $this->assertEquals(['{zs}1', 'a', '0'], $this->valkey_glide->bzPopMin('{zs}1', '{zs}2', 0));
-
         $this->assertEquals(['{zs}1', 'c', '2'], $this->valkey_glide->bzPopMax(['{zs}1', '{zs}2'], 0));
         $this->assertEquals(['{zs}2', 'A', '3'], $this->valkey_glide->bzPopMin(['{zs}2', '{zs}1'], 0));
 

@@ -3571,8 +3571,6 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortedSetBlockingPopBatch()
     {
-        $this->markTestSkipped();
-
         $key1 = 'batch_zset_blocking_1_' . uniqid();
         $key2 = 'batch_zset_blocking_2_' . uniqid();
 
@@ -3590,8 +3588,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertEquals([$key1, 'one', 1.0], $results[0]); // BZPOPMIN result
-        $this->assertEquals([$key2, 'twenty', 20.0], $results[1]); // BZPOPMAX result
+        $this->assertEquals([$key1, 'one', '1'], $results[0]); // BZPOPMIN result
+        $this->assertEquals([$key2, 'twenty', '20'], $results[1]); // BZPOPMAX result
         $this->assertEquals(2, $results[2]); // ZCARD result (after BZPOPMIN)
 
         // Verify server-side effects

@@ -588,6 +588,16 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
 
+        case BZPopMax:
+        case BZPopMin:
+            allocated_strings = (char**) emalloc(2 * sizeof(char*)); /* Enough for BZPOP commands */
+            if (!allocated_strings) {
+                return 0;
+            }
+            arg_count = prepare_z_bzpop_args(
+                args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
+            break;
+
         default:
             /* Unsupported command type */
             return 0;
@@ -1838,6 +1848,104 @@ int prepare_z_randmember_args(z_command_args_t* args,
     return arg_count;
 }
 
+/**
+ * Prepare BZPOP command arguments (timeout + keys)
+ * Handles both array format (single zval containing array) and variadic format (array of zvals)
+ */
+int prepare_z_bzpop_args(z_command_args_t* args,
+                         uintptr_t**       args_out,
+                         unsigned long**   args_len_out,
+                         char***           allocated_strings,
+                         int*              allocated_count) {
+    if (!args || !args->members || args->member_count <= 0 || !args_out || !args_len_out ||
+        !allocated_strings || !allocated_count) {
+        return 0;
+    }
+
+    *allocated_count = 0;
+
+    /* Detect format: array format vs variadic format */
+    int        actual_key_count = 0;
+    zval*      keys_array       = NULL;
+    int        is_array_format  = 0;
+    HashTable* keys_ht          = NULL;
+
+    /* Check if we have array format (single zval containing an array) */
+    if (Z_TYPE_P(&args->members[0]) == IS_ARRAY) {
+        /* Array format: args->members[0] contains the array of keys */
+        is_array_format  = 1;
+        keys_array       = &args->members[0];
+        keys_ht          = Z_ARRVAL_P(keys_array);
+        actual_key_count = zend_hash_num_elements(keys_ht);
+    } else {
+        /* Variadic format: args->members is array of individual key zvals */
+        is_array_format  = 0;
+        actual_key_count = args->member_count;
+    }
+
+    if (actual_key_count <= 0) {
+        return 0;
+    }
+
+    /* Calculate argument count: keys + timeout */
+    unsigned long arg_count = actual_key_count + 1; /* keys + timeout */
+
+    /* Allocate final args arrays */
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+
+    if (!(*args_out) || !(*args_len_out)) {
+        if (*args_out)
+            efree(*args_out);
+        if (*args_len_out)
+            efree(*args_len_out);
+        return 0;
+    }
+
+    /* Add keys as arguments based on format */
+    if (is_array_format) {
+        /* Array format: iterate through the array */
+        int   idx = 0;
+        zval* key_entry;
+        ZEND_HASH_FOREACH_VAL(keys_ht, key_entry) {
+            if (Z_TYPE_P(key_entry) != IS_STRING) {
+                /* Convert to string if needed */
+                convert_to_string(key_entry);
+            }
+            (*args_out)[idx]     = (uintptr_t) Z_STRVAL_P(key_entry);
+            (*args_len_out)[idx] = Z_STRLEN_P(key_entry);
+            idx++;
+        }
+        ZEND_HASH_FOREACH_END();
+    } else {
+        /* Variadic format: iterate through individual zvals */
+        int i;
+        for (i = 0; i < actual_key_count; i++) {
+            zval* key = &args->members[i];
+            if (Z_TYPE_P(key) != IS_STRING) {
+                /* Convert to string if needed */
+                convert_to_string(key);
+            }
+            (*args_out)[i]     = (uintptr_t) Z_STRVAL_P(key);
+            (*args_len_out)[i] = Z_STRLEN_P(key);
+        }
+    }
+
+    /* Add timeout as the last argument (reuse increment field for timeout) */
+    size_t timeout_len;
+    char*  timeout_str = double_to_string(args->increment, &timeout_len);
+    if (!timeout_str) {
+        efree(*args_out);
+        efree(*args_len_out);
+        return 0;
+    }
+    (*args_out)[actual_key_count]              = (uintptr_t) timeout_str;
+    (*args_len_out)[actual_key_count]          = timeout_len;
+    (*allocated_strings)[(*allocated_count)++] = timeout_str;
+
+    return arg_count;
+}
+
 /* ====================================================================
  * RESULT PROCESSING FUNCTIONS
  * ===================================================================== */
@@ -1967,4 +2075,45 @@ int process_z_long_to_zval_result(CommandResponse* response, void* output, zval*
     }
     return command_response_to_zval(
         response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+}
+
+/**
+ * Process BZPOP result (for BZPOPMAX/BZPOPMIN commands)
+ */
+int process_z_bzpop_result(CommandResponse* response, void* output, zval* return_value) {
+    if (!response || !return_value) {
+        return 0;
+    }
+    if (response->response_type == Null) {
+        /* Timeout occurred, return false */
+        ZVAL_FALSE(return_value);
+        return 1;
+    } else if (response->response_type == Array) {
+        /* For BZPOP commands, need to manually ensure the score is a string */
+        if (response->array_value_len == 3 && response->array_value[2].response_type != String) {
+            /* Convert the response array to PHP array */
+            int success = command_response_to_zval(
+                response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+
+            /* Get the score element (should be index 2) */
+            zval*      score = NULL;
+            zval*      arr   = return_value;
+            HashTable* ht    = Z_ARRVAL_P(arr);
+
+            /* Convert numeric score to string */
+            if (ht && zend_hash_index_exists(ht, 2)) {
+                score = zend_hash_index_find(ht, 2);
+                if (score && (Z_TYPE_P(score) == IS_LONG || Z_TYPE_P(score) == IS_DOUBLE)) {
+                    convert_to_string(score);
+                }
+            }
+            return success;
+        } else {
+            /* Regular array conversion */
+            return command_response_to_zval(
+                response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+        }
+    }
+
+    return 0;
 }

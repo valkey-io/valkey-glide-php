@@ -169,6 +169,11 @@ int process_z_long_to_zval_result(CommandResponse* response, void* output, zval*
  */
 int process_z_rank_result(CommandResponse* response, void* output, zval* return_value);
 
+/**
+ * Process BZPOP result (for BZPOPMAX/BZPOPMIN commands)
+ */
+int process_z_bzpop_result(CommandResponse* response, void* output, zval* return_value);
+
 /* ====================================================================
  * ARGUMENT PREPARATION UTILITIES
  * ==================================================================== */
@@ -282,6 +287,15 @@ int prepare_z_randmember_args(z_command_args_t* args,
                               unsigned long**   args_len_out,
                               char***           allocated_strings,
                               int*              allocated_count);
+
+/**
+ * Prepare BZPOP command arguments (keys + timeout)
+ */
+int prepare_z_bzpop_args(z_command_args_t* args,
+                         uintptr_t**       args_out,
+                         unsigned long**   args_len_out,
+                         char***           allocated_strings,
+                         int*              allocated_count);
 
 /* ====================================================================
  * OPTIONS PARSING HELPERS
