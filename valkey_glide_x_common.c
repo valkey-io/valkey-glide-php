@@ -16,6 +16,8 @@
 
 #include "valkey_glide_x_common.h"
 
+#include "valkey_glide_z_common.h"
+
 /* ====================================================================
  * OPTION PARSING FUNCTIONS
  * ==================================================================== */
@@ -357,21 +359,27 @@ void free_command_args(uintptr_t* args, unsigned long* args_len) {
 
 
 /**
- * Generic command execution framework
+ * Generic command execution framework with integrated batch support
  */
-int execute_x_generic_command(const void*          glide_client,
+int execute_x_generic_command(valkey_glide_object* valkey_glide,
                               enum RequestType     cmd_type,
                               x_command_args_t*    args,
                               void*                result_ptr,
-                              x_result_processor_t process_result) {
+                              x_result_processor_t process_result,
+                              zval*                return_value) {
+    /* Check if valkey_glide object is valid */
+    if (!valkey_glide) {
+        return 0;
+    }
+
+    /* Prepare arguments ONCE - single switch statement eliminates duplication */
     uintptr_t*     cmd_args          = NULL;
     unsigned long* args_len          = NULL;
     char**         allocated_strings = NULL;
     int            allocated_count   = 0;
     int            arg_count         = 0;
-    int            status            = 0;
 
-    /* Prepare arguments based on command type */
+    /* Single argument preparation logic for both batch and normal modes */
     switch (cmd_type) {
         case XGroupCreate:
         case XGroupCreateConsumer:
@@ -398,7 +406,6 @@ int execute_x_generic_command(const void*          glide_client,
             break;
         case XRange:
         case XRevRange:
-
             arg_count = prepare_x_range_args(args, &cmd_args, &args_len);
             break;
         case XPending:
@@ -408,7 +415,6 @@ int execute_x_generic_command(const void*          glide_client,
             arg_count = prepare_x_read_args(args, &cmd_args, &args_len);
             break;
         case XReadGroup:
-
             arg_count = prepare_x_readgroup_args(args, &cmd_args, &args_len);
             break;
         case XAutoClaim:
@@ -429,75 +435,71 @@ int execute_x_generic_command(const void*          glide_client,
             return 0;
     }
 
+    /* Check if argument preparation was successful */
     if (arg_count <= 0) {
-        goto cleanup;
+        if (cmd_args)
+            efree(cmd_args);
+        if (args_len)
+            efree(args_len);
+        if (allocated_strings)
+            efree(allocated_strings);
+        return 0;
+    }
+
+    if (valkey_glide->is_in_batch_mode) {
+        int result = buffer_command_for_batch(valkey_glide,
+                                              cmd_type,
+                                              cmd_args,
+                                              args_len,
+                                              arg_count,
+
+                                              result_ptr,
+                                              process_result);
+
+        if (cmd_args)
+            efree(cmd_args);
+        if (args_len)
+            efree(args_len);
+
+        return result;
     }
 
     /* Execute the command */
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, cmd_type, arg_count, cmd_args, args_len);
 
-    CommandResult* result = execute_command(glide_client, cmd_type, arg_count, cmd_args, args_len);
-
-    /* Process result */
-    if (result) {
-        if (!result->command_error && result->response && process_result) {
-            status = process_result(result, result_ptr);
+    /* Free allocated strings */
+    int i;
+    for (i = 0; i < allocated_count; i++) {
+        if (allocated_strings[i]) {
+            efree(allocated_strings[i]);
         }
-        free_command_result(result);
     }
-
-cleanup:
-    /* Free allocated strings for complex commands */
-    if (allocated_strings) {
-        for (int i = 0; i < allocated_count; i++) {
-            if (allocated_strings[i]) {
-                efree(allocated_strings[i]);
-            }
-        }
+    if (allocated_strings)
         efree(allocated_strings);
+    if (cmd_args)
+        efree(cmd_args);
+    if (args_len)
+        efree(args_len);
+
+    /* Check if the command was successful */
+    if (!result) {
+        return 0;
     }
 
-    /* Handle special cleanup for specific commands that allocate individual strings */
-    /* Note: These are handled before general cleanup to avoid double-free */
-    if (cmd_type == XTrim && args->trim_opts.has_limit && cmd_args && arg_count > 0) {
-        /* XTRIM allocates limit string - find and free it */
-        /* The limit string is added after LIMIT keyword, scan backwards to find it */
-        for (int i = arg_count - 1; i >= 0; i--) {
-            /* Look for the pattern: LIMIT followed by allocated string */
-            if (i > 0 && cmd_args[i - 1] == (uintptr_t) "LIMIT") {
-                /* This should be our allocated limit string */
-                char* potential_str = (char*) cmd_args[i];
-                /* Simple validation: check if it looks like a number string */
-                if (potential_str && potential_str[0] >= '0' && potential_str[0] <= '9') {
-                    efree(potential_str);
-                }
-                break;
-            }
-        }
+    /* Check if there was an error */
+    if (result->command_error) {
+        free_command_result(result);
+        return 0;
     }
 
-    if ((cmd_type == XRange || cmd_type == XRevRange) && args->range_opts.has_count && cmd_args &&
-        arg_count > 0) {
-        /* XRANGE/XREVRANGE allocates count string - find and free it */
-        /* The count string is added after COUNT keyword, scan backwards to find it */
-        for (int i = arg_count - 1; i >= 0; i--) {
-            /* Look for the pattern: COUNT followed by allocated string */
-            if (i > 0 && cmd_args[i - 1] == (uintptr_t) "COUNT") {
-                /* This should be our allocated count string */
-                char* potential_str = (char*) cmd_args[i];
-                /* Simple validation: check if it looks like a number string */
-                if (potential_str && potential_str[0] >= '0' && potential_str[0] <= '9') {
-                    efree(potential_str);
-                }
-                break;
-            }
-        }
-    }
+    /* Process the result */
+    int success = process_result(result->response, result_ptr, return_value);
 
-    /* Free command arguments arrays (but not the individual string contents as they may be
-     * references) */
-    free_command_args(cmd_args, args_len);
+    /* Free the result */
+    free_command_result(result);
 
-    return status;
+    return success;
 }
 
 /* ====================================================================
@@ -507,13 +509,10 @@ cleanup:
 /**
  * Process an integer result from a command
  */
-int process_x_int_result(CommandResult* result, void* output) {
-    long* output_value = (long*) output;
-
+int process_x_int_result(CommandResponse* response, void* output, zval* return_value) {
     /* For ValkeyGlide stream commands, integer response is the count */
-    if (result->response->response_type == Int) {
-        /* Store the count in output_value */
-        *output_value = result->response->int_value;
+    if (response->response_type == Int) {
+        ZVAL_LONG(return_value, response->int_value);
         return 1;
     }
 
@@ -524,45 +523,38 @@ int process_x_int_result(CommandResult* result, void* output) {
 /**
  * Process a stream result from a command
  */
-int process_x_stream_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-
+int process_x_stream_result(CommandResponse* response, void* output, zval* return_value) {
     /* Use the command_response_to_stream_zval function */
-    return command_response_to_stream_zval(result->response, return_value);
+    return command_response_to_stream_zval(response, return_value);
 }
 
 /**
  * Process an XADD result from a command
  */
-int process_x_add_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-
+int process_x_add_result(CommandResponse* response, void* output, zval* return_value) {
     /* XADD returns the ID string, convert to proper output */
     return command_response_to_zval(
-        result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+        response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
 }
 
 /**
  * Process an XGROUP result from a command
  */
-int process_x_group_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-
+int process_x_group_result(CommandResponse* response, void* output, zval* return_value) {
     /* XGROUP response depends on subcommand */
     return command_response_to_zval(
-        result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+        response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
 }
 
 /**
  * Process an XPENDING result from a command
  */
-int process_x_pending_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-    int   status       = 0;
+int process_x_pending_result(CommandResponse* response, void* output, zval* return_value) {
+    int status = 0;
 
     /* XPENDING returns pending entries info */
-    status = command_response_to_zval(
-        result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+    status =
+        command_response_to_zval(response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
 
     /* Special handling for empty XPENDING response */
     if (status && Z_TYPE_P(return_value) == IS_ARRAY) {
@@ -590,17 +582,16 @@ int process_x_pending_result(CommandResult* result, void* output) {
 /**
  * Process an XREADGROUP result from a command
  */
-int process_x_readgroup_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-    int   status       = 0;
+int process_x_readgroup_result(CommandResponse* response, void* output, zval* return_value) {
+    int status = 0;
 
     /* Initialize array for results */
     array_init(return_value);
 
-    if (result->response->response_type == Map && result->response->array_value_len > 0) {
+    if (response->response_type == Map && response->array_value_len > 0) {
         /* Process each stream in the map */
-        for (int i = 0; i < result->response->array_value_len; i++) {
-            CommandResponse* element = &result->response->array_value[i];
+        for (int i = 0; i < response->array_value_len; i++) {
+            CommandResponse* element = &response->array_value[i];
 
             if (element->map_key && element->map_key->response_type == String &&
                 element->map_value) {
@@ -627,18 +618,17 @@ int process_x_readgroup_result(CommandResult* result, void* output) {
 /**
  * Process an XCLAIM result from a command
  */
-int process_x_claim_result(CommandResult* result, void* output) {
-    x_claim_result_context_t* ctx          = (x_claim_result_context_t*) output;
-    zval*                     return_value = ctx->return_value;
-    int                       status       = 0;
-    int                       justid       = ctx->claim_opts->justid;
+int process_x_claim_result(CommandResponse* response, void* output, zval* return_value) {
+    x_claim_result_context_t* ctx    = (x_claim_result_context_t*) output;
+    int                       status = 0;
+    int                       justid = ctx->claim_opts->justid;
     if (justid) {
         /* If JUSTID was specified, return an array of IDs */
         status = command_response_to_zval(
-            result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+            response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
     } else {
         /* Otherwise, return the full entries */
-        status = command_response_to_stream_zval(result->response, return_value);
+        status = command_response_to_stream_zval(response, return_value);
     }
 
     return status;
@@ -647,11 +637,9 @@ int process_x_claim_result(CommandResult* result, void* output) {
 /**
  * Process an XAUTOCLAIM result from a command
  */
-int process_x_autoclaim_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-
+int process_x_autoclaim_result(CommandResponse* response, void* output, zval* return_value) {
     /* XAUTOCLAIM returns a multi-part response */
-    if (result->response->response_type != Array || result->response->array_value_len < 1) {
+    if (response->response_type != Array || response->array_value_len < 1) {
         return 0;
     }
 
@@ -659,7 +647,7 @@ int process_x_autoclaim_result(CommandResult* result, void* output) {
     array_init(return_value);
 
     /* Extract the cursor (first element) */
-    CommandResponse* cursor_response = &result->response->array_value[0];
+    CommandResponse* cursor_response = &response->array_value[0];
     if (cursor_response->response_type == String) {
         zval cursor_zval;
         ZVAL_STRINGL(
@@ -671,8 +659,8 @@ int process_x_autoclaim_result(CommandResult* result, void* output) {
     }
 
     /* Extract the messages (second element) */
-    if (result->response->array_value_len >= 2) {
-        CommandResponse* messages_response = &result->response->array_value[1];
+    if (response->array_value_len >= 2) {
+        CommandResponse* messages_response = &response->array_value[1];
         zval             messages_zval;
 
         /* Process the messages using stream format */
@@ -686,8 +674,8 @@ int process_x_autoclaim_result(CommandResult* result, void* output) {
     }
 
     /* Extract deleted IDs if present (third element) */
-    if (result->response->array_value_len >= 3) {
-        CommandResponse* deleted_response = &result->response->array_value[2];
+    if (response->array_value_len >= 3) {
+        CommandResponse* deleted_response = &response->array_value[2];
         zval             deleted_zval;
         command_response_to_zval(
             deleted_response, &deleted_zval, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
@@ -705,12 +693,10 @@ int process_x_autoclaim_result(CommandResult* result, void* output) {
 /**
  * Process an XINFO result from a command
  */
-int process_x_info_result(CommandResult* result, void* output) {
-    zval* return_value = (zval*) output;
-
+int process_x_info_result(CommandResponse* response, void* output, zval* return_value) {
     /* XINFO returns information about the stream or consumers in associative array format */
     return command_response_to_zval(
-        result->response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
+        response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
 }
 
 /**

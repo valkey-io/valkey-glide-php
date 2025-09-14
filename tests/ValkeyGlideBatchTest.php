@@ -3222,8 +3222,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     // ===================================================================
 
     public function testStreamBasicOperationsBatch()
-    {
-        $this->markTestSkipped();
+    {        
         $stream1 = 'batch_stream_1_' . uniqid();
         $stream2 = 'batch_stream_2_' . uniqid();
 
@@ -3250,7 +3249,6 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testStreamReadOperationsBatch()
     {
-        $this->markTestSkipped();
         $stream1 = 'batch_stream_read_' . uniqid();
 
         // Setup stream with entries
@@ -3284,7 +3282,6 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testStreamGroupOperationsBatch()
     {
-        $this->markTestSkipped();
         $stream1 = 'batch_stream_group_' . uniqid();
         $group1 = 'batch_group_1';
         $consumer1 = 'batch_consumer_1';
@@ -3303,7 +3300,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
         $this->assertTrue($results[0]); // XGROUP CREATE result
-        $this->assertEquals(1, $results[1]); // XGROUP CREATECONSUMER result (consumer created)
+        $this->assertTrue($results[1]); // XGROUP CREATECONSUMER result (consumer created)
         $this->assertEquals(0, $results[2]); // XGROUP DELCONSUMER result (0 pending messages)
 
         // Verify server-side effects by checking group info
@@ -3318,7 +3315,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testStreamGroupManagementBatch()
     {
-        $this->markTestSkipped();
+        
         $stream1 = 'batch_stream_mgmt_' . uniqid();
         $group1 = 'batch_group_mgmt';
 
@@ -3338,7 +3335,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
         $this->assertTrue($results[0]); // XGROUP SETID result
-        $this->assertEquals(1, $results[1]); // XGROUP DESTROY result (1 group destroyed)
+        $this->assertTrue($results[1]); // XGROUP DESTROY result (1 group destroyed)
         $this->assertEquals(2, $results[2]); // XLEN result (stream still has entries)
 
         // Verify server-side effects
@@ -3352,7 +3349,6 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testStreamInfoOperationsBatch()
     {
-        $this->markTestSkipped();
         $stream1 = 'batch_stream_info_' . uniqid();
         $group1 = 'batch_info_group';
         $consumer1 = 'batch_info_consumer';
@@ -3391,7 +3387,6 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testStreamConsumerOperationsBatch()
     {
-        $this->markTestSkipped();
         $stream1 = 'batch_stream_consumer_' . uniqid();
         $group1 = 'batch_consumer_group';
         $consumer1 = 'batch_consumer_1';
@@ -3427,7 +3422,6 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testStreamAdvancedOperationsBatch()
     {
-        $this->markTestSkipped();
         $stream1 = 'batch_stream_advanced_' . uniqid();
         $group1 = 'batch_advanced_group';
         $consumer1 = 'batch_advanced_consumer';
@@ -3465,7 +3459,6 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testStreamTrimOperationsBatch()
     {
-        $this->markTestSkipped();
         $stream1 = 'batch_stream_trim_' . uniqid();
 
         // Setup stream with multiple entries

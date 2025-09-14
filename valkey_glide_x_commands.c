@@ -54,10 +54,12 @@ int execute_xlen_command(zval* object, int argc, zval* return_value, zend_class_
 
         /* Use the generic command execution framework */
         int result = execute_x_generic_command(
-            valkey_glide->glide_client, XLen, &args, &length, process_x_int_result);
+            valkey_glide, XLen, &args, &length, process_x_int_result, return_value);
 
-        if (result) {
-            ZVAL_LONG(return_value, length);
+        if (result && valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: out will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
         }
 
         return result;
@@ -97,10 +99,12 @@ int execute_xdel_command(zval* object, int argc, zval* return_value, zend_class_
 
         /* Use the generic command execution framework */
         int result = execute_x_generic_command(
-            valkey_glide->glide_client, XDel, &args, &count, process_x_int_result);
+            valkey_glide, XDel, &args, &count, process_x_int_result, return_value);
 
-        if (result) {
-            ZVAL_LONG(return_value, count);
+        if (result && valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: out will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
         }
 
         return result;
@@ -146,10 +150,12 @@ int execute_xack_command(zval* object, int argc, zval* return_value, zend_class_
 
         /* Use the generic command execution framework */
         int result = execute_x_generic_command(
-            valkey_glide->glide_client, XAck, &args, &count, process_x_int_result);
+            valkey_glide, XAck, &args, &count, process_x_int_result, return_value);
 
-        if (result) {
-            ZVAL_LONG(return_value, count);
+        if (result && valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: out will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
         }
 
         return result;
@@ -261,12 +267,18 @@ int execute_xadd_command(zval* object, int argc, zval* return_value, zend_class_
 
         /* Execute the command */
         int result = execute_x_generic_command(
-            valkey_glide->glide_client, XAdd, &args, return_value, process_x_add_result);
+            valkey_glide, XAdd, &args, return_value, process_x_add_result, return_value);
 
         /* Clean up if we created options array */
         if (options_created) {
             zval_dtor(z_options);
             efree(z_options);
+        }
+
+        if (result && valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: out will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
         }
 
         return result;
@@ -342,16 +354,17 @@ int execute_xtrim_command(zval* object, int argc, zval* return_value, zend_class
 
         /* Execute the command */
         int result = execute_x_generic_command(
-            valkey_glide->glide_client, XTrim, &args, &count, process_x_int_result);
+            valkey_glide, XTrim, &args, &count, process_x_int_result, return_value);
 
         /* Clean up if we created options array */
         if (z_options) {
             zval_dtor(z_options);
             efree(z_options);
         }
-
-        if (result) {
-            ZVAL_LONG(return_value, count);
+        if (result && valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: out will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
         }
 
         return result;
@@ -460,12 +473,17 @@ int execute_xrange_command(zval* object, int argc, zval* return_value, zend_clas
 
         /* Use the generic command execution framework */
         int result = execute_x_generic_command(
-            valkey_glide->glide_client, XRange, &args, return_value, process_x_stream_result);
+            valkey_glide, XRange, &args, return_value, process_x_stream_result, return_value);
 
         /* Clean up if we created options array */
         if (options_created) {
             zval_dtor(z_options);
             efree(z_options);
+        }
+        if (result && valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: out will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
         }
 
         return result;
@@ -577,12 +595,18 @@ int execute_xrevrange_command(zval* object, int argc, zval* return_value, zend_c
 
         /* Use the generic command execution framework */
         int result = execute_x_generic_command(
-            valkey_glide->glide_client, XRevRange, &args, return_value, process_x_stream_result);
+            valkey_glide, XRevRange, &args, return_value, process_x_stream_result, return_value);
 
         /* Clean up if we created options array */
         if (options_created) {
             zval_dtor(z_options);
             efree(z_options);
+        }
+
+        if (result && valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: out will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
         }
 
         return result;
@@ -695,12 +719,18 @@ int execute_xpending_command(zval* object, int argc, zval* return_value, zend_cl
 
         /* Execute the command */
         int result = execute_x_generic_command(
-            valkey_glide->glide_client, XPending, &args, return_value, process_x_pending_result);
+            valkey_glide, XPending, &args, return_value, process_x_pending_result, return_value);
 
         /* Clean up if we created options array */
         if (options_created && z_options) {
             zval_dtor(z_options);
             efree(z_options);
+        }
+
+        if (result && valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: out will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
         }
 
         return result;
@@ -769,7 +799,7 @@ int execute_xread_command(zval* object, int argc, zval* return_value, zend_class
 
         /* Execute the command */
         int result = execute_x_generic_command(
-            valkey_glide->glide_client, XRead, &args, return_value, process_x_stream_result);
+            valkey_glide, XRead, &args, return_value, process_x_stream_result, return_value);
 
         /* Clean up */
         zval_dtor(&z_streams);
@@ -777,6 +807,12 @@ int execute_xread_command(zval* object, int argc, zval* return_value, zend_class
         if (z_options) {
             zval_dtor(z_options);
             efree(z_options);
+        }
+
+        if (result && valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: out will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
         }
 
         return result;
@@ -935,11 +971,12 @@ int execute_xreadgroup_command(zval* object, int argc, zval* return_value, zend_
         parse_x_read_options(z_options, &args.read_opts);
 
         /* Execute the command with the generic framework */
-        int result = execute_x_generic_command(valkey_glide->glide_client,
+        int result = execute_x_generic_command(valkey_glide,
                                                XReadGroup,
                                                &args,
                                                return_value,
-                                               process_x_readgroup_result);
+                                               process_x_readgroup_result,
+                                               return_value);
 
         /* Clean up temporary arrays */
         zval_dtor(&z_streams);
@@ -949,6 +986,12 @@ int execute_xreadgroup_command(zval* object, int argc, zval* return_value, zend_
         if (options_created) {
             zval_dtor(z_options);
             efree(z_options);
+        }
+
+        if (result && valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: out will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
         }
 
         return result;
@@ -1010,8 +1053,14 @@ int execute_xclaim_command(zval* object, int argc, zval* return_value, zend_clas
         result_context.claim_opts               = &args.claim_opts;
 
         /* Use the generic command execution framework */
-        return execute_x_generic_command(
-            valkey_glide->glide_client, XClaim, &args, &result_context, process_x_claim_result);
+        int res = execute_x_generic_command(
+            valkey_glide, XClaim, &args, &result_context, process_x_claim_result, return_value);
+        if (res && valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: out will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
+        }
+        return res;
     }
 
     return 0;
@@ -1081,11 +1130,18 @@ int execute_xautoclaim_command(zval* object, int argc, zval* return_value, zend_
         }
 
         /* Use the generic command execution framework */
-        return execute_x_generic_command(valkey_glide->glide_client,
-                                         XAutoClaim,
-                                         &args,
-                                         return_value,
-                                         process_x_autoclaim_result);
+        int res = execute_x_generic_command(valkey_glide,
+                                            XAutoClaim,
+                                            &args,
+                                            return_value,
+                                            process_x_autoclaim_result,
+                                            return_value);
+        if (res && valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: out will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
+        }
+        return res;
     }
 
     return 0;
@@ -1134,11 +1190,18 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
         }
 
         /* Execute the command */
-        return execute_x_generic_command(valkey_glide->glide_client,
-                                         command_type,
-                                         &args_struct,
-                                         return_value,
-                                         process_x_info_result);
+        int res = execute_x_generic_command(valkey_glide,
+                                            command_type,
+                                            &args_struct,
+                                            return_value,
+                                            process_x_info_result,
+                                            return_value);
+        if (res && valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: out will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
+        }
+        return res;
     }
 
     return 0;
@@ -1351,11 +1414,12 @@ int execute_xgroup_command(zval* object, int argc, zval* return_value, zend_clas
         args_struct.args_count = args_count;
 
         /* Execute the command */
-        result = execute_x_generic_command(valkey_glide->glide_client,
+        result = execute_x_generic_command(valkey_glide,
                                            command_type,
                                            &args_struct,
                                            return_value,
-                                           process_x_group_result);
+                                           process_x_group_result,
+                                           return_value);
 
         /* Clean up */
         for (int i = 0; i < args_count; i++) {
@@ -1364,6 +1428,12 @@ int execute_xgroup_command(zval* object, int argc, zval* return_value, zend_clas
         if (z_args) {
             efree(z_args);
         }
+        if (result && valkey_glide->is_in_batch_mode) {
+            /* In batch mode, return $this for method chaining */
+            /* Note: out will be freed later in process_core_string_result */
+            ZVAL_COPY(return_value, object);
+        }
+
 
         return result;
     }

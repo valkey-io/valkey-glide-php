@@ -179,7 +179,7 @@ typedef struct _x_command_args_t {
 } x_command_args_t;
 
 /* Function pointer types */
-typedef int (*x_result_processor_t)(CommandResult* result, void* output);
+typedef int (*x_result_processor_t)(CommandResponse* response, void* output, zval* return_value);
 typedef int (*x_arg_preparation_func_t)(x_command_args_t* args,
                                         uintptr_t**       args_out,
                                         unsigned long**   args_len_out,
@@ -202,11 +202,12 @@ int  allocate_command_args(int count, uintptr_t** args_out, unsigned long** args
 void free_command_args(uintptr_t* args, unsigned long* args_len);
 
 /* Generic command execution framework */
-int execute_x_generic_command(const void*          glide_client,
+int execute_x_generic_command(valkey_glide_object* valkey_glide,
                               enum RequestType     cmd_type,
                               x_command_args_t*    args,
                               void*                result_ptr,
-                              x_result_processor_t process_result);
+                              x_result_processor_t process_result,
+                              zval*                return_value);
 
 /* Argument preparation */
 int prepare_x_len_args(x_command_args_t* args, uintptr_t** args_out, unsigned long** args_len_out);
@@ -265,24 +266,18 @@ int parse_x_group_options(zval* options, x_command_args_t* args);
 int parse_x_info_options(zval* options, x_command_args_t* args);
 
 /* Result processing */
-int process_x_int_result(CommandResult* result, void* output);
-int process_x_double_result(CommandResult* result, void* output);
-int process_x_array_result(CommandResult* result, void* output);
-int process_x_stream_result(CommandResult* result, void* output);
-int process_x_add_result(CommandResult* result, void* output);
-int process_x_group_result(CommandResult* result, void* output);
-int process_x_pending_result(CommandResult* result, void* output);
-int process_x_readgroup_result(CommandResult* result, void* output);
-int process_x_claim_result(CommandResult* result, void* output);
-int process_x_autoclaim_result(CommandResult* result, void* output);
-int process_x_info_result(CommandResult* result, void* output);
+int process_x_int_result(CommandResponse* response, void* output, zval* return_value);
+int process_x_double_result(CommandResponse* response, void* output, zval* return_value);
+int process_x_array_result(CommandResponse* response, void* output, zval* return_value);
+int process_x_stream_result(CommandResponse* response, void* output, zval* return_value);
+int process_x_add_result(CommandResponse* response, void* output, zval* return_value);
+int process_x_group_result(CommandResponse* response, void* output, zval* return_value);
+int process_x_pending_result(CommandResponse* response, void* output, zval* return_value);
+int process_x_readgroup_result(CommandResponse* response, void* output, zval* return_value);
+int process_x_claim_result(CommandResponse* response, void* output, zval* return_value);
+int process_x_autoclaim_result(CommandResponse* response, void* output, zval* return_value);
+int process_x_info_result(CommandResponse* response, void* output, zval* return_value);
 
-/* Execution framework */
-int execute_x_generic_command(const void*          glide_client,
-                              enum RequestType     cmd_type,
-                              x_command_args_t*    args,
-                              void*                result_ptr,
-                              x_result_processor_t process_result);
 
 /* Command implementation functions */
 int execute_xlen_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
