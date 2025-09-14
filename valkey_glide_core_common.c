@@ -1660,7 +1660,7 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
  * DEBUG FUNCTIONS (only in debug builds)
  * ==================================================================== */
 
-#ifdef DEBUG23
+#ifdef DEBUG_VALKEY_GLIDE_PHP
 void debug_print_core_args(core_command_args_t* args) {
     if (!args) {
         printf("DEBUG: core_args is NULL\n");
