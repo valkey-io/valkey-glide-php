@@ -44,7 +44,7 @@ runs:
             echo "ERROR: Source folder does not exist!"
             exit 1
         fi
-                      
+
         # Create output directory
         echo "Creating output directory: $FOLDER/ort_results"
         mkdir -p "$FOLDER/ort_results"

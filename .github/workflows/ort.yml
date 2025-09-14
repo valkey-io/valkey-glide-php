@@ -367,7 +367,7 @@ jobs:
       - name: Warn of outdated attributions due to the PR
         if: ${{ env.FOUND_DIFF == 'true' && github.event_name == 'pull_request' }}
         run: |
-          ATTRIBUTION_FILES=(                    
+          ATTRIBUTION_FILES=(
             "${{ env.PHP_ATTRIBUTIONS }}"
           )
 

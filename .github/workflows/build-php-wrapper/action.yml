@@ -158,7 +158,7 @@ runs:
     - name: Generate protobuf and bindings
       shell: bash
       run: |
-        make build-modules-pre
+        make include/glide_bindings.h
 
     - name: Debug PHP extension linking
       shell: bash

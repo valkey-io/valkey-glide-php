@@ -155,88 +155,11 @@ jobs:
           echo "Current directory contents:"
           ls -la
 
-      - name: Start Valkey servers
-        working-directory: tests
-        run: |
-          set -e  # Exit on any error
-
-          # Ensure /usr/local/bin is in PATH (where valkey-server is installed)
-          export PATH="/usr/local/bin:$PATH"
-
-          echo "=== DEBUG: Current directory and files ==="
-          pwd
-          ls -la
-
-          echo "=== DEBUG: Current PATH ==="
-          echo "PATH=$PATH"
-
-          echo "=== DEBUG: Checking for installed binaries in /usr/local/bin ==="
-          ls -la /usr/local/bin/ | grep -E "(valkey|redis)" || echo "No valkey/redis binaries in /usr/local/bin"
-
-          echo "=== DEBUG: Checking script permissions ==="
-          ls -la start_valkey_with_replicas.sh create-valkey-cluster.sh
-
-          # Make scripts executable
-          chmod +x start_valkey_with_replicas.sh create-valkey-cluster.sh
-
-          echo "=== DEBUG: After chmod ==="
-          ls -la start_valkey_with_replicas.sh create-valkey-cluster.sh
-
-          # Check if valkey-server is available
-          echo "=== DEBUG: Checking for valkey-server ==="
-          which valkey-server || echo "valkey-server not found in PATH"
-
-          # Check alternative locations and names
-          echo "=== DEBUG: Checking alternative binary names ==="
-          which redis-server || echo "redis-server not found in PATH"
-          which valkey-cli || echo "valkey-cli not found in PATH"
-          which redis-cli || echo "redis-cli not found in PATH"
-
-          # Start standalone servers (6379, 6380, 6381)
-          echo "=== Starting standalone Valkey servers ==="
-          ./start_valkey_with_replicas.sh
-
-          # Wait a moment for servers to start
-          echo "=== Waiting for standalone servers to start ==="
-          sleep 3
-
-          # Check if servers are running
-          echo "=== Checking standalone server status ==="
-          ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
-
-          # Start cluster servers (7001-7006)
-          echo "=== Starting Valkey cluster ==="
-          ./create-valkey-cluster.sh
-
-          # Final server status check
-          echo "=== Final server status check ==="
-          ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
-          echo "=== Valkey servers startup completed ==="
-
-      - name: Run PHP extension tests
-        run: |
-          # Run tests using direct extension loading with absolute path
-          php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php
-
-      - name: Run integration tests
-        run: |
-          # All tests are now run through the main TestValkeyGlide.php runner
-          echo "All 4 test classes are already included in the main test runner"
-          echo "TestValkeyGlide.php now runs all classes by default:"
-          echo "- ValkeyGlide_Test (standalone)"
-          echo "- ValkeyGlide_Cluster_Test (cluster)"
-          echo "- ValkeyGlide_Features_Test (standalone features)"
-          echo "- ValkeyGlide_Cluster_Features_Test (cluster features)"
-
-      - name: Stop Valkey servers
-        if: always()
-        run: |
-          # Stop all Valkey server processes
-          echo "Stopping Valkey servers..."
-          pkill valkey-server || true
-          # Clean up data directories
-          rm -rf $HOME/valkey-cluster || true
-          rm -rf tests/valkey_data || true
+      - name: Run PHP Extension Tests
+        uses: ./.github/workflows/run-php-tests
+        with:
+          extension-path: ${{ github.workspace }}/modules/valkey_glide.so
+          php-version: ${{ matrix.php }}
 
       - uses: ./.github/workflows/test-benchmark
         if: ${{ matrix.engine.version == '8.0' && matrix.host.OS == 'ubuntu' && matrix.host.RUNNER == 'ubuntu-latest' && matrix.php == env.BASE_PHP_VERSION }}
@@ -588,7 +511,7 @@ jobs:
           echo "Test file exists: $(ls -la tests/TestValkeyGlide.php 2>/dev/null || echo 'NOT FOUND')"
           echo "Suppressions file exists: $(ls -la valgrind.supp 2>/dev/null || echo 'NOT FOUND')"
           echo "Valgrind version: $(valgrind --version)"
-                                             
+
           # Step 7: Run Valgrind tests
           echo ""
           echo "=== Step 7: Running Valgrind memory analysis ==="
@@ -619,19 +542,19 @@ jobs:
           if [ -f "./valgrind_logs/valgrind_output.log" ]; then
               LOG_SIZE=$(wc -c < ./valgrind_logs/valgrind_output.log)
               echo "=== Valgrind log file found (${LOG_SIZE} bytes) ==="
-              
+
               # Since we used tee, the output should already be visible above
               # But let's extract key information for summary
               echo ""
               echo "=== Extracting Key Results ==="
-              
+
               # Show test completion status
               if grep -q "All tests passed" ./valgrind_logs/valgrind_output.log; then
                   echo "✅ All tests passed"
               elif grep -q "FAILED" ./valgrind_logs/valgrind_output.log; then
                   echo "❌ Some tests failed"
               fi
-              
+
               # Check for memory leaks
               if grep -q "definitely lost:" ./valgrind_logs/valgrind_output.log; then
                   echo "⚠️  CRITICAL: Definite memory leaks detected"
@@ -639,31 +562,31 @@ jobs:
               else
                   echo "✅ No definite memory leaks detected"
               fi
-              
+
               # Check for possible leaks
               if grep -q "possibly lost:" ./valgrind_logs/valgrind_output.log; then
                   POSSIBLY_LOST=$(grep "possibly lost:" ./valgrind_logs/valgrind_output.log | head -1)
                   echo "⚠️  Possible leaks: $POSSIBLY_LOST"
               fi
-              
+
               # Show leak summary if present
               if grep -q "LEAK SUMMARY:" ./valgrind_logs/valgrind_output.log; then
                   echo ""
                   echo "=== Memory Leak Summary ==="
                   grep -A 6 "LEAK SUMMARY:" ./valgrind_logs/valgrind_output.log | head -7 || true
               fi
-              
+
               # Show error summary
               if grep -q "ERROR SUMMARY:" ./valgrind_logs/valgrind_output.log; then
                   echo ""
                   echo "=== Error Summary ==="
                   grep "ERROR SUMMARY:" ./valgrind_logs/valgrind_output.log || true
               fi
-              
+
               echo ""
               echo "📝 Full Valgrind output was displayed above during test execution"
               echo "📎 Complete log is also saved as artifact for detailed analysis"
-              
+
           else
               echo "❌ No Valgrind output file found"
               echo "This indicates the Valgrind command may have failed to execute properly"
