@@ -1,15 +1,21 @@
 {
     "name": "valkey-io/valkey-glide-php",
-    "description": "PHP client for Valkey",
-    "type": "library",
+    "description": "General Language Independent Driver for the Enterprise (GLIDE) for Valkey",
+    "type": "php-ext",
     "license": "Apache-2.0",
+    "provide": {
+        "ext-valkey_glide": "*"
+    },
+    "php-ext": {
+        "extension-name": "valkey_glide"
+    },
     "authors": [
         {
             "name": "Valkey GLIDE contributors",
-            "homepage": "https://github.com/valkey-io/valkey-glide"
+            "homepage": "https://github.com/valkey-io/valkey-glide-php"
         }
     ],
-    "homepage": "https://github.com/valkey-io/valkey-glide",
+    "homepage": "https://github.com/valkey-io/valkey-glide-php",
     "require": {
         "php": ">=8.1"
     },

@@ -19,9 +19,9 @@
 #include "zend_exceptions.h"
 
 #if PHP_VERSION_ID < 80000
-#include "tests/client_constructor_mock_legacy_arginfo.h"
+#include "src/client_constructor_mock_legacy_arginfo.h"
 #else
-#include "tests/client_constructor_mock_arginfo.h"
+#include "src/client_constructor_mock_arginfo.h"
 #include "zend_attributes.h"
 #endif
 
