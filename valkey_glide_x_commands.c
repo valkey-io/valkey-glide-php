@@ -1048,13 +1048,13 @@ int execute_xclaim_command(zval* object, int argc, zval* return_value, zend_clas
         /* Parse options for XCLAIM command */
         parse_x_claim_options(z_options, &args.claim_opts);
 
-        x_claim_result_context_t result_context = {0};
-        result_context.return_value             = return_value;
-        result_context.claim_opts               = &args.claim_opts;
+        x_claim_result_context_t* result_context = emalloc(sizeof(x_claim_result_context_t));
+        memset(result_context, 0, sizeof(x_claim_result_context_t));
+        result_context->justid = args.claim_opts.justid;
 
         /* Use the generic command execution framework */
         int res = execute_x_generic_command(
-            valkey_glide, XClaim, &args, &result_context, process_x_claim_result, return_value);
+            valkey_glide, XClaim, &args, result_context, process_x_claim_result, return_value);
         if (res && valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             /* Note: out will be freed later in process_core_string_result */
@@ -1071,13 +1071,16 @@ int execute_xautoclaim_command(zval* object, int argc, zval* return_value, zend_
     valkey_glide_object* valkey_glide;
     char *               key = NULL, *group = NULL, *consumer = NULL, *start = NULL;
     size_t               key_len = 0, group_len = 0, consumer_len = 0, start_len = 0;
-    long                 min_idle_time = 0;
-    zval*                z_options     = NULL;
+    long                 min_idle_time   = 0;
+    long                 count           = -1;
+    zend_bool            justid          = 0;
+    zval*                z_options       = NULL;
+    int                  options_created = 0;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(argc,
                                      object,
-                                     "Osssls|a",
+                                     "Osssls|lb",
                                      &object,
                                      ce,
                                      &key,
@@ -1089,8 +1092,24 @@ int execute_xautoclaim_command(zval* object, int argc, zval* return_value, zend_
                                      &min_idle_time,
                                      &start,
                                      &start_len,
-                                     &z_options) == FAILURE) {
+                                     &count,
+                                     &justid) == FAILURE) {
         return 0;
+    }
+
+    /* Create options array if count or justid are specified */
+    if (count != -1 || justid) {
+        z_options = emalloc(sizeof(zval));
+        array_init(z_options);
+        options_created = 1;
+
+        if (count != -1) {
+            add_assoc_long(z_options, "COUNT", count);
+        }
+
+        if (justid) {
+            add_assoc_bool(z_options, "JUSTID", 1);
+        }
     }
 
     /* Get ValkeyGlide object */
@@ -1136,6 +1155,13 @@ int execute_xautoclaim_command(zval* object, int argc, zval* return_value, zend_
                                             return_value,
                                             process_x_autoclaim_result,
                                             return_value);
+
+        /* Clean up if we created options array */
+        if (options_created) {
+            zval_dtor(z_options);
+            efree(z_options);
+        }
+
         if (res && valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             /* Note: out will be freed later in process_core_string_result */

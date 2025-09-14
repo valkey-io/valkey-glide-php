@@ -621,7 +621,7 @@ int process_x_readgroup_result(CommandResponse* response, void* output, zval* re
 int process_x_claim_result(CommandResponse* response, void* output, zval* return_value) {
     x_claim_result_context_t* ctx    = (x_claim_result_context_t*) output;
     int                       status = 0;
-    int                       justid = ctx->claim_opts->justid;
+    int                       justid = ctx->justid;
     if (justid) {
         /* If JUSTID was specified, return an array of IDs */
         status = command_response_to_zval(
@@ -630,6 +630,7 @@ int process_x_claim_result(CommandResponse* response, void* output, zval* return
         /* Otherwise, return the full entries */
         status = command_response_to_stream_zval(response, return_value);
     }
+    efree(ctx); /* Free the context */
 
     return status;
 }

@@ -98,8 +98,7 @@ typedef struct _x_claim_options_t {
 } x_claim_options_t;
 
 typedef struct {
-    zval*              return_value;
-    x_claim_options_t* claim_opts;  // Contains justid flag
+    int justid;
 } x_claim_result_context_t;
 
 /**
