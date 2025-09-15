@@ -1011,34 +1011,86 @@ int execute_ping_command(zval* object, int argc, zval* return_value, zend_class_
 
 #define _NL "\r\n"
 
-static void valkey_glide_parse_info_response(char* response, zval* z_ret) {
-    char *p1, *s1 = NULL;
+/* Helper function to safely calculate string length within buffer bounds */
+static size_t safe_strlen(const char* str, const char* buffer_end) {
+    const char* end = str;
+    while (end < buffer_end && *end != '\0') {
+        end++;
+    }
+    return end - str;
+}
 
+static void valkey_glide_parse_info_response(char* response, size_t response_len, zval* z_ret) {
     ZVAL_FALSE(z_ret);
-    if ((p1 = php_strtok_r(response, _NL, &s1)) != NULL) {
+
+    if (!response || response_len == 0) {
+        return;
+    }
+
+    /* Create a null-terminated copy of the response to ensure safe string operations */
+    char* safe_response = emalloc(response_len + 1);
+    if (!safe_response) {
+        return;
+    }
+
+    memcpy(safe_response, response, response_len);
+    safe_response[response_len] = '\0';
+
+    char* p1;
+    char* s1 = NULL;
+
+    if ((p1 = php_strtok_r(safe_response, _NL, &s1)) != NULL) {
         array_init(z_ret);
         do {
-            if (*p1 == '#')
+            /* Skip comment lines */
+            if (*p1 == '#') {
                 continue;
-            char*      p;
-            zend_uchar type;
-            zend_long  lval;
-            double     dval;
-            if ((p = strchr(p1, ':')) != NULL) {
-                type = is_numeric_string(p + 1, strlen(p + 1), &lval, &dval, 0);
-                switch (type) {
-                    case IS_LONG:
-                        add_assoc_long_ex(z_ret, p1, p - p1, lval);
-                        break;
-                    case IS_DOUBLE:
-                        add_assoc_double_ex(z_ret, p1, p - p1, dval);
-                        break;
-                    default:
-                        add_assoc_string_ex(z_ret, p1, p - p1, p + 1);
+            }
+
+            /* Find the colon separator */
+            char* p = strchr(p1, ':');
+            if (p != NULL) {
+                char* value_start = p + 1;
+
+                /* Calculate the key length */
+                size_t key_len = p - p1;
+
+                /* Skip if key is empty */
+                if (key_len == 0) {
+                    continue;
+                }
+
+                /* Calculate value length safely */
+                size_t value_len = strlen(value_start);
+
+                /* Process the value */
+                if (value_len > 0) {
+                    zend_uchar type;
+                    zend_long  lval;
+                    double     dval;
+
+                    type = is_numeric_string(value_start, value_len, &lval, &dval, 0);
+                    switch (type) {
+                        case IS_LONG:
+                            add_assoc_long_ex(z_ret, p1, key_len, lval);
+                            break;
+                        case IS_DOUBLE:
+                            add_assoc_double_ex(z_ret, p1, key_len, dval);
+                            break;
+                        default:
+                            add_assoc_stringl_ex(z_ret, p1, key_len, value_start, value_len);
+                            break;
+                    }
+                } else {
+                    /* Empty value - add as empty string */
+                    add_assoc_stringl_ex(z_ret, p1, key_len, "", 0);
                 }
             }
         } while ((p1 = php_strtok_r(NULL, _NL, &s1)) != NULL);
     }
+
+    /* Free the safe copy */
+    efree(safe_response);
 }
 
 
@@ -1086,7 +1138,8 @@ int process_info_result(CommandResponse* response, void* output, zval* return_va
 
     if (response->response_type == String) {
         /* Single node response - parse INFO string into associative array */
-        valkey_glide_parse_info_response(response->string_value, return_value);
+        valkey_glide_parse_info_response(
+            response->string_value, response->string_value_len, return_value);
         return 1;
     } else {
         /* Multi-node response (cluster with AllNodes routing) */
@@ -1103,7 +1156,8 @@ int process_info_result(CommandResponse* response, void* output, zval* return_va
         ZEND_HASH_FOREACH_VAL(ht, entry) {
             if (Z_TYPE_P(entry) == IS_STRING) {
                 zval parsed_info;
-                valkey_glide_parse_info_response(Z_STRVAL_P(entry), &parsed_info);
+                valkey_glide_parse_info_response(
+                    Z_STRVAL_P(entry), Z_STRLEN_P(entry), &parsed_info);
                 add_next_index_zval(return_value, &parsed_info);
             }
         }
