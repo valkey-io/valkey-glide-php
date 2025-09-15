@@ -1103,23 +1103,25 @@ int process_core_type_result(CommandResponse* response, void* output, zval* retu
         return -1;
     }
 
-    if (response->response_type == String && response->string_value) {
-        char* type_str = response->string_value;
+    if (response->response_type == String && response->string_value &&
+        response->string_value_len > 0) {
+        char*  type_str = response->string_value;
+        size_t str_len  = response->string_value_len;
 
-        /* Map ValkeyGlide type strings to PHP constants */
-        if (strncmp(type_str, "string", 6) == 0) {
+        /* Map ValkeyGlide type strings to PHP constants using safe bounded comparisons */
+        if (str_len >= 6 && strncmp(type_str, "string", 6) == 0) {
             type_code = 1; /* VALKEY_GLIDE_STRING */
-        } else if (strncmp(type_str, "list", 4) == 0) {
+        } else if (str_len >= 4 && strncmp(type_str, "list", 4) == 0) {
             type_code = 3; /* VALKEY_GLIDE_LIST */
-        } else if (strncmp(type_str, "set", 3) == 0) {
+        } else if (str_len >= 3 && strncmp(type_str, "set", 3) == 0) {
             type_code = 2; /* VALKEY_GLIDE_SET */
-        } else if (strncmp(type_str, "zset", 4) == 0) {
+        } else if (str_len >= 4 && strncmp(type_str, "zset", 4) == 0) {
             type_code = 4; /* VALKEY_GLIDE_ZSET */
-        } else if (strncmp(type_str, "hash", 4) == 0) {
+        } else if (str_len >= 4 && strncmp(type_str, "hash", 4) == 0) {
             type_code = 5; /* VALKEY_GLIDE_HASH */
-        } else if (strncmp(type_str, "stream", 6) == 0) {
+        } else if (str_len >= 6 && strncmp(type_str, "stream", 6) == 0) {
             type_code = 6; /* VALKEY_GLIDE_STREAM */
-        } else if (strncmp(type_str, "none", 4) == 0) {
+        } else if (str_len >= 4 && strncmp(type_str, "none", 4) == 0) {
             type_code = 0; /* VALKEY_GLIDE_NOT_FOUND */
         } else {
             /* Unknown type, default to NOT_FOUND */

@@ -30,9 +30,8 @@ extern char* double_to_string(double value, size_t* len);
 /* Execute a TYPE command using the Valkey Glide client - MIGRATED TO CORE FRAMEWORK */
 int execute_type_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
-    char*                key        = NULL;
-    size_t               key_len    = 0;
-    long                 type_value = 0;
+    char*                key     = NULL;
+    size_t               key_len = 0;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(argc, object, "Os", &object, ce, &key, &key_len) == FAILURE) {
@@ -50,8 +49,9 @@ int execute_type_command(zval* object, int argc, zval* return_value, zend_class_
         args.key                 = key;
         args.key_len             = key_len;
 
+
         if (execute_core_command(
-                valkey_glide, &args, &type_value, process_core_type_result, return_value)) {
+                valkey_glide, &args, NULL, process_core_type_result, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
                 ZVAL_COPY(return_value, object);

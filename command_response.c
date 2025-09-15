@@ -709,8 +709,12 @@ int command_response_to_zval(CommandResponse* response,
                 CommandResponse* element = &response->array_value[0];
                 // Remove the first field of server address (contains ":")
                 if (element->map_key != NULL && element->map_key->response_type == String) {
-                    char* key_str = element->map_key->string_value;
-                    if (strchr(key_str, ':') != NULL) {
+                    char*  key_str = element->map_key->string_value;
+                    size_t key_len = element->map_key->string_value_len;
+
+                    // Safe check for ':' character using memchr instead of strchr
+                    // to avoid reading beyond the allocated buffer
+                    if (key_len > 0 && memchr(key_str, ':', key_len) != NULL) {
                         // Skip the server key and process only the value
                         if (element->map_value != NULL) {
                             return command_response_to_zval(element->map_value,
