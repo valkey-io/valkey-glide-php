@@ -131,6 +131,7 @@ On Linux, you can download pie with curl. eg:
 curl -L https://github.com/php/pie/releases/latest/download/pie.phar -o pie
 chmod +x pie
 sudo mv pie /usr/local/bin/pie
+export PATH="$PATH:/usr/local/bin"
 ```
 
 On MacOS, install with Homebrew:
