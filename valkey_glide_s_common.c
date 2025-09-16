@@ -535,10 +535,6 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
             efree(args->cursor);
             efree(args);
         } else {
-            printf(
-                "Unexpected response type %d or insufficient elements in "
-                "process_s_scan_result_async\n",
-                response->response_type);
             args->cursor = "0";
         }
         array_init(return_value);
@@ -553,15 +549,12 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
         new_cursor_str = cursor_resp->string_value;
     } else {
         /* Handle unexpected cursor type */
-        fprintf(stderr,
-                "[SCAN_DEBUG] process_s_scan_response: Unexpected cursor type %d\n",
-                cursor_resp->response_type);
+
         if (args->scan_iter) {
             ZVAL_STRING(args->scan_iter, "0");
             efree(args->cursor);
             efree(args);
         } else {
-            printf("Setting cursor to '0' due to unexpected cursor type\n");
             args->cursor = "0";
         }
         array_init(return_value);
@@ -577,7 +570,6 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
             efree(args->cursor);
             efree(args);
         } else {
-            printf("Setting cursor to '0' due to unexpected elements type\n");
             args->cursor = "0";
         }
 
@@ -769,7 +761,6 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
 
 
 cleanup:
-
     /* Clean up allocated strings for specific categories */
     if (cmd_args && args_len) {
         if (category == S_CMD_KEY_COUNT && args->has_count && arg_count > 1) {

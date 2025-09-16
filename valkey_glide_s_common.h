@@ -108,8 +108,6 @@ typedef struct _s_command_args_t {
     int*    output_int;        /* For boolean outputs */
     char**  output_string;     /* For string outputs */
     size_t* output_string_len; /* For string output length */
-
-
 } s_command_args_t;
 
 /**

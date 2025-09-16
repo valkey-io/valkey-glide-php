@@ -130,18 +130,19 @@ int execute_zrandmember_command(zval* object, int argc, zval* return_value, zend
     int res = execute_z_generic_command(
         valkey_glide, ZRandMember, &args, array_data, process_z_array_zrand_result, return_value);
 
-    if (res == 0) {
-        /* On empty set, return NULL */
-        efree(array_data);
-        ZVAL_NULL(return_value);
-        return 0;
-    }
+
     if (valkey_glide->is_in_batch_mode) {
         /* In batch mode, return $this for method chaining */
         ZVAL_COPY(return_value, object);
         return 1;
     }
 
+    if (res == 0) {
+        /* On empty set, return NULL */
+        efree(array_data);
+        ZVAL_NULL(return_value);
+        return 0;
+    }
     return res;
 }
 
@@ -167,9 +168,9 @@ int execute_zscore_command(zval* object, int argc, zval* return_value, zend_clas
     args.member           = member;
     args.member_len       = member_len;
 
-    double* score  = emalloc(sizeof(double));
-    int     result = execute_z_generic_command(
-        valkey_glide, ZScore, &args, score, process_z_double_result, return_value);
+
+    int result = execute_z_generic_command(
+        valkey_glide, ZScore, &args, NULL, process_z_double_result, return_value);
 
     if (valkey_glide->is_in_batch_mode) {
         /* In batch mode, return $this for method chaining */
@@ -178,13 +179,10 @@ int execute_zscore_command(zval* object, int argc, zval* return_value, zend_clas
     }
 
     if (result == 1) {
-        efree(score);
         return 1;
     } else if (result == 0) {
-        efree(score);
         return 0; /* Member not found */
     } else {
-        efree(score);
         return -1; /* Error */
     }
 }
@@ -1810,9 +1808,6 @@ int execute_zmpop_command_internal(valkey_glide_object* valkey_glide,
 
         /* Check if there was an error */
         if (cmd_result->command_error) {
-            printf("Error executing %s command: %s\n",
-                   cmd,
-                   cmd_result->command_error->command_error_message);
             free_command_result(cmd_result);
             return 0;
         }
