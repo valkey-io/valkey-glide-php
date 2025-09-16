@@ -179,7 +179,9 @@ static void build_sort_args(const char*     key,
                             zend_bool*      desc_out,
                             uintptr_t**     args_ptr,
                             unsigned long** args_len_ptr,
-                            unsigned long*  arg_count_ptr) {
+                            unsigned long*  arg_count_ptr,
+                            char**          offset_str,
+                            char**          count_str) {
     zend_bool alpha = 0, desc = 0, explicit_asc = 0;
 
     /* Parse sort options from the pattern array first */
@@ -294,65 +296,25 @@ static void build_sort_args(const char*     key,
                         arg_idx++;
 
                         /* Add offset */
-                        char*  offset_str;
+
                         size_t offset_len;
                         long   offset_val = zval_get_long(z_offset);
-                        offset_str        = long_to_string(offset_val, &offset_len);
-                        if (offset_str) {
-                            args[arg_idx]     = (uintptr_t) offset_str;
+                        *offset_str       = long_to_string(offset_val, &offset_len);
+                        if (*offset_str) {
+                            args[arg_idx]     = (uintptr_t) *offset_str;
                             args_len[arg_idx] = offset_len;
                             arg_idx++;
 
                             /* Add count */
-                            char*  count_str;
                             size_t count_len;
                             long   count_val = zval_get_long(z_count);
-                            count_str        = long_to_string(count_val, &count_len);
-                            if (count_str) {
-                                args[arg_idx]     = (uintptr_t) count_str;
+                            *count_str       = long_to_string(count_val, &count_len);
+                            if (*count_str) {
+                                args[arg_idx]     = (uintptr_t) *count_str;
                                 args_len[arg_idx] = count_len;
                                 arg_idx++;
-                            } else {
-                                efree(offset_str);
                             }
                         }
-                    }
-                }
-            }
-        }
-        /* Fallback to old format for backward compatibility */
-        else {
-            zval *z_offset, *z_count;
-            if ((z_offset = zend_hash_str_find(ht, "limit_offset", sizeof("limit_offset") - 1)) !=
-                    NULL &&
-                (z_count = zend_hash_str_find(ht, "limit_count", sizeof("limit_count") - 1)) !=
-                    NULL) {
-                /* Add LIMIT keyword */
-                args[arg_idx]     = (uintptr_t) "LIMIT";
-                args_len[arg_idx] = 5;
-                arg_idx++;
-
-                /* Add offset */
-                char*  offset_str;
-                size_t offset_len;
-                long   offset_val = zval_get_long(z_offset);
-                offset_str        = long_to_string(offset_val, &offset_len);
-                if (offset_str) {
-                    args[arg_idx]     = (uintptr_t) offset_str;
-                    args_len[arg_idx] = offset_len;
-                    arg_idx++;
-
-                    /* Add count */
-                    char*  count_str;
-                    size_t count_len;
-                    long   count_val = zval_get_long(z_count);
-                    count_str        = long_to_string(count_val, &count_len);
-                    if (count_str) {
-                        args[arg_idx]     = (uintptr_t) count_str;
-                        args_len[arg_idx] = count_len;
-                        arg_idx++;
-                    } else {
-                        efree(offset_str);
                     }
                 }
             }
@@ -431,32 +393,6 @@ static void build_sort_args(const char*     key,
     *arg_count_ptr = arg_idx;
 }
 
-/* Free memory allocated for SORT command arguments */
-static void free_sort_args(uintptr_t* args, unsigned long* args_len, unsigned long arg_count) {
-    if (args && args_len) {
-        /* Free any dynamically allocated argument strings (offset and count) */
-        for (unsigned long i = 0; i < arg_count; i++) {
-            /* Skip key, BY, GET, LIMIT, STORE, ALPHA, DESC, ASC and any string that was
-               directly extracted from a zval (not allocated) */
-            if (strcmp((const char*) args[i], "BY") != 0 &&
-                strcmp((const char*) args[i], "GET") != 0 &&
-                strcmp((const char*) args[i], "LIMIT") != 0 &&
-                strcmp((const char*) args[i], "STORE") != 0 &&
-                strcmp((const char*) args[i], "ALPHA") != 0 &&
-                strcmp((const char*) args[i], "DESC") != 0 &&
-                strcmp((const char*) args[i], "ASC") != 0 && i > 0 && /* Skip key */
-                ((i > 1 && strcmp((const char*) args[i - 1], "LIMIT") ==
-                               0) || /* Only free offset and count */
-                 (i > 2 && strcmp((const char*) args[i - 2], "LIMIT") == 0))) {
-                efree((void*) args[i]);
-            }
-        }
-
-        efree(args);
-        efree(args_len);
-    }
-}
-
 int process_sort_result(CommandResponse* response, void* output, zval* return_value) {
     int ret_val = 0;
 
@@ -486,11 +422,22 @@ int execute_sort_command(zval* object, int argc, zval* return_value, zend_class_
     /* If we have a Glide client, use it */
     if (valkey_glide->glide_client) {
         /* Build command arguments */
-        uintptr_t*     args      = NULL;
-        unsigned long* args_len  = NULL;
-        unsigned long  arg_count = 0;
+        uintptr_t*     args       = NULL;
+        unsigned long* args_len   = NULL;
+        unsigned long  arg_count  = 0;
+        char*          offset_str = NULL;
+        char*          count_str  = NULL;
 
-        build_sort_args(key, key_len, z_opts, &alpha, &desc, &args, &args_len, &arg_count);
+        build_sort_args(key,
+                        key_len,
+                        z_opts,
+                        &alpha,
+                        &desc,
+                        &args,
+                        &args_len,
+                        &arg_count,
+                        &offset_str,
+                        &count_str);
 
         if (!args || !args_len || arg_count == 0) {
             if (args)
@@ -516,7 +463,10 @@ int execute_sort_command(zval* object, int argc, zval* return_value, zend_class_
         }
 
         /* Free the argument arrays */
-        free_sort_args(args, args_len, arg_count);
+        efree(args);
+        efree(args_len);
+        efree(offset_str);
+        efree(count_str);
 
 
         /* Process the result */
@@ -551,6 +501,8 @@ int execute_sort_ro_command(zval* object, int argc, zval* return_value, zend_cla
     size_t               key_len = 0;
     zval*                z_opts  = NULL;
     zend_bool            alpha = 0, desc = 0;
+    char*                offset_str = NULL;
+    char*                count_str  = NULL;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(argc, object, "Os|a", &object, ce, &key, &key_len, &z_opts) ==
@@ -568,7 +520,16 @@ int execute_sort_ro_command(zval* object, int argc, zval* return_value, zend_cla
         unsigned long* args_len  = NULL;
         unsigned long  arg_count = 0;
 
-        build_sort_args(key, key_len, z_opts, &alpha, &desc, &args, &args_len, &arg_count);
+        build_sort_args(key,
+                        key_len,
+                        z_opts,
+                        &alpha,
+                        &desc,
+                        &args,
+                        &args_len,
+                        &arg_count,
+                        &offset_str,
+                        &count_str);
 
         if (!args || !args_len || arg_count == 0) {
             if (args)
@@ -593,7 +554,10 @@ int execute_sort_ro_command(zval* object, int argc, zval* return_value, zend_cla
             );
         }
         /* Free the argument arrays */
-        free_sort_args(args, args_len, arg_count);
+        efree(args);
+        efree(args_len);
+        efree(offset_str);
+        efree(count_str);
 
 
         int ret_val = 0;

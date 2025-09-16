@@ -168,7 +168,6 @@ int execute_getdel_command(zval* object, int argc, zval* return_value, zend_clas
         return 1;
     } else {
         /* Error */
-
         return 0;
     }
 }
@@ -223,7 +222,6 @@ int execute_getex_command(zval* object, int argc, zval* return_value, zend_class
         return 1;
     } else {
         /* Error */
-
         return 0;
     }
 }
@@ -264,7 +262,6 @@ int execute_incr_command(zval* object, int argc, zval* return_value, zend_class_
         args.cmd_type            = Incr;
         args.key                 = key;
         args.key_len             = key_len;
-
 
         /* Standard INCR command if only key is provided */
         if (execute_core_command(
@@ -344,7 +341,6 @@ int execute_incrby_command(zval* object, int argc, zval* return_value, zend_clas
             return 1;
         }
     }
-
 
     return 1;
 }
@@ -694,9 +690,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             return 1;
         }
     } else {
-        int actual_key_count = argc;
-        if (execute_multi_key_command(
-                valkey_glide, Unlink, z_args, actual_key_count, object, return_value)) {
+        if (execute_multi_key_command(valkey_glide, Unlink, z_args, argc, object, return_value)) {
             return 1;
         }
     }

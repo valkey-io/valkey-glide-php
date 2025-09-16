@@ -1290,9 +1290,10 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
                     return 0;
                 }
                 status = process_h_ok_result_batch(result->response, NULL, return_value);
+                free_command_result(result);
             }
         }
-        free_command_result(result);
+
         return status;
     }
 
@@ -1772,7 +1773,6 @@ int execute_rawcommand_command_internal(
     return status;
 }
 
-/* Execute client command - UNIFIED IMPLEMENTATION WITH BATCH SUPPORT */
 int execute_client_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                z_args     = NULL;

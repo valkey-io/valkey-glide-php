@@ -21,6 +21,8 @@
 #include "include/glide_bindings.h"
 #include "valkey_glide_commands_common.h"
 
+#define DEBUG_COMMAND_RESPONSE_TO_ZVAL 0
+
 /* Parse a cluster route from a zval parameter */
 typedef struct {
     enum {
@@ -408,7 +410,6 @@ long handle_int_response(CommandResult* result, long* output_value) {
     if (result->response && result->response->response_type == Int) {
         *output_value = result->response->int_value;
 
-
         /* Free the result */
         free_command_result(result);
         return 1; /* True - success */
@@ -562,7 +563,7 @@ int command_response_to_zval(CommandResponse* response,
         ZVAL_NULL(output);
         return 0;
     }
-#define DEBUG_COMMAND_RESPONSE_TO_ZVAL 0
+
     switch (response->response_type) {
         case Null:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
