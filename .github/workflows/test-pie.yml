@@ -6,6 +6,12 @@ permissions:
 on:
   push: {}
   pull_request: {}
+  workflow_dispatch:
+    inputs:
+      full-matrix:
+        description: "Run the full engine, host, and language version matrix"
+        type: boolean
+        default: false
 
 jobs:
   get-matrices:
@@ -25,7 +31,7 @@ jobs:
           # Run full test matrix if job started by cron or it was explicitly specified by a person who triggered the workflow
           run-full-matrix: ${{ github.event.inputs.full-matrix == 'true' || github.event_name == 'schedule' }}
 
-  test-php:
+  test-pie-install:
     name: PHP Tests - ${{ matrix.php }}, EngineVersion - ${{ matrix.engine.version }}, Target - ${{ matrix.host.TARGET }}
     needs: get-matrices
     timeout-minutes: 35
@@ -47,27 +53,10 @@ jobs:
           echo "Job running with the following matrix configuration:"
           echo "${{ toJson(matrix) }}"
 
-  test-pie-install:
-    name: PHP Tests - ${{ matrix.php }}, EngineVersion - ${{ matrix.engine.version }}, Target - ${{ matrix.host.TARGET }}
-    needs: get-matrices
-    timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      matrix:
-        php: ${{ fromJson(needs.get-matrices.outputs.version-matrix-output) }}
-        engine: ${{ fromJson(needs.get-matrices.outputs.engine-matrix-output) }}
-        host: ${{ fromJson(needs.get-matrices.outputs.host-matrix-output) }}
-    runs-on: ${{ matrix.host.RUNNER }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
       - name: Setup PHP Extension Build Environment
         uses: ./.github/workflows/setup-php-extension
         with:
-          php-version: ${{ env.BASE_PHP_VERSION }}
+          php-version: ${{ matrix.php }}
           install-composer-deps: "true"
 
       - name: Create manual Composer repository
@@ -122,7 +111,11 @@ jobs:
 
           # Make sure root can read the user's composer config
           sudo chmod -R 755 "$HOME/.config/composer"
-          sudo chown -R root:root "$HOME/.config/composer" || true
+          if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
+            sudo chown -R root:wheel "$HOME/.config/composer" || true
+          else
+            sudo chown -R root:root "$HOME/.config/composer" || true
+          fi
 
           # Add local repository
           pie repository:add composer http://localhost:8000
@@ -160,7 +153,7 @@ jobs:
               if [ -n "$SO_FILE" ]; then
                 echo "SUCCESS: Shared object built at: $SO_FILE"
                 ls -la "$SO_FILE"
-                echo "File size: $(stat -c%s "$SO_FILE" 2>/dev/null || echo "unknown") bytes"
+                echo "File size: $(if [[ "${{ matrix.host.OS }}" == "macos" ]]; then stat -f%z "$SO_FILE" 2>/dev/null; else stat -c%s "$SO_FILE" 2>/dev/null; fi || echo "unknown") bytes"
               else
                 echo "WARNING: PIE reported success but valkey_glide.so not found"
                 find "$PIE_WORK_DIR" -name "*.so" -type f 2>/dev/null || echo "No .so files found at all"
@@ -237,8 +230,13 @@ jobs:
           php --ini
 
           echo "=== Looking for PIE-generated ini files ==="
-          find /etc/php* -name "*valkey*" 2>/dev/null || echo "No valkey ini files found"
-          find /usr/local/etc/php* -name "*valkey*" 2>/dev/null || echo "No valkey ini files in /usr/local"
+          if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
+            find /opt/homebrew/etc/php* /usr/local/etc/php* -name "*valkey*" 2>/dev/null || echo "No valkey ini files found"
+            find /opt/homebrew/etc/php* /usr/local/etc/php* -name "*valkey*" 2>/dev/null || echo "No valkey ini files in /usr/local"
+          else
+            find /etc/php* -name "*valkey*" 2>/dev/null || echo "No valkey ini files found"
+            find /usr/local/etc/php* -name "*valkey*" 2>/dev/null || echo "No valkey ini files in /usr/local"
+          fi
 
           echo "=== Manually enabling extension ==="
           php -d extension=valkey_glide -m | grep -i valkey && echo "Extension works when manually enabled!" || echo "Extension still not working"
@@ -250,7 +248,7 @@ jobs:
         uses: ./.github/workflows/run-php-tests
         with:
           extension-path: valkey_glide
-          php-version: ${{ env.BASE_PHP_VERSION }}
+          php-version: ${{ matrix.php }}
 
       - name: Cleanup
         if: always()
