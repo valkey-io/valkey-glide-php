@@ -7,11 +7,11 @@ on:
   push: {}
   pull_request: {}
   workflow_dispatch:
-        inputs:
-            full-matrix:
-                description: "Run the full engine, host, and language version matrix"
-                type: boolean
-                default: false
+    inputs:
+      full-matrix:
+        description: "Run the full engine, host, and language version matrix"
+        type: boolean
+        default: false
 
 jobs:
   get-matrices:
@@ -47,7 +47,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      
+
       - name: Output Matrix Parameters for this job
         run: |
           echo "Job running with the following matrix configuration:"
