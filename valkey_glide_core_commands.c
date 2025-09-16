@@ -854,6 +854,11 @@ int execute_echo_command(zval* object, int argc, zval* return_value, zend_class_
         return 0;
     }
 
+    if (is_cluster && valkey_glide->is_in_batch_mode) {
+        /* ECHO cannot be used in batch mode */
+        return 0;
+    }
+
     /* Setup core command arguments */
     core_command_args_t core_args = {0};
     core_args.glide_client        = valkey_glide->glide_client;
@@ -931,6 +936,11 @@ int execute_ping_command(zval* object, int argc, zval* return_value, zend_class_
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    if (is_cluster && valkey_glide->is_in_batch_mode) {
+        /* Ping cannot be used in batch mode */
         return 0;
     }
 
@@ -1175,6 +1185,10 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
     if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
+    if (is_cluster && valkey_glide->is_in_batch_mode) {
+        /* INFO cannot be used in batch mode with cluster */
+        return 0;
+    }
 
     /* Parse parameters */
     if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &args, &args_count) ==
@@ -1339,6 +1353,10 @@ int execute_randomkey_command(zval* object, int argc, zval* return_value, zend_c
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+    if (is_cluster && valkey_glide->is_in_batch_mode) {
+        /* RANDOMKEY cannot be used in batch mode */
         return 0;
     }
 

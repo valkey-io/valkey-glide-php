@@ -116,6 +116,10 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
     if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
+    if (is_cluster && valkey_glide->is_in_batch_mode) {
+        /* FLUSHDB cannot be used in batch mode */
+        return 0;
+    }
 
     /* Setup core command arguments */
     core_command_args_t core_args = {0};
@@ -188,6 +192,10 @@ int execute_flushall_command(zval* object, int argc, zval* return_value, zend_cl
     if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
+    if (is_cluster && valkey_glide->is_in_batch_mode) {
+        /* FLUSHALL cannot be used in batch mode */
+        return 0;
+    }
 
     /* Setup core command arguments */
     core_command_args_t core_args = {0};
@@ -257,6 +265,10 @@ int execute_time_command(zval* object, int argc, zval* return_value, zend_class_
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+    if (is_cluster && valkey_glide->is_in_batch_mode) {
+        /* TIME cannot be used in batch mode */
         return 0;
     }
 

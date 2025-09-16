@@ -16,15 +16,42 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         parent::__construct($host, $port, $auth, $tls);
     }
 
+     /* Override setUp to get info from a specific node */
+    public function setUp()
+    {
+        $this->valkey_glide    = $this->newInstance();
+        $info           = $this->valkey_glide->info("randomNode");
+        $this->version  = $info['redis_version'] ?? '0.0.0';
+
+        $this->is_valkey = $this->detectValkey($info);
+    }
+
+    /* Override newInstance as we want a ValkeyGlideCluster object */
+    protected function newInstance()
+    {
+        try {
+            return new ValkeyGlideCluster(
+                [['host' => '127.0.0.1', 'port' => 7001]], // addresses array format
+                false, // use_tls
+                $this->getAuth(), // credentials
+                ValkeyGlide::READ_FROM_PRIMARY, // read_from
+            );
+        } catch (Exception $ex) {
+            TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());
+            //TestSuite::errorMessage("Seeds: %s\n", implode(' ', self::$seeds));
+            TestSuite::errorMessage("Seed source: %s\n", self::$seed_source);
+            exit(1);
+        }
+    }
     // ===================================================================
     // CORE STRING OPERATIONS BATCH TESTS
     // ===================================================================
 
     public function testStringOperationsBatch()
     {
-        $key1 = 'batch_string_1_' . uniqid();
-        $key2 = 'batch_string_2_' . uniqid();
-        $key3 = 'batch_string_3_' . uniqid();
+        $key1 = '{prefix}batch_string_1_' . uniqid();
+        $key2 = '{prefix}batch_string_2_' . uniqid();
+        $key3 = '{prefix}batch_string_3_' . uniqid();
         $value1 = 'test_value_1';
         $value2 = 'test_value_2';
         $value3 = 'test_value_3';
@@ -53,9 +80,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testIncrementOperationsBatch()
     {
-        $key1 = 'batch_incr_1_' . uniqid();
-        $key2 = 'batch_incr_2_' . uniqid();
-        $key3 = 'batch_incr_3_' . uniqid();
+        $key1 = '{prefix}batch_incr_1_' . uniqid();
+        $key2 = '{prefix}batch_incr_2_' . uniqid();
+        $key3 = '{prefix}batch_incr_3_' . uniqid();
 
         // Setup initial values
         $this->valkey_glide->set($key1, '10');
@@ -86,9 +113,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testDecrementOperationsBatch()
     {
-        $key1 = 'batch_decr_1_' . uniqid();
-        $key2 = 'batch_decr_2_' . uniqid();
-        $key3 = 'batch_decr_3_' . uniqid();
+        $key1 = '{prefix}batch_decr_1_' . uniqid();
+        $key2 = '{prefix}batch_decr_2_' . uniqid();
+        $key3 = '{prefix}batch_decr_3_' . uniqid();
 
         // Setup initial values
         $this->valkey_glide->set($key1, '10');
@@ -124,9 +151,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testKeyExistenceOperationsBatch()
     {
-        $key1 = 'batch_exists_1_' . uniqid();
-        $key2 = 'batch_exists_2_' . uniqid();
-        $key3 = 'batch_exists_3_' . uniqid();
+        $key1 = '{temp}batch_exists_1_' . uniqid();
+        $key2 = '{temp}batch_exists_2_' . uniqid();
+        $key3 = '{temp}batch_exists_3_' . uniqid();
 
         // Setup test data
         $this->valkey_glide->set($key1, 'value1');
@@ -157,9 +184,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testKeyExpirationOperationsBatch()
     {
-        $key1 = 'batch_expire_1_' . uniqid();
-        $key2 = 'batch_expire_2_' . uniqid();
-        $key3 = 'batch_expire_3_' . uniqid();
+        $key1 = '{temp}batch_expire_1_' . uniqid();
+        $key2 = '{temp}batch_expire_2_' . uniqid();
+        $key3 = '{temp}batch_expire_3_' . uniqid();
 
         // Setup test data
         $this->valkey_glide->set($key1, 'value1');
@@ -194,9 +221,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testKeyTtlOperationsBatch()
     {
-        $key1 = 'batch_ttl_1_' . uniqid();
-        $key2 = 'batch_ttl_2_' . uniqid();
-        $key3 = 'batch_ttl_3_' . uniqid();
+        $key1 = '{temp}batch_ttl_1_' . uniqid();
+        $key2 = '{temp}batch_ttl_2_' . uniqid();
+        $key3 = '{temp}batch_ttl_3_' . uniqid();
 
         // Setup test data with different expiration states
         $this->valkey_glide->set($key1, 'value1');
@@ -376,9 +403,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testStringManipulationBatch()
     {
-        $key1 = 'batch_str_1_' . uniqid();
-        $key2 = 'batch_str_2_' . uniqid();
-        $key3 = 'batch_str_3_' . uniqid();
+        $key1 = '{xyz}batch_str_1_' . uniqid();
+        $key2 = '{xyz}batch_str_2_' . uniqid();
+        $key3 = '{xyz}batch_str_3_' . uniqid();
 
         // Setup test data
         $this->valkey_glide->set($key1, 'Hello World');
@@ -409,10 +436,10 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testKeyRenameBatch()
     {
-        $key1 = 'batch_rename_1_' . uniqid();
-        $key2 = 'batch_rename_2_' . uniqid();
-        $key3 = 'batch_rename_3_' . uniqid();
-        $newKey1 = 'batch_rename_new_1_' . uniqid();
+        $key1 = '{xyz}batch_rename_1_' . uniqid();
+        $key2 = '{xyz}batch_rename_2_' . uniqid();
+        $key3 = '{xyz}batch_rename_3_' . uniqid();
+        $newKey1 = '{xyz}batch_rename_new_1_' . uniqid();
 
         // Setup test data
         $this->valkey_glide->set($key1, 'value1');
@@ -479,9 +506,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testMgetMsetOperationsBatch()
     {
-        $key1 = 'batch_mget_1_' . uniqid();
-        $key2 = 'batch_mget_2_' . uniqid();
-        $key3 = 'batch_mget_3_' . uniqid();
+        $key1 = '{xyz}batch_mget_1_' . uniqid();
+        $key2 = '{xyz}batch_mget_2_' . uniqid();
+        $key3 = '{xyz}batch_mget_3_' . uniqid();
 
         // Execute MSET, MGET, MSETNX in multi/exec batch
         $results = $this->valkey_glide->multi()
@@ -512,9 +539,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testBitOperationsBatch()
     {
-        $key1 = 'batch_bit_1_' . uniqid();
-        $key2 = 'batch_bit_2_' . uniqid();
-        $key3 = 'batch_bit_3_' . uniqid();
+        $key1 = '{ttt}batch_bit_1_' . uniqid();
+        $key2 = '{ttt}batch_bit_2_' . uniqid();
+        $key3 = '{ttt}batch_bit_3_' . uniqid();
 
         // Setup test data
         $this->valkey_glide->set($key1, 'hello'); // Binary: 01101000 01100101 01101100 01101100 01101111
@@ -543,9 +570,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testBitAdvancedOperationsBatch()
     {
-        $key1 = 'batch_bitadv_1_' . uniqid();
-        $key2 = 'batch_bitadv_2_' . uniqid();
-        $key3 = 'batch_bitadv_3_' . uniqid();
+        $key1 = '{ttt2}batch_bitadv_1_' . uniqid();
+        $key2 = '{ttt2}batch_bitadv_2_' . uniqid();
+        $key3 = '{ttt2}batch_bitadv_3_' . uniqid();
 
         // Setup test data
         $this->valkey_glide->set($key1, "\x0F\x0F"); // Binary with some bits set
@@ -789,8 +816,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testListMoveBatch()
     {
         
-        $key1 = 'batch_list_move_src_' . uniqid();
-        $key2 = 'batch_list_move_dst_' . uniqid();
+        $key1 = '{momtom}batch_list_move_src_' . uniqid();
+        $key2 = '{momtom}batch_list_move_dst_' . uniqid();
 
         // Setup initial lists
         $this->valkey_glide->rpush($key1, 'a', 'b', 'c');
@@ -858,9 +885,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testSetOperationsBatch()
     {
         
-        $key1 = 'batch_set_ops_1_' . uniqid();
-        $key2 = 'batch_set_ops_2_' . uniqid();
-        $key3 = 'batch_set_ops_3_' . uniqid();
+        $key1 = '{ppp}batch_set_ops_1_' . uniqid();
+        $key2 = '{ppp}batch_set_ops_2_' . uniqid();
+        $key3 = '{ppp}batch_set_ops_3_' . uniqid();
 
         // Setup initial sets
         $this->valkey_glide->sadd($key1, 'a', 'b', 'c');
@@ -894,11 +921,11 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testSetStoreBatch()
     {        
         
-        $key1 = 'batch_set_store_1_' . uniqid();
-        $key2 = 'batch_set_store_2_' . uniqid();
-        $key3 = 'batch_set_store_3_' . uniqid();
-        $key4 = 'batch_set_store_4_' . uniqid();
-        $key5 = 'batch_set_store_5_' . uniqid();
+        $key1 = '{prefix}batch_set_store_1_' . uniqid();
+        $key2 = '{prefix}batch_set_store_2_' . uniqid();
+        $key3 = '{prefix}batch_set_store_3_' . uniqid();
+        $key4 = '{prefix}batch_set_store_4_' . uniqid();
+        $key5 = '{prefix}batch_set_store_5_' . uniqid();
 
         // Setup initial sets
         $this->valkey_glide->sadd($key1, 'a', 'b', 'c');
@@ -1028,9 +1055,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testExpirationTimeBatch()
     {
         
-        $key1 = 'batch_exptime_1_' . uniqid();
-        $key2 = 'batch_exptime_2_' . uniqid();
-        $key3 = 'batch_exptime_3_' . uniqid();
+        $key1 = '{fox}batch_exptime_1_' . uniqid();
+        $key2 = '{fox}batch_exptime_2_' . uniqid();
+        $key3 = '{fox}batch_exptime_3_' . uniqid();
 
         // Setup test data
         $this->valkey_glide->set($key1, 'value1');
@@ -1175,7 +1202,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testGeospatialAdvancedBatch()
     {
         
-        $key1 = 'batch_geo_adv_' . uniqid();
+        $key1 = '{geotest}batch_geo_adv_' . uniqid();
 
         // Setup initial geo data
         $this->valkey_glide->geoadd(
@@ -1192,7 +1219,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         );
 
         // Execute GEOHASH, GEOSEARCH, GEOSEARCHSTORE in multi/exec batch
-        $storeKey = 'batch_geo_store_' . uniqid();
+        $storeKey = '{geotest}batch_geo_store_' . uniqid();
         $results = $this->valkey_glide->multi()
             ->geohash($key1, 'Golden Gate Bridge')
             ->geosearch($key1, [-122.27652, 37.805186], 5, 'km')
@@ -1218,9 +1245,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testScanOperationsBatch()
     {        
-        $key1 = 'batch_scan_set_' . uniqid();
-        $key2 = 'batch_scan_hash_' . uniqid();
-        $key3 = 'batch_scan_zset_' . uniqid();
+        $key1 = '{scantest}batch_scan_set_' . uniqid();
+        $key2 = '{scantest}batch_scan_hash_' . uniqid();
+        $key3 = '{scantest}batch_scan_zset_' . uniqid();
 
         // Setup test data
         $this->valkey_glide->del($key1, $key2, $key3);
@@ -1297,8 +1324,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortOperationsBatch()
     {
-        $key1 = 'batch_sort_list_' . uniqid();
-        $key2 = 'batch_sort_store_' . uniqid();
+        $key1 = '{sorttest}batch_sort_list_' . uniqid();
+        $key2 = '{sorttest}batch_sort_store_' . uniqid();
 
         // Setup test data
         $this->valkey_glide->lpush($key1, '3', '1', '2', '5', '4');
@@ -1333,9 +1360,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testCopyDumpRestoreBatch()
     {
         
-        $key1 = 'batch_copy_src_' . uniqid();
-        $key2 = 'batch_copy_dst_' . uniqid();
-        $key3 = 'batch_restore_' . uniqid();
+        $key1 = '{test}batch_copy_src_' . uniqid();
+        $key2 = '{test}batch_copy_dst_' . uniqid();
+        $key3 = '{test}batch_restore_' . uniqid();
 
         // Setup test data
         $this->valkey_glide->set($key1, 'test_value');
@@ -1408,9 +1435,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testGetDelExBatch()
     {
         
-        $key1 = 'batch_getdel_' . uniqid();
-        $key2 = 'batch_getex_' . uniqid();
-        $key3 = 'batch_getex2_' . uniqid();
+        $key1 = '{GD}batch_getdel_' . uniqid();
+        $key2 = '{GD}batch_getex_' . uniqid();
+        $key3 = '{GD}batch_getex2_' . uniqid();
 
         // Setup test data
         $this->valkey_glide->set($key1, 'delete_me');
@@ -1479,9 +1506,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testSetMembershipBatch()
     {
         
-        $key1 = 'batch_smember_' . uniqid();
-        $key2 = 'batch_smove_src_' . uniqid();
-        $key3 = 'batch_smove_dst_' . uniqid();
+        $key1 = '{bb}batch_smember_' . uniqid();
+        $key2 = '{bb}batch_smove_src_' . uniqid();
+        $key3 = '{bb}batch_smove_dst_' . uniqid();
 
         // Setup test data
         $this->valkey_glide->sadd($key1, 'member1', 'member2', 'member3');
@@ -2665,9 +2692,6 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testPipeline()
     {
-        if (! $this->havePipeline()) {
-            $this->markTestSkipped();
-        }
         $this->sequence(ValkeyGlide::PIPELINE);
         $this->differentType(ValkeyGlide::PIPELINE);
     }
@@ -3087,9 +3111,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testBlockingListOperationsBatch()
     {
-        $key1 = 'batch_blocking_list_1_' . uniqid();
-        $key2 = 'batch_blocking_list_2_' . uniqid();
-        $key3 = 'batch_blocking_list_3_' . uniqid();
+        $key1 = '{test_list}batch_blocking_list_1_' . uniqid();
+        $key2 = '{test_list}batch_blocking_list_2_' . uniqid();
+        $key3 = '{test_list}batch_blocking_list_3_' . uniqid();
 
         // Setup initial lists
         $this->valkey_glide->rpush($key1, 'item1', 'item2', 'item3');
@@ -3122,9 +3146,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testAdvancedListMoveOperationsBatch()
     {
         
-        $key1 = 'batch_list_move_1_' . uniqid();
-        $key2 = 'batch_list_move_2_' . uniqid();
-        $key3 = 'batch_list_move_3_' . uniqid();
+        $key1 = '{test_list}batch_list_move_1_' . uniqid();
+        $key2 = '{test_list}batch_list_move_2_' . uniqid();
+        $key3 = '{test_list}batch_list_move_3_' . uniqid();
 
         // Setup initial lists
         $this->valkey_glide->rpush($key1, 'a', 'b', 'c');
@@ -3155,9 +3179,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testConditionalListPushBatch()
     {
-        $key1 = 'batch_pushx_1_' . uniqid();
-        $key2 = 'batch_pushx_2_' . uniqid();
-        $key3 = 'batch_pushx_3_' . uniqid();
+        $key1 = '{test_list}batch_pushx_1_' . uniqid();
+        $key2 = '{test_list}batch_pushx_2_' . uniqid();
+        $key3 = '{test_list}batch_pushx_3_' . uniqid();
 
         // Setup: key1 exists, key2 doesn't exist
         $this->valkey_glide->rpush($key1, 'existing');
@@ -3187,9 +3211,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testBlockingListMultiPopBatch()
     {
         
-        $key1 = 'batch_blmpop_1_' . uniqid();
-        $key2 = 'batch_blmpop_2_' . uniqid();
-        $key3 = 'batch_blmpop_3_' . uniqid();
+        $key1 = '{test_list}batch_blmpop_1_' . uniqid();
+        $key2 = '{test_list}batch_blmpop_2_' . uniqid();
+        $key3 = '{test_list}batch_blmpop_3_' . uniqid();
 
         // Setup initial lists
         $this->valkey_glide->rpush($key1, 'a1', 'a2', 'a3');
@@ -3223,8 +3247,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testStreamBasicOperationsBatch()
     {        
-        $stream1 = 'batch_stream_1_' . uniqid();
-        $stream2 = 'batch_stream_2_' . uniqid();
+        $stream1 = '{test_stream}batch_stream_1_' . uniqid();
+        $stream2 = '{test_stream}batch_stream_2_' . uniqid();
 
         // Execute XADD, XADD, XLEN in multi/exec batch
         $results = $this->valkey_glide->multi()
@@ -3495,9 +3519,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testHyperLogLogOperationsBatch()
     {        
-        $key1 = 'batch_hll_1_' . uniqid();
-        $key2 = 'batch_hll_2_' . uniqid();
-        $key3 = 'batch_hll_3_' . uniqid();
+        $key1 = '{test_hll}batch_hll_1_' . uniqid();
+        $key2 = '{test_hll}batch_hll_2_' . uniqid();
+        $key3 = '{test_hll}batch_hll_3_' . uniqid();
 
         // Execute PFADD, PFADD, PFCOUNT in multi/exec batch
         $results = $this->valkey_glide->multi()
@@ -3526,9 +3550,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testHyperLogLogMergeBatch()
     {
-        $key1 = 'batch_hll_merge_1_' . uniqid();
-        $key2 = 'batch_hll_merge_2_' . uniqid();
-        $key3 = 'batch_hll_merge_3_' . uniqid();
+        $key1 = '{test_hll}batch_hll_merge_1_' . uniqid();
+        $key2 = '{test_hll}batch_hll_merge_2_' . uniqid();
+        $key3 = '{test_hll}batch_hll_merge_3_' . uniqid();
 
         // Setup HLLs
         $this->valkey_glide->pfadd($key1, ['a', 'b', 'c']);
@@ -3562,8 +3586,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortedSetBlockingPopBatch()
     {
-        $key1 = 'batch_zset_blocking_1_' . uniqid();
-        $key2 = 'batch_zset_blocking_2_' . uniqid();
+        $key1 = '{test_hll}batch_zset_blocking_1_' . uniqid();
+        $key2 = '{test_hll}batch_zset_blocking_2_' . uniqid();
 
         // Setup sorted sets
         $this->valkey_glide->zadd($key1, 1, 'one', 2, 'two', 3, 'three');
@@ -3623,9 +3647,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortedSetDiffOperationsBatch()
     {
-        $key1 = 'batch_zset_diff_1_' . uniqid();
-        $key2 = 'batch_zset_diff_2_' . uniqid();
-        $key3 = 'batch_zset_diff_3_' . uniqid();
+        $key1 = '{test_zset}batch_zset_diff_1_' . uniqid();
+        $key2 = '{test_zset}batch_zset_diff_2_' . uniqid();
+        $key3 = '{test_zset}batch_zset_diff_3_' . uniqid();
 
         // Setup sorted sets
         $this->valkey_glide->zadd($key1, 1, 'a', 2, 'b', 3, 'c');
@@ -3655,8 +3679,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortedSetRangeStoreBatch()
     {
-        $key1 = 'batch_zset_rangestore_1_' . uniqid();
-        $key2 = 'batch_zset_rangestore_2_' . uniqid();
+        $key1 = '{test_zset}batch_zset_rangestore_1_' . uniqid();
+        $key2 = '{test_zset}batch_zset_rangestore_2_' . uniqid();
 
         // Setup sorted set
         $this->valkey_glide->zadd($key1, 1, 'one', 2, 'two', 3, 'three', 4, 'four', 5, 'five');
@@ -3686,9 +3710,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testSortedSetInterUnionBatch()
     {
         
-        $key1 = 'batch_zset_inter_1_' . uniqid();
-        $key2 = 'batch_zset_inter_2_' . uniqid();
-        $key3 = 'batch_zset_inter_3_' . uniqid();
+        $key1 = '{test_zset}batch_zset_inter_1_' . uniqid();
+        $key2 = '{test_zset}batch_zset_inter_2_' . uniqid();
+        $key3 = '{test_zset}batch_zset_inter_3_' . uniqid();
 
         // Setup sorted sets
         $this->valkey_glide->zadd($key1, 1, 'a', 2, 'b', 3, 'c');
@@ -3719,8 +3743,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testSortedSetMultiPopBatch()
     {
         
-        $key1 = 'batch_zset_mpop_1_' . uniqid();
-        $key2 = 'batch_zset_mpop_2_' . uniqid();
+        $key1 = '{test_zset}batch_zset_mpop_1_' . uniqid();
+        $key2 = '{test_zset}batch_zset_mpop_2_' . uniqid();
 
         // Setup sorted sets
         $this->valkey_glide->zadd($key1, 1, 'one', 2, 'two', 3, 'three');
@@ -3756,9 +3780,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testLongestCommonSubsequenceBatch()
     {
         
-        $key1 = 'batch_lcs_1_' . uniqid();
-        $key2 = 'batch_lcs_2_' . uniqid();
-        $key3 = 'batch_lcs_3_' . uniqid();
+        $key1 = '{test_lcs}batch_lcs_1_' . uniqid();
+        $key2 = '{test_lcs}batch_lcs_2_' . uniqid();
+        $key3 = '{test_lcs}batch_lcs_3_' . uniqid();
 
         // Setup test strings
         $this->valkey_glide->set($key1, 'abcdefg');
