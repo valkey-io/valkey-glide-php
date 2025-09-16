@@ -108,6 +108,7 @@ include/glide_bindings.h:
 	fi
 	@echo "=== HEADER GENERATION COMPLETE ==="
 
+# Override generated test target
 test:
 	@echo "Running ValkeyGlide tests..."
 	@if [ ! -f "$(CURDIR)/modules/valkey_glide.so" ]; then \
