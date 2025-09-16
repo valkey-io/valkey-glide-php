@@ -92,45 +92,9 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest
     private static array $seed_messages = [];
     private static string $seed_source = '';
 
-    private function loadSeedsFromHostPort($host, $port)
-    {
-        try {
-            $rc = new ValkeyGlideCluster(null, ["$host:$port"], 1, 1, true, $this->getAuth());
-            self::$seed_source = "Host: $host, Port: $port";
-            return array_map(function ($master) {
-                return sprintf('%s:%s', $master[0], $master[1]);
-            }, $rc->_masters());
-        } catch (Exception $ex) {
-            /* fallthrough */
-        }
 
-        self::$seed_messages[] = "--host=$host, --port=$port";
-        return false;
-    }
-
-    private function loadSeedsFromEnv()
-    {
-        $seeds = getenv('REDIS_CLUSTER_NODES');
-        if (! $seeds) {
-            self::$seed_messages[] = "environment variable REDIS_CLUSTER_NODES ($seeds)";
-            return false;
-        }
-
-        self::$seed_source = 'Environment variable REDIS_CLUSTER_NODES';
-        return array_filter(explode(' ', $seeds));
-    }
-
-    private function loadSeedsFromNodeMap()
-    {
-        $nodemap_file = dirname($_SERVER['PHP_SELF']) . '/nodes/nodemap';
-        if (! file_exists($nodemap_file)) {
-            self::$seed_messages[] = "nodemap file '$nodemap_file'";
-            return false;
-        }
-
-        self::$seed_source = "Nodemap file '$nodemap_file'";
-        return array_filter(explode("\n", file_get_contents($nodemap_file)));
-    }
+   
+   
 
     /* Load our seeds on construction */
     public function __construct($host, $port, $auth, $tls)
