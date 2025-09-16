@@ -514,9 +514,6 @@ int prepare_geo_search_store_args(geo_command_args_t* args,
  * RESULT PROCESSING FUNCTIONS
  * ==================================================================== */
 
-/**
- * Batch-compatible async result processor for integer responses
- */
 int process_geo_int_result_async(CommandResponse* response, void* output, zval* return_value) {
     if (!response) {
         ZVAL_LONG(return_value, 0);
@@ -530,12 +527,10 @@ int process_geo_int_result_async(CommandResponse* response, void* output, zval* 
         ZVAL_NULL(return_value);
         return 1;
     }
+    ZVAL_LONG(return_value, 0);
     return 0;
 }
 
-/**
- * Batch-compatible async result processor for double responses
- */
 int process_geo_double_result_async(CommandResponse* response, void* output, zval* return_value) {
     if (!response) {
         ZVAL_NULL(return_value);
@@ -556,9 +551,6 @@ int process_geo_double_result_async(CommandResponse* response, void* output, zva
 }
 
 
-/**
- * Batch-compatible async result processor for geohash array responses
- */
 int process_geo_hash_result_async(CommandResponse* response, void* output, zval* return_value) {
     if (!response || !return_value) {
         array_init(return_value);
@@ -788,7 +780,6 @@ int execute_geo_generic_command(valkey_glide_object*   valkey_glide,
     int            allocated_count   = 0;
     int            arg_count         = 0;
     int            success           = 0;
-
 
     /* Determine argument preparation method based on command type */
     switch (cmd_type) {

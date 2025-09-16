@@ -1011,14 +1011,6 @@ int execute_ping_command(zval* object, int argc, zval* return_value, zend_class_
 
 #define _NL "\r\n"
 
-/* Helper function to safely calculate string length within buffer bounds */
-static size_t safe_strlen(const char* str, const char* buffer_end) {
-    const char* end = str;
-    while (end < buffer_end && *end != '\0') {
-        end++;
-    }
-    return end - str;
-}
 
 static void valkey_glide_parse_info_response(char* response, size_t response_len, zval* z_ret) {
     ZVAL_FALSE(z_ret);

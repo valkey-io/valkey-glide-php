@@ -8,7 +8,7 @@
 #include "cluster_scan_cursor_arginfo.h"  // Include ClusterScanCursor arginfo header
 #include "common.h"
 #include "logger.h"          // Include logger functionality
-#include "logger_arginfo.h"  // Include logger functions arginfo
+#include "logger_arginfo.h"  // Include logger functions arginfo - MUST BE LAST for ext_functions
 #include "php_valkey_glide.h"
 #include "valkey_glide_arginfo.h"          // Include generated arginfo header
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
@@ -344,10 +344,19 @@ PHP_MINIT_FUNCTION(valkey_glide) {
     register_mock_constructor_class();
 
     /* ValkeyGlideException class */
-    // TODO   valkey_glide_exception_ce =
-    // register_class_ValkeyGlideException(spl_ce_RuntimeException);
-    valkey_glide_ce->create_object         = create_valkey_glide_object;
-    valkey_glide_cluster_ce->create_object = create_valkey_glide_cluster_object;
+    valkey_glide_exception_ce = register_class_ValkeyGlideException(spl_ce_RuntimeException);
+    if (!valkey_glide_exception_ce) {
+        php_error_docref(NULL, E_ERROR, "Failed to register ValkeyGlideException class");
+        return FAILURE;
+    }
+
+    /* Set object creation handlers */
+    if (valkey_glide_ce) {
+        valkey_glide_ce->create_object = create_valkey_glide_object;
+    }
+    if (valkey_glide_cluster_ce) {
+        valkey_glide_cluster_ce->create_object = create_valkey_glide_cluster_object;
+    }
 
     return SUCCESS;
 }

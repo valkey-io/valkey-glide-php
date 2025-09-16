@@ -284,7 +284,7 @@ int execute_h_randfield_command(valkey_glide_object* valkey_glide,
                                 int                  withvalues,
                                 zval*                return_value);
 
-int process_h_ok_result_batch(CommandResponse* response, void* output, zval* return_value);
+int process_h_ok_result_async(CommandResponse* response, void* output, zval* return_value);
 /* ====================================================================
  * HASH COMMAND MACROS
  * ==================================================================== */

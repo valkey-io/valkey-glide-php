@@ -569,19 +569,6 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
                 batch_args  = (uint8_t**) emalloc(final_arg_count * sizeof(uint8_t*));
                 arg_lengths = (uintptr_t*) emalloc(final_arg_count * sizeof(uintptr_t));
 
-                if (!batch_args || !arg_lengths) {
-                    cleanup_allocated_strings(allocated_strings, allocated_count);
-                    if (cmd_args)
-                        efree(cmd_args);
-                    if (args_len)
-                        efree(args_len);
-                    if (batch_args)
-                        efree(batch_args);
-                    if (arg_lengths)
-                        efree(arg_lengths);
-                    return 0;
-                }
-
                 /* Copy arguments to batch format */
                 for (unsigned long i = 0; i < final_arg_count; i++) {
                     batch_args[i]  = (uint8_t*) cmd_args[i];
@@ -837,10 +824,6 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
         if (result->response) {
             if (result->response->response_type != Array ||
                 result->response->array_value_len != valkey_glide->command_count) {
-                /* Unexpected response type or length */
-                // printf("file = %s, line = %d, unexpected response type or length\n",
-                //        __FILE__,
-                //        __LINE__);
                 ZVAL_FALSE(return_value);
                 status = 0;
                 free_command_result(result);
@@ -857,28 +840,17 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
 
                 if (process_status) {
                     /* Add the processed result to return array */
-                    // php_var_dump(&value, 2);
                     add_next_index_zval(return_value, &value);
-                    /*  printf("file = %s, line = %d, successfully processed command %zu\n",
-                             __FILE__,
-                             __LINE__,
-                             idx);*/
+
                 } else {
                     /* Process_result failed, use raw response */
 
-                    /*  printf(
-                          "file = %s, line = %d, process_result failed for command %zu, "
-                          "using false response\n",
-                          __FILE__,
-                          __LINE__,
-                          idx);*/
                     ZVAL_FALSE(&value);
                     add_next_index_zval(return_value, &value);
                 }
             }
         } else {
             /* Failed to get responses array, return false */
-            // printf("file = %s, line = %d, no response array found\n", __FILE__, __LINE__);
             ZVAL_FALSE(return_value);
             status = 0;
         }
@@ -1252,7 +1224,7 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
         if (valkey_glide->is_in_batch_mode) {
             /* Create batch-compatible processor wrapper */
             int res = buffer_command_for_batch(
-                valkey_glide, Restore, args, args_len, arg_count, NULL, process_h_ok_result_batch);
+                valkey_glide, Restore, args, args_len, arg_count, NULL, process_h_ok_result_async);
         } else {
             /* Execute the command */
             result = execute_command(valkey_glide->glide_client,
@@ -1289,7 +1261,7 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
                     free_command_result(result);
                     return 0;
                 }
-                status = process_h_ok_result_batch(result->response, NULL, return_value);
+                status = process_h_ok_result_async(result->response, NULL, return_value);
                 free_command_result(result);
             }
         }

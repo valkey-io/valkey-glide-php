@@ -47,7 +47,7 @@ int execute_core_command(valkey_glide_object* valkey_glide,
     int            res               = 0;
     CommandResult* result            = NULL;
 
-    // debug_print_core_args(args);
+    debug_print_core_args(args);
 
     /* Prepare command arguments based on command type */
     arg_count =
@@ -94,7 +94,7 @@ int execute_core_command(valkey_glide_object* valkey_glide,
             execute_command(args->glide_client, args->cmd_type, arg_count, cmd_args, cmd_args_len);
     }
 
-    // debug_print_command_result(result);
+    debug_print_command_result(result);
 
     /* Process result using appropriate handler */
     if (result) {
@@ -835,7 +835,6 @@ int prepare_bit_operation_args(core_command_args_t* args,
         arg_idx++;
 
         /* Add destination key */
-
         (*cmd_args)[arg_idx]     = (uintptr_t) args->key;
         (*cmd_args_len)[arg_idx] = args->key_len;
         arg_idx++;
@@ -1477,14 +1476,6 @@ int parse_set_options(zval* options, core_options_t* opts) {
     return 1;
 }
 
-
-/* ====================================================================
- * BATCH PROCESSOR WRAPPERS
- * ==================================================================== */
-
-/**
- * Batch-compatible wrapper for integer results
- */
 int process_core_int_result(CommandResponse* response, void* output, zval* return_value) {
     if (!response) {
         ZVAL_LONG(return_value, 0);

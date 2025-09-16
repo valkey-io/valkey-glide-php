@@ -647,11 +647,7 @@ int prepare_h_randfield_args(h_command_args_t* args,
 /* ====================================================================
  * BATCH-COMPATIBLE RESULT PROCESSORS
  * ==================================================================== */
-
-/**
- * Batch-compatible wrapper for integer responses
- */
-int process_h_int_result_batch(CommandResponse* response, void* output, zval* return_value) {
+int process_h_int_result_async(CommandResponse* response, void* output, zval* return_value) {
     if (!response) {
         ZVAL_LONG(return_value, 0);
         return 0;
@@ -667,7 +663,7 @@ int process_h_int_result_batch(CommandResponse* response, void* output, zval* re
 /**
  * Batch-compatible wrapper for boolean responses
  */
-int process_h_bool_result_batch(CommandResponse* response, void* output, zval* return_value) {
+int process_h_bool_result_async(CommandResponse* response, void* output, zval* return_value) {
     if (!response)
         return 0;
 
@@ -683,7 +679,7 @@ int process_h_bool_result_batch(CommandResponse* response, void* output, zval* r
 /**
  * Batch-compatible wrapper for string responses
  */
-int process_h_string_result_batch(CommandResponse* response, void* output, zval* return_value) {
+int process_h_string_result_async(CommandResponse* response, void* output, zval* return_value) {
     if (!response)
         return 0;
 
@@ -705,7 +701,7 @@ int process_h_string_result_batch(CommandResponse* response, void* output, zval*
 /**
  * Batch-compatible wrapper for array responses
  */
-int process_h_array_result_batch(CommandResponse* response, void* output, zval* return_value) {
+int process_h_array_result_async(CommandResponse* response, void* output, zval* return_value) {
     /* Initialize return array */
     array_init(return_value);
     return command_response_to_zval(
@@ -715,7 +711,7 @@ int process_h_array_result_batch(CommandResponse* response, void* output, zval* 
 /**
  * Batch-compatible wrapper for map responses
  */
-int process_h_map_result_batch(CommandResponse* response, void* output, zval* return_value) {
+int process_h_map_result_async(CommandResponse* response, void* output, zval* return_value) {
     array_init(return_value);
     return command_response_to_zval(
         response, (zval*) return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
@@ -724,7 +720,7 @@ int process_h_map_result_batch(CommandResponse* response, void* output, zval* re
 /**
  * Batch-compatible wrapper for OK responses
  */
-int process_h_ok_result_batch(CommandResponse* response, void* output, zval* return_value) {
+int process_h_ok_result_async(CommandResponse* response, void* output, zval* return_value) {
     if (!response)
         return 0;
 
@@ -742,17 +738,17 @@ int process_h_ok_result_batch(CommandResponse* response, void* output, zval* ret
 z_result_processor_t get_processor_for_response_type(int response_type) {
     switch (response_type) {
         case H_RESPONSE_INT:
-            return process_h_int_result_batch;
+            return process_h_int_result_async;
         case H_RESPONSE_BOOL:
-            return process_h_bool_result_batch;
+            return process_h_bool_result_async;
         case H_RESPONSE_STRING:
-            return process_h_string_result_batch;
+            return process_h_string_result_async;
         case H_RESPONSE_ARRAY:
-            return process_h_array_result_batch;
+            return process_h_array_result_async;
         case H_RESPONSE_MAP:
-            return process_h_map_result_batch;
+            return process_h_map_result_async;
         case H_RESPONSE_OK:
-            return process_h_ok_result_batch;
+            return process_h_ok_result_async;
         default:
             return NULL;
     }
@@ -1259,7 +1255,7 @@ int execute_hlen_command(zval* object, int argc, zval* return_value, zend_class_
             return 1;
         }
 
-        /* In non-batch mode, result is already set by process_h_int_result_batch */
+        /* In non-batch mode, result is already set by process_h_int_result_async */
         return 1;
     }
 
@@ -1303,7 +1299,7 @@ int execute_hexists_command(zval* object, int argc, zval* return_value, zend_cla
             return 1;
         }
 
-        /* In non-batch mode, result is already set by process_h_bool_result_batch */
+        /* In non-batch mode, result is already set by process_h_bool_result_async */
         return 1;
     }
 
@@ -1347,7 +1343,7 @@ int execute_hdel_command(zval* object, int argc, zval* return_value, zend_class_
             return 1;
         }
 
-        /* In non-batch mode, result is already set by process_h_int_result_batch */
+        /* In non-batch mode, result is already set by process_h_int_result_async */
         return 1;
     }
 
@@ -1692,14 +1688,14 @@ int execute_hkeys_command(zval* object, int argc, zval* return_value, zend_class
 
     /* Execute with batch support */
     if (execute_h_simple_command(
-            valkey_glide, HKeys, &args, return_value, H_RESPONSE_ARRAY, return_value)) {
+            valkey_glide, HKeys, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
             return 1;
         }
 
-        /* In non-batch mode, result is already set by process_h_array_result_batch */
+        /* In non-batch mode, result is already set by process_h_array_result_async */
         return 1;
     }
 
@@ -1732,14 +1728,14 @@ int execute_hvals_command(zval* object, int argc, zval* return_value, zend_class
 
     /* Execute with batch support */
     if (execute_h_simple_command(
-            valkey_glide, HVals, &args, return_value, H_RESPONSE_ARRAY, return_value)) {
+            valkey_glide, HVals, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
             return 1;
         }
 
-        /* In non-batch mode, result is already set by process_h_array_result_batch */
+        /* In non-batch mode, result is already set by process_h_array_result_async */
         return 1;
     }
 
@@ -1773,14 +1769,14 @@ int execute_hgetall_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Execute with batch support */
     if (execute_h_simple_command(
-            valkey_glide, HGetAll, &args, return_value, H_RESPONSE_MAP, return_value)) {
+            valkey_glide, HGetAll, &args, NULL, H_RESPONSE_MAP, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
             return 1;
         }
 
-        /* In non-batch mode, result is already set by process_h_map_result_batch */
+        /* In non-batch mode, result is already set by process_h_map_result_async */
         return 1;
     }
 
