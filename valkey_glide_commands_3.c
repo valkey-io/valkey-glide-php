@@ -1938,7 +1938,7 @@ int execute_dbsize_command(zval* object, int argc, zval* return_value, zend_clas
     if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
-    if (is_cluster && !valkey_glide->is_in_batch_mode) {
+    if (is_cluster && valkey_glide->is_in_batch_mode) {
         /* DBSIZE cannot be used in batch mode */
         return 0;
     }

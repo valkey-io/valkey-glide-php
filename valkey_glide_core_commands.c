@@ -944,6 +944,7 @@ int execute_ping_command(zval* object, int argc, zval* return_value, zend_class_
         return 0;
     }
 
+
     /* Setup core command arguments */
     core_command_args_t core_args = {0};
     core_args.glide_client        = valkey_glide->glide_client;
