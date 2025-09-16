@@ -63,6 +63,17 @@ jobs:
         run: |
           mkdir -p web
 
+          # Determine the correct repository URL and reference for PRs vs direct pushes
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            REPO_URL="${{ github.event.pull_request.head.repo.clone_url }}"
+            REPO_REF="${{ github.event.pull_request.head.sha }}"
+            echo "Using PR head repository: $REPO_URL at $REPO_REF"
+          else
+            REPO_URL="${{ github.server_url }}/${{ github.repository }}"
+            REPO_REF="${{ github.sha }}"
+            echo "Using main repository: $REPO_URL at $REPO_REF"
+          fi
+
           # Create packages.json manually
           cat > web/packages.json << EOF
           {
@@ -74,8 +85,8 @@ jobs:
                   "version_normalized": "1.0.0.0",
                   "source": {
                     "type": "git",
-                    "url": "${{ github.event.pull_request.head.repo.clone_url || format('{0}/{1}', github.server_url, github.repository) }}",
-                    "reference": "${{ github.head_ref || github.ref_name }}"
+                    "url": "$REPO_URL",
+                    "reference": "$REPO_REF"
                   },
                   "type": "php-ext",
                   "php-ext": {
