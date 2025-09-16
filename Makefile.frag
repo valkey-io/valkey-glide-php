@@ -81,3 +81,32 @@ include/glide_bindings.h:
 		echo "protoc-c not found"; \
 	fi
 	@echo "=== HEADER GENERATION COMPLETE ==="
+
+# Override generated test target
+test:
+	@echo "Running ValkeyGlide tests..."
+	@if [ ! -f "$(CURDIR)/modules/valkey_glide.so" ]; then \
+		echo "❌ ERROR: Extension not found at $(CURDIR)/modules/valkey_glide.so"; \
+		echo "Please build the extension first with: make"; \
+		exit 1; \
+	fi
+	@if [ ! -f "tests/TestValkeyGlide.php" ]; then \
+		echo "❌ ERROR: Test file not found at tests/TestValkeyGlide.php"; \
+		exit 1; \
+	fi
+	@if [ ! -f "tests/start_valkey_with_replicas.sh" ]; then \
+		echo "❌ ERROR: Setup script not found at tests/start_valkey_with_replicas.sh"; \
+		exit 1; \
+	fi
+	@if [ ! -f "tests/create-valkey-cluster.sh" ]; then \
+		echo "❌ ERROR: Setup script not found at tests/create-valkey-cluster.sh"; \
+		exit 1; \
+	fi
+	@echo "Setting up Valkey infrastructure..."
+	@echo "Starting Valkey with replicas..."
+	@cd tests && ./start_valkey_with_replicas.sh
+	@echo "Creating Valkey cluster..."
+	@cd tests && ./create-valkey-cluster.sh
+	@echo "Running PHP tests..."
+	php -n -d extension=./modules/valkey_glide.so tests/TestValkeyGlide.php
+	@echo "✓ Tests completed"
