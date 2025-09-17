@@ -69,6 +69,11 @@ runs:
       run: |
         brew install clang-format
 
+    - name: Install Rust and protoc
+      uses: ./.github/workflows/install-rust-and-protoc
+      with:
+        github-token: ${{ github.token }}
+
     - name: Install cbindgen
       shell: bash
       run: cargo install cbindgen

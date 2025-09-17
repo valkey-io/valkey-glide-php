@@ -109,7 +109,10 @@ jobs:
 
           # Initialize composer config directories and fix permissions
           mkdir -p "$HOME/.config/composer"
-          sudo mkdir -p /root/.config/composer
+          # Skip root directory creation on macOS due to SIP
+          if [[ "${{ matrix.host.OS }}" != "macos" ]]; then
+            sudo mkdir -p /root/.config/composer
+          fi
 
           # Make sure root can read the user's composer config
           sudo chmod -R 755 "$HOME/.config/composer"
