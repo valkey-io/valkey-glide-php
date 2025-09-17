@@ -230,6 +230,20 @@ jobs:
           php-config --extension-dir
           ls -la $(php-config --extension-dir) | grep valkey || echo "valkey_glide.so not found in extension directory"
 
+          # Check if PIE installed to a different location (macOS Homebrew specific)
+          if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
+            echo "=== Checking alternative extension locations ==="
+            find /opt/homebrew/lib/php -name "valkey_glide.so" 2>/dev/null || echo "No valkey_glide.so found in /opt/homebrew/lib/php"
+            
+            # If found in alternative location, create symlink
+            ALT_SO=$(find /opt/homebrew/lib/php -name "valkey_glide.so" 2>/dev/null | head -1)
+            if [ -n "$ALT_SO" ] && [ ! -f "$(php-config --extension-dir)/valkey_glide.so" ]; then
+              echo "Found extension at: $ALT_SO"
+              echo "Creating symlink to: $(php-config --extension-dir)/valkey_glide.so"
+              sudo ln -sf "$ALT_SO" "$(php-config --extension-dir)/valkey_glide.so"
+            fi
+          fi
+
           echo "=== Looking for built extension in PIE working directory ==="
           PIE_WORK_DIR=$(find "$HOME/.config/pie" -name "valkey-glide-php" -type d | head -1)
           if [ -n "$PIE_WORK_DIR" ]; then
