@@ -485,7 +485,7 @@ static int command_response_to_zval_wrapper(CommandResponse* response,
                                             void*            output,
                                             zval*            return_value) {
     enum RequestType command_type = *((enum RequestType*) output);
-
+    efree(output);
     if (command_type == ClientList && response->response_type == String) {
         return parse_client_list_response(
             response->string_value, response->string_value_len, return_value);
@@ -1569,12 +1569,11 @@ int execute_client_command_internal(
 
     /* Use helper function to determine command type */
     enum RequestType command_type = determine_client_command_type(args, args_count);
-    if (command_type == InvalidRequest {
+    if (command_type == InvalidRequest) {
         cleanup_allocated_strings(allocated_strings, allocated_count);
         efree(cmd_args);
         efree(args_len);
         return 0; /* Unknown command */
-        
     }
 
     /* Execute the command with or without routing */
@@ -1612,19 +1611,12 @@ int execute_client_command_internal(
             free_command_result(result);
             return 0;
         }
-
         if (result->response) {
             /* Special handling for CLIENT LIST - convert string to array of associative arrays
              */
-            if (command_type == ClientList && result->response->response_type == String) {
-                status = parse_client_list_response(result->response->string_value,
-                                                    result->response->string_value_len,
-                                                    return_value);
-            } else {
-                /* Convert the response to PHP value using normal processing */
-                status = command_response_to_zval(
-                    result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-            }
+            enum RequestType* ctx = emalloc(sizeof(enum RequestType));
+            *ctx                  = command_type;
+            status = command_response_to_zval_wrapper(result->response, ctx, return_value);
         }
         free_command_result(result);
     }
@@ -1767,6 +1759,10 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
 
         /* Use helper function to determine command type */
         enum RequestType command_type = determine_client_command_type(z_args, arg_count);
+        if (command_type == InvalidRequest) {
+            return 0; /* Unknown command */
+        }
+
         /* Convert arguments to uint8_t** format for batch processing */
         uint8_t**  batch_args  = NULL;
         uintptr_t* arg_lengths = NULL;
