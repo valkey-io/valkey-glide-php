@@ -61,7 +61,15 @@ runs:
             "php${PHP_VERSION}-curl" \
             "php${PHP_VERSION}-xml" \
             build-essential \
-            clang-format
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            libssl-dev \
+            clang-format \
+            protobuf-c-compiler \
+            libprotobuf-c-dev \
+            libprotobuf-c1
 
     - name: Install system dependencies for macOS
       if: inputs.os == 'macos'
