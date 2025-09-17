@@ -99,7 +99,20 @@ jobs:
           # Start HTTP server
           cd web && python3 -m http.server 8000 &
           echo $! > ../server.pid
-          sleep 3
+
+          # Wait for server to be ready with proper health check
+          echo "Waiting for HTTP server to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8000/packages.json >/dev/null 2>&1; then
+              echo "HTTP server is ready"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "HTTP server failed to start after 30 seconds"
+              exit 1
+            fi
+            sleep 1
+          done
 
       - name: Test PIE with manual repository
         run: |
@@ -121,6 +134,17 @@ jobs:
           else
             sudo chown -R root:root "$HOME/.config/composer" || true
           fi
+
+          # Verify HTTP server is accessible before proceeding
+          echo "=== Verifying HTTP server accessibility ==="
+          curl -v http://localhost:8000/packages.json || {
+            echo "ERROR: Cannot access local HTTP server"
+            echo "Server process status:"
+            ps aux | grep "python.*http.server" || echo "No HTTP server process found"
+            echo "Port 8000 status:"
+            lsof -i :8000 || echo "Port 8000 not in use"
+            exit 1
+          }
 
           # Add local repository
           pie repository:add composer http://localhost:8000
