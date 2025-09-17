@@ -99,14 +99,8 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
     /* Check for batch mode */
 
     if (valkey_glide->is_in_batch_mode) {
-        status = buffer_command_for_batch(valkey_glide,
-                                          cmd_type,
-                                          (uint8_t**) cmd_args,
-                                          (uintptr_t*) args_len,
-                                          arg_count,
-
-                                          result_ptr,
-                                          process_result);
+        status = buffer_command_for_batch(
+            valkey_glide, cmd_type, cmd_args, args_len, arg_count, result_ptr, process_result);
         goto cleanup;
     }
 
@@ -200,14 +194,8 @@ int execute_h_simple_command(valkey_glide_object* valkey_glide,
         goto cleanup;
     }
     if (valkey_glide->is_in_batch_mode) {
-        status = buffer_command_for_batch(valkey_glide,
-                                          cmd_type,
-                                          (uint8_t**) cmd_args,
-                                          (uintptr_t*) args_len,
-                                          arg_count,
-
-                                          result_ptr,
-                                          processor);
+        status = buffer_command_for_batch(
+            valkey_glide, cmd_type, cmd_args, args_len, arg_count, result_ptr, processor);
         goto cleanup;
     }
 

@@ -74,7 +74,7 @@ static int ffi_level_to_int(enum Level level) {
 /* ============================================================================
  * Utility Functions
  * ============================================================================ */
-int valkey_glide_log_wrapper(enum Level level, const char* identifier, const char* message) {
+void valkey_glide_log_wrapper(enum Level level, const char* identifier, const char* message) {
     struct LogResult* log_result = glide_log(level, identifier, message);
     if (log_result != NULL) {
         if (log_result->log_error != NULL) {

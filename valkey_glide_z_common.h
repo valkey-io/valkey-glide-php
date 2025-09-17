@@ -424,10 +424,9 @@ int execute_bzpopmax_command(zval* object, int argc, zval* return_value, zend_cl
 int execute_bzpopmin_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                              enum RequestType     cmd_type,
-                             uint8_t**            args,
-                             uintptr_t*           arg_lengths,
+                             const uintptr_t*     args,
+                             const unsigned long* args_len,
                              uintptr_t            arg_count,
-
                              void*                result_ptr,
                              z_result_processor_t process_result);
 /**

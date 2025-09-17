@@ -167,8 +167,8 @@ static void expand_command_buffer(valkey_glide_object* valkey_glide) {
 /* Buffer a command for batch execution */
 int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                              enum RequestType     cmd_type,
-                             uint8_t**            args,
-                             uintptr_t*           arg_lengths,
+                             const uintptr_t*     args,
+                             const unsigned long* arg_lengths,
                              uintptr_t            arg_count,
                              void*                result_ptr,
                              z_result_processor_t process_result) {
@@ -211,7 +211,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
             if (args[i] && arg_lengths[i] > 0) {
                 cmd->args[i] = (uint8_t*) emalloc(arg_lengths[i] + 1);
                 if (cmd->args[i]) {
-                    memcpy(cmd->args[i], args[i], arg_lengths[i]);
+                    memcpy(cmd->args[i], ((uint8_t**) args)[i], arg_lengths[i]);
                     cmd->args[i][arg_lengths[i]] = '\0';
                     cmd->arg_lengths[i]          = arg_lengths[i];
                 } else {
@@ -562,16 +562,16 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
         /* Check if we're in batch mode */
         if (valkey_glide->is_in_batch_mode) {
             /* Convert arguments to uint8_t** format for batch processing */
-            uint8_t**  batch_args  = NULL;
-            uintptr_t* arg_lengths = NULL;
+            uintptr_t*     batch_args  = NULL;
+            unsigned long* arg_lengths = NULL;
 
             if (final_arg_count > 0) {
-                batch_args  = (uint8_t**) emalloc(final_arg_count * sizeof(uint8_t*));
-                arg_lengths = (uintptr_t*) emalloc(final_arg_count * sizeof(uintptr_t));
+                batch_args  = (uintptr_t*) emalloc(final_arg_count * sizeof(uintptr_t*));
+                arg_lengths = (uintptr_t*) emalloc(final_arg_count * sizeof(unsigned long));
 
                 /* Copy arguments to batch format */
                 for (unsigned long i = 0; i < final_arg_count; i++) {
-                    batch_args[i]  = (uint8_t*) cmd_args[i];
+                    batch_args[i]  = cmd_args[i];
                     arg_lengths[i] = args_len[i];
                 }
             }
@@ -1764,12 +1764,12 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
         }
 
         /* Convert arguments to uint8_t** format for batch processing */
-        uint8_t**  batch_args  = NULL;
-        uintptr_t* arg_lengths = NULL;
+        uintptr_t*     batch_args  = NULL;
+        unsigned long* arg_lengths = NULL;
 
         if (arg_count > 1) {
-            batch_args  = (uint8_t**) emalloc((arg_count - 1) * sizeof(uint8_t*));
-            arg_lengths = (uintptr_t*) emalloc((arg_count - 1) * sizeof(uintptr_t));
+            batch_args  = (uintptr_t*) emalloc((arg_count - 1) * sizeof(uintptr_t));
+            arg_lengths = emalloc((arg_count - 1) * sizeof(unsigned long));
 
             if (!batch_args || !arg_lengths) {
                 if (batch_args)
@@ -1785,7 +1785,7 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
 
                 if (Z_TYPE_P(arg) == IS_STRING) {
                     /* Already a string, use directly */
-                    batch_args[i - 1] = (uint8_t*) Z_STRVAL_P(arg);
+                    batch_args[i - 1] = (uintptr_t) Z_STRVAL_P(arg);
 
                     arg_lengths[i - 1] = Z_STRLEN_P(arg);
                 } else {
@@ -1794,7 +1794,7 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
                     ZVAL_COPY(&temp, arg);
                     convert_to_string(&temp);
 
-                    batch_args[i - 1]  = (uint8_t*) Z_STRVAL(temp);
+                    batch_args[i - 1]  = (uintptr_t) Z_STRVAL(temp);
                     arg_lengths[i - 1] = Z_STRLEN(temp);
 
                     /* Note: We're not freeing temp here as batch_args points to its string data
@@ -1810,8 +1810,7 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
                                                      batch_args,
                                                      arg_lengths,
                                                      arg_count - 1, /* number of args */
-
-                                                     output, /* result_ptr */
+                                                     output,        /* result_ptr */
                                                      command_response_to_zval_wrapper);
 
         /* Free the argument arrays */

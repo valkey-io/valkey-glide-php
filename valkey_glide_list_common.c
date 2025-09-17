@@ -291,14 +291,8 @@ int execute_list_generic_command(valkey_glide_object* valkey_glide,
         /* For batch mode, we need to use batch-compatible result processors */
 
 
-        status = buffer_command_for_batch(valkey_glide,
-                                          cmd_type,
-                                          (uint8_t**) cmd_args,
-                                          (uintptr_t*) args_len,
-                                          arg_count,
-
-                                          result_ptr,
-                                          process_result);
+        status = buffer_command_for_batch(
+            valkey_glide, cmd_type, cmd_args, args_len, arg_count, result_ptr, process_result);
 
         goto cleanup;
     }

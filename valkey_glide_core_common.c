@@ -65,8 +65,8 @@ int execute_core_command(valkey_glide_object* valkey_glide,
 
         res = buffer_command_for_batch(valkey_glide,
                                        args->cmd_type,
-                                       (uint8_t**) cmd_args,
-                                       (uintptr_t*) cmd_args_len,
+                                       cmd_args,
+                                       cmd_args_len,
                                        arg_count,
 
                                        result_ptr,

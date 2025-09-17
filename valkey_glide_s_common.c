@@ -70,21 +70,6 @@ int convert_zval_to_string_args(
         if (Z_TYPE_P(element) == IS_STRING) {
             (*args_out)[offset + i]     = (uintptr_t) Z_STRVAL_P(element);
             (*args_len_out)[offset + i] = Z_STRLEN_P(element);
-        } else if (Z_TYPE_P(element) == IS_OBJECT) {
-            /* Handle object conversion specially */
-            zval tmp_zval;
-            ZVAL_COPY(&tmp_zval, element);
-            zend_std_cast_object_tostring(&tmp_zval, &tmp_zval, IS_STRING);
-
-            /* Create a permanent copy of the string before freeing the zval */
-            size_t str_len  = Z_STRLEN(tmp_zval);
-            char*  str_copy = emalloc(str_len + 1);
-            memcpy(str_copy, Z_STRVAL(tmp_zval), str_len);
-            str_copy[str_len] = '\0';
-
-            (*args_out)[offset + i]     = (uintptr_t) str_copy;
-            (*args_len_out)[offset + i] = str_len;
-            zval_dtor(&tmp_zval);
         } else {
             /* Convert other types to string */
             ZVAL_COPY(&temp, element);
@@ -740,13 +725,8 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
     /* Check for batch mode */
     if (valkey_glide && valkey_glide->is_in_batch_mode) {
         /* Buffer command for batch execution */
-        status = buffer_command_for_batch(valkey_glide,
-                                          cmd_type,
-                                          (uint8_t**) cmd_args,
-                                          (uintptr_t*) args_len,
-                                          arg_count,
-                                          scan_data,
-                                          process_result);
+        status = buffer_command_for_batch(
+            valkey_glide, cmd_type, cmd_args, args_len, arg_count, scan_data, process_result);
 
 
         goto cleanup;

@@ -18,32 +18,7 @@ PROTOC_C_PLUGIN := protoc-c
 PROTO_SRC_DIR = valkey-glide/glide-core/src/protobuf
 GEN_INCLUDE_DIR = include/glide
 GEN_SRC_DIR = src
-
-ASAN_ENABLE ?= 0
-ifeq ($(ASAN_ENABLE),1)
-  ASAN_CFLAGS  := -O1 -g -fno-omit-frame-pointer -fsanitize=address -fsanitize-address-use-after-scope
-  ASAN_LDFLAGS := -fsanitize=address
-
-  CFLAGS       += $(ASAN_CFLAGS)
-  CFLAGS_CLEAN += $(ASAN_CFLAGS)
-  LDFLAGS      += $(ASAN_LDFLAGS)
-  EXTRA_LDFLAGS+= $(ASAN_LDFLAGS)
-endif
-
-# Prefer Homebrew LLVM ASan runtime; fallback to clang resource dir
-ASAN_DYLIB := $(shell ls /opt/homebrew/opt/llvm/lib/clang/*/lib/darwin/libclang_rt.asan_osx_dynamic.dylib 2>/dev/null | tail -n1)
-ifeq ($(ASAN_DYLIB),)
-  ASAN_DYLIB := $(shell $(CC) -print-resource-dir 2>/dev/null)/lib/darwin/libclang_rt.asan_osx_dynamic.dylib
-endif
-
-# Symbolizer path (pretty stacks)
-ASAN_SYMBOLIZER_PATH := $(or $(shell command -v llvm-symbolizer 2>/dev/null),/opt/homebrew/opt/llvm/bin/llvm-symbolizer)
-export ASAN_SYMBOLIZER_PATH
-
-# Sensible defaults (override by exporting ASAN_OPTIONS if you want)
-ASAN_OPTIONS ?= detect_stack_use_after_return=1,strict_string_checks=1,allocator_may_return_null=1,halt_on_error=1
-export ASAN_OPTIONS
-
+CFLAGS += -Werror
 
 # Force header generation before any compilation
 $(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
@@ -73,7 +48,7 @@ valkey-glide/ffi/target/release/libglide_ffi.a:
 		git submodule update --init --recursive; \
 	fi
 	@if [ -d valkey-glide/ffi ]; then \
-		cd valkey-glide/ffi && CFLAGS= CXXFLAGS= LDFLAGS= RUSTFLAGS= cargo build --release && cd ../..; \
+		cd valkey-glide/ffi && cargo build --release && cd ../..; \
 	fi
 
 include/glide_bindings.h:
@@ -83,7 +58,7 @@ include/glide_bindings.h:
 	fi
 	@python3 utils/remove_optional_from_proto.py || true
 	@if [ -d valkey-glide/ffi ]; then \
-		cd valkey-glide/ffi && CFLAGS= CXXFLAGS= LDFLAGS= RUSTFLAGS= cargo build --release && cd ../..; \
+		cd valkey-glide/ffi && cargo build --release && cd ../..; \
 	fi
 	@mkdir -p include
 	@if [ -d valkey-glide/ffi ] && command -v cbindgen >/dev/null 2>&1; then \
@@ -136,15 +111,3 @@ test:
 	@echo "Running PHP tests..."
 	php -n -d extension=./modules/valkey_glide.so tests/TestValkeyGlide.php
 	@echo "✓ Tests completed"
-
-.PHONY: asan-test
-asan-test: all
-	@if [ -z "$(ASAN_DYLIB)" ] || [ ! -f "$(ASAN_DYLIB)" ]; then \
-		echo "❌ ASan runtime not found. Install Homebrew llvm: brew install llvm"; exit 1; \
-	fi
-	@echo "Using ASAN_DYLIB=$(ASAN_DYLIB)"
-	USE_ZEND_ALLOC=0 MallocNanoZone=0 \
-	DYLD_INSERT_LIBRARIES="$(ASAN_DYLIB)" \
-	ASAN_SYMBOLIZER_PATH="$(ASAN_SYMBOLIZER_PATH)" \
-	ASAN_OPTIONS="$(ASAN_OPTIONS)" \
-	php -n -d extension=./modules/valkey_glide.so tests/TestValkeyGlide.php

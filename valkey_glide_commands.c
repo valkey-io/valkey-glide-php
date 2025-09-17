@@ -517,14 +517,8 @@ int execute_object_command_impl(valkey_glide_object* valkey_glide,
 
 
         /* Buffer command for batch execution */
-        int result = buffer_command_for_batch(valkey_glide,
-                                              req_type,
-                                              (uint8_t**) args,
-                                              (uintptr_t*) args_len,
-                                              1,
-
-                                              subcommand_copy,
-                                              process_object_result);
+        int result = buffer_command_for_batch(
+            valkey_glide, req_type, args, args_len, 1, subcommand_copy, process_object_result);
 
         if (result) {
             /* In batch mode, return $this for method chaining */

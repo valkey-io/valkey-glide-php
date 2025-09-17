@@ -846,10 +846,9 @@ int execute_geo_generic_command(valkey_glide_object*   valkey_glide,
         /* In batch mode: buffer the command and return success */
         int status = buffer_command_for_batch(valkey_glide,
                                               cmd_type,
-                                              (uint8_t**) arg_values,
-                                              (uintptr_t*) arg_lens,
+                                              arg_values,
+                                              arg_lens,
                                               arg_count,
-
                                               result_ptr,
                                               (z_result_processor_t) process_result);
 

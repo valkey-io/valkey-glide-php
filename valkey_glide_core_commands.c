@@ -29,6 +29,7 @@
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
 #include "valkey_glide_list_common.h"
+#include "valkey_glide_z_common.h"
 
 extern zend_class_entry* ce;
 extern zend_class_entry* get_valkey_glide_exception_ce();
@@ -37,15 +38,6 @@ extern zend_class_entry* get_valkey_glide_exception_ce();
 extern char* long_to_string(long value, size_t* len);
 extern char* double_to_string(double value, size_t* len);
 
-/* Import batch command function from valkey_glide_commands_3.c */
-extern int buffer_command_for_batch(valkey_glide_object* valkey_glide,
-                                    enum RequestType     cmd_type,
-                                    uint8_t**            args,
-                                    uintptr_t*           arg_lengths,
-                                    uintptr_t            arg_count,
-
-                                    void*                result_ptr,
-                                    z_result_processor_t process_result);
 
 /* Create a connection request in protobuf format. Made visible for testing. */
 uint8_t* create_connection_request(const char*                               host,
@@ -1219,7 +1211,6 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
                                                      cmd_args,
                                                      cmd_args_len,
                                                      processed_args,
-
                                                      NULL, /* result_ptr */
                                                      process_info_result);
 
