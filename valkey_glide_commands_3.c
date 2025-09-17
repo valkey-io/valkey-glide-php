@@ -1458,9 +1458,9 @@ int execute_client_command_internal(
             command_type = ClientGetName;
         else if (strcasecmp(subcmd, "ID") == 0)
             command_type = ClientId;
-        else if (strcasecmp(subcmd, "SETNAME") == 0) {
-            command_type = ClientSetName;
-        } else if (strcasecmp(subcmd, "PAUSE") == 0)
+        //        else if (strcasecmp(subcmd, "SETNAME") == 0)
+        //            command_type = ClientSetName;
+        else if (strcasecmp(subcmd, "PAUSE") == 0)
             command_type = ClientPause;
         else if (strcasecmp(subcmd, "UNPAUSE") == 0)
             command_type = ClientUnpause;

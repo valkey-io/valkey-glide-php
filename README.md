@@ -118,7 +118,35 @@ export PATH="$PATH:$HOME/.local/bin"
 protoc --version
 ```
 
-### Building and Installing the Extension
+### Installing from Packagist
+You can use pie to install the extension from the Packagist repository.
+See: https://packagist.org/packages/valkey-io/valkey-glide-php
+
+Before starting this step, make sure you've installed all dependencies above.
+
+Additionally, you will need to install the pie tool.
+
+On Linux, you can download pie with curl. eg:
+```bash
+curl -L https://github.com/php/pie/releases/latest/download/pie.phar -o pie
+chmod +x pie
+sudo mv pie /usr/local/bin/pie
+export PATH="$PATH:/usr/local/bin"
+```
+
+On MacOS, install with Homebrew:
+```bash
+brew install pie
+```
+
+To install the Valkey Glide extension, simply use the pie command:
+```bash
+# VERSION can be set to any release tag or branch at https://github.com/valkey-io/valkey-glide-php.git
+export VERSION=1.0.0
+pie install valkey-io/valkey-glide-php:$VERSION
+```
+
+### Building and Installing the Extension from source
 
 1. Clone the repository:
     ```bash

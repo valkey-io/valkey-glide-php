@@ -2333,7 +2333,7 @@ class ValkeyGlide
      *
      * @example $valkey_glide->select(1);
      */
-    public function select(int $db): ValkeyGlide|bool;
+// public function select(int $db): ValkeyGlide|bool;
 
     /**
      * Create or set a ValkeyGlide STRING key to a value.
