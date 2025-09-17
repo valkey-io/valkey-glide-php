@@ -22,6 +22,14 @@ inputs:
       - aarch64-apple-darwin
       - aarch64-unknown-linux-musl
       - x86_64-unknown-linux-musl
+  os:
+    description: "The current operating system"
+    required: true
+    type: string
+    options:
+      - amazon-linux
+      - macos
+      - ubuntu
 
 runs:
   using: composite
@@ -29,6 +37,7 @@ runs:
     - name: Install shared dependencies
       uses: ./.github/workflows/install-shared-dependencies
       with:
+        os: ${{ inputs.os }}
         target: ${{ inputs.target }}
         github-token: ${{ github.token }}
         engine-version: "7.2.5"
@@ -40,7 +49,8 @@ runs:
         extensions: none
         tools: pie, jq
 
-    - name: Install system dependencies
+    - name: Install system dependencies for Ubuntu
+      if: inputs.os == 'ubuntu'
       shell: bash
       env:
         PHP_VERSION: ${{ inputs.php-version }}
@@ -51,20 +61,13 @@ runs:
             "php${PHP_VERSION}-curl" \
             "php${PHP_VERSION}-xml" \
             build-essential \
-            autoconf \
-            automake \
-            libtool \
-            pkg-config \
-            libssl-dev \
-            clang-format \
-            protobuf-c-compiler \
-            libprotobuf-c-dev \
-            libprotobuf-c1
+            clang-format
 
-    - name: Install Rust and protoc
-      uses: ./.github/workflows/install-rust-and-protoc
-      with:
-        github-token: ${{ github.token }}
+    - name: Install system dependencies for macOS
+      if: inputs.os == 'macos'
+      shell: bash
+      run: |
+        brew install clang-format
 
     - name: Install cbindgen
       shell: bash

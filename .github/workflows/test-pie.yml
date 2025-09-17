@@ -59,6 +59,7 @@ jobs:
           php-version: ${{ matrix.php }}
           install-composer-deps: "true"
           target: ${{ matrix.host.TARGET }}
+          os: ${{ matrix.host.OS }}
 
       - name: Create manual Composer repository
         run: |
