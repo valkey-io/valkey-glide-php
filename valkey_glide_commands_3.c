@@ -327,8 +327,8 @@ static enum RequestType determine_client_command_type(zval* args, int args_count
             return ClientGetName;
         } else if (strcasecmp(subcmd, "ID") == 0) {
             return ClientId;
-        } else if (strcasecmp(subcmd, "SETNAME") == 0) {
-            return ClientSetName;
+            //  } else if (strcasecmp(subcmd, "SETNAME") == 0) {
+            //    return ClientSetName;
         } else if (strcasecmp(subcmd, "PAUSE") == 0) {
             return ClientPause;
         } else if (strcasecmp(subcmd, "UNPAUSE") == 0) {
@@ -341,7 +341,7 @@ static enum RequestType determine_client_command_type(zval* args, int args_count
             return ClientNoEvict;
         }
     }
-    return ClientInfo; /* Default */
+    return InvalidRequest; /* Default */
 }
 
 /* Helper function to determine FUNCTION command type - reduces duplication */
@@ -1569,19 +1569,12 @@ int execute_client_command_internal(
 
     /* Use helper function to determine command type */
     enum RequestType command_type = determine_client_command_type(args, args_count);
-    if (command_type == ClientInfo && args_count > 0 && Z_TYPE(args[0]) == IS_STRING) {
-        /* Check if it's an unknown command */
-        const char* subcmd = Z_STRVAL(args[0]);
-        if (strcasecmp(subcmd, "KILL") != 0 && strcasecmp(subcmd, "LIST") != 0 &&
-            strcasecmp(subcmd, "GETNAME") != 0 && strcasecmp(subcmd, "ID") != 0 &&
-            strcasecmp(subcmd, "SETNAME") != 0 && strcasecmp(subcmd, "PAUSE") != 0 &&
-            strcasecmp(subcmd, "UNPAUSE") != 0 && strcasecmp(subcmd, "REPLY") != 0 &&
-            strcasecmp(subcmd, "INFO") != 0 && strcasecmp(subcmd, "NO-EVICT") != 0) {
-            cleanup_allocated_strings(allocated_strings, allocated_count);
-            efree(cmd_args);
-            efree(args_len);
-            return 0; /* Unknown command */
-        }
+    if (command_type == InvalidRequest {
+        cleanup_allocated_strings(allocated_strings, allocated_count);
+        efree(cmd_args);
+        efree(args_len);
+        return 0; /* Unknown command */
+        
     }
 
     /* Execute the command with or without routing */
