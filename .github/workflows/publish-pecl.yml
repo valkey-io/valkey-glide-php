@@ -29,13 +29,17 @@ jobs:
 
       - name: Determine version
         id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            VERSION="${{ github.event.release.tag_name }}"
+          if [ "$EVENT_NAME" = "release" ]; then
+            VERSION="$RELEASE_TAG"
             # Remove 'v' prefix if present
             VERSION=${VERSION#v}
           else
-            VERSION="${{ github.event.inputs.version }}"
+            VERSION="$INPUT_VERSION"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Publishing version: $VERSION"
@@ -196,9 +200,10 @@ jobs:
 
       - name: Create GitHub release
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.create-release == 'true'
-        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        uses: actions/create-release@v1
         with:
           tag_name: v${{ steps.version.outputs.version }}
           release_name: Valkey GLIDE PHP v${{ steps.version.outputs.version }}
