@@ -230,6 +230,8 @@ jobs:
       - name: Install scancode-toolkit
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
+          # Pin click version to fix compatibility issue with scancode-toolkit
+          pip install "click<8.1.0"
           pip install scancode-toolkit
 
       - name: Install and setup aboutcode-toolkit
