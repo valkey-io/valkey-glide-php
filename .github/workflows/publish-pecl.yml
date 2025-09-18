@@ -49,73 +49,73 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           DATE=$(date +%Y-%m-%d)
           TIME=$(date +%H:%M:%S)
-          
+
           # Update version and date in package.xml
           sed -i "s/<release>0\.9\.0<\/release>/<release>$VERSION<\/release>/" package.xml
           sed -i "s/<api>0\.9\.0<\/api>/<api>$VERSION<\/api>/" package.xml
           sed -i "s/<date>2025-09-18<\/date>/<date>$DATE<\/date>/" package.xml
           sed -i "s/<time>18:25:00<\/time>/<time>$TIME<\/time>/" package.xml
-          
+
           echo "Updated package.xml with version $VERSION"
 
       - name: Create PECL package
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           PACKAGE_DIR="valkey_glide-$VERSION"
-          
+
           echo "=== Creating PECL package for version $VERSION ==="
-          
+
           # Create clean package directory
           mkdir -p "$PACKAGE_DIR"
-          
+
           # Copy only source files listed in package.xml (exclude temp files with ~)
           cp config.m4 "$PACKAGE_DIR/"
           cp Makefile.frag "$PACKAGE_DIR/"
           cp .gitmodules "$PACKAGE_DIR/"
-          
+
           # Copy specific source files (exclude temp files)
           for file in *.c *.h; do
             if [[ -f "$file" && "$file" != *~ ]]; then
               cp "$file" "$PACKAGE_DIR/"
             fi
           done
-          
+
           # Copy stub files (exclude temp files)
           for file in *.stub.php; do
             if [[ -f "$file" && "$file" != *~ ]]; then
               cp "$file" "$PACKAGE_DIR/"
             fi
           done
-          
+
           # Copy src directory
           mkdir -p "$PACKAGE_DIR/src"
           cp src/client_constructor_mock.c "$PACKAGE_DIR/src/"
           cp src/client_constructor_mock.stub.php "$PACKAGE_DIR/src/"
-          
+
           # Copy utils directory
           mkdir -p "$PACKAGE_DIR/utils"
           cp utils/remove_optional_from_proto.py "$PACKAGE_DIR/utils/"
-          
+
           # Copy documentation files
           cp README.md "$PACKAGE_DIR/"
           cp LICENSE "$PACKAGE_DIR/"
-          
+
           # Create empty valkey-glide directory with .gitkeep
           mkdir -p "$PACKAGE_DIR/valkey-glide"
           touch "$PACKAGE_DIR/valkey-glide/.gitkeep"
-          
+
           # Validate package.xml
           if ! command -v xmllint >/dev/null 2>&1; then
             sudo apt-get update && sudo apt-get install -y libxml2-utils
           fi
           xmllint --noout package.xml || exit 1
-          
+
           # Create tarball
           tar czf "$PACKAGE_DIR.tgz" "$PACKAGE_DIR"
-          
+
           echo "=== PECL package created ==="
           ls -la "$PACKAGE_DIR.tgz"
-          
+
           # Show package contents
           echo "=== Package contents ==="
           tar tzf "$PACKAGE_DIR.tgz" | head -20
@@ -124,22 +124,22 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           PACKAGE_DIR="valkey_glide-$VERSION"
-          
+
           echo "=== Testing package installation ==="
-          
+
           # Extract and test build
           tar xzf "$PACKAGE_DIR.tgz"
           cd "$PACKAGE_DIR"
-          
+
           # Install PHP and build tools
           sudo apt-get update
           sudo apt-get install -y php-dev php-cli build-essential git
-          
+
           # Test build process
           phpize
           ./configure --enable-valkey-glide
           make -j$(nproc)
-          
+
           echo "=== Package builds successfully ==="
 
       - name: Generate installation instructions
@@ -147,14 +147,14 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           cat > INSTALL.md << EOF
           # Valkey GLIDE PHP Extension v$VERSION
-          
+
           ## Installation Methods
-          
+
           ### Method 1: PIE (Recommended)
           \`\`\`bash
           pie install valkey-io/valkey-glide-php
           \`\`\`
-          
+
           ### Method 2: PECL-style from GitHub Release
           \`\`\`bash
           # Download and install
@@ -165,23 +165,23 @@ jobs:
           ./configure --enable-valkey-glide
           make
           sudo make install
-          
+
           # Enable extension
           echo "extension=valkey_glide" | sudo tee /etc/php/*/cli/conf.d/20-valkey-glide.ini
           echo "extension=valkey_glide" | sudo tee /etc/php/*/fpm/conf.d/20-valkey-glide.ini
           \`\`\`
-          
+
           ### Method 3: Direct PECL install
           \`\`\`bash
           pecl install https://github.com/valkey-io/valkey-glide-php/releases/download/v$VERSION/valkey_glide-$VERSION.tgz
           \`\`\`
-          
+
           ## Requirements
           - PHP 8.1 or higher
           - Git (for submodule cloning during build)
           - Rust toolchain
           - Build tools (gcc, make, etc.)
-          
+
           ## Verify Installation
           \`\`\`bash
           php -m | grep valkey_glide
@@ -209,28 +209,28 @@ jobs:
           release_name: Valkey GLIDE PHP v${{ steps.version.outputs.version }}
           body: |
             ## Valkey GLIDE PHP Extension v${{ steps.version.outputs.version }}
-            
+
             High-performance PHP client for Valkey and Redis with Rust-based core.
-            
+
             ### Installation
-            
+
             **PIE (Recommended):**
             ```bash
             pie install valkey-io/valkey-glide-php
             ```
-            
+
             **PECL-style:**
             ```bash
             pecl install https://github.com/valkey-io/valkey-glide-php/releases/download/v${{ steps.version.outputs.version }}/valkey_glide-${{ steps.version.outputs.version }}.tgz
             ```
-            
+
             **Manual:**
             Download the tarball below and follow the installation instructions.
-            
+
             ### Requirements
             - PHP 8.1+
             - Git, Rust toolchain, build tools
-            
+
             See INSTALL.md for detailed instructions.
           draft: false
           prerelease: false
