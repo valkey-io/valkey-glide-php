@@ -59,6 +59,31 @@ jobs:
           php-version: ${{ matrix.php }}
           install-composer-deps: "false"
 
+      - name: Generate PHP protobuf classes for testing
+        run: |
+          echo "=== Generating PHP protobuf classes for testing ==="
+          
+          # Install protobuf compiler and PHP plugin
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          
+          # Install protobuf PHP runtime for testing
+          composer require google/protobuf
+          
+          # Generate PHP classes from protobuf files (following README.md instructions)
+          PROTO_DIR="valkey-glide/glide-core/src/protobuf"
+          if [ -d "$PROTO_DIR" ]; then
+            echo "Generating PHP classes from protobuf files..."
+            protoc --proto_path="$PROTO_DIR" --php_out=./tests/ "$PROTO_DIR"/connection_request.proto
+            
+            echo "Generated PHP protobuf classes:"
+            find tests -name "*.php" -path "*/Connection_request/*" -o -path "*/GPBMetadata/*" | head -10
+          else
+            echo "Warning: Protobuf directory not found at $PROTO_DIR"
+          fi
+          
+          echo "PHP protobuf classes generated for testing"
+
       - name: Create PECL package tarball
         run: |
           echo "=== Creating PECL package tarball ==="
