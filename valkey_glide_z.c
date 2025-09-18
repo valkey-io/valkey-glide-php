@@ -1582,14 +1582,6 @@ int prepare_mpop_arguments(const void*     glide_client,
     uintptr_t*     args     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     unsigned long* args_len = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-    if (!args || !args_len) {
-        if (args)
-            efree(args);
-        if (args_len)
-            efree(args_len);
-        return 0;
-    }
-
     /* Current argument index */
     int arg_idx = 0;
 

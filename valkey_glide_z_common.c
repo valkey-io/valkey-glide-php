@@ -771,16 +771,6 @@ int prepare_z_members_args(z_command_args_t* args,
 
             str_val = zval_to_string_safe(z_member, &str_len, &need_free);
 
-            if (!str_val) {
-                int j;
-                for (j = 0; j < *allocated_count; j++) {
-                    efree((*allocated_strings)[j]);
-                }
-                efree(*args_out);
-                efree(*args_len_out);
-                return 0;
-            }
-
             (*args_out)[i + 1]     = (uintptr_t) str_val;
             (*args_len_out)[i + 1] = str_len;
 
@@ -812,10 +802,6 @@ static int convert_zval_to_string_arg(zval*          z_value,
         int    need_free = 0;
 
         str_val = zval_to_string_safe(z_value, &str_len, &need_free);
-
-        if (!str_val) {
-            return 0;
-        }
 
         *arg_ptr     = (uintptr_t) str_val;
         *arg_len_ptr = str_len;

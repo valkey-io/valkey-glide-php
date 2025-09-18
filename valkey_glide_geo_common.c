@@ -63,14 +63,6 @@ int prepare_geo_members_args(geo_command_args_t* args,
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
-
     /* First argument: key */
     (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
@@ -84,13 +76,6 @@ int prepare_geo_members_args(geo_command_args_t* args,
 
         str_val = zval_to_string_safe(member, &str_len, &need_free);
 
-        if (!str_val) {
-            /* Cleanup on error */
-            free_allocated_strings(*allocated_strings, *allocated_count);
-            efree(*args_out);
-            efree(*args_len_out);
-            return 0;
-        }
 
         (*args_out)[i + 1]     = (uintptr_t) str_val;
         (*args_len_out)[i + 1] = str_len;
@@ -119,14 +104,6 @@ int prepare_geo_dist_args(geo_command_args_t* args,
     unsigned long arg_count = args->unit ? 4 : 3;
     *args_out               = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out           = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Set arguments */
     (*args_out)[0]     = (uintptr_t) args->key;
@@ -170,14 +147,6 @@ int prepare_geo_add_args(geo_command_args_t* args,
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
-
     /* First argument: key */
     (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
@@ -190,14 +159,6 @@ int prepare_geo_add_args(geo_command_args_t* args,
         int    need_free = 0;
 
         str_val = zval_to_string_safe(value, &str_len, &need_free);
-
-        if (!str_val) {
-            /* Cleanup on error */
-            free_allocated_strings(*allocated_strings, *allocated_count);
-            efree(*args_out);
-            efree(*args_len_out);
-            return 0;
-        }
 
         (*args_out)[i + 1]     = (uintptr_t) str_val;
         (*args_len_out)[i + 1] = str_len;
@@ -232,14 +193,6 @@ int prepare_geo_search_args(geo_command_args_t* args,
     *args_out              = (uintptr_t*) emalloc(max_args * sizeof(uintptr_t));
     *args_len_out          = (unsigned long*) emalloc(max_args * sizeof(unsigned long));
 
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
-
     /* Start building command arguments */
     unsigned long arg_idx = 0;
 
@@ -268,11 +221,7 @@ int prepare_geo_search_args(geo_command_args_t* args,
             /* Convert longitude and latitude to strings */
             size_t lon_str_len, lat_str_len;
             char*  lon_str = double_to_string(zval_get_double(lon), &lon_str_len);
-            if (!lon_str) {
-                efree(*args_out);
-                efree(*args_len_out);
-                return 0;
-            }
+
             (*args_out)[arg_idx]                       = (uintptr_t) lon_str;
             (*args_len_out)[arg_idx++]                 = lon_str_len;
             (*allocated_strings)[(*allocated_count)++] = lon_str;
@@ -298,15 +247,9 @@ int prepare_geo_search_args(geo_command_args_t* args,
 
         /* Convert radius to string */
         size_t radius_str_len;
-        char*  radius_str = double_to_string(*args->by_radius, &radius_str_len);
-        if (!radius_str) {
-            free_allocated_strings(*allocated_strings, *allocated_count);
-            efree(*args_out);
-            efree(*args_len_out);
-            return 0;
-        }
-        (*args_out)[arg_idx]                       = (uintptr_t) radius_str;
-        (*args_len_out)[arg_idx++]                 = radius_str_len;
+        char*  radius_str          = double_to_string(*args->by_radius, &radius_str_len);
+        (*args_out)[arg_idx]       = (uintptr_t) radius_str;
+        (*args_len_out)[arg_idx++] = radius_str_len;
         (*allocated_strings)[(*allocated_count)++] = radius_str;
 
         (*args_out)[arg_idx]       = (uintptr_t) args->unit;
@@ -384,14 +327,6 @@ int prepare_geo_search_store_args(geo_command_args_t* args,
     unsigned long max_args = 16; /* Conservative estimate */
     *args_out              = (uintptr_t*) emalloc(max_args * sizeof(uintptr_t));
     *args_len_out          = (unsigned long*) emalloc(max_args * sizeof(unsigned long));
-
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Start building command arguments */
     unsigned long arg_idx = 0;

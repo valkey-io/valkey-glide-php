@@ -1098,16 +1098,6 @@ int prepare_x_add_args(x_command_args_t* args,
     *allocated_strings = (char**) ecalloc(args->fv_count + 5, sizeof(char*));
     *allocated_count   = 0;
 
-    if (!*args_out || !*args_len_out || !*allocated_strings) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        if (*allocated_strings)
-            efree(*allocated_strings);
-        return 0;
-    }
-
     /* Set key as first argument */
     unsigned int arg_idx     = 0;
     (*args_out)[arg_idx]     = (uintptr_t) args->key;
