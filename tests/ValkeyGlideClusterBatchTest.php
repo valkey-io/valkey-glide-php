@@ -48,15 +48,14 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
 
     public function testServerOperationsBatch()
     {
-      
     }
 
     public function testInfoOperationsBatch()
     {
-        
+
         // Execute INFO, CLIENT ID, CLIENT GETNAME in multi/exec batch
-        $results = $this->valkey_glide->multi()            
-            ->client('id')            
+        $results = $this->valkey_glide->multi()
+            ->client('id')
           //  ->client('setname', 'phpredis_unit_tests')//TODO return once setname is supported
             ->client('getname')
             ->client('list')
@@ -64,11 +63,11 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
 
         // Verify transaction results
         $this->assertIsArray($results);
-        $this->assertCount(3, $results);        
+        $this->assertCount(3, $results);
         $this->assertIsInt($results[0]); // CLIENT ID result (integer)
         // CLIENT GETNAME might return null if no name is set
-        $this->assertEquals('valkey-glide-php', $results[1]); // CLIENT SETNAME result       
-        
+        $this->assertEquals('valkey-glide-php', $results[1]); // CLIENT SETNAME result
+
         $this->assertGT(0, $results[0]); // Client ID should be positive
     }
 
@@ -77,25 +76,25 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
         $key1 = '{xxx}batch_db_' . uniqid();
 
         // Execute SELECT, DBSIZE, TYPE in multi/exec batch
-        $results = $this->valkey_glide->multi()                        
+        $results = $this->valkey_glide->multi()
             ->set('{xxx}x', 'y')
-            ->set($key1, 'test_value')            
+            ->set($key1, 'test_value')
             ->type($key1)
             ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
-        $this->assertCount(3, $results);                
+        $this->assertCount(3, $results);
         $this->assertEquals(ValkeyGlide::VALKEY_GLIDE_STRING, $results[2]); // TYPE result
 
-       
+
         // Cleanup
         $this->valkey_glide->del($key1);
     }
 
-      public function testAdvancedKeyOperationsBatch()
+    public function testAdvancedKeyOperationsBatch()
     {
-        
+
         $key1 = '{xyz}batch_adv_1_' . uniqid();
         $key2 = '{xyz}batch_adv_2_' . uniqid();
         $key3 = '{xyz}batch_adv_3_' . uniqid();
@@ -105,9 +104,9 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
 
         // Execute UNLINK, TOUCH, RANDOMKEY in multi/exec batch
         $results = $this->valkey_glide->multi()
-            ->unlink($key1)
-            ->touch($key2, $key3) // Touch non-existing keys            
-            ->exec();
+          ->unlink($key1)
+          ->touch($key2, $key3) // Touch non-existing keys
+          ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
@@ -139,33 +138,33 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
 
 
     public function testScanOperationsBatch()
-    {        
+    {
         $key1 = '{scantest}batch_scan_set_' . uniqid();
-        $key2 = '{scantest}batch_scan_hash_' . uniqid();        
+        $key2 = '{scantest}batch_scan_hash_' . uniqid();
 
         // Setup test data
         $this->valkey_glide->del($key1, $key2);
         $this->valkey_glide->sadd($key1, 'member1', 'member2', 'member3');
-        $this->valkey_glide->hset($key2, 'field1', 'value1', 'field2', 'value2');        
+        $this->valkey_glide->hset($key2, 'field1', 'value1', 'field2', 'value2');
 
-        // Execute SSCAN, HSCAN in multi/exec batch        
+        // Execute SSCAN, HSCAN in multi/exec batch
         $sscan_it = null;
         $hscan_it = null;
 
-        $results = $this->valkey_glide->multi()            
+        $results = $this->valkey_glide->multi()
             ->sscan($key1, $sscan_it)
             ->hscan($key2, $hscan_it)
             ->exec();
-        
+
         // Verify transaction results
         $this->assertIsArray($results);
-        $this->assertCount(2, $results);        
+        $this->assertCount(2, $results);
         $this->assertIsArray($results[0]); // SSCAN result [cursor, members]
         $sscan_it = null;
-        $this->assertEquals($results[0],$this->valkey_glide->sscan($key1, $sscan_it));        
-        $this->assertIsArray($results[1]); // HSCAN result [cursor, fields_values]        
+        $this->assertEquals($results[0], $this->valkey_glide->sscan($key1, $sscan_it));
+        $this->assertIsArray($results[1]); // HSCAN result [cursor, fields_values]
         $hscan_it = null;
-        $this->assertEquals($results[1],$this->valkey_glide->hscan($key2, $hscan_it));
+        $this->assertEquals($results[1], $this->valkey_glide->hscan($key2, $hscan_it));
         // Verify server-side effects (scan operations don't modify data)
         $this->assertEquals(3, $this->valkey_glide->scard($key1));
         $this->assertEquals(2, $this->valkey_glide->hlen($key2));
@@ -181,7 +180,7 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
 
     public function testFunctionManagementBatch()
     {
-        
+
         // FUNCTION management is not supported in batch and cluster mode
     }
 

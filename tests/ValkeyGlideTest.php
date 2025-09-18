@@ -176,7 +176,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
     }
 
-    
+
 
     public function testBitop()
     {
@@ -195,24 +195,24 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         for ($i = 1; $i <= 7; $i++) {
             $this->valkey_glide->set("{key}src{$i}", 'test' . $i);
         }
-        
+
         $result7 = $this->valkey_glide->bitop('OR', '{key}dest7', '{key}src1', '{key}src2', '{key}src3', '{key}src4', '{key}src5', '{key}src6', '{key}src7');
-        $this->assertEquals(5, $result7);        
-        
+        $this->assertEquals(5, $result7);
+
 
         // Test with 8 keys (should fail with current implementation due to 7-key limit)
         $this->valkey_glide->set('{key}src8', 'test8');
-        
+
         $result8 = $this->valkey_glide->bitop('OR', '{key}dest8', '{key}src1', '{key}src2', '{key}src3', '{key}src4', '{key}src5', '{key}src6', '{key}src7', '{key}src8');
         $this->assertIsInt($result8);
-        $this->assertEquals(5, $result8);   
+        $this->assertEquals(5, $result8);
 
         // Test with 10 keys (should definitely fail with current implementation)
         $this->valkey_glide->set('{key}src9', 'test9');
         $this->valkey_glide->set('{key}src10', 'test10');
-        
+
         $result10 = $this->valkey_glide->bitop('AND', '{key}dest10', '{key}src1', '{key}src2', '{key}src3', '{key}src4', '{key}src5', '{key}src6', '{key}src7', '{key}src8', '{key}src9', '{key}src10');
-        $this->assertEquals(6, $result10);   
+        $this->assertEquals(6, $result10);
 
         // Clean up
         $keysToDelete = ['{key}1', '{key}2', '{key}dest1', '{key}dest7', '{key}dest8', '{key}dest10'];
@@ -275,7 +275,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($this->valkey_glide->set($key1, '12244447777777'));
         $this->assertTrue($this->valkey_glide->set($key2, '6666662244441'));
 
-        $this->assertEquals('224444', $this->valkey_glide->lcs($key1, $key2));        
+        $this->assertEquals('224444', $this->valkey_glide->lcs($key1, $key2));
         $this->assertEquals(
             ['matches', [[[1, 6], [6, 11]]], 'len', 6],
             $this->valkey_glide->lcs($key1, $key2, ['idx'])
@@ -726,15 +726,15 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // lists
         $this->valkey_glide->del('{key}0');
         $this->valkey_glide->del('{key}1');
-        
+
         $this->valkey_glide->lPush('{key}0', 'val0');
-     
+
         $this->valkey_glide->lPush('{key}0', 'val1');
         $this->valkey_glide->lPush('{key}1', 'val1-0');
         $this->valkey_glide->lPush('{key}1', 'val1-1');
-       
+
         $this->assertFalse($this->valkey_glide->renameNx('{key}0', '{key}1'));
-        $this->assertEquals(['val1', 'val0'], $this->valkey_glide->lRange('{key}0', 0, -1));            
+        $this->assertEquals(['val1', 'val0'], $this->valkey_glide->lRange('{key}0', 0, -1));
         $this->assertEquals(['val1-1', 'val1-0'], $this->valkey_glide->lRange('{key}1', 0, -1));
 
         $this->valkey_glide->del('{key}2');
@@ -1061,7 +1061,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertKeyMissing('key');
         $this->valkey_glide->set('key', 'val');
         $this->assertKeyExists('key');
-        
+
         /* Add multiple keys */
         $mkeys = [];
         for ($i = 0; $i < 10; $i++) {
@@ -1071,10 +1071,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
                 $mkeys[] = $mkey;
             }
         }
-        
+
         /* Test passing an array as well as the keys variadic */
-        $this->assertEquals(count($mkeys), $this->valkey_glide->exists($mkeys));        
-        if (count($mkeys)) {        
+        $this->assertEquals(count($mkeys), $this->valkey_glide->exists($mkeys));
+        if (count($mkeys)) {
             $this->assertEquals(count($mkeys), $this->valkey_glide->exists(...$mkeys));
         }
     }
@@ -1304,7 +1304,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // blocking blpop, brpop
         $this->valkey_glide->del('list');
-
     }
 
     public function testLLen()
@@ -1366,7 +1365,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals([0, 1], $this->valkey_glide->lPos('key', 'val1', ['count' => 2]));
         $this->assertEquals([0], $this->valkey_glide->lPos('key', 'val1', ['count' => 2, 'maxlen' => 1]));
         $this->assertEquals([], $this->valkey_glide->lPos('key', 'val2', ['count' => 1]));
-
     }
 
     // ltrim, lLen, lpop
@@ -2539,7 +2537,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testInfoCommandStats()
     {
-        
+
         // INFO COMMANDSTATS is new in 2.6.0
         if (version_compare($this->version, '2.5.0') < 0) {
             $this->markTestSkipped();
@@ -3467,7 +3465,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del('{zs}1', '{zs}2');
         $this->valkey_glide->zAdd('{zs}1', 0, 'a', 1, 'b', 2, 'c');
         $this->valkey_glide->zAdd('{zs}2', 3, 'A', 4, 'B', 5, 'D');
-        
+
         $this->assertEquals(['{zs}1', 'a', '0'], $this->valkey_glide->bzPopMin('{zs}1', '{zs}2', 0));
         $this->assertEquals(['{zs}1', 'c', '2'], $this->valkey_glide->bzPopMax(['{zs}1', '{zs}2'], 0));
         $this->assertEquals(['{zs}2', 'A', '3'], $this->valkey_glide->bzPopMin(['{zs}2', '{zs}1'], 0));
@@ -3729,8 +3727,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         $this->assertEquals(2, count($result));
         $xx = ['a' => 0, 'b' => 1, 'c' => 'foo', 'd' => 'bar', 'e' => null];
-        $this->assertEquals(array_intersect_key($result, $xx), $result);       
-        
+        $this->assertEquals(array_intersect_key($result, $xx), $result);
+
 
         /* Make sure PhpValkeyGlide sends COUNt (1) when `WITHVALUES` is set */
         $result = $this->valkey_glide->hRandField('key', ['withvalues' => true]);
@@ -3823,7 +3821,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue(is_numeric($this->valkey_glide->object('idletime', 'key')));
     }
 
-    
+
 
     /* GitHub issue #1211 (ignore redundant calls to pipeline or multi) */
     public function testDoublePipeNoOp()
@@ -3860,7 +3858,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
             /* Set and get in our transaction */
             $this->valkey_glide->set('pipecount', 'over9000')->get('pipecount');
- 
+
             /* first call closes transaction and clears commands queue */
             $this->assertTrue($this->valkey_glide->discard());
 
@@ -5351,7 +5349,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse(@$this->valkey_glide->xGroup('CREATECONSUMER'));
 
         $this->assertFalse(@$this->valkey_glide->xGroup('create'));
-      
+
         if (! $this->minVersionCheck('7.0.0')) {
             return;
         }

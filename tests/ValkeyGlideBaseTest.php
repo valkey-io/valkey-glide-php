@@ -216,12 +216,12 @@ abstract class ValkeyGlideBaseTest extends TestSuite
 
     /* Helper function to determine if the class has pipeline support */
     protected function havePipeline()
-    {        
+    {
         return defined(get_class($this->valkey_glide) . '::PIPELINE');
     }
 
     protected function haveMulti()
-    {     
+    {
         return defined(get_class($this->valkey_glide) . '::MULTI');
     }
 }

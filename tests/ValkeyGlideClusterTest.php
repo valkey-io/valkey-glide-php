@@ -91,7 +91,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
 
 
-    protected static array $seeds = [];    
+    protected static array $seeds = [];
     private static string $seed_source = '';
 
     /* Tests we'll skip all together in the context of ValkeyGlideCluster.  The
@@ -162,15 +162,15 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
 
-  
 
-    
+
+
 
 
     /* Load our seeds on construction */
     public function __construct($host, $port, $auth, $tls)
     {
-        parent::__construct($host, $port, $auth, $tls);        
+        parent::__construct($host, $port, $auth, $tls);
     }
 
     /* Override setUp to get info from a specific node */
@@ -364,7 +364,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         /* Scan the keys here using ClusterScanCursor - create new cursor each iteration */
         $cursor = new ClusterScanCursor(); // Create fresh cursor each time
         while (true) {
-            $keys = $this->valkey_glide->scan($cursor);            
+            $keys = $this->valkey_glide->scan($cursor);
             if ($keys) {
                 $scan_count += count($keys);
             }

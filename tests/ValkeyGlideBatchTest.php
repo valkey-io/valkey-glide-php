@@ -15,7 +15,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     {
         parent::__construct($host, $port, $auth, $tls);
     }
-    
+
     // ===================================================================
     // CORE STRING OPERATIONS BATCH TESTS
     // ===================================================================
@@ -290,7 +290,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key1);
     }
 
-   
+
 
     // ===================================================================
     // SERVER & CONFIG OPERATIONS BATCH TESTS
@@ -320,11 +320,11 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testInfoOperationsBatch()
     {
-        
+
         // Execute INFO, CLIENT ID, CLIENT GETNAME in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->info()
-            ->client('id')            
+            ->client('id')
             //->client('setname', 'phpredis_unit_tests') //TODO return once setname is supported
             ->client('getname')
             ->client('list')
@@ -449,7 +449,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testAdvancedKeyOperationsBatch()
     {
-        
+
         $key1 = 'batch_adv_1_' . uniqid();
         $key2 = 'batch_adv_2_' . uniqid();
         $key3 = 'batch_adv_3_' . uniqid();
@@ -557,7 +557,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
              ->bitop('AND', $key3, $key1, $key2)
              ->bitcount($key3)
             ->exec();
-        
+
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
@@ -594,7 +594,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertEquals(['field1' =>'value1', 'field2' =>'value2', 'field_nonexistent' =>false], $results[0]); // HMGET result
+        $this->assertEquals(['field1' => 'value1', 'field2' => 'value2', 'field_nonexistent' => false], $results[0]); // HMGET result
         $this->assertCount(3, $results[1]); // HKEYS result
         $this->assertContains('field1', $results[1]);
         $this->assertCount(3, $results[2]); // HVALS result
@@ -687,25 +687,25 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        
+
         // Single field result - should be a string (field name)
         $this->assertIsString($results[0]); // HRANDFIELD single result
         $this->assertContains($results[0], ['alpha', 'beta', 'gamma', 'delta']);
-        
+
         // Multiple fields result - should be array of field names
         $this->assertIsArray($results[1]); // HRANDFIELD multiple result
         $this->assertCount(2, $results[1]);
         foreach ($results[1] as $field) {
             $this->assertContains($field, ['alpha', 'beta', 'gamma', 'delta']);
         }
-        
+
         // Fields with values result - should be associative array
         $this->assertIsArray($results[2]); // HRANDFIELD with values result
         $this->assertCount(2, $results[2]);
         foreach ($results[2] as $field => $value) {
             $this->assertContains($field, ['alpha', 'beta', 'gamma', 'delta']);
-            $expectedValue = $field === 'alpha' ? 'value_a' : 
-                           ($field === 'beta' ? 'value_b' : 
+            $expectedValue = $field === 'alpha' ? 'value_a' :
+                           ($field === 'beta' ? 'value_b' :
                            ($field === 'gamma' ? 'value_c' : 'value_d'));
             $this->assertEquals($expectedValue, $value);
         }
@@ -726,7 +726,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     // ===================================================================
 
     public function testListAdvancedOperationsBatch()
-    {        
+    {
         $key1 = 'batch_list_adv_' . uniqid();
         $key2 = 'batch_list_adv_2_' . uniqid();
 
@@ -736,7 +736,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Execute LINDEX, LREM, LINSERT in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->lindex($key1, 2)
-            ->lrem($key1,'b', 1) // Remove first occurrence of 'b'
+            ->lrem($key1, 'b', 1) // Remove first occurrence of 'b'
             ->linsert($key1, 'BEFORE', 'c', 'inserted')
             ->exec();
 
@@ -758,7 +758,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testListPositionBatch()
     {
-     
+
         $key1 = 'batch_list_pos_' . uniqid();
 
         // Setup initial list
@@ -788,7 +788,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testListMoveBatch()
     {
-        
+
         $key1 = '{momtom}batch_list_move_src_' . uniqid();
         $key2 = '{momtom}batch_list_move_dst_' . uniqid();
 
@@ -825,7 +825,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     // ===================================================================
 
     public function testSetRandomOperationsBatch()
-    {        
+    {
         $key1 = 'batch_set_rand_' . uniqid();
 
         // Setup initial set
@@ -837,10 +837,10 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
             ->srandmember($key1, 2) // Get 2 random members
             ->scard($key1)
             ->exec();
-       
+
         // Verify transaction results
         $this->assertIsArray($results);
-         
+
         $this->assertCount(3, $results);
         $this->assertNotNull($results[0]); // SPOP result (random removed member)
         $this->assertIsArray($results[1]); // SRANDMEMBER result
@@ -857,7 +857,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSetOperationsBatch()
     {
-        
+
         $key1 = '{ppp}batch_set_ops_1_' . uniqid();
         $key2 = '{ppp}batch_set_ops_2_' . uniqid();
         $key3 = '{ppp}batch_set_ops_3_' . uniqid();
@@ -892,8 +892,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     }
 
     public function testSetStoreBatch()
-    {        
-        
+    {
+
         $key1 = '{prefix}batch_set_store_1_' . uniqid();
         $key2 = '{prefix}batch_set_store_2_' . uniqid();
         $key3 = '{prefix}batch_set_store_3_' . uniqid();
@@ -962,7 +962,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortedSetPopBatch()
     {
-        
+
         $key1 = 'batch_zset_pop_' . uniqid();
 
         // Setup initial sorted set
@@ -977,8 +977,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         // Verify transaction results
         $this->assertIsArray($results);
-        $this->assertCount(3, $results);        
-        $this->assertEquals(['a' => 1.0], $results[0]); // ZPOPMIN result        
+        $this->assertCount(3, $results);
+        $this->assertEquals(['a' => 1.0], $results[0]); // ZPOPMIN result
         $this->assertEquals(['e' => 5.0], $results[1]); // ZPOPMAX result
         $this->assertEquals(3, $results[2]); // ZCARD result (after pops)
 
@@ -1027,7 +1027,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testExpirationTimeBatch()
     {
-        
+
         $key1 = '{fox}batch_exptime_1_' . uniqid();
         $key2 = '{fox}batch_exptime_2_' . uniqid();
         $key3 = '{fox}batch_exptime_3_' . uniqid();
@@ -1145,7 +1145,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testGeospatialOperationsBatch()
     {
-        
+
         $key1 = 'batch_geo_' . uniqid();
 
         // Execute GEOADD, GEOPOS, GEODIST in multi/exec batch
@@ -1174,7 +1174,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testGeospatialAdvancedBatch()
     {
-        
+
         $key1 = '{geotest}batch_geo_adv_' . uniqid();
 
         // Setup initial geo data
@@ -1202,9 +1202,9 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertIsArray($results[0]); // GEOHASH result        
+        $this->assertIsArray($results[0]); // GEOHASH result
         $this->assertEquals(["Golden Gate Bridge", "Crissy Field", "Lombard Street"], $results[1]); // GEOSEARCH result
-        $this->assertEquals(3, $results[2]); // GEOSEARCHSTORE result        
+        $this->assertEquals(3, $results[2]); // GEOSEARCHSTORE result
         // Verify server-side effects
         $this->assertEquals(1, $this->valkey_glide->exists($storeKey)); // Store key created
 
@@ -1217,7 +1217,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     // ===================================================================
 
     public function testScanOperationsBatch()
-    {        
+    {
         $key1 = '{scantest}batch_scan_set_' . uniqid();
         $key2 = '{scantest}batch_scan_hash_' . uniqid();
         $key3 = '{scantest}batch_scan_zset_' . uniqid();
@@ -1238,19 +1238,19 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
             ->sscan($key1, $sscan_it)
             ->hscan($key2, $hscan_it)
             ->exec();
-        
+
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertIsArray($results[0]); // SCAN result [cursor, keys]      
-        $temp_it = null;    
+        $this->assertIsArray($results[0]); // SCAN result [cursor, keys]
+        $temp_it = null;
         $this->assertEquals($this->valkey_glide->scan($temp_it), $results[0]);
         $this->assertIsArray($results[1]); // SSCAN result [cursor, members]
         $sscan_it = null;
-        $this->assertEquals($results[1],$this->valkey_glide->sscan($key1, $sscan_it));        
-        $this->assertIsArray($results[2]); // HSCAN result [cursor, fields_values]        
+        $this->assertEquals($results[1], $this->valkey_glide->sscan($key1, $sscan_it));
+        $this->assertIsArray($results[2]); // HSCAN result [cursor, fields_values]
         $hscan_it = null;
-        $this->assertEquals($results[2],$this->valkey_glide->hscan($key2, $hscan_it));
+        $this->assertEquals($results[2], $this->valkey_glide->hscan($key2, $hscan_it));
         // Verify server-side effects (scan operations don't modify data)
         $this->assertEquals(3, $this->valkey_glide->scard($key1));
         $this->assertEquals(2, $this->valkey_glide->hlen($key2));
@@ -1261,7 +1261,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testZscanBatch()
     {
-        
+
         $key1 = 'batch_zscan_' . uniqid();
 
         // Setup test data
@@ -1307,16 +1307,16 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $results = $this->valkey_glide->multi()
             ->sort($key1)
             ->sort_ro($key1, ['sort' => 'DESC'])
-            ->sort($key1, ['sort' => 'ASC', 'STORE'=> $key2])
+            ->sort($key1, ['sort' => 'ASC', 'STORE' => $key2])
             ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
         $this->assertEquals(['1', '2', '3', '4', '5'], $results[0]); // SORT result
-        $this->assertEquals(['5', '4', '3', '2', '1'], $results[1]); // SORT_RO result   
+        $this->assertEquals(['5', '4', '3', '2', '1'], $results[1]); // SORT_RO result
         $this->assertEquals(5, $results[2]); // SORT with STORE result (count of stored elements)
-        
+
         // Verify server-side effects
         $this->assertEquals(5, $this->valkey_glide->llen($key2)); // Sorted list stored
         $storedList = $this->valkey_glide->lrange($key2, 0, -1);
@@ -1332,7 +1332,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testCopyDumpRestoreBatch()
     {
-        
+
         $key1 = '{test}batch_copy_src_' . uniqid();
         $key2 = '{test}batch_copy_dst_' . uniqid();
         $key3 = '{test}batch_restore_' . uniqid();
@@ -1344,7 +1344,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $results = $this->valkey_glide->multi()
             ->copy($key1, $key2)
             ->dump($key1)
-            ->restore($key3, 0, $res_key1) 
+            ->restore($key3, 0, $res_key1)
             ->exec();
 
         // Verify transaction results
@@ -1353,7 +1353,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertTrue($results[0]); // COPY result (success)
         $this->assertIsString($results[1]); // DUMP result (serialized data)
         // RESTORE result depends on having valid dump data
-        
+
         // Verify server-side effects
         $this->assertEquals('test_value', $this->valkey_glide->get($key2)); // Copied value
 
@@ -1369,7 +1369,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     // ===================================================================
 
     public function testMoveBatch()
-    {        
+    {
         //TODO return once select is supported
         $this->markTestSkipped();
         $key1 = 'batch_move_' . uniqid();
@@ -1409,7 +1409,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testGetDelExBatch()
     {
-        
+
         $key1 = '{GD}batch_getdel_' . uniqid();
         $key2 = '{GD}batch_getex_' . uniqid();
         $key3 = '{GD}batch_getex2_' . uniqid();
@@ -1448,7 +1448,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testObjectOperationsBatch()
     {
-        
+
         $key1 = 'batch_object_' . uniqid();
 
         // Setup test data
@@ -1480,7 +1480,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSetMembershipBatch()
     {
-        
+
         $key1 = '{bb}batch_smember_' . uniqid();
         $key2 = '{bb}batch_smove_src_' . uniqid();
         $key3 = '{bb}batch_smove_dst_' . uniqid();
@@ -1680,8 +1680,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals('lvalue', $ret[$i++]); // rpoplpush returns the element: 'lvalue'
         $this->assertEquals(['lvalue'], $ret[$i++]); // rpoplpush returns the element: 'lvalue'
         $this->assertEquals('lvalue', $ret[$i++]); // pop returns the front element: 'lvalue'
-        $this->assertEquals($i, count($ret));       
-        
+        $this->assertEquals($i, count($ret));
+
         $ret = $this->valkey_glide->multi($mode)
             ->del('{key}1')
             ->set('{key}1', 'value1')
@@ -1725,7 +1725,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals(4, $ret[$i++]);          // decrby('{key}2', 5)
         $this->assertEqualsWeak(4, $ret[$i++]);      // get('{key}2')
         $this->assertTrue($ret[$i++]);
-        
+
 
         $ret = $this->valkey_glide->multi($mode)
             ->del('{key}1')
@@ -1812,7 +1812,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertFalse($ret[$i++]); // can't set list[1] if we only have a single value in it.
         $this->assertEquals(['lvalue'], $ret[$i++]); // the previous error didn't touch anything.
         $this->assertEquals(1, $ret[$i++]); // the previous error didn't change the length
-        $this->assertEquals($i, count($ret));        
+        $this->assertEquals($i, count($ret));
 
         // sets
         $ret = $this->valkey_glide->multi($mode)
@@ -1908,7 +1908,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
             ->zadd('{z}key1', 15, 'zValue15')
             ->zRemRangeByScore('{z}key1', 11, 13)
             ->zrange('{z}key1', 0, -1)
-            ->zRange('{z}key1', 0, -1,['rev'])
+            ->zRange('{z}key1', 0, -1, ['rev'])
             ->zRangeByScore('{z}key1', 1, 6)
             ->zCard('{z}key1')
             ->zScore('{z}key1', 'zValue15')
@@ -1944,7 +1944,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals(['zValue1', 'zValue5', 'zValue14', 'zValue15'], $ret[$i++]);
         $this->assertEquals(['zValue15', 'zValue14', 'zValue5', 'zValue1'], $ret[$i++]);//zRangeByScore
         $this->assertEquals(['zValue1', 'zValue5'], $ret[$i++]);//zcard
-        $this->assertEquals(4, $ret[$i++]); // 4 elements 
+        $this->assertEquals(4, $ret[$i++]); // 4 elements
         $this->assertEquals(15.0, $ret[$i++]);
         $this->assertEquals(1, $ret[$i++]); // added value
         $this->assertEquals(1, $ret[$i++]); // added value
@@ -1959,7 +1959,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals(8.0, $ret[$i++]); // current score is 8.
         $this->assertFalse($ret[$i++]); // score for unknown element.
 
-        $this->assertEquals($i, count($ret));       
+        $this->assertEquals($i, count($ret));
 
         // hash
         $ret = $this->valkey_glide->multi($mode)
@@ -2102,12 +2102,12 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertIsArray($ret);
         $this->assertTrue(is_long($ret[$i++])); // delete
         $this->assertTrue($ret[$i++]); // set
-        
+
         $this->assertFalse($ret[$i++]); // rpush
         $this->assertFalse($ret[$i++]); // lpush
         $this->assertFalse($ret[$i++]); // llen
         $this->assertFalse($ret[$i++]); // lpop
-        $this->assertFalse($ret[$i++]); // lrange         
+        $this->assertFalse($ret[$i++]); // lrange
         $this->assertFalse($ret[$i++]); // ltrim
         $this->assertFalse($ret[$i++]); // lindex
         $this->assertFalse($ret[$i++]); // lset
@@ -2624,14 +2624,14 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentType()
-    {        
-        $this->differentType(ValkeyGlide::MULTI);        
+    {
+        $this->differentType(ValkeyGlide::MULTI);
         $this->differentType(ValkeyGlide::PIPELINE);
     }
     public function testMultiExec()
-    {        
-        $this->sequence(ValkeyGlide::MULTI);        
-       
+    {
+        $this->sequence(ValkeyGlide::MULTI);
+
         $this->valkey_glide->set('x', '42');
 
         $this->assertTrue($this->valkey_glide->watch('x'));
@@ -2646,14 +2646,14 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->set('x', 42);
 
         // failed transaction
-        $this->valkey_glide->watch('x');      
-         
+        $this->valkey_glide->watch('x');
+
         $r = $this->newInstance(); // new instance, modifying `x'.
         $r->incr('x');
 
         $ret = $this->valkey_glide->multi()->get('x')->exec();
         $this->assertFalse($ret); // failed because another client changed our watched key between WATCH and EXEC.
-               
+
         // watch and unwatch
         $this->valkey_glide->watch('x');
         $r->incr('x'); // other instance
@@ -2836,7 +2836,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testListPushOperationsBatch()
     {
-        
+
         $key1 = 'batch_list_1_' . uniqid();
         $key2 = 'batch_list_2_' . uniqid();
         $key3 = 'batch_list_3_' . uniqid();
@@ -2866,7 +2866,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testListPopOperationsBatch()
     {
-        
+
         $key1 = 'batch_list_pop_' . uniqid();
 
         // Setup initial list
@@ -2884,7 +2884,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertCount(3, $results);
         $this->assertEquals('item1', $results[0]); // LPOP result
         $this->assertEquals('item4', $results[1]); // RPOP result
-        $this->assertEquals(2, $results[2]); 
+        $this->assertEquals(2, $results[2]);
         // Verify server-side effects
         $this->assertEquals(2, $this->valkey_glide->llen($key1)); // 2 items remaining
         $listContents = $this->valkey_glide->lrange($key1, 0, -1);
@@ -2896,7 +2896,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testListRangeOperationsBatch()
     {
-        
+
         $key1 = 'batch_list_range_' . uniqid();
 
         // Setup initial list
@@ -2914,7 +2914,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertCount(3, $results);
         $this->assertEquals(['a', 'b', 'c'], $results[0]); // LRANGE result (first 3)
         $this->assertTrue($results[1]); // LTRIM result
-        $this->assertEquals(['b', 'c', 'd', 'e'], $results[2]); 
+        $this->assertEquals(['b', 'c', 'd', 'e'], $results[2]);
 
         // Verify server-side effects after transaction
         $finalContents = $this->valkey_glide->lrange($key1, 0, -1);
@@ -2930,7 +2930,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSetAddOperationsBatch()
     {
-        
+
         $key1 = 'batch_set_1_' . uniqid();
         $key2 = 'batch_set_2_' . uniqid();
 
@@ -2961,7 +2961,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSetRemoveOperationsBatch()
     {
-        
+
         $key1 = 'batch_set_rem_' . uniqid();
 
         // Setup initial set
@@ -2996,7 +2996,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortedSetAddOperationsBatch()
     {
-        
+
         $key1 = 'batch_zset_1_' . uniqid();
 
         // Execute ZADD, ZCARD, ZRANGE in multi/exec batch
@@ -3023,7 +3023,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortedSetScoreOperationsBatch()
     {
-        
+
         $key1 = 'batch_zset_score_' . uniqid();
 
         // Setup initial sorted set
@@ -3047,12 +3047,12 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals(25.0, $this->valkey_glide->zscore($key1, 'member1')); // Score updated
         $this->assertEquals(1, $this->valkey_glide->zrank($key1, 'member1')); // Rank updated
 
-        // Cleanup        
+        // Cleanup
         $this->valkey_glide->del($key1);
     }
 
     public function testSortedSetRemoveOperationsBatch()
-    {        
+    {
         $key1 = 'batch_zset_rem_' . uniqid();
 
         // Setup initial sorted set
@@ -3061,15 +3061,15 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Execute ZREM, ZREMRANGEBYSCORE, ZCARD in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->zcard($key1)
-            ->zrem($key1, 'c')            
-            ->zremrangebyscore($key1, 4, 5)            
+            ->zrem($key1, 'c')
+            ->zremrangebyscore($key1, 4, 5)
             ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
         $this->assertEquals(5, $results[0]); // ZCARD result (before removals in transaction)
-        $this->assertEquals(1, $results[1]); // ZREM result (1 member removed)                
+        $this->assertEquals(1, $results[1]); // ZREM result (1 member removed)
         $this->assertEquals(2, $results[2]); // ZREMRANGEBYSCORE result (2 members removed)
 
         // Verify server-side effects
@@ -3120,7 +3120,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testAdvancedListMoveOperationsBatch()
     {
-        
+
         $key1 = '{test_list}batch_list_move_1_' . uniqid();
         $key2 = '{test_list}batch_list_move_2_' . uniqid();
         $key3 = '{test_list}batch_list_move_3_' . uniqid();
@@ -3139,8 +3139,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertEquals('a', $results[0]); // BLMOVE result (moved element)        
-        $this->assertEquals([$key1, ['c']], $results[1]); // LMPOP result        
+        $this->assertEquals('a', $results[0]); // BLMOVE result (moved element)
+        $this->assertEquals([$key1, ['c']], $results[1]); // LMPOP result
         $this->assertEquals(1, $results[2]); // LLEN result (after moves)
 
         // Verify server-side effects
@@ -3185,7 +3185,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testBlockingListMultiPopBatch()
     {
-        
+
         $key1 = '{test_list}batch_blmpop_1_' . uniqid();
         $key2 = '{test_list}batch_blmpop_2_' . uniqid();
         $key3 = '{test_list}batch_blmpop_3_' . uniqid();
@@ -3221,7 +3221,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     // ===================================================================
 
     public function testStreamBasicOperationsBatch()
-    {        
+    {
         $stream1 = '{test_stream}batch_stream_1_' . uniqid();
         $stream2 = '{test_stream}batch_stream_2_' . uniqid();
 
@@ -3314,7 +3314,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testStreamGroupManagementBatch()
     {
-        
+
         $stream1 = 'batch_stream_mgmt_' . uniqid();
         $group1 = 'batch_group_mgmt';
 
@@ -3493,7 +3493,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     // ===================================================================
 
     public function testHyperLogLogOperationsBatch()
-    {        
+    {
         $key1 = '{test_hll}batch_hll_1_' . uniqid();
         $key2 = '{test_hll}batch_hll_2_' . uniqid();
         $key3 = '{test_hll}batch_hll_3_' . uniqid();
@@ -3512,7 +3512,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $results[1]); // PFADD result (HLL was altered)
         $this->assertGTE(4, $results[2]); // PFCOUNT result (approximate count >= 4)
         $this->assertLTE(6, $results[2]); // PFCOUNT result (approximate count <= 6)
-        
+
         // Verify server-side effects
         $count1 = $this->valkey_glide->pfcount($key1);
         $count2 = $this->valkey_glide->pfcount($key2);
@@ -3684,7 +3684,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortedSetInterUnionBatch()
     {
-        
+
         $key1 = '{test_zset}batch_zset_inter_1_' . uniqid();
         $key2 = '{test_zset}batch_zset_inter_2_' . uniqid();
         $key3 = '{test_zset}batch_zset_inter_3_' . uniqid();
@@ -3704,7 +3704,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
         $this->assertEquals(['b', 'c'], $results[0]); // ZINTER result
-        $this->assertEquals(['a', 'b', 'd', 'c'], $results[1]); // ZUNION result        
+        $this->assertEquals(['a', 'b', 'd', 'c'], $results[1]); // ZUNION result
         $this->assertEquals(2, $results[2]); // ZINTERCARD result
 
         // Verify server-side effects (original sets unchanged)
@@ -3717,7 +3717,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSortedSetMultiPopBatch()
     {
-        
+
         $key1 = '{test_zset}batch_zset_mpop_1_' . uniqid();
         $key2 = '{test_zset}batch_zset_mpop_2_' . uniqid();
 
@@ -3754,7 +3754,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testLongestCommonSubsequenceBatch()
     {
-        
+
         $key1 = '{test_lcs}batch_lcs_1_' . uniqid();
         $key2 = '{test_lcs}batch_lcs_2_' . uniqid();
         $key3 = '{test_lcs}batch_lcs_3_' . uniqid();
@@ -3773,7 +3773,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(3, $results);
-        $this->assertIsString($results[0]); // LCS result (common subsequence)        
+        $this->assertIsString($results[0]); // LCS result (common subsequence)
         $this->assertIsInt($results[1]); // LCS LEN result (length)
         $this->assertIsArray($results[2]); // LCS IDX result (with indexes)
 
@@ -3791,27 +3791,27 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testFunctionManagementBatch()
     {
-        
+
         $functionCode = "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)";
 
         // Execute FUNCTION LOAD, FUNCTION LIST, FUNCTION DELETE in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->function('LOAD', $functionCode)
             ->function('LIST')
-            ->fcall('myfunc', [], ['foo'])  
-            ->function('load', 'replace',"#!lua name=mylib\nredis.register_function{function_name='myfunc_ro', callback=function(keys, args) return args[1] end, flags={'no-writes'}}")
-            ->fcall_ro('myfunc_ro', [], ['foo'])                      
+            ->fcall('myfunc', [], ['foo'])
+            ->function('load', 'replace', "#!lua name=mylib\nredis.register_function{function_name='myfunc_ro', callback=function(keys, args) return args[1] end, flags={'no-writes'}}")
+            ->fcall_ro('myfunc_ro', [], ['foo'])
             ->function('DELETE', 'mylib')
             ->exec();
-        
+
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(6, $results);
-        $this->assertEquals('mylib', $results[0]); // FUNCTION LOAD result        
-        $this->assertIsArray($results[1]); // FUNCTION LIST result        
-        $this->assertEquals('foo',$results[2]); // fcall result
-        $this->assertEquals('mylib', $results[3]); // FUNCTION LOAD result                
-        $this->assertEquals('foo',$results[4]); // fcall_ro result
+        $this->assertEquals('mylib', $results[0]); // FUNCTION LOAD result
+        $this->assertIsArray($results[1]); // FUNCTION LIST result
+        $this->assertEquals('foo', $results[2]); // fcall result
+        $this->assertEquals('mylib', $results[3]); // FUNCTION LOAD result
+        $this->assertEquals('foo', $results[4]); // fcall_ro result
         $this->assertTrue($results[5]); // FUNCTION DELETE result
 
         // Verify server-side effects
@@ -3822,7 +3822,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testFunctionDumpRestoreBatch()
     {
-        
+
         $functionCode = "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)";
 
         // Setup function
