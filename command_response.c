@@ -389,40 +389,6 @@ CommandResult* execute_command(const void*          glide_client,
     return result;
 }
 
-/* Handle an integer response */
-long handle_int_response(CommandResult* result, long* output_value) {
-    /* Check if the command was successful */
-    if (!result) {
-        return 0; /* False - failure */
-    }
-
-    /* Check if there was an error */
-    if (result->command_error) {
-        printf("%s:%d - Error executing command: %s\n",
-               __FILE__,
-               __LINE__,
-               result->command_error->command_error_message);
-        free_command_result(result);
-        return 0; /* False - failure */
-    }
-
-    /* Get the result value */
-    if (result->response && result->response->response_type == Int) {
-        *output_value = result->response->int_value;
-
-        /* Free the result */
-        free_command_result(result);
-        return 1; /* True - success */
-    } else {
-        // printf("%s:%d - Unexpected response type for integer command\n", __FILE__, __LINE__);
-        assert(0); /* This should never happen */
-    }
-
-    /* Unexpected response type */
-    free_command_result(result);
-    return 0; /* False - failure */
-}
-
 /* Handle a string response */
 int handle_string_response(CommandResult* result, char** output, size_t* output_len) {
     /* Check if the command was successful */
@@ -432,11 +398,6 @@ int handle_string_response(CommandResult* result, char** output, size_t* output_
 
     /* Check if there was an error */
     if (result->command_error) {
-        printf("%s:%d - Error executing command: %s\n",
-               __FILE__,
-               __LINE__,
-               result->command_error->command_error_message);
-        free_command_result(result);
         return -1;
     }
 
@@ -492,63 +453,6 @@ int handle_string_response(CommandResult* result, char** output, size_t* output_
     return ret_val;
 }
 
-/* Handle a boolean response */
-int handle_bool_response(CommandResult* result) {
-    /* Check if the command was successful */
-    if (!result) {
-        return -1;
-    }
-
-    /* Check if there was an error */
-    if (result->command_error) {
-        printf("%s:%d - Error executing command: %s\n",
-               __FILE__,
-               __LINE__,
-               result->command_error->command_error_message);
-        free_command_result(result);
-        return -1;
-    }
-
-    /* Get the result value */
-    int ret_val = -1;
-    if (result->response && result->response->response_type == Bool) {
-        ret_val = result->response->bool_value ? 1 : 0;
-    }
-
-    /* Free the result */
-    free_command_result(result);
-
-    return ret_val;
-}
-
-/* Handle an OK response */
-int handle_ok_response(CommandResult* result) {
-    /* Check if the command was successful */
-    if (!result) {
-        return -1;
-    }
-
-    /* Check if there was an error */
-    if (result->command_error) {
-        printf("%s:%d - Error executing command: %s\n",
-               __FILE__,
-               __LINE__,
-               result->command_error->command_error_message);
-        free_command_result(result);
-        return -1;
-    }
-
-    /* Get the result value */
-    int ret_val = -1;
-    if (result->response && result->response->response_type == Ok) {
-        ret_val = 1;
-    }
-
-    /* Free the result */
-    free_command_result(result);
-
-    return ret_val;
-}
 
 /* Helper function to convert a CommandResponse to a PHP value
  * use_associative_array:
@@ -793,44 +697,6 @@ int command_response_to_zval(CommandResponse* response,
             return -1;
     }
 }
-
-/* Handle an array response */
-int handle_array_response(CommandResult* result, zval* output) {
-    /* Check if the command was successful */
-    if (!result) {
-        return -1;
-    }
-
-    /* Check if there was an error */
-    if (result->command_error) {
-        printf("%s:%d - Error executing command: %s\n",
-               __FILE__,
-               __LINE__,
-               result->command_error->command_error_message);
-        free_command_result(result);
-        return -1;
-    }
-
-    /* Process the result */
-    int ret_val = -1;
-    if (result->response) {
-        if (result->response->response_type == Null) {
-            ZVAL_NULL(output);
-            ret_val = 0;
-        } else if (result->response->response_type == Array) {
-            ret_val = command_response_to_zval(
-                result->response, output, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-        } else {
-            ret_val = -1;
-        }
-    }
-
-    /* Free the result */
-    free_command_result(result);
-
-    return ret_val;
-}
-
 
 /* Handle a set response */
 int handle_set_response(CommandResult* result, zval* output) {

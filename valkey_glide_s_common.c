@@ -35,14 +35,6 @@ int allocate_s_command_args(int count, uintptr_t** args_out, unsigned long** arg
     *args_out     = (uintptr_t*) emalloc(count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(count * sizeof(unsigned long));
 
-    if (!*args_out || !*args_len_out) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
-
     return 1;
 }
 
@@ -1427,43 +1419,11 @@ int execute_sinterstore_command(zval* object, int argc, zval* return_value, zend
             keys_count = keys_count - 1;
         }
     }
-
     /* If we didn't get a single array, try other parameter formats */
-    if (!has_destination) {
+    else {
         /* First argument is always the destination key */
         if (zend_parse_method_parameters(1, object, "Os", &object, ce, &dst, &dst_len) == FAILURE) {
             return 0;
-        }
-
-        /* Parse remaining args as variadic or array */
-        if (argc == 2) {
-            /* Try to parse second parameter as an array */
-            zval* second_arg;
-            if (zend_parse_parameters(1, "z", &second_arg) == SUCCESS &&
-                Z_TYPE_P(second_arg) == IS_ARRAY) {
-                /* We have an array of source keys */
-                ht_keys    = Z_ARRVAL_P(second_arg);
-                keys_count = zend_hash_num_elements(ht_keys);
-
-                /* If array is empty, return FALSE */
-                if (keys_count == 0) {
-                    return 0;
-                }
-
-                /* Allocate memory for array of zvals */
-                z_extracted_keys = ecalloc(keys_count, sizeof(zval));
-
-                /* Copy array values to sequential array */
-                idx = 0;
-                ZEND_HASH_FOREACH_VAL(ht_keys, data) {
-                    ZVAL_COPY(&z_extracted_keys[idx], data);
-                    idx++;
-                }
-                ZEND_HASH_FOREACH_END();
-
-                /* Set for later use */
-                z_args = z_extracted_keys;
-            }
         }
 
         /* If we didn't get an array as the second parameter, parse remaining args as variadic */
@@ -1524,42 +1484,14 @@ int execute_sunion_command(zval* object, int argc, zval* return_value, zend_clas
     zval*                z_extracted_keys = NULL;
 
     /* Check if we have a single array argument or variadic string arguments */
-    if (argc == 1) {
-        /* Try to parse as a single array argument */
-        if (zend_parse_method_parameters(argc, object, "Oa", &object, ce, &z_keys_arr) == SUCCESS) {
-            /* We have an array of keys */
-            ht_keys    = Z_ARRVAL_P(z_keys_arr);
-            keys_count = zend_hash_num_elements(ht_keys);
-
-            /* If array is empty, return FALSE */
-            if (keys_count == 0) {
-                return 0;
-            }
-
-            /* Allocate memory for array of zvals */
-            z_extracted_keys = ecalloc(keys_count, sizeof(zval));
-
-            /* Copy array values to sequential array */
-            zval* data;
-            int   idx = 0;
-            ZEND_HASH_FOREACH_VAL(ht_keys, data) {
-                ZVAL_COPY(&z_extracted_keys[idx], data);
-                idx++;
-            }
-            ZEND_HASH_FOREACH_END();
-
-            /* Set for later use */
-            z_args = z_extracted_keys;
-        }
-    }
 
     /* If we didn't get an array, parse as variadic arguments */
-    if (!z_args) {
-        if (zend_parse_method_parameters(argc, object, "O+", &object, ce, &z_args, &keys_count) ==
-            FAILURE) {
-            return 0;
-        }
+
+    if (zend_parse_method_parameters(argc, object, "O+", &object, ce, &z_args, &keys_count) ==
+        FAILURE) {
+        return 0;
     }
+
 
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
@@ -1610,104 +1542,15 @@ int execute_sunionstore_command(zval* object, int argc, zval* return_value, zend
     int                  idx             = 0;
     int                  has_destination = 0;
 
-    /* Check if we have a single array argument */
-    if (argc == 1) {
-        /* Try to parse it as an array */
-        if (zend_parse_method_parameters(argc, object, "Oa", &object, ce, &z_keys_arr) == SUCCESS) {
-            /* We have an array which will contain both destination and source keys */
-            ht_keys    = Z_ARRVAL_P(z_keys_arr);
-            keys_count = zend_hash_num_elements(ht_keys);
-
-            /* We need at least one element (destination key) */
-            if (keys_count == 0) {
-                return 0;
-            }
-
-            /* Extract the first element as the destination key */
-            HashPosition pointer;
-            zend_hash_internal_pointer_reset_ex(ht_keys, &pointer);
-            data = zend_hash_get_current_data_ex(ht_keys, &pointer);
-            if (data == NULL || Z_TYPE_P(data) != IS_STRING) {
-                return 0;
-            }
-
-            /* Set the destination key */
-            dst             = Z_STRVAL_P(data);
-            dst_len         = Z_STRLEN_P(data);
-            has_destination = 1;
-
-            /* If there's only the destination key, return false */
-            if (keys_count == 1) {
-                return 0;
-            }
-
-            /* Move past the destination key */
-            zend_hash_move_forward_ex(ht_keys, &pointer);
-
-            /* Allocate memory for array of source keys (excluding destination) */
-            z_extracted_keys = ecalloc(keys_count - 1, sizeof(zval));
-
-            /* Copy all remaining values (source keys) to sequential array */
-            idx = 0;
-            while ((data = zend_hash_get_current_data_ex(ht_keys, &pointer))) {
-                ZVAL_COPY(&z_extracted_keys[idx], data);
-                idx++;
-                zend_hash_move_forward_ex(ht_keys, &pointer);
-            }
-
-            /* Set for later use */
-            z_args     = z_extracted_keys;
-            keys_count = keys_count - 1;
-        }
+    /* First argument is always the destination key */
+    if (zend_parse_method_parameters(1, object, "Os", &object, ce, &dst, &dst_len) == FAILURE) {
+        return 0;
     }
 
-    /* If we didn't get a single array, try other parameter formats */
-    if (!has_destination) {
-        /* First argument is always the destination key */
-        if (zend_parse_method_parameters(1, object, "Os", &object, ce, &dst, &dst_len) == FAILURE) {
-            return 0;
-        }
-
-        /* Parse remaining args as variadic or array */
-        if (argc == 2) {
-            /* Try to parse second parameter as an array */
-            zval* second_arg;
-            if (zend_parse_parameters(1, "z", &second_arg) == SUCCESS &&
-                Z_TYPE_P(second_arg) == IS_ARRAY) {
-                /* We have an array of source keys */
-                ht_keys    = Z_ARRVAL_P(second_arg);
-                keys_count = zend_hash_num_elements(ht_keys);
-
-                /* If array is empty, return FALSE */
-                if (keys_count == 0) {
-                    return 0;
-                }
-
-                /* Allocate memory for array of zvals */
-                z_extracted_keys = ecalloc(keys_count, sizeof(zval));
-
-                /* Copy array values to sequential array */
-                idx = 0;
-                ZEND_HASH_FOREACH_VAL(ht_keys, data) {
-                    ZVAL_COPY(&z_extracted_keys[idx], data);
-                    idx++;
-                }
-                ZEND_HASH_FOREACH_END();
-
-                /* Set for later use */
-                z_args = z_extracted_keys;
-            }
-        }
-
-        /* If we didn't get an array as the second parameter, parse remaining args as variadic */
-        if (!z_args) {
-            /* Parse all parameters including destination key */
-            if (zend_parse_method_parameters(
-                    argc, object, "Os+", &object, ce, &dst, &dst_len, &z_args, &keys_count) ==
-                FAILURE) {
-                return 0;
-            }
-        }
+    /* Parse all parameters including destination key */
+    if (zend_parse_method_parameters(
+            argc, object, "Os+", &object, ce, &dst, &dst_len, &z_args, &keys_count) == FAILURE) {
+        return 0;
     }
 
     /* Get ValkeyGlide object */
@@ -1756,36 +1599,6 @@ int execute_sdiff_command(zval* object, int argc, zval* return_value, zend_class
     zval*                z_keys_arr       = NULL;
     HashTable*           ht_keys          = NULL;
     zval*                z_extracted_keys = NULL;
-
-    /* Check if we have a single array argument or variadic string arguments */
-    if (argc == 1) {
-        /* Try to parse as a single array argument */
-        if (zend_parse_method_parameters(argc, object, "Oa", &object, ce, &z_keys_arr) == SUCCESS) {
-            /* We have an array of keys */
-            ht_keys    = Z_ARRVAL_P(z_keys_arr);
-            keys_count = zend_hash_num_elements(ht_keys);
-
-            /* If array is empty, return FALSE */
-            if (keys_count == 0) {
-                return 0;
-            }
-
-            /* Allocate memory for array of zvals */
-            z_extracted_keys = ecalloc(keys_count, sizeof(zval));
-
-            /* Copy array values to sequential array */
-            zval* data;
-            int   idx = 0;
-            ZEND_HASH_FOREACH_VAL(ht_keys, data) {
-                ZVAL_COPY(&z_extracted_keys[idx], data);
-                idx++;
-            }
-            ZEND_HASH_FOREACH_END();
-
-            /* Set for later use */
-            z_args = z_extracted_keys;
-        }
-    }
 
     /* If we didn't get an array, parse as variadic arguments */
     if (!z_args) {
@@ -1845,105 +1658,24 @@ int execute_sdiffstore_command(zval* object, int argc, zval* return_value, zend_
     int                  idx             = 0;
     int                  has_destination = 0;
 
-    /* Check if we have a single array argument */
-    if (argc == 1) {
-        /* Try to parse it as an array */
-        if (zend_parse_method_parameters(argc, object, "Oa", &object, ce, &z_keys_arr) == SUCCESS) {
-            /* We have an array which will contain both destination and source keys */
-            ht_keys    = Z_ARRVAL_P(z_keys_arr);
-            keys_count = zend_hash_num_elements(ht_keys);
-
-            /* We need at least one element (destination key) */
-            if (keys_count == 0) {
-                return 0;
-            }
-
-            /* Extract the first element as the destination key */
-            HashPosition pointer;
-            zend_hash_internal_pointer_reset_ex(ht_keys, &pointer);
-            data = zend_hash_get_current_data_ex(ht_keys, &pointer);
-            if (data == NULL || Z_TYPE_P(data) != IS_STRING) {
-                return 0;
-            }
-
-            /* Set the destination key */
-            dst             = Z_STRVAL_P(data);
-            dst_len         = Z_STRLEN_P(data);
-            has_destination = 1;
-
-            /* If there's only the destination key, return false */
-            if (keys_count == 1) {
-                return 0;
-            }
-
-            /* Move past the destination key */
-            zend_hash_move_forward_ex(ht_keys, &pointer);
-
-            /* Allocate memory for array of source keys (excluding destination) */
-            z_extracted_keys = ecalloc(keys_count - 1, sizeof(zval));
-
-            /* Copy all remaining values (source keys) to sequential array */
-            idx = 0;
-            while ((data = zend_hash_get_current_data_ex(ht_keys, &pointer))) {
-                ZVAL_COPY(&z_extracted_keys[idx], data);
-                idx++;
-                zend_hash_move_forward_ex(ht_keys, &pointer);
-            }
-
-            /* Set for later use */
-            z_args     = z_extracted_keys;
-            keys_count = keys_count - 1;
-        }
-    }
 
     /* If we didn't get a single array, try other parameter formats */
-    if (!has_destination) {
-        /* First argument is always the destination key */
-        if (zend_parse_method_parameters(1, object, "Os", &object, ce, &dst, &dst_len) == FAILURE) {
+
+    /* First argument is always the destination key */
+    if (zend_parse_method_parameters(1, object, "Os", &object, ce, &dst, &dst_len) == FAILURE) {
+        return 0;
+    }
+
+    /* If we didn't get an array as the second parameter, parse remaining args as variadic */
+    if (!z_args) {
+        /* Parse all parameters including destination key */
+        if (zend_parse_method_parameters(
+                argc, object, "Os+", &object, ce, &dst, &dst_len, &z_args, &keys_count) ==
+            FAILURE) {
             return 0;
         }
-
-        /* Parse remaining args as variadic or array */
-        if (argc == 2) {
-            /* Try to parse second parameter as an array */
-            zval* second_arg;
-            if (zend_parse_parameters(1, "z", &second_arg) == SUCCESS &&
-                Z_TYPE_P(second_arg) == IS_ARRAY) {
-                /* We have an array of source keys */
-                ht_keys    = Z_ARRVAL_P(second_arg);
-                keys_count = zend_hash_num_elements(ht_keys);
-
-                /* If array is empty, return FALSE */
-                if (keys_count == 0) {
-                    return 0;
-                }
-
-                /* Allocate memory for array of zvals */
-                z_extracted_keys = ecalloc(keys_count, sizeof(zval));
-
-                /* Copy array values to sequential array */
-                idx = 0;
-                ZEND_HASH_FOREACH_VAL(ht_keys, data) {
-                    ZVAL_COPY(&z_extracted_keys[idx], data);
-                    idx++;
-                }
-                ZEND_HASH_FOREACH_END();
-
-                /* Set for later use */
-                z_args = z_extracted_keys;
-            }
-        }
-
-        /* If we didn't get an array as the second parameter, parse remaining args as variadic */
-        if (!z_args) {
-            /* Parse all parameters including destination key */
-            if (zend_parse_method_parameters(
-                    argc, object, "Os+", &object, ce, &dst, &dst_len, &z_args, &keys_count) ==
-                FAILURE) {
-                return 0;
-            }
-        }
     }
+
 
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);

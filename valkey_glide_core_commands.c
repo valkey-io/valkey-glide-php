@@ -1102,14 +1102,6 @@ static int process_info_sections(
     *cmd_args     = (uintptr_t*) emalloc(count * sizeof(uintptr_t));
     *cmd_args_len = (unsigned long*) emalloc(count * sizeof(unsigned long));
 
-    if (!*cmd_args || !*cmd_args_len) {
-        if (*cmd_args)
-            efree(*cmd_args);
-        if (*cmd_args_len)
-            efree(*cmd_args_len);
-        return -1;
-    }
-
     /* Process each section argument */
     for (int i = 0; i < count; i++) {
         zval* section = &args[start_idx + i];

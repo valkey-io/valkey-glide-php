@@ -235,14 +235,6 @@ int prepare_h_key_only_args(h_command_args_t* args,
     *allocated_strings = NULL;
     *allocated_count   = 0;
 
-    if (!*args_out || !*args_len_out) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
-
     /* Set key as the only argument */
     (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
@@ -267,14 +259,6 @@ int prepare_h_single_field_args(h_command_args_t* args,
     *args_len_out      = (unsigned long*) emalloc(2 * sizeof(unsigned long));
     *allocated_strings = NULL;
     *allocated_count   = 0;
-
-    if (!*args_out || !*args_len_out) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Set key and field arguments */
     (*args_out)[0]     = (uintptr_t) args->key;
@@ -303,13 +287,6 @@ int prepare_h_field_value_args(h_command_args_t* args,
     *allocated_strings = NULL;
     *allocated_count   = 0;
 
-    if (!*args_out || !*args_len_out) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Set key, field, and value arguments */
     (*args_out)[0]     = (uintptr_t) args->key;

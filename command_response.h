@@ -51,13 +51,6 @@ CommandResult* execute_command_with_route(const void*          glide_client,
                                           const unsigned long* args_len,
                                           zval*                arg_route);
 
-/*
- * Handle an integer response
- * Returns 0 on error, 1 on success
- * The output_value parameter is set to the integer value on success
- * This function frees the CommandResult
- */
-long handle_int_response(CommandResult* result, long* output_value);
 
 /*
  * Handle a string response
@@ -67,28 +60,6 @@ long handle_int_response(CommandResult* result, long* output_value);
  * This function frees the CommandResult
  */
 int handle_string_response(CommandResult* result, char** output, size_t* output_len);
-
-/*
- * Handle a boolean response
- * Returns 1 for true, 0 for false, -1 on error
- * This function frees the CommandResult
- */
-int handle_bool_response(CommandResult* result);
-
-/*
- * Handle an OK response
- * Returns 1 on success, -1 on error
- * This function frees the CommandResult
- */
-int handle_ok_response(CommandResult* result);
-
-/*
- * Handle an array response
- * Returns 1 on success, 0 if null, -1 on error
- * The output parameter is set to a PHP array
- * This function frees the CommandResult
- */
-int handle_array_response(CommandResult* result, zval* output);
 
 /*
  * Handle a map response

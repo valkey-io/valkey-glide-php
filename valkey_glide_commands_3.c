@@ -107,9 +107,6 @@ static void clear_batch_state(valkey_glide_object* valkey_glide) {
         return;
     }
 
-    valkey_glide->is_in_batch_mode = false;
-    valkey_glide->batch_type       = MULTI;
-    valkey_glide->command_count    = 0;
 
     if (valkey_glide->buffered_commands) {
         /* Free each buffered command */
@@ -136,6 +133,10 @@ static void clear_batch_state(valkey_glide_object* valkey_glide) {
         valkey_glide->buffered_commands = NULL;
         valkey_glide->command_capacity  = 0;
     }
+
+    valkey_glide->is_in_batch_mode = false;
+    valkey_glide->batch_type       = MULTI;
+    valkey_glide->command_count    = 0;
 }
 
 /* Expand command buffer capacity */

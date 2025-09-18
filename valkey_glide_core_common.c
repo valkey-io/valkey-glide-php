@@ -1149,13 +1149,6 @@ int allocate_core_arg_arrays(int count, uintptr_t** args_out, unsigned long** ar
     *args_out     = (uintptr_t*) emalloc(count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(count * sizeof(unsigned long));
 
-    if (!*args_out || !*args_len_out) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     return 1;
 }
