@@ -44,18 +44,50 @@ src/client_constructor_mock_arginfo.h: src/client_constructor_mock.stub.php
 
 valkey-glide/ffi/target/release/libglide_ffi.a:
 	@echo "=== BUILDING FFI LIBRARY ==="
-	@if [ -f .gitmodules ] && [ -d .git ]; then \
-		git submodule update --init --recursive; \
-	fi
+	@$(MAKE) ensure-submodules
 	@if [ -d valkey-glide/ffi ]; then \
 		cd valkey-glide/ffi && cargo build --release && cd ../..; \
 	fi
 
+ensure-submodules:
+	@if [ -f .gitmodules ]; then \
+		if [ -d .git ]; then \
+			echo "Git repository detected - using submodules"; \
+			git submodule update --init --recursive; \
+		else \
+			echo "PECL package detected - cloning submodules manually"; \
+			$(MAKE) clone-submodules; \
+		fi; \
+	fi
+
+clone-submodules:
+	@echo "Cloning submodules for PECL installation"
+	@if ! command -v git >/dev/null 2>&1; then \
+		echo "ERROR: Git is required to build this extension"; \
+		echo "Please install git and ensure it's in your PATH"; \
+		echo "On Ubuntu/Debian: apt-get install git"; \
+		echo "On CentOS/RHEL: yum install git"; \
+		echo "On macOS: brew install git or install Xcode"; \
+		exit 1; \
+	fi
+	@if [ -f .gitmodules ]; then \
+		grep -E "^\s*path\s*=" .gitmodules | sed 's/.*=\s*//' | while read path; do \
+			url=$$(grep -A1 "path = $$path" .gitmodules | grep url | sed 's/.*=\s*//'); \
+			if [ ! -d "$$path/.git" ]; then \
+				echo "Cloning $$url into $$path (requires internet connection)"; \
+				rm -rf "$$path"; \
+				if ! git clone "$$url" "$$path"; then \
+					echo "ERROR: Failed to clone submodule from $$url"; \
+					echo "Please check your internet connection and try again"; \
+					exit 1; \
+				fi; \
+			fi; \
+		done; \
+	fi
+
 include/glide_bindings.h:
 	@echo "=== GENERATING HEADER FILE ==="
-	@if [ -f .gitmodules ] && [ -d .git ]; then \
-		git submodule update --init --recursive; \
-	fi
+	@$(MAKE) ensure-submodules
 	@python3 utils/remove_optional_from_proto.py || true
 	@if [ -d valkey-glide/ffi ]; then \
 		cd valkey-glide/ffi && cargo build --release && cd ../..; \
