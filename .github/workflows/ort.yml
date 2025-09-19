@@ -242,7 +242,10 @@ jobs:
 
       - name: Run scancode license scanning
         run: |
-          scancode -n 4 --license . \
+          set -e
+          set -o pipefail
+
+          scancode --processes 4 --license . \
             --ignore "*valkey-glide/*" \
             --ignore "*bin/*" \
             --ignore "*lib/*" \
@@ -255,7 +258,13 @@ jobs:
             --ignore "*ort/*" \
             --ignore "*myenv/*" \
             --ignore "*THIRD_PARTY_LICENSES_PHP*" \
-            --json report.json --csv report.csv -v 2>&1 | tee scancode_output.log
+            --json-pp report.json --csv report.csv --verbose 2>&1 | tee scancode_output.log
+
+          if [ ! -f "report.json" ] || [ ! -s "report.json" ]; then
+            echo "ERROR: report.json not created or empty"
+            cat scancode_output.log
+            exit 1
+          fi
 
       - name: Generate attribution with aboutcode-toolkit
         run: |
