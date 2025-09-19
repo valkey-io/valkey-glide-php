@@ -27,6 +27,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install Rust and protoc
+        uses: ./.github/workflows/install-rust-and-protoc
+
       - name: Determine version
         id: version
         env:
