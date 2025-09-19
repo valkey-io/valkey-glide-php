@@ -56,7 +56,7 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           DATE=$(date +%Y-%m-%d)
-          
+
           # Generate submodule commit info for PECL packages
           echo "=== Generating submodule commit info ==="
           git submodule status | while read commit path extra; do
@@ -65,7 +65,7 @@ jobs:
             echo "$path=$clean_commit" >> .submodule-commits
           done
           cat .submodule-commits
-          
+
           echo "=== Updating package.xml version ==="
           TIME=$(date +%H:%M:%S)
 
@@ -91,6 +91,7 @@ jobs:
           cp config.m4 "$PACKAGE_DIR/"
           cp Makefile.frag "$PACKAGE_DIR/"
           cp .gitmodules "$PACKAGE_DIR/"
+          cp .submodule-commits "$PACKAGE_DIR/"
 
           # Copy specific source files (exclude temp files)
           for file in *.c *.h; do

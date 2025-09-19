@@ -118,6 +118,7 @@ jobs:
           cp config.m4 "$PACKAGE_DIR/"
           cp Makefile.frag "$PACKAGE_DIR/"
           cp .gitmodules "$PACKAGE_DIR/"
+          cp .submodule-commits "$PACKAGE_DIR/"
 
           # Copy specific source files (exclude temp files)
           for file in *.c *.h; do
