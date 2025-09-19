@@ -29,6 +29,13 @@ jobs:
 
       - name: Install Rust and protoc
         uses: ./.github/workflows/install-rust-and-protoc
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add Rust to PATH
+        run: |
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          source $HOME/.cargo/env || true
 
       - name: Determine version
         id: version
@@ -145,60 +152,12 @@ jobs:
 
           echo "=== Package builds successfully ==="
 
-      - name: Generate installation instructions
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          cat > INSTALL.md << EOF
-          # Valkey GLIDE PHP Extension v$VERSION
-
-          ## Installation Methods
-
-          ### Method 1: PIE (Recommended)
-          \`\`\`bash
-          pie install valkey-io/valkey-glide-php
-          \`\`\`
-
-          ### Method 2: PECL-style from GitHub Release
-          \`\`\`bash
-          # Download and install
-          wget https://github.com/valkey-io/valkey-glide-php/releases/download/v$VERSION/valkey_glide-$VERSION.tgz
-          tar xzf valkey_glide-$VERSION.tgz
-          cd valkey_glide-$VERSION
-          phpize
-          ./configure --enable-valkey-glide
-          make
-          sudo make install
-
-          # Enable extension
-          echo "extension=valkey_glide" | sudo tee /etc/php/*/cli/conf.d/20-valkey-glide.ini
-          echo "extension=valkey_glide" | sudo tee /etc/php/*/fpm/conf.d/20-valkey-glide.ini
-          \`\`\`
-
-          ### Method 3: Direct PECL install
-          \`\`\`bash
-          pecl install https://github.com/valkey-io/valkey-glide-php/releases/download/v$VERSION/valkey_glide-$VERSION.tgz
-          \`\`\`
-
-          ## Requirements
-          - PHP 8.1 or higher
-          - Git (for submodule cloning during build)
-          - Rust toolchain
-          - Build tools (gcc, make, etc.)
-
-          ## Verify Installation
-          \`\`\`bash
-          php -m | grep valkey_glide
-          php -r "if (extension_loaded('valkey_glide')) echo 'SUCCESS: Extension loaded!'; else echo 'ERROR: Extension not loaded';"
-          \`\`\`
-          EOF
-
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
         with:
           name: valkey-glide-php-${{ steps.version.outputs.version }}
           path: |
             valkey_glide-${{ steps.version.outputs.version }}.tgz
-            INSTALL.md
           retention-days: 90
 
       - name: Create GitHub release
@@ -234,7 +193,7 @@ jobs:
             - PHP 8.1+
             - Git, Rust toolchain, build tools
 
-            See INSTALL.md for detailed instructions.
+            See README.md for detailed installation instructions.
           draft: false
           prerelease: false
 
@@ -248,14 +207,3 @@ jobs:
           asset_path: valkey_glide-${{ steps.version.outputs.version }}.tgz
           asset_name: valkey_glide-${{ steps.version.outputs.version }}.tgz
           asset_content_type: application/gzip
-
-      - name: Upload installation instructions
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.create-release == 'true')
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url || steps.create-release.outputs.upload_url }}
-          asset_path: INSTALL.md
-          asset_name: INSTALL.md
-          asset_content_type: text/markdown
