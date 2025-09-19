@@ -42,23 +42,46 @@ logger_arginfo.h: logger.stub.php
 src/client_constructor_mock_arginfo.h: src/client_constructor_mock.stub.php
 	@php -f $(top_srcdir)/build/gen_stub.php src/client_constructor_mock.stub.php || echo "client_constructor_mock arginfo generation failed"
 
-valkey-glide/ffi/target/release/libglide_ffi.a:
+valkey-glide/ffi/target/release/libglide_ffi.a: ensure-submodules
 	@echo "=== BUILDING FFI LIBRARY ==="
-	@$(MAKE) ensure-submodules
 	@if [ -d valkey-glide/ffi ]; then \
 		cd valkey-glide/ffi && cargo build --release && cd ../..; \
 	fi
 
 ensure-submodules:
+	@echo "=== Ensuring submodules are ready ==="
 	@if [ -f .gitmodules ]; then \
 		if [ -d .git ]; then \
 			echo "Git repository detected - using submodules"; \
 			git submodule update --init --recursive; \
 		else \
 			echo "PECL package detected - cloning submodules manually"; \
-			$(MAKE) clone-submodules; \
+			if ! command -v git >/dev/null 2>&1; then \
+				echo "ERROR: Git is required to build this extension"; \
+				exit 1; \
+			fi; \
+			grep -E "^\s*path\s*=" .gitmodules | sed 's/.*=\s*//' | while read path; do \
+				url=$$(grep -A1 "path = $$path" .gitmodules | grep url | sed 's/.*=\s*//'); \
+				if [ ! -d "$$path/.git" ]; then \
+					echo "Cloning $$url into $$path"; \
+					rm -rf "$$path"; \
+					if ! git clone "$$url" "$$path"; then \
+						echo "ERROR: Failed to clone submodule from $$url"; \
+						exit 1; \
+					fi; \
+					echo "Checking out recorded commit for $$path"; \
+					if [ -f .git ] && grep -q "gitdir:" .git 2>/dev/null; then \
+						commit=$$(git ls-tree HEAD "$$path" | awk '{print $$3}'); \
+						if [ -n "$$commit" ]; then \
+							cd "$$path" && git checkout "$$commit" && cd ..; \
+							echo "Checked out commit $$commit for $$path"; \
+						fi; \
+					fi; \
+				fi; \
+			done; \
 		fi; \
 	fi
+	@echo "Submodules ready"
 
 clone-submodules:
 	@echo "Cloning submodules for PECL installation"
