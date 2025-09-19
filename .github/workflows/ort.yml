@@ -273,7 +273,7 @@ jobs:
 
       - name: Generate attribution with aboutcode-toolkit
         run: |
-          if [ ! -f report.json ]; then
+          if [ ! -f "report.json" ]; then
             echo "ERROR: report.json not found. Scancode step may have failed."
             echo "Checking scancode output:"
             cat scancode_output.log || echo "No scancode output log found"
