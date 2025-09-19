@@ -26,6 +26,9 @@ $(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arg
 # Backward compatibility alias
 build-modules-pre: include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
 
+# Force all compilation to wait for protobuf generation
+all: include/glide_bindings.h
+
 # Make protobuf source files depend on header generation (which includes protobuf generation)
 src/command_request.pb-c.c: include/glide_bindings.h
 	@echo "DEBUG: command_request.pb-c.c depends on include/glide_bindings.h"
