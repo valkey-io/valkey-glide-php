@@ -28,11 +28,36 @@ build-modules-pre: include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey
 
 # Make protobuf source files depend on header generation (which includes protobuf generation)
 src/command_request.pb-c.c: include/glide_bindings.h
+	@echo "DEBUG: command_request.pb-c.c depends on include/glide_bindings.h"
+
 src/command_request.pb-c.h: include/glide_bindings.h
+	@echo "DEBUG: command_request.pb-c.h depends on include/glide_bindings.h"
+
 src/connection_request.pb-c.c: include/glide_bindings.h
+	@echo "DEBUG: connection_request.pb-c.c depends on include/glide_bindings.h"
+
 src/connection_request.pb-c.h: include/glide_bindings.h
+	@echo "DEBUG: connection_request.pb-c.h depends on include/glide_bindings.h"
+
 src/response.pb-c.c: include/glide_bindings.h
+	@echo "DEBUG: response.pb-c.c depends on include/glide_bindings.h"
+
 src/response.pb-c.h: include/glide_bindings.h
+	@echo "DEBUG: response.pb-c.h depends on include/glide_bindings.h"
+
+# Debug what files exist
+debug-files:
+	@echo "=== DEBUG: Checking what files exist ==="
+	@echo "include/glide_bindings.h exists: $$([ -f include/glide_bindings.h ] && echo YES || echo NO)"
+	@echo "src/command_request.pb-c.c exists: $$([ -f src/command_request.pb-c.c ] && echo YES || echo NO)"
+	@echo "src/command_request.pb-c.h exists: $$([ -f src/command_request.pb-c.h ] && echo YES || echo NO)"
+	@echo "valkey-glide/glide-core/src/protobuf exists: $$([ -d valkey-glide/glide-core/src/protobuf ] && echo YES || echo NO)"
+	@if [ -d valkey-glide/glide-core/src/protobuf ]; then \
+		echo "Protobuf files in submodule:"; \
+		ls -la valkey-glide/glide-core/src/protobuf/*.proto 2>/dev/null || echo "No .proto files found"; \
+	fi
+	@echo "Generated protobuf files in src/:"; \
+	ls -la src/*.pb-c.* 2>/dev/null || echo "No generated protobuf files found"
 
 # For PECL builds (no .git directory), make protobuf files depend on submodules being ready
 # For Git builds, assume submodules are already there
@@ -102,6 +127,10 @@ ensure-submodules:
 
 include/glide_bindings.h: ensure-submodules
 	@echo "=== GENERATING HEADER FILE ==="
+	@echo "DEBUG: Starting include/glide_bindings.h generation"
+	@echo "DEBUG: Current directory: $$(pwd)"
+	@echo "DEBUG: valkey-glide directory exists: $$([ -d valkey-glide ] && echo YES || echo NO)"
+	@echo "DEBUG: valkey-glide/glide-core/src/protobuf exists: $$([ -d valkey-glide/glide-core/src/protobuf ] && echo YES || echo NO)"
 	@python3 utils/remove_optional_from_proto.py || true
 	@echo "=== Setting up Rust environment ==="
 	@export PATH="$$HOME/.cargo/bin:$$PATH" && \
@@ -126,13 +155,21 @@ include/glide_bindings.h: ensure-submodules
 	fi
 	@echo "=== GENERATING PROTOBUF HEADERS ==="
 	@mkdir -p $(GEN_INCLUDE_DIR) $(GEN_SRC_DIR)
+	@echo "DEBUG: About to generate protobuf files"
+	@echo "DEBUG: PROTO_SRC_DIR = $(PROTO_SRC_DIR)"
+	@echo "DEBUG: GEN_SRC_DIR = $(GEN_SRC_DIR)"
 	@if command -v protoc-c >/dev/null 2>&1; then \
+		echo "DEBUG: protoc-c found, generating protobuf files"; \
 		for proto in $(PROTO_SRC_DIR)/*.proto; do \
 			if [ -f "$$proto" ]; then \
+				echo "DEBUG: Processing $$proto"; \
 				protoc-c --c_out=$(GEN_SRC_DIR) --proto_path=$(PROTO_SRC_DIR) "$$proto" || echo "Failed to generate $$proto"; \
 			fi; \
 		done; \
+		echo "DEBUG: Copying generated headers"; \
 		cp $(GEN_SRC_DIR)/*.h $(GEN_INCLUDE_DIR)/ 2>/dev/null || true; \
+		echo "DEBUG: Generated files:"; \
+		ls -la $(GEN_SRC_DIR)/*.pb-c.* 2>/dev/null || echo "No protobuf files generated"; \
 	else \
 		echo "protoc-c not found"; \
 	fi

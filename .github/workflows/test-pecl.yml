@@ -190,6 +190,11 @@ jobs:
 
           echo "=== Running make (this will clone submodules) ==="
           set +e
+          
+          # Add debug information
+          echo "=== DEBUG: Running debug-files target ==="
+          make debug-files || echo "debug-files target failed"
+          
           make -j$(nproc) 2>&1 | tee make.log
           MAKE_EXIT_CODE=$?
           set -e
