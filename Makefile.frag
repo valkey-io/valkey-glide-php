@@ -26,6 +26,13 @@ $(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arg
 # Backward compatibility alias
 build-modules-pre: include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
 
+# Make all protobuf files depend on submodules being ready
+src/%.pb-c.c: ensure-submodules
+	@echo "Protobuf file $@ depends on submodules being ready"
+
+src/%.pb-c.h: ensure-submodules
+	@echo "Protobuf header $@ depends on submodules being ready"
+
 # Arginfo header dependencies
 cluster_scan_cursor_arginfo.h: cluster_scan_cursor.stub.php
 	@php -f $(top_srcdir)/build/gen_stub.php cluster_scan_cursor.stub.php || echo "cluster_scan_cursor arginfo generation failed"
