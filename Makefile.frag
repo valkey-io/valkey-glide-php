@@ -26,8 +26,13 @@ $(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arg
 # Backward compatibility alias
 build-modules-pre: include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
 
-# Make all .lo files depend on headers being generated (which includes protobuf generation)
-%.lo: include/glide_bindings.h
+# Make protobuf source files depend on header generation (which includes protobuf generation)
+src/command_request.pb-c.c: include/glide_bindings.h
+src/command_request.pb-c.h: include/glide_bindings.h
+src/connection_request.pb-c.c: include/glide_bindings.h
+src/connection_request.pb-c.h: include/glide_bindings.h
+src/response.pb-c.c: include/glide_bindings.h
+src/response.pb-c.h: include/glide_bindings.h
 
 # For PECL builds (no .git directory), make protobuf files depend on submodules being ready
 # For Git builds, assume submodules are already there
@@ -98,11 +103,20 @@ ensure-submodules:
 include/glide_bindings.h: ensure-submodules
 	@echo "=== GENERATING HEADER FILE ==="
 	@python3 utils/remove_optional_from_proto.py || true
-	@if [ -d valkey-glide/ffi ]; then \
+	@echo "=== Setting up Rust environment ==="
+	@export PATH="$$HOME/.cargo/bin:$$PATH" && \
+	if [ -f "$$HOME/.cargo/env" ]; then \
+		. "$$HOME/.cargo/env"; \
+	fi && \
+	if [ -d valkey-glide/ffi ]; then \
 		cd valkey-glide/ffi && cargo build --release && cd ../..; \
 	fi
 	@mkdir -p include
-	@if [ -d valkey-glide/ffi ] && command -v cbindgen >/dev/null 2>&1; then \
+	@export PATH="$$HOME/.cargo/bin:$$PATH" && \
+	if [ -f "$$HOME/.cargo/env" ]; then \
+		. "$$HOME/.cargo/env"; \
+	fi && \
+	if [ -d valkey-glide/ffi ] && command -v cbindgen >/dev/null 2>&1; then \
 		cd valkey-glide/ffi && cbindgen --output ../../include/glide_bindings.h && cd ../..; \
 		echo '#ifndef GLIDE_BINDINGS_H' > include/glide_bindings_tmp.h; \
 		echo '#define GLIDE_BINDINGS_H' >> include/glide_bindings_tmp.h; \
