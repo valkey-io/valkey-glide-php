@@ -83,39 +83,6 @@ ensure-submodules:
 	fi
 	@echo "Submodules ready"
 
-clone-submodules:
-	@echo "Cloning submodules for PECL installation"
-	@if ! command -v git >/dev/null 2>&1; then \
-		echo "ERROR: Git is required to build this extension"; \
-		echo "Please install git and ensure it's in your PATH"; \
-		echo "On Ubuntu/Debian: apt-get install git"; \
-		echo "On CentOS/RHEL: yum install git"; \
-		echo "On macOS: brew install git or install Xcode"; \
-		exit 1; \
-	fi
-	@if [ -f .gitmodules ]; then \
-		grep -E "^\s*path\s*=" .gitmodules | sed 's/.*=\s*//' | while read path; do \
-			url=$$(grep -A1 "path = $$path" .gitmodules | grep url | sed 's/.*=\s*//'); \
-			if [ ! -d "$$path/.git" ]; then \
-				echo "Cloning $$url into $$path (requires internet connection)"; \
-				rm -rf "$$path"; \
-				if ! git clone "$$url" "$$path"; then \
-					echo "ERROR: Failed to clone submodule from $$url"; \
-					echo "Please check your internet connection and try again"; \
-					exit 1; \
-				fi; \
-				echo "Checking out recorded commit for $$path"; \
-				if [ -f .git ] && grep -q "gitdir:" .git 2>/dev/null; then \
-					commit=$$(git ls-tree HEAD "$$path" | awk '{print $$3}'); \
-					if [ -n "$$commit" ]; then \
-						cd "$$path" && git checkout "$$commit" && cd ..; \
-						echo "Checked out commit $$commit for $$path"; \
-					fi; \
-				fi; \
-			fi; \
-		done; \
-	fi
-
 include/glide_bindings.h:
 	@echo "=== GENERATING HEADER FILE ==="
 	@$(MAKE) ensure-submodules
