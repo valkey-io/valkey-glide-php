@@ -25,8 +25,8 @@ CFLAGS += -Werror
 ensure-headers-first: include/glide_bindings.h
 	@echo "Headers generated, proceeding with build"
 
-# Extend the default targets to ensure headers are generated first
-all: ensure-headers-first $(all_targets)
+# Make the build targets depend on headers being ready first
+$(all_targets): ensure-headers-first
 install: ensure-headers-first  
 modules: ensure-headers-first
 
