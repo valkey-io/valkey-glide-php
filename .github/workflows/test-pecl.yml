@@ -197,7 +197,7 @@ jobs:
           echo "=== Checking submodule cloning ==="
           ls -la valkey-glide/ 2>/dev/null || echo "valkey-glide directory not found"
           ls -la valkey-glide/ffi/ 2>/dev/null || echo "valkey-glide/ffi directory not found"
-          
+
           echo "=== Checking submodule commit ==="
           if [ -d valkey-glide/.git ]; then
             echo "Submodule git directory found"
@@ -209,7 +209,7 @@ jobs:
           else
             echo "No .git directory in valkey-glide"
           fi
-          
+
           echo "=== Checking parent repository submodule record ==="
           if [ -d .git ]; then
             echo "Parent git directory found"
