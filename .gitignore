@@ -115,3 +115,5 @@ tests/GPBMetadata/**
 tests/client_constructor_mock_arginfo.h
 tests/client_constructor_mock_legacy_arginfo.h
 vendor/**
+# Dynamically generated submodule commit info
+.submodule-commits

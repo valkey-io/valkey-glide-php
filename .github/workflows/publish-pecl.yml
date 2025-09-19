@@ -30,6 +30,11 @@ jobs:
       - name: Install Rust and protoc
         uses: ./.github/workflows/install-rust-and-protoc
 
+      - name: Add Rust to PATH
+        run: |
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          source $HOME/.cargo/env || true
+
       - name: Determine version
         id: version
         env:
@@ -51,6 +56,17 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           DATE=$(date +%Y-%m-%d)
+          
+          # Generate submodule commit info for PECL packages
+          echo "=== Generating submodule commit info ==="
+          git submodule status | while read commit path extra; do
+            # Remove leading - or + from commit hash
+            clean_commit=$(echo "$commit" | sed 's/^[-+]//')
+            echo "$path=$clean_commit" >> .submodule-commits
+          done
+          cat .submodule-commits
+          
+          echo "=== Updating package.xml version ==="
           TIME=$(date +%H:%M:%S)
 
           # Update version and date in package.xml

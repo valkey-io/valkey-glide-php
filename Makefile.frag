@@ -69,12 +69,11 @@ ensure-submodules:
 						echo "ERROR: Failed to clone submodule from $$url"; \
 						exit 1; \
 					fi; \
-					echo "Checking out recorded commit for $$path"; \
-					if [ -f .git ] && grep -q "gitdir:" .git 2>/dev/null; then \
-						commit=$$(git ls-tree HEAD "$$path" | awk '{print $$3}'); \
+					if [ -f .submodule-commits ]; then \
+						commit=$$(grep "^$$path=" .submodule-commits | cut -d= -f2); \
 						if [ -n "$$commit" ]; then \
+							echo "Checking out recorded commit $$commit for $$path"; \
 							cd "$$path" && git checkout "$$commit" && cd ..; \
-							echo "Checked out commit $$commit for $$path"; \
 						fi; \
 					fi; \
 				fi; \
