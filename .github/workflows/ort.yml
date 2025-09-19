@@ -230,8 +230,9 @@ jobs:
       - name: Install scancode-toolkit
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
-          # Use older scancode-toolkit version that's compatible with current Click
-          pip install "scancode-toolkit==32.0.8"
+          # Use older versions that are known to work together
+          pip install "click==8.0.4"
+          pip install "scancode-toolkit==31.2.6"
 
       - name: Install and setup aboutcode-toolkit
         run: |
