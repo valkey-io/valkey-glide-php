@@ -81,6 +81,14 @@ clone-submodules:
 					echo "Please check your internet connection and try again"; \
 					exit 1; \
 				fi; \
+				echo "Checking out recorded commit for $$path"; \
+				if [ -f .git ] && grep -q "gitdir:" .git 2>/dev/null; then \
+					commit=$$(git ls-tree HEAD "$$path" | awk '{print $$3}'); \
+					if [ -n "$$commit" ]; then \
+						cd "$$path" && git checkout "$$commit" && cd ..; \
+						echo "Checked out commit $$commit for $$path"; \
+					fi; \
+				fi; \
 			fi; \
 		done; \
 	fi
