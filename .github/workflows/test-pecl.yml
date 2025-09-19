@@ -196,6 +196,13 @@ jobs:
           cat Makefile.frag | head -50
           echo "=== END Makefile.frag (first 50 lines) ==="
 
+          echo "=== DEBUG: Contents of generated Makefile ==="
+          cat Makefile | head -100
+          echo "=== END Makefile (first 100 lines) ==="
+
+          echo "=== DEBUG: Makefile targets containing 'all' ==="
+          grep -n "^[a-zA-Z_][^:]*:" Makefile | grep -i all || echo "No 'all' targets found"
+
           echo "=== DEBUG: Running debug-files target ==="
           make debug-files || echo "debug-files target failed"
 
