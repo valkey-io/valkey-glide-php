@@ -26,12 +26,18 @@ $(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arg
 # Backward compatibility alias
 build-modules-pre: include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
 
-# Make all protobuf files depend on submodules being ready
+# Make all .lo files depend on headers being generated (which includes protobuf generation)
+%.lo: include/glide_bindings.h
+
+# For PECL builds (no .git directory), make protobuf files depend on submodules being ready
+# For Git builds, assume submodules are already there
+ifeq ($(wildcard .git),)
 src/%.pb-c.c: ensure-submodules
-	@echo "Protobuf file $@ depends on submodules being ready"
+	@echo "PECL build: Protobuf file $@ depends on submodules being ready"
 
 src/%.pb-c.h: ensure-submodules
-	@echo "Protobuf header $@ depends on submodules being ready"
+	@echo "PECL build: Protobuf header $@ depends on submodules being ready"
+endif
 
 # Arginfo header dependencies
 cluster_scan_cursor_arginfo.h: cluster_scan_cursor.stub.php
