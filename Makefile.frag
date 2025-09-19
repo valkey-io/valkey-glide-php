@@ -83,9 +83,8 @@ ensure-submodules:
 	fi
 	@echo "Submodules ready"
 
-include/glide_bindings.h:
+include/glide_bindings.h: ensure-submodules
 	@echo "=== GENERATING HEADER FILE ==="
-	@$(MAKE) ensure-submodules
 	@python3 utils/remove_optional_from_proto.py || true
 	@if [ -d valkey-glide/ffi ]; then \
 		cd valkey-glide/ffi && cargo build --release && cd ../..; \
