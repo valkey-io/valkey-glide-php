@@ -230,8 +230,8 @@ jobs:
       - name: Install scancode-toolkit
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
-          # Use older versions that are known to work together
-          pip install "click==8.0.4"
+          # Use exact requirements from scancode-toolkit 31.2.6: click (!=7.0,>=6.7)
+          pip install "click>=6.7,!=7.0,<8.0"
           pip install "scancode-toolkit==31.2.6"
 
       - name: Install and setup aboutcode-toolkit
@@ -245,7 +245,7 @@ jobs:
           set -e
           set -o pipefail
 
-          scancode --processes 4 --license . \
+          scancode -n 4 --license . \
             --ignore "*valkey-glide/*" \
             --ignore "*bin/*" \
             --ignore "*lib/*" \
@@ -258,7 +258,7 @@ jobs:
             --ignore "*ort/*" \
             --ignore "*myenv/*" \
             --ignore "*THIRD_PARTY_LICENSES_PHP*" \
-            --json-pp report.json --csv report.csv --verbose 2>&1 | tee scancode_output.log
+            --json report.json --csv report.csv -v 2>&1 | tee scancode_output.log
 
           if [ ! -f "report.json" ] || [ ! -s "report.json" ]; then
             echo "ERROR: report.json not created or empty"
