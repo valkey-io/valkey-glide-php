@@ -12,6 +12,8 @@ PHP_ARG_ENABLE(debug, whether to enable debug mode (alias for valkey-glide-debug
 
 if test "$PHP_VALKEY_GLIDE" != "no"; then
 
+  AC_MSG_RESULT([=== VALKEY GLIDE CONFIG START ===])
+
   dnl If --enable-debug is used, set valkey-glide-debug to yes
   if test "$PHP_DEBUG" = "yes"; then
     PHP_VALKEY_GLIDE_DEBUG="yes"
@@ -78,14 +80,18 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
   AC_MSG_RESULT([Debug: configure script=$0])
   AC_MSG_RESULT([Debug: current directory=$(pwd)])
   AC_MSG_RESULT([Debug: files in current dir=$(ls -la . | head -10)])
-  AC_MSG_RESULT([Debug: .gitmodules exists=$(test -f ".gitmodules" && echo "yes" || echo "no")])
-  AC_MSG_RESULT([Debug: .submodule-commits exists=$(test -f ".submodule-commits" && echo "yes" || echo "no")])
-  AC_MSG_RESULT([Debug: valkey-glide exists=$(test -d "valkey-glide" && echo "yes" || echo "no")])
+  
+  dnl Extract source directory from configure script path
+  PECL_SOURCE_DIR=$(dirname "$0")
+  AC_MSG_RESULT([Debug: PECL source dir=$PECL_SOURCE_DIR])
+  AC_MSG_RESULT([Debug: .submodule-commits in source=$(test -f "$PECL_SOURCE_DIR/.submodule-commits" && echo "yes" || echo "no")])
+  AC_MSG_RESULT([Debug: .gitmodules in source=$(test -f "$PECL_SOURCE_DIR/.gitmodules" && echo "yes" || echo "no")])
+  AC_MSG_RESULT([Debug: valkey-glide in source=$(test -d "$PECL_SOURCE_DIR/valkey-glide" && echo "yes" || echo "no")])
 
   dnl Detect PECL vs PIE builds:
   dnl - PECL: Has .submodule-commits file (created specifically for PECL packages)
   dnl - PIE: Has .gitmodules file (full git repository)
-  if test -f ".submodule-commits"; then
+  if test -f "$PECL_SOURCE_DIR/.submodule-commits"; then
     AC_MSG_CHECKING([for header generation (PECL build detected - has .submodule-commits)])
     
     dnl Debug tool availability
@@ -97,6 +103,10 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     dnl Ensure PATH includes cargo
     export PATH="$HOME/.cargo/bin:$PATH"
     AC_MSG_RESULT([Debug: PATH after cargo=$PATH])
+    
+    dnl Work in source directory for PECL builds
+    cd "$PECL_SOURCE_DIR"
+    AC_MSG_RESULT([Debug: changed to source directory $(pwd)])
     
     dnl Ensure submodules are available
     if test ! -d "valkey-glide/.git"; then

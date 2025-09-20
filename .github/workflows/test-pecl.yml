@@ -166,7 +166,7 @@ jobs:
         run: |
           echo "=== Testing PECL-style installation ==="
           echo "=== Package contents ==="
-          tar tzf "${{ env.PACKAGE_DIR }}.tgz" | head -20
+          tar tzf "${{ env.PACKAGE_DIR }}.tgz" 2>/dev/null | head -20 || echo "Could not list package contents"
           ls -la
 
           echo "=== Installing package with PECL ==="
