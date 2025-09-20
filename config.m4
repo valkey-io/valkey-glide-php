@@ -111,16 +111,32 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       . "$HOME/.cargo/env"
     fi
     
-    dnl Add common cargo paths to PATH
+    dnl Add standard cargo paths to PATH
     export PATH="$HOME/.cargo/bin:/usr/local/cargo/bin:/opt/cargo/bin:$PATH"
-    AC_MSG_RESULT([Debug: PATH after cargo=$PATH])
-    AC_MSG_RESULT([Debug: cargo after PATH=$(which cargo || echo "NOT FOUND")])
-    AC_MSG_RESULT([Debug: cbindgen after PATH=$(which cbindgen || echo "NOT FOUND")])
-    AC_MSG_RESULT([Debug: protoc-c after PATH=$(which protoc-c || echo "NOT FOUND")])
+    
+    dnl If still not found, try to find cargo in common locations
+    if test "$(which cargo)" = "NOT FOUND"; then
+      AC_MSG_RESULT([Debug: cargo not in PATH, searching common locations])
+      for cargo_path in /usr/bin/cargo /usr/local/bin/cargo ~/.cargo/bin/cargo; do
+        if test -x "$cargo_path"; then
+          AC_MSG_RESULT([Debug: found cargo at $cargo_path])
+          export PATH="$(dirname "$cargo_path"):$PATH"
+          break
+        fi
+      done
+    fi
+    
+    AC_MSG_RESULT([Debug: final PATH=$PATH])
+    AC_MSG_RESULT([Debug: cargo after search=$(which cargo || echo "NOT FOUND")])
+    AC_MSG_RESULT([Debug: cbindgen after search=$(which cbindgen || echo "NOT FOUND")])
+    AC_MSG_RESULT([Debug: protoc-c after search=$(which protoc-c || echo "NOT FOUND")])
     
     dnl Final tool check
+    if test "$(which git)" = "NOT FOUND"; then
+      AC_MSG_ERROR([git not found - please install git])
+    fi
     if test "$(which cargo)" = "NOT FOUND"; then
-      AC_MSG_ERROR([cargo not found - please install Rust])
+      AC_MSG_ERROR([cargo not found - please install Rust and ensure cargo is in PATH])
     fi
     if test "$(which cbindgen)" = "NOT FOUND"; then
       AC_MSG_ERROR([cbindgen not found - please install with: cargo install cbindgen])
@@ -136,13 +152,19 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     cd "$PECL_SOURCE_DIR"
     AC_MSG_RESULT([Debug: changed to source directory $(pwd)])
     
-    dnl For PECL builds, clone submodules using .submodule-commits file
+    dnl For PECL builds, handle submodules using .submodule-commits file
     if test -f ".submodule-commits" && test ! -d "valkey-glide/.git"; then
       AC_MSG_RESULT([cloning submodules from .submodule-commits])
       
       dnl Read the commit hash from .submodule-commits
       SUBMODULE_COMMIT=$(cat .submodule-commits | head -1)
       AC_MSG_RESULT([Debug: submodule commit=$SUBMODULE_COMMIT])
+      
+      dnl Remove existing directory if it exists but isn't a git repo
+      if test -d "valkey-glide"; then
+        AC_MSG_RESULT([removing existing valkey-glide directory])
+        rm -rf valkey-glide
+      fi
       
       dnl Clone the submodule at the specific commit
       git clone --depth 1 https://github.com/valkey-io/valkey-glide.git valkey-glide || AC_MSG_ERROR([Failed to clone valkey-glide])
