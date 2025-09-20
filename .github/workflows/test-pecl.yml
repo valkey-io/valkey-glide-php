@@ -171,115 +171,45 @@ jobs:
       - name: Test PECL installation
         run: |
           echo "=== Testing PECL-style installation ==="
-
-          # Extract the tarball to simulate PECL extraction
-          tar xzf "${{ env.PACKAGE_DIR }}.tgz"
-          cd "${{ env.PACKAGE_DIR }}"
-
           echo "=== Package contents ==="
           ls -la
 
-          echo "=== Checking .gitmodules ==="
-          cat .gitmodules 2>/dev/null || echo "No .gitmodules found"
+          echo "=== Installing package with PECL ==="
+          # Install the package using PECL (this tests the real user experience)
+          sudo pecl install "${{ env.PACKAGE_DIR }}.tgz"
+          PECL_EXIT_CODE=$?
 
-          echo "=== Running phpize ==="
-          phpize
+          echo "=== PECL install exit code: $PECL_EXIT_CODE ==="
 
-          echo "=== Running configure ==="
-          ./configure --enable-valkey-glide
-
-          echo "=== Running make (this will clone submodules) ==="
-          set +e
-
-          # Add debug information
-          echo "=== DEBUG: Contents of Makefile.frag ==="
-          cat Makefile.frag | head -50
-          echo "=== END Makefile.frag (first 50 lines) ==="
-
-          echo "=== DEBUG: Full Makefile contents ==="
-          cat Makefile
-          echo "=== END Full Makefile ==="
-
-          echo "=== DEBUG: Makefile targets containing 'all' ==="
-          grep -n "^[a-zA-Z_][^:]*:" Makefile | grep -i all || echo "No 'all' targets found"
-
-          echo "=== DEBUG: Running debug-files target ==="
-          make debug-files || echo "debug-files target failed"
-
-          echo "=== DEBUG: Checking Makefile targets ==="
-          make -n all 2>&1 | head -20 || echo "make -n failed"
-          
-          # Pre-generate protobuf files before main build
-          echo "=== Pre-generating protobuf files ==="
-          make ensure-submodules || echo "Submodule setup failed"
-          make include/glide_bindings.h || echo "Header generation failed"
-
-          make -j$(nproc) 2>&1 | tee make.log
-          MAKE_EXIT_CODE=$?
-          set -e
-
-          echo "=== Make exit code: $MAKE_EXIT_CODE ==="
-          echo "=== Make log content ==="
-          cat make.log || echo "No make log found"
-
-          # Check if .so file was built regardless of exit code
-          echo "=== Checking if extension was built ==="
-          find . -name "*.so" -type f 2>/dev/null && echo "SUCCESS: .so file was built!" || echo "No .so files found - build failed"
-          find . -name "valkey_glide*" -type f 2>/dev/null | head -5 || echo "No valkey_glide files found"
-
-          echo "=== Contents of modules directory ==="
-          ls -la modules/ 2>/dev/null || echo "No modules directory"
-
-          echo "=== Contents of .libs directory ==="
-          ls -la .libs/ 2>/dev/null || echo "No .libs directory"
-
-          echo "=== Checking submodule cloning ==="
-          ls -la valkey-glide/ 2>/dev/null || echo "valkey-glide directory not found"
-          ls -la valkey-glide/ffi/ 2>/dev/null || echo "valkey-glide/ffi directory not found"
-
-          echo "=== Checking submodule commit ==="
-          if [ -d valkey-glide/.git ]; then
-            echo "Submodule git directory found"
-            cd valkey-glide
-            echo "Current commit: $(git rev-parse HEAD)"
-            echo "Current commit short: $(git rev-parse --short HEAD)"
-            echo "Commit message: $(git log -1 --oneline)"
-            cd ..
-          else
-            echo "No .git directory in valkey-glide"
-          fi
-
-          echo "=== Checking parent repository submodule record ==="
-          if [ -d .git ]; then
-            echo "Parent git directory found"
-            echo "Recorded submodule commit: $(git ls-tree HEAD valkey-glide | awk '{print $3}')"
-          else
-            echo "No .git directory in parent"
-          fi
-
-          if [ $MAKE_EXIT_CODE -eq 0 ]; then
-            echo "=== Build completed successfully ==="
-            echo "=== Running make install ==="
-            sudo make install
+          if [ $PECL_EXIT_CODE -eq 0 ]; then
+            echo "=== PECL installation completed successfully ==="
             
             echo "=== Checking installation ==="
             php-config --extension-dir
             ls -la $(php-config --extension-dir) | grep valkey || echo "valkey_glide.so not found in extension directory"
+            
+            echo "=== Testing extension loading ==="
+            php -d extension=valkey_glide -m | grep -i valkey || echo "Extension not loaded"
+            
+            echo "=== Testing basic functionality ==="
+            php -d extension=valkey_glide -r "
+              if (class_exists('Glide\\Client')) {
+                echo 'SUCCESS: Glide\\Client class found\n';
+              } else {
+                echo 'ERROR: Glide\\Client class not found\n';
+                exit(1);
+              }
+            "
           else
-            echo "=== Build failed, showing debugging info ==="
+            echo "=== PECL installation failed ==="
+            
+            echo "=== Checking PECL logs ==="
+            cat /tmp/pear/install/valkey_glide*/make.log 2>/dev/null || echo "No make.log found"
             
             echo "=== Checking for build errors ==="
-            grep -i "error\|failed\|cannot" make.log | head -10 || echo "No obvious errors found"
+            find /tmp/pear -name "*.log" -exec echo "=== {} ===" \; -exec cat {} \; 2>/dev/null || echo "No log files found"
             
-            echo "=== Checking submodule status ==="
-            if [ -d valkey-glide/.git ]; then
-              echo "Submodule was cloned successfully"
-              ls -la valkey-glide/ffi/target/release/ 2>/dev/null || echo "Rust build artifacts not found"
-            else
-              echo "Submodule cloning may have failed"
-            fi
-            
-            exit $MAKE_EXIT_CODE
+            exit 1
           fi
 
       - name: Verify PECL installation

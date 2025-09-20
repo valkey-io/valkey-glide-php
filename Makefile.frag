@@ -23,25 +23,6 @@ CFLAGS += -Werror
 # Force header generation before any compilation
 $(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
 
-# Make protobuf source files depend on header generation (which includes protobuf generation)
-src/command_request.pb-c.c: include/glide_bindings.h
-	@echo "DEBUG: command_request.pb-c.c depends on include/glide_bindings.h"
-
-src/command_request.pb-c.h: include/glide_bindings.h
-	@echo "DEBUG: command_request.pb-c.h depends on include/glide_bindings.h"
-
-src/connection_request.pb-c.c: include/glide_bindings.h
-	@echo "DEBUG: connection_request.pb-c.c depends on include/glide_bindings.h"
-
-src/connection_request.pb-c.h: include/glide_bindings.h
-	@echo "DEBUG: connection_request.pb-c.h depends on include/glide_bindings.h"
-
-src/response.pb-c.c: include/glide_bindings.h
-	@echo "DEBUG: response.pb-c.c depends on include/glide_bindings.h"
-
-src/response.pb-c.h: include/glide_bindings.h
-	@echo "DEBUG: response.pb-c.h depends on include/glide_bindings.h"
-
 # Debug what files exist
 debug-files:
 	@echo "=== DEBUG: Checking what files exist ==="
