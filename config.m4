@@ -224,9 +224,17 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     dnl Generate main header
     if test -d "valkey-glide/ffi"; then
       AC_MSG_RESULT([building rust and generating header])
-      AC_MSG_RESULT([Debug: files in source dir before build=$(ls -la . | grep -E "(cargo|cbindgen)")])
-      AC_MSG_RESULT([Debug: checking ../../cargo from ffi dir=$(cd valkey-glide/ffi && ls -la ../../cargo 2>/dev/null || echo "NOT FOUND")])
-      AC_MSG_RESULT([Debug: checking ../../cbindgen from ffi dir=$(cd valkey-glide/ffi && ls -la ../../cbindgen 2>/dev/null || echo "NOT FOUND")])
+      AC_MSG_RESULT([Debug: checking for cargo symlink])
+      if test -x "./cargo"; then
+        AC_MSG_RESULT([Debug: cargo symlink exists])
+      else
+        AC_MSG_RESULT([Debug: cargo symlink missing])
+      fi
+      if test -x "./cbindgen"; then
+        AC_MSG_RESULT([Debug: cbindgen symlink exists])
+      else
+        AC_MSG_RESULT([Debug: cbindgen symlink missing])
+      fi
       cd valkey-glide/ffi && ../../cargo build --release && ../../cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
     else
       AC_MSG_ERROR([ffi directory not found])
