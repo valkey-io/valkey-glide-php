@@ -48,32 +48,40 @@ Requirements:
    <file name="php_valkey_glide.h" role="src" />
    <file name="valkey_glide.stub.php" role="src" />
    <file name="valkey_glide_cluster.c" role="src" />
-   <file name="valkey_glide_cluster.h" role="src" />
    <file name="valkey_glide_cluster.stub.php" role="src" />
    <file name="cluster_scan_cursor.c" role="src" />
    <file name="cluster_scan_cursor.h" role="src" />
    <file name="cluster_scan_cursor.stub.php" role="src" />
    <file name="command_response.c" role="src" />
    <file name="command_response.h" role="src" />
+   <file name="common.h" role="src" />
    <file name="logger.c" role="src" />
    <file name="logger.h" role="src" />
    <file name="logger.stub.php" role="src" />
    <file name="valkey_glide_commands.c" role="src" />
+   <file name="valkey_glide_commands_common.h" role="src" />
    <file name="valkey_glide_commands_2.c" role="src" />
    <file name="valkey_glide_commands_3.c" role="src" />
    <file name="valkey_glide_core_commands.c" role="src" />
    <file name="valkey_glide_core_common.c" role="src" />
+   <file name="valkey_glide_core_common.h" role="src" />
    <file name="valkey_glide_expire_commands.c" role="src" />
    <file name="valkey_glide_geo_commands.c" role="src" />
    <file name="valkey_glide_geo_common.c" role="src" />
+   <file name="valkey_glide_geo_common.h" role="src" />
    <file name="valkey_glide_hash_common.c" role="src" />
+   <file name="valkey_glide_hash_common.h" role="src" />
    <file name="valkey_glide_list_common.c" role="src" />
+   <file name="valkey_glide_list_common.h" role="src" />
    <file name="valkey_glide_s_common.c" role="src" />
+   <file name="valkey_glide_s_common.h" role="src" />
    <file name="valkey_glide_str_commands.c" role="src" />
    <file name="valkey_glide_x_commands.c" role="src" />
    <file name="valkey_glide_x_common.c" role="src" />
+   <file name="valkey_glide_x_common.h" role="src" />
    <file name="valkey_glide_z.c" role="src" />
    <file name="valkey_glide_z_common.c" role="src" />
+   <file name="valkey_glide_z_common.h" role="src" />
    <file name="valkey_z_php_methods.c" role="src" />
    <dir name="src">
     <file name="client_constructor_mock.c" role="src" />
