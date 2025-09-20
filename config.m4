@@ -133,7 +133,11 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       fi
     fi
     
-    dnl Create symlinks in current directory
+    dnl Work in source directory for PECL builds
+    cd "$PECL_SOURCE_DIR"
+    AC_MSG_RESULT([Debug: changed to source directory $(pwd)])
+    
+    dnl Create symlinks in source directory where they'll be used
     if test -n "$CARGO_PATH" && test ! -x "./cargo"; then
       AC_MSG_RESULT([Debug: creating cargo symlink from $CARGO_PATH])
       ln -sf "$CARGO_PATH" ./cargo
@@ -148,7 +152,11 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     AC_MSG_RESULT([Debug: cbindgen available=$(test -x "./cbindgen" && echo "yes" || echo "no")])
     AC_MSG_RESULT([Debug: protoc-c available=$(which protoc-c || echo "NOT FOUND")])
     
-    dnl Final tool check using symlinks
+    AC_MSG_RESULT([Debug: cargo available=$(test -x "./cargo" && echo "yes" || echo "no")])
+    AC_MSG_RESULT([Debug: cbindgen available=$(test -x "./cbindgen" && echo "yes" || echo "no")])
+    AC_MSG_RESULT([Debug: protoc-c available=$(which protoc-c || echo "NOT FOUND")])
+    
+    dnl Final tool check using symlinks in source directory
     if test "$(which git)" = "NOT FOUND"; then
       AC_MSG_ERROR([git not found - please install git])
     fi
@@ -164,10 +172,6 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     if test "$(which python3)" = "NOT FOUND"; then
       AC_MSG_ERROR([python3 not found - please install Python 3])
     fi
-    
-    dnl Work in source directory for PECL builds
-    cd "$PECL_SOURCE_DIR"
-    AC_MSG_RESULT([Debug: changed to source directory $(pwd)])
     
     dnl For PECL builds, handle submodules using .submodule-commits file
     if test -f ".submodule-commits" && test ! -d "valkey-glide/.git"; then
@@ -220,6 +224,9 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     dnl Generate main header
     if test -d "valkey-glide/ffi"; then
       AC_MSG_RESULT([building rust and generating header])
+      AC_MSG_RESULT([Debug: files in source dir before build=$(ls -la . | grep -E "(cargo|cbindgen)")])
+      AC_MSG_RESULT([Debug: checking ../../cargo from ffi dir=$(cd valkey-glide/ffi && ls -la ../../cargo 2>/dev/null || echo "NOT FOUND")])
+      AC_MSG_RESULT([Debug: checking ../../cbindgen from ffi dir=$(cd valkey-glide/ffi && ls -la ../../cbindgen 2>/dev/null || echo "NOT FOUND")])
       cd valkey-glide/ffi && ../../cargo build --release && ../../cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
     else
       AC_MSG_ERROR([ffi directory not found])
