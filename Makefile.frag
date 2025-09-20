@@ -20,33 +20,9 @@ GEN_INCLUDE_DIR = include/glide
 GEN_SRC_DIR = src
 CFLAGS += -Werror
 
-# Make every source file depend on header generation
-valkey_glide.lo: include/glide_bindings.h
-valkey_glide_cluster.lo: include/glide_bindings.h
-cluster_scan_cursor.lo: include/glide_bindings.h
-command_response.lo: include/glide_bindings.h
-logger.lo: include/glide_bindings.h
-valkey_glide_commands.lo: include/glide_bindings.h
-valkey_glide_commands_2.lo: include/glide_bindings.h
-valkey_glide_commands_3.lo: include/glide_bindings.h
-valkey_glide_core_commands.lo: include/glide_bindings.h
-valkey_glide_core_common.lo: include/glide_bindings.h
-valkey_glide_expire_commands.lo: include/glide_bindings.h
-valkey_glide_geo_commands.lo: include/glide_bindings.h
-valkey_glide_geo_common.lo: include/glide_bindings.h
-valkey_glide_hash_common.lo: include/glide_bindings.h
-valkey_glide_list_common.lo: include/glide_bindings.h
-valkey_glide_s_common.lo: include/glide_bindings.h
-valkey_glide_str_commands.lo: include/glide_bindings.h
-valkey_glide_x_commands.lo: include/glide_bindings.h
-valkey_glide_x_common.lo: include/glide_bindings.h
-valkey_glide_z.lo: include/glide_bindings.h
-valkey_glide_z_common.lo: include/glide_bindings.h
-valkey_z_php_methods.lo: include/glide_bindings.h
-src/command_request.lo: include/glide_bindings.h
-src/connection_request.lo: include/glide_bindings.h
-src/response.lo: include/glide_bindings.h
-src/client_constructor_mock.lo: include/glide_bindings.h
+# Make all source files depend on header generation (works with libtool)
+%.c: include/glide_bindings.h
+src/%.c: include/glide_bindings.h
 
 # Force header generation before any compilation
 $(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
