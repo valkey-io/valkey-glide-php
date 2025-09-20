@@ -20,16 +20,8 @@ GEN_INCLUDE_DIR = include/glide
 GEN_SRC_DIR = src
 CFLAGS += -Werror
 
-# Make specific protobuf object files depend on header generation
-src/command_request.lo: include/glide_bindings.h
-src/connection_request.lo: include/glide_bindings.h  
-src/response.lo: include/glide_bindings.h
-
 # Force header generation before any compilation
 $(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
-
-# Backward compatibility alias
-build-modules-pre: include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
 
 # Make protobuf source files depend on header generation (which includes protobuf generation)
 src/command_request.pb-c.c: include/glide_bindings.h
