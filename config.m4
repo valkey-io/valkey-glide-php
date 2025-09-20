@@ -111,9 +111,10 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       . "$HOME/.cargo/env"
     fi
     
-    dnl Find cargo and cbindgen, create symlinks if needed
+    dnl Find cargo, cbindgen, and rustc, create symlinks if needed
     CARGO_PATH=$(which cargo 2>/dev/null || echo "")
     CBINDGEN_PATH=$(which cbindgen 2>/dev/null || echo "")
+    RUSTC_PATH=$(which rustc 2>/dev/null || echo "")
     
     dnl Search for cargo in common locations if not in PATH
     if test -z "$CARGO_PATH"; then
@@ -133,6 +134,15 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       fi
     fi
     
+    dnl Search for rustc in common locations if not in PATH
+    if test -z "$RUSTC_PATH"; then
+      AC_MSG_RESULT([Debug: searching for rustc with find])
+      RUSTC_PATH=$(find /usr/bin /usr/local/bin ~/.cargo/bin /home -name "rustc" -type f -executable 2>/dev/null | head -1)
+      if test -n "$RUSTC_PATH"; then
+        AC_MSG_RESULT([Debug: found rustc at $RUSTC_PATH])
+      fi
+    fi
+    
     dnl Work in source directory for PECL builds
     cd "$PECL_SOURCE_DIR"
     AC_MSG_RESULT([Debug: changed to source directory $(pwd)])
@@ -148,8 +158,14 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       ln -sf "$CBINDGEN_PATH" ./cbindgen
     fi
     
+    if test -n "$RUSTC_PATH" && test ! -x "./rustc"; then
+      AC_MSG_RESULT([Debug: creating rustc symlink from $RUSTC_PATH])
+      ln -sf "$RUSTC_PATH" ./rustc
+    fi
+    
     AC_MSG_RESULT([Debug: cargo available=$(test -x "./cargo" && echo "yes" || echo "no")])
     AC_MSG_RESULT([Debug: cbindgen available=$(test -x "./cbindgen" && echo "yes" || echo "no")])
+    AC_MSG_RESULT([Debug: rustc available=$(test -x "./rustc" && echo "yes" || echo "no")])
     AC_MSG_RESULT([Debug: protoc-c available=$(which protoc-c || echo "NOT FOUND")])
     
     AC_MSG_RESULT([Debug: cargo available=$(test -x "./cargo" && echo "yes" || echo "no")])
