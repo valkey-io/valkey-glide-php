@@ -96,28 +96,73 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     
     dnl Debug tool availability
     AC_MSG_RESULT([Debug: git=$(which git || echo "NOT FOUND")])
+    AC_MSG_RESULT([Debug: git path=$(command -v git || echo "NOT FOUND")])
+    AC_MSG_RESULT([Debug: git version=$(git --version 2>/dev/null || echo "FAILED")])
     AC_MSG_RESULT([Debug: cargo=$(which cargo || echo "NOT FOUND")])
     AC_MSG_RESULT([Debug: cbindgen=$(which cbindgen || echo "NOT FOUND")])
     AC_MSG_RESULT([Debug: protoc-c=$(which protoc-c || echo "NOT FOUND")])
+    AC_MSG_RESULT([Debug: python3=$(which python3 || echo "NOT FOUND")])
+    AC_MSG_RESULT([Debug: HOME=$HOME])
+    AC_MSG_RESULT([Debug: USER=$USER])
     
-    dnl Ensure PATH includes cargo
-    export PATH="$HOME/.cargo/bin:$PATH"
+    dnl Try to find and source cargo environment
+    if test -f "$HOME/.cargo/env"; then
+      AC_MSG_RESULT([Debug: sourcing $HOME/.cargo/env])
+      . "$HOME/.cargo/env"
+    fi
+    
+    dnl Add common cargo paths to PATH
+    export PATH="$HOME/.cargo/bin:/usr/local/cargo/bin:/opt/cargo/bin:$PATH"
     AC_MSG_RESULT([Debug: PATH after cargo=$PATH])
+    AC_MSG_RESULT([Debug: cargo after PATH=$(which cargo || echo "NOT FOUND")])
+    AC_MSG_RESULT([Debug: cbindgen after PATH=$(which cbindgen || echo "NOT FOUND")])
+    AC_MSG_RESULT([Debug: protoc-c after PATH=$(which protoc-c || echo "NOT FOUND")])
+    
+    dnl Final tool check
+    if test "$(which cargo)" = "NOT FOUND"; then
+      AC_MSG_ERROR([cargo not found - please install Rust])
+    fi
+    if test "$(which cbindgen)" = "NOT FOUND"; then
+      AC_MSG_ERROR([cbindgen not found - please install with: cargo install cbindgen])
+    fi
+    if test "$(which protoc-c)" = "NOT FOUND"; then
+      AC_MSG_ERROR([protoc-c not found - please install protobuf-c-compiler])
+    fi
+    if test "$(which python3)" = "NOT FOUND"; then
+      AC_MSG_ERROR([python3 not found - please install Python 3])
+    fi
     
     dnl Work in source directory for PECL builds
     cd "$PECL_SOURCE_DIR"
     AC_MSG_RESULT([Debug: changed to source directory $(pwd)])
     
-    dnl Ensure submodules are available
-    if test ! -d "valkey-glide/.git"; then
-      AC_MSG_RESULT([cloning submodules])
-      git submodule update --init --recursive --depth 1 || AC_MSG_ERROR([Failed to clone submodules])
+    dnl For PECL builds, clone submodules using .submodule-commits file
+    if test -f ".submodule-commits" && test ! -d "valkey-glide/.git"; then
+      AC_MSG_RESULT([cloning submodules from .submodule-commits])
+      
+      dnl Read the commit hash from .submodule-commits
+      SUBMODULE_COMMIT=$(cat .submodule-commits | head -1)
+      AC_MSG_RESULT([Debug: submodule commit=$SUBMODULE_COMMIT])
+      
+      dnl Clone the submodule at the specific commit
+      git clone --depth 1 https://github.com/valkey-io/valkey-glide.git valkey-glide || AC_MSG_ERROR([Failed to clone valkey-glide])
+      cd valkey-glide
+      git fetch --depth 1 origin "$SUBMODULE_COMMIT" || AC_MSG_ERROR([Failed to fetch commit $SUBMODULE_COMMIT])
+      git checkout "$SUBMODULE_COMMIT" || AC_MSG_ERROR([Failed to checkout commit $SUBMODULE_COMMIT])
+      cd ..
     else
-      AC_MSG_RESULT([submodules already exist])
+      AC_MSG_RESULT([submodules already exist or no .submodule-commits])
     fi
     
     dnl Generate protobuf files
     mkdir -p include/glide src
+    
+    dnl Run Python script to modify proto files (like in Makefile.frag)
+    if test -f "utils/remove_optional_from_proto.py"; then
+      AC_MSG_RESULT([running proto modification script])
+      python3 utils/remove_optional_from_proto.py || AC_MSG_RESULT([proto script failed, continuing])
+    fi
+    
     if test -d "valkey-glide/glide-core/src/protobuf"; then
       AC_MSG_RESULT([generating protobuf files])
       for proto in valkey-glide/glide-core/src/protobuf/*.proto; do
