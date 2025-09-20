@@ -12,6 +12,8 @@
     <exclude-pattern>*/autom4te.cache/*</exclude-pattern>
     <exclude-pattern>*/build/*</exclude-pattern>
     <exclude-pattern>*/.libs/*</exclude-pattern>
+    <exclude-pattern>*/tests/Connection_request/*</exclude-pattern>
+    <exclude-pattern>*/tests/GPBMetadata/*</exclude-pattern>
     <exclude-pattern>*/valkey-glide/*</exclude-pattern>
     <!-- Use PSR-12 standard -->
     <rule ref="PSR12"/>
