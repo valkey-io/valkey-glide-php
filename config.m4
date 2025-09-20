@@ -117,24 +117,20 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     
     dnl Search for cargo in common locations if not in PATH
     if test -z "$CARGO_PATH"; then
-      for cargo_location in /usr/bin/cargo /usr/local/bin/cargo ~/.cargo/bin/cargo /home/*/cargo/bin/cargo; do
-        if test -x "$cargo_location"; then
-          CARGO_PATH="$cargo_location"
-          AC_MSG_RESULT([Debug: found cargo at $cargo_location])
-          break
-        fi
-      done
+      AC_MSG_RESULT([Debug: searching for cargo with find])
+      CARGO_PATH=$(find /usr/bin /usr/local/bin ~/.cargo/bin /home -name "cargo" -type f -executable 2>/dev/null | head -1)
+      if test -n "$CARGO_PATH"; then
+        AC_MSG_RESULT([Debug: found cargo at $CARGO_PATH])
+      fi
     fi
     
     dnl Search for cbindgen in common locations if not in PATH
     if test -z "$CBINDGEN_PATH"; then
-      for cbindgen_location in /usr/bin/cbindgen /usr/local/bin/cbindgen ~/.cargo/bin/cbindgen /home/*/cargo/bin/cbindgen; do
-        if test -x "$cbindgen_location"; then
-          CBINDGEN_PATH="$cbindgen_location"
-          AC_MSG_RESULT([Debug: found cbindgen at $cbindgen_location])
-          break
-        fi
-      done
+      AC_MSG_RESULT([Debug: searching for cbindgen with find])
+      CBINDGEN_PATH=$(find /usr/bin /usr/local/bin ~/.cargo/bin /home -name "cbindgen" -type f -executable 2>/dev/null | head -1)
+      if test -n "$CBINDGEN_PATH"; then
+        AC_MSG_RESULT([Debug: found cbindgen at $CBINDGEN_PATH])
+      fi
     fi
     
     dnl Create symlinks in current directory
