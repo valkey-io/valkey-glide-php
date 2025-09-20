@@ -20,15 +20,10 @@ GEN_INCLUDE_DIR = include/glide
 GEN_SRC_DIR = src
 CFLAGS += -Werror
 
-# Force header generation to be the very first thing that happens
-.PHONY: ensure-headers-first
-ensure-headers-first: include/glide_bindings.h
-	@echo "Headers generated, proceeding with build"
-
-# Make the build targets depend on headers being ready first
-$(all_targets): ensure-headers-first
-install: ensure-headers-first  
-modules: ensure-headers-first
+# Make specific protobuf object files depend on header generation
+src/command_request.lo: include/glide_bindings.h
+src/connection_request.lo: include/glide_bindings.h  
+src/response.lo: include/glide_bindings.h
 
 # Force header generation before any compilation
 $(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
