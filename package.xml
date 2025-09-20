@@ -45,7 +45,7 @@ Requirements:
    <file name=".gitmodules" role="src" />
    <file name=".submodule-commits" role="src" />
    <file name="valkey_glide.c" role="src" />
-   <file name="valkey_glide.h" role="src" />
+   <file name="php_valkey_glide.h" role="src" />
    <file name="valkey_glide.stub.php" role="src" />
    <file name="valkey_glide_cluster.c" role="src" />
    <file name="valkey_glide_cluster.h" role="src" />
@@ -98,12 +98,6 @@ Requirements:
     <min>1.10.0</min>
    </pearinstaller>
   </required>
-  <optional>
-   <package>
-    <name>protobuf</name>
-    <channel>pecl.php.net</channel>
-   </package>
-  </optional>
  </dependencies>
  <providesextension>valkey_glide</providesextension>
  <extsrcrelease>
