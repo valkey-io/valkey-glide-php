@@ -4,6 +4,9 @@ PHP_ARG_ENABLE(valkey_glide, whether to enable Valkey Glide support,
 PHP_ARG_ENABLE(valkey_glide_asan, whether to enable AddressSanitizer for Valkey Glide,
 [  --enable-valkey-glide-asan   Enable AddressSanitizer for debugging (requires clang/gcc with ASAN support)], no, no)
 
+PHP_ARG_ENABLE(debug, whether to enable debug mode,
+[  --enable-debug   Enable debug mode], no, no)
+
 if test "$PHP_VALKEY_GLIDE" != "no"; then
 
   dnl Check if ASAN is enabled
