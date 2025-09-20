@@ -265,6 +265,21 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     
     AC_MSG_RESULT([header generation complete])
     AC_MSG_RESULT([Debug: generated files=$(ls -la include/ src/ 2>/dev/null || echo "none")])
+    
+    dnl Copy generated files back to build directory for PECL make
+    BUILD_DIR=$(pwd)
+    if test "$BUILD_DIR" != "$PECL_SOURCE_DIR"; then
+      AC_MSG_RESULT([Debug: copying generated files from source to build directory])
+      AC_MSG_RESULT([Debug: source dir=$PECL_SOURCE_DIR])
+      AC_MSG_RESULT([Debug: build dir=$BUILD_DIR])
+      
+      cd "$BUILD_DIR"
+      cp -r "$PECL_SOURCE_DIR/include" . 2>/dev/null || true
+      cp -r "$PECL_SOURCE_DIR/src" . 2>/dev/null || true
+      cp -r "$PECL_SOURCE_DIR/valkey-glide" . 2>/dev/null || true
+      
+      AC_MSG_RESULT([Debug: files copied to build dir=$(ls -la include/ src/ 2>/dev/null || echo "none")])
+    fi
   else
     AC_MSG_RESULT([PIE build detected - headers will be generated via Makefile (no .submodule-commits)])
   fi
