@@ -77,6 +77,7 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
   AC_MSG_RESULT([Debug: PEAR_TEMP_DIR=$PEAR_TEMP_DIR])
   AC_MSG_RESULT([Debug: configure script=$0])
   AC_MSG_RESULT([Debug: current directory=$(pwd)])
+  AC_MSG_RESULT([Debug: files in current dir=$(ls -la . | head -10)])
   AC_MSG_RESULT([Debug: .gitmodules exists=$(test -f ".gitmodules" && echo "yes" || echo "no")])
   AC_MSG_RESULT([Debug: .submodule-commits exists=$(test -f ".submodule-commits" && echo "yes" || echo "no")])
   AC_MSG_RESULT([Debug: valkey-glide exists=$(test -d "valkey-glide" && echo "yes" || echo "no")])
