@@ -171,7 +171,24 @@ jobs:
 
           echo "=== Installing package with PECL ==="
           # Install the package using PECL (this tests the real user experience)
-          sudo pecl install "${{ env.PACKAGE_DIR }}.tgz"
+          # But first, let's debug what PECL is doing
+          sudo pecl install -f "${{ env.PACKAGE_DIR }}.tgz" 2>&1 | tee pecl_install.log || {
+            echo "=== PECL install failed, checking logs ==="
+            
+            echo "=== PECL install log ==="
+            cat pecl_install.log
+            
+            echo "=== Checking generated Makefile ==="
+            find /tmp/pear -name "Makefile" -exec echo "=== {} ===" \; -exec head -50 {} \; 2>/dev/null || echo "No Makefiles found"
+            
+            echo "=== Checking Makefile.frag inclusion ==="
+            find /tmp/pear -name "Makefile" -exec grep -l "Makefile.frag\|include/glide_bindings.h" {} \; 2>/dev/null || echo "No Makefile.frag references found"
+            
+            echo "=== Checking build directory contents ==="
+            find /tmp/pear -type f -name "*.c" -o -name "*.h" -o -name "Makefile*" | head -20
+            
+            exit 1
+          }
           PECL_EXIT_CODE=$?
 
           echo "=== PECL install exit code: $PECL_EXIT_CODE ==="
