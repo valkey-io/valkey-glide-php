@@ -72,6 +72,38 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
   GEN_INCLUDE_DIR="include/glide"
   GEN_SRC_DIR="src"
 
+  dnl Generate headers during configure
+  AC_MSG_CHECKING([for header generation])
+  
+  dnl Ensure submodules are available
+  if test ! -d "valkey-glide/.git"; then
+    AC_MSG_RESULT([cloning submodules])
+    if test -f ".gitmodules"; then
+      git submodule update --init --recursive --depth 1 || AC_MSG_ERROR([Failed to clone submodules])
+    fi
+  fi
+  
+  dnl Generate protobuf files
+  mkdir -p include/glide src
+  if command -v protoc-c >/dev/null 2>&1 && test -d "valkey-glide/glide-core/src/protobuf"; then
+    for proto in valkey-glide/glide-core/src/protobuf/*.proto; do
+      if test -f "$proto"; then
+        protoc-c --c_out=src --proto_path=valkey-glide/glide-core/src/protobuf "$proto"
+      fi
+    done
+    cp src/*.pb-c.h include/glide/ 2>/dev/null || true
+  fi
+  
+  dnl Generate main header
+  if test -d "valkey-glide/ffi" && command -v cargo >/dev/null 2>&1; then
+    cd valkey-glide/ffi && cargo build --release && cd ../..
+    if command -v cbindgen >/dev/null 2>&1; then
+      cd valkey-glide/ffi && cbindgen --output ../../include/glide_bindings.h && cd ../..
+    fi
+  fi
+  
+  AC_MSG_RESULT([done])
+
   EXTRA_DIST="$EXTRA_DIST valkey_glide.stub.php valkey_glide_cluster.stub.php logger.stub.php"
   AC_SUBST(EXTRA_DIST)
 fi
