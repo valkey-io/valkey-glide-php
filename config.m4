@@ -111,34 +111,55 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       . "$HOME/.cargo/env"
     fi
     
-    dnl Add standard cargo paths to PATH
-    export PATH="$HOME/.cargo/bin:/usr/local/cargo/bin:/opt/cargo/bin:$PATH"
+    dnl Find cargo and cbindgen, create symlinks if needed
+    CARGO_PATH=$(which cargo 2>/dev/null || echo "")
+    CBINDGEN_PATH=$(which cbindgen 2>/dev/null || echo "")
     
-    dnl If still not found, try to find cargo in common locations
-    if test "$(which cargo)" = "NOT FOUND"; then
-      AC_MSG_RESULT([Debug: cargo not in PATH, searching common locations])
-      for cargo_path in /usr/bin/cargo /usr/local/bin/cargo ~/.cargo/bin/cargo; do
-        if test -x "$cargo_path"; then
-          AC_MSG_RESULT([Debug: found cargo at $cargo_path])
-          export PATH="$(dirname "$cargo_path"):$PATH"
+    dnl Search for cargo in common locations if not in PATH
+    if test -z "$CARGO_PATH"; then
+      for cargo_location in /usr/bin/cargo /usr/local/bin/cargo ~/.cargo/bin/cargo /home/*/cargo/bin/cargo; do
+        if test -x "$cargo_location"; then
+          CARGO_PATH="$cargo_location"
+          AC_MSG_RESULT([Debug: found cargo at $cargo_location])
           break
         fi
       done
     fi
     
-    AC_MSG_RESULT([Debug: final PATH=$PATH])
-    AC_MSG_RESULT([Debug: cargo after search=$(which cargo || echo "NOT FOUND")])
-    AC_MSG_RESULT([Debug: cbindgen after search=$(which cbindgen || echo "NOT FOUND")])
-    AC_MSG_RESULT([Debug: protoc-c after search=$(which protoc-c || echo "NOT FOUND")])
+    dnl Search for cbindgen in common locations if not in PATH
+    if test -z "$CBINDGEN_PATH"; then
+      for cbindgen_location in /usr/bin/cbindgen /usr/local/bin/cbindgen ~/.cargo/bin/cbindgen /home/*/cargo/bin/cbindgen; do
+        if test -x "$cbindgen_location"; then
+          CBINDGEN_PATH="$cbindgen_location"
+          AC_MSG_RESULT([Debug: found cbindgen at $cbindgen_location])
+          break
+        fi
+      done
+    fi
     
-    dnl Final tool check
+    dnl Create symlinks in current directory
+    if test -n "$CARGO_PATH" && test ! -x "./cargo"; then
+      AC_MSG_RESULT([Debug: creating cargo symlink from $CARGO_PATH])
+      ln -sf "$CARGO_PATH" ./cargo
+    fi
+    
+    if test -n "$CBINDGEN_PATH" && test ! -x "./cbindgen"; then
+      AC_MSG_RESULT([Debug: creating cbindgen symlink from $CBINDGEN_PATH])
+      ln -sf "$CBINDGEN_PATH" ./cbindgen
+    fi
+    
+    AC_MSG_RESULT([Debug: cargo available=$(test -x "./cargo" && echo "yes" || echo "no")])
+    AC_MSG_RESULT([Debug: cbindgen available=$(test -x "./cbindgen" && echo "yes" || echo "no")])
+    AC_MSG_RESULT([Debug: protoc-c available=$(which protoc-c || echo "NOT FOUND")])
+    
+    dnl Final tool check using symlinks
     if test "$(which git)" = "NOT FOUND"; then
       AC_MSG_ERROR([git not found - please install git])
     fi
-    if test "$(which cargo)" = "NOT FOUND"; then
-      AC_MSG_ERROR([cargo not found - please install Rust and ensure cargo is in PATH])
+    if test ! -x "./cargo"; then
+      AC_MSG_ERROR([cargo not found - please install Rust and ensure cargo is accessible])
     fi
-    if test "$(which cbindgen)" = "NOT FOUND"; then
+    if test ! -x "./cbindgen"; then
       AC_MSG_ERROR([cbindgen not found - please install with: cargo install cbindgen])
     fi
     if test "$(which protoc-c)" = "NOT FOUND"; then
@@ -156,9 +177,11 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     if test -f ".submodule-commits" && test ! -d "valkey-glide/.git"; then
       AC_MSG_RESULT([cloning submodules from .submodule-commits])
       
-      dnl Read the commit hash from .submodule-commits
-      SUBMODULE_COMMIT=$(cat .submodule-commits | head -1)
-      AC_MSG_RESULT([Debug: submodule commit=$SUBMODULE_COMMIT])
+      dnl Read and parse the commit hash from .submodule-commits (format: valkey-glide=HASH)
+      SUBMODULE_LINE=$(cat .submodule-commits | head -1)
+      SUBMODULE_COMMIT=$(echo "$SUBMODULE_LINE" | cut -d'=' -f2)
+      AC_MSG_RESULT([Debug: submodule line=$SUBMODULE_LINE])
+      AC_MSG_RESULT([Debug: parsed commit=$SUBMODULE_COMMIT])
       
       dnl Remove existing directory if it exists but isn't a git repo
       if test -d "valkey-glide"; then
@@ -201,7 +224,7 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     dnl Generate main header
     if test -d "valkey-glide/ffi"; then
       AC_MSG_RESULT([building rust and generating header])
-      cd valkey-glide/ffi && cargo build --release && cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
+      cd valkey-glide/ffi && ../../cargo build --release && ../../cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
     else
       AC_MSG_ERROR([ffi directory not found])
     fi
