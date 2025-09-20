@@ -72,37 +72,65 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
   GEN_INCLUDE_DIR="include/glide"
   GEN_SRC_DIR="src"
 
-  dnl Generate headers during configure
-  AC_MSG_CHECKING([for header generation])
-  
-  dnl Ensure submodules are available
-  if test ! -d "valkey-glide/.git"; then
-    AC_MSG_RESULT([cloning submodules])
-    if test -f ".gitmodules"; then
+  dnl Debug build environment
+  AC_MSG_RESULT([Debug: PEAR_INSTALLDIR=$PEAR_INSTALLDIR])
+  AC_MSG_RESULT([Debug: PEAR_TEMP_DIR=$PEAR_TEMP_DIR])
+  AC_MSG_RESULT([Debug: configure script=$0])
+  AC_MSG_RESULT([Debug: current directory=$(pwd)])
+  AC_MSG_RESULT([Debug: .gitmodules exists=$(test -f ".gitmodules" && echo "yes" || echo "no")])
+  AC_MSG_RESULT([Debug: valkey-glide exists=$(test -d "valkey-glide" && echo "yes" || echo "no")])
+
+  dnl Only generate headers during configure for PECL builds
+  dnl PIE builds will use Makefile.frag targets instead
+  if test -n "$PEAR_INSTALLDIR" || test -n "$PEAR_TEMP_DIR" || test "$0" = "./configure"; then
+    AC_MSG_CHECKING([for header generation (PECL build detected)])
+    
+    dnl Debug tool availability
+    AC_MSG_RESULT([Debug: git=$(which git || echo "NOT FOUND")])
+    AC_MSG_RESULT([Debug: cargo=$(which cargo || echo "NOT FOUND")])
+    AC_MSG_RESULT([Debug: cbindgen=$(which cbindgen || echo "NOT FOUND")])
+    AC_MSG_RESULT([Debug: protoc-c=$(which protoc-c || echo "NOT FOUND")])
+    
+    dnl Ensure PATH includes cargo
+    export PATH="$HOME/.cargo/bin:$PATH"
+    AC_MSG_RESULT([Debug: PATH after cargo=$PATH])
+    
+    dnl Ensure submodules are available
+    if test ! -d "valkey-glide/.git"; then
+      AC_MSG_RESULT([cloning submodules])
       git submodule update --init --recursive --depth 1 || AC_MSG_ERROR([Failed to clone submodules])
+    else
+      AC_MSG_RESULT([submodules already exist])
     fi
-  fi
-  
-  dnl Generate protobuf files
-  mkdir -p include/glide src
-  if command -v protoc-c >/dev/null 2>&1 && test -d "valkey-glide/glide-core/src/protobuf"; then
-    for proto in valkey-glide/glide-core/src/protobuf/*.proto; do
-      if test -f "$proto"; then
-        protoc-c --c_out=src --proto_path=valkey-glide/glide-core/src/protobuf "$proto"
-      fi
-    done
-    cp src/*.pb-c.h include/glide/ 2>/dev/null || true
-  fi
-  
-  dnl Generate main header
-  if test -d "valkey-glide/ffi" && command -v cargo >/dev/null 2>&1; then
-    cd valkey-glide/ffi && cargo build --release && cd ../..
-    if command -v cbindgen >/dev/null 2>&1; then
-      cd valkey-glide/ffi && cbindgen --output ../../include/glide_bindings.h && cd ../..
+    
+    dnl Generate protobuf files
+    mkdir -p include/glide src
+    if test -d "valkey-glide/glide-core/src/protobuf"; then
+      AC_MSG_RESULT([generating protobuf files])
+      for proto in valkey-glide/glide-core/src/protobuf/*.proto; do
+        if test -f "$proto"; then
+          AC_MSG_RESULT([processing $proto])
+          protoc-c --c_out=src --proto_path=valkey-glide/glide-core/src/protobuf "$proto" || AC_MSG_ERROR([Failed to generate protobuf])
+        fi
+      done
+      cp src/*.pb-c.h include/glide/ 2>/dev/null || true
+    else
+      AC_MSG_ERROR([protobuf directory not found])
     fi
+    
+    dnl Generate main header
+    if test -d "valkey-glide/ffi"; then
+      AC_MSG_RESULT([building rust and generating header])
+      cd valkey-glide/ffi && cargo build --release && cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
+    else
+      AC_MSG_ERROR([ffi directory not found])
+    fi
+    
+    AC_MSG_RESULT([header generation complete])
+    AC_MSG_RESULT([Debug: generated files=$(ls -la include/ src/ 2>/dev/null || echo "none")])
+  else
+    AC_MSG_RESULT([PIE build detected - headers will be generated via Makefile])
   fi
-  
-  AC_MSG_RESULT([done])
 
   EXTRA_DIST="$EXTRA_DIST valkey_glide.stub.php valkey_glide_cluster.stub.php logger.stub.php"
   AC_SUBST(EXTRA_DIST)
