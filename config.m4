@@ -251,7 +251,14 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       else
         AC_MSG_RESULT([Debug: cbindgen symlink missing])
       fi
-      cd valkey-glide/ffi && ../../cargo build --release && ../../cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
+      
+      dnl Set up Rust environment variables for cargo
+      CARGO_DIR=$(dirname "$CARGO_PATH")
+      RUST_TOOLCHAIN_DIR=$(dirname "$CARGO_DIR")
+      AC_MSG_RESULT([Debug: CARGO_HOME=$RUST_TOOLCHAIN_DIR])
+      AC_MSG_RESULT([Debug: CARGO_DIR=$CARGO_DIR])
+      
+      cd valkey-glide/ffi && CARGO_HOME="$RUST_TOOLCHAIN_DIR" PATH="$CARGO_DIR:$PATH" ../../cargo build --release && ../../cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
     else
       AC_MSG_ERROR([ffi directory not found])
     fi
