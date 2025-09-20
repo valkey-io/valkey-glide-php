@@ -170,14 +170,14 @@ jobs:
           ls -la
 
           echo "=== Installing package with PECL ==="
-          
+
           echo "=== Checking available tools ==="
           echo "Git: $(which git || echo 'NOT FOUND')"
           echo "Cargo: $(which cargo || echo 'NOT FOUND')"
           echo "cbindgen: $(which cbindgen || echo 'NOT FOUND')"
           echo "protoc-c: $(which protoc-c || echo 'NOT FOUND')"
           echo "Rust version: $(rustc --version 2>/dev/null || echo 'NOT FOUND')"
-          
+
           # Install the package using PECL (this tests the real user experience)
           # But first, let's debug what PECL is doing
           sudo pecl install -f "${{ env.PACKAGE_DIR }}.tgz" 2>&1 | tee pecl_install.log || {

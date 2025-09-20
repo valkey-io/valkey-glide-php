@@ -78,12 +78,14 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
   AC_MSG_RESULT([Debug: configure script=$0])
   AC_MSG_RESULT([Debug: current directory=$(pwd)])
   AC_MSG_RESULT([Debug: .gitmodules exists=$(test -f ".gitmodules" && echo "yes" || echo "no")])
+  AC_MSG_RESULT([Debug: .submodule-commits exists=$(test -f ".submodule-commits" && echo "yes" || echo "no")])
   AC_MSG_RESULT([Debug: valkey-glide exists=$(test -d "valkey-glide" && echo "yes" || echo "no")])
 
-  dnl Only generate headers during configure for PECL builds
-  dnl PIE builds will use Makefile.frag targets instead
-  if test -n "$PEAR_INSTALLDIR" || test -n "$PEAR_TEMP_DIR" || test "$0" = "./configure"; then
-    AC_MSG_CHECKING([for header generation (PECL build detected)])
+  dnl Detect PECL vs PIE builds:
+  dnl - PECL: Has .submodule-commits file (created specifically for PECL packages)
+  dnl - PIE: Has .gitmodules file (full git repository)
+  if test -f ".submodule-commits"; then
+    AC_MSG_CHECKING([for header generation (PECL build detected - has .submodule-commits)])
     
     dnl Debug tool availability
     AC_MSG_RESULT([Debug: git=$(which git || echo "NOT FOUND")])
@@ -129,7 +131,7 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     AC_MSG_RESULT([header generation complete])
     AC_MSG_RESULT([Debug: generated files=$(ls -la include/ src/ 2>/dev/null || echo "none")])
   else
-    AC_MSG_RESULT([PIE build detected - headers will be generated via Makefile])
+    AC_MSG_RESULT([PIE build detected - headers will be generated via Makefile (no .submodule-commits)])
   fi
 
   EXTRA_DIST="$EXTRA_DIST valkey_glide.stub.php valkey_glide_cluster.stub.php logger.stub.php"
