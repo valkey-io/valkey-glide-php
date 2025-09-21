@@ -167,6 +167,14 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     AC_MSG_RESULT([Debug: arginfo files from phpize=$(ls -la *arginfo.h 2>/dev/null || echo "none")])
     AC_MSG_RESULT([Debug: all files in source=$(ls -la *.h 2>/dev/null | head -10)])
     
+    dnl Check for .stub.php files to confirm they exist
+    AC_MSG_RESULT([Debug: stub files in source=$(ls -la *.stub.php 2>/dev/null || echo "none")])
+    
+    dnl Search more broadly for arginfo.h files that phpize might have created
+    AC_MSG_RESULT([Debug: searching entire temp area for arginfo files])
+    TEMP_ARGINFO=$(find /tmp/pear/temp -name "*arginfo.h" 2>/dev/null | head -10 || echo "none")
+    AC_MSG_RESULT([Debug: arginfo files in temp area: $TEMP_ARGINFO])
+    
     dnl Create symlinks in source directory where they'll be used
     if test -n "$CARGO_PATH" && test ! -x "./cargo"; then
       AC_MSG_RESULT([Debug: creating cargo symlink from $CARGO_PATH])
