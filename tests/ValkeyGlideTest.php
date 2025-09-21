@@ -1096,6 +1096,18 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         $idle1 = $this->valkey_glide->object('idletime', '{idle}1');
         $idle2 = $this->valkey_glide->object('idletime', '{idle}2');
+        
+
+        /* We're not testing if idle is 0 because CPU scheduling on GitHub CI
+         * potatoes can cause that to erroneously fail. */
+        $this->assertLT(2, $idle1);
+        $this->assertLT(2, $idle2);
+
+        $this->assertEquals(2, $this->valkey_glide->touch(['{idle}1', '{idle}2', '{idle}notakey']));
+
+        $idle1 = $this->valkey_glide->object('idletime', '{idle}1');
+        $idle2 = $this->valkey_glide->object('idletime', '{idle}2');
+        
 
         /* We're not testing if idle is 0 because CPU scheduling on GitHub CI
          * potatoes can cause that to erroneously fail. */

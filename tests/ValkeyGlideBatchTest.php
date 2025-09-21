@@ -2655,7 +2655,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertFalse($ret); // failed because another client changed our watched key between WATCH and EXEC.
 
         // watch and unwatch
-        $this->valkey_glide->watch('x');
+        $this->valkey_glide->watch(['x']);
         $r->incr('x'); // other instance
         $this->valkey_glide->unwatch(); // cancel transaction watch
 

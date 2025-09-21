@@ -70,14 +70,6 @@ int handle_string_response(CommandResult* result, char** output, size_t* output_
 int handle_map_response(CommandResult* result, zval* output);
 
 /*
- * Handle a set response
- * Returns 1 on success, 0 if null, -1 on error
- * The output parameter is set to a PHP array (with unique values)
- * This function frees the CommandResult
- */
-int handle_set_response(CommandResult* result, zval* output);
-
-/*
  * Helper function to convert a CommandResponse to a PHP value
  * Returns 1 on success, 0 if null, -1 on error
  * The output parameter is set to the PHP value
