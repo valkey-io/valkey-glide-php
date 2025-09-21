@@ -99,6 +99,17 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     BUILD_DIR=$(pwd)
     AC_MSG_RESULT([Debug: starting in build directory: $BUILD_DIR])
     
+    dnl Search for arginfo.h files in starting directory and subdirectories
+    AC_MSG_RESULT([Debug: searching for arginfo.h files in build area])
+    ARGINFO_FILES=$(find "$BUILD_DIR" -name "*arginfo.h" 2>/dev/null || echo "none")
+    AC_MSG_RESULT([Debug: arginfo files found: $ARGINFO_FILES])
+    
+    dnl Also search in parent directories in case they're elsewhere
+    PARENT_DIR=$(dirname "$BUILD_DIR")
+    AC_MSG_RESULT([Debug: searching parent directory: $PARENT_DIR])
+    PARENT_ARGINFO=$(find "$PARENT_DIR" -name "*arginfo.h" 2>/dev/null | head -5 || echo "none")
+    AC_MSG_RESULT([Debug: arginfo files in parent: $PARENT_ARGINFO])
+    
     dnl Debug tool availability
     AC_MSG_RESULT([Debug: git=$(which git || echo "NOT FOUND")])
     AC_MSG_RESULT([Debug: git path=$(command -v git || echo "NOT FOUND")])
