@@ -277,12 +277,18 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       AC_MSG_RESULT([Debug: source dir=$PECL_SOURCE_DIR])
       AC_MSG_RESULT([Debug: build dir=$BUILD_DIR])
       
+      dnl Check what arginfo.h files exist in source
+      AC_MSG_RESULT([Debug: arginfo files in source=$(ls -la "$PECL_SOURCE_DIR"/*arginfo.h 2>/dev/null || echo "none")])
+      
       cp -r "$PECL_SOURCE_DIR/include" "$BUILD_DIR/" 2>/dev/null || true
       cp -r "$PECL_SOURCE_DIR/src" "$BUILD_DIR/" 2>/dev/null || true
       cp -r "$PECL_SOURCE_DIR/valkey-glide" "$BUILD_DIR/" 2>/dev/null || true
       
       dnl Copy arginfo.h files
       cp "$PECL_SOURCE_DIR"/*_arginfo.h "$BUILD_DIR/" 2>/dev/null || true
+      
+      dnl Check what was copied to build directory
+      AC_MSG_RESULT([Debug: arginfo files in build=$(ls -la "$BUILD_DIR"/*arginfo.h 2>/dev/null || echo "none")])
       
       AC_MSG_RESULT([Debug: files copied to build dir])
     fi
