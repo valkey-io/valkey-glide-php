@@ -102,22 +102,6 @@ int process_list_array_result_async(CommandResponse* response, void* output, zva
         response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
 }
 
-/**
- * Batch-compatible wrapper for boolean responses
- */
-int process_list_bool_result_async(CommandResponse* response, void* output, zval* return_value) {
-    if (!response)
-        return 0;
-
-    if (response->response_type == Bool) {
-        ZVAL_BOOL(return_value, response->bool_value);
-        return 1;
-    } else if (response->response_type == Ok) {
-        ZVAL_TRUE(return_value);
-        return 1;
-    }
-    return 0;
-}
 
 /**
  * Batch-compatible wrapper for pop result responses (handles both single values and arrays)
@@ -577,10 +561,6 @@ int prepare_list_key_count_args(list_command_args_t* args,
     if (args->count > 0) {
         size_t count_len;
         char*  count_str = alloc_list_number_string(args->count, &count_len);
-        if (!count_str) {
-            free_list_command_args(*args_out, *args_len_out);
-            return 0;
-        }
 
         /* Track allocated string */
         *allocated_strings = (char**) emalloc(sizeof(char*));
@@ -966,11 +946,6 @@ int prepare_list_position_args(list_command_args_t* args,
 
         size_t count_len;
         char*  count_str = alloc_list_number_string(args->position_opts.count, &count_len);
-        if (!count_str) {
-            FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-            free_list_command_args(*args_out, *args_len_out);
-            return 0;
-        }
 
         (*allocated_strings)[*allocated_count] = count_str;
         (*allocated_count)++;
@@ -1123,11 +1098,6 @@ int prepare_list_rem_args(list_command_args_t* args,
     /* Second argument: count */
     size_t count_len;
     char*  count_str = alloc_list_number_string(args->count, &count_len);
-    if (!count_str) {
-        FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-        free_list_command_args(*args_out, *args_len_out);
-        return 0;
-    }
 
     (*allocated_strings)[*allocated_count] = count_str;
     (*allocated_count)++;
@@ -1394,11 +1364,6 @@ int prepare_list_mpop_args(list_command_args_t* args,
 
         size_t count_len;
         char*  count_str = alloc_list_number_string(args->mpop_opts.count, &count_len);
-        if (!count_str) {
-            FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-            free_list_command_args(*args_out, *args_len_out);
-            return 0;
-        }
 
         (*allocated_strings)[*allocated_count] = count_str;
         (*allocated_count)++;

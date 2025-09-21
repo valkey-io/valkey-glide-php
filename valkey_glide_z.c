@@ -1599,18 +1599,6 @@ int prepare_mpop_arguments(const void*     glide_client,
         unsigned long* new_args_len =
             (unsigned long*) erealloc(args_len, arg_count * sizeof(unsigned long));
 
-        if (!new_args || !new_args_len) {
-            efree(args);
-            efree(args_len);
-            efree(numkeys_str);
-            *numkeys_str_ptr = NULL;
-            if (is_blocking) {
-                efree(*timeout_str_ptr);
-                *timeout_str_ptr = NULL;
-            }
-            return 0;
-        }
-
         args     = new_args;
         args_len = new_args_len;
 
@@ -1622,17 +1610,7 @@ int prepare_mpop_arguments(const void*     glide_client,
         /* Add count value */
         size_t count_len;
         char*  count_str = alloc_list_number_string(count, &count_len);
-        if (!count_str) {
-            efree(args);
-            efree(args_len);
-            efree(numkeys_str);
-            *numkeys_str_ptr = NULL;
-            if (is_blocking) {
-                efree(*timeout_str_ptr);
-                *timeout_str_ptr = NULL;
-            }
-            return 0;
-        }
+
         args[arg_idx]     = (uintptr_t) count_str;
         args_len[arg_idx] = count_len;
         *count_str_ptr    = count_str;
