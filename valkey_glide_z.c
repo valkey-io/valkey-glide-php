@@ -193,63 +193,6 @@ int execute_zmscore_command(zval* object, int argc, zval* return_value, zend_cla
     int    member_count = 0;
     zval*  z_args       = NULL;
 
-    /* Method signature can be either of the following:
-     * - zMscore(string key, string member [, string ...])
-     * - zMscore(string key, array members)
-     */
-
-    /* First, check if we have the second signature with an array */
-    if (argc == 2) {
-        zval* z_members;
-
-        /* Try to parse as (key, array) */
-        if (zend_parse_method_parameters(
-                argc, object, "Osa", &object, ce, &key, &key_len, &z_members) == SUCCESS) {
-            /* Get ValkeyGlide object */
-            valkey_glide_object* valkey_glide =
-                VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-
-            HashTable* ht_members = Z_ARRVAL_P(z_members);
-            member_count          = zend_hash_num_elements(ht_members);
-
-            if (member_count == 0) {
-                return 0;
-            }
-
-            /* Create an array of members from the associative array */
-            zval* members = emalloc(sizeof(zval) * member_count);
-            zval* data;
-            int   idx = 0;
-
-            ZEND_HASH_FOREACH_VAL(ht_members, data) {
-                ZVAL_COPY_VALUE(&members[idx++], data);
-            }
-            ZEND_HASH_FOREACH_END();
-
-
-            /* Use framework for command execution */
-            z_command_args_t args = {0};
-            args.key              = key;
-            args.key_len          = key_len;
-            args.members          = members;
-            args.member_count     = member_count;
-
-
-            int result = execute_z_generic_command(
-                valkey_glide, ZMScore, &args, NULL, process_z_array_result, return_value);
-
-            /* Clean up */
-            efree(members);
-            if (valkey_glide->is_in_batch_mode) {
-                /* In batch mode, return $this for method chaining */
-                ZVAL_COPY(return_value, object);
-                return 1;
-            }
-
-            return result;
-        }
-    }
-
     /* If we got here, either the array format failed or we have variadic args */
     /* Parse as (key, member, member, ...) format */
     if (zend_parse_method_parameters(

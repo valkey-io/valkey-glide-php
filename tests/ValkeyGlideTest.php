@@ -3111,6 +3111,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(0, $this->valkey_glide->zRank('z', 'one'));
         $this->assertEquals(1, $this->valkey_glide->zRank('z', 'two'));
         $this->assertEquals(2, $this->valkey_glide->zRank('z', 'five'));
+        $this->assertEquals(2, $this->valkey_glide->zRank('z', 'five'));
 
         $this->assertEquals(2, $this->valkey_glide->zRevRank('z', 'one'));
         $this->assertEquals(1, $this->valkey_glide->zRevRank('z', 'two'));
@@ -6281,7 +6282,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         if (! $this->minVersionCheck('5.0')) {
             $this->markTestSkipped();
         }
-
+        foreach (['Pavlo', null] as $consumer) {
+        
         foreach ([0, 100] as $min_idle_time) {
             foreach ([false, true] as $justid) {
                 foreach ([0, 10] as $retrycount) {
@@ -6345,8 +6347,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
                             $this->assertEquals($freturn, $fids);
 
                             if ($retrycount || $tvalue !== null) {
-                                $pending = $this->valkey_glide->xPending('s', 'group1', 0, '+', 1, 'Pavlo');
-
+                                $pending = null;
+                                if ($consumer != null) {
+                                    $pending = $this->valkey_glide->xPending('s', 'group1', 0, '+', 1, $consumer);
+                                } else {
+                                    $pending = $this->valkey_glide->xPending('s', 'group1', 0, '+', 1);
+                                }
+                                
                                 if ($retrycount) {
                                     $this->assertEquals($pending[0][3], $retrycount);
                                 }
@@ -6371,6 +6378,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
                 }
             }
         }
+    }
     }
 
     /* Make sure our XAUTOCLAIM handler works */

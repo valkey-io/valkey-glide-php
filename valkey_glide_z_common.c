@@ -993,11 +993,7 @@ int prepare_z_store_args(z_command_args_t* args,
     char numkeys_str[32];
     snprintf(numkeys_str, sizeof(numkeys_str), "%d", args->member_count);
     char* numkeys_str_copy = estrdup(numkeys_str);
-    if (!numkeys_str_copy) {
-        efree(*args_out);
-        efree(*args_len_out);
-        return 0;
-    }
+
     (*args_out)[1]                             = (uintptr_t) numkeys_str_copy;
     (*args_len_out)[1]                         = strlen(numkeys_str);
     (*allocated_strings)[(*allocated_count)++] = numkeys_str_copy;
@@ -1065,16 +1061,6 @@ int prepare_z_store_args(z_command_args_t* args,
 
         const char* agg_str      = Z_STRVAL_P(store_opts.aggregate);
         char*       agg_str_copy = estrdup(agg_str);
-        if (!agg_str_copy) {
-            /* Cleanup on error */
-            int j;
-            for (j = 0; j < *allocated_count; j++) {
-                efree((*allocated_strings)[j]);
-            }
-            efree(*args_out);
-            efree(*args_len_out);
-            return 0;
-        }
 
         (*args_out)[offset]                        = (uintptr_t) agg_str_copy;
         (*args_len_out)[offset]                    = Z_STRLEN_P(store_opts.aggregate);
@@ -1122,11 +1108,7 @@ int prepare_z_intercard_args(z_command_args_t* args,
     char numkeys_str[32];
     snprintf(numkeys_str, sizeof(numkeys_str), "%d", args->member_count);
     char* numkeys_str_copy = estrdup(numkeys_str);
-    if (!numkeys_str_copy) {
-        efree(*args_out);
-        efree(*args_len_out);
-        return 0;
-    }
+
     (*args_out)[0]                             = (uintptr_t) numkeys_str_copy;
     (*args_len_out)[0]                         = strlen(numkeys_str);
     (*allocated_strings)[(*allocated_count)++] = numkeys_str_copy;
@@ -1158,16 +1140,7 @@ int prepare_z_intercard_args(z_command_args_t* args,
         char limit_str[32];
         snprintf(limit_str, sizeof(limit_str), "%ld", limit);
         char* limit_str_copy = estrdup(limit_str);
-        if (!limit_str_copy) {
-            /* Cleanup on error */
-            int j;
-            for (j = 0; j < *allocated_count; j++) {
-                efree((*allocated_strings)[j]);
-            }
-            efree(*args_out);
-            efree(*args_len_out);
-            return 0;
-        }
+
         (*args_out)[offset]                        = (uintptr_t) limit_str_copy;
         (*args_len_out)[offset]                    = strlen(limit_str);
         (*allocated_strings)[(*allocated_count)++] = limit_str_copy;
@@ -1221,11 +1194,7 @@ int prepare_z_union_args(z_command_args_t* args,
     char numkeys_str[32];
     snprintf(numkeys_str, sizeof(numkeys_str), "%d", args->member_count);
     char* numkeys_str_copy = estrdup(numkeys_str);
-    if (!numkeys_str_copy) {
-        efree(*args_out);
-        efree(*args_len_out);
-        return 0;
-    }
+
     (*args_out)[0]                             = (uintptr_t) numkeys_str_copy;
     (*args_len_out)[0]                         = strlen(numkeys_str);
     (*allocated_strings)[(*allocated_count)++] = numkeys_str_copy;
@@ -1294,16 +1263,6 @@ int prepare_z_union_args(z_command_args_t* args,
         /* Add aggregate value */
         const char* agg_str      = Z_STRVAL_P(union_opts.aggregate);
         char*       agg_str_copy = estrdup(agg_str);
-        if (!agg_str_copy) {
-            /* Cleanup on error */
-            int j;
-            for (j = 0; j < *allocated_count; j++) {
-                efree((*allocated_strings)[j]);
-            }
-            efree(*args_out);
-            efree(*args_len_out);
-            return 0;
-        }
 
         (*args_out)[offset]                        = (uintptr_t) agg_str_copy;
         (*args_len_out)[offset]                    = Z_STRLEN_P(union_opts.aggregate);
@@ -1571,11 +1530,7 @@ int prepare_z_zdiff_args(z_command_args_t* args,
     char numkeys_str[32];
     snprintf(numkeys_str, sizeof(numkeys_str), "%d", args->member_count);
     char* numkeys_str_copy = estrdup(numkeys_str);
-    if (!numkeys_str_copy) {
-        efree(*args_out);
-        efree(*args_len_out);
-        return 0;
-    }
+
     (*args_out)[0]                             = (uintptr_t) numkeys_str_copy;
     (*args_len_out)[0]                         = strlen(numkeys_str);
     (*allocated_strings)[(*allocated_count)++] = numkeys_str_copy;
@@ -1644,11 +1599,7 @@ int prepare_z_randmember_args(z_command_args_t* args,
         char count_str[32];
         snprintf(count_str, sizeof(count_str), "%ld", args->start);
         char* count_str_copy = estrdup(count_str);
-        if (!count_str_copy) {
-            efree(*args_out);
-            efree(*args_len_out);
-            return 0;
-        }
+
         (*args_out)[arg_idx]                       = (uintptr_t) count_str_copy;
         (*args_len_out)[arg_idx]                   = strlen(count_str);
         (*allocated_strings)[(*allocated_count)++] = count_str_copy;
