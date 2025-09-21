@@ -151,6 +151,10 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     cd "$PECL_SOURCE_DIR"
     AC_MSG_RESULT([Debug: changed to source directory $(pwd)])
     
+    dnl Check what arginfo.h files phpize generated
+    AC_MSG_RESULT([Debug: arginfo files from phpize=$(ls -la *arginfo.h 2>/dev/null || echo "none")])
+    AC_MSG_RESULT([Debug: all files in source=$(ls -la *.h 2>/dev/null | head -10)])
+    
     dnl Create symlinks in source directory where they'll be used
     if test -n "$CARGO_PATH" && test ! -x "./cargo"; then
       AC_MSG_RESULT([Debug: creating cargo symlink from $CARGO_PATH])
@@ -284,8 +288,15 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       cp -r "$PECL_SOURCE_DIR/src" "$BUILD_DIR/" 2>/dev/null || true
       cp -r "$PECL_SOURCE_DIR/valkey-glide" "$BUILD_DIR/" 2>/dev/null || true
       
-      dnl Copy arginfo.h files
-      cp "$PECL_SOURCE_DIR"/*_arginfo.h "$BUILD_DIR/" 2>/dev/null || true
+      dnl Copy arginfo.h files explicitly
+      for arginfo_file in cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h; do
+        if test -f "$PECL_SOURCE_DIR/$arginfo_file"; then
+          AC_MSG_RESULT([Debug: copying $arginfo_file])
+          cp "$PECL_SOURCE_DIR/$arginfo_file" "$BUILD_DIR/"
+        else
+          AC_MSG_RESULT([Debug: $arginfo_file not found in source])
+        fi
+      done
       
       dnl Check what was copied to build directory
       AC_MSG_RESULT([Debug: arginfo files in build=$(ls -la "$BUILD_DIR"/*arginfo.h 2>/dev/null || echo "none")])
