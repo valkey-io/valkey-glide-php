@@ -275,17 +275,42 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($this->valkey_glide->set($key1, '12244447777777'));
         $this->assertTrue($this->valkey_glide->set($key2, '6666662244441'));
 
+        // Test basic LCS
         $this->assertEquals('224444', $this->valkey_glide->lcs($key1, $key2));
+        
+        // Test LCS with IDX
         $this->assertEquals(
             ['matches', [[[1, 6], [6, 11]]], 'len', 6],
             $this->valkey_glide->lcs($key1, $key2, ['idx'])
         );
+        
+        // Test LCS with IDX and WITHMATCHLEN
         $this->assertEquals(
             ['matches', [[[1, 6], [6, 11], 6]], 'len', 6],
             $this->valkey_glide->lcs($key1, $key2, ['idx', 'withmatchlen'])
         );
 
+        // Test LCS length only
         $this->assertEquals(6, $this->valkey_glide->lcs($key1, $key2, ['len']));
+
+        // Test MINMATCHLEN with IDX (only matches of length >= 3)
+        $this->assertEquals(
+            ['matches', [[[1, 6], [6, 11]]], 'len', 6],
+            $this->valkey_glide->lcs($key1, $key2, ['idx', 'minmatchlen' => 3])
+        );
+
+        // Test MINMATCHLEN with IDX and WITHMATCHLEN
+        
+        $this->assertEquals(
+            ['matches', [[[1, 6], [6, 11],6]], 'len', 6],
+            $this->valkey_glide->lcs($key1, $key2, ['idx', 'minmatchlen' => 3, 'withmatchlen'])
+        );
+
+        // Test MINMATCHLEN that filters all matches
+        $this->assertEquals(
+            ['matches', [], 'len', 6],
+            $this->valkey_glide->lcs($key1, $key2, ['idx', 'minmatchlen' => 10])
+        );
 
         $this->valkey_glide->del([$key1, $key2]);
     }
