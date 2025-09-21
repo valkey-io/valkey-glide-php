@@ -281,6 +281,9 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       cp -r "$PECL_SOURCE_DIR/src" "$BUILD_DIR/" 2>/dev/null || true
       cp -r "$PECL_SOURCE_DIR/valkey-glide" "$BUILD_DIR/" 2>/dev/null || true
       
+      dnl Copy arginfo.h files
+      cp "$PECL_SOURCE_DIR"/*_arginfo.h "$BUILD_DIR/" 2>/dev/null || true
+      
       AC_MSG_RESULT([Debug: files copied to build dir])
     fi
     
