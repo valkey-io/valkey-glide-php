@@ -230,6 +230,13 @@ jobs:
       - name: Install scancode-toolkit
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
+          # Use exact versions from scancode-toolkit requirements.txt
+          python_version=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+          if [[ $(echo "$python_version >= 3.10" | bc -l) -eq 1 ]]; then
+            pip install "click==8.2.1"
+          else
+            pip install "click==8.1.7"
+          fi
           pip install scancode-toolkit
 
       - name: Install and setup aboutcode-toolkit
@@ -240,6 +247,9 @@ jobs:
 
       - name: Run scancode license scanning
         run: |
+          set -e
+          set -o pipefail
+
           scancode -n 4 --license . \
             --ignore "*valkey-glide/*" \
             --ignore "*bin/*" \
@@ -255,8 +265,20 @@ jobs:
             --ignore "*THIRD_PARTY_LICENSES_PHP*" \
             --json report.json --csv report.csv -v 2>&1 | tee scancode_output.log
 
+          if [ ! -f "report.json" ] || [ ! -s "report.json" ]; then
+            echo "ERROR: report.json not created or empty"
+            cat scancode_output.log
+            exit 1
+          fi
+
       - name: Generate attribution with aboutcode-toolkit
         run: |
+          if [ ! -f "report.json" ]; then
+            echo "ERROR: report.json not found. Scancode step may have failed."
+            echo "Checking scancode output:"
+            cat scancode_output.log || echo "No scancode output log found"
+            exit 1
+          fi
           cd aboutcode-toolkit
           mkdir -p out
           ./about attrib --scancode ../report.json --template ../aboutcode.template out/rep.csv
