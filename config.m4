@@ -87,6 +87,7 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
   AC_MSG_RESULT([Debug: .submodule-commits in source=$(test -f "$PECL_SOURCE_DIR/.submodule-commits" && echo "yes" || echo "no")])
   AC_MSG_RESULT([Debug: .gitmodules in source=$(test -f "$PECL_SOURCE_DIR/.gitmodules" && echo "yes" || echo "no")])
   AC_MSG_RESULT([Debug: valkey-glide in source=$(test -d "$PECL_SOURCE_DIR/valkey-glide" && echo "yes" || echo "no")])
+  AC_MSG_RESULT([Debug: files in source dir=$(ls -la "$PECL_SOURCE_DIR" | head -10)])
 
   dnl Detect PECL vs PIE builds:
   dnl - PECL: Has .submodule-commits file (created specifically for PECL packages)
