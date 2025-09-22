@@ -177,10 +177,10 @@ jobs:
           echo "=== Testing PECL-style installation ==="
           echo "=== Package contents ==="
           tar tzf "${{ env.PACKAGE_DIR }}.tgz" 2>/dev/null | head -20 || echo "Could not list package contents"
-          
+
           echo "=== DEBUG: Checking for include directory in package ==="
           tar tzf "${{ env.PACKAGE_DIR }}.tgz" 2>/dev/null | grep "include/" || echo "No include directory found in package"
-          
+
           echo "=== DEBUG: Checking for glide_bindings.h in package ==="
           tar tzf "${{ env.PACKAGE_DIR }}.tgz" 2>/dev/null | grep "glide_bindings" || echo "No glide_bindings files found in package"
           ls -la
@@ -231,6 +231,17 @@ jobs:
 
           if [ $PECL_EXIT_CODE -eq 0 ]; then
             echo "=== PECL installation completed successfully ==="
+            
+            echo "=== Adding extension to php.ini ==="
+            PHP_INI_PATH=$(php --ini | grep "Loaded Configuration File" | cut -d: -f2 | xargs)
+            echo "PHP INI path: $PHP_INI_PATH"
+            if [ -f "$PHP_INI_PATH" ]; then
+              echo "extension=valkey_glide.so" | sudo tee -a "$PHP_INI_PATH"
+              echo "Extension added to php.ini"
+            else
+              echo "php.ini not found, creating extension config"
+              echo "extension=valkey_glide.so" | sudo tee /etc/php/$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')/cli/conf.d/20-valkey_glide.ini
+            fi
             
             echo "=== Checking installation ==="
             php-config --extension-dir
