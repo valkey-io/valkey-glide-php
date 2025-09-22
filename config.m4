@@ -206,7 +206,7 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
         if test -f "$stub_file"; then
           arginfo_file="${stub_file%.stub.php}_arginfo.h"
           AC_MSG_RESULT([Debug: generating $arginfo_file from $stub_file])
-          $PHP -f "$GEN_STUB_PHP" "$stub_file" 2>&1 || AC_MSG_RESULT([Debug: failed to generate $arginfo_file from $stub_file])
+          php -f "$GEN_STUB_PHP" "$stub_file" 2>&1 || AC_MSG_RESULT([Debug: failed to generate $arginfo_file from $stub_file])
           if test -f "$arginfo_file"; then
             AC_MSG_RESULT([Debug: successfully generated $arginfo_file])
           else
