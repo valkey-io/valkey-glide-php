@@ -139,11 +139,16 @@ jobs:
           cp package.xml "$PACKAGE_DIR/"
 
           # Copy specific source files (exclude temp files)
+          echo "=== Copying .c and .h files including arginfo.h ==="
           for file in *.c *.h; do
             if [[ -f "$file" && "$file" != *~ ]]; then
+              echo "Copying $file to package"
               cp "$file" "$PACKAGE_DIR/"
             fi
           done
+
+          echo "=== Verifying arginfo.h files in package directory ==="
+          ls -la "$PACKAGE_DIR"/*arginfo.h 2>/dev/null || echo "No arginfo.h files found in package directory"
 
           # Copy stub files (exclude temp files)
           for file in *.stub.php; do
