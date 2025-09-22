@@ -1,0 +1,22 @@
+name: Test PECL Minimal
+
+on:
+  push: {}
+  workflow_dispatch: {}
+
+jobs:
+  test-minimal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test basic functionality
+        run: |
+          echo "=== Testing minimal PECL workflow ==="
+          echo "Current directory: $(pwd)"
+          echo "Files: $(ls -la | head -5)"
+          
+          echo "=== Checking for stub files ==="
+          ls -la *.stub.php 2>/dev/null || echo "No stub files found"
+          
+          echo "=== Checking for package.xml.template ==="
+          ls -la package.xml.template 2>/dev/null || echo "No template found"
