@@ -74,6 +74,24 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     AC_MSG_ERROR([protobuf-c library not found. Please install libprotobuf-c-dev])
   ])
   
+  dnl Add Rust FFI library linking
+  AC_MSG_CHECKING([for libglide_ffi.a])
+  RUST_LIB_PATH=""
+  if test -f "valkey-glide/ffi/target/x86_64-unknown-linux-gnu/release/libglide_ffi.a"; then
+    RUST_LIB_PATH="valkey-glide/ffi/target/x86_64-unknown-linux-gnu/release/libglide_ffi.a"
+  elif test -f "valkey-glide/ffi/target/aarch64-unknown-linux-gnu/release/libglide_ffi.a"; then
+    RUST_LIB_PATH="valkey-glide/ffi/target/aarch64-unknown-linux-gnu/release/libglide_ffi.a"
+  elif test -f "valkey-glide/ffi/target/release/libglide_ffi.a"; then
+    RUST_LIB_PATH="valkey-glide/ffi/target/release/libglide_ffi.a"
+  fi
+  
+  if test -n "$RUST_LIB_PATH"; then
+    AC_MSG_RESULT([found at $RUST_LIB_PATH])
+    VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD $RUST_LIB_PATH -lresolv"
+  else
+    AC_MSG_ERROR([libglide_ffi.a not found. Make sure Rust build completed successfully.])
+  fi
+  
   PHP_SUBST(VALKEY_GLIDE_SHARED_LIBADD)
   
   PHP_NEW_EXTENSION(valkey_glide,

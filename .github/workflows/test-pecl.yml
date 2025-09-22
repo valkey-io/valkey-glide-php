@@ -221,6 +221,10 @@ jobs:
           if [ $PECL_EXIT_CODE -eq 0 ]; then
             echo "=== PECL installation completed successfully ==="
             
+            echo "=== Testing extension loading (before php.ini modification) ==="
+            php -d extension=valkey_glide -m | grep valkey_glide && echo "Extension loads successfully!" || echo "Extension failed to load"
+            php -d extension=valkey_glide -r "if (extension_loaded('valkey_glide')) echo 'SUCCESS: Extension loaded!'; else echo 'ERROR: Extension not loaded';"
+            
             echo "=== Adding extension to php.ini ==="
             PHP_INI_PATH=$(php --ini | grep "Loaded Configuration File" | cut -d: -f2 | xargs)
             echo "PHP INI path: $PHP_INI_PATH"
@@ -248,6 +252,10 @@ jobs:
               ldconfig -p | grep protobuf-c || echo "protobuf-c library not found in system"
               echo "Checking if protobuf_c_empty_string symbol exists in system libraries:"
               nm -D /lib/x86_64-linux-gnu/libprotobuf-c.so.1 | grep protobuf_c_empty_string || echo "Symbol not found in libprotobuf-c"
+              echo "Checking for undefined symbols in extension:"
+              nm -u "$SO_FILE" | head -10 || echo "No undefined symbols found"
+              echo "Checking for 'init' symbol specifically:"
+              nm -u "$SO_FILE" | grep init || echo "No undefined init symbol found"
             fi
             
             echo "=== Testing extension loading ==="
