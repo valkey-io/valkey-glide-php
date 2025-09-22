@@ -207,10 +207,12 @@ jobs:
           PECL_EXIT_CODE=$?
 
           echo "=== DEBUG: Complete glide_bindings.h contents (always shown) ==="
-          if [ -f "/tmp/pear/temp/valkey_glide/include/glide_bindings.h" ]; then
+          if [ -f "/tmp/debug_glide_bindings.h" ]; then
+            cat "/tmp/debug_glide_bindings.h"
+          elif [ -f "/tmp/pear/temp/valkey_glide/include/glide_bindings.h" ]; then
             cat "/tmp/pear/temp/valkey_glide/include/glide_bindings.h"
           else
-            echo "=== DEBUG: glide_bindings.h does not exist ==="
+            echo "=== DEBUG: glide_bindings.h not found in either location ==="
           fi
           echo "=== DEBUG: End of glide_bindings.h contents ==="
 

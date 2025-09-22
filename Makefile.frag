@@ -133,9 +133,9 @@ include/glide_bindings.h: ensure-submodules
 		cat include/glide_bindings.h >> include/glide_bindings_tmp.h; \
 		echo '#endif /* GLIDE_BINDINGS_H */' >> include/glide_bindings_tmp.h; \
 		mv include/glide_bindings_tmp.h include/glide_bindings.h; \
-		echo "=== DEBUG: Complete contents of generated glide_bindings.h ==="; \
-		cat include/glide_bindings.h; \
-		echo "=== END DEBUG: glide_bindings.h contents ==="; \
+		echo "=== DEBUG: Copying glide_bindings.h for inspection ==="; \
+		cp include/glide_bindings.h /tmp/debug_glide_bindings.h 2>/dev/null || true; \
+		echo "=== DEBUG: glide_bindings.h copied to /tmp/debug_glide_bindings.h ==="; \
 	fi
 	@echo "=== GENERATING PROTOBUF HEADERS ==="
 	@mkdir -p $(GEN_INCLUDE_DIR) $(GEN_SRC_DIR)
