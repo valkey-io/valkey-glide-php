@@ -1,4 +1,5 @@
 name: Build and test PECL package
+# Test workflow trigger
 
 permissions:
   contents: read
