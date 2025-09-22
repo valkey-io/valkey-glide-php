@@ -92,6 +92,12 @@ jobs:
 
           echo "PHP protobuf classes generated for testing"
 
+      - name: Clean generated files before packaging
+        run: |
+          echo "=== Cleaning generated files that shouldn't be in PECL package ==="
+          rm -rf include/glide_bindings.h include/glide/ src/*.pb-c.* *arginfo.h src/*arginfo.h
+          echo "=== Cleaned generated files ==="
+
       - name: Create PECL package tarball
         run: |
           echo "=== Creating PECL package tarball ==="
