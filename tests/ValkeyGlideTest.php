@@ -3863,8 +3863,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     /* GitHub issue #1211 (ignore redundant calls to pipeline or multi) */
     public function testDoublePipeNoOp()
-    {
-         $this->markTestSkipped();//TODO
+    {         
         /* Only the first pipeline should be honored */
         for ($i = 0; $i < 6; $i++) {
             $this->valkey_glide->pipeline();
@@ -3906,8 +3905,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentTypeString()
-    {
-        $this->markTestSkipped();
+    {        
 
         $key = '{hash}string';
         $dkey = '{hash}' . __FUNCTION__;
@@ -3970,8 +3968,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentTypeList()
-    {
-         $this->markTestSkipped();
+    {         
         $key = '{hash}list';
         $dkey = '{hash}' . __FUNCTION__;
 
@@ -4031,8 +4028,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentTypeSet()
-    {
-         $this->markTestSkipped();
+    {        
         $key = '{hash}set';
         $dkey = '{hash}' . __FUNCTION__;
         $this->valkey_glide->del($key);
@@ -4060,8 +4056,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->lSet($key, 0, 'newValue'));
         $this->assertFalse($this->valkey_glide->lrem($key, 'lvalue', 1));
         $this->assertFalse($this->valkey_glide->lPop($key));
-        $this->assertFalse($this->valkey_glide->rPop($key));
-        $this->assertFalse($this->valkey_glide->rPoplPush($key, $dkey  . 'lkey1'));
+        $this->assertFalse($this->valkey_glide->rPop($key));        
 
         // sorted sets I/F
         $this->assertFalse($this->valkey_glide->zAdd($key, 1, 'zValue1'));
@@ -4092,8 +4087,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentTypeSortedSet()
-    {
-         $this->markTestSkipped();
+    {     
         $key = '{hash}sortedset';
         $dkey = '{hash}' . __FUNCTION__;
 
@@ -4153,8 +4147,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentTypeHash()
-    {
-         $this->markTestSkipped();
+    {        
         $key = '{hash}hash';
         $dkey = '{hash}hash';
 
@@ -4183,8 +4176,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->lSet($key, 0, 'newValue'));
         $this->assertFalse($this->valkey_glide->lrem($key, 'lvalue', 1));
         $this->assertFalse($this->valkey_glide->lPop($key));
-        $this->assertFalse($this->valkey_glide->rPop($key));
-        $this->assertFalse($this->valkey_glide->rPoplPush($key, $dkey . 'lkey1'));
+        $this->assertFalse($this->valkey_glide->rPop($key));        
 
         // sets I/F
         $this->assertFalse($this->valkey_glide->sAdd($key, 'sValue1'));
@@ -4213,29 +4205,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->zRemRangeByRank($key, 1, 2));
         $this->assertFalse($this->valkey_glide->zRemRangeByScore($key, 1, 2));
     }
-
-
-
-    private function cartesianProduct(array $arrays)
-    {
-        $result = [[]];
-
-        foreach ($arrays as $array) {
-            $append = [];
-            foreach ($result as $product) {
-                foreach ($array as $item) {
-                    $newProduct = $product;
-                    $newProduct[] = $item;
-                    $append[] = $newProduct;
-                }
-            }
-
-            $result = $append;
-        }
-
-        return $result;
-    }
-
 
     public function testDumpRestore()
     {

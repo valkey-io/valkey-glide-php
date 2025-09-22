@@ -602,10 +602,15 @@ class ValkeyGlideCluster
      */
     public function msetnx(array $key_values): ValkeyGlideCluster|array|false;
 
-    /* We only support ValkeyGlide::MULTI in ValkeyGlideCluster but take the argument
-       so we can test MULTI..EXEC with ValkeyGlideTest.php and in the event
-       we add pipeline support in the future. */
+    /**
+     * @see ValkeyGlide::multi
+     */
     public function multi(int $value = ValkeyGlide::MULTI): ValkeyGlideCluster|bool;
+
+    /**
+     * @see ValkeyGlide::pipeline
+     */
+    public function pipeline(): bool|ValkeyGlideCluster;
 
     /**
      * @see ValkeyGlide::object

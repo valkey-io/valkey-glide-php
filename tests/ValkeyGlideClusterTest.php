@@ -122,26 +122,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->markTestSkipped();
     }
-    public function testDoublePipeNoOp()
-    {
-        $this->markTestSkipped();
-    }
-    public function testSwapDB()
-    {
-        $this->markTestSkipped();
-    }
-    public function testConnectException()
-    {
-        $this->markTestSkipped();
-    }
-    public function testTlsConnect()
-    {
-        $this->markTestSkipped();
-    }
-    public function testConnectDatabaseSelect()
-    {
-        $this->markTestSkipped();
-    }
+
     public function testMove()
     {
         $this->markTestSkipped(); // Move is not supported in ValkeyGlideCluster

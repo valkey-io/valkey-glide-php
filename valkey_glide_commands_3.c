@@ -637,6 +637,10 @@ static int initialize_batch_mode(valkey_glide_object* valkey_glide,
         return 0;
     }
 
+    if (valkey_glide->is_in_batch_mode) {
+        return 1;
+    }
+
     /* Initialize batch mode */
     valkey_glide->is_in_batch_mode = true;
     valkey_glide->batch_type       = batch_type;
@@ -679,7 +683,6 @@ int execute_multi_command(zval* object, int argc, zval* return_value, zend_class
 /* Execute a PIPELINE command using the Valkey Glide client - wrapper using common function */
 int execute_pipeline_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
-
     /* Parse parameters - pipeline takes no additional parameters */
     if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
         return 0;
