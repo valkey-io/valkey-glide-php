@@ -230,6 +230,14 @@ jobs:
           else
             echo "=== PECL installation failed ==="
             
+            echo "=== DEBUG: Complete glide_bindings.h contents ==="
+            if [ -f "/tmp/pear/temp/valkey_glide/include/glide_bindings.h" ]; then
+              cat "/tmp/pear/temp/valkey_glide/include/glide_bindings.h"
+            else
+              echo "=== DEBUG: glide_bindings.h does not exist ==="
+            fi
+            echo "=== DEBUG: End of glide_bindings.h contents ==="
+            
             echo "=== Checking PECL logs ==="
             cat /tmp/pear/install/valkey_glide*/make.log 2>/dev/null || echo "No make.log found"
             
