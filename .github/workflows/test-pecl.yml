@@ -197,7 +197,7 @@ jobs:
 
           # Install the package using PECL (this tests the real user experience)
           # But first, let's debug what PECL is doing
-          sudo pecl install -v -f "${{ env.PACKAGE_DIR }}.tgz" 2>&1 | tee pecl_install.log || {
+          sudo pecl install -f "${{ env.PACKAGE_DIR }}.tgz" 2>&1 | tee pecl_install.log || {
             echo "=== PECL install failed, checking logs ==="
             
             echo "=== PECL install log ==="
