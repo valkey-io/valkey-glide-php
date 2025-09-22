@@ -354,7 +354,19 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       AC_MSG_RESULT([Debug: CARGO_HOME=$RUST_TOOLCHAIN_DIR])
       AC_MSG_RESULT([Debug: CARGO_DIR=$CARGO_DIR])
       
-      cd valkey-glide/ffi && CARGO_HOME="$RUST_TOOLCHAIN_DIR" PATH="$CARGO_DIR:$PATH" ../../cargo build --release && cd ../.. || AC_MSG_ERROR([Rust build failed])
+      cd valkey-glide/ffi && CARGO_HOME="$RUST_TOOLCHAIN_DIR" PATH="$CARGO_DIR:$PATH" ../../cargo build --release && CARGO_HOME="$RUST_TOOLCHAIN_DIR" PATH="$CARGO_DIR:$PATH" ../../cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
+      
+      dnl Add include guards to the generated header immediately
+      if test -f "include/glide_bindings.h"; then
+        AC_MSG_RESULT([Debug: adding include guards to glide_bindings.h in configure])
+        echo '#ifndef GLIDE_BINDINGS_H' > include/glide_bindings_tmp.h
+        echo '#define GLIDE_BINDINGS_H' >> include/glide_bindings_tmp.h
+        cat include/glide_bindings.h >> include/glide_bindings_tmp.h
+        echo '#endif /* GLIDE_BINDINGS_H */' >> include/glide_bindings_tmp.h
+        rm include/glide_bindings.h
+        mv include/glide_bindings_tmp.h include/glide_bindings.h
+        AC_MSG_RESULT([Debug: include guards added to glide_bindings.h])
+      fi
     else
       AC_MSG_ERROR([ffi directory not found])
     fi
