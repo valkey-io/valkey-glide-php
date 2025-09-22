@@ -12,7 +12,7 @@ else
         VALKEY_GLIDE_SHARED_LIBADD = valkey-glide/ffi/target/release/libglide_ffi.a -lresolv -lprotobuf-c
     endif
 endif
-INCLUDES += -Iinclude
+INCLUDES += -Iinclude -I.
 PROTOC = protoc
 PROTOC_C_PLUGIN := protoc-c
 PROTO_SRC_DIR = valkey-glide/glide-core/src/protobuf
