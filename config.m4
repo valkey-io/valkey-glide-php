@@ -221,25 +221,6 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     dnl Check for .stub.php files to confirm they exist
     AC_MSG_RESULT([Debug: stub files in source=$(ls -la *.stub.php 2>/dev/null || echo "none")])
     
-    dnl Generate include/glide_bindings.h with proper include guards
-    AC_MSG_RESULT([Debug: generating include/glide_bindings.h with cbindgen])
-    mkdir -p include
-    if [ -d valkey-glide/ffi ] && command -v cbindgen >/dev/null 2>&1; then
-      cd valkey-glide/ffi && cbindgen --output ../../include/glide_bindings.h && cd ../..
-      
-      dnl Add include guards to prevent redefinition errors
-      AC_MSG_RESULT([Debug: adding include guards to glide_bindings.h])
-      echo '#ifndef GLIDE_BINDINGS_H' > include/glide_bindings_tmp.h
-      echo '#define GLIDE_BINDINGS_H' >> include/glide_bindings_tmp.h
-      cat include/glide_bindings.h >> include/glide_bindings_tmp.h
-      echo '#endif /* GLIDE_BINDINGS_H */' >> include/glide_bindings_tmp.h
-      mv include/glide_bindings_tmp.h include/glide_bindings.h
-      
-      AC_MSG_RESULT([Debug: include guards added to glide_bindings.h])
-    else
-      AC_MSG_RESULT([Debug: cbindgen not available, glide_bindings.h will be generated during make])
-    fi
-    
     dnl Search more broadly for arginfo.h files that might already exist
     AC_MSG_RESULT([Debug: searching entire temp area for arginfo files])
     TEMP_ARGINFO=$(find /tmp/pear/temp -name "*arginfo.h" 2>/dev/null | head -10 || echo "none")

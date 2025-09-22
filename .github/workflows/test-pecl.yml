@@ -92,12 +92,6 @@ jobs:
 
           echo "PHP protobuf classes generated for testing"
 
-      - name: Create package.xml from template
-        run: |
-          echo "=== Creating package.xml from template ==="
-          cp package.xml.template package.xml
-          echo "=== Package.xml created (arginfo.h files will be generated during PECL install) ==="
-
       - name: Create PECL package tarball
         run: |
           echo "=== Creating PECL package tarball ==="
@@ -135,6 +129,8 @@ jobs:
               cp "$file" "$PACKAGE_DIR/"
             fi
           done
+
+          echo "=== Excluding include directory (generated during build) ==="
 
           # Copy stub files (exclude temp files)
           for file in *.stub.php; do
