@@ -170,21 +170,28 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     dnl Check for .stub.php files to confirm they exist
     AC_MSG_RESULT([Debug: stub files in source=$(ls -la *.stub.php 2>/dev/null || echo "none")])
     
-    dnl Check if phpize has run and left any traces
-    AC_MSG_RESULT([Debug: checking for phpize artifacts])
-    AC_MSG_RESULT([Debug: configure.ac exists=$(test -f "configure.ac" && echo "yes" || echo "no")])
-    AC_MSG_RESULT([Debug: configure.in exists=$(test -f "configure.in" && echo "yes" || echo "no")])
-    AC_MSG_RESULT([Debug: acinclude.m4 exists=$(test -f "acinclude.m4" && echo "yes" || echo "no")])
-    
-    dnl Try running phpize again to see if it generates arginfo.h files
-    AC_MSG_RESULT([Debug: attempting to run phpize again in source directory])
+    dnl Try running phpize in source directory to generate arginfo.h files
+    AC_MSG_RESULT([Debug: attempting phpize dry run in source directory])
     if command -v phpize >/dev/null 2>&1; then
-      phpize --version || AC_MSG_RESULT([Debug: phpize version failed])
-      AC_MSG_RESULT([Debug: running phpize in $(pwd)])
-      phpize 2>&1 || AC_MSG_RESULT([Debug: phpize failed])
-      AC_MSG_RESULT([Debug: arginfo files after phpize=$(ls -la *arginfo.h 2>/dev/null || echo "still none")])
+      AC_MSG_RESULT([Debug: phpize found, running in $(pwd)])
+      
+      dnl Clean up any existing phpize artifacts first
+      rm -f configure.ac configure.in acinclude.m4 2>/dev/null || true
+      
+      dnl Run phpize and capture output
+      AC_MSG_RESULT([Debug: running phpize...])
+      phpize 2>&1 | head -10 || AC_MSG_RESULT([Debug: phpize command failed])
+      
+      dnl Check if arginfo.h files were generated
+      AC_MSG_RESULT([Debug: arginfo files after phpize=$(ls -la *arginfo.h 2>/dev/null || echo "none")])
+      
+      dnl If still no arginfo files, check phpize version and capabilities
+      if test ! -f "cluster_scan_cursor_arginfo.h"; then
+        AC_MSG_RESULT([Debug: phpize version info])
+        phpize --version 2>&1 || AC_MSG_RESULT([Debug: phpize version failed])
+      fi
     else
-      AC_MSG_RESULT([Debug: phpize not found])
+      AC_MSG_RESULT([Debug: phpize not found in PATH])
     fi
     
     dnl Search more broadly for arginfo.h files that phpize might have created
