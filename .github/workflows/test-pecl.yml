@@ -73,7 +73,7 @@ jobs:
 
           # Install protobuf compiler and PHP plugin
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler libprotobuf-c-dev protobuf-c-compiler
+          sudo apt-get install -y protobuf-compiler libprotobuf-c-dev protobuf-c-compiler libprotobuf-c1
 
           # Install protobuf PHP runtime for testing
           composer require google/protobuf
@@ -212,21 +212,6 @@ jobs:
           }
           PECL_EXIT_CODE=$?
 
-          echo "=== DEBUG: Complete glide_bindings.h contents (always shown) ==="
-          if [ -f "/tmp/debug_glide_bindings_configure.h" ]; then
-            echo "=== DEBUG: Found file from configure process ==="
-            cat "/tmp/debug_glide_bindings_configure.h"
-          elif [ -f "/tmp/debug_glide_bindings.h" ]; then
-            echo "=== DEBUG: Found file from make process ==="
-            cat "/tmp/debug_glide_bindings.h"
-          elif [ -f "/tmp/pear/temp/valkey_glide/include/glide_bindings.h" ]; then
-            echo "=== DEBUG: Found file in PECL temp directory ==="
-            cat "/tmp/pear/temp/valkey_glide/include/glide_bindings.h"
-          else
-            echo "=== DEBUG: glide_bindings.h not found in any location ==="
-          fi
-          echo "=== DEBUG: End of glide_bindings.h contents ==="
-
           echo "=== PECL install exit code: $PECL_EXIT_CODE ==="
 
           if [ $PECL_EXIT_CODE -eq 0 ]; then
@@ -246,6 +231,15 @@ jobs:
             echo "=== Checking installation ==="
             php-config --extension-dir
             ls -la $(php-config --extension-dir) | grep valkey || echo "valkey_glide.so not found in extension directory"
+            
+            echo "=== Checking library dependencies ==="
+            SO_FILE=$(php-config --extension-dir)/valkey_glide.so
+            if [ -f "$SO_FILE" ]; then
+              echo "Extension file exists: $SO_FILE"
+              ldd "$SO_FILE" | grep protobuf || echo "No protobuf dependencies found"
+              echo "Checking for protobuf-c library:"
+              ldconfig -p | grep protobuf-c || echo "protobuf-c library not found in system"
+            fi
             
             echo "=== Testing extension loading ==="
             php -d extension=valkey_glide -m | grep -i valkey || echo "Extension not loaded"
