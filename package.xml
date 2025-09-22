@@ -5,7 +5,7 @@
  <summary>High-performance PHP client for Valkey</summary>
  <description>Valkey GLIDE is a high-performance client library for Valkey, built with Rust core and PHP FFI bindings. It provides better performance, type safety, and cluster support with automatic failover.
 
-Note: After installation, add "extension=valkey_glide.so" to your php.ini file.</description>
+Note: After installation, add "extension=valkey_glide" to your php.ini file.</description>
  <lead>
   <name>Valkey GLIDE Team</name>
   <user>valkeyglide</user>

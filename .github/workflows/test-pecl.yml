@@ -225,11 +225,11 @@ jobs:
             PHP_INI_PATH=$(php --ini | grep "Loaded Configuration File" | cut -d: -f2 | xargs)
             echo "PHP INI path: $PHP_INI_PATH"
             if [ -f "$PHP_INI_PATH" ]; then
-              echo "extension=valkey_glide.so" | sudo tee -a "$PHP_INI_PATH"
+              echo "extension=valkey_glide" | sudo tee -a "$PHP_INI_PATH"
               echo "Extension added to php.ini"
             else
               echo "php.ini not found, creating extension config"
-              echo "extension=valkey_glide.so" | sudo tee /etc/php/$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')/cli/conf.d/20-valkey_glide.ini
+              echo "extension=valkey_glide" | sudo tee /etc/php/$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')/cli/conf.d/20-valkey_glide.ini
             fi
             
             echo "=== Checking installation ==="
@@ -240,9 +240,14 @@ jobs:
             SO_FILE=$(php-config --extension-dir)/valkey_glide.so
             if [ -f "$SO_FILE" ]; then
               echo "Extension file exists: $SO_FILE"
+              echo "All library dependencies:"
+              ldd "$SO_FILE"
+              echo "Protobuf dependencies:"
               ldd "$SO_FILE" | grep protobuf || echo "No protobuf dependencies found"
               echo "Checking for protobuf-c library:"
               ldconfig -p | grep protobuf-c || echo "protobuf-c library not found in system"
+              echo "Checking if protobuf_c_empty_string symbol exists in system libraries:"
+              nm -D /lib/x86_64-linux-gnu/libprotobuf-c.so.1 | grep protobuf_c_empty_string || echo "Symbol not found in libprotobuf-c"
             fi
             
             echo "=== Testing extension loading ==="
