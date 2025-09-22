@@ -64,9 +64,21 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
   if test -n "$PHP_VALKEY_GLIDE_LDFLAGS"; then
     LDFLAGS="$LDFLAGS $PHP_VALKEY_GLIDE_LDFLAGS"
   fi
+  
+  dnl Add protobuf-c library linking
+  AC_MSG_CHECKING([for protobuf-c library])
+  AC_CHECK_LIB([protobuf-c], [protobuf_c_empty_string], [
+    AC_MSG_RESULT([found])
+    PHP_ADD_LIBRARY(protobuf-c, 1, VALKEY_GLIDE_SHARED_LIBADD)
+  ], [
+    AC_MSG_ERROR([protobuf-c library not found. Please install libprotobuf-c-dev])
+  ])
+  
+  PHP_SUBST(VALKEY_GLIDE_SHARED_LIBADD)
+  
   PHP_NEW_EXTENSION(valkey_glide,
     valkey_glide.c valkey_glide_cluster.c cluster_scan_cursor.c command_response.c logger.c valkey_glide_commands.c valkey_glide_commands_2.c valkey_glide_commands_3.c valkey_glide_core_commands.c valkey_glide_core_common.c valkey_glide_expire_commands.c valkey_glide_geo_commands.c valkey_glide_geo_common.c valkey_glide_hash_common.c valkey_glide_list_common.c valkey_glide_s_common.c valkey_glide_str_commands.c valkey_glide_x_commands.c valkey_glide_x_common.c valkey_glide_z.c valkey_glide_z_common.c valkey_z_php_methods.c src/command_request.pb-c.c src/connection_request.pb-c.c src/response.pb-c.c src/client_constructor_mock.c,
-    $ext_shared)
+    $ext_shared,, $VALKEY_GLIDE_SHARED_LIBADD)
 
   dnl Set protobuf-related variables
   PROTOC="protoc"
