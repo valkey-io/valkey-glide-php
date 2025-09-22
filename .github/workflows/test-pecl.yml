@@ -65,7 +65,32 @@ jobs:
         uses: ./.github/workflows/setup-php-extension
         with:
           php-version: ${{ matrix.php }}
-          install-composer-deps: "true"
+          install-composer-deps: "false"
+
+      - name: Generate PHP protobuf classes for testing
+        run: |
+          echo "=== Generating PHP protobuf classes for testing ==="
+
+          # Install protobuf compiler and PHP plugin
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libprotobuf-c-dev protobuf-c-compiler libprotobuf-c1
+
+          # Install protobuf PHP runtime for testing
+          composer require google/protobuf
+
+          # Generate PHP classes from protobuf files (following README.md instructions)
+          PROTO_DIR="valkey-glide/glide-core/src/protobuf"
+          if [ -d "$PROTO_DIR" ]; then
+            echo "Generating PHP classes from protobuf files..."
+            protoc --proto_path="$PROTO_DIR" --php_out=./tests/ "$PROTO_DIR"/connection_request.proto
+            
+            echo "Generated PHP protobuf classes:"
+            find tests -name "*.php" -path "*/Connection_request/*" -o -path "*/GPBMetadata/*" | head -10
+          else
+            echo "Warning: Protobuf directory not found at $PROTO_DIR"
+          fi
+
+          echo "PHP protobuf classes generated for testing"
 
       - name: Clean generated files before packaging
         run: |
@@ -150,7 +175,7 @@ jobs:
       - name: Test PECL installation
         run: |
           echo "=== Testing PECL-style installation ==="
-          
+
           echo "=== Checking if protobuf-c is already available ==="
           ldconfig -p | grep protobuf-c || echo "protobuf-c not found in system"
           dpkg -l | grep protobuf || echo "No protobuf packages installed"
