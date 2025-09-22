@@ -96,19 +96,15 @@ jobs:
         run: |
           echo "=== Generating arginfo.h files with phpize ==="
           phpize
-          
           echo "=== Generated arginfo.h files ==="
           ls -la *arginfo.h 2>/dev/null || echo "No arginfo.h files generated"
-          
           echo "=== Creating package.xml from template ==="
           cp package.xml.template package.xml
-          
           echo "=== Adding generated arginfo.h files to package.xml ==="
           for arginfo_file in *arginfo.h; do
             if [ -f "$arginfo_file" ]; then
               echo "Adding $arginfo_file to package.xml"
-              sed -i.tmp "/\.stub\.php.*role=\"src\"/a\\
-   <file name=\"$arginfo_file\" role=\"src\" />" package.xml
+              sed -i.tmp "/\.stub\.php.*role=\"src\"/a\   <file name=\"$arginfo_file\" role=\"src\" />" package.xml
             fi
           done
           rm -f package.xml.tmp
