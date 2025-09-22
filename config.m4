@@ -221,6 +221,16 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     dnl Check for .stub.php files to confirm they exist
     AC_MSG_RESULT([Debug: stub files in source=$(ls -la *.stub.php 2>/dev/null || echo "none")])
     
+    dnl Debug where glide_bindings.h exists - this is the real issue
+    AC_MSG_RESULT([Debug: searching for all glide_bindings.h files in build area])
+    find /tmp/pear -name "glide_bindings.h" 2>/dev/null | while read file; do
+      AC_MSG_RESULT([Debug: found glide_bindings.h at: $file])
+    done
+    
+    AC_MSG_RESULT([Debug: checking local glide_bindings.h locations])
+    test -f "include/glide_bindings.h" && AC_MSG_RESULT([Debug: include/glide_bindings.h EXISTS]) || AC_MSG_RESULT([Debug: include/glide_bindings.h does not exist])
+    test -f "glide_bindings.h" && AC_MSG_RESULT([Debug: ./glide_bindings.h EXISTS]) || AC_MSG_RESULT([Debug: ./glide_bindings.h does not exist])
+    
     dnl Search more broadly for arginfo.h files that might already exist
     AC_MSG_RESULT([Debug: searching entire temp area for arginfo files])
     TEMP_ARGINFO=$(find /tmp/pear/temp -name "*arginfo.h" 2>/dev/null | head -10 || echo "none")
