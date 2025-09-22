@@ -195,6 +195,10 @@ jobs:
           echo "protoc-c: $(which protoc-c || echo 'NOT FOUND')"
           echo "Rust version: $(rustc --version 2>/dev/null || echo 'NOT FOUND')"
 
+          echo "=== Checking PECL version and functionality ==="
+          pecl version || echo "PECL version command failed"
+          pecl help || echo "PECL help command failed"
+
           # Install the package using PECL (this tests the real user experience)
           # But first, let's debug what PECL is doing
           sudo pecl install -f "${{ env.PACKAGE_DIR }}.tgz" 2>&1 | tee pecl_install.log || {
@@ -203,14 +207,8 @@ jobs:
             echo "=== PECL install log ==="
             cat pecl_install.log
             
-            echo "=== Checking generated Makefile ==="
-            find /tmp/pear -name "Makefile" -exec echo "=== {} ===" \; -exec head -50 {} \; 2>/dev/null || echo "No Makefiles found"
-            
-            echo "=== Checking Makefile.frag inclusion ==="
-            find /tmp/pear -name "Makefile" -exec grep -l "Makefile.frag\|include/glide_bindings.h" {} \; 2>/dev/null || echo "No Makefile.frag references found"
-            
-            echo "=== Checking build directory contents ==="
-            find /tmp/pear -type f -name "*.c" -o -name "*.h" -o -name "Makefile*" | head -20
+            echo "=== Checking for basic build files ==="
+            ls -la /tmp/pear/ 2>/dev/null || echo "No /tmp/pear directory found"
             
             exit 1
           }
@@ -244,7 +242,7 @@ jobs:
             cat /tmp/pear/install/valkey_glide*/make.log 2>/dev/null || echo "No make.log found"
             
             echo "=== Checking for build errors ==="
-            find /tmp/pear -name "*.log" -exec echo "=== {} ===" \; -exec cat {} \; 2>/dev/null || echo "No log files found"
+            ls -la /tmp/pear/install/ 2>/dev/null || echo "No install directory found"
             
             exit 1
           fi
