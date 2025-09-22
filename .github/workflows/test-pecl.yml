@@ -101,10 +101,12 @@ jobs:
           echo "=== Creating package.xml from template ==="
           cp package.xml.template package.xml
           echo "=== Adding generated arginfo.h files to package.xml ==="
-          for arginfo_file in *arginfo.h; do
+          find . -name "*arginfo.h" -type f | while read arginfo_file; do
             if [ -f "$arginfo_file" ]; then
-              echo "Adding $arginfo_file to package.xml"
-              sed -i.tmp "/\.stub\.php.*role=\"src\"/a\   <file name=\"$arginfo_file\" role=\"src\" />" package.xml
+              # Remove leading ./ from path for cleaner output
+              clean_path=${arginfo_file#./}
+              echo "Adding $clean_path to package.xml"
+              sed -i.tmp "/\.stub\.php.*role=\"src\"/a\   <file name=\"$clean_path\" role=\"src\" />" package.xml
             fi
           done
           rm -f package.xml.tmp
@@ -112,6 +114,10 @@ jobs:
       - name: Create PECL package tarball
         run: |
           echo "=== Creating PECL package tarball ==="
+
+          echo "=== DEBUG: Checking arginfo.h files before tarball creation ==="
+          ls -la *arginfo.h 2>/dev/null || echo "No arginfo.h files found in root"
+          ls -la *.h | grep arginfo || echo "No arginfo.h files in .h listing"
 
           # Generate submodule commit info for PECL packages
           echo "=== Generating submodule commit info ==="
@@ -148,7 +154,20 @@ jobs:
           done
 
           echo "=== Verifying arginfo.h files in package directory ==="
-          ls -la "$PACKAGE_DIR"/*arginfo.h 2>/dev/null || echo "No arginfo.h files found in package directory"
+          find "$PACKAGE_DIR" -name "*arginfo.h" -type f || echo "No arginfo.h files found in package directory"
+
+          echo "=== Copying arginfo.h files from subdirectories ==="
+          find . -name "*arginfo.h" -type f | while read arginfo_file; do
+            if [ -f "$arginfo_file" ]; then
+              # Create subdirectory structure in package if needed
+              subdir=$(dirname "$arginfo_file")
+              if [ "$subdir" != "." ]; then
+                mkdir -p "$PACKAGE_DIR/$subdir"
+                echo "Copying $arginfo_file to $PACKAGE_DIR/$arginfo_file"
+                cp "$arginfo_file" "$PACKAGE_DIR/$arginfo_file"
+              fi
+            fi
+          done
 
           # Copy stub files (exclude temp files)
           for file in *.stub.php; do
