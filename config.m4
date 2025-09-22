@@ -166,28 +166,63 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     dnl Generate arginfo.h files from .stub.php files during configure
     AC_MSG_RESULT([Debug: generating arginfo.h files from .stub.php files])
     
-    dnl Check if gen_stub.php is available
-    if test -f "$phpincludedir/scripts/gen_stub.php"; then
-      GEN_STUB_PHP="$phpincludedir/scripts/gen_stub.php"
-    elif test -f "/usr/share/php/build/gen_stub.php"; then
-      GEN_STUB_PHP="/usr/share/php/build/gen_stub.php"
+    dnl Use php-config to find the correct paths
+    AC_MSG_RESULT([Debug: using php-config to find gen_stub.php])
+    if command -v php-config >/dev/null 2>&1; then
+      PHP_PREFIX=$(php-config --prefix)
+      PHP_INCLUDE_DIR=$(php-config --include-dir)
+      AC_MSG_RESULT([Debug: PHP prefix: $PHP_PREFIX])
+      AC_MSG_RESULT([Debug: PHP include dir: $PHP_INCLUDE_DIR])
+      
+      dnl Try locations based on php-config
+      for location in "$PHP_PREFIX/lib/php/build/gen_stub.php" "$PHP_PREFIX/share/php/build/gen_stub.php" "$PHP_INCLUDE_DIR/scripts/gen_stub.php" "$PHP_INCLUDE_DIR/../build/gen_stub.php"; do
+        AC_MSG_RESULT([Debug: checking $location])
+        if test -f "$location"; then
+          GEN_STUB_PHP="$location"
+          AC_MSG_RESULT([Debug: found gen_stub.php at $location])
+          break
+        fi
+      done
     else
-      AC_MSG_RESULT([Debug: gen_stub.php not found, arginfo.h files will be generated during make])
-      GEN_STUB_PHP=""
+      AC_MSG_RESULT([Debug: php-config not found])
     fi
     
-    if test -n "$GEN_STUB_PHP"; then
-      AC_MSG_RESULT([Debug: found gen_stub.php at $GEN_STUB_PHP])
-      for stub_file in *.stub.php src/*.stub.php; do
-        if test -f "$stub_file"; then
-          AC_MSG_RESULT([Debug: generating arginfo.h from $stub_file])
-          $PHP -f "$GEN_STUB_PHP" "$stub_file" || AC_MSG_RESULT([Debug: failed to generate arginfo.h from $stub_file])
+    dnl Fallback to common locations if not found via php-config
+    if test -z "$GEN_STUB_PHP"; then
+      AC_MSG_RESULT([Debug: trying fallback locations])
+      for location in "/usr/share/php/build/gen_stub.php" "/usr/lib/php/build/gen_stub.php" "/usr/local/lib/php/build/gen_stub.php"; do
+        AC_MSG_RESULT([Debug: checking fallback $location])
+        if test -f "$location"; then
+          GEN_STUB_PHP="$location"
+          AC_MSG_RESULT([Debug: found gen_stub.php at fallback $location])
+          break
         fi
       done
     fi
     
+    if test -n "$GEN_STUB_PHP"; then
+      AC_MSG_RESULT([Debug: using gen_stub.php at $GEN_STUB_PHP])
+      for stub_file in *.stub.php src/*.stub.php; do
+        if test -f "$stub_file"; then
+          arginfo_file="${stub_file%.stub.php}_arginfo.h"
+          AC_MSG_RESULT([Debug: generating $arginfo_file from $stub_file])
+          $PHP -f "$GEN_STUB_PHP" "$stub_file" 2>&1 || AC_MSG_RESULT([Debug: failed to generate $arginfo_file from $stub_file])
+          if test -f "$arginfo_file"; then
+            AC_MSG_RESULT([Debug: successfully generated $arginfo_file])
+          else
+            AC_MSG_RESULT([Debug: $arginfo_file was not created])
+          fi
+        fi
+      done
+    else
+      AC_MSG_RESULT([Debug: gen_stub.php not found anywhere, arginfo.h files will be generated during make])
+    fi
+    
     dnl Check for .stub.php files to confirm they exist
     AC_MSG_RESULT([Debug: stub files in source=$(ls -la *.stub.php 2>/dev/null || echo "none")])
+    
+    dnl Check what arginfo.h files exist after generation attempt
+    AC_MSG_RESULT([Debug: arginfo.h files after generation=$(ls -la *arginfo.h 2>/dev/null || echo "none")])
     
     dnl Search more broadly for arginfo.h files that might already exist
     AC_MSG_RESULT([Debug: searching entire temp area for arginfo files])
