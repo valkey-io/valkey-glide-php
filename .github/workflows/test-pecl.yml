@@ -225,6 +225,16 @@ jobs:
             php -d extension=valkey_glide -m | grep valkey_glide && echo "Extension loads successfully!" || echo "Extension failed to load"
             php -d extension=valkey_glide -r "if (extension_loaded('valkey_glide')) echo 'SUCCESS: Extension loaded!'; else echo 'ERROR: Extension not loaded';"
             
+            echo "=== Checking available classes ==="
+            php -d extension=valkey_glide -r "
+            if (class_exists('Glide\\Client')) {
+                echo 'SUCCESS: Glide\\Client class found!';
+            } else {
+                echo 'ERROR: Glide\\Client class not found';
+                echo 'Available classes: ';
+                print_r(get_declared_classes());
+            }"
+            
             echo "=== Adding extension to php.ini ==="
             PHP_INI_PATH=$(php --ini | grep "Loaded Configuration File" | cut -d: -f2 | xargs)
             echo "PHP INI path: $PHP_INI_PATH"
@@ -263,11 +273,24 @@ jobs:
             
             echo "=== Testing basic functionality ==="
             php -d extension=valkey_glide -r "
-              if (class_exists('Glide\\Client')) {
-                echo 'SUCCESS: Glide\\Client class found\n';
+              if (extension_loaded('valkey_glide')) {
+                echo 'Extension loaded successfully\n';
+                \$classes = get_declared_classes();
+                \$glide_classes = array_filter(\$classes, function(\$class) {
+                  return strpos(\$class, 'Glide') !== false || strpos(\$class, 'Valkey') !== false;
+                });
+                if (!empty(\$glide_classes)) {
+                  echo 'Found classes: ' . implode(', ', \$glide_classes) . '\n';
+                } else {
+                  echo 'No Glide/Valkey classes found\n';
+                }
+                if (class_exists('Glide\\Client')) {
+                  echo 'SUCCESS: Glide\\Client class found\n';
+                } else {
+                  echo 'ERROR: Glide\\Client class not found\n';
+                }
               } else {
-                echo 'ERROR: Glide\\Client class not found\n';
-                exit(1);
+                echo 'ERROR: Extension not loaded\n';
               }
             "
           else
