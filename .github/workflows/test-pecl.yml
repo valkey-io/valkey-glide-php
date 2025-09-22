@@ -177,6 +177,12 @@ jobs:
           echo "=== Testing PECL-style installation ==="
           echo "=== Package contents ==="
           tar tzf "${{ env.PACKAGE_DIR }}.tgz" 2>/dev/null | head -20 || echo "Could not list package contents"
+          
+          echo "=== DEBUG: Checking for include directory in package ==="
+          tar tzf "${{ env.PACKAGE_DIR }}.tgz" 2>/dev/null | grep "include/" || echo "No include directory found in package"
+          
+          echo "=== DEBUG: Checking for glide_bindings.h in package ==="
+          tar tzf "${{ env.PACKAGE_DIR }}.tgz" 2>/dev/null | grep "glide_bindings" || echo "No glide_bindings files found in package"
           ls -la
 
           echo "=== Installing package with PECL ==="
@@ -207,12 +213,17 @@ jobs:
           PECL_EXIT_CODE=$?
 
           echo "=== DEBUG: Complete glide_bindings.h contents (always shown) ==="
-          if [ -f "/tmp/debug_glide_bindings.h" ]; then
+          if [ -f "/tmp/debug_glide_bindings_configure.h" ]; then
+            echo "=== DEBUG: Found file from configure process ==="
+            cat "/tmp/debug_glide_bindings_configure.h"
+          elif [ -f "/tmp/debug_glide_bindings.h" ]; then
+            echo "=== DEBUG: Found file from make process ==="
             cat "/tmp/debug_glide_bindings.h"
           elif [ -f "/tmp/pear/temp/valkey_glide/include/glide_bindings.h" ]; then
+            echo "=== DEBUG: Found file in PECL temp directory ==="
             cat "/tmp/pear/temp/valkey_glide/include/glide_bindings.h"
           else
-            echo "=== DEBUG: glide_bindings.h not found in either location ==="
+            echo "=== DEBUG: glide_bindings.h not found in any location ==="
           fi
           echo "=== DEBUG: End of glide_bindings.h contents ==="
 

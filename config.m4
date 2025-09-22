@@ -225,11 +225,18 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     AC_MSG_RESULT([Debug: searching for all glide_bindings.h files in build area])
     find /tmp/pear -name "glide_bindings.h" 2>/dev/null | while read file; do
       AC_MSG_RESULT([Debug: found glide_bindings.h at: $file])
+      AC_MSG_RESULT([Debug: copying $file to /tmp/debug_glide_bindings_configure.h])
+      cp "$file" /tmp/debug_glide_bindings_configure.h 2>/dev/null || true
     done
     
     AC_MSG_RESULT([Debug: checking local glide_bindings.h locations])
     test -f "include/glide_bindings.h" && AC_MSG_RESULT([Debug: include/glide_bindings.h EXISTS]) || AC_MSG_RESULT([Debug: include/glide_bindings.h does not exist])
     test -f "glide_bindings.h" && AC_MSG_RESULT([Debug: ./glide_bindings.h EXISTS]) || AC_MSG_RESULT([Debug: ./glide_bindings.h does not exist])
+    
+    if test -f "include/glide_bindings.h"; then
+      AC_MSG_RESULT([Debug: copying include/glide_bindings.h to /tmp for inspection])
+      cp include/glide_bindings.h /tmp/debug_glide_bindings_configure.h 2>/dev/null || true
+    fi
     
     dnl Search more broadly for arginfo.h files that might already exist
     AC_MSG_RESULT([Debug: searching entire temp area for arginfo files])
@@ -347,7 +354,7 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       AC_MSG_RESULT([Debug: CARGO_HOME=$RUST_TOOLCHAIN_DIR])
       AC_MSG_RESULT([Debug: CARGO_DIR=$CARGO_DIR])
       
-      cd valkey-glide/ffi && CARGO_HOME="$RUST_TOOLCHAIN_DIR" PATH="$CARGO_DIR:$PATH" ../../cargo build --release && CARGO_HOME="$RUST_TOOLCHAIN_DIR" PATH="$CARGO_DIR:$PATH" ../../cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
+      cd valkey-glide/ffi && CARGO_HOME="$RUST_TOOLCHAIN_DIR" PATH="$CARGO_DIR:$PATH" ../../cargo build --release && cd ../.. || AC_MSG_ERROR([Rust build failed])
     else
       AC_MSG_ERROR([ffi directory not found])
     fi
