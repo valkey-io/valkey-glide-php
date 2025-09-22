@@ -92,6 +92,40 @@ jobs:
 
           echo "PHP protobuf classes generated for testing"
 
+      - name: Generate arginfo.h files and create package.xml
+        run: |
+          echo "=== Generating arginfo.h files with phpize ==="
+          
+          # Run phpize to generate arginfo.h files from .stub.php files
+          phpize
+          
+          # List generated arginfo.h files
+          echo "=== Generated arginfo.h files ==="
+          ls -la *arginfo.h 2>/dev/null || echo "No arginfo.h files generated"
+          
+          # Create package.xml from template
+          echo "=== Creating package.xml from template ==="
+          cp package.xml.template package.xml
+          
+          # Dynamically add arginfo.h files to package.xml
+          echo "=== Adding generated arginfo.h files to package.xml ==="
+          
+          # Find all arginfo.h files and add them to package.xml
+          for arginfo_file in *arginfo.h; do
+            if [ -f "$arginfo_file" ]; then
+              echo "Adding $arginfo_file to package.xml"
+              # Insert the file entry after the last .stub.php file
+              sed -i.tmp "/\.stub\.php.*role=\"src\"/a\\
+   <file name=\"$arginfo_file\" role=\"src\" />" package.xml
+            fi
+          done
+          
+          # Clean up sed backup files
+          rm -f package.xml.tmp
+          
+          echo "=== Updated package.xml content (arginfo section) ==="
+          grep -A5 -B5 "arginfo" package.xml || echo "No arginfo entries found"
+
       - name: Create PECL package tarball
         run: |
           echo "=== Creating PECL package tarball ==="

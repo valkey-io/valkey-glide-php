@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  This is a template for package.xml used during PECL package creation.
+  
+  The arginfo.h files (generated from .stub.php files) will be automatically
+  added to this template by the GitHub workflow during package creation.
+  
+  This ensures the PECL package includes all necessary generated files
+  without requiring phpize to process .stub.php files during installation.
+-->
 <package packagerversion="1.10.13" version="2.0" xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
  <name>valkey_glide</name>
  <channel>pecl.php.net</channel>
