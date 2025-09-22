@@ -174,8 +174,8 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       AC_MSG_RESULT([Debug: PHP prefix: $PHP_PREFIX])
       AC_MSG_RESULT([Debug: PHP include dir: $PHP_INCLUDE_DIR])
       
-      dnl Try locations based on php-config
-      for location in "$PHP_PREFIX/lib/php/build/gen_stub.php" "$PHP_PREFIX/share/php/build/gen_stub.php" "$PHP_INCLUDE_DIR/scripts/gen_stub.php" "$PHP_INCLUDE_DIR/../build/gen_stub.php"; do
+      dnl Try locations based on php-config, focusing on build directories
+      for location in "$PHP_PREFIX/lib/php/build/gen_stub.php" "$PHP_PREFIX/share/php/build/gen_stub.php" "$PHP_PREFIX/build/gen_stub.php" "$PHP_INCLUDE_DIR/scripts/gen_stub.php" "$PHP_INCLUDE_DIR/../build/gen_stub.php" "$PHP_INCLUDE_DIR/build/gen_stub.php"; do
         AC_MSG_RESULT([Debug: checking $location])
         if test -f "$location"; then
           GEN_STUB_PHP="$location"
@@ -187,10 +187,10 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       AC_MSG_RESULT([Debug: php-config not found])
     fi
     
-    dnl Fallback to common locations if not found via php-config
+    dnl Fallback to common build directory locations
     if test -z "$GEN_STUB_PHP"; then
-      AC_MSG_RESULT([Debug: trying fallback locations])
-      for location in "/usr/share/php/build/gen_stub.php" "/usr/lib/php/build/gen_stub.php" "/usr/local/lib/php/build/gen_stub.php"; do
+      AC_MSG_RESULT([Debug: trying fallback build directory locations])
+      for location in "build/gen_stub.php" "./build/gen_stub.php" "/usr/share/php/build/gen_stub.php" "/usr/lib/php/build/gen_stub.php" "/usr/local/lib/php/build/gen_stub.php" "/usr/build/gen_stub.php" "/usr/local/build/gen_stub.php" "/root/build/gen_stub.php" "/build/gen_stub.php" "$HOME/build/gen_stub.php"; do
         AC_MSG_RESULT([Debug: checking fallback $location])
         if test -f "$location"; then
           GEN_STUB_PHP="$location"
