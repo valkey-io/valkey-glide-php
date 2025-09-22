@@ -163,6 +163,29 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     cd "$PECL_SOURCE_DIR"
     AC_MSG_RESULT([Debug: changed to source directory $(pwd)])
     
+    dnl Generate arginfo.h files from .stub.php files during configure
+    AC_MSG_RESULT([Debug: generating arginfo.h files from .stub.php files])
+    
+    dnl Check if gen_stub.php is available
+    if test -f "$phpincludedir/scripts/gen_stub.php"; then
+      GEN_STUB_PHP="$phpincludedir/scripts/gen_stub.php"
+    elif test -f "/usr/share/php/build/gen_stub.php"; then
+      GEN_STUB_PHP="/usr/share/php/build/gen_stub.php"
+    else
+      AC_MSG_RESULT([Debug: gen_stub.php not found, arginfo.h files will be generated during make])
+      GEN_STUB_PHP=""
+    fi
+    
+    if test -n "$GEN_STUB_PHP"; then
+      AC_MSG_RESULT([Debug: found gen_stub.php at $GEN_STUB_PHP])
+      for stub_file in *.stub.php src/*.stub.php; do
+        if test -f "$stub_file"; then
+          AC_MSG_RESULT([Debug: generating arginfo.h from $stub_file])
+          $PHP -f "$GEN_STUB_PHP" "$stub_file" || AC_MSG_RESULT([Debug: failed to generate arginfo.h from $stub_file])
+        fi
+      done
+    fi
+    
     dnl Check for .stub.php files to confirm they exist
     AC_MSG_RESULT([Debug: stub files in source=$(ls -la *.stub.php 2>/dev/null || echo "none")])
     

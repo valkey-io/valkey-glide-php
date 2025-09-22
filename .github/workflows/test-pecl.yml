@@ -92,32 +92,15 @@ jobs:
 
           echo "PHP protobuf classes generated for testing"
 
-      - name: Generate arginfo.h files and create package.xml
+      - name: Create package.xml from template
         run: |
-          echo "=== Generating arginfo.h files with phpize ==="
-          phpize
-          echo "=== Generated arginfo.h files ==="
-          ls -la *arginfo.h 2>/dev/null || echo "No arginfo.h files generated"
           echo "=== Creating package.xml from template ==="
           cp package.xml.template package.xml
-          echo "=== Adding generated arginfo.h files to package.xml ==="
-          find . -name "*arginfo.h" -type f | while read arginfo_file; do
-            if [ -f "$arginfo_file" ]; then
-              # Remove leading ./ from path for cleaner output
-              clean_path=${arginfo_file#./}
-              echo "Adding $clean_path to package.xml"
-              sed -i.tmp "/\.stub\.php.*role=\"src\"/a\   <file name=\"$clean_path\" role=\"src\" />" package.xml
-            fi
-          done
-          rm -f package.xml.tmp
+          echo "=== Package.xml created (arginfo.h files will be generated during PECL install) ==="
 
       - name: Create PECL package tarball
         run: |
           echo "=== Creating PECL package tarball ==="
-
-          echo "=== DEBUG: Checking arginfo.h files before tarball creation ==="
-          ls -la *arginfo.h 2>/dev/null || echo "No arginfo.h files found in root"
-          ls -la *.h | grep arginfo || echo "No arginfo.h files in .h listing"
 
           # Generate submodule commit info for PECL packages
           echo "=== Generating submodule commit info ==="
@@ -145,27 +128,11 @@ jobs:
           cp package.xml "$PACKAGE_DIR/"
 
           # Copy specific source files (exclude temp files)
-          echo "=== Copying .c and .h files including arginfo.h ==="
+          echo "=== Copying .c and .h files ==="
           for file in *.c *.h; do
             if [[ -f "$file" && "$file" != *~ ]]; then
               echo "Copying $file to package"
               cp "$file" "$PACKAGE_DIR/"
-            fi
-          done
-
-          echo "=== Verifying arginfo.h files in package directory ==="
-          find "$PACKAGE_DIR" -name "*arginfo.h" -type f || echo "No arginfo.h files found in package directory"
-
-          echo "=== Copying arginfo.h files from subdirectories ==="
-          find . -name "*arginfo.h" -type f | while read arginfo_file; do
-            if [ -f "$arginfo_file" ]; then
-              # Create subdirectory structure in package if needed
-              subdir=$(dirname "$arginfo_file")
-              if [ "$subdir" != "." ]; then
-                mkdir -p "$PACKAGE_DIR/$subdir"
-                echo "Copying $arginfo_file to $PACKAGE_DIR/$arginfo_file"
-                cp "$arginfo_file" "$PACKAGE_DIR/$arginfo_file"
-              fi
             fi
           done
 
