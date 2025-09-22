@@ -170,6 +170,23 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     dnl Check for .stub.php files to confirm they exist
     AC_MSG_RESULT([Debug: stub files in source=$(ls -la *.stub.php 2>/dev/null || echo "none")])
     
+    dnl Check if phpize has run and left any traces
+    AC_MSG_RESULT([Debug: checking for phpize artifacts])
+    AC_MSG_RESULT([Debug: configure.ac exists=$(test -f "configure.ac" && echo "yes" || echo "no")])
+    AC_MSG_RESULT([Debug: configure.in exists=$(test -f "configure.in" && echo "yes" || echo "no")])
+    AC_MSG_RESULT([Debug: acinclude.m4 exists=$(test -f "acinclude.m4" && echo "yes" || echo "no")])
+    
+    dnl Try running phpize again to see if it generates arginfo.h files
+    AC_MSG_RESULT([Debug: attempting to run phpize again in source directory])
+    if command -v phpize >/dev/null 2>&1; then
+      phpize --version || AC_MSG_RESULT([Debug: phpize version failed])
+      AC_MSG_RESULT([Debug: running phpize in $(pwd)])
+      phpize 2>&1 || AC_MSG_RESULT([Debug: phpize failed])
+      AC_MSG_RESULT([Debug: arginfo files after phpize=$(ls -la *arginfo.h 2>/dev/null || echo "still none")])
+    else
+      AC_MSG_RESULT([Debug: phpize not found])
+    fi
+    
     dnl Search more broadly for arginfo.h files that phpize might have created
     AC_MSG_RESULT([Debug: searching entire temp area for arginfo files])
     TEMP_ARGINFO=$(find /tmp/pear/temp -name "*arginfo.h" 2>/dev/null | head -10 || echo "none")
