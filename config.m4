@@ -163,49 +163,10 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     cd "$PECL_SOURCE_DIR"
     AC_MSG_RESULT([Debug: changed to source directory $(pwd)])
     
-    dnl Check what arginfo.h files phpize generated
-    AC_MSG_RESULT([Debug: arginfo files from phpize=$(ls -la *arginfo.h 2>/dev/null || echo "none")])
-    AC_MSG_RESULT([Debug: all files in source=$(ls -la *.h 2>/dev/null | head -10)])
-    
     dnl Check for .stub.php files to confirm they exist
     AC_MSG_RESULT([Debug: stub files in source=$(ls -la *.stub.php 2>/dev/null || echo "none")])
     
-    dnl Try running phpize in source directory to generate arginfo.h files
-    AC_MSG_RESULT([Debug: attempting phpize dry run in source directory])
-    if command -v phpize >/dev/null 2>&1; then
-      AC_MSG_RESULT([Debug: phpize found, running in $(pwd)])
-      
-      dnl Show what files exist before phpize
-      AC_MSG_RESULT([Debug: files before phpize=$(ls -la *.h *.php 2>/dev/null | wc -l) files])
-      
-      dnl Clean up any existing phpize artifacts first
-      rm -f configure.ac configure.in acinclude.m4 2>/dev/null || true
-      
-      dnl Run phpize and capture output
-      AC_MSG_RESULT([Debug: running phpize...])
-      phpize 2>&1 | head -10 || AC_MSG_RESULT([Debug: phpize command failed])
-      
-      dnl Show what files exist after phpize
-      AC_MSG_RESULT([Debug: files after phpize=$(ls -la *.h *.php 2>/dev/null | wc -l) files])
-      AC_MSG_RESULT([Debug: new .h files=$(ls -la *arginfo.h configure.* acinclude.m4 2>/dev/null || echo "none")])
-      
-      dnl Check if arginfo.h files were generated
-      AC_MSG_RESULT([Debug: arginfo files after phpize=$(ls -la *arginfo.h 2>/dev/null || echo "none")])
-      
-      dnl If still no arginfo files, check phpize version and capabilities
-      if test ! -f "cluster_scan_cursor_arginfo.h"; then
-        AC_MSG_RESULT([Debug: phpize version info])
-        phpize --version 2>&1 || AC_MSG_RESULT([Debug: phpize version failed])
-        
-        dnl Check if gen_stub.php is available to phpize
-        AC_MSG_RESULT([Debug: checking for gen_stub.php availability])
-        find /usr -name "gen_stub.php" 2>/dev/null | head -3 || AC_MSG_RESULT([Debug: gen_stub.php not found in /usr])
-      fi
-    else
-      AC_MSG_RESULT([Debug: phpize not found in PATH])
-    fi
-    
-    dnl Search more broadly for arginfo.h files that phpize might have created
+    dnl Search more broadly for arginfo.h files that might already exist
     AC_MSG_RESULT([Debug: searching entire temp area for arginfo files])
     TEMP_ARGINFO=$(find /tmp/pear/temp -name "*arginfo.h" 2>/dev/null | head -10 || echo "none")
     AC_MSG_RESULT([Debug: arginfo files in temp area: $TEMP_ARGINFO])
