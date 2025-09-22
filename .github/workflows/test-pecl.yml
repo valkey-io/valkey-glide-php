@@ -188,7 +188,6 @@ jobs:
 
           echo "=== Checking PECL version and functionality ==="
           pecl version || echo "PECL version command failed"
-          pecl help || echo "PECL help command failed"
 
           # Install the package using PECL (this tests the real user experience)
           # But first, let's debug what PECL is doing
