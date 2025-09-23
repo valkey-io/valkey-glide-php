@@ -527,7 +527,7 @@ jobs:
               --verbose \
               php -n -c ext.ini tests/TestValkeyGlide.php 2>&1 | tee ./valgrind_logs/valgrind_output.log
 
-          VALGRIND_EXIT_CODE=$?
+          VALGRIND_EXIT_CODE=${PIPESTATUS[0]}
           echo ""
           echo "=== Valgrind analysis completed with exit code: $VALGRIND_EXIT_CODE ==="
 
