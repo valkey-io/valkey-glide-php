@@ -502,9 +502,23 @@ jobs:
           CFLAGS="-g -O0" make build-modules-pre
           CFLAGS="-g -O0" make
 
-          # Step 6: Create valgrind logs directory and verify setup
+          # Step 6: Generate test protobuf PHP classes
+          echo "=== Step 6: Generating test protobuf PHP classes ==="
+          protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/ ./valkey-glide/glide-core/src/protobuf/connection_request.proto
+          echo "tests directory contents:"
+          cd tests
+          ls -la
+          cd ..
+
+          # Step 7: Install PHP dependencies
+          echo "=== Step 7: Installing PHP dependencies ==="
+          composer install --no-interaction --prefer-dist --optimize-autoloader
+          echo "Composer install completed. Checking for composer.lock:"
+          ls -la composer.lock || echo "Warning: composer.lock not found"
+
+          # Step 8: Create valgrind logs directory and verify setup
           mkdir -p ./valgrind_logs
-          echo "=== Step 6: Verifying Valgrind setup ==="
+          echo "=== Step 8: Verifying Valgrind setup ==="
           echo "Working directory: $(pwd)"
           echo "Extension exists: $(ls -la modules/valkey_glide.so 2>/dev/null || echo 'NOT FOUND')"
           echo "Config file exists: $(ls -la ext.ini 2>/dev/null || echo 'NOT FOUND')"
@@ -512,9 +526,9 @@ jobs:
           echo "Suppressions file exists: $(ls -la valgrind.supp 2>/dev/null || echo 'NOT FOUND')"
           echo "Valgrind version: $(valgrind --version)"
 
-          # Step 7: Run Valgrind tests
+          # Step 9: Run Valgrind tests
           echo ""
-          echo "=== Step 7: Running Valgrind memory analysis ==="
+          echo "=== Step 9: Running Valgrind memory analysis ==="
           echo "Command: valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --suppressions=valgrind.supp php -n -c ext.ini tests/TestValkeyGlide.php"
           echo ""
 
