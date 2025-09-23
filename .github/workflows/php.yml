@@ -427,7 +427,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.BASE_PHP_VERSION }}
-          extensions: none
+          extensions: tokenizer, json, ctype, iconv, mbstring, simplexml, curl
           tools: none
 
       - name: Install system dependencies for PHP Valgrind build
