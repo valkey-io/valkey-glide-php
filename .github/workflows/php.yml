@@ -580,6 +580,14 @@ jobs:
                   echo "✅ No definite memory leaks detected"
               fi
 
+              # Check for indirect leaks
+              if grep -q "indirectly lost:" ./valgrind_logs/valgrind_output.log; then
+                  echo "⚠️  CRITICAL: Indirect memory leaks detected"
+                  grep -A 3 -B 1 "indirectly lost:" ./valgrind_logs/valgrind_output.log || true
+              else
+                  echo "✅ No indirect memory leaks detected"
+              fi
+
               # Check for possible leaks
               if grep -q "possibly lost:" ./valgrind_logs/valgrind_output.log; then
                   POSSIBLY_LOST=$(grep "possibly lost:" ./valgrind_logs/valgrind_output.log | head -1)

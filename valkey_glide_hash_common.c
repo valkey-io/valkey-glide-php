@@ -206,7 +206,10 @@ int execute_h_simple_command(valkey_glide_object* valkey_glide,
 
     /* Process result using standard handlers */
     if (result) {
-        status = processor(result->response, result_ptr, return_value);
+        if (!result->command_error && result->response && processor) {
+            status = processor(result->response, result_ptr, return_value);
+        }
+        free_command_result(result);
     } else {
         status = 0;
     }
