@@ -531,6 +531,9 @@ jobs:
           echo ""
           echo "=== Valgrind analysis completed with exit code: $VALGRIND_EXIT_CODE ==="
 
+          # Store exit code for later use
+          echo "$VALGRIND_EXIT_CODE" > ./valgrind_logs/exit_code.txt
+
       - name: Display Valgrind results
         if: always()
         run: |
@@ -592,6 +595,39 @@ jobs:
               echo "This indicates the Valgrind command may have failed to execute properly"
               echo "Check the previous step output for any error messages"
           fi
+
+      - name: Check test results and fail if needed
+        run: |
+          echo "=== Final Test Results Check ==="
+
+          # Check if exit code file exists
+          if [ -f "./valgrind_logs/exit_code.txt" ]; then
+            EXIT_CODE=$(cat ./valgrind_logs/exit_code.txt)
+            echo "Valgrind/PHP test exit code: $EXIT_CODE"
+            
+            if [ "$EXIT_CODE" -ne 0 ]; then
+              echo "❌ FAILURE: PHP tests failed with exit code $EXIT_CODE"
+              echo "The workflow will fail even if no memory leaks were detected"
+              exit $EXIT_CODE
+            else
+              echo "✅ SUCCESS: PHP tests passed (exit code 0)"
+            fi
+          else
+            echo "❌ FAILURE: Could not determine test exit code"
+            echo "This indicates the valgrind command may not have run properly"
+            exit 1
+          fi
+
+          # Additional check for memory issues
+          if [ -f "./valgrind_logs/valgrind_output.log" ]; then
+            if grep -q "definitely lost:" ./valgrind_logs/valgrind_output.log; then
+              LOST_BYTES=$(grep "definitely lost:" ./valgrind_logs/valgrind_output.log | head -1 | grep -o '[0-9,]* bytes' | head -1)
+              echo "⚠️  WARNING: Memory leaks detected ($LOST_BYTES)"
+              echo "Consider this a warning for now, but should be investigated"
+            fi
+          fi
+
+          echo "=== All checks passed ==="
 
       - name: Stop Valkey servers
         if: always()
