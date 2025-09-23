@@ -590,10 +590,14 @@ jobs:
                   echo "✅ No indirect memory leaks detected"
               fi
 
-              # Check for possible leaks
-              if grep -q "possibly lost:" ./valgrind_logs/valgrind_output.log; then
-                  POSSIBLY_LOST=$(grep "possibly lost:" ./valgrind_logs/valgrind_output.log | head -1)
-                  echo "⚠️  Possible leaks: $POSSIBLY_LOST"
+              # Check for possibly lost memory (treat as error, use suppressions for safe cases)
+              POSSIBLY_LOST=$(grep "possibly lost:" ./valgrind_logs/valgrind_output.log | head -1 | grep -o '[0-9,]* bytes' | head -1 | tr -d ',' || echo "0")
+              if [ "$POSSIBLY_LOST" -gt 0 ] 2>/dev/null; then
+                  echo "❌ CRITICAL: Possibly lost memory detected ($POSSIBLY_LOST bytes)"
+                  echo "Add suppressions to valgrind.supp if these are known safe allocations"
+                  grep -A 3 -B 1 "possibly lost:" ./valgrind_logs/valgrind_output.log || true
+              else
+                  echo "✅ No possibly lost memory detected"
               fi
 
               # Show leak summary if present
@@ -651,12 +655,20 @@ jobs:
             exit 1
           fi
 
-          # Additional check for memory issues
+          # Additional check for memory issues (fail on any leaks or possibly lost)
           if [ -f "./valgrind_logs/valgrind_output.log" ]; then
-            if grep -q "definitely lost:" ./valgrind_logs/valgrind_output.log; then
-              LOST_BYTES=$(grep "definitely lost:" ./valgrind_logs/valgrind_output.log | head -1 | grep -o '[0-9,]* bytes' | head -1)
-              echo "⚠️  WARNING: Memory leaks detected ($LOST_BYTES)"
-              echo "Consider this a warning for now, but should be investigated"
+            # Check for all types of memory issues
+            DEFINITELY_LOST=$(grep "definitely lost:" ./valgrind_logs/valgrind_output.log | head -1 | grep -o '[0-9,]* bytes' | head -1 | tr -d ',' || echo "0")
+            INDIRECTLY_LOST=$(grep "indirectly lost:" ./valgrind_logs/valgrind_output.log | head -1 | grep -o '[0-9,]* bytes' | head -1 | tr -d ',' || echo "0")
+            POSSIBLY_LOST=$(grep "possibly lost:" ./valgrind_logs/valgrind_output.log | head -1 | grep -o '[0-9,]* bytes' | head -1 | tr -d ',' || echo "0")
+            
+            if [ "$DEFINITELY_LOST" -gt 0 ] 2>/dev/null || [ "$INDIRECTLY_LOST" -gt 0 ] 2>/dev/null || [ "$POSSIBLY_LOST" -gt 0 ] 2>/dev/null; then
+              echo "❌ FAILURE: Memory issues detected"
+              echo "- Definitely lost: $DEFINITELY_LOST bytes"
+              echo "- Indirectly lost: $INDIRECTLY_LOST bytes" 
+              echo "- Possibly lost: $POSSIBLY_LOST bytes"
+              echo "Fix memory leaks or add suppressions to valgrind.supp for known safe allocations"
+              exit 1
             fi
           fi
 
