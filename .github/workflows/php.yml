@@ -573,16 +573,18 @@ jobs:
               fi
 
               # Check for memory leaks
-              if grep -q "definitely lost:" ./valgrind_logs/valgrind_output.log; then
-                  echo "⚠️  CRITICAL: Definite memory leaks detected"
+              DEFINITELY_LOST=$(grep "definitely lost:" ./valgrind_logs/valgrind_output.log | grep -o '[0-9,]* bytes' | head -1 | tr -d ',' || echo "0")
+              if [ "$DEFINITELY_LOST" -gt 0 ] 2>/dev/null; then
+                  echo "⚠️  CRITICAL: Definite memory leaks detected ($DEFINITELY_LOST bytes)"
                   grep -A 3 -B 1 "definitely lost:" ./valgrind_logs/valgrind_output.log || true
               else
                   echo "✅ No definite memory leaks detected"
               fi
 
               # Check for indirect leaks
-              if grep -q "indirectly lost:" ./valgrind_logs/valgrind_output.log; then
-                  echo "⚠️  CRITICAL: Indirect memory leaks detected"
+              INDIRECTLY_LOST=$(grep "indirectly lost:" ./valgrind_logs/valgrind_output.log | grep -o '[0-9,]* bytes' | head -1 | tr -d ',' || echo "0")
+              if [ "$INDIRECTLY_LOST" -gt 0 ] 2>/dev/null; then
+                  echo "⚠️  CRITICAL: Indirect memory leaks detected ($INDIRECTLY_LOST bytes)"
                   grep -A 3 -B 1 "indirectly lost:" ./valgrind_logs/valgrind_output.log || true
               else
                   echo "✅ No indirect memory leaks detected"
@@ -605,6 +607,15 @@ jobs:
               if grep -q "ERROR SUMMARY:" ./valgrind_logs/valgrind_output.log; then
                   echo ""
                   echo "=== Error Summary ==="
+                  ERROR_COUNT=$(grep "ERROR SUMMARY:" ./valgrind_logs/valgrind_output.log | grep -o '[0-9]* errors' | head -1 | grep -o '[0-9]*')
+                  if [ "$ERROR_COUNT" -gt 0 ] 2>/dev/null; then
+                      echo "❌ CRITICAL: $ERROR_COUNT memory errors detected"
+                      echo "=== Memory Error Details ==="
+                      # Show the actual error details (not just leaks)
+                      grep -B 5 -A 10 "Invalid\|Conditional\|Uninitialised\|Source and destination\|Address.*is.*bytes.*inside\|Use of uninitialised" ./valgrind_logs/valgrind_output.log || true
+                  else
+                      echo "✅ No memory errors detected"
+                  fi
                   grep "ERROR SUMMARY:" ./valgrind_logs/valgrind_output.log || true
               fi
 
