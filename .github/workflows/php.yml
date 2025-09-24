@@ -123,24 +123,15 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            valkey-glide/ffi/target
-            valkey-glide/glide-core/target
-          key: cargo-${{ runner.os }}-${{ matrix.host.TARGET }}
+            target
+          key: cargo-${{ runner.os }}-${{ matrix.host.TARGET }}-${{ hashFiles('valkey-glide/**/Cargo.lock') }}
           restore-keys: |
+            cargo-${{ runner.os }}-${{ matrix.host.TARGET }}-
             cargo-${{ runner.os }}-
-            cargo-
 
-      - name: Fix cargo cache timestamps
+      - name: Set consistent Cargo target directory
         run: |
-          # Fix timestamps so cargo recognizes cached artifacts as valid
-          if [ -d "valkey-glide/ffi/target" ]; then
-            echo "Fixing timestamps for FFI target directory..."
-            find valkey-glide/ffi/target -type f -exec touch {} \;
-          fi
-          if [ -d "valkey-glide/glide-core/target" ]; then
-            echo "Fixing timestamps for glide-core target directory..."
-            find valkey-glide/glide-core/target -type f -exec touch {} \;
-          fi
+          echo "CARGO_TARGET_DIR=${{ github.workspace }}/target" >> $GITHUB_ENV
 
       - name: Build PHP wrapper
         uses: ./.github/workflows/build-php-wrapper
