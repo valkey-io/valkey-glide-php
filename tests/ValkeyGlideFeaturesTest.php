@@ -85,13 +85,14 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     public function testConstructorWithTlsEnabled()
     {
         if ($this->getTLS()) {
-            // Test constructor with TLS explicitly disabled
+            // Test with TLS explicitly enabled. Also enable 1 minute timeout for valgrind runs.
             $addresses = [
                 ['host' => $this->getHost(), 'port' => $this->getPort()]
             ];
 
             $advancedConfig = [
-                'tls_config' => ['use_insecure_tls' => true]
+                'tls_config' => ['use_insecure_tls' => true],
+                'connection_timeout' => 60000,
             ];
             $valkey_glide = new ValkeyGlide($addresses, use_tls: true, advanced_config: $advancedConfig);
             $this->assertTrue($valkey_glide->ping());

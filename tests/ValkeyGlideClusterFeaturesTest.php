@@ -69,7 +69,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             addresses: [['host' => '127.0.0.1', 'port' => 8001]],
             use_tls:true, // use_tls enabled
             credentials: $this->getAuth(),
-            advanced_config: [ 'tls_config' => ['use_insecure_tls' => true, 'connection_timeout' => 60000]]
+            advanced_config: [ 'tls_config' => ['use_insecure_tls' => true], 'connection_timeout' => 60000]
         );
 
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
