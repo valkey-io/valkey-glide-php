@@ -124,6 +124,18 @@ jobs:
             echo "Copying Cargo git cache to root..."
             sudo cp -r "$HOME/.cargo/git" /root/.cargo/ || echo "Failed to copy git cache"
           fi
+
+          # Fix timestamps so cargo recognizes cached artifacts as valid
+          if [ -d "valkey-glide/ffi/target" ]; then
+            echo "Fixing timestamps for FFI target directory..."
+            find valkey-glide/ffi/target -type f -exec touch {} \;
+            sudo find valkey-glide/ffi/target -type f -exec touch {} \;
+          fi
+          if [ -d "valkey-glide/glide-core/target" ]; then
+            echo "Fixing timestamps for glide-core target directory..."
+            find valkey-glide/glide-core/target -type f -exec touch {} \;
+            sudo find valkey-glide/glide-core/target -type f -exec touch {} \;
+          fi
           echo "Root Cargo cache setup complete"
 
       - name: Test PIE with manual repository
