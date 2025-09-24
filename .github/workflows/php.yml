@@ -123,9 +123,22 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-          key: cargo-deps-${{ runner.os }}-${{ hashFiles('valkey-glide/**/Cargo.lock') }}
+            valkey-glide/ffi/target/release/deps
+            valkey-glide/ffi/target/release/build
+            valkey-glide/glide-core/target/release/deps  
+            valkey-glide/glide-core/target/release/build
+          key: cargo-deps-${{ runner.os }}-${{ matrix.host.TARGET }}-${{ hashFiles('valkey-glide/**/Cargo.lock') }}
           restore-keys: |
+            cargo-deps-${{ runner.os }}-${{ matrix.host.TARGET }}-
             cargo-deps-${{ runner.os }}-
+
+      - name: Clean our own artifacts from cache
+        run: |
+          # Remove any cached artifacts from our own crates to force rebuild
+          find valkey-glide/ffi/target/release/deps -name "*glide*" -delete 2>/dev/null || true
+          find valkey-glide/ffi/target/release/deps -name "*logger_core*" -delete 2>/dev/null || true
+          find valkey-glide/ffi/target/release/deps -name "*telemetrylib*" -delete 2>/dev/null || true
+          find valkey-glide/glide-core/target/release/deps -name "*glide*" -delete 2>/dev/null || true
 
       - name: Build PHP wrapper
         uses: ./.github/workflows/build-php-wrapper
