@@ -544,7 +544,7 @@ jobs:
           valgrind \
               --tool=memcheck \
               --leak-check=full \
-              --show-leak-kinds=all \
+              --show-leak-kinds=definite,indirect,possible \
               --track-origins=yes \
               --verbose \
               --error-exitcode=1 \
