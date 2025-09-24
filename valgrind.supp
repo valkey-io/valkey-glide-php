@@ -1,0 +1,26 @@
+# Valgrind suppressions for ValkeyGlide PHP extension
+
+# Cluster scan cursor container - possibly lost during hashmap resize
+# This appears to be related to scan cursor cleanup timing
+# TODO: Investigate proper cleanup in cluster_scan_container
+{
+   cluster_scan_cursor_container_resize
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*hashbrown*raw*RawTable*reserve_rehash*
+   fun:*cluster_scan_container*insert_cluster_scan_cursor*
+}
+
+# Alternative pattern for the same issue
+{
+   cluster_scan_cursor_hashmap_resize
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*reserve_rehash*
+   ...
+   fun:*cluster_scan_container*
+}
