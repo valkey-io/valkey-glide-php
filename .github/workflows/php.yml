@@ -120,16 +120,27 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
             valkey-glide/ffi/target
-            valkey-glide/glide-core/src/generated
-            include/
-            src/*.pb-c.c
-            src/*.pb-c.h
-          key: ${{ matrix.host.TARGET }}-php-${{ matrix.php }}
+            valkey-glide/glide-core/target
+          key: cargo-${{ runner.os }}-${{ matrix.host.TARGET }}
           restore-keys: |
-            ${{ matrix.host.TARGET }}-php
-            ${{ matrix.host.TARGET }}-glide-core
-            ${{ matrix.host.TARGET }}
+            cargo-${{ runner.os }}-
+            cargo-
+
+      - name: Fix cargo cache timestamps
+        run: |
+          # Fix timestamps so cargo recognizes cached artifacts as valid
+          if [ -d "valkey-glide/ffi/target" ]; then
+            echo "Fixing timestamps for FFI target directory..."
+            find valkey-glide/ffi/target -type f -exec touch {} \;
+          fi
+          if [ -d "valkey-glide/glide-core/target" ]; then
+            echo "Fixing timestamps for glide-core target directory..."
+            find valkey-glide/glide-core/target -type f -exec touch {} \;
+          fi
 
       - name: Build PHP wrapper
         uses: ./.github/workflows/build-php-wrapper
