@@ -420,16 +420,11 @@ jobs:
       - name: Build FFI library with debug symbols
         working-directory: valkey-glide/ffi
         run: |
-          # Patch Cargo.toml to force hashbrown 0.15.5 for valgrind testing
-          echo "" >> Cargo.toml
-          echo "# Valgrind testing: Force newer hashbrown to avoid false positives" >> Cargo.toml
-          echo "[patch.crates-io]" >> Cargo.toml
-          echo "hashbrown = \"0.15.5\"" >> Cargo.toml
-
-          echo "=== Patched Cargo.toml for valgrind testing ==="
-          tail -5 Cargo.toml
-
-          echo "=== Verifying hashbrown versions after patch ==="
+          # Force hashbrown 0.15.5 for valgrind testing using cargo update
+          echo "=== Updating hashbrown to 0.15.5 for valgrind testing ==="
+          cargo update -p hashbrown --precise 0.15.5
+          
+          echo "=== Verifying hashbrown versions after update ==="
           cargo tree | grep hashbrown || echo "No hashbrown dependencies found"
 
           # Build with debug symbols for better Valgrind analysis
