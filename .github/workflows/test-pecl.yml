@@ -180,6 +180,8 @@ jobs:
         run: |
           echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
           echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_CACHE_TO=sccache-pecl-${{ runner.os }}-${{ github.run_id }}" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_CACHE_FROM=sccache-pecl-${{ runner.os }}-" >> $GITHUB_ENV
 
       - name: Setup Cargo cache for root user
         run: |
@@ -195,9 +197,14 @@ jobs:
             sudo cp -r "$HOME/.cargo/git" /root/.cargo/ || echo "Failed to copy git cache"
           fi
 
-          # Set sccache environment for root
-          echo "RUSTC_WRAPPER=sccache" | sudo tee -a /etc/environment
-          echo "SCCACHE_GHA_ENABLED=true" | sudo tee -a /etc/environment
+          # Make sccache available to root
+          if which sccache >/dev/null 2>&1; then
+            sudo ln -sf "$(which sccache)" /usr/local/bin/sccache
+            echo "RUSTC_WRAPPER=sccache" | sudo tee -a /etc/environment
+            echo "SCCACHE_GHA_ENABLED=true" | sudo tee -a /etc/environment
+            echo "SCCACHE_GHA_CACHE_TO=sccache-pecl-root-${{ runner.os }}-${{ github.run_id }}" | sudo tee -a /etc/environment
+            echo "SCCACHE_GHA_CACHE_FROM=sccache-pecl-root-${{ runner.os }}-" | sudo tee -a /etc/environment
+          fi
           echo "Root Cargo cache setup complete"
 
       - name: Test PECL installation

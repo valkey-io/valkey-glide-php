@@ -124,6 +124,9 @@ jobs:
         run: |
           echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
           echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+          # Set a specific cache key to avoid conflicts
+          echo "SCCACHE_GHA_CACHE_TO=sccache-${{ runner.os }}-${{ github.run_id }}" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_CACHE_FROM=sccache-${{ runner.os }}-" >> $GITHUB_ENV
 
       - name: Build PHP wrapper
         uses: ./.github/workflows/build-php-wrapper
@@ -237,19 +240,8 @@ jobs:
         run: |
           echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
           echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-          # Configure sccache to ignore our workspace crates
-          mkdir -p ~/.config/sccache
-          cat > ~/.config/sccache/config << EOF
-          [cache.gha]
-          ignored_files = [
-            "**/valkey-glide/ffi/**",
-            "**/valkey-glide/glide-core/**",
-            "**/glide-ffi/**",
-            "**/glide-core/**",
-            "**/logger_core/**",
-            "**/telemetrylib/**"
-          ]
-          EOF
+          echo "SCCACHE_GHA_CACHE_TO=sccache-asan-${{ runner.os }}-${{ github.run_id }}" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_CACHE_FROM=sccache-asan-${{ runner.os }}-" >> $GITHUB_ENV
 
       - name: Build FFI library
         working-directory: valkey-glide/ffi
@@ -461,19 +453,8 @@ jobs:
         run: |
           echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
           echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-          # Configure sccache to ignore our workspace crates
-          mkdir -p ~/.config/sccache
-          cat > ~/.config/sccache/config << EOF
-          [cache.gha]
-          ignored_files = [
-            "**/valkey-glide/ffi/**",
-            "**/valkey-glide/glide-core/**",
-            "**/glide-ffi/**",
-            "**/glide-core/**",
-            "**/logger_core/**",
-            "**/telemetrylib/**"
-          ]
-          EOF
+          echo "SCCACHE_GHA_CACHE_TO=sccache-valgrind-${{ runner.os }}-${{ github.run_id }}" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_CACHE_FROM=sccache-valgrind-${{ runner.os }}-" >> $GITHUB_ENV
 
       - name: Build FFI library with debug symbols
         working-directory: valkey-glide/ffi
