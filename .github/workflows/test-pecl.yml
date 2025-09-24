@@ -180,6 +180,14 @@ jobs:
             valkey-glide/glide-core
           key: pecl
 
+      - name: Pre-populate Rust registry cache
+        run: |
+          echo "=== Pre-populating Rust registry cache ==="
+          # This will download all dependencies to ~/.cargo/registry
+          cd valkey-glide/ffi
+          cargo fetch
+          echo "Registry cache populated"
+
       - name: Setup Cargo cache for root user
         run: |
           echo "=== Setting up Cargo cache for root user ==="
@@ -194,14 +202,18 @@ jobs:
             sudo cp -r "$HOME/.cargo/git" /root/.cargo/ || echo "Failed to copy git cache"
           fi
 
-          # Make target directories accessible to root for compiled artifacts
+          # Create symlinks so PECL can find the compiled cache
+          echo "=== Setting up target directory symlinks for PECL ==="
+          sudo mkdir -p /tmp/pear/temp/valkey_glide/valkey-glide/ffi
+          sudo mkdir -p /tmp/pear/temp/valkey_glide/valkey-glide/glide-core
+
           if [ -d "valkey-glide/ffi/target" ]; then
-            echo "Making FFI target directory accessible to root..."
-            sudo chmod -R 755 valkey-glide/ffi/target
+            echo "Symlinking FFI target directory..."
+            sudo ln -sf "$(pwd)/valkey-glide/ffi/target" /tmp/pear/temp/valkey_glide/valkey-glide/ffi/target
           fi
           if [ -d "valkey-glide/glide-core/target" ]; then
-            echo "Making glide-core target directory accessible to root..."
-            sudo chmod -R 755 valkey-glide/glide-core/target
+            echo "Symlinking glide-core target directory..."
+            sudo ln -sf "$(pwd)/valkey-glide/glide-core/target" /tmp/pear/temp/valkey_glide/valkey-glide/glide-core/target
           fi
           echo "Root Cargo cache setup complete"
 

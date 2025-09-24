@@ -132,14 +132,19 @@ jobs:
             sudo cp -r "$HOME/.cargo/git" /root/.cargo/ || echo "Failed to copy git cache"
           fi
 
-          # Make target directories accessible to root for compiled artifacts
+          # Create symlinks so PIE can find the compiled cache  
+          echo "=== Setting up target directory symlinks for PIE ==="
+          # PIE extracts to a similar temp directory structure
+          sudo mkdir -p /tmp/pie-build/valkey-glide/ffi
+          sudo mkdir -p /tmp/pie-build/valkey-glide/glide-core
+
           if [ -d "valkey-glide/ffi/target" ]; then
-            echo "Making FFI target directory accessible to root..."
-            sudo chmod -R 755 valkey-glide/ffi/target
+            echo "Symlinking FFI target directory..."
+            sudo ln -sf "$(pwd)/valkey-glide/ffi/target" /tmp/pie-build/valkey-glide/ffi/target
           fi
           if [ -d "valkey-glide/glide-core/target" ]; then
-            echo "Making glide-core target directory accessible to root..."
-            sudo chmod -R 755 valkey-glide/glide-core/target
+            echo "Symlinking glide-core target directory..."
+            sudo ln -sf "$(pwd)/valkey-glide/glide-core/target" /tmp/pie-build/valkey-glide/glide-core/target
           fi
           echo "Root Cargo cache setup complete"
 

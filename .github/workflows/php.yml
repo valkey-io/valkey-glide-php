@@ -236,6 +236,13 @@ jobs:
             valkey-glide/glide-core
           key: asan
 
+      - name: Pre-build Rust components
+        run: |
+          echo "=== Pre-building Rust components for make ==="
+          cd valkey-glide/ffi
+          cargo build --release
+          echo "Rust pre-build completed"
+
       - name: Build FFI library
         working-directory: valkey-glide/ffi
         run: cargo build --release
@@ -445,6 +452,13 @@ jobs:
             valkey-glide/ffi
             valkey-glide/glide-core
           key: valgrind
+
+      - name: Pre-build Rust components
+        run: |
+          echo "=== Pre-building Rust components for make ==="
+          cd valkey-glide/ffi
+          cargo build --release
+          echo "Rust pre-build completed"
 
       - name: Build FFI library with debug symbols
         working-directory: valkey-glide/ffi
@@ -992,16 +1006,19 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: actions/cache@v4
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            valkey-glide/ffi/target
-            valkey-glide/glide-core/src/generated
-            include/
-          key: aarch64-unknown-linux-gnu-php
-          restore-keys: |
-            aarch64-unknown-linux-gnu-glide-core
-            aarch64-unknown-linux-gnu
+          workspaces: |
+            valkey-glide/ffi
+            valkey-glide/glide-core
+          key: modules-aarch64
+
+      - name: Pre-build Rust components
+        run: |
+          echo "=== Pre-building Rust components for make ==="
+          cd valkey-glide/ffi
+          cargo build --release
+          echo "Rust pre-build completed"
 
       - name: Install zig
         uses: ./.github/workflows/install-zig
