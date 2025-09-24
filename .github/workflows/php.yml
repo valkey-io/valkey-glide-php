@@ -420,9 +420,11 @@ jobs:
       - name: Build FFI library with debug symbols
         working-directory: valkey-glide/ffi
         run: |
-          # Force hashbrown 0.15.5 for valgrind testing using cargo update
-          echo "=== Updating hashbrown to 0.15.5 for valgrind testing ==="
-          cargo update -p hashbrown --precise 0.15.5
+          # Force all hashbrown versions to 0.16.0 for valgrind testing
+          echo "=== Updating all hashbrown versions to 0.16.0 for valgrind testing ==="
+          cargo update -p hashbrown@0.12.3 --precise 0.16.0 || echo "Failed to update hashbrown@0.12.3"
+          cargo update -p hashbrown@0.14.5 --precise 0.16.0 || echo "Failed to update hashbrown@0.14.5"  
+          cargo update -p hashbrown@0.16.0 --precise 0.16.0 || echo "hashbrown@0.16.0 already at target version"
           
           echo "=== Verifying hashbrown versions after update ==="
           cargo tree | grep hashbrown || echo "No hashbrown dependencies found"
