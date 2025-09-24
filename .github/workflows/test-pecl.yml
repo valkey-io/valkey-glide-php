@@ -66,6 +66,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           install-composer-deps: "false"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate PHP protobuf classes for testing
         run: |

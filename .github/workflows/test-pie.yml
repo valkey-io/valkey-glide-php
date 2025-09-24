@@ -58,6 +58,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           install-composer-deps: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create manual Composer repository
         run: |

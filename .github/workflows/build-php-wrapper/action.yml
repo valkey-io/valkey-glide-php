@@ -60,12 +60,15 @@ runs:
 
     - name: Install protobuf compiler (Ubuntu)
       if: ${{ inputs.os == 'ubuntu' }}
+      uses: arduino/setup-protoc@v3
+      with:
+        version: "3.20.3"
+        repo-token: ${{ inputs.github-token }}
+
+    - name: Install protobuf-c-compiler (Ubuntu)
+      if: ${{ inputs.os == 'ubuntu' }}
       shell: bash
       run: |
-        PB_REL="https://github.com/protocolbuffers/protobuf/releases"
-        curl -LO $PB_REL/download/v3.20.3/protoc-3.20.3-linux-x86_64.zip
-        unzip protoc-3.20.3-linux-x86_64.zip -d $HOME/.local
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
         # Install protobuf-c-compiler
         sudo apt-get install -y protobuf-c-compiler
 
