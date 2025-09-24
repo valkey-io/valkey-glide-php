@@ -41,7 +41,11 @@ runs:
 
     - run: |
         cargo update
-        cargo install --locked cargo-deny
+        if [ -f "$HOME/.cargo/bin/cargo-deny" ]; then
+          echo "cargo-deny already installed (cached)"
+        else
+          cargo install --locked cargo-deny
+        fi
         cargo deny check --config ${GITHUB_WORKSPACE}/deny.toml
       working-directory: ${{ inputs.cargo-toml-folder }}
       shell: bash

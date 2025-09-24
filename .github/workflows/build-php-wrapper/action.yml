@@ -100,14 +100,22 @@ runs:
     - name: Install cbindgen
       shell: bash
       run: |
-        cargo install cbindgen
+        if [ -f "$HOME/.cargo/bin/cbindgen" ]; then
+          echo "cbindgen already installed (cached)"
+        else
+          cargo install cbindgen
+        fi
 
     - name: Install ziglang (Ubuntu)
       if: ${{ inputs.os == 'ubuntu' }}
       shell: bash
       run: |
         pip3 install ziglang
-        cargo install --locked cargo-zigbuild
+        if [ -f "$HOME/.cargo/bin/cargo-zigbuild" ]; then
+          echo "cargo-zigbuild already installed (cached)"
+        else
+          cargo install --locked cargo-zigbuild
+        fi
 
     - name: Build FFI library
       shell: bash
