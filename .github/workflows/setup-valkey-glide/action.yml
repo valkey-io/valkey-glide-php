@@ -88,13 +88,6 @@ runs:
       with:
         github-token: ${{ inputs.github-token }}
 
-    - name: Pre-fetch Rust dependencies
-      shell: bash
-      working-directory: valkey-glide/ffi
-      run: |
-        echo "Pre-fetching Rust dependencies..."
-        cargo fetch
-
     - name: Install cbindgen (cached)
       shell: bash
       run: |

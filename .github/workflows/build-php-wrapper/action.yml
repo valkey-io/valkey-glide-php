@@ -120,6 +120,17 @@ runs:
           cargo install --locked cargo-zigbuild
         fi
 
+    - name: Cache Cargo build artifacts for FFI
+      uses: actions/cache@v4
+      with:
+        path: |
+          valkey-glide/ffi/target
+          valkey-glide/glide-core/target
+        key: cargo-ffi-${{ inputs.target }}-${{ hashFiles('valkey-glide/**/Cargo.lock') }}
+        restore-keys: |
+          cargo-ffi-${{ inputs.target }}-
+          cargo-ffi-
+
     - name: Setup Cargo environment for caching
       shell: bash
       run: |
@@ -136,10 +147,6 @@ runs:
         OS: ${{ inputs.os }}
       working-directory: valkey-glide/ffi
       run: |
-        # Pre-fetch dependencies to use cache
-        echo "Pre-fetching Rust dependencies for FFI..."
-        cargo fetch
-
         # Check if ASAN flags are present - if so, use regular cargo build to avoid Zig linker issues
         if [[ "$CFLAGS" == *"-fsanitize=address"* ]] || [[ "$CXXFLAGS" == *"-fsanitize=address"* ]]; then
             echo "ASAN flags detected, using regular cargo build to ensure proper ASAN runtime linking"

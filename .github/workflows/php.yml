@@ -236,6 +236,18 @@ jobs:
             cargo install cbindgen
           fi
 
+      - name: Cache Cargo build artifacts for ASAN FFI
+        uses: actions/cache@v4
+        with:
+          path: |
+            valkey-glide/ffi/target
+            valkey-glide/glide-core/target
+          key: cargo-ffi-asan-x86_64-unknown-linux-gnu-${{ hashFiles('valkey-glide/**/Cargo.lock') }}
+          restore-keys: |
+            cargo-ffi-asan-x86_64-unknown-linux-gnu-
+            cargo-ffi-x86_64-unknown-linux-gnu-
+            cargo-ffi-
+
       - name: Build FFI library
         working-directory: valkey-glide/ffi
         run: cargo build --release
@@ -438,6 +450,18 @@ jobs:
           echo "=== Removing optional fields from proto files ==="
           python3 utils/remove_optional_from_proto.py
           echo "=== Proto file cleanup completed ==="
+
+      - name: Cache Cargo build artifacts for Valgrind FFI
+        uses: actions/cache@v4
+        with:
+          path: |
+            valkey-glide/ffi/target
+            valkey-glide/glide-core/target
+          key: cargo-ffi-valgrind-x86_64-unknown-linux-gnu-${{ hashFiles('valkey-glide/**/Cargo.lock') }}
+          restore-keys: |
+            cargo-ffi-valgrind-x86_64-unknown-linux-gnu-
+            cargo-ffi-x86_64-unknown-linux-gnu-
+            cargo-ffi-
 
       - name: Build FFI library with debug symbols
         working-directory: valkey-glide/ffi
