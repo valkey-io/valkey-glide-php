@@ -120,6 +120,15 @@ runs:
           cargo install --locked cargo-zigbuild
         fi
 
+    - name: Setup Cargo environment for caching
+      shell: bash
+      run: |
+        # Ensure Cargo uses the cached registry and git databases
+        mkdir -p ~/.cargo
+        echo "Cargo home: $CARGO_HOME"
+        echo "Registry cache: $(ls -la ~/.cargo/registry/ 2>/dev/null || echo 'Not found')"
+        echo "Git cache: $(ls -la ~/.cargo/git/ 2>/dev/null || echo 'Not found')"
+
     - name: Build FFI library
       shell: bash
       env:
@@ -127,6 +136,10 @@ runs:
         OS: ${{ inputs.os }}
       working-directory: valkey-glide/ffi
       run: |
+        # Pre-fetch dependencies to use cache
+        echo "Pre-fetching Rust dependencies for FFI..."
+        cargo fetch
+
         # Check if ASAN flags are present - if so, use regular cargo build to avoid Zig linker issues
         if [[ "$CFLAGS" == *"-fsanitize=address"* ]] || [[ "$CXXFLAGS" == *"-fsanitize=address"* ]]; then
             echo "ASAN flags detected, using regular cargo build to ensure proper ASAN runtime linking"

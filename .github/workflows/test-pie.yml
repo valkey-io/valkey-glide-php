@@ -111,6 +111,21 @@ jobs:
           echo $! > ../server.pid
           sleep 3
 
+      - name: Setup Cargo cache for root user
+        run: |
+          echo "=== Setting up Cargo cache for root user ==="
+          # Copy Cargo cache to root's home directory so PIE can use it
+          sudo mkdir -p /root/.cargo
+          if [ -d "$HOME/.cargo/registry" ]; then
+            echo "Copying Cargo registry cache to root..."
+            sudo cp -r "$HOME/.cargo/registry" /root/.cargo/ || echo "Failed to copy registry cache"
+          fi
+          if [ -d "$HOME/.cargo/git" ]; then
+            echo "Copying Cargo git cache to root..."
+            sudo cp -r "$HOME/.cargo/git" /root/.cargo/ || echo "Failed to copy git cache"
+          fi
+          echo "Root Cargo cache setup complete"
+
       - name: Test PIE with manual repository
         run: |
           # Allow HTTP for localhost for both user and root

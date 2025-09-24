@@ -173,6 +173,21 @@ jobs:
           echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
           echo "PACKAGE_DIR=$PACKAGE_DIR" >> $GITHUB_ENV
 
+      - name: Setup Cargo cache for root user
+        run: |
+          echo "=== Setting up Cargo cache for root user ==="
+          # Copy Cargo cache to root's home directory so PECL can use it
+          sudo mkdir -p /root/.cargo
+          if [ -d "$HOME/.cargo/registry" ]; then
+            echo "Copying Cargo registry cache to root..."
+            sudo cp -r "$HOME/.cargo/registry" /root/.cargo/ || echo "Failed to copy registry cache"
+          fi
+          if [ -d "$HOME/.cargo/git" ]; then
+            echo "Copying Cargo git cache to root..."
+            sudo cp -r "$HOME/.cargo/git" /root/.cargo/ || echo "Failed to copy git cache"
+          fi
+          echo "Root Cargo cache setup complete"
+
       - name: Test PECL installation
         run: |
           echo "=== Testing PECL-style installation ==="
