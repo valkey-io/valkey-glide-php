@@ -540,7 +540,7 @@ jobs:
           else
             echo "No suppressions file found"
           fi
-          
+
           valgrind \
               --tool=memcheck \
               --leak-check=full \
