@@ -373,11 +373,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             if ($cursor->isFinished()) {
                 break;
             }
-            // Force the cursor to go out of scope, as the GC runs non-deterministically otherwise.
-            // This isn't necessary but helps avoid a valgrind false positive.
-            unset($cursor);
-            gc_collect_cycles();
-
+            // Cursor goes out of scope here, destructor should be called
         }
 
 
