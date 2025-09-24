@@ -533,12 +533,22 @@ jobs:
           echo ""
 
           # Run Valgrind with output to both terminal and log file
+          SUPPRESSIONS_FLAG=""
+          if [ -f "valgrind.supp" ]; then
+            SUPPRESSIONS_FLAG="--suppressions=valgrind.supp"
+            echo "Using suppressions file: valgrind.supp"
+          else
+            echo "No suppressions file found"
+          fi
+          
           valgrind \
               --tool=memcheck \
               --leak-check=full \
               --show-leak-kinds=all \
               --track-origins=yes \
               --verbose \
+              --error-exitcode=1 \
+              $SUPPRESSIONS_FLAG \
               php -n -c ext.ini tests/TestValkeyGlide.php 2>&1 | tee ./valgrind_logs/valgrind_output.log
 
           VALGRIND_EXIT_CODE=${PIPESTATUS[0]}
