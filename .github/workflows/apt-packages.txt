@@ -1,0 +1,8 @@
+build-essential
+php-dev
+protobuf-compiler
+libprotobuf-c-dev
+libprotobuf-c1
+pkg-config
+libssl-dev
+valgrind

@@ -1,0 +1,105 @@
+name: Setup ValkeyGlide with Caching
+description: Common setup for ValkeyGlide builds with aggressive caching
+inputs:
+  php-version:
+    description: PHP version to use
+    required: true
+  engine-version:
+    description: Engine version
+    required: true
+  github-token:
+    description: GitHub token for API access
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Cache APT packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          /var/cache/apt/archives
+          /var/lib/apt/lists
+        key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/apt-packages.txt') }}
+        restore-keys: |
+          apt-${{ runner.os }}-
+
+    - name: Install system dependencies (cached)
+      shell: bash
+      run: |
+        # Skip update if cache hit and recent
+        if [ ! -f /var/cache/apt/cached ] || [ $(find /var/cache/apt/cached -mmin +60) ]; then
+          echo "Updating APT cache..."
+          sudo apt-get update
+          touch /var/cache/apt/cached
+        else
+          echo "Using cached APT packages"
+        fi
+        
+        sudo apt-get install -y --no-install-recommends \
+          build-essential \
+          php${{ inputs.php-version }}-dev \
+          protobuf-compiler \
+          libprotobuf-c-dev \
+          libprotobuf-c1 \
+          pkg-config \
+          libssl-dev
+
+    - name: Cache Cargo dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          valkey-glide/ffi/target/
+          valkey-glide/glide-core/target/
+        key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          cargo-${{ runner.os }}-
+
+    - name: Configure Cargo for speed
+      shell: bash
+      run: |
+        mkdir -p ~/.cargo
+        cat >> ~/.cargo/config.toml << EOF
+        [registries.crates-io]
+        protocol = "sparse"
+        
+        [build]
+        jobs = 4
+        
+        [profile.release]
+        codegen-units = 1
+        lto = true
+        EOF
+
+    - name: Install Rust and protoc
+      uses: ./.github/workflows/install-rust-and-protoc
+      with:
+        github-token: ${{ inputs.github-token }}
+
+    - name: Cache protobuf generated files
+      uses: actions/cache@v4
+      with:
+        path: |
+          include/
+          src/*.pb-c.c
+          src/*.pb-c.h
+        key: protobuf-${{ hashFiles('valkey-glide/glide-core/src/protobuf/**/*.proto') }}
+
+    - name: Pre-fetch Rust dependencies
+      shell: bash
+      working-directory: valkey-glide/ffi
+      run: |
+        echo "Pre-fetching Rust dependencies..."
+        cargo fetch --locked
+
+    - name: Install cbindgen (cached)
+      shell: bash
+      run: |
+        if ! command -v cbindgen &> /dev/null; then
+          cargo install cbindgen
+        else
+          echo "cbindgen already installed"
+        fi

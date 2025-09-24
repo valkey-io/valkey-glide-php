@@ -383,15 +383,21 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            /var/cache/apt/archives
+            /var/lib/apt/lists
             valkey-glide/ffi/target
             valkey-glide/glide-core/src/generated
             include/
             src/*.pb-c.c
             src/*.pb-c.h
-          key: ubuntu-latest-php-valgrind-${{ env.BASE_PHP_VERSION }}
+          key: ubuntu-latest-php-valgrind-${{ env.BASE_PHP_VERSION }}-${{ hashFiles('**/Cargo.lock', '.github/workflows/apt-packages.txt', 'valkey-glide/glide-core/src/protobuf/**/*.proto') }}
           restore-keys: |
-            ubuntu-latest-php-valgrind
-            ubuntu-latest-php
+            ubuntu-latest-php-valgrind-${{ env.BASE_PHP_VERSION }}-
+            ubuntu-latest-php-valgrind-
+            ubuntu-latest-php-
             ubuntu-latest-glide-core
             ubuntu-latest
 
@@ -401,6 +407,23 @@ jobs:
           target: x86_64-unknown-linux-gnu
           github-token: ${{ secrets.GITHUB_TOKEN }}
           engine-version: ${{ matrix.engine.version }}
+
+      - name: Configure Cargo for speed
+        run: |
+          mkdir -p ~/.cargo
+          cat >> ~/.cargo/config.toml << EOF
+          [registries.crates-io]
+          protocol = "sparse"
+          
+          [build]
+          jobs = 4
+          EOF
+
+      - name: Pre-fetch Rust dependencies
+        working-directory: valkey-glide/ffi
+        run: |
+          echo "Pre-fetching Rust dependencies..."
+          cargo fetch --locked
 
       - name: Install Rust and protoc
         uses: ./.github/workflows/install-rust-and-protoc
