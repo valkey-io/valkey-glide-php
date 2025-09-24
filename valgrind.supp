@@ -121,3 +121,50 @@
    ...
    obj:/usr/lib/x86_64-linux-gnu/ld-*
 }
+# Rust tracing subscriber initialization
+{
+   rust_tracing_subscriber_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*tracing_subscriber*filter*targets*Targets*with_target*
+   fun:*once_cell*imp*OnceCell*initialize*
+   fun:*once_cell*imp*initialize_or_wait*
+}
+
+# Rust standard library allocator initialization
+{
+   rust_std_allocator_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*alloc*
+   fun:*alloc_impl*
+   fun:*allocate*
+   fun:*try_allocate_in*
+   fun:*with_capacity_in*
+}
+
+# Dynamic loader object creation
+{
+   dynamic_loader_new_object
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:calloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+}
+
+# Rust tracing registry (large buffer allocation)
+{
+   rust_tracing_registry_buffer
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*tracing_subscriber*registry*sharded*Registry*default*
+   fun:*tracing_subscriber*registry*
+   fun:*once_cell*imp*OnceCell*initialize*
+   fun:*once_cell*imp*initialize_or_wait*
+}
