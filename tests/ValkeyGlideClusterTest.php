@@ -373,7 +373,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             if ($cursor->isFinished()) {
                 break;
             }
-            // Cursor goes out of scope here, destructor should be called
+            // Force the cursor to go out of scope, as the GC runs non-deterministically otherwise.
+            // This isn't necessary but helps avoid a valgrind false positive.
+            unset($cursor);
+            gc_collect_cycles();
+
         }
 
 
@@ -401,8 +405,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             $keys['LIST'][] = $list;
         }
 
-            // Make sure we can scan for specific types
-            $cursor = new ClusterScanCursor(); // Create fresh cursor each time
+        // Make sure we can scan for specific types
+        $cursor = new ClusterScanCursor(); // Create fresh cursor each time
 
         foreach ($keys as $type => $vals) {
             foreach ([0, 13] as $count) {
