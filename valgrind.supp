@@ -232,3 +232,62 @@
    ...
    fun:*tracing*
 }
+# Dynamic loader _dl_new_object allocations
+{
+   dl_new_object_malloc
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:malloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+   fun:openaux
+}
+
+# RustLS crypto provider initialization
+{
+   rustls_crypto_provider_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*rustls*crypto*aws_lc_rs*default_provider*
+   fun:*std*sync*poison*once*Once*call_once_force*
+   fun:*std*sys*sync*once*futex*Once*call*
+   fun:*std*sync*once_lock*OnceLock*initialize*
+}
+
+# RustLS crypto provider install_default
+{
+   rustls_crypto_install_default
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*rustls*crypto*CryptoProvider*install_default*
+   fun:*std*sync*poison*once*Once*call_once_force*
+   fun:*std*sys*sync*once*futex*Once*call*
+   fun:*std*sync*once_lock*OnceLock*initialize*
+}
+
+# Arc-swap debt list nodes (Redis connection management)
+{
+   arc_swap_debt_list_nodes
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:posix_memalign
+   fun:*aligned_malloc*
+   fun:*alloc*
+   fun:*__rustc*__rdl_alloc*
+   fun:*arc_swap*debt*list*Node*get*
+}
+
+# Dynamic loader version checking
+{
+   dl_check_map_versions
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:calloc
+   fun:_dl_check_map_versions
+   fun:dl_open_worker_begin
+}
