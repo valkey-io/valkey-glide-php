@@ -35,7 +35,7 @@ runs:
         else
           echo "Using cached APT packages"
         fi
-        
+
         sudo apt-get install -y --no-install-recommends \
           build-essential \
           php${{ inputs.php-version }}-dev \
@@ -65,10 +65,10 @@ runs:
         cat >> ~/.cargo/config.toml << EOF
         [registries.crates-io]
         protocol = "sparse"
-        
+
         [build]
         jobs = 4
-        
+
         [profile.release]
         codegen-units = 1
         lto = true

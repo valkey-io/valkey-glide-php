@@ -414,7 +414,7 @@ jobs:
           cat >> ~/.cargo/config.toml << EOF
           [registries.crates-io]
           protocol = "sparse"
-          
+
           [build]
           jobs = 4
           EOF

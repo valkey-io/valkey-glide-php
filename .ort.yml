@@ -3,7 +3,7 @@
 # and exclude build tools, test files, and other non-relevant directories.
 
 analyzer:
-  skip_excluded: true    
+  skip_excluded: true
 
 excludes:
   scopes:
@@ -21,89 +21,89 @@ excludes:
     - pattern: "ort/**"
       reason: "BUILD_TOOL_OF"
       comment: "ORT tool directory with test files, not part of PHP project"
-    
+
     # ORT test files and synthetic projects
     - pattern: "**/funTest/**"
       reason: "BUILD_TOOL_OF"
       comment: "ORT functional test files should be excluded"
-    
+
     - pattern: "**/src/funTest/**"
       reason: "BUILD_TOOL_OF"
       comment: "ORT functional test source files should be excluded"
-    
+
     - pattern: "ort/plugins/package-managers/composer/src/funTest/**"
       reason: "BUILD_TOOL_OF"
       comment: "ORT Composer test fixtures should be excluded"
-    
+
     - pattern: "**/synthetic/**"
       reason: "BUILD_TOOL_OF"
       comment: "ORT synthetic test projects should be excluded"
-    
+
     # Submodule exclusions
     - pattern: "valkey-glide/**"
       reason: "DOCUMENTATION_OF"
       comment: "Submodule not part of PHP project"
-    
+
     # Language-specific exclusions
     - pattern: "**/cpp/**"
       reason: "BUILD_TOOL_OF"
       comment: "C++ directories should not be analyzed in PHP context"
-    
+
     - pattern: "**/Cargo.toml"
       reason: "BUILD_TOOL_OF"
       comment: "Rust manifests not relevant for PHP analysis"
-    
+
     # Build artifacts and cache directories
     - pattern: "build/**"
       reason: "BUILD_TOOL_OF"
       comment: "Build artifacts"
-    
+
     - pattern: "modules/**"
       reason: "BUILD_TOOL_OF"
       comment: "Compiled PHP modules"
-    
+
     - pattern: "autom4te.cache/**"
       reason: "BUILD_TOOL_OF"
       comment: "Autotools cache"
-    
+
     # Compiled files
     - pattern: "**/*.o"
       reason: "BUILD_TOOL_OF"
       comment: "Object files"
-    
+
     - pattern: "**/*.lo"
       reason: "BUILD_TOOL_OF"
       comment: "Libtool object files"
-    
+
     - pattern: "**/*.la"
       reason: "BUILD_TOOL_OF"
       comment: "Libtool archive files"
-    
+
     - pattern: "**/*.dep"
       reason: "BUILD_TOOL_OF"
       comment: "Dependency files"
-    
+
     # Additional common exclusions for robustness
     - pattern: ".git/**"
       reason: "BUILD_TOOL_OF"
       comment: "Git repository metadata"
-    
+
     - pattern: ".github/**"
       reason: "BUILD_TOOL_OF"
       comment: "GitHub workflow and configuration files"
-    
+
     - pattern: "vendor/**"
       reason: "BUILD_TOOL_OF"
       comment: "PHP vendor directory managed by Composer"
-    
+
     - pattern: "**/node_modules/**"
       reason: "BUILD_TOOL_OF"
       comment: "Node.js dependencies"
-    
+
     - pattern: "**/.gradle/**"
       reason: "BUILD_TOOL_OF"
       comment: "Gradle cache directories"
-    
+
     - pattern: "**/target/**"
       reason: "BUILD_TOOL_OF"
       comment: "Build target directories"
