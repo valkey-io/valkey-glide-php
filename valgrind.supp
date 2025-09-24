@@ -168,3 +168,67 @@
    fun:*once_cell*imp*OnceCell*initialize*
    fun:*once_cell*imp*initialize_or_wait*
 }
+# Broader suppressions for remaining still reachable patterns
+
+# All Rust once_cell initialization (catches various patterns)
+{
+   rust_once_cell_init_broad
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:*once_cell*imp*OnceCell*initialize*
+   fun:*once_cell*imp*initialize_or_wait*
+}
+
+# All dynamic loader operations
+{
+   dynamic_loader_broad
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*
+   fun:strdup
+   fun:_dl_*
+}
+
+# All dynamic loader cache operations
+{
+   dynamic_loader_cache
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*
+   fun:strdup
+   fun:_dl_load_cache_lookup
+}
+
+# AWS-LC (BoringSSL) thread-local storage
+{
+   aws_lc_thread_local
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*aws_lc*CRYPTO_set_thread_local*
+}
+
+# Rust thread initialization
+{
+   rust_thread_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*alloc*raw_vec*finish_grow*
+   fun:start_thread
+   fun:clone
+}
+
+# All tracing-related initialization
+{
+   rust_tracing_broad
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:*tracing*
+}
