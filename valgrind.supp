@@ -291,3 +291,46 @@
    fun:_dl_check_map_versions
    fun:dl_open_worker_begin
 }
+# Dynamic loader _dl_new_object realloc operations
+{
+   dl_new_object_realloc
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:realloc
+   fun:realloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+   fun:dl_open_worker_begin
+}
+
+# Dynamic loader global resize operations
+{
+   dl_add_to_global_resize
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:malloc
+   fun:add_to_global_resize
+   fun:dl_open_worker_begin
+}
+
+# AWS-LC random number generator initialization
+{
+   aws_lc_rand_bytes_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*aws_lc*RAND_bytes_with_additional_data*
+   fun:*aws_lc*RAND_bytes*
+   fun:*aws_lc_rs*rand*fill*
+}
+
+# Rust raw_vec finish_grow with corrupted stack
+{
+   rust_raw_vec_finish_grow_corrupted
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:realloc
+   fun:*alloc*raw_vec*finish_grow*
+}
