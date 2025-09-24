@@ -180,6 +180,13 @@ jobs:
             valkey-glide/glide-core
           key: pecl
 
+      - name: Pre-build Rust components
+        run: |
+          echo "=== Pre-building Rust components for PECL ==="
+          cd valkey-glide/ffi
+          cargo build --release
+          echo "Rust pre-build completed"
+
       - name: Pre-populate Rust registry cache
         run: |
           echo "=== Pre-populating Rust registry cache ==="
@@ -204,6 +211,17 @@ jobs:
 
           # Create symlinks so PECL can find the compiled cache
           echo "=== Setting up target directory symlinks for PECL ==="
+
+          # Make target directories readable by root
+          if [ -d "valkey-glide/ffi/target" ]; then
+            echo "Making FFI target directory readable by root..."
+            sudo chmod -R 755 valkey-glide/ffi/target
+          fi
+          if [ -d "valkey-glide/glide-core/target" ]; then
+            echo "Making glide-core target directory readable by root..."
+            sudo chmod -R 755 valkey-glide/glide-core/target
+          fi
+
           sudo mkdir -p /tmp/pear/temp/valkey_glide/valkey-glide/ffi
           sudo mkdir -p /tmp/pear/temp/valkey_glide/valkey-glide/glide-core
 
