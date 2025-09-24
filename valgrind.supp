@@ -24,3 +24,100 @@
    ...
    fun:*cluster_scan_container*
 }
+# Still reachable memory from PHP engine and system libraries
+{
+   php_engine_globals
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   obj:/usr/bin/php*
+}
+
+{
+   php_zend_engine
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:*alloc*
+   ...
+   fun:zend_*
+}
+
+{
+   system_library_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:calloc
+   fun:realloc
+   ...
+   obj:/usr/lib/*
+}
+
+{
+   openssl_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   obj:*/libssl*
+}
+
+{
+   openssl_crypto_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   obj:*/libcrypto*
+}
+
+{
+   protobuf_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   obj:*/libprotobuf*
+}
+
+{
+   rust_runtime_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:calloc
+   ...
+   fun:*rust*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   rust_std_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:*alloc*
+   ...
+   fun:std::*
+}
+
+{
+   glibc_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:calloc
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/libc*
+}
+
+{
+   ld_loader_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:calloc
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/ld-*
+}
