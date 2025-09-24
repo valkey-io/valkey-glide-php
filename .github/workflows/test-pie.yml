@@ -111,12 +111,30 @@ jobs:
           echo $! > ../server.pid
           sleep 3
 
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Configure sccache for Rust
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+          # Configure sccache to ignore our workspace crates
+          mkdir -p ~/.config/sccache
+          cat > ~/.config/sccache/config << EOF
+          [cache.gha]
+          ignored_files = [
+            "**/valkey-glide/ffi/**",
+            "**/valkey-glide/glide-core/**",
+            "**/glide-ffi/**",
+            "**/glide-core/**",
+            "**/logger_core/**",
+            "**/telemetrylib/**"
+          ]
+          EOF
+
       - name: Setup Cargo cache for root user
         run: |
           echo "=== Setting up Cargo cache for root user ==="
-          # Set consistent target directory for all cargo builds
-          echo "CARGO_TARGET_DIR=${{ github.workspace }}/target" >> $GITHUB_ENV
-
           # Copy Cargo cache to root's home directory so PIE can use it
           sudo mkdir -p /root/.cargo
           if [ -d "$HOME/.cargo/registry" ]; then
@@ -126,6 +144,16 @@ jobs:
           if [ -d "$HOME/.cargo/git" ]; then
             echo "Copying Cargo git cache to root..."
             sudo cp -r "$HOME/.cargo/git" /root/.cargo/ || echo "Failed to copy git cache"
+          fi
+
+          # Make target directories accessible to root
+          if [ -d "valkey-glide/ffi/target" ]; then
+            echo "Making FFI target directory accessible to root..."
+            sudo chmod -R 755 valkey-glide/ffi/target
+          fi
+          if [ -d "valkey-glide/glide-core/target" ]; then
+            echo "Making glide-core target directory accessible to root..."
+            sudo chmod -R 755 valkey-glide/glide-core/target
           fi
           echo "Root Cargo cache setup complete"
 

@@ -173,6 +173,27 @@ jobs:
           echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
           echo "PACKAGE_DIR=$PACKAGE_DIR" >> $GITHUB_ENV
 
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Configure sccache for Rust
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+          # Configure sccache to ignore our workspace crates
+          mkdir -p ~/.config/sccache
+          cat > ~/.config/sccache/config << EOF
+          [cache.gha]
+          ignored_files = [
+            "**/valkey-glide/ffi/**",
+            "**/valkey-glide/glide-core/**",
+            "**/glide-ffi/**",
+            "**/glide-core/**",
+            "**/logger_core/**",
+            "**/telemetrylib/**"
+          ]
+          EOF
+
       - name: Setup Cargo cache for root user
         run: |
           echo "=== Setting up Cargo cache for root user ==="
