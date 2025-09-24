@@ -81,21 +81,12 @@ runs:
       with:
         github-token: ${{ inputs.github-token }}
 
-    - name: Cache protobuf generated files
-      uses: actions/cache@v4
-      with:
-        path: |
-          include/
-          src/*.pb-c.c
-          src/*.pb-c.h
-        key: protobuf-${{ hashFiles('valkey-glide/glide-core/src/protobuf/**/*.proto') }}
-
     - name: Pre-fetch Rust dependencies
       shell: bash
       working-directory: valkey-glide/ffi
       run: |
         echo "Pre-fetching Rust dependencies..."
-        cargo fetch --locked
+        cargo fetch
 
     - name: Install cbindgen (cached)
       shell: bash
