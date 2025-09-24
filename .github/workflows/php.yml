@@ -401,6 +401,19 @@ jobs:
             ubuntu-latest-glide-core
             ubuntu-latest
 
+      - name: Cache Cargo dependencies (early)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            valkey-glide/ffi/target/
+            valkey-glide/glide-core/target/
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
       - name: Setup ValkeyGlide with enhanced caching
         uses: ./.github/workflows/setup-valkey-glide
         with:
