@@ -117,16 +117,12 @@ jobs:
           echo "Job running with the following matrix configuration:"
           echo "${{ toJson(matrix) }}"
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-
-      - name: Configure sccache for Rust
-        run: |
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-          # Set a specific cache key to avoid conflicts
-          echo "SCCACHE_GHA_CACHE_TO=sccache-${{ runner.os }}-${{ github.run_id }}" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_CACHE_FROM=sccache-${{ runner.os }}-" >> $GITHUB_ENV
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            valkey-glide/ffi
+            valkey-glide/glide-core
+          key: ${{ matrix.host.TARGET }}
 
       - name: Build PHP wrapper
         uses: ./.github/workflows/build-php-wrapper
@@ -233,15 +229,12 @@ jobs:
             cargo install cbindgen
           fi
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-
-      - name: Configure sccache for Rust
-        run: |
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_CACHE_TO=sccache-asan-${{ runner.os }}-${{ github.run_id }}" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_CACHE_FROM=sccache-asan-${{ runner.os }}-" >> $GITHUB_ENV
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            valkey-glide/ffi
+            valkey-glide/glide-core
+          key: asan
 
       - name: Build FFI library
         working-directory: valkey-glide/ffi
@@ -446,15 +439,12 @@ jobs:
           python3 utils/remove_optional_from_proto.py
           echo "=== Proto file cleanup completed ==="
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-
-      - name: Configure sccache for Rust
-        run: |
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_CACHE_TO=sccache-valgrind-${{ runner.os }}-${{ github.run_id }}" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_CACHE_FROM=sccache-valgrind-${{ runner.os }}-" >> $GITHUB_ENV
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            valkey-glide/ffi
+            valkey-glide/glide-core
+          key: valgrind
 
       - name: Build FFI library with debug symbols
         working-directory: valkey-glide/ffi

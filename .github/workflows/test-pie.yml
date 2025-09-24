@@ -111,15 +111,12 @@ jobs:
           echo $! > ../server.pid
           sleep 3
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-
-      - name: Configure sccache for Rust
-        run: |
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_CACHE_TO=sccache-pie-${{ runner.os }}-${{ github.run_id }}" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_CACHE_FROM=sccache-pie-${{ runner.os }}-" >> $GITHUB_ENV
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            valkey-glide/ffi
+            valkey-glide/glide-core
+          key: pie
 
       - name: Setup Cargo cache for root user
         run: |
@@ -135,13 +132,14 @@ jobs:
             sudo cp -r "$HOME/.cargo/git" /root/.cargo/ || echo "Failed to copy git cache"
           fi
 
-          # Make sccache available to root
-          if which sccache >/dev/null 2>&1; then
-            sudo ln -sf "$(which sccache)" /usr/local/bin/sccache
-            echo "RUSTC_WRAPPER=sccache" | sudo tee -a /etc/environment
-            echo "SCCACHE_GHA_ENABLED=true" | sudo tee -a /etc/environment
-            echo "SCCACHE_GHA_CACHE_TO=sccache-pie-root-${{ runner.os }}-${{ github.run_id }}" | sudo tee -a /etc/environment
-            echo "SCCACHE_GHA_CACHE_FROM=sccache-pie-root-${{ runner.os }}-" | sudo tee -a /etc/environment
+          # Make target directories accessible to root for compiled artifacts
+          if [ -d "valkey-glide/ffi/target" ]; then
+            echo "Making FFI target directory accessible to root..."
+            sudo chmod -R 755 valkey-glide/ffi/target
+          fi
+          if [ -d "valkey-glide/glide-core/target" ]; then
+            echo "Making glide-core target directory accessible to root..."
+            sudo chmod -R 755 valkey-glide/glide-core/target
           fi
           echo "Root Cargo cache setup complete"
 
