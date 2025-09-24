@@ -98,11 +98,9 @@ runs:
     - name: Install cbindgen (cached)
       shell: bash
       run: |
-        # Check if cbindgen is available in PATH or already installed by cargo
-        if command -v cbindgen &> /dev/null; then
-          echo "cbindgen already available in PATH ($(cbindgen --version))"
-        elif cargo install --list | grep -q "^cbindgen "; then
-          echo "cbindgen already installed by cargo, adding to PATH"
+        # Check if cbindgen binary exists in cargo bin directory
+        if [ -f "$HOME/.cargo/bin/cbindgen" ]; then
+          echo "cbindgen already installed (cached)"
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
         else
           echo "Installing cbindgen..."
