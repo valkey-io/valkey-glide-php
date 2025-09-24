@@ -30,10 +30,10 @@ runs:
         PHP_VERSION: ${{ inputs.php-version }}
       run: |
         # Skip update if cache hit and recent
-        if [ ! -f /var/cache/apt/cached ] || [ $(find /var/cache/apt/cached -mmin +60) ]; then
+        if [ ! -f "$HOME/.apt-cache-updated" ] || [ $(find "$HOME/.apt-cache-updated" -mmin +60 2>/dev/null) ]; then
           echo "Updating APT cache..."
           sudo apt-get update
-          touch /var/cache/apt/cached
+          touch "$HOME/.apt-cache-updated"
         else
           echo "Using cached APT packages"
         fi
