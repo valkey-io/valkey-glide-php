@@ -423,7 +423,7 @@ jobs:
         working-directory: valkey-glide/ffi
         run: |
           echo "Pre-fetching Rust dependencies..."
-          cargo fetch --locked
+          cargo fetch
 
       - name: Install Rust and protoc
         uses: ./.github/workflows/install-rust-and-protoc
