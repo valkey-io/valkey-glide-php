@@ -123,15 +123,9 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target
-          key: cargo-${{ runner.os }}-${{ matrix.host.TARGET }}-${{ hashFiles('valkey-glide/**/Cargo.lock') }}
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('valkey-glide/**/Cargo.lock') }}
           restore-keys: |
-            cargo-${{ runner.os }}-${{ matrix.host.TARGET }}-
-            cargo-${{ runner.os }}-
-
-      - name: Set consistent Cargo target directory
-        run: |
-          echo "CARGO_TARGET_DIR=${{ github.workspace }}/target" >> $GITHUB_ENV
+            cargo-deps-${{ runner.os }}-
 
       - name: Build PHP wrapper
         uses: ./.github/workflows/build-php-wrapper
