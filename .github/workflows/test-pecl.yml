@@ -180,19 +180,6 @@ jobs:
         run: |
           echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
           echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-          # Configure sccache to ignore our workspace crates
-          mkdir -p ~/.config/sccache
-          cat > ~/.config/sccache/config << EOF
-          [cache.gha]
-          ignored_files = [
-            "**/valkey-glide/ffi/**",
-            "**/valkey-glide/glide-core/**",
-            "**/glide-ffi/**",
-            "**/glide-core/**",
-            "**/logger_core/**",
-            "**/telemetrylib/**"
-          ]
-          EOF
 
       - name: Setup Cargo cache for root user
         run: |
@@ -208,17 +195,9 @@ jobs:
             sudo cp -r "$HOME/.cargo/git" /root/.cargo/ || echo "Failed to copy git cache"
           fi
 
-          # Fix timestamps so cargo recognizes cached artifacts as valid
-          if [ -d "valkey-glide/ffi/target" ]; then
-            echo "Fixing timestamps for FFI target directory..."
-            find valkey-glide/ffi/target -type f -exec touch {} \;
-            sudo find valkey-glide/ffi/target -type f -exec touch {} \;
-          fi
-          if [ -d "valkey-glide/glide-core/target" ]; then
-            echo "Fixing timestamps for glide-core target directory..."
-            find valkey-glide/glide-core/target -type f -exec touch {} \;
-            sudo find valkey-glide/glide-core/target -type f -exec touch {} \;
-          fi
+          # Set sccache environment for root
+          echo "RUSTC_WRAPPER=sccache" | sudo tee -a /etc/environment
+          echo "SCCACHE_GHA_ENABLED=true" | sudo tee -a /etc/environment
           echo "Root Cargo cache setup complete"
 
       - name: Test PECL installation

@@ -124,22 +124,6 @@ jobs:
         run: |
           echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
           echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-          # Exclude our own crates from caching to ensure they're always rebuilt
-          echo "SCCACHE_IGNORE_SERVER_IO_ERROR=1" >> $GITHUB_ENV
-          # Configure sccache to ignore our workspace crates
-          mkdir -p ~/.config/sccache
-          cat > ~/.config/sccache/config << EOF
-          [cache.gha]
-          # Exclude our own crates by path patterns
-          ignored_files = [
-            "**/valkey-glide/ffi/**",
-            "**/valkey-glide/glide-core/**",
-            "**/glide-ffi/**",
-            "**/glide-core/**",
-            "**/logger_core/**",
-            "**/telemetrylib/**"
-          ]
-          EOF
 
       - name: Build PHP wrapper
         uses: ./.github/workflows/build-php-wrapper

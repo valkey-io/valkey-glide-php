@@ -118,19 +118,6 @@ jobs:
         run: |
           echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
           echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-          # Configure sccache to ignore our workspace crates
-          mkdir -p ~/.config/sccache
-          cat > ~/.config/sccache/config << EOF
-          [cache.gha]
-          ignored_files = [
-            "**/valkey-glide/ffi/**",
-            "**/valkey-glide/glide-core/**",
-            "**/glide-ffi/**",
-            "**/glide-core/**",
-            "**/logger_core/**",
-            "**/telemetrylib/**"
-          ]
-          EOF
 
       - name: Setup Cargo cache for root user
         run: |
@@ -146,15 +133,9 @@ jobs:
             sudo cp -r "$HOME/.cargo/git" /root/.cargo/ || echo "Failed to copy git cache"
           fi
 
-          # Make target directories accessible to root
-          if [ -d "valkey-glide/ffi/target" ]; then
-            echo "Making FFI target directory accessible to root..."
-            sudo chmod -R 755 valkey-glide/ffi/target
-          fi
-          if [ -d "valkey-glide/glide-core/target" ]; then
-            echo "Making glide-core target directory accessible to root..."
-            sudo chmod -R 755 valkey-glide/glide-core/target
-          fi
+          # Set sccache environment for root
+          echo "RUSTC_WRAPPER=sccache" | sudo tee -a /etc/environment
+          echo "SCCACHE_GHA_ENABLED=true" | sudo tee -a /etc/environment
           echo "Root Cargo cache setup complete"
 
       - name: Test PIE with manual repository
