@@ -229,7 +229,12 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install cbindgen
-        run: cargo install cbindgen
+        run: |
+          if [ -f "$HOME/.cargo/bin/cbindgen" ]; then
+            echo "cbindgen already installed (cached)"
+          else
+            cargo install cbindgen
+          fi
 
       - name: Build FFI library
         working-directory: valkey-glide/ffi
@@ -759,7 +764,12 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install cbindgen
-        run: cargo install cbindgen
+        run: |
+          if [ -f "$HOME/.cargo/bin/cbindgen" ]; then
+            echo "cbindgen already installed (cached)"
+          else
+            cargo install cbindgen
+          fi
 
       - name: Remove optional fields from proto files
         shell: bash
