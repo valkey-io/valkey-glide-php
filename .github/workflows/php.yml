@@ -823,7 +823,7 @@ jobs:
 
       - name: Configure PHP extension
         run: |
-          ./configure --enable-valkey-glide
+          ./configure --enable-valkey-glide --disable-header-generation
 
       - name: Lint C code formatting
         run: |
