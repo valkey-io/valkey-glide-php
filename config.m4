@@ -302,7 +302,6 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     fi
     
     dnl For PECL builds, handle submodules using .submodule-commits file
-    dnl For PIE builds, handle submodules using git submodule update
     if test -f ".submodule-commits" && test ! -d "valkey-glide/.git"; then
       AC_MSG_RESULT([cloning submodules from .submodule-commits])
       
@@ -324,11 +323,8 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       git fetch --depth 1 origin "$SUBMODULE_COMMIT" || AC_MSG_ERROR([Failed to fetch commit $SUBMODULE_COMMIT])
       git checkout "$SUBMODULE_COMMIT" || AC_MSG_ERROR([Failed to checkout commit $SUBMODULE_COMMIT])
       cd ..
-    elif test -f ".gitmodules" && test -d ".git"; then
-      AC_MSG_RESULT([updating submodules using git submodule update])
-      git submodule update --init --recursive || AC_MSG_ERROR([Failed to update submodules])
     else
-      AC_MSG_RESULT([submodules already exist or no submodule info found])
+      AC_MSG_RESULT([submodules already exist or no .submodule-commits])
     fi
     
     dnl Generate protobuf files
@@ -429,7 +425,7 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     AC_MSG_RESULT([Debug: returned to build directory: $(pwd)])
     AC_MSG_RESULT([Debug: files in build dir=$(ls -la . | head -10)])
   else
-    AC_MSG_RESULT([No .submodule-commits found - using Makefile approach])
+    AC_MSG_RESULT([PIE build detected - headers will be generated via Makefile (no .submodule-commits)])
   fi
 
   EXTRA_DIST="$EXTRA_DIST valkey_glide.stub.php valkey_glide_cluster.stub.php logger.stub.php"
