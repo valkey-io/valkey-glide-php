@@ -10,6 +10,9 @@ PHP_ARG_ENABLE(valkey_glide_debug, whether to enable debug mode,
 PHP_ARG_ENABLE(debug, whether to enable debug mode (alias for valkey-glide-debug),
 [  --enable-debug   Enable debug mode (alias for valkey-glide-debug)], no, no)
 
+PHP_ARG_ENABLE(header_generation, whether to enable header generation during configure,
+[  --disable-header-generation   Skip header and protobuf generation during configure], yes, no)
+
 if test "$PHP_VALKEY_GLIDE" != "no"; then
 
   AC_MSG_RESULT([=== VALKEY GLIDE CONFIG START ===])
@@ -105,15 +108,24 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
   AC_MSG_RESULT([Debug: valkey-glide in source=$(test -d "$PECL_SOURCE_DIR/valkey-glide" && echo "yes" || echo "no")])
   AC_MSG_RESULT([Debug: files in source dir=$(ls -la "$PECL_SOURCE_DIR" | head -10)])
 
-  dnl Detect PECL vs PIE builds:
-  dnl - PECL: Has .submodule-commits file (created specifically for PECL packages)
-  dnl - PIE: Has .gitmodules file (full git repository)
-  if test -f "$PECL_SOURCE_DIR/.submodule-commits" || test -f "$PECL_SOURCE_DIR/.gitmodules"; then
+  dnl Check if header generation is enabled
+  if test "$PHP_HEADER_GENERATION" != "no"; then
+    dnl Detect known package installations vs everything else:
+    dnl - PECL: Has .submodule-commits file (created specifically for PECL packages)
+    dnl - PIE: Parent process is "pie"
+    dnl - Composer: Parent process is "composer"
+    dnl - Default: Use Makefile approach for all other cases
     if test -f "$PECL_SOURCE_DIR/.submodule-commits"; then
       AC_MSG_CHECKING([for header generation (PECL build detected - has .submodule-commits)])
+    elif (ps -p $PPID -o args= 2>/dev/null | grep -q "pie") || (ps -p $PPID 2>/dev/null | grep -q "pie"); then
+      AC_MSG_CHECKING([for header generation (PIE build detected)])
+    elif (ps -p $PPID -o args= 2>/dev/null | grep -q "composer") || (ps -p $PPID 2>/dev/null | grep -q "composer"); then
+      AC_MSG_CHECKING([for header generation (Composer build detected)])
     else
-      AC_MSG_CHECKING([for header generation (PIE build detected - has .gitmodules)])
+      AC_MSG_RESULT([Using Makefile approach (development/unknown)])
     fi
+    
+    if test -f "$PECL_SOURCE_DIR/.submodule-commits" || (ps -p $PPID -o args= 2>/dev/null | grep -q "pie") || (ps -p $PPID 2>/dev/null | grep -q "pie") || (ps -p $PPID -o args= 2>/dev/null | grep -q "composer") || (ps -p $PPID 2>/dev/null | grep -q "composer"); then
     
     dnl Save current build directory before changing to source
     BUILD_DIR=$(pwd)
@@ -432,8 +444,11 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     cd "$BUILD_DIR"
     AC_MSG_RESULT([Debug: returned to build directory: $(pwd)])
     AC_MSG_RESULT([Debug: files in build dir=$(ls -la . | head -10)])
+    else
+      AC_MSG_RESULT([No .submodule-commits or .gitmodules found - assuming headers will be generated via Makefile])
+    fi
   else
-    AC_MSG_RESULT([No .submodule-commits or .gitmodules found - assuming headers will be generated via Makefile])
+    AC_MSG_RESULT([Header generation disabled via --disable-header-generation])
   fi
 
   EXTRA_DIST="$EXTRA_DIST valkey_glide.stub.php valkey_glide_cluster.stub.php logger.stub.php"
