@@ -430,25 +430,32 @@ int execute_x_generic_command(valkey_glide_object* valkey_glide,
             efree(cmd_args);
         if (args_len)
             efree(args_len);
+        for (int i = 0; i < allocated_count; i++) {
+            if (allocated_strings[i]) {
+                efree(allocated_strings[i]);
+            }
+        }
         if (allocated_strings)
             efree(allocated_strings);
         return 0;
     }
 
     if (valkey_glide->is_in_batch_mode) {
-        int result = buffer_command_for_batch(valkey_glide,
-                                              cmd_type,
-                                              cmd_args,
-                                              args_len,
-                                              arg_count,
-
-                                              result_ptr,
-                                              process_result);
+        int result = buffer_command_for_batch(
+            valkey_glide, cmd_type, cmd_args, args_len, arg_count, result_ptr, process_result);
 
         if (cmd_args)
             efree(cmd_args);
         if (args_len)
             efree(args_len);
+
+        for (int i = 0; i < allocated_count; i++) {
+            if (allocated_strings[i]) {
+                efree(allocated_strings[i]);
+            }
+        }
+        if (allocated_strings)
+            efree(allocated_strings);
 
         return result;
     }
@@ -1068,6 +1075,7 @@ int prepare_x_range_args(x_command_args_t* args,
         *allocated_strings                   = (char**) ecalloc(1, sizeof(char*));
         *allocated_count                     = 0;
         *allocated_strings[*allocated_count] = count_str_copy;
+        (*allocated_count)++;
         if (count_str_copy) {
             memcpy(count_str_copy, count_str, count_str_len);
             count_str_copy[count_str_len] = '\0';
