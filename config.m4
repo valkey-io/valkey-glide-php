@@ -110,22 +110,10 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
 
   dnl Check if header generation is enabled
   if test "$PHP_HEADER_GENERATION" != "no"; then
-    dnl Detect known package installations vs everything else:
-    dnl - PECL: Has .submodule-commits file (created specifically for PECL packages)
-    dnl - PIE: Parent process is "pie"
-    dnl - Composer: Parent process is "composer"
-    dnl - Default: Use Makefile approach for all other cases
+    dnl Only run header generation for PECL builds (has .submodule-commits)
+    dnl All other builds (PIE, development, etc.) should use Makefile approach
     if test -f "$PECL_SOURCE_DIR/.submodule-commits"; then
       AC_MSG_CHECKING([for header generation (PECL build detected - has .submodule-commits)])
-    elif (ps -p $PPID -o args= 2>/dev/null | grep -q "pie") || (ps -p $PPID 2>/dev/null | grep -q "pie"); then
-      AC_MSG_CHECKING([for header generation (PIE build detected)])
-    elif (ps -p $PPID -o args= 2>/dev/null | grep -q "composer") || (ps -p $PPID 2>/dev/null | grep -q "composer"); then
-      AC_MSG_CHECKING([for header generation (Composer build detected)])
-    else
-      AC_MSG_RESULT([Using Makefile approach (development/unknown)])
-    fi
-    
-    if test -f "$PECL_SOURCE_DIR/.submodule-commits" || (ps -p $PPID -o args= 2>/dev/null | grep -q "pie") || (ps -p $PPID 2>/dev/null | grep -q "pie") || (ps -p $PPID -o args= 2>/dev/null | grep -q "composer") || (ps -p $PPID 2>/dev/null | grep -q "composer"); then
     
     dnl Save current build directory before changing to source
     BUILD_DIR=$(pwd)
@@ -445,7 +433,7 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     AC_MSG_RESULT([Debug: returned to build directory: $(pwd)])
     AC_MSG_RESULT([Debug: files in build dir=$(ls -la . | head -10)])
     else
-      AC_MSG_RESULT([No .submodule-commits or .gitmodules found - assuming headers will be generated via Makefile])
+      AC_MSG_RESULT([No .submodule-commits found - using Makefile approach])
     fi
   else
     AC_MSG_RESULT([Header generation disabled via --disable-header-generation])
