@@ -23,13 +23,8 @@ CFLAGS += -Werror
 # Force header generation before any compilation
 $(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
 
-# All protobuf files depend on header generation (which creates them)
-src/*.pb-c.c src/*.pb-c.h: include/glide_bindings.h
-
-# All .lo files that use protobuf depend on the protobuf files being generated
-src/command_request.lo: src/command_request.pb-c.c src/command_request.pb-c.h
-src/connection_request.lo: src/connection_request.pb-c.c src/connection_request.pb-c.h
-src/response.lo: src/response.pb-c.c src/response.pb-c.h
+# Force all .lo files to depend on header generation (which creates protobuf files)
+%.lo: include/glide_bindings.h
 
 # Backward compatibility alias
 build-modules-pre: include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
@@ -58,20 +53,20 @@ src/%.pb-c.h: ensure-submodules
 	@echo "PECL build: Protobuf header $@ depends on submodules being ready"
 endif
 
-# Arginfo header dependencies
-cluster_scan_cursor_arginfo.h: cluster_scan_cursor.stub.php
+# Arginfo header dependencies - ensure submodules are ready first
+cluster_scan_cursor_arginfo.h: cluster_scan_cursor.stub.php ensure-submodules
 	@php -f $(top_srcdir)/build/gen_stub.php cluster_scan_cursor.stub.php || echo "cluster_scan_cursor arginfo generation failed"
 
-valkey_glide_arginfo.h: valkey_glide.stub.php
+valkey_glide_arginfo.h: valkey_glide.stub.php ensure-submodules
 	@php -f $(top_srcdir)/build/gen_stub.php valkey_glide.stub.php || echo "valkey_glide arginfo generation failed"
 
-valkey_glide_cluster_arginfo.h: valkey_glide_cluster.stub.php
+valkey_glide_cluster_arginfo.h: valkey_glide_cluster.stub.php ensure-submodules
 	@php -f $(top_srcdir)/build/gen_stub.php valkey_glide_cluster.stub.php || echo "valkey_glide_cluster arginfo generation failed"
 
-logger_arginfo.h: logger.stub.php
+logger_arginfo.h: logger.stub.php ensure-submodules
 	@php -f $(top_srcdir)/build/gen_stub.php logger.stub.php || echo "logger arginfo generation failed"
 
-src/client_constructor_mock_arginfo.h: src/client_constructor_mock.stub.php
+src/client_constructor_mock_arginfo.h: src/client_constructor_mock.stub.php ensure-submodules
 	@php -f $(top_srcdir)/build/gen_stub.php src/client_constructor_mock.stub.php || echo "client_constructor_mock arginfo generation failed"
 
 valkey-glide/ffi/target/release/libglide_ffi.a: ensure-submodules
