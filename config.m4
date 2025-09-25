@@ -432,44 +432,9 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     cd "$BUILD_DIR"
     AC_MSG_RESULT([Debug: returned to build directory: $(pwd)])
     AC_MSG_RESULT([Debug: files in build dir=$(ls -la . | head -10)])
-  elif test -f \"$PECL_SOURCE_DIR/.gitmodules\"; then
-    AC_MSG_CHECKING([for header generation (PIE build detected - has .gitmodules)])
-    
-    dnl PIE builds use git submodule update instead of manual cloning
-    cd \"$PECL_SOURCE_DIR\"
-    if test -d \".git\"; then
-      AC_MSG_RESULT([updating submodules for PIE build])
-      git submodule update --init --recursive || AC_MSG_ERROR([Failed to update submodules])
-    fi
-    
-    dnl Now treat like PECL - save build dir and use existing generation logic
-    BUILD_DIR=$(pwd)
-    if test \"$BUILD_DIR\" != \"$PECL_SOURCE_DIR\"; then
-      cd \"$PECL_SOURCE_DIR\"
-    fi
-    
-    dnl Skip the .submodule-commits cloning since we already have submodules
-    dnl Jump to protobuf generation (same as PECL after line 328)
-    
-    dnl Use the same generation logic as PECL (fall through to existing code)
-    dnl Save current build directory before changing to source
-    BUILD_DIR=$(pwd)
-    AC_MSG_RESULT([Debug: starting in build directory: $BUILD_DIR])
-    
-    dnl Change to source directory for generation
-    cd \"$PECL_SOURCE_DIR\"
-    AC_MSG_RESULT([Debug: changed to source directory: $(pwd)])
-    
-    dnl Check for required tools (same as PECL)
-    if test ! -x \"./cbindgen\"; then
-      AC_MSG_ERROR([cbindgen not found - please install with: cargo install cbindgen])
-    fi
-    if test \"$(which protoc-c)\" = \"NOT FOUND\"; then
-      AC_MSG_ERROR([protoc-c not found - please install protobuf-c-compiler])
-    fi
-    if test \"$(which python3)\" = \"NOT FOUND\"; then
-      AC_MSG_ERROR([python3 not found - please install Python 3])
-    fi
+  else
+    AC_MSG_RESULT([No .submodule-commits or .gitmodules found - assuming headers will be generated via Makefile])
+  fi
 
   EXTRA_DIST="$EXTRA_DIST valkey_glide.stub.php valkey_glide_cluster.stub.php logger.stub.php"
   AC_SUBST(EXTRA_DIST)
