@@ -192,11 +192,24 @@ jobs:
           pie repository:add composer http://localhost:8000
 
           # Test PIE installation
+          echo "=== Pre-PIE Debug Info ==="
+          echo "Current directory: $(pwd)"
+          echo "Available target directories:"
+          find . -name "target" -type d 2>/dev/null || echo "No target directories found"
+          echo "Symlinks in /tmp:"
+          find /tmp -name "target" -type l 2>/dev/null || echo "No target symlinks found"
+
           echo "=== Attempting PIE installation with verbose output ==="
           set +e
           # Make Rust available to root by preserving environment
           sudo -E env "PATH=$PATH" pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -j1 -vvv 2>&1 | tee pie_install.log
           PIE_EXIT_CODE=$?
+
+          echo "=== Post-PIE Debug Info ==="
+          echo "PIE extraction locations:"
+          find /tmp -name "valkey-glide" -type d 2>/dev/null || echo "No valkey-glide directories found in /tmp"
+          find /var -name "valkey-glide" -type d 2>/dev/null || echo "No valkey-glide directories found in /var"
+          find /home -name "valkey-glide" -type d 2>/dev/null || echo "No valkey-glide directories found in /home"
           set -e
 
           echo "=== PIE exit code: $PIE_EXIT_CODE ==="

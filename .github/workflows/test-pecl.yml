@@ -266,8 +266,20 @@ jobs:
 
           # Install the package using PECL (this tests the real user experience)
           # But first, let's debug what PECL is doing
+          echo "=== Pre-PECL Debug Info ==="
+          echo "Current directory: $(pwd)"
+          echo "Available target directories:"
+          find . -name "target" -type d 2>/dev/null || echo "No target directories found"
+          echo "Symlinks in /tmp:"
+          find /tmp -name "target" -type l 2>/dev/null || echo "No target symlinks found"
+
           sudo pecl install -f "${{ env.PACKAGE_DIR }}.tgz" 2>&1 | tee pecl_install.log || {
             echo "=== PECL install failed, checking logs ==="
+            
+            echo "=== Post-PECL Debug Info ==="
+            echo "PECL extraction locations:"
+            find /tmp -name "valkey-glide" -type d 2>/dev/null || echo "No valkey-glide directories found in /tmp"
+            find /var -name "valkey-glide" -type d 2>/dev/null || echo "No valkey-glide directories found in /var"
             
             echo "=== PECL install log ==="
             cat pecl_install.log
