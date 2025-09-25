@@ -378,12 +378,27 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       fi
       
       dnl Set up Rust environment variables for cargo
-      CARGO_DIR=$(dirname "$CARGO_PATH")
-      RUST_TOOLCHAIN_DIR=$(dirname "$CARGO_DIR")
-      AC_MSG_RESULT([Debug: CARGO_HOME=$RUST_TOOLCHAIN_DIR])
-      AC_MSG_RESULT([Debug: CARGO_DIR=$CARGO_DIR])
+      if test -n "$CARGO_PATH"; then
+        CARGO_DIR=$(dirname "$CARGO_PATH")
+        RUST_TOOLCHAIN_DIR=$(dirname "$CARGO_DIR")
+        
+        dnl Use user's home directory for CARGO_HOME to avoid permission issues
+        if test -n "$HOME" && test -d "$HOME"; then
+          CARGO_HOME_DIR="$HOME/.cargo"
+        else
+          CARGO_HOME_DIR="$RUST_TOOLCHAIN_DIR"
+        fi
+        
+        AC_MSG_RESULT([Debug: CARGO_HOME=$CARGO_HOME_DIR])
+        AC_MSG_RESULT([Debug: CARGO_DIR=$CARGO_DIR])
+      else
+        dnl Fallback to user's home directory
+        CARGO_HOME_DIR="$HOME/.cargo"
+        CARGO_DIR="$HOME/.cargo/bin"
+        AC_MSG_RESULT([Debug: Using fallback CARGO_HOME=$CARGO_HOME_DIR])
+      fi
       
-      cd valkey-glide/ffi && CARGO_HOME="$RUST_TOOLCHAIN_DIR" PATH="$CARGO_DIR:$PATH" ../../cargo build --release && CARGO_HOME="$RUST_TOOLCHAIN_DIR" PATH="$CARGO_DIR:$PATH" ../../cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
+      cd valkey-glide/ffi && CARGO_HOME="$CARGO_HOME_DIR" PATH="$CARGO_DIR:$PATH" ../../cargo build --release && CARGO_HOME="$CARGO_HOME_DIR" PATH="$CARGO_DIR:$PATH" ../../cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
       
       dnl Add include guards to the generated header immediately
       if test -f "include/glide_bindings.h"; then
