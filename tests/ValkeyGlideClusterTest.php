@@ -401,8 +401,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             $keys['LIST'][] = $list;
         }
 
-            // Make sure we can scan for specific types
-            $cursor = new ClusterScanCursor(); // Create fresh cursor each time
+        // Make sure we can scan for specific types
+        $cursor = new ClusterScanCursor(); // Create fresh cursor each time
 
         foreach ($keys as $type => $vals) {
             foreach ([0, 13] as $count) {

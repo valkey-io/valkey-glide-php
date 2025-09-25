@@ -1,0 +1,330 @@
+name: Build and test PECL package
+
+permissions:
+  contents: read
+
+on:
+  push: {}
+  pull_request: {}
+  workflow_dispatch:
+    inputs:
+      full-matrix:
+        description: "Run the full engine, host, and language version matrix"
+        type: boolean
+        default: false
+
+jobs:
+  get-matrices:
+    runs-on: ubuntu-latest
+    outputs:
+      engine-matrix-output: ${{ steps.get-matrices.outputs.engine-matrix-output }}
+      host-matrix-output: ${{ steps.get-matrices.outputs.host-matrix-output }}
+      version-matrix-output: ${{ steps.get-matrices.outputs.version-matrix-output }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - id: get-matrices
+        uses: ./.github/workflows/create-test-matrices
+        with:
+          language-name: php
+          # Run full test matrix if job started by cron or it was explicitly specified by a person who triggered the workflow
+          run-full-matrix: ${{ github.event.inputs.full-matrix == 'true' || github.event_name == 'schedule' }}
+
+  test-pecl-install:
+    name: PECL Tests - ${{ matrix.php }}, EngineVersion - ${{ matrix.engine.version }}, Target - ${{ matrix.host.TARGET }}
+    needs: get-matrices
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ${{ fromJson(needs.get-matrices.outputs.version-matrix-output) }}
+        engine: ${{ fromJson(needs.get-matrices.outputs.engine-matrix-output) }}
+        host: ${{ fromJson(needs.get-matrices.outputs.host-matrix-output) }}
+    runs-on: ${{ matrix.host.RUNNER }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust and protoc
+        uses: ./.github/workflows/install-rust-and-protoc
+
+      - name: Add Rust to PATH
+        run: |
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          source $HOME/.cargo/env || true
+
+      - name: Output Matrix Parameters for this job
+        run: |
+          echo "Job running with the following matrix configuration:"
+          echo "${{ toJson(matrix) }}"
+
+      - name: Setup PHP Extension Build Environment
+        uses: ./.github/workflows/setup-php-extension
+        with:
+          php-version: ${{ matrix.php }}
+          install-composer-deps: "false"
+
+      - name: Generate PHP protobuf classes for testing
+        run: |
+          echo "=== Generating PHP protobuf classes for testing ==="
+
+          # Install protobuf compiler and PHP plugin
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libprotobuf-c-dev protobuf-c-compiler libprotobuf-c1
+
+          # Install protobuf PHP runtime for testing
+          composer require google/protobuf
+
+          # Generate PHP classes from protobuf files (following README.md instructions)
+          PROTO_DIR="valkey-glide/glide-core/src/protobuf"
+          if [ -d "$PROTO_DIR" ]; then
+            echo "Generating PHP classes from protobuf files..."
+            protoc --proto_path="$PROTO_DIR" --php_out=./tests/ "$PROTO_DIR"/connection_request.proto
+            
+            echo "Generated PHP protobuf classes:"
+            find tests -name "*.php" -path "*/Connection_request/*" -o -path "*/GPBMetadata/*" | head -10
+          else
+            echo "Warning: Protobuf directory not found at $PROTO_DIR"
+          fi
+
+          echo "PHP protobuf classes generated for testing"
+
+      - name: Clean generated files before packaging
+        run: |
+          echo "=== Cleaning generated files that shouldn't be in PECL package ==="
+          rm -rf include/glide_bindings.h include/glide/ src/*.pb-c.* *arginfo.h src/*arginfo.h
+          echo "=== Cleaned generated files ==="
+
+      - name: Create PECL package tarball
+        run: |
+          echo "=== Creating PECL package tarball ==="
+
+          # Generate submodule commit info for PECL packages
+          echo "=== Generating submodule commit info ==="
+          git submodule status | while read commit path extra; do
+            # Remove leading - or + from commit hash
+            clean_commit=$(echo "$commit" | sed 's/^[-+]//')
+            echo "$path=$clean_commit" >> .submodule-commits
+          done
+          cat .submodule-commits
+
+          # Extract version from package.xml for consistency
+          VERSION=$(grep -o '<release>[^<]*</release>' package.xml | sed 's/<[^>]*>//g' | head -1)
+          PACKAGE_DIR="valkey_glide-$VERSION"
+
+          echo "Using version: $VERSION"
+
+          # Create clean package directory
+          mkdir -p "$PACKAGE_DIR"
+
+          # Copy only source files listed in package.xml (exclude temp files with ~)
+          cp config.m4 "$PACKAGE_DIR/"
+          cp Makefile.frag "$PACKAGE_DIR/"
+          cp .gitmodules "$PACKAGE_DIR/"
+          cp .submodule-commits "$PACKAGE_DIR/"
+          cp package.xml "$PACKAGE_DIR/"
+
+          # Copy specific source files (exclude temp files)
+          echo "=== Copying .c and .h files ==="
+          for file in *.c *.h; do
+            if [[ -f "$file" && "$file" != *~ ]]; then
+              echo "Copying $file to package"
+              cp "$file" "$PACKAGE_DIR/"
+            fi
+          done
+
+          echo "=== Excluding include directory (generated during build) ==="
+
+          # Copy stub files (exclude temp files)
+          for file in *.stub.php; do
+            if [[ -f "$file" && "$file" != *~ ]]; then
+              cp "$file" "$PACKAGE_DIR/"
+            fi
+          done
+
+          # Copy src directory
+          mkdir -p "$PACKAGE_DIR/src"
+          cp src/client_constructor_mock.c "$PACKAGE_DIR/src/"
+          cp src/client_constructor_mock.stub.php "$PACKAGE_DIR/src/"
+
+          # Copy utils directory
+          mkdir -p "$PACKAGE_DIR/utils"
+          cp utils/remove_optional_from_proto.py "$PACKAGE_DIR/utils/"
+
+          # Copy documentation files
+          cp README.md "$PACKAGE_DIR/"
+          cp LICENSE "$PACKAGE_DIR/"
+
+          # Create empty valkey-glide directory with .gitkeep
+          mkdir -p "$PACKAGE_DIR/valkey-glide"
+          touch "$PACKAGE_DIR/valkey-glide/.gitkeep"
+
+          # Create tarball
+          tar czf "$PACKAGE_DIR.tgz" "$PACKAGE_DIR"
+
+          echo "=== PECL package created: $PACKAGE_DIR.tgz ==="
+          ls -la "$PACKAGE_DIR.tgz"
+
+          # Store version for later steps
+          echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "PACKAGE_DIR=$PACKAGE_DIR" >> $GITHUB_ENV
+
+      - name: Test PECL installation
+        run: |
+          echo "=== Testing PECL-style installation ==="
+
+          echo "=== Checking if protobuf-c is already available ==="
+          ldconfig -p | grep protobuf-c || echo "protobuf-c not found in system"
+          dpkg -l | grep protobuf || echo "No protobuf packages installed"
+          echo "=== Package contents ==="
+          tar tzf "${{ env.PACKAGE_DIR }}.tgz" 2>/dev/null | head -20 || echo "Could not list package contents"
+
+          echo "=== DEBUG: Checking for include directory in package ==="
+          tar tzf "${{ env.PACKAGE_DIR }}.tgz" 2>/dev/null | grep "include/" || echo "No include directory found in package"
+
+          echo "=== DEBUG: Checking for glide_bindings.h in package ==="
+          tar tzf "${{ env.PACKAGE_DIR }}.tgz" 2>/dev/null | grep "glide_bindings" || echo "No glide_bindings files found in package"
+          ls -la
+
+          echo "=== Installing package with PECL ==="
+
+          echo "=== Checking available tools ==="
+          echo "Git: $(which git || echo 'NOT FOUND')"
+          echo "Cargo: $(which cargo || echo 'NOT FOUND')"
+          echo "cbindgen: $(which cbindgen || echo 'NOT FOUND')"
+          echo "protoc-c: $(which protoc-c || echo 'NOT FOUND')"
+          echo "Rust version: $(rustc --version 2>/dev/null || echo 'NOT FOUND')"
+
+          echo "=== Checking PECL version and functionality ==="
+          pecl version || echo "PECL version command failed"
+
+          # Install the package using PECL (this tests the real user experience)
+          # But first, let's debug what PECL is doing
+          sudo pecl install -f "${{ env.PACKAGE_DIR }}.tgz" 2>&1 | tee pecl_install.log || {
+            echo "=== PECL install failed, checking logs ==="
+            
+            echo "=== PECL install log ==="
+            cat pecl_install.log
+            
+            echo "=== Checking for basic build files ==="
+            ls -la /tmp/pear/ 2>/dev/null || echo "No /tmp/pear directory found"
+            
+            exit 1
+          }
+          PECL_EXIT_CODE=$?
+
+          echo "=== PECL install exit code: $PECL_EXIT_CODE ==="
+
+          if [ $PECL_EXIT_CODE -eq 0 ]; then
+            echo "=== PECL installation completed successfully ==="
+            
+            echo "=== Testing extension loading (before php.ini modification) ==="
+            php -d extension=valkey_glide -m | grep valkey_glide && echo "Extension loads successfully!" || echo "Extension failed to load"
+            php -d extension=valkey_glide -r "if (extension_loaded('valkey_glide')) echo 'SUCCESS: Extension loaded!'; else echo 'ERROR: Extension not loaded';"
+            
+            echo "=== Checking available classes ==="
+            php -d extension=valkey_glide -r "
+            if (class_exists('Glide\\Client')) {
+                echo 'SUCCESS: Glide\\Client class found!';
+            } else {
+                echo 'ERROR: Glide\\Client class not found';
+                echo 'Available classes: ';
+                print_r(get_declared_classes());
+            }"
+            
+            echo "=== Adding extension to php.ini ==="
+            PHP_INI_PATH=$(php --ini | grep "Loaded Configuration File" | cut -d: -f2 | xargs)
+            echo "PHP INI path: $PHP_INI_PATH"
+            if [ -f "$PHP_INI_PATH" ]; then
+              echo "extension=valkey_glide" | sudo tee -a "$PHP_INI_PATH"
+              echo "Extension added to php.ini"
+            else
+              echo "php.ini not found, creating extension config"
+              echo "extension=valkey_glide" | sudo tee /etc/php/$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')/cli/conf.d/20-valkey_glide.ini
+            fi
+            
+            echo "=== Checking installation ==="
+            php-config --extension-dir
+            ls -la $(php-config --extension-dir) | grep valkey || echo "valkey_glide.so not found in extension directory"
+            
+            echo "=== Checking library dependencies ==="
+            SO_FILE=$(php-config --extension-dir)/valkey_glide.so
+            if [ -f "$SO_FILE" ]; then
+              echo "Extension file exists: $SO_FILE"
+              echo "All library dependencies:"
+              ldd "$SO_FILE"
+              echo "Protobuf dependencies:"
+              ldd "$SO_FILE" | grep protobuf || echo "No protobuf dependencies found"
+              echo "Checking for protobuf-c library:"
+              ldconfig -p | grep protobuf-c || echo "protobuf-c library not found in system"
+              echo "Checking if protobuf_c_empty_string symbol exists in system libraries:"
+              nm -D /lib/x86_64-linux-gnu/libprotobuf-c.so.1 | grep protobuf_c_empty_string || echo "Symbol not found in libprotobuf-c"
+              echo "Checking for undefined symbols in extension:"
+              nm -u "$SO_FILE" | head -10 || echo "No undefined symbols found"
+              echo "Checking for 'init' symbol specifically:"
+              nm -u "$SO_FILE" | grep init || echo "No undefined init symbol found"
+            fi
+            
+            echo "=== Testing extension loading ==="
+            php -d extension=valkey_glide -m | grep -i valkey || echo "Extension not loaded"
+            
+            echo "=== Testing basic functionality ==="
+            php -d extension=valkey_glide -r "
+              if (extension_loaded('valkey_glide')) {
+                echo 'Extension loaded successfully\n';
+                \$classes = get_declared_classes();
+                \$glide_classes = array_filter(\$classes, function(\$class) {
+                  return strpos(\$class, 'Glide') !== false || strpos(\$class, 'Valkey') !== false;
+                });
+                if (!empty(\$glide_classes)) {
+                  echo 'Found classes: ' . implode(', ', \$glide_classes) . '\n';
+                } else {
+                  echo 'No Glide/Valkey classes found\n';
+                }
+                if (class_exists('Glide\\Client')) {
+                  echo 'SUCCESS: Glide\\Client class found\n';
+                } else {
+                  echo 'ERROR: Glide\\Client class not found\n';
+                }
+              } else {
+                echo 'ERROR: Extension not loaded\n';
+              }
+            "
+          else
+            echo "=== PECL installation failed ==="
+            
+            echo "=== Checking PECL logs ==="
+            cat /tmp/pear/install/valkey_glide*/make.log 2>/dev/null || echo "No make.log found"
+            
+            echo "=== Checking for build errors ==="
+            ls -la /tmp/pear/install/ 2>/dev/null || echo "No install directory found"
+            
+            exit 1
+          fi
+
+      - name: Verify PECL installation
+        run: |
+          echo "=== Checking PHP extension directory ==="
+          php-config --extension-dir
+          ls -la $(php-config --extension-dir) | grep valkey || echo "valkey_glide.so not found in extension directory"
+
+          echo "=== Checking if extension is loaded ==="
+          php -m | grep -i valkey || echo "valkey extension not loaded"
+
+          echo "=== Checking PHP configuration ==="
+          php --ini
+
+          echo "=== Manually enabling extension ==="
+          php -d extension=valkey_glide -m | grep -i valkey && echo "Extension works when manually enabled!" || echo "Extension still not working"
+
+          echo "=== Testing extension functionality ==="
+          php -d extension=valkey_glide -r "if (extension_loaded('valkey_glide')) { echo 'SUCCESS: Extension loaded and functional!'; } else { echo 'ERROR: Extension not functional'; }"
+
+      - name: Run PHP Extension Tests
+        uses: ./.github/workflows/run-php-tests
+        with:
+          extension-path: valkey_glide
+          php-version: ${{ matrix.php }}
