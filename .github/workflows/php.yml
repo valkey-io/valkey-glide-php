@@ -427,7 +427,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.BASE_PHP_VERSION }}
-          extensions: none
+          extensions: tokenizer, json, ctype, iconv, mbstring, simplexml, curl
           tools: none
 
       - name: Install system dependencies for PHP Valgrind build
@@ -502,9 +502,23 @@ jobs:
           CFLAGS="-g -O0" make build-modules-pre
           CFLAGS="-g -O0" make
 
-          # Step 6: Create valgrind logs directory and verify setup
+          # Step 6: Generate test protobuf PHP classes
+          echo "=== Step 6: Generating test protobuf PHP classes ==="
+          protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/ ./valkey-glide/glide-core/src/protobuf/connection_request.proto
+          echo "tests directory contents:"
+          cd tests
+          ls -la
+          cd ..
+
+          # Step 7: Install PHP dependencies
+          echo "=== Step 7: Installing PHP dependencies ==="
+          composer install --no-interaction --prefer-dist --optimize-autoloader
+          echo "Composer install completed. Checking for composer.lock:"
+          ls -la composer.lock || echo "Warning: composer.lock not found"
+
+          # Step 8: Create valgrind logs directory and verify setup
           mkdir -p ./valgrind_logs
-          echo "=== Step 6: Verifying Valgrind setup ==="
+          echo "=== Step 8: Verifying Valgrind setup ==="
           echo "Working directory: $(pwd)"
           echo "Extension exists: $(ls -la modules/valkey_glide.so 2>/dev/null || echo 'NOT FOUND')"
           echo "Config file exists: $(ls -la ext.ini 2>/dev/null || echo 'NOT FOUND')"
@@ -512,24 +526,37 @@ jobs:
           echo "Suppressions file exists: $(ls -la valgrind.supp 2>/dev/null || echo 'NOT FOUND')"
           echo "Valgrind version: $(valgrind --version)"
 
-          # Step 7: Run Valgrind tests
+          # Step 9: Run Valgrind tests
           echo ""
-          echo "=== Step 7: Running Valgrind memory analysis ==="
+          echo "=== Step 9: Running Valgrind memory analysis ==="
           echo "Command: valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --suppressions=valgrind.supp php -n -c ext.ini tests/TestValkeyGlide.php"
           echo ""
 
           # Run Valgrind with output to both terminal and log file
+          SUPPRESSIONS_FLAG=""
+          if [ -f "valgrind.supp" ]; then
+            SUPPRESSIONS_FLAG="--suppressions=valgrind.supp"
+            echo "Using suppressions file: valgrind.supp"
+          else
+            echo "No suppressions file found"
+          fi
+
           valgrind \
               --tool=memcheck \
               --leak-check=full \
               --show-leak-kinds=all \
               --track-origins=yes \
               --verbose \
+              --error-exitcode=1 \
+              $SUPPRESSIONS_FLAG \
               php -n -c ext.ini tests/TestValkeyGlide.php 2>&1 | tee ./valgrind_logs/valgrind_output.log
 
-          VALGRIND_EXIT_CODE=$?
+          VALGRIND_EXIT_CODE=${PIPESTATUS[0]}
           echo ""
           echo "=== Valgrind analysis completed with exit code: $VALGRIND_EXIT_CODE ==="
+
+          # Store exit code for later use
+          echo "$VALGRIND_EXIT_CODE" > ./valgrind_logs/exit_code.txt
 
       - name: Display Valgrind results
         if: always()
@@ -556,17 +583,31 @@ jobs:
               fi
 
               # Check for memory leaks
-              if grep -q "definitely lost:" ./valgrind_logs/valgrind_output.log; then
-                  echo "⚠️  CRITICAL: Definite memory leaks detected"
+              DEFINITELY_LOST=$(grep "definitely lost:" ./valgrind_logs/valgrind_output.log | grep -o '[0-9,]* bytes' | head -1 | tr -d ',' || echo "0")
+              if [ "$DEFINITELY_LOST" -gt 0 ] 2>/dev/null; then
+                  echo "⚠️  CRITICAL: Definite memory leaks detected ($DEFINITELY_LOST bytes)"
                   grep -A 3 -B 1 "definitely lost:" ./valgrind_logs/valgrind_output.log || true
               else
                   echo "✅ No definite memory leaks detected"
               fi
 
-              # Check for possible leaks
-              if grep -q "possibly lost:" ./valgrind_logs/valgrind_output.log; then
-                  POSSIBLY_LOST=$(grep "possibly lost:" ./valgrind_logs/valgrind_output.log | head -1)
-                  echo "⚠️  Possible leaks: $POSSIBLY_LOST"
+              # Check for indirect leaks
+              INDIRECTLY_LOST=$(grep "indirectly lost:" ./valgrind_logs/valgrind_output.log | grep -o '[0-9,]* bytes' | head -1 | tr -d ',' || echo "0")
+              if [ "$INDIRECTLY_LOST" -gt 0 ] 2>/dev/null; then
+                  echo "⚠️  CRITICAL: Indirect memory leaks detected ($INDIRECTLY_LOST bytes)"
+                  grep -A 3 -B 1 "indirectly lost:" ./valgrind_logs/valgrind_output.log || true
+              else
+                  echo "✅ No indirect memory leaks detected"
+              fi
+
+              # Check for possibly lost memory (treat as error, use suppressions for safe cases)
+              POSSIBLY_LOST=$(grep "possibly lost:" ./valgrind_logs/valgrind_output.log | head -1 | grep -o '[0-9,]* bytes' | head -1 | tr -d ',' || echo "0")
+              if [ "$POSSIBLY_LOST" -gt 0 ] 2>/dev/null; then
+                  echo "❌ CRITICAL: Possibly lost memory detected ($POSSIBLY_LOST bytes)"
+                  echo "Add suppressions to valgrind.supp if these are known safe allocations"
+                  grep -A 3 -B 1 "possibly lost:" ./valgrind_logs/valgrind_output.log || true
+              else
+                  echo "✅ No possibly lost memory detected"
               fi
 
               # Show leak summary if present
@@ -580,6 +621,15 @@ jobs:
               if grep -q "ERROR SUMMARY:" ./valgrind_logs/valgrind_output.log; then
                   echo ""
                   echo "=== Error Summary ==="
+                  ERROR_COUNT=$(grep "ERROR SUMMARY:" ./valgrind_logs/valgrind_output.log | grep -o '[0-9]* errors' | head -1 | grep -o '[0-9]*')
+                  if [ "$ERROR_COUNT" -gt 0 ] 2>/dev/null; then
+                      echo "❌ CRITICAL: $ERROR_COUNT memory errors detected"
+                      echo "=== Memory Error Details ==="
+                      # Show the actual error details (not just leaks)
+                      grep -B 5 -A 10 "Invalid\|Conditional\|Uninitialised\|Source and destination\|Address.*is.*bytes.*inside\|Use of uninitialised" ./valgrind_logs/valgrind_output.log || true
+                  else
+                      echo "✅ No memory errors detected"
+                  fi
                   grep "ERROR SUMMARY:" ./valgrind_logs/valgrind_output.log || true
               fi
 
@@ -592,6 +642,47 @@ jobs:
               echo "This indicates the Valgrind command may have failed to execute properly"
               echo "Check the previous step output for any error messages"
           fi
+
+      - name: Check test results and fail if needed
+        run: |
+          echo "=== Final Test Results Check ==="
+
+          # Check if exit code file exists
+          if [ -f "./valgrind_logs/exit_code.txt" ]; then
+            EXIT_CODE=$(cat ./valgrind_logs/exit_code.txt)
+            echo "Valgrind/PHP test exit code: $EXIT_CODE"
+            
+            if [ "$EXIT_CODE" -ne 0 ]; then
+              echo "❌ FAILURE: PHP tests failed with exit code $EXIT_CODE"
+              echo "The workflow will fail even if no memory leaks were detected"
+              exit $EXIT_CODE
+            else
+              echo "✅ SUCCESS: PHP tests passed (exit code 0)"
+            fi
+          else
+            echo "❌ FAILURE: Could not determine test exit code"
+            echo "This indicates the valgrind command may not have run properly"
+            exit 1
+          fi
+
+          # Additional check for memory issues (fail on any leaks or possibly lost)
+          if [ -f "./valgrind_logs/valgrind_output.log" ]; then
+            # Check for all types of memory issues
+            DEFINITELY_LOST=$(grep "definitely lost:" ./valgrind_logs/valgrind_output.log | head -1 | grep -o '[0-9,]* bytes' | head -1 | tr -d ',' || echo "0")
+            INDIRECTLY_LOST=$(grep "indirectly lost:" ./valgrind_logs/valgrind_output.log | head -1 | grep -o '[0-9,]* bytes' | head -1 | tr -d ',' || echo "0")
+            POSSIBLY_LOST=$(grep "possibly lost:" ./valgrind_logs/valgrind_output.log | head -1 | grep -o '[0-9,]* bytes' | head -1 | tr -d ',' || echo "0")
+            
+            if [ "$DEFINITELY_LOST" -gt 0 ] 2>/dev/null || [ "$INDIRECTLY_LOST" -gt 0 ] 2>/dev/null || [ "$POSSIBLY_LOST" -gt 0 ] 2>/dev/null; then
+              echo "❌ FAILURE: Memory issues detected"
+              echo "- Definitely lost: $DEFINITELY_LOST bytes"
+              echo "- Indirectly lost: $INDIRECTLY_LOST bytes" 
+              echo "- Possibly lost: $POSSIBLY_LOST bytes"
+              echo "Fix memory leaks or add suppressions to valgrind.supp for known safe allocations"
+              exit 1
+            fi
+          fi
+
+          echo "=== All checks passed ==="
 
       - name: Stop Valkey servers
         if: always()
