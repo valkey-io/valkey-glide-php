@@ -173,12 +173,38 @@ jobs:
           echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
           echo "PACKAGE_DIR=$PACKAGE_DIR" >> $GITHUB_ENV
 
+      - name: Setup sccache for cross-user Rust caching
+        run: |
+          echo "=== Setting up sccache for cross-user Rust compilation caching ==="
+
+          # Install sccache
+          curl -L https://github.com/mozilla/sccache/releases/download/v0.7.4/sccache-v0.7.4-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv sccache-v0.7.4-x86_64-unknown-linux-musl/sccache /usr/local/bin/
+          sudo chmod +x /usr/local/bin/sccache
+
+          # Set up sccache environment for all users
+          echo 'export RUSTC_WRAPPER=sccache' | sudo tee /etc/profile.d/sccache.sh
+          echo 'export SCCACHE_DIR=/opt/sccache' | sudo tee -a /etc/profile.d/sccache.sh
+          sudo chmod +x /etc/profile.d/sccache.sh
+
+          # Create sccache directory accessible to all users
+          sudo mkdir -p /opt/sccache
+          sudo chmod 777 /opt/sccache
+
+          # Set environment for current session
+          export RUSTC_WRAPPER=sccache
+          export SCCACHE_DIR=/opt/sccache
+
+          echo "sccache setup complete"
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             valkey-glide/ffi
             valkey-glide/glide-core
           key: pecl
+          shared-key: "valkey-glide-deps"
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Pre-populate Rust registry cache
         run: |
@@ -263,7 +289,7 @@ jobs:
           echo "Symlinks in /tmp:"
           find /tmp -name "target" -type l 2>/dev/null || echo "No target symlinks found"
 
-          sudo pecl install -f "${{ env.PACKAGE_DIR }}.tgz" 2>&1 | tee pecl_install.log
+          sudo env "RUSTC_WRAPPER=sccache" "SCCACHE_DIR=/opt/sccache" "CARGO_HOME=/root/.cargo" pecl install -f "${{ env.PACKAGE_DIR }}.tgz" 2>&1 | tee pecl_install.log
           PECL_EXIT_CODE=$?
 
           echo "=== Post-PECL Debug Info ==="
