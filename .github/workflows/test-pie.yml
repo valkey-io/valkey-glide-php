@@ -202,7 +202,6 @@ jobs:
 
           echo "=== Attempting PIE installation with verbose output ==="
           set +e
-          # Keep cargo parallelization but disable make parallelization to avoid race conditions
           export CARGO_BUILD_JOBS=$(nproc)
           # Make Rust available to root by preserving environment
           sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$(nproc)" pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -vvv 2>&1 | tee pie_install.log
