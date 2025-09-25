@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package packagerversion="1.10.13" version="2.0" xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
+ <name>valkey_glide</name>
+ <channel>pecl.php.net</channel>
+ <summary>High-performance PHP client for Valkey</summary>
+ <description>Valkey GLIDE is a high-performance client library for Valkey, built with Rust core and PHP FFI bindings. It provides better performance, type safety, and cluster support with automatic failover.
+
+Note: After installation, add "extension=valkey_glide" to your php.ini file.</description>
+ <lead>
+  <name>Valkey GLIDE Team</name>
+  <user>valkeyglide</user>
+  <email>noreply@valkey.io</email>
+  <active>yes</active>
+ </lead>
+ <date>2025-09-18</date>
+ <time>18:25:00</time>
+ <version>
+  <release>0.9.0</release>
+  <api>0.9.0</api>
+ </version>
+ <stability>
+  <release>beta</release>
+  <api>beta</api>
+ </stability>
+ <license uri="https://www.apache.org/licenses/LICENSE-2.0">Apache-2.0</license>
+ <notes>
+Initial PECL release of Valkey GLIDE PHP extension.
+
+Features:
+- High-performance Rust-based core with PHP FFI bindings
+- Support for both standalone and cluster Redis/Valkey deployments
+- Comprehensive command support for strings, hashes, lists, sets, and sorted sets
+- Type-safe PHP API with proper error handling
+- Cross-platform compatibility (Linux, macOS, Windows)
+- Automatic connection pooling and management
+
+Requirements:
+- PHP 8.1 or higher
+- Rust toolchain for compilation
+- protobuf-c library
+- Git (for submodule handling during build)
+ </notes>
+ <contents>
+  <dir baseinstalldir="/" name="/">
+   <file name="config.m4" role="src" />
+   <file name="Makefile.frag" role="src" />
+   <file name=".gitmodules" role="src" />
+   <file name=".submodule-commits" role="src" />
+   <file name="valkey_glide.c" role="src" />
+   <file name="php_valkey_glide.h" role="src" />
+   <file name="valkey_glide.stub.php" role="src" />
+   <file name="valkey_glide_cluster.c" role="src" />
+   <file name="valkey_glide_cluster.stub.php" role="src" />
+   <file name="cluster_scan_cursor.c" role="src" />
+   <file name="cluster_scan_cursor.h" role="src" />
+   <file name="cluster_scan_cursor.stub.php" role="src" />
+   <file name="command_response.c" role="src" />
+   <file name="command_response.h" role="src" />
+   <file name="common.h" role="src" />
+   <file name="logger.c" role="src" />
+   <file name="logger.h" role="src" />
+   <file name="logger.stub.php" role="src" />
+   <file name="valkey_glide_commands.c" role="src" />
+   <file name="valkey_glide_commands_common.h" role="src" />
+   <file name="valkey_glide_commands_2.c" role="src" />
+   <file name="valkey_glide_commands_3.c" role="src" />
+   <file name="valkey_glide_core_commands.c" role="src" />
+   <file name="valkey_glide_core_common.c" role="src" />
+   <file name="valkey_glide_core_common.h" role="src" />
+   <file name="valkey_glide_expire_commands.c" role="src" />
+   <file name="valkey_glide_geo_commands.c" role="src" />
+   <file name="valkey_glide_geo_common.c" role="src" />
+   <file name="valkey_glide_geo_common.h" role="src" />
+   <file name="valkey_glide_hash_common.c" role="src" />
+   <file name="valkey_glide_hash_common.h" role="src" />
+   <file name="valkey_glide_list_common.c" role="src" />
+   <file name="valkey_glide_list_common.h" role="src" />
+   <file name="valkey_glide_s_common.c" role="src" />
+   <file name="valkey_glide_s_common.h" role="src" />
+   <file name="valkey_glide_str_commands.c" role="src" />
+   <file name="valkey_glide_x_commands.c" role="src" />
+   <file name="valkey_glide_x_common.c" role="src" />
+   <file name="valkey_glide_x_common.h" role="src" />
+   <file name="valkey_glide_z.c" role="src" />
+   <file name="valkey_glide_z_common.c" role="src" />
+   <file name="valkey_glide_z_common.h" role="src" />
+   <file name="valkey_z_php_methods.c" role="src" />
+   <dir name="src">
+    <file name="client_constructor_mock.c" role="src" />
+    <file name="client_constructor_mock.stub.php" role="src" />
+   </dir>
+   <dir name="utils">
+    <file name="remove_optional_from_proto.py" role="src" />
+   </dir>
+   <dir name="valkey-glide">
+    <file name=".gitkeep" role="src" />
+   </dir>
+   <file name="README.md" role="doc" />
+   <file name="LICENSE" role="doc" />
+  </dir>
+ </contents>
+ <dependencies>
+  <required>
+   <php>
+    <min>8.1.0</min>
+   </php>
+   <pearinstaller>
+    <min>1.10.0</min>
+   </pearinstaller>
+  </required>
+ </dependencies>
+ <providesextension>valkey_glide</providesextension>
+ <extsrcrelease>
+  <configureoption default="no" name="enable-valkey-glide-debug" prompt="Enable debug support?" />
+ </extsrcrelease>
+ <changelog>
+  <release>
+   <date>2025-09-18</date>
+   <time>18:25:00</time>
+   <version>
+    <release>0.9.0</release>
+    <api>0.9.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <license uri="https://www.apache.org/licenses/LICENSE-2.0">Apache-2.0</license>
+   <notes>
+Initial PECL release with core functionality:
+- Basic Valkey command support
+- Cluster mode support
+- High-performance Rust core
+- Cross-platform compatibility
+   </notes>
+  </release>
+ </changelog>
+</package>

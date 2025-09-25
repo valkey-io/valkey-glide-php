@@ -1,0 +1,336 @@
+# Valgrind suppressions for ValkeyGlide PHP extension
+
+# Cluster scan cursor container - possibly lost during hashmap resize
+# This appears to be related to scan cursor cleanup timing
+# TODO: Investigate proper cleanup in cluster_scan_container
+{
+   cluster_scan_cursor_container_resize
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*hashbrown*raw*RawTable*reserve_rehash*
+   fun:*cluster_scan_container*insert_cluster_scan_cursor*
+}
+
+# Alternative pattern for the same issue
+{
+   cluster_scan_cursor_hashmap_resize
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*reserve_rehash*
+   ...
+   fun:*cluster_scan_container*
+}
+# Still reachable memory from PHP engine and system libraries
+{
+   php_engine_globals
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   obj:/usr/bin/php*
+}
+
+{
+   php_zend_engine
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:*alloc*
+   ...
+   fun:zend_*
+}
+
+{
+   system_library_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:calloc
+   fun:realloc
+   ...
+   obj:/usr/lib/*
+}
+
+{
+   openssl_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   obj:*/libssl*
+}
+
+{
+   openssl_crypto_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   obj:*/libcrypto*
+}
+
+{
+   protobuf_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   obj:*/libprotobuf*
+}
+
+{
+   rust_runtime_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:calloc
+   ...
+   fun:*rust*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   rust_std_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:*alloc*
+   ...
+   fun:std::*
+}
+
+{
+   glibc_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:calloc
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/libc*
+}
+
+{
+   ld_loader_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:calloc
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/ld-*
+}
+# Rust tracing subscriber initialization
+{
+   rust_tracing_subscriber_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*tracing_subscriber*filter*targets*Targets*with_target*
+   fun:*once_cell*imp*OnceCell*initialize*
+   fun:*once_cell*imp*initialize_or_wait*
+}
+
+# Rust standard library allocator initialization
+{
+   rust_std_allocator_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*alloc*
+   fun:*alloc_impl*
+   fun:*allocate*
+   fun:*try_allocate_in*
+   fun:*with_capacity_in*
+}
+
+# Dynamic loader object creation
+{
+   dynamic_loader_new_object
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:calloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+}
+
+# Rust tracing registry (large buffer allocation)
+{
+   rust_tracing_registry_buffer
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*tracing_subscriber*registry*sharded*Registry*default*
+   fun:*tracing_subscriber*registry*
+   fun:*once_cell*imp*OnceCell*initialize*
+   fun:*once_cell*imp*initialize_or_wait*
+}
+# Broader suppressions for remaining still reachable patterns
+
+# All Rust once_cell initialization (catches various patterns)
+{
+   rust_once_cell_init_broad
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:*once_cell*imp*OnceCell*initialize*
+   fun:*once_cell*imp*initialize_or_wait*
+}
+
+# All dynamic loader operations
+{
+   dynamic_loader_broad
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*
+   fun:strdup
+   fun:_dl_*
+}
+
+# All dynamic loader cache operations
+{
+   dynamic_loader_cache
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*
+   fun:strdup
+   fun:_dl_load_cache_lookup
+}
+
+# AWS-LC (BoringSSL) thread-local storage
+{
+   aws_lc_thread_local
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*aws_lc*CRYPTO_set_thread_local*
+}
+
+# Rust thread initialization
+{
+   rust_thread_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*alloc*raw_vec*finish_grow*
+   fun:start_thread
+   fun:clone
+}
+
+# All tracing-related initialization
+{
+   rust_tracing_broad
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:*tracing*
+}
+# Dynamic loader _dl_new_object allocations
+{
+   dl_new_object_malloc
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:malloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+   fun:openaux
+}
+
+# RustLS crypto provider initialization
+{
+   rustls_crypto_provider_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*rustls*crypto*aws_lc_rs*default_provider*
+   fun:*std*sync*poison*once*Once*call_once_force*
+   fun:*std*sys*sync*once*futex*Once*call*
+   fun:*std*sync*once_lock*OnceLock*initialize*
+}
+
+# RustLS crypto provider install_default
+{
+   rustls_crypto_install_default
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*rustls*crypto*CryptoProvider*install_default*
+   fun:*std*sync*poison*once*Once*call_once_force*
+   fun:*std*sys*sync*once*futex*Once*call*
+   fun:*std*sync*once_lock*OnceLock*initialize*
+}
+
+# Arc-swap debt list nodes (Redis connection management)
+{
+   arc_swap_debt_list_nodes
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:posix_memalign
+   fun:*aligned_malloc*
+   fun:*alloc*
+   fun:*__rustc*__rdl_alloc*
+   fun:*arc_swap*debt*list*Node*get*
+}
+
+# Dynamic loader version checking
+{
+   dl_check_map_versions
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:calloc
+   fun:_dl_check_map_versions
+   fun:dl_open_worker_begin
+}
+# Dynamic loader _dl_new_object realloc operations
+{
+   dl_new_object_realloc
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:realloc
+   fun:realloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+   fun:dl_open_worker_begin
+}
+
+# Dynamic loader global resize operations
+{
+   dl_add_to_global_resize
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:malloc
+   fun:add_to_global_resize
+   fun:dl_open_worker_begin
+}
+
+# AWS-LC random number generator initialization
+{
+   aws_lc_rand_bytes_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*aws_lc*RAND_bytes_with_additional_data*
+   fun:*aws_lc*RAND_bytes*
+   fun:*aws_lc_rs*rand*fill*
+}
+
+# Rust raw_vec finish_grow with corrupted stack
+{
+   rust_raw_vec_finish_grow_corrupted
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:realloc
+   fun:*alloc*raw_vec*finish_grow*
+}

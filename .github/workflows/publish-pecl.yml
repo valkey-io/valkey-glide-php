@@ -1,0 +1,225 @@
+name: Build and publish extension packages
+
+permissions:
+  contents: write
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g., 0.9.0)"
+        required: true
+        type: string
+      create-release:
+        description: "Create GitHub release"
+        type: boolean
+        default: false
+
+jobs:
+  build-packages:
+    runs-on: ubuntu-latest
+    outputs:
+      package-version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust and protoc
+        uses: ./.github/workflows/install-rust-and-protoc
+
+      - name: Add Rust to PATH
+        run: |
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          source $HOME/.cargo/env || true
+
+      - name: Determine version
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          if [ "$EVENT_NAME" = "release" ]; then
+            VERSION="$RELEASE_TAG"
+            # Remove 'v' prefix if present
+            VERSION=${VERSION#v}
+          else
+            VERSION="$INPUT_VERSION"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION"
+
+      - name: Update package.xml version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          DATE=$(date +%Y-%m-%d)
+
+          # Generate submodule commit info for PECL packages
+          echo "=== Generating submodule commit info ==="
+          git submodule status | while read commit path extra; do
+            # Remove leading - or + from commit hash
+            clean_commit=$(echo "$commit" | sed 's/^[-+]//')
+            echo "$path=$clean_commit" >> .submodule-commits
+          done
+          cat .submodule-commits
+
+          echo "=== Updating package.xml version ==="
+          TIME=$(date +%H:%M:%S)
+
+          # Update version and date in package.xml
+          sed -i "s/<release>0\.9\.0<\/release>/<release>$VERSION<\/release>/" package.xml
+          sed -i "s/<api>0\.9\.0<\/api>/<api>$VERSION<\/api>/" package.xml
+          sed -i "s/<date>2025-09-18<\/date>/<date>$DATE<\/date>/" package.xml
+          sed -i "s/<time>18:25:00<\/time>/<time>$TIME<\/time>/" package.xml
+
+          echo "Updated package.xml with version $VERSION"
+
+      - name: Create PECL package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PACKAGE_DIR="valkey_glide-$VERSION"
+
+          echo "=== Creating PECL package for version $VERSION ==="
+
+          # Debug: Show Makefile.frag contents
+          echo "=== DEBUG: Contents of Makefile.frag ==="
+          cat Makefile.frag | head -50
+          echo "=== END Makefile.frag (first 50 lines) ==="
+
+          # Create clean package directory
+          mkdir -p "$PACKAGE_DIR"
+
+          # Copy only source files listed in package.xml (exclude temp files with ~)
+          cp config.m4 "$PACKAGE_DIR/"
+          cp Makefile.frag "$PACKAGE_DIR/"
+          cp .gitmodules "$PACKAGE_DIR/"
+          cp .submodule-commits "$PACKAGE_DIR/"
+          cp package.xml "$PACKAGE_DIR/"
+
+          # Copy specific source files (exclude temp files)
+          for file in *.c *.h; do
+            if [[ -f "$file" && "$file" != *~ ]]; then
+              cp "$file" "$PACKAGE_DIR/"
+            fi
+          done
+
+          # Copy stub files (exclude temp files)
+          for file in *.stub.php; do
+            if [[ -f "$file" && "$file" != *~ ]]; then
+              cp "$file" "$PACKAGE_DIR/"
+            fi
+          done
+
+          # Copy src directory
+          mkdir -p "$PACKAGE_DIR/src"
+          cp src/client_constructor_mock.c "$PACKAGE_DIR/src/"
+          cp src/client_constructor_mock.stub.php "$PACKAGE_DIR/src/"
+
+          # Copy utils directory
+          mkdir -p "$PACKAGE_DIR/utils"
+          cp utils/remove_optional_from_proto.py "$PACKAGE_DIR/utils/"
+
+          # Copy documentation files
+          cp README.md "$PACKAGE_DIR/"
+          cp LICENSE "$PACKAGE_DIR/"
+
+          # Create empty valkey-glide directory with .gitkeep
+          mkdir -p "$PACKAGE_DIR/valkey-glide"
+          touch "$PACKAGE_DIR/valkey-glide/.gitkeep"
+
+          # Validate package.xml
+          if ! command -v xmllint >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y libxml2-utils
+          fi
+          xmllint --noout package.xml || exit 1
+
+          # Create tarball
+          tar czf "$PACKAGE_DIR.tgz" "$PACKAGE_DIR"
+
+          echo "=== PECL package created ==="
+          ls -la "$PACKAGE_DIR.tgz"
+
+          # Show package contents
+          echo "=== Package contents ==="
+          tar tzf "$PACKAGE_DIR.tgz" | head -20
+
+      - name: Test package installation
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PACKAGE_DIR="valkey_glide-$VERSION"
+
+          echo "=== Testing package installation ==="
+
+          # Extract and test build
+          tar xzf "$PACKAGE_DIR.tgz"
+          cd "$PACKAGE_DIR"
+
+          # Install PHP and build tools
+          sudo apt-get update
+          sudo apt-get install -y php-dev php-cli build-essential git
+
+          # Test build process
+          phpize
+          ./configure --enable-valkey-glide
+          make -j$(nproc)
+
+          echo "=== Package builds successfully ==="
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: valkey-glide-php-${{ steps.version.outputs.version }}
+          path: |
+            valkey_glide-${{ steps.version.outputs.version }}.tgz
+          retention-days: 90
+
+      - name: Create GitHub release
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.create-release == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        uses: actions/create-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          release_name: Valkey GLIDE PHP v${{ steps.version.outputs.version }}
+          body: |
+            ## Valkey GLIDE PHP Extension v${{ steps.version.outputs.version }}
+
+            High-performance PHP client for Valkey and Redis with Rust-based core.
+
+            ### Installation
+
+            **PIE (Recommended):**
+            ```bash
+            pie install valkey-io/valkey-glide-php
+            ```
+
+            **PECL-style:**
+            ```bash
+            pecl install https://github.com/valkey-io/valkey-glide-php/releases/download/v${{ steps.version.outputs.version }}/valkey_glide-${{ steps.version.outputs.version }}.tgz
+            ```
+
+            **Manual:**
+            Download the tarball below and follow the installation instructions.
+
+            ### Requirements
+            - PHP 8.1+
+            - Git, Rust toolchain, build tools
+
+            See README.md for detailed installation instructions.
+          draft: false
+          prerelease: false
+
+      - name: Upload release assets
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.create-release == 'true')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url || steps.create-release.outputs.upload_url }}
+          asset_path: valkey_glide-${{ steps.version.outputs.version }}.tgz
+          asset_name: valkey_glide-${{ steps.version.outputs.version }}.tgz
+          asset_content_type: application/gzip
