@@ -202,33 +202,18 @@ jobs:
             sudo cp -r "$HOME/.cargo/git" /root/.cargo/ || echo "Failed to copy git cache"
           fi
 
-          # Set up global Cargo environment for PECL
-          echo "=== Setting up global Cargo environment for PECL ==="
+          # Set up Cargo environment to use cache during PECL build
+          echo "=== Setting up Cargo cache environment for PECL ==="
 
-          # Copy target cache to a global location
-          if [ -d "valkey-glide/ffi/target" ]; then
-            echo "Copying FFI target to global cache..."
-            sudo mkdir -p /opt/cargo-cache/ffi
-            sudo cp -r valkey-glide/ffi/target /opt/cargo-cache/ffi/
-            sudo chmod -R 755 /opt/cargo-cache/ffi/target
-          fi
-          if [ -d "valkey-glide/glide-core/target" ]; then
-            echo "Copying glide-core target to global cache..."
-            sudo mkdir -p /opt/cargo-cache/glide-core  
-            sudo cp -r valkey-glide/glide-core/target /opt/cargo-cache/glide-core/
-            sudo chmod -R 755 /opt/cargo-cache/glide-core/target
-          fi
+          # Ensure root can access the registry cache
+          sudo chown -R root:root /root/.cargo 2>/dev/null || true
 
-          # Set global environment variables for Cargo
-          echo "Setting global Cargo environment..."
-          echo "CARGO_TARGET_DIR=/opt/cargo-cache/target" | sudo tee -a /etc/environment
-          echo "CARGO_HOME=/root/.cargo" | sudo tee -a /etc/environment
+          # Set Cargo environment for the PECL process
+          echo 'export CARGO_HOME=/root/.cargo' | sudo tee /etc/profile.d/cargo.sh
+          echo 'export PATH="/root/.cargo/bin:$PATH"' | sudo tee -a /etc/profile.d/cargo.sh
+          sudo chmod +x /etc/profile.d/cargo.sh
 
-          # Also set for current session
-          export CARGO_TARGET_DIR=/opt/cargo-cache/target
-          export CARGO_HOME=/root/.cargo
-
-          echo "Root Cargo cache setup complete"
+          echo "Cargo cache environment setup complete"
 
       - name: Test PECL installation
         run: |
