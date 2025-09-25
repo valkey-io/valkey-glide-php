@@ -1901,6 +1901,7 @@ int prepare_x_trim_args(x_command_args_t* args,
             *allocated_strings                   = (char**) ecalloc(1, sizeof(char*));
             *allocated_count                     = 0;
             *allocated_strings[*allocated_count] = limit_str_copy;
+            *allocated_count                     = 1;
             limit_str_copy[limit_str_len]        = '\0';
 
             (*args_out)[arg_idx]     = (uintptr_t) limit_str_copy;

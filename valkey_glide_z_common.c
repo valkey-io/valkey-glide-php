@@ -1817,8 +1817,7 @@ int process_z_array_result(CommandResponse* response, void* output, zval* return
     if (!response || !return_value) {
         return 0;
     }
-    /* Initialize return array */
-    array_init(return_value);
+
     /* Process the result */
     int success = command_response_to_zval(
         response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, true);
