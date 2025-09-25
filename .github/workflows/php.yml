@@ -330,7 +330,7 @@ jobs:
           # Run ASAN tests with visible error output
           echo "=== Running make test-asan ==="
 
-          make test-asan
+          make -j$(nproc) test-asan
 
       - name: Display ASAN logs if found
         if: always()
@@ -542,8 +542,8 @@ jobs:
 
           # Step 5: Build extension with debug symbols
           echo "=== Step 5: Building extension with debug symbols ==="
-          CFLAGS="-g -O0" make build-modules-pre
-          CFLAGS="-g -O0" make
+          CFLAGS="-g -O0" make -j$(nproc) build-modules-pre
+          CFLAGS="-g -O0" make -j$(nproc)
 
           # Step 6: Generate test protobuf PHP classes
           echo "=== Step 6: Generating test protobuf PHP classes ==="
@@ -823,7 +823,7 @@ jobs:
 
       - name: Configure PHP extension
         run: |
-          ./configure --enable-valkey-glide
+          ./configure --enable-valkey-glide --disable-header-generation
 
       - name: Lint C code formatting
         run: |

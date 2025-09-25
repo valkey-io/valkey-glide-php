@@ -178,7 +178,7 @@ runs:
     - name: Build PHP extension
       shell: bash
       run: |
-        make
+        make -j$(nproc)
 
     - name: Verify extension build
       shell: bash

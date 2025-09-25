@@ -10,6 +10,9 @@ PHP_ARG_ENABLE(valkey_glide_debug, whether to enable debug mode,
 PHP_ARG_ENABLE(debug, whether to enable debug mode (alias for valkey-glide-debug),
 [  --enable-debug   Enable debug mode (alias for valkey-glide-debug)], no, no)
 
+PHP_ARG_ENABLE(header_generation, whether to enable header generation during configure,
+[  --disable-header-generation   Skip header and protobuf generation during configure], yes, no)
+
 if test "$PHP_VALKEY_GLIDE" != "no"; then
 
   AC_MSG_RESULT([=== VALKEY GLIDE CONFIG START ===])
@@ -105,11 +108,17 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
   AC_MSG_RESULT([Debug: valkey-glide in source=$(test -d "$PECL_SOURCE_DIR/valkey-glide" && echo "yes" || echo "no")])
   AC_MSG_RESULT([Debug: files in source dir=$(ls -la "$PECL_SOURCE_DIR" | head -10)])
 
-  dnl Detect PECL vs PIE builds:
-  dnl - PECL: Has .submodule-commits file (created specifically for PECL packages)
-  dnl - PIE: Has .gitmodules file (full git repository)
-  if test -f "$PECL_SOURCE_DIR/.submodule-commits"; then
-    AC_MSG_CHECKING([for header generation (PECL build detected - has .submodule-commits)])
+  dnl Check if header generation is enabled
+  if test "$PHP_HEADER_GENERATION" != "no"; then
+    dnl Detect builds that should use config.m4 generation:
+    dnl - PECL: Has .submodule-commits file (created specifically for PECL packages)
+    dnl - PIE/Development: Has .gitmodules file (git repository)
+    if test -f "$PECL_SOURCE_DIR/.submodule-commits" || test -f "$PECL_SOURCE_DIR/.gitmodules"; then
+      if test -f "$PECL_SOURCE_DIR/.submodule-commits"; then
+        AC_MSG_CHECKING([for header generation (PECL build detected - has .submodule-commits)])
+      else
+        AC_MSG_CHECKING([for header generation (Git repository detected - has .gitmodules)])
+      fi
     
     dnl Save current build directory before changing to source
     BUILD_DIR=$(pwd)
@@ -302,6 +311,7 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     fi
     
     dnl For PECL builds, handle submodules using .submodule-commits file
+    dnl For PIE builds, handle submodules using git submodule update
     if test -f ".submodule-commits" && test ! -d "valkey-glide/.git"; then
       AC_MSG_RESULT([cloning submodules from .submodule-commits])
       
@@ -323,8 +333,11 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       git fetch --depth 1 origin "$SUBMODULE_COMMIT" || AC_MSG_ERROR([Failed to fetch commit $SUBMODULE_COMMIT])
       git checkout "$SUBMODULE_COMMIT" || AC_MSG_ERROR([Failed to checkout commit $SUBMODULE_COMMIT])
       cd ..
+    elif test -f ".gitmodules" && test -d ".git"; then
+      AC_MSG_RESULT([updating submodules using git submodule update])
+      git submodule update --init --recursive || AC_MSG_ERROR([Failed to update submodules])
     else
-      AC_MSG_RESULT([submodules already exist or no .submodule-commits])
+      AC_MSG_RESULT([submodules already exist or no submodule info found])
     fi
     
     dnl Generate protobuf files
@@ -424,8 +437,11 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     cd "$BUILD_DIR"
     AC_MSG_RESULT([Debug: returned to build directory: $(pwd)])
     AC_MSG_RESULT([Debug: files in build dir=$(ls -la . | head -10)])
+    else
+      AC_MSG_RESULT([No .submodule-commits or .gitmodules found - using Makefile approach])
+    fi
   else
-    AC_MSG_RESULT([PIE build detected - headers will be generated via Makefile (no .submodule-commits)])
+    AC_MSG_RESULT([Header generation disabled via --disable-header-generation])
   fi
 
   EXTRA_DIST="$EXTRA_DIST valkey_glide.stub.php valkey_glide_cluster.stub.php logger.stub.php"
