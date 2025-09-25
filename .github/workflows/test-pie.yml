@@ -208,10 +208,16 @@ jobs:
           PIE_EXIT_CODE=$?
 
           echo "=== Post-PIE Debug Info ==="
-          echo "PIE extraction locations:"
-          find /tmp -name "valkey-glide" -type d 2>/dev/null || echo "No valkey-glide directories found in /tmp"
-          find /var -name "valkey-glide" -type d 2>/dev/null || echo "No valkey-glide directories found in /var"
-          find /home -name "valkey-glide" -type d 2>/dev/null || echo "No valkey-glide directories found in /home"
+          echo "All valkey-glide directories on system:"
+          find / -name "valkey-glide" -type d 2>/dev/null | head -20
+          echo "All target directories in /tmp:"
+          find /tmp -name "target" -type d 2>/dev/null | head -10
+          echo "All Cargo.toml files in /tmp:"
+          find /tmp -name "Cargo.toml" 2>/dev/null | head -10
+          echo "PIE working directories:"
+          find /tmp -name "*pie*" -type d 2>/dev/null | head -10
+          echo "Recent directories in /tmp (created after our symlinks):"
+          find /tmp -type d -newer /tmp/pie-build 2>/dev/null | head -10
           set -e
 
           echo "=== PIE exit code: $PIE_EXIT_CODE ==="
