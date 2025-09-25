@@ -495,8 +495,9 @@ int command_response_to_zval(CommandResponse* response,
                 response->array_value_len,
                 use_associative_array);
 #endif
-            array_init(output);
+
             if (use_associative_array == COMMAND_RESPONSE_SCAN_ASSOSIATIVE_ARRAY) {
+                array_init(output);
                 for (int64_t i = 0; i + 1 < response->array_value_len; i += 2) {
                     zval field, value;
 
@@ -525,6 +526,7 @@ int command_response_to_zval(CommandResponse* response,
                        __LINE__,
                        response->array_value[0].response_type);
 #endif
+                array_init(output);
                 for (int64_t i = 0; i < response->array_value_len; ++i) {
                     command_response_to_zval(&response->array_value[i],
                                              &field,
@@ -545,6 +547,7 @@ int command_response_to_zval(CommandResponse* response,
                     }
                 }
             } else {
+                array_init(output);
                 for (int64_t i = 0; i < response->array_value_len; i++) {
                     zval value;
 

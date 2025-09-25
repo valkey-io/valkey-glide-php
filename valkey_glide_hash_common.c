@@ -577,19 +577,8 @@ int process_h_string_result_async(CommandResponse* response, void* output, zval*
     if (!response)
         return 0;
 
-    char*  result_str = NULL;
-    size_t result_len = 0;
-
-    if (response->response_type == String) {
-        result_str = estrndup(response->string_value, response->string_value_len);
-        result_len = response->string_value_len;
-        ZVAL_STRINGL(return_value, result_str, result_len);
-        return 1;
-    } else if (response->response_type == Null) {
-        ZVAL_FALSE(return_value);
-        return 1;
-    }
-    return 0;
+    return command_response_to_zval(
+        response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
 }
 
 /**
@@ -597,17 +586,14 @@ int process_h_string_result_async(CommandResponse* response, void* output, zval*
  */
 int process_h_array_result_async(CommandResponse* response, void* output, zval* return_value) {
     /* Initialize return array */
-    array_init(return_value);
     return command_response_to_zval(
         response, (zval*) return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
 }
-
 /**
  * Batch-compatible wrapper for map responses
  */
 int process_h_map_result_async(CommandResponse* response, void* output, zval* return_value) {
-    array_init(return_value);
-    return command_response_to_zval(
+        return command_response_to_zval(
         response, (zval*) return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
 }
 
