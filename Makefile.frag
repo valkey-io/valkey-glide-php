@@ -23,6 +23,16 @@ CFLAGS += -Werror
 # Force header generation before any compilation
 $(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
 
+# Ensure protobuf files are generated before any object compilation
+src/command_request.lo: src/command_request.pb-c.c src/command_request.pb-c.h
+src/connection_request.lo: src/connection_request.pb-c.c src/connection_request.pb-c.h  
+src/response.lo: src/response.pb-c.c src/response.pb-c.h
+
+# Protobuf files depend on header generation (which generates them)
+src/command_request.pb-c.c src/command_request.pb-c.h: include/glide_bindings.h
+src/connection_request.pb-c.c src/connection_request.pb-c.h: include/glide_bindings.h
+src/response.pb-c.c src/response.pb-c.h: include/glide_bindings.h
+
 # Backward compatibility alias
 build-modules-pre: include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
 

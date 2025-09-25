@@ -210,7 +210,7 @@ jobs:
 
           echo "=== Attempting PIE installation with verbose output ==="
           set +e
-          # Use all available CPU cores for compilation
+          # Use all available CPU cores for compilation (dependencies now fixed)
           export MAKEFLAGS="-j$(nproc)"
           export CARGO_BUILD_JOBS=$(nproc)
           # Make Rust available to root by preserving environment
