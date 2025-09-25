@@ -141,8 +141,6 @@ jobs:
             valkey-glide/ffi
             valkey-glide/glide-core
           key: pie
-          shared-key: "valkey-glide-deps"
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Setup Cargo cache for root user
         run: |
@@ -212,8 +210,11 @@ jobs:
 
           echo "=== Attempting PIE installation with verbose output ==="
           set +e
-          # Make Rust available to root by preserving environment and adding sccache
-          sudo -E env "PATH=$PATH" "RUSTC_WRAPPER=sccache" "SCCACHE_DIR=/opt/sccache" pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -j1 -vvv 2>&1 | tee pie_install.log
+          # Use all available CPU cores for compilation
+          export MAKEFLAGS="-j$(nproc)"
+          export CARGO_BUILD_JOBS=$(nproc)
+          # Make Rust available to root by preserving environment
+          sudo -E env "PATH=$PATH" "MAKEFLAGS=-j$(nproc)" "CARGO_BUILD_JOBS=$(nproc)" pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -vvv 2>&1 | tee pie_install.log
           PIE_EXIT_CODE=$?
 
           echo "=== Post-PIE Debug Info ==="

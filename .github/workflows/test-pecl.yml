@@ -203,8 +203,6 @@ jobs:
             valkey-glide/ffi
             valkey-glide/glide-core
           key: pecl
-          shared-key: "valkey-glide-deps"
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Pre-populate Rust registry cache
         run: |
@@ -289,7 +287,11 @@ jobs:
           echo "Symlinks in /tmp:"
           find /tmp -name "target" -type l 2>/dev/null || echo "No target symlinks found"
 
-          sudo env "RUSTC_WRAPPER=sccache" "SCCACHE_DIR=/opt/sccache" "CARGO_HOME=/root/.cargo" pecl install -f "${{ env.PACKAGE_DIR }}.tgz" 2>&1 | tee pecl_install.log
+          # Use all available CPU cores for compilation
+          export MAKEFLAGS="-j$(nproc)"
+          export CARGO_BUILD_JOBS=$(nproc)
+
+          sudo env "MAKEFLAGS=-j$(nproc)" "CARGO_BUILD_JOBS=$(nproc)" pecl install -f "${{ env.PACKAGE_DIR }}.tgz" 2>&1 | tee pecl_install.log
           PECL_EXIT_CODE=$?
 
           echo "=== Post-PECL Debug Info ==="
