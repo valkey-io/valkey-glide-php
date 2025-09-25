@@ -202,18 +202,28 @@ jobs:
             sudo cp -r "$HOME/.cargo/git" /root/.cargo/ || echo "Failed to copy git cache"
           fi
 
-          # Set up Cargo environment to use cache during PECL build
-          echo "=== Setting up Cargo cache environment for PECL ==="
+          # Set up shared target directory for compiled dependencies
+          echo "=== Setting up shared compilation cache for PECL ==="
 
-          # Ensure root can access the registry cache
-          sudo chown -R root:root /root/.cargo 2>/dev/null || true
+          # Create a shared target directory that root can access
+          sudo mkdir -p /opt/cargo-target
+          sudo chmod 755 /opt/cargo-target
 
-          # Set Cargo environment for the PECL process
-          echo 'export CARGO_HOME=/root/.cargo' | sudo tee /etc/profile.d/cargo.sh
+          # Copy existing compiled dependencies (not our project code)
+          if [ -d "valkey-glide/ffi/target/release/deps" ]; then
+            echo "Copying compiled dependencies..."
+            sudo mkdir -p /opt/cargo-target/release
+            sudo cp -r valkey-glide/ffi/target/release/deps /opt/cargo-target/release/
+            sudo chmod -R 755 /opt/cargo-target/release/deps
+          fi
+
+          # Set CARGO_TARGET_DIR for all processes
+          echo 'export CARGO_TARGET_DIR=/opt/cargo-target' | sudo tee /etc/profile.d/cargo.sh
+          echo 'export CARGO_HOME=/root/.cargo' | sudo tee -a /etc/profile.d/cargo.sh
           echo 'export PATH="/root/.cargo/bin:$PATH"' | sudo tee -a /etc/profile.d/cargo.sh
           sudo chmod +x /etc/profile.d/cargo.sh
 
-          echo "Cargo cache environment setup complete"
+          echo "Shared compilation cache setup complete"
 
       - name: Test PECL installation
         run: |
