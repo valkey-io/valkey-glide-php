@@ -200,14 +200,6 @@ jobs:
           # Add local repository
           pie repository:add composer http://localhost:8000
 
-          # Test PIE installation
-          echo "=== Pre-PIE Debug Info ==="
-          echo "Current directory: $(pwd)"
-          echo "Available target directories:"
-          find . -name "target" -type d 2>/dev/null || echo "No target directories found"
-          echo "Symlinks in /tmp:"
-          find /tmp -name "target" -type l 2>/dev/null || echo "No target symlinks found"
-
           echo "=== Attempting PIE installation with verbose output ==="
           set +e
           # Use all available CPU cores for compilation (dependencies now fixed)
@@ -216,18 +208,6 @@ jobs:
           # Make Rust available to root by preserving environment
           sudo -E env "PATH=$PATH" "MAKEFLAGS=-j$(nproc)" "CARGO_BUILD_JOBS=$(nproc)" pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -vvv 2>&1 | tee pie_install.log
           PIE_EXIT_CODE=$?
-
-          echo "=== Post-PIE Debug Info ==="
-          echo "All valkey-glide directories on system:"
-          find / -name "valkey-glide" -type d 2>/dev/null | head -20
-          echo "All target directories in /tmp:"
-          find /tmp -name "target" -type d 2>/dev/null | head -10
-          echo "All Cargo.toml files in /tmp:"
-          find /tmp -name "Cargo.toml" 2>/dev/null | head -10
-          echo "PIE working directories:"
-          find /tmp -name "*pie*" -type d 2>/dev/null | head -10
-          echo "Recent directories in /tmp (created after our symlinks):"
-          find /tmp -type d -newer /tmp/pie-build 2>/dev/null | head -10
           set -e
 
           echo "=== PIE exit code: $PIE_EXIT_CODE ==="
@@ -263,9 +243,6 @@ jobs:
             fi
           else
             echo "=== PIE installation failed or had errors, showing debugging ==="
-
-            echo "=== Looking for PIE build output files ==="
-            find /tmp -name "pie_*output*" -type f -exec echo "File: {}" \; -exec cat {} \; 2>/dev/null || echo "No PIE output files found"
 
             echo "=== Checking makefile debug log ==="
             cat /tmp/makefile_debug.log 2>/dev/null || echo "No makefile debug log found"
@@ -317,8 +294,6 @@ jobs:
               echo "But PIE failed to install it to: $(php-config --extension-dir)"
               echo "=== Checking PIE install log for 'make install' ==="
               grep -i "make install\|install.*valkey\|copying.*valkey" pie_install.log || echo "No 'make install' found in PIE log"
-              echo "=== Checking if PIE created ini file ==="
-              find /etc/php* -name "*valkey*" 2>/dev/null || echo "No PIE-generated ini files found"
               echo "=== This indicates PIE build succeeded but install step failed ==="
             else
               echo "Extension was not built - build step failed"
@@ -330,15 +305,6 @@ jobs:
 
           echo "=== Checking PHP configuration ==="
           php --ini
-
-          echo "=== Looking for PIE-generated ini files ==="
-          if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
-            find /opt/homebrew/etc/php* /usr/local/etc/php* -name "*valkey*" 2>/dev/null || echo "No valkey ini files found"
-            find /opt/homebrew/etc/php* /usr/local/etc/php* -name "*valkey*" 2>/dev/null || echo "No valkey ini files in /usr/local"
-          else
-            find /etc/php* -name "*valkey*" 2>/dev/null || echo "No valkey ini files found"
-            find /usr/local/etc/php* -name "*valkey*" 2>/dev/null || echo "No valkey ini files in /usr/local"
-          fi
 
           echo "=== Manually enabling extension ==="
           php -d extension=valkey_glide -m | grep -i valkey && echo "Extension works when manually enabled!" || echo "Extension still not working"

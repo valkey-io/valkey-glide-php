@@ -279,25 +279,12 @@ jobs:
           pecl version || echo "PECL version command failed"
 
           # Install the package using PECL (this tests the real user experience)
-          # But first, let's debug what PECL is doing
-          echo "=== Pre-PECL Debug Info ==="
-          echo "Current directory: $(pwd)"
-          echo "Available target directories:"
-          find . -name "target" -type d 2>/dev/null || echo "No target directories found"
-          echo "Symlinks in /tmp:"
-          find /tmp -name "target" -type l 2>/dev/null || echo "No target symlinks found"
-
           # Use all available CPU cores for compilation
           export MAKEFLAGS="-j$(nproc)"
           export CARGO_BUILD_JOBS=$(nproc)
 
           sudo env "MAKEFLAGS=-j$(nproc)" "CARGO_BUILD_JOBS=$(nproc)" pecl install -f "${{ env.PACKAGE_DIR }}.tgz" 2>&1 | tee pecl_install.log
           PECL_EXIT_CODE=$?
-
-          echo "=== Post-PECL Debug Info ==="
-          echo "PECL extraction locations:"
-          find /tmp -name "valkey-glide" -type d 2>/dev/null || echo "No valkey-glide directories found in /tmp"
-          find /var -name "valkey-glide" -type d 2>/dev/null || echo "No valkey-glide directories found in /var"
 
           if [ $PECL_EXIT_CODE -ne 0 ]; then
             echo "=== PECL install failed, checking logs ==="
