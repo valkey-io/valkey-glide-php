@@ -5152,6 +5152,610 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(['Chico'], $this->valkey_glide->geosearch('{gk}dst', 'Chico', 1, 'm'));
     }
 
+   /**
+     * Add test cities with known coordinates for testing
+     */
+    private function addTestCities()
+    {
+        // Clear any existing data
+        $this->valkey_glide->del('{geo}_test_key');                
+        $this->valkey_glide->del('{geo}_src_key');
+        $this->valkey_glide->del('{geo}_dst_key');
+        
+        // Add cities with their coordinates to source key
+        $this->valkey_glide->geoadd('{geo}_src_key',
+            -121.837478, 39.728494, 'Chico',           // Northern California
+            -121.494400, 38.581572, 'Sacramento',      // Central California  
+            -121.693583, 39.363777, 'Gridley',        // Near Chico
+            -121.591355, 39.145725, 'Marysville',     // Between Chico and Sacramento
+            -122.032182, 37.322998, 'Cupertino'       // Bay Area
+        );
+        
+        // Add cities with their coordinates
+        $this->valkey_glide->geoadd('{geo}_test_key',
+            -121.837478, 39.728494, 'Chico',           // Northern California
+            -121.494400, 38.581572, 'Sacramento',      // Central California  
+            -121.693583, 39.363777, 'Gridley',        // Near Chico
+            -121.591355, 39.145725, 'Marysville',     // Between Chico and Sacramento
+            -122.032182, 37.322998, 'Cupertino'       // Bay Area
+        );
+
+    }
+
+        public function testGeoSearchStoreBasicRadius()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test basic radius search and store
+        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 'Chico', 50, 'km');
+        $this->assertIsInt($count);
+        $this->assertGTE(2, $count); // Should find at least Chico and Gridley
+        
+        // Verify the destination key was created and contains expected members
+        $members = $this->valkey_glide->zrange('{geo}_dst_key', 0, -1);
+        $this->assertIsArray($members);
+        $this->assertContains('Chico', $members);
+        $this->assertContains('Gridley', $members);
+    }
+
+    public function testGeoSearchStoreFromCoordinates()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test search and store from longitude/latitude coordinates
+        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
+            [-121.837478, 39.728494], 50, 'km');
+        $this->assertIsInt($count);
+        $this->assertGTE(2, $count);
+        
+        // Verify stored results
+        $members = $this->valkey_glide->zrange('{geo}_dst_key', 0, -1);
+        $this->assertContains('Chico', $members);
+        $this->assertContains('Gridley', $members);
+    }
+
+    public function testGeoSearchStoreByBox()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test rectangular search and store (BYBOX)
+        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
+            'Sacramento', [100, 100], 'km');
+        $this->assertIsInt($count);
+        $this->assertGTE(1, $count);
+        
+        // Verify stored results
+        $members = $this->valkey_glide->zrange('{geo}_dst_key', 0, -1);
+        $this->assertContains('Sacramento', $members);
+    }
+
+    public function testGeoSearchStoreWithCount()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test COUNT option
+        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
+            'Sacramento', 200, 'km', ['count' => 2]);
+        $this->assertIsInt($count);
+        $this->assertLTE(2, $count);
+        
+        // Verify stored count matches returned count
+        $storedCount = $this->valkey_glide->zcard('{geo}_dst_key');
+        $this->assertEquals($count, $storedCount);
+    }
+
+    public function testGeoSearchStoreWithCountAny()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test COUNT with ANY option
+        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
+            'Sacramento', 200, 'km', ['count' => [3, 'ANY']]);
+        $this->assertIsInt($count);
+        $this->assertLTE(3, $count);
+        
+        // Verify stored count
+        $storedCount = $this->valkey_glide->zcard('{geo}_dst_key');
+        $this->assertEquals($count, $storedCount);
+    }
+
+    public function testGeoSearchStoreWithSort()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test ASC sorting
+        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
+            'Sacramento', 200, 'km', ['sort' => 'ASC']);
+        $this->assertIsInt($count);
+        $this->assertGTE(1, $count);
+        
+        // Verify results are stored
+        $storedCount = $this->valkey_glide->zcard('{geo}_dst_key');
+        $this->assertEquals($count, $storedCount);
+    }
+
+    public function testGeoSearchStoreWithStoreDist()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test STOREDIST option - stores distances instead of geohashes
+        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
+            'Chico', 50, 'km', ['storedist' => true]);
+        $this->assertIsInt($count);
+        $this->assertGTE(2, $count);
+        
+        // Verify the destination key contains distance scores
+        $membersWithScores = $this->valkey_glide->zrange('{geo}_dst_key', 0, -1, ['withscores' => true]);
+        $this->assertIsArray($membersWithScores);
+        
+        // Check that scores are distances (should be reasonable values)
+        foreach ($membersWithScores as $member => $score) {
+            $this->assertIsString($member);
+            $this->assertIsFloat($score);
+            $this->assertGTE(0, $score); // Distance should be non-negative
+            $this->assertLTE(100, $score); // Should be within our search radius
+        }
+    }
+
+    public function testGeoSearchStoreComplexQuery()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Complex query: box search from coordinates with multiple options
+        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key',
+            [-121.5, 38.5], // coordinates
+            [200, 200],     // box dimensions
+            'km',
+            [
+                'count' => [3, 'ANY'],
+                'sort' => 'DESC',
+                'storedist' => true
+            ]
+        );
+        
+        $this->assertIsInt($count);
+        $this->assertLTE(3, $count);
+        
+        // Verify stored results
+        $storedCount = $this->valkey_glide->zcard('{geo}_dst_key');
+        $this->assertEquals($count, $storedCount);
+        
+        // Verify distances are stored as scores
+        $membersWithScores = $this->valkey_glide->zrange('{geo}_dst_key', 0, -1, ['withscores' => true]);
+        foreach ($membersWithScores as $member => $score) {
+            $this->assertIsFloat($score);
+            $this->assertGTE(0, $score);
+        }
+    }
+
+    public function testGeoSearchStoreDifferentUnits()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test different units
+        $units = ['m', 'km', 'ft', 'mi'];
+        
+        foreach ($units as $unit) {
+            $dstKey = "{geo}_dst_key_$unit";
+            $count = $this->valkey_glide->geosearchstore($dstKey, '{geo}_src_key', 
+                'Chico', 50000, $unit);
+            $this->assertIsInt($count);
+            $this->assertGTE(1, $count);
+            
+            // Clean up
+            $this->valkey_glide->del($dstKey);
+        }
+    }
+
+    public function testGeoSearchStoreOverwriteDestination()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // First search and store
+        $count1 = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
+            'Chico', 30, 'km');
+        $this->assertIsInt($count1);
+        
+        // Second search and store to same destination (should overwrite)
+        $count2 = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
+            'Sacramento', 100, 'km');
+        $this->assertIsInt($count2);
+        
+        // Verify the destination was overwritten
+        $finalCount = $this->valkey_glide->zcard('{geo}_dst_key');
+        $this->assertEquals($count2, $finalCount);
+        
+        // Verify it contains Sacramento results, not Chico results
+        $members = $this->valkey_glide->zrange('{geo}_dst_key', 0, -1);
+        $this->assertContains('Sacramento', $members);
+    }
+
+    public function testGeoSearchStoreEmptyResult()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Search in area with no cities
+        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
+            [0, 0], 1, 'km');
+        $this->assertIsInt($count);
+        $this->assertEquals(0, $count);
+        
+        // Verify destination key is empty or doesn't exist
+        $storedCount = $this->valkey_glide->zcard('{geo}_dst_key');
+        $this->assertEquals(0, $storedCount);
+    }
+
+    public function testGeoSearchStoreNonExistentSource()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Search on non-existent source key
+        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}non_existent_key', 
+            'member', 100, 'km');
+        $this->assertIsInt($count);
+        $this->assertEquals(0, $count);
+        
+        // Verify destination key is empty
+        $storedCount = $this->valkey_glide->zcard('{geo}_dst_key');
+        $this->assertEquals(0, $storedCount);
+    }
+
+    public function testGeoSearchStoreReturnValue()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test that return value matches actual stored count
+        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
+            'Sacramento', 200, 'km');
+        
+        $actualCount = $this->valkey_glide->zcard('{geo}_dst_key');
+        $this->assertEquals($count, $actualCount);
+        
+        // Test with COUNT limit
+        $limitedCount = $this->valkey_glide->geosearchstore('{geo}_dst_key2', '{geo}_src_key', 
+            'Sacramento', 200, 'km', ['count' => 2]);
+        
+        $actualLimitedCount = $this->valkey_glide->zcard('{geo}_dst_key2');
+        $this->assertEquals($limitedCount, $actualLimitedCount);
+        $this->assertLTE(2, $limitedCount);
+        
+        // Clean up
+        $this->valkey_glide->del('{geo}_dst_key2');
+    }
+
+    public function testGeoSearchStorePreservesGeoData()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Store without STOREDIST (should preserve geo data)
+        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
+            'Chico', 50, 'km');
+        $this->assertGTE(2, $count);
+        
+        // Verify we can perform geo operations on the stored data
+        $distance = $this->valkey_glide->geodist('{geo}_dst_key', 'Chico', 'Gridley', 'km');
+        $this->assertIsFloat($distance);
+        $this->assertGTE(0, $distance);
+        
+        // Verify geopos works on stored data
+        $positions = $this->valkey_glide->geopos('{geo}_dst_key', 'Chico');
+        $this->assertIsArray($positions);
+        $this->assertCount(1, $positions);
+        $this->assertIsArray($positions[0]);
+        $this->assertCount(2, $positions[0]);
+    }
+
+    public function testGeoSearchBasicRadius()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test basic radius search from member
+        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Chico', 50, 'km');
+        $this->assertIsArray($result);
+        $this->assertContains('Chico', $result);
+        $this->assertContains('Gridley', $result);
+        
+        // Should not contain distant cities
+        $this->assertFalse(in_array('Cupertino', $result));
+    }
+
+    public function testGeoSearchFromCoordinates()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test search from longitude/latitude coordinates
+        $result = $this->valkey_glide->geosearch('{geo}_test_key', [-121.837478, 39.728494], 50, 'km');
+        $this->assertIsArray($result);
+        $this->assertContains('Chico', $result);
+        $this->assertContains('Gridley', $result);
+    }
+
+    public function testGeoSearchByBox()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test rectangular search (BYBOX)
+        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Sacramento', [150, 150], 'km');        
+        $this->assertIsArray($result);
+        $this->assertContains('Sacramento', $result);
+        
+        // Should contain cities within the box
+        $this->assertContains('Marysville', $result);
+    }
+
+    public function testGeoSearchWithCoord()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Chico', 50, 'km', ['withcoord']);
+        $this->assertIsArray($result);
+        
+        foreach ($result as $city => $data) {
+            $this->assertIsString($city);
+            $this->assertIsArray($data);
+            $this->assertCount(1, $data); // Only coordinates
+            $this->assertIsArray($data[0]); // Coordinates array
+            $this->assertCount(2, $data[0]); // [longitude, latitude]
+            $this->assertIsFloat($data[0][0]); // longitude
+            $this->assertIsFloat($data[0][1]); // latitude
+        }
+    }
+
+    public function testGeoSearchWithDist()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Chico', 50, 'km', ['withdist']);
+        $this->assertIsArray($result);
+        
+        foreach ($result as $city => $data) {
+            $this->assertIsString($city);
+            $this->assertIsArray($data);
+            $this->assertCount(1, $data); // Only distance
+            $this->assertIsFloat($data[0]); // Distance value
+            $this->assertGTE(0, $data[0]); // Distance should be non-negative
+        }
+    }
+
+    public function testGeoSearchWithHash()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Chico', 50, 'km', ['withhash']);
+        $this->assertIsArray($result);
+        
+        foreach ($result as $city => $data) {
+            $this->assertIsString($city);
+            $this->assertIsArray($data);
+            $this->assertCount(1, $data); // Only hash
+            $this->assertIsInt($data[0]); // Hash value
+        }
+    }
+
+    public function testGeoSearchWithAllOptions()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Chico', 50, 'km', 
+            ['withdist', 'withhash', 'withcoord']);
+        $this->assertIsArray($result);
+        
+        foreach ($result as $city => $data) {
+            $this->assertIsString($city);
+            $this->assertIsArray($data);
+            $this->assertCount(3, $data); // distance, hash, coordinates
+            $this->assertIsFloat($data[0]); // Distance
+            $this->assertIsInt($data[1]); // Hash
+            $this->assertIsArray($data[2]); // Coordinates
+            $this->assertCount(2, $data[2]); // [longitude, latitude]
+        }
+    }
+
+    public function testGeoSearchWithCount()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test COUNT option
+        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Sacramento', 200, 'km', 
+            ['count' => 2]);
+        $this->assertIsArray($result);
+        $this->assertLTE(2, count($result));
+    }
+
+    public function testGeoSearchWithCountAny()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test COUNT with ANY option
+        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Sacramento', 200, 'km', 
+            ['count' => [2, 'ANY']]);
+        $this->assertIsArray($result);
+        $this->assertLTE(2, count($result));
+    }
+
+    public function testGeoSearchWithSortAsc()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test ASC sorting with distances
+        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Sacramento', 200, 'km', 
+            ['withdist', 'asc']);
+        $this->assertIsArray($result);
+        
+        // Verify distances are in ascending order
+        $distances = [];
+        foreach ($result as $city => $data) {
+            $distances[] = $data[0];
+        }
+        
+        $sortedDistances = $distances;
+        sort($sortedDistances);
+        $this->assertEquals($sortedDistances, $distances);
+    }
+
+    public function testGeoSearchWithSortDesc()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }   
+        $this->addTestCities();
+
+        // Test DESC sorting with distances
+        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Sacramento', 200, 'km', 
+            ['withdist', 'desc']);
+        $this->assertIsArray($result);
+        
+        // Verify distances are in descending order
+        $distances = [];
+        foreach ($result as $city => $data) {
+            $distances[] = $data[0];
+        }
+        
+        $sortedDistances = $distances;
+        rsort($sortedDistances);
+        $this->assertEquals($sortedDistances, $distances);
+    }
+
+    public function testGeoSearchAlternativeSortSyntax()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test alternative sort syntax using 'sort' key
+        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Sacramento', 200, 'km', 
+            ['withdist', 'sort' => 'ASC']);
+        $this->assertIsArray($result);
+        
+        // Verify distances are in ascending order
+        $distances = [];
+        foreach ($result as $city => $data) {
+            $distances[] = $data[0];
+        }
+        
+        $sortedDistances = $distances;
+        sort($sortedDistances);
+        $this->assertEquals($sortedDistances, $distances);
+    }
+
+    public function testGeoSearchDifferentUnits()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Test different units
+        $units = ['m', 'km', 'ft', 'mi'];
+        
+        foreach ($units as $unit) {
+            $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Chico', 50000, $unit);
+            $this->assertIsArray($result);
+            $this->assertTrue(count($result) > 0);
+        }
+    }
+
+    public function testGeoSearchComplexQuery()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Complex query: box search from coordinates with all options
+        $result = $this->valkey_glide->geosearch('{geo}_test_key', 
+            [-121.5, 38.5], // coordinates
+            [200, 200],     // box dimensions
+            'km',
+            [
+                'withdist',
+                'withcoord', 
+                'withhash',
+                'count' => [3, 'ANY'],
+                'sort' => 'ASC'
+            ]
+        );
+        
+        $this->assertIsArray($result);
+        $this->assertLTE(3, count($result));
+        
+        foreach ($result as $city => $data) {
+            $this->assertIsString($city);
+            $this->assertIsArray($data);
+            $this->assertCount(3, $data); // distance, hash, coordinates
+        }
+    }
+
+    public function testGeoSearchEmptyResult()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }
+        $this->addTestCities();
+        // Search in area with no cities
+        $result = $this->valkey_glide->geosearch('{geo}_test_key', [0, 0], 1, 'km');
+        $this->assertIsArray($result);
+        $this->assertEquals(0, count($result));
+    }
+
+    public function testGeoSearchNonExistentKey()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+        }
+
+        // Search on non-existent key
+        $result = $this->valkey_glide->geosearch('non_existent_key', 'member', 100, 'km');
+        $this->assertIsArray($result);
+        $this->assertEquals(0, count($result));
+    }
+
     /* Test a 'raw' command */
     public function testRawCommand()
     {
