@@ -330,7 +330,7 @@ jobs:
           # Run ASAN tests with visible error output
           echo "=== Running make test-asan ==="
 
-          make -j$(nproc) test-asan
+          make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") test-asan
 
       - name: Display ASAN logs if found
         if: always()
@@ -542,8 +542,8 @@ jobs:
 
           # Step 5: Build extension with debug symbols
           echo "=== Step 5: Building extension with debug symbols ==="
-          CFLAGS="-g -O0" make -j$(nproc) build-modules-pre
-          CFLAGS="-g -O0" make -j$(nproc)
+          CFLAGS="-g -O0" make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") build-modules-pre
+          CFLAGS="-g -O0" make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4")
 
           # Step 6: Generate test protobuf PHP classes
           echo "=== Step 6: Generating test protobuf PHP classes ==="

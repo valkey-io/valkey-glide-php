@@ -178,7 +178,7 @@ runs:
     - name: Build PHP extension
       shell: bash
       run: |
-        make -j$(nproc)
+        make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4")
 
     - name: Verify extension build
       shell: bash

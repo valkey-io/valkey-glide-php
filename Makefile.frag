@@ -68,8 +68,13 @@ src/client_constructor_mock_arginfo.h: src/client_constructor_mock.stub.php
 
 valkey-glide/ffi/target/release/libglide_ffi.a: ensure-submodules
 	@echo "=== BUILDING FFI LIBRARY ==="
-	@if [ -d valkey-glide/ffi ]; then \
-		cd valkey-glide/ffi && cargo build --release && cd ../..; \
+	@if [ ! -f valkey-glide/ffi/target/release/libglide_ffi.a ]; then \
+		echo "FFI library not found, building with cargo"; \
+		if [ -d valkey-glide/ffi ]; then \
+			cd valkey-glide/ffi && CARGO_BUILD_JOBS=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") cargo build --release && cd ../..; \
+		fi; \
+	else \
+		echo "FFI library already exists, skipping cargo build"; \
 	fi
 
 ensure-submodules:
@@ -119,7 +124,7 @@ include/glide_bindings.h: ensure-submodules
 		. "$$HOME/.cargo/env"; \
 	fi && \
 	if [ -d valkey-glide/ffi ]; then \
-		cd valkey-glide/ffi && cargo build --release && cd ../..; \
+		cd valkey-glide/ffi && CARGO_BUILD_JOBS=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") cargo build --release && cd ../..; \
 	fi
 	@mkdir -p include
 	@export PATH="$$HOME/.cargo/bin:$$PATH" && \
