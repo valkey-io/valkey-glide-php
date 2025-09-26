@@ -336,13 +336,6 @@ int allocate_command_args(int count, uintptr_t** args_out, unsigned long** args_
     *args_out     = (uintptr_t*) emalloc(count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(count * sizeof(unsigned long));
 
-    if (!*args_out || !*args_len_out) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     return 1;
 }
@@ -920,14 +913,6 @@ int prepare_x_len_args(x_command_args_t* args, uintptr_t** args_out, unsigned lo
     *args_out     = (uintptr_t*) emalloc(sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(sizeof(unsigned long));
 
-    if (!*args_out || !*args_len_out) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
-
     /* Set key as the only argument */
     (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
@@ -949,14 +934,6 @@ int prepare_x_ack_args(x_command_args_t* args, uintptr_t** args_out, unsigned lo
     unsigned long arg_count = 2 + args->id_count;
     *args_out               = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out           = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-
-    if (!*args_out || !*args_len_out) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Set key as first argument */
     (*args_out)[0]     = (uintptr_t) args->key;
@@ -997,14 +974,6 @@ int prepare_x_del_args(x_command_args_t* args, uintptr_t** args_out, unsigned lo
     *args_out               = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out           = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-    if (!*args_out || !*args_len_out) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
-
     /* Set key as first argument */
     (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
@@ -1044,15 +1013,6 @@ int prepare_x_range_args(x_command_args_t* args,
     *args_out               = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out           = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-
-    /* Check if memory allocation was successful */
-    if (!*args_out || !*args_len_out) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Set arguments */
     unsigned int arg_idx = 0;
@@ -1137,16 +1097,6 @@ int prepare_x_add_args(x_command_args_t* args,
     /* Allocate array to track temporary string allocations */
     *allocated_strings = (char**) ecalloc(args->fv_count + 5, sizeof(char*));
     *allocated_count   = 0;
-
-    if (!*args_out || !*args_len_out || !*allocated_strings) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        if (*allocated_strings)
-            efree(*allocated_strings);
-        return 0;
-    }
 
     /* Set key as first argument */
     unsigned int arg_idx     = 0;
@@ -1932,14 +1882,6 @@ int prepare_x_trim_args(x_command_args_t* args,
         1 + 1 + (args->trim_opts.approximate ? 1 : 0) + 1 + (args->trim_opts.has_limit ? 2 : 0);
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-
-    if (!*args_out || !*args_len_out) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Set key as first argument */
     unsigned int arg_idx     = 0;

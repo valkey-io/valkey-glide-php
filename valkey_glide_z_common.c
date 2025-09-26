@@ -392,10 +392,7 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
         case ZRem:
         case ZMScore:
             allocated_strings = (char**) emalloc(args->member_count * sizeof(char*));
-            if (!allocated_strings) {
-                return 0;
-            }
-            arg_count = prepare_z_members_args(
+            arg_count         = prepare_z_members_args(
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
 
@@ -405,11 +402,8 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
         case ZRangeByLex:
         case ZRevRangeByScore:
         case ZRevRangeByLex:
-            allocated_strings =
-                (char**) emalloc(10 * sizeof(char*)); /* Enough for typical options */
-            if (!allocated_strings) {
-                return 0;
-            }
+            allocated_strings = (char**) emalloc(VALKEY_GLIDE_MAX_OPTIONS * sizeof(char*));
+
             arg_count = prepare_z_complex_range_args(
                 args, &arg_values, cmd_type, &arg_lens, &allocated_strings, &allocated_count);
             cmd_type = ZRange;
@@ -421,16 +415,6 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             arg_lens          = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
             allocated_strings = (char**) emalloc(1 * sizeof(char*));
 
-            if (!arg_values || !arg_lens || !allocated_strings) {
-                if (arg_values)
-                    efree(arg_values);
-                if (arg_lens)
-                    efree(arg_lens);
-                if (allocated_strings)
-                    efree(allocated_strings);
-                return 0;
-            }
-
             /* Set arguments */
             arg_values[0] = (uintptr_t) args->key;
             arg_lens[0]   = args->key_len;
@@ -440,12 +424,6 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             int  increment_str_len =
                 snprintf(increment_str, sizeof(increment_str), "%.6g", args->increment);
             char* increment_str_copy = estrndup(increment_str, increment_str_len);
-            if (!increment_str_copy) {
-                efree(arg_values);
-                efree(arg_lens);
-                efree(allocated_strings);
-                return 0;
-            }
 
             arg_values[1]        = (uintptr_t) increment_str_copy;
             arg_lens[1]          = increment_str_len;
@@ -463,16 +441,6 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             arg_lens          = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
             allocated_strings = (char**) emalloc(2 * sizeof(char*));
 
-            if (!arg_values || !arg_lens || !allocated_strings) {
-                if (arg_values)
-                    efree(arg_values);
-                if (arg_lens)
-                    efree(arg_lens);
-                if (allocated_strings)
-                    efree(allocated_strings);
-                return 0;
-            }
-
             /* Set arguments */
             arg_values[0] = (uintptr_t) args->key;
             arg_lens[0]   = args->key_len;
@@ -484,14 +452,6 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
 
             char* start_str_copy = estrndup(start_str, start_str_len);
             char* end_str_copy   = estrndup(end_str, end_str_len);
-            if (!start_str_copy || !end_str_copy) {
-                if (start_str_copy)
-                    efree(start_str_copy);
-                efree(arg_values);
-                efree(arg_lens);
-                efree(allocated_strings);
-                return 0;
-            }
 
             arg_values[1]        = (uintptr_t) start_str_copy;
             arg_lens[1]          = start_str_len;
@@ -508,27 +468,21 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
         case ZUnionStore:
             allocated_strings =
                 (char**) emalloc(20 * sizeof(char*)); /* Enough for store commands */
-            if (!allocated_strings) {
-                return 0;
-            }
+
             arg_count = prepare_z_store_args(
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
 
         case ZInterCard:
             allocated_strings = (char**) emalloc(5 * sizeof(char*)); /* Enough for ZINTERCARD */
-            if (!allocated_strings) {
-                return 0;
-            }
+
             arg_count = prepare_z_intercard_args(
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
 
         case ZUnion:
             allocated_strings = (char**) emalloc(20 * sizeof(char*)); /* Enough for ZUNION */
-            if (!allocated_strings) {
-                return 0;
-            }
+
             arg_count = prepare_z_union_args(
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
@@ -536,54 +490,41 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
         case ZPopMax:
         case ZPopMin:
             allocated_strings = (char**) emalloc(2 * sizeof(char*)); /* Enough for ZPOP commands */
-            if (!allocated_strings) {
-                return 0;
-            }
-            arg_count = prepare_z_pop_args(
+            arg_count         = prepare_z_pop_args(
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
 
         case ZRangeStore:
-            allocated_strings = (char**) emalloc(10 * sizeof(char*)); /* Enough for ZRANGESTORE */
-            if (!allocated_strings) {
-                return 0;
-            }
+            allocated_strings = (char**) emalloc(VALKEY_GLIDE_MAX_OPTIONS * sizeof(char*));
+
             arg_count = prepare_z_rangestore_args(
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
 
         case ZAdd:
             allocated_strings = (char**) emalloc(20 * sizeof(char*)); /* Enough for ZADD */
-            if (!allocated_strings) {
-                return 0;
-            }
+
             arg_count = prepare_z_zadd_args(
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
 
         case ZDiff:
             allocated_strings = (char**) emalloc(5 * sizeof(char*)); /* Enough for ZDIFF */
-            if (!allocated_strings) {
-                return 0;
-            }
+
             arg_count = prepare_z_zdiff_args(
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
 
         case ZInter:
             allocated_strings = (char**) emalloc(20 * sizeof(char*)); /* Enough for ZINTER */
-            if (!allocated_strings) {
-                return 0;
-            }
+
             arg_count = prepare_z_union_args(
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
 
         case ZRandMember:
             allocated_strings = (char**) emalloc(2 * sizeof(char*)); /* Enough for ZRANDMEMBER */
-            if (!allocated_strings) {
-                return 0;
-            }
+
             arg_count = prepare_z_randmember_args(
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
@@ -591,10 +532,7 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
         case BZPopMax:
         case BZPopMin:
             allocated_strings = (char**) emalloc(2 * sizeof(char*)); /* Enough for BZPOP commands */
-            if (!allocated_strings) {
-                return 0;
-            }
-            arg_count = prepare_z_bzpop_args(
+            arg_count         = prepare_z_bzpop_args(
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
 
@@ -685,14 +623,6 @@ int prepare_z_key_args(z_command_args_t* args, uintptr_t** args_out, unsigned lo
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
-
     /* Set arguments */
     (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
@@ -720,14 +650,6 @@ int prepare_z_pop_args(z_command_args_t* args,
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
-
     (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
 
@@ -735,11 +657,7 @@ int prepare_z_pop_args(z_command_args_t* args,
         char count_str[32];
         snprintf(count_str, sizeof(count_str), "%ld", args->start);
         char* count_str_copy = estrdup(count_str);
-        if (!count_str_copy) {
-            efree(*args_out);
-            efree(*args_len_out);
-            return 0;
-        }
+
         (*args_out)[1]                             = (uintptr_t) count_str_copy;
         (*args_len_out)[1]                         = strlen(count_str);
         (*allocated_strings)[(*allocated_count)++] = count_str_copy;
@@ -766,14 +684,6 @@ int prepare_z_member_args(z_command_args_t* args,
 
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Set arguments */
     (*args_out)[0]     = (uintptr_t) args->key;
@@ -806,14 +716,6 @@ int prepare_z_range_args(z_command_args_t* args,
 
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Set arguments */
     (*args_out)[0]     = (uintptr_t) args->key;
@@ -849,14 +751,6 @@ int prepare_z_members_args(z_command_args_t* args,
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
-
     /* First argument: key */
     (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
@@ -876,16 +770,6 @@ int prepare_z_members_args(z_command_args_t* args,
             int    need_free = 0;
 
             str_val = zval_to_string_safe(z_member, &str_len, &need_free);
-
-            if (!str_val) {
-                int j;
-                for (j = 0; j < *allocated_count; j++) {
-                    efree((*allocated_strings)[j]);
-                }
-                efree(*args_out);
-                efree(*args_len_out);
-                return 0;
-            }
 
             (*args_out)[i + 1]     = (uintptr_t) str_val;
             (*args_len_out)[i + 1] = str_len;
@@ -918,10 +802,6 @@ static int convert_zval_to_string_arg(zval*          z_value,
         int    need_free = 0;
 
         str_val = zval_to_string_safe(z_value, &str_len, &need_free);
-
-        if (!str_val) {
-            return 0;
-        }
 
         *arg_ptr     = (uintptr_t) str_val;
         *arg_len_ptr = str_len;
@@ -993,14 +873,6 @@ int prepare_z_complex_range_args(z_command_args_t* args,
     /* Allocate memory for arguments */
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* First argument: key */
     (*args_out)[0]     = (uintptr_t) args->key;
@@ -1112,14 +984,6 @@ int prepare_z_store_args(z_command_args_t* args,
     /* Allocate final args arrays */
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Set destination */
     (*args_out)[0]     = (uintptr_t) args->key;
@@ -1254,14 +1118,6 @@ int prepare_z_intercard_args(z_command_args_t* args,
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
-
     /* Add numkeys as the first argument */
     char numkeys_str[32];
     snprintf(numkeys_str, sizeof(numkeys_str), "%d", args->member_count);
@@ -1360,14 +1216,6 @@ int prepare_z_union_args(z_command_args_t* args,
     /* Allocate final args arrays */
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Add numkeys as the first argument */
     char numkeys_str[32];
@@ -1508,14 +1356,6 @@ int prepare_z_rangestore_args(z_command_args_t* args,
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
-
     /* Set dst and src (args->key is dst, args->member is src) */
     (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
@@ -1618,14 +1458,6 @@ int prepare_z_zadd_args(z_command_args_t* args,
     /* Allocate final args arrays */
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Set key */
     (*args_out)[0]     = (uintptr_t) args->key;
@@ -1734,13 +1566,6 @@ int prepare_z_zdiff_args(z_command_args_t* args,
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Add numkeys as the first argument */
     char numkeys_str[32];
@@ -1808,14 +1633,6 @@ int prepare_z_randmember_args(z_command_args_t* args,
     /* Allocate final args arrays */
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Set key */
     (*args_out)[0]     = (uintptr_t) args->key;
@@ -1893,14 +1710,6 @@ int prepare_z_bzpop_args(z_command_args_t* args,
     /* Allocate final args arrays */
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-
-    if (!(*args_out) || !(*args_len_out)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Add keys as arguments based on format */
     if (is_array_format) {

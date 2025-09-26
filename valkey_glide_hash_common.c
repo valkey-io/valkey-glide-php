@@ -238,14 +238,6 @@ int prepare_h_key_only_args(h_command_args_t* args,
     *allocated_strings = NULL;
     *allocated_count   = 0;
 
-    if (!*args_out || !*args_len_out) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
-
     /* Set key as the only argument */
     (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
@@ -270,14 +262,6 @@ int prepare_h_single_field_args(h_command_args_t* args,
     *args_len_out      = (unsigned long*) emalloc(2 * sizeof(unsigned long));
     *allocated_strings = NULL;
     *allocated_count   = 0;
-
-    if (!*args_out || !*args_len_out) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Set key and field arguments */
     (*args_out)[0]     = (uintptr_t) args->key;
@@ -306,13 +290,6 @@ int prepare_h_field_value_args(h_command_args_t* args,
     *allocated_strings = NULL;
     *allocated_count   = 0;
 
-    if (!*args_out || !*args_len_out) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
 
     /* Set key, field, and value arguments */
     (*args_out)[0]     = (uintptr_t) args->key;
@@ -345,16 +322,6 @@ int prepare_h_multi_field_args(h_command_args_t* args,
     *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
     *allocated_strings = (char**) emalloc(args->field_count * sizeof(char*));
     *allocated_count   = 0;
-
-    if (!*args_out || !*args_len_out || !*allocated_strings) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        if (*allocated_strings)
-            efree(*allocated_strings);
-        return 0;
-    }
 
     /* Set key as first argument */
     (*args_out)[0]     = (uintptr_t) args->key;
@@ -403,16 +370,6 @@ int prepare_h_set_args(h_command_args_t* args,
         *allocated_strings      = (char**) emalloc((pairs_count * 2) * sizeof(char*));
         *allocated_count        = 0;
 
-        if (!*args_out || !*args_len_out || !*allocated_strings) {
-            if (*args_out)
-                efree(*args_out);
-            if (*args_len_out)
-                efree(*args_len_out);
-            if (*allocated_strings)
-                efree(*allocated_strings);
-            return 0;
-        }
-
         /* First argument: key */
         (*args_out)[0]     = (uintptr_t) args->key;
         (*args_len_out)[0] = args->key_len;
@@ -432,16 +389,6 @@ int prepare_h_set_args(h_command_args_t* args,
         *args_len_out           = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
         *allocated_strings      = (char**) emalloc(args->fv_count * sizeof(char*));
         *allocated_count        = 0;
-
-        if (!*args_out || !*args_len_out || !*allocated_strings) {
-            if (*args_out)
-                efree(*args_out);
-            if (*args_len_out)
-                efree(*args_len_out);
-            if (*allocated_strings)
-                efree(*allocated_strings);
-            return 0;
-        }
 
         /* First argument: key */
         (*args_out)[0]     = (uintptr_t) args->key;
@@ -480,16 +427,6 @@ int prepare_h_mset_args(h_command_args_t* args,
     *allocated_strings = (char**) emalloc((pairs_count * 2) * sizeof(char*));
     *allocated_count   = 0;
 
-    if (!*args_out || !*args_len_out || !*allocated_strings) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        if (*allocated_strings)
-            efree(*allocated_strings);
-        return 0;
-    }
-
     /* First argument: key */
     (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
@@ -517,16 +454,6 @@ int prepare_h_incr_args(h_command_args_t* args,
     *allocated_strings = (char**) emalloc(sizeof(char*));
     *allocated_count   = 0;
 
-    if (!*args_out || !*args_len_out || !*allocated_strings) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        if (*allocated_strings)
-            efree(*allocated_strings);
-        return 0;
-    }
-
     /* Set key and field arguments */
     (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
@@ -543,13 +470,6 @@ int prepare_h_incr_args(h_command_args_t* args,
     } else {
         /* HINCRBY */
         incr_str = long_to_string(args->increment, &incr_len);
-    }
-
-    if (!incr_str) {
-        efree(*args_out);
-        efree(*args_len_out);
-        efree(*allocated_strings);
-        return 0;
     }
 
     (*allocated_strings)[0] = incr_str;
@@ -590,16 +510,6 @@ int prepare_h_randfield_args(h_command_args_t* args,
     *allocated_strings = need_count_str ? (char**) emalloc(sizeof(char*)) : NULL;
     *allocated_count   = 0;
 
-    if (!*args_out || !*args_len_out || (need_count_str && !*allocated_strings)) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        if (*allocated_strings)
-            efree(*allocated_strings);
-        return 0;
-    }
-
     /* First argument: key */
     int arg_idx              = 0;
     (*args_out)[arg_idx]     = (uintptr_t) args->key;
@@ -609,13 +519,6 @@ int prepare_h_randfield_args(h_command_args_t* args,
     /* Add count if needed */
     if (need_count_str) {
         char* count_str = long_to_string(args->count, &(*args_len_out)[arg_idx]);
-        if (!count_str) {
-            efree(*args_out);
-            efree(*args_len_out);
-            if (*allocated_strings)
-                efree(*allocated_strings);
-            return 0;
-        }
 
         (*allocated_strings)[0] = count_str;
         *allocated_count        = 1;
@@ -890,9 +793,6 @@ int convert_zval_array_to_args(zval*          z_array,
         int    need_free;
 
         char* str_val = zval_to_string_safe(value, &str_len, &need_free);
-        if (!str_val) {
-            return 0;
-        }
 
         args[current_arg]     = (uintptr_t) str_val;
         args_len[current_arg] = str_len;

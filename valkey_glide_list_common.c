@@ -31,14 +31,6 @@ int allocate_list_command_args(int count, uintptr_t** args_out, unsigned long** 
     *args_out     = (uintptr_t*) emalloc(count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(count * sizeof(unsigned long));
 
-    if (!*args_out || !*args_len_out) {
-        if (*args_out)
-            efree(*args_out);
-        if (*args_len_out)
-            efree(*args_len_out);
-        return 0;
-    }
-
     return 1;
 }
 
@@ -490,11 +482,6 @@ int prepare_list_key_values_args(list_command_args_t* args,
             /* Convert long to string */
             size_t str_len;
             char*  str_val = alloc_list_number_string(Z_LVAL_P(value), &str_len);
-            if (!str_val) {
-                FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-                free_list_command_args(*args_out, *args_len_out);
-                return 0;
-            }
 
             (*allocated_strings)[*allocated_count] = str_val;
             (*allocated_count)++;
@@ -506,11 +493,6 @@ int prepare_list_key_values_args(list_command_args_t* args,
             /* Convert double to string */
             size_t str_len;
             char*  str_val = alloc_list_double_string(Z_DVAL_P(value), &str_len);
-            if (!str_val) {
-                FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-                free_list_command_args(*args_out, *args_len_out);
-                return 0;
-            }
 
             (*allocated_strings)[*allocated_count] = str_val;
             (*allocated_count)++;
@@ -531,11 +513,6 @@ int prepare_list_key_values_args(list_command_args_t* args,
                     /* Convert long to string */
                     size_t str_len;
                     char*  str_val = alloc_list_number_string(Z_LVAL_P(z_item), &str_len);
-                    if (!str_val) {
-                        FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-                        free_list_command_args(*args_out, *args_len_out);
-                        return 0;
-                    }
 
                     (*allocated_strings)[*allocated_count] = str_val;
                     (*allocated_count)++;
@@ -547,11 +524,6 @@ int prepare_list_key_values_args(list_command_args_t* args,
                     /* Convert double to string */
                     size_t str_len;
                     char*  str_val = alloc_list_double_string(Z_DVAL_P(z_item), &str_len);
-                    if (!str_val) {
-                        FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-                        free_list_command_args(*args_out, *args_len_out);
-                        return 0;
-                    }
 
                     (*allocated_strings)[*allocated_count] = str_val;
                     (*allocated_count)++;

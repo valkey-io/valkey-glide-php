@@ -51,6 +51,35 @@ typedef struct _geo_radius_options_t {
 } geo_radius_options_t;
 
 /**
+ * Unified parameters structure for GEOSEARCH/GEOSEARCHSTORE commands
+ */
+typedef struct _geo_search_params_t {
+    /* Basic parameters */
+    const char* key; /* Source key (GEOSEARCH) or destination key (GEOSEARCHSTORE) */
+    size_t      key_len;
+    const char* src_key; /* Source key (GEOSEARCHSTORE only) */
+    size_t      src_key_len;
+
+    /* Position parameters */
+    int         is_from_member; /* 1 if using member, 0 if using coordinates */
+    const char* member;         /* Member name for FROMMEMBER */
+    size_t      member_len;
+    double      longitude; /* Longitude for FROMLONLAT */
+    double      latitude;  /* Latitude for FROMLONLAT */
+
+    /* Shape parameters */
+    int         is_by_radius; /* 1 if using radius, 0 if using box */
+    double      radius;       /* Radius for BYRADIUS */
+    double      width;        /* Width for BYBOX */
+    double      height;       /* Height for BYBOX */
+    const char* unit;         /* Unit (m, km, ft, mi) */
+    size_t      unit_len;
+
+    /* Options */
+    geo_radius_options_t options;
+} geo_search_params_t;
+
+/**
  * Common arguments structure for GEO commands
  */
 typedef struct _geo_command_args_t {
@@ -83,6 +112,7 @@ typedef struct _geo_command_args_t {
     /* For GEOSEARCH/GEOSEARCHSTORE */
     zval*   from;      /* FROMMEMBER or FROMLONLAT */
     double* by_radius; /* BYRADIUS value */
+    double* by_box;    /* BYBOX values [width, height] */
 
     /* For GEOSEARCHSTORE */
     const char* dest;     /* Destination key */
@@ -148,6 +178,21 @@ int execute_geosearchstore_command(zval*             object,
                                    int               argc,
                                    zval*             return_value,
                                    zend_class_entry* ce);
+
+/* New unified functions */
+int parse_geosearch_parameters(int                  argc,
+                               zval*                object,
+                               zend_class_entry*    ce,
+                               geo_search_params_t* params,
+                               int                  is_store_variant);
+int execute_geosearch_unified(
+    zval* object, int argc, zval* return_value, zend_class_entry* ce, int is_store_variant);
+int prepare_geo_search_unified_args(geo_search_params_t* params,
+                                    uintptr_t**          args_out,
+                                    unsigned long**      args_len_out,
+                                    char***              allocated_strings,
+                                    int*                 allocated_count,
+                                    int                  is_store_variant);
 
 /* Execution framework */
 int execute_geo_generic_command(valkey_glide_object*   valkey_glide,

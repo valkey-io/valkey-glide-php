@@ -107,9 +107,6 @@ static void clear_batch_state(valkey_glide_object* valkey_glide) {
         return;
     }
 
-    valkey_glide->is_in_batch_mode = false;
-    valkey_glide->batch_type       = MULTI;
-    valkey_glide->command_count    = 0;
 
     if (valkey_glide->buffered_commands) {
         /* Free each buffered command */
@@ -136,6 +133,10 @@ static void clear_batch_state(valkey_glide_object* valkey_glide) {
         valkey_glide->buffered_commands = NULL;
         valkey_glide->command_capacity  = 0;
     }
+
+    valkey_glide->is_in_batch_mode = false;
+    valkey_glide->batch_type       = MULTI;
+    valkey_glide->command_count    = 0;
 }
 
 /* Expand command buffer capacity */
@@ -197,14 +198,6 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
     if (arg_count > 0 && args && arg_lengths) {
         cmd->args        = (uint8_t**) emalloc(arg_count * sizeof(uint8_t*));
         cmd->arg_lengths = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
-
-        if (!cmd->args || !cmd->arg_lengths) {
-            if (cmd->args)
-                efree(cmd->args);
-            if (cmd->arg_lengths)
-                efree(cmd->arg_lengths);
-            return 0;
-        }
 
         uintptr_t i;
         for (i = 0; i < arg_count; i++) {
@@ -272,15 +265,6 @@ static int convert_zval_args_to_strings(zval*           args,
     *allocated_strings = (char**) emalloc(args_count * sizeof(char*));
     *allocated_count   = 0;
 
-    if (!*cmd_args || !*args_len || !*allocated_strings) {
-        if (*cmd_args)
-            efree(*cmd_args);
-        if (*args_len)
-            efree(*args_len);
-        if (*allocated_strings)
-            efree(*allocated_strings);
-        return 0;
-    }
     for (int i = 0; i < args_count; i++) {
         zval* arg = &args[i];
 
@@ -896,14 +880,6 @@ static int execute_fcall_command_internal(zval*                object,
     uintptr_t*     cmd_args  = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     unsigned long* args_len  = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-    if (!cmd_args || !args_len) {
-        if (cmd_args)
-            efree(cmd_args);
-        if (args_len)
-            efree(args_len);
-        return 0;
-    }
-
     /* Set function name and numkeys */
     cmd_args[0] = (uintptr_t) name;
     args_len[0] = name_len;
@@ -1115,14 +1091,6 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
         unsigned long  max_args       = 10; /* Maximum possible arguments */
         uintptr_t*     args           = (uintptr_t*) emalloc(max_args * sizeof(uintptr_t));
         unsigned long* args_len       = (unsigned long*) emalloc(max_args * sizeof(unsigned long));
-
-        if (!args || !args_len) {
-            if (args)
-                efree(args);
-            if (args_len)
-                efree(args_len);
-            return 0;
-        }
 
         /* Set up base arguments */
         args[0]     = (uintptr_t) key;
@@ -1636,14 +1604,6 @@ int execute_rawcommand_command_internal(
     uintptr_t*     cmd_args  = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     unsigned long* args_len  = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-    if (!cmd_args || !args_len) {
-        if (cmd_args)
-            efree(cmd_args);
-        if (args_len)
-            efree(args_len);
-        return 0;
-    }
-
     /* Keep track of allocated strings for cleanup */
     char** allocated     = (char**) emalloc(args_count * sizeof(char*));
     int    allocated_idx = 0;
@@ -1770,14 +1730,6 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
         if (arg_count > 1) {
             batch_args  = (uintptr_t*) emalloc((arg_count - 1) * sizeof(uintptr_t));
             arg_lengths = emalloc((arg_count - 1) * sizeof(unsigned long));
-
-            if (!batch_args || !arg_lengths) {
-                if (batch_args)
-                    efree(batch_args);
-                if (arg_lengths)
-                    efree(arg_lengths);
-                return 0;
-            }
 
             /* Convert each argument to string and store */
             for (int i = 1; i < arg_count; i++) {

@@ -42,6 +42,8 @@
 #define MULTI 0
 #define PIPELINE 1
 
+#define VALKEY_GLIDE_MAX_OPTIONS 64
+
 /* ValkeyGlide Configuration Enums */
 typedef enum {
     VALKEY_GLIDE_READ_FROM_PRIMARY                          = 0,
