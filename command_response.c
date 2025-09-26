@@ -570,7 +570,7 @@ int command_response_to_zval(CommandResponse* response,
         case Map:
             // printf("%s:%d - CommandResponse is Map with length: %ld\n", __FILE__,
             // __LINE__, response->array_value_len);
-            array_init(output);
+
 
             // Special handling for FUNCTION command - skip server address wrapper
             if (use_associative_array == COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP_FUNCTION &&
@@ -596,6 +596,7 @@ int command_response_to_zval(CommandResponse* response,
             }
 
             // Normal Map processing
+            array_init(output);
             for (int i = 0; i < response->array_value_len; i++) {
                 zval             key, value;
                 CommandResponse* element = &response->array_value[i];
@@ -784,7 +785,6 @@ int command_response_to_stream_zval(CommandResponse* response, zval* output) {
         case Null:
             /* If the response is Null, set output to NULL */
             // printf("%s:%d - DEBUG: Response is Null\n", __FILE__, __LINE__);
-            array_init(output);
             break;
 
         default:
