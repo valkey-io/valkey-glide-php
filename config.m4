@@ -98,8 +98,31 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
 
   dnl Check if header generation is enabled
   if test "$PHP_HEADER_GENERATION" != "no"; then
-    dnl Only run header generation for PECL builds (has .submodule-commits)
-    dnl Development builds should use Makefile approach
+    dnl Generate protobuf files for all builds to avoid make dependency issues
+    AC_MSG_CHECKING([for protobuf file generation])
+    
+    dnl Ensure submodules are available
+    if test -f ".gitmodules" && test -d ".git"; then
+      git submodule update --init --recursive >/dev/null 2>&1 || true
+    fi
+    
+    dnl Generate protobuf files if they don't exist and we have the source
+    if test -d "valkey-glide/glide-core/src/protobuf" && command -v protoc-c >/dev/null 2>&1; then
+      mkdir -p include/glide src
+      python3 utils/remove_optional_from_proto.py >/dev/null 2>&1 || true
+      
+      for proto in valkey-glide/glide-core/src/protobuf/*.proto; do
+        if test -f "$proto"; then
+          protoc-c --c_out=src --proto_path=valkey-glide/glide-core/src/protobuf "$proto" >/dev/null 2>&1 || true
+        fi
+      done
+      cp src/*.pb-c.h include/glide/ 2>/dev/null || true
+      AC_MSG_RESULT([protobuf files generated])
+    else
+      AC_MSG_RESULT([protobuf files will be generated during make])
+    fi
+    
+    dnl Only run full header generation for PECL builds (has .submodule-commits)
     if test -f "$PECL_SOURCE_DIR/.submodule-commits"; then
       AC_MSG_CHECKING([for header generation (PECL build detected - has .submodule-commits)])
     
