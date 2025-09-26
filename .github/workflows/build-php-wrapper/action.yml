@@ -120,6 +120,16 @@ runs:
           cargo install --locked cargo-zigbuild
         fi
 
+    - name: Setup sccache
+      uses: mozilla-actions/sccache-action@v0.0.4
+
+    - name: Setup Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: |
+          valkey-glide/ffi
+        cache-on-failure: true
+
     - name: Setup Cargo environment for caching
       shell: bash
       run: |
