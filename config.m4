@@ -149,6 +149,32 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
   
   PHP_SUBST(VALKEY_GLIDE_SHARED_LIBADD)
 
+  dnl Add FFI library with absolute path for linking only
+  VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD \$(top_builddir)/valkey-glide/ffi/target/release/libglide_ffi.a"
+  
+  dnl Add resolv library - platform specific
+  case $host_os in
+    darwin*)
+      VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD -lresolv"
+      ;;
+    linux*)
+      dnl On Linux, resolv is usually part of glibc, but check if separate library exists
+      AC_CHECK_LIB([resolv], [res_query], [
+        VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD -lresolv"
+      ])
+      ;;
+    *)
+      dnl For other systems, try to link resolv if available
+      AC_CHECK_LIB([resolv], [res_query], [
+        VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD -lresolv"
+      ])
+      ;;
+  esac
+  
+  PHP_SUBST(VALKEY_GLIDE_SHARED_LIBADD)
+  
+  PHP_SUBST(VALKEY_GLIDE_SHARED_LIBADD)
+
   dnl Set protobuf-related variables
   PROTOC="protoc"
   PROTO_SRC_DIR="valkey-glide/glide-core/src/protobuf"
