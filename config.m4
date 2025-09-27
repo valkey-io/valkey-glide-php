@@ -76,22 +76,12 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       ;;
     *)
       AC_MSG_CHECKING([for protobuf-c library])
-      if pkg-config --exists libprotobuf-c 2>/dev/null; then
-        AC_MSG_RESULT([found via pkg-config (libprotobuf-c)])
-        PROTOBUF_C_LIBS=`pkg-config --libs libprotobuf-c`
-        PHP_EVAL_LIBLINE($PROTOBUF_C_LIBS, VALKEY_GLIDE_SHARED_LIBADD)
-      elif pkg-config --exists protobuf-c 2>/dev/null; then
-        AC_MSG_RESULT([found via pkg-config (protobuf-c)])
-        PROTOBUF_C_LIBS=`pkg-config --libs protobuf-c`
-        PHP_EVAL_LIBLINE($PROTOBUF_C_LIBS, VALKEY_GLIDE_SHARED_LIBADD)
-      else
-        AC_CHECK_LIB([protobuf-c], [protobuf_c_empty_string], [
-          AC_MSG_RESULT([found via library check])
-          PHP_ADD_LIBRARY(protobuf-c, 1, VALKEY_GLIDE_SHARED_LIBADD)
-        ], [
-          AC_MSG_ERROR([protobuf-c library not found. Please install libprotobuf-c-dev])
-        ])
-      fi
+      AC_CHECK_LIB([protobuf-c], [protobuf_c_empty_string], [
+        AC_MSG_RESULT([found via library check])
+        PHP_ADD_LIBRARY(protobuf-c, 1, VALKEY_GLIDE_SHARED_LIBADD)
+      ], [
+        AC_MSG_ERROR([protobuf-c library not found. Please install libprotobuf-c-dev])
+      ])
       ;;
   esac
   
@@ -99,9 +89,13 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     valkey_glide.c valkey_glide_cluster.c cluster_scan_cursor.c command_response.c logger.c valkey_glide_commands.c valkey_glide_commands_2.c valkey_glide_commands_3.c valkey_glide_core_commands.c valkey_glide_core_common.c valkey_glide_expire_commands.c valkey_glide_geo_commands.c valkey_glide_geo_common.c valkey_glide_hash_common.c valkey_glide_list_common.c valkey_glide_s_common.c valkey_glide_str_commands.c valkey_glide_x_commands.c valkey_glide_x_common.c valkey_glide_z.c valkey_glide_z_common.c valkey_z_php_methods.c src/command_request.pb-c.c src/connection_request.pb-c.c src/response.pb-c.c src/client_constructor_mock.c,
     $ext_shared,, $VALKEY_GLIDE_SHARED_LIBADD)
 
-  dnl Add FFI library only for macOS (Linux uses Makefile.frag)
+  dnl Add FFI library only for macOS (keep Mac working as before)
   case $host_os in
     darwin*)
+      VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD \$(top_builddir)/valkey-glide/ffi/target/release/libglide_ffi.a -lresolv"
+      ;;
+    *)
+      dnl Add Rust FFI library linking for Linux (like working commit)
       VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD \$(top_builddir)/valkey-glide/ffi/target/release/libglide_ffi.a -lresolv"
       ;;
   esac
