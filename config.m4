@@ -122,8 +122,6 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
   esac
   
   PHP_SUBST(VALKEY_GLIDE_SHARED_LIBADD)
-  
-  PHP_SUBST(VALKEY_GLIDE_SHARED_LIBADD)
 
   dnl Set protobuf-related variables
   PROTOC="protoc"
