@@ -1243,7 +1243,7 @@ class ValkeyGlide
      * Add or update one or more hash fields and values.
      *
      * @param string $key             The hash to create/update.
-     * @param mixed  $fields_and_vals Argument pairs of fields and values. Alternatively, an associative array with the
+     * @param mixed  ...$fields_and_vals Argument pairs of fields and values. Alternatively, an associative array with the
      *                                fields and their values.
      *
      * @return ValkeyGlide|int|false The number of fields that were added, or false on failure.
