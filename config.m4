@@ -76,22 +76,12 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       ;;
     *)
       AC_MSG_CHECKING([for protobuf-c library])
-      if pkg-config --exists libprotobuf-c 2>/dev/null; then
-        AC_MSG_RESULT([found via pkg-config (libprotobuf-c)])
-        PROTOBUF_C_LIBS=`pkg-config --libs libprotobuf-c`
-        PHP_EVAL_LIBLINE($PROTOBUF_C_LIBS, VALKEY_GLIDE_SHARED_LIBADD)
-      elif pkg-config --exists protobuf-c 2>/dev/null; then
-        AC_MSG_RESULT([found via pkg-config (protobuf-c)])
-        PROTOBUF_C_LIBS=`pkg-config --libs protobuf-c`
-        PHP_EVAL_LIBLINE($PROTOBUF_C_LIBS, VALKEY_GLIDE_SHARED_LIBADD)
-      else
-        AC_CHECK_LIB([protobuf-c], [protobuf_c_empty_string], [
-          AC_MSG_RESULT([found via library check])
-          PHP_ADD_LIBRARY(protobuf-c, 1, VALKEY_GLIDE_SHARED_LIBADD)
-        ], [
-          AC_MSG_ERROR([protobuf-c library not found. Please install libprotobuf-c-dev])
-        ])
-      fi
+      AC_CHECK_LIB([protobuf-c], [protobuf_c_empty_string], [
+        AC_MSG_RESULT([found via library check])
+        PHP_ADD_LIBRARY(protobuf-c, 1, VALKEY_GLIDE_SHARED_LIBADD)
+      ], [
+        AC_MSG_ERROR([protobuf-c library not found. Please install libprotobuf-c-dev])
+      ])
       ;;
   esac
   
@@ -149,9 +139,13 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
   
   PHP_SUBST(VALKEY_GLIDE_SHARED_LIBADD)
 
-  dnl Add FFI library only for macOS (Linux uses Makefile.frag)
+  dnl Add FFI library only for macOS (keep Mac working as before)
   case $host_os in
     darwin*)
+      VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD \$(top_builddir)/valkey-glide/ffi/target/release/libglide_ffi.a -lresolv"
+      ;;
+    *)
+      dnl Add Rust FFI library linking for Linux (like working commit)
       VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD \$(top_builddir)/valkey-glide/ffi/target/release/libglide_ffi.a -lresolv"
       ;;
   esac

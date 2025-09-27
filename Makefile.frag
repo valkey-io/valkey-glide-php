@@ -2,8 +2,8 @@
 ifeq ($(shell uname),Darwin)
     INCLUDES += -I/opt/homebrew/include
 else
-    # Linux - use the path that actually gets built
-    VALKEY_GLIDE_SHARED_LIBADD = valkey-glide/ffi/target/release/libglide_ffi.a -lresolv -lprotobuf-c
+    # Linux - config.m4 handles FFI library, just add protobuf-c
+    VALKEY_GLIDE_SHARED_LIBADD += -lprotobuf-c
 endif
 INCLUDES += -Iinclude -I.
 PROTOC = protoc
