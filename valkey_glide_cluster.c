@@ -380,6 +380,10 @@ HPEXPIRETIME_METHOD_IMPL(ValkeyGlideCluster)
 HPERSIST_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto mixed ValkeyGlideCluster::hGetEx(string key, string field, long seconds, ...) */
+HGETEX_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto string ValkeyGlideCluster::hget(string key, string mem) */
 HGET_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */

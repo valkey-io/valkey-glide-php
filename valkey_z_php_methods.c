@@ -496,6 +496,10 @@ HEXPIRETIME_METHOD_IMPL(ValkeyGlide)
 HPEXPIRETIME_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto mixed ValkeyGlide::hGetEx(string key, string field, long seconds, ...) */
+HGETEX_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto array ValkeyGlide::hGetAll(string key) */
 HGETALL_METHOD_IMPL(ValkeyGlide);
 

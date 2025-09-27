@@ -682,6 +682,20 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
         RETURN_FALSE;                                                                   \
     }
 
+#define HGETEX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hGetEx) {                                              \
+        if (execute_hgetex_command(getThis(),                                     \
+                                   ZEND_NUM_ARGS(),                               \
+                                   return_value,                                  \
+                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                       ? get_valkey_glide_cluster_ce()            \
+                                       : get_valkey_glide_ce())) {                \
+            return;                                                                \
+        }                                                                          \
+        zval_dtor(return_value);                                                   \
+        RETURN_FALSE;                                                              \
+    }
+
 // Hash Field Expiration function declarations
 int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
