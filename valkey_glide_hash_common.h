@@ -26,23 +26,6 @@
 #include "valkey_glide_commands_common.h"
 
 /* ====================================================================
- * ENUMS AND CONSTANTS
- * ==================================================================== */
-
-/**
- * Hash command types for internal use
- */
-typedef enum {
-    // Standard hash commands
-    HGet, HSet, HDel, HExists, HLen, HKeys, HVals, HGetAll,
-    HMGet, HMSet, HSetNx, HIncrBy, HIncrByFloat, HStrlen, HRandField,
-    
-    // Hash Field Expiration commands
-    HSetEx, HExpire, HPExpire, HExpireAt, HPExpireAt,
-    HTtl, HPTtl, HExpireTime, HPExpireTime, HPersist, HGetEx
-} h_command_type_t;
-
-/* ====================================================================
  * STRUCTURES AND TYPES
  * ==================================================================== */
 
@@ -688,16 +671,16 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
     }
 
 // Hash Field Expiration function declarations
-int execute_hsetex_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* field_value_map, int expiry, const char* expiry_type, const char* condition);
-int execute_hexpire_command(const void* glide_client, int argc, zval* return_value, const char* key, int seconds, zval* fields, const char* condition);
-int execute_hpexpire_command(const void* glide_client, int argc, zval* return_value, const char* key, int milliseconds, zval* fields, const char* condition);
-int execute_hexpireat_command(const void* glide_client, int argc, zval* return_value, const char* key, int timestamp, zval* fields, const char* condition);
-int execute_hpexpireat_command(const void* glide_client, int argc, zval* return_value, const char* key, int timestamp, zval* fields, const char* condition);
-int execute_httl_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields);
-int execute_hpttl_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields);
-int execute_hexpiretime_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields);
-int execute_hpexpiretime_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields);
-int execute_hpersist_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields);
-int execute_hgetex_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields, int expiry, const char* expiry_type);
+int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_hexpiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_hpexpiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_hpersist_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 #endif /* VALKEY_GLIDE_HASH_COMMON_H */

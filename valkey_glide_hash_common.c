@@ -1873,676 +1873,390 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
 
     return 0;
 }
-
-/**
- * Execute HSETEX command with unified signature
- */
+// Hash Field Expiration execution functions
 int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
-    zend_long            seconds;
-    zval*                z_args = NULL;
-    int                  arg_count;
+    zval*                field_value_map;
+    zend_long            expiry;
+    char*                expiry_type = NULL;
+    size_t               expiry_type_len = 0;
+    char*                condition = NULL;
+    size_t               condition_len = 0;
 
-    /* Parse parameters: key, seconds, field, value, [field, value, ...] */
-    if (zend_parse_method_parameters(
-            argc, object, "Osl*", &object, ce, &key, &key_len, &seconds, &z_args, &arg_count) == FAILURE) {
+    /* Parse parameters: key, fieldValueMap, expiry, [expiry_type], [condition] */
+    if (zend_parse_method_parameters(argc, object, "Oal|ss", &object, ce, &key, &key_len, 
+                                     &field_value_map, &expiry, &expiry_type, &expiry_type_len, 
+                                     &condition, &condition_len) == FAILURE) {
         return 0;
     }
 
-    /* Validate minimum arguments (field, value) */
-    if (arg_count < 2) {
-        zend_throw_exception(spl_ce_InvalidArgumentException, "HSETEX requires at least field and value", 0);
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
 
-    valkey_glide = Z_VALKEY_GLIDE_P(object);
-    if (!valkey_glide || !valkey_glide->client) {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
-        return 0;
+    /* Set up command args */
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = key_len;
+    args.field_values = field_value_map;
+    args.fv_count = 1;
+    args.is_array_arg = 1;
+    args.expiry = (int)expiry;
+    args.expiry_type = expiry_type;
+    args.condition = condition;
+
+    /* Execute with batch support */
+    if (execute_h_simple_command(valkey_glide, HSetEx, &args, NULL, H_RESPONSE_INT, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
     }
-
-    /* Build command arguments */
-    size_t total_args = 3 + arg_count;
-    char** cmd_args = emalloc(total_args * sizeof(char*));
-    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
-
-    cmd_args[0] = "HSETEX";
-    cmd_arg_lens[0] = 6;
-    cmd_args[1] = key;
-    cmd_arg_lens[1] = key_len;
-    
-    char seconds_str[32];
-    snprintf(seconds_str, sizeof(seconds_str), ZEND_LONG_FMT, seconds);
-    cmd_args[2] = estrdup(seconds_str);
-    cmd_arg_lens[2] = strlen(seconds_str);
-
-    for (int i = 0; i < arg_count; i++) {
-        convert_to_string(&z_args[i]);
-        cmd_args[3 + i] = Z_STRVAL(z_args[i]);
-        cmd_arg_lens[3 + i] = Z_STRLEN(z_args[i]);
-    }
-
-    command_request_t* cmd_request = create_command_request();
-    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
-
-    int result = process_h_int_result_async(valkey_glide, cmd_request, return_value);
-    
-    efree(cmd_args[2]);
-    efree(cmd_args);
-    efree(cmd_arg_lens);
-    
-    return result;
+    return 0;
 }
-/**
- * Execute HEXPIRE command with unified signature
- */
+
 int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
     zend_long            seconds;
-    zval*                z_args = NULL;
-    int                  arg_count;
+    zval*                fields;
+    char*                condition = NULL;
+    size_t               condition_len = 0;
 
-    if (zend_parse_method_parameters(
-            argc, object, "Osl*", &object, ce, &key, &key_len, &seconds, &z_args, &arg_count) == FAILURE) {
+    /* Parse parameters: key, seconds, fields, [condition] */
+    if (zend_parse_method_parameters(argc, object, "Osla|s", &object, ce, &key, &key_len, 
+                                     &seconds, &fields, &condition, &condition_len) == FAILURE) {
         return 0;
     }
 
-    if (arg_count < 1) {
-        zend_throw_exception(spl_ce_InvalidArgumentException, "HEXPIRE requires at least one field", 0);
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
 
-    valkey_glide = Z_VALKEY_GLIDE_P(object);
-    if (!valkey_glide || !valkey_glide->client) {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
-        return 0;
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = key_len;
+    args.fields = fields;
+    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
+    args.expiry = (int)seconds;
+    args.condition = condition;
+
+    if (execute_h_simple_command(valkey_glide, HExpire, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
     }
-
-    size_t total_args = 3 + arg_count;
-    char** cmd_args = emalloc(total_args * sizeof(char*));
-    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
-
-    cmd_args[0] = "HEXPIRE";
-    cmd_arg_lens[0] = 7;
-    cmd_args[1] = key;
-    cmd_arg_lens[1] = key_len;
-    
-    char seconds_str[32];
-    snprintf(seconds_str, sizeof(seconds_str), ZEND_LONG_FMT, seconds);
-    cmd_args[2] = estrdup(seconds_str);
-    cmd_arg_lens[2] = strlen(seconds_str);
-
-    for (int i = 0; i < arg_count; i++) {
-        convert_to_string(&z_args[i]);
-        cmd_args[3 + i] = Z_STRVAL(z_args[i]);
-        cmd_arg_lens[3 + i] = Z_STRLEN(z_args[i]);
-    }
-
-    command_request_t* cmd_request = create_command_request();
-    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
-
-    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
-    
-    efree(cmd_args[2]);
-    efree(cmd_args);
-    efree(cmd_arg_lens);
-    
-    return result;
+    return 0;
 }
-/**
- * Execute HTTL command with unified signature
- */
-int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    valkey_glide_object* valkey_glide;
-    char*                key = NULL;
-    size_t               key_len;
-    zval*                z_args = NULL;
-    int                  arg_count;
 
-    if (zend_parse_method_parameters(
-            argc, object, "Os*", &object, ce, &key, &key_len, &z_args, &arg_count) == FAILURE) {
-        return 0;
-    }
-
-    if (arg_count < 1) {
-        zend_throw_exception(spl_ce_InvalidArgumentException, "HTTL requires at least one field", 0);
-        return 0;
-    }
-
-    valkey_glide = Z_VALKEY_GLIDE_P(object);
-    if (!valkey_glide || !valkey_glide->client) {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
-        return 0;
-    }
-
-    size_t total_args = 2 + arg_count;
-    char** cmd_args = emalloc(total_args * sizeof(char*));
-    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
-
-    cmd_args[0] = "HTTL";
-    cmd_arg_lens[0] = 4;
-    cmd_args[1] = key;
-    cmd_arg_lens[1] = key_len;
-
-    for (int i = 0; i < arg_count; i++) {
-        convert_to_string(&z_args[i]);
-        cmd_args[2 + i] = Z_STRVAL(z_args[i]);
-        cmd_arg_lens[2 + i] = Z_STRLEN(z_args[i]);
-    }
-
-    command_request_t* cmd_request = create_command_request();
-    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
-
-    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
-    
-    efree(cmd_args);
-    efree(cmd_arg_lens);
-    
-    return result;
-}
-/**
- * Execute HPERSIST command with unified signature
- */
-int execute_hpersist_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    valkey_glide_object* valkey_glide;
-    char*                key = NULL;
-    size_t               key_len;
-    zval*                z_args = NULL;
-    int                  arg_count;
-
-    if (zend_parse_method_parameters(
-            argc, object, "Os*", &object, ce, &key, &key_len, &z_args, &arg_count) == FAILURE) {
-        return 0;
-    }
-
-    if (arg_count < 1) {
-        zend_throw_exception(spl_ce_InvalidArgumentException, "HPERSIST requires at least one field", 0);
-        return 0;
-    }
-
-    valkey_glide = Z_VALKEY_GLIDE_P(object);
-    if (!valkey_glide || !valkey_glide->client) {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
-        return 0;
-    }
-
-    size_t total_args = 2 + arg_count;
-    char** cmd_args = emalloc(total_args * sizeof(char*));
-    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
-
-    cmd_args[0] = "HPERSIST";
-    cmd_arg_lens[0] = 8;
-    cmd_args[1] = key;
-    cmd_arg_lens[1] = key_len;
-
-    for (int i = 0; i < arg_count; i++) {
-        convert_to_string(&z_args[i]);
-        cmd_args[2 + i] = Z_STRVAL(z_args[i]);
-        cmd_arg_lens[2 + i] = Z_STRLEN(z_args[i]);
-    }
-
-    command_request_t* cmd_request = create_command_request();
-    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
-
-    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
-    
-    efree(cmd_args);
-    efree(cmd_arg_lens);
-    
-    return result;
-}
-/**
- * Execute HPEXPIRE command with unified signature
- */
 int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
     zend_long            milliseconds;
-    zval*                z_args = NULL;
-    int                  arg_count;
+    zval*                fields;
+    char*                condition = NULL;
+    size_t               condition_len = 0;
 
-    if (zend_parse_method_parameters(
-            argc, object, "Osl*", &object, ce, &key, &key_len, &milliseconds, &z_args, &arg_count) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "Osla|s", &object, ce, &key, &key_len, 
+                                     &milliseconds, &fields, &condition, &condition_len) == FAILURE) {
         return 0;
     }
 
-    if (arg_count < 1) {
-        zend_throw_exception(spl_ce_InvalidArgumentException, "HPEXPIRE requires at least one field", 0);
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
 
-    valkey_glide = Z_VALKEY_GLIDE_P(object);
-    if (!valkey_glide || !valkey_glide->client) {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
-        return 0;
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = key_len;
+    args.fields = fields;
+    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
+    args.expiry = (int)milliseconds;
+    args.condition = condition;
+
+    if (execute_h_simple_command(valkey_glide, HPExpire, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
     }
-
-    size_t total_args = 3 + arg_count;
-    char** cmd_args = emalloc(total_args * sizeof(char*));
-    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
-
-    cmd_args[0] = "HPEXPIRE";
-    cmd_arg_lens[0] = 8;
-    cmd_args[1] = key;
-    cmd_arg_lens[1] = key_len;
-    
-    char ms_str[32];
-    snprintf(ms_str, sizeof(ms_str), ZEND_LONG_FMT, milliseconds);
-    cmd_args[2] = estrdup(ms_str);
-    cmd_arg_lens[2] = strlen(ms_str);
-
-    for (int i = 0; i < arg_count; i++) {
-        convert_to_string(&z_args[i]);
-        cmd_args[3 + i] = Z_STRVAL(z_args[i]);
-        cmd_arg_lens[3 + i] = Z_STRLEN(z_args[i]);
-    }
-
-    command_request_t* cmd_request = create_command_request();
-    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
-
-    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
-    
-    efree(cmd_args[2]);
-    efree(cmd_args);
-    efree(cmd_arg_lens);
-    
-    return result;
+    return 0;
 }
-/**
- * Execute HEXPIREAT command with unified signature
- */
+
 int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
     zend_long            timestamp;
-    zval*                z_args = NULL;
-    int                  arg_count;
+    zval*                fields;
+    char*                condition = NULL;
+    size_t               condition_len = 0;
 
-    if (zend_parse_method_parameters(
-            argc, object, "Osl*", &object, ce, &key, &key_len, &timestamp, &z_args, &arg_count) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "Osla|s", &object, ce, &key, &key_len, 
+                                     &timestamp, &fields, &condition, &condition_len) == FAILURE) {
         return 0;
     }
 
-    if (arg_count < 1) {
-        zend_throw_exception(spl_ce_InvalidArgumentException, "HEXPIREAT requires at least one field", 0);
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
 
-    valkey_glide = Z_VALKEY_GLIDE_P(object);
-    if (!valkey_glide || !valkey_glide->client) {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
-        return 0;
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = key_len;
+    args.fields = fields;
+    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
+    args.expiry = (int)timestamp;
+    args.condition = condition;
+
+    if (execute_h_simple_command(valkey_glide, HExpireAt, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
     }
-
-    size_t total_args = 3 + arg_count;
-    char** cmd_args = emalloc(total_args * sizeof(char*));
-    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
-
-    cmd_args[0] = "HEXPIREAT";
-    cmd_arg_lens[0] = 9;
-    cmd_args[1] = key;
-    cmd_arg_lens[1] = key_len;
-    
-    char ts_str[32];
-    snprintf(ts_str, sizeof(ts_str), ZEND_LONG_FMT, timestamp);
-    cmd_args[2] = estrdup(ts_str);
-    cmd_arg_lens[2] = strlen(ts_str);
-
-    for (int i = 0; i < arg_count; i++) {
-        convert_to_string(&z_args[i]);
-        cmd_args[3 + i] = Z_STRVAL(z_args[i]);
-        cmd_arg_lens[3 + i] = Z_STRLEN(z_args[i]);
-    }
-
-    command_request_t* cmd_request = create_command_request();
-    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
-
-    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
-    
-    efree(cmd_args[2]);
-    efree(cmd_args);
-    efree(cmd_arg_lens);
-    
-    return result;
+    return 0;
 }
-/**
- * Execute HPEXPIREAT command with unified signature
- */
+
 int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
-    zend_long            timestamp_ms;
-    zval*                z_args = NULL;
-    int                  arg_count;
+    zend_long            timestamp;
+    zval*                fields;
+    char*                condition = NULL;
+    size_t               condition_len = 0;
 
-    if (zend_parse_method_parameters(
-            argc, object, "Osl*", &object, ce, &key, &key_len, &timestamp_ms, &z_args, &arg_count) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "Osla|s", &object, ce, &key, &key_len, 
+                                     &timestamp, &fields, &condition, &condition_len) == FAILURE) {
         return 0;
     }
 
-    if (arg_count < 1) {
-        zend_throw_exception(spl_ce_InvalidArgumentException, "HPEXPIREAT requires at least one field", 0);
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
 
-    valkey_glide = Z_VALKEY_GLIDE_P(object);
-    if (!valkey_glide || !valkey_glide->client) {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
-        return 0;
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = key_len;
+    args.fields = fields;
+    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
+    args.expiry = (int)timestamp;
+    args.condition = condition;
+
+    if (execute_h_simple_command(valkey_glide, HPExpireAt, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
     }
-
-    size_t total_args = 3 + arg_count;
-    char** cmd_args = emalloc(total_args * sizeof(char*));
-    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
-
-    cmd_args[0] = "HPEXPIREAT";
-    cmd_arg_lens[0] = 10;
-    cmd_args[1] = key;
-    cmd_arg_lens[1] = key_len;
-    
-    char ts_str[32];
-    snprintf(ts_str, sizeof(ts_str), ZEND_LONG_FMT, timestamp_ms);
-    cmd_args[2] = estrdup(ts_str);
-    cmd_arg_lens[2] = strlen(ts_str);
-
-    for (int i = 0; i < arg_count; i++) {
-        convert_to_string(&z_args[i]);
-        cmd_args[3 + i] = Z_STRVAL(z_args[i]);
-        cmd_arg_lens[3 + i] = Z_STRLEN(z_args[i]);
-    }
-
-    command_request_t* cmd_request = create_command_request();
-    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
-
-    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
-    
-    efree(cmd_args[2]);
-    efree(cmd_args);
-    efree(cmd_arg_lens);
-    
-    return result;
+    return 0;
 }
-/**
- * Execute HPTTL command with unified signature
- */
+
+int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zval*                fields;
+
+    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) == FAILURE) {
+        return 0;
+    }
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = key_len;
+    args.fields = fields;
+    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
+
+    if (execute_h_simple_command(valkey_glide, HTtl, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
+    }
+    return 0;
+}
+
 int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
-    zval*                z_args = NULL;
-    int                  arg_count;
+    zval*                fields;
 
-    if (zend_parse_method_parameters(
-            argc, object, "Os*", &object, ce, &key, &key_len, &z_args, &arg_count) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) == FAILURE) {
         return 0;
     }
 
-    if (arg_count < 1) {
-        zend_throw_exception(spl_ce_InvalidArgumentException, "HPTTL requires at least one field", 0);
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
 
-    valkey_glide = Z_VALKEY_GLIDE_P(object);
-    if (!valkey_glide || !valkey_glide->client) {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
-        return 0;
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = key_len;
+    args.fields = fields;
+    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
+
+    if (execute_h_simple_command(valkey_glide, HPTtl, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
     }
-
-    size_t total_args = 2 + arg_count;
-    char** cmd_args = emalloc(total_args * sizeof(char*));
-    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
-
-    cmd_args[0] = "HPTTL";
-    cmd_arg_lens[0] = 5;
-    cmd_args[1] = key;
-    cmd_arg_lens[1] = key_len;
-
-    for (int i = 0; i < arg_count; i++) {
-        convert_to_string(&z_args[i]);
-        cmd_args[2 + i] = Z_STRVAL(z_args[i]);
-        cmd_arg_lens[2 + i] = Z_STRLEN(z_args[i]);
-    }
-
-    command_request_t* cmd_request = create_command_request();
-    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
-
-    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
-    
-    efree(cmd_args);
-    efree(cmd_arg_lens);
-    
-    return result;
+    return 0;
 }
-/**
- * Execute HEXPIRETIME command with unified signature
- */
+
 int execute_hexpiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
-    zval*                z_args = NULL;
-    int                  arg_count;
+    zval*                fields;
 
-    if (zend_parse_method_parameters(
-            argc, object, "Os*", &object, ce, &key, &key_len, &z_args, &arg_count) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) == FAILURE) {
         return 0;
     }
 
-    if (arg_count < 1) {
-        zend_throw_exception(spl_ce_InvalidArgumentException, "HEXPIRETIME requires at least one field", 0);
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
 
-    valkey_glide = Z_VALKEY_GLIDE_P(object);
-    if (!valkey_glide || !valkey_glide->client) {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
-        return 0;
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = key_len;
+    args.fields = fields;
+    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
+
+    if (execute_h_simple_command(valkey_glide, HExpireTime, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
     }
-
-    size_t total_args = 2 + arg_count;
-    char** cmd_args = emalloc(total_args * sizeof(char*));
-    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
-
-    cmd_args[0] = "HEXPIRETIME";
-    cmd_arg_lens[0] = 11;
-    cmd_args[1] = key;
-    cmd_arg_lens[1] = key_len;
-
-    for (int i = 0; i < arg_count; i++) {
-        convert_to_string(&z_args[i]);
-        cmd_args[2 + i] = Z_STRVAL(z_args[i]);
-        cmd_arg_lens[2 + i] = Z_STRLEN(z_args[i]);
-    }
-
-    command_request_t* cmd_request = create_command_request();
-    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
-
-    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
-    
-    efree(cmd_args);
-    efree(cmd_arg_lens);
-    
-    return result;
+    return 0;
 }
-/**
- * Execute HPEXPIRETIME command with unified signature
- */
+
 int execute_hpexpiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
-    zval*                z_args = NULL;
-    int                  arg_count;
+    zval*                fields;
 
-    if (zend_parse_method_parameters(
-            argc, object, "Os*", &object, ce, &key, &key_len, &z_args, &arg_count) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) == FAILURE) {
         return 0;
     }
 
-    if (arg_count < 1) {
-        zend_throw_exception(spl_ce_InvalidArgumentException, "HPEXPIRETIME requires at least one field", 0);
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
 
-    valkey_glide = Z_VALKEY_GLIDE_P(object);
-    if (!valkey_glide || !valkey_glide->client) {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
-        return 0;
-    }
-
-    size_t total_args = 2 + arg_count;
-    char** cmd_args = emalloc(total_args * sizeof(char*));
-    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
-
-    cmd_args[0] = "HPEXPIRETIME";
-    cmd_arg_lens[0] = 12;
-    cmd_args[1] = key;
-    cmd_arg_lens[1] = key_len;
-
-    for (int i = 0; i < arg_count; i++) {
-        convert_to_string(&z_args[i]);
-        cmd_args[2 + i] = Z_STRVAL(z_args[i]);
-        cmd_arg_lens[2 + i] = Z_STRLEN(z_args[i]);
-    }
-
-    command_request_t* cmd_request = create_command_request();
-    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
-
-    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
-    
-    efree(cmd_args);
-    efree(cmd_arg_lens);
-    
-    return result;
-}
-
-// Hash Field Expiration execution functions
-int execute_hsetex_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* field_value_map, int expiry, const char* expiry_type, const char* condition) {
     h_command_args_t args = {0};
     args.key = key;
-    args.key_len = strlen(key);
-    args.field_values = field_value_map;
-    args.fv_count = 1;
-    args.expiry = expiry;
+    args.key_len = key_len;
+    args.fields = fields;
+    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
+
+    if (execute_h_simple_command(valkey_glide, HPExpireTime, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+int execute_hpersist_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zval*                fields;
+
+    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) == FAILURE) {
+        return 0;
+    }
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = key_len;
+    args.fields = fields;
+    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
+
+    if (execute_h_simple_command(valkey_glide, HPersist, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zval*                fields;
+    zend_long            expiry = 0;
+    char*                expiry_type = NULL;
+    size_t               expiry_type_len = 0;
+
+    if (zend_parse_method_parameters(argc, object, "Osa|ls", &object, ce, &key, &key_len, 
+                                     &fields, &expiry, &expiry_type, &expiry_type_len) == FAILURE) {
+        return 0;
+    }
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = key_len;
+    args.fields = fields;
+    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
+    args.expiry = (int)expiry;
     args.expiry_type = expiry_type;
-    args.condition = condition;
-    
-    return execute_h_generic_command(glide_client, HSetEx, &args, return_value, process_h_int_result);
-}
 
-int execute_hexpire_command(const void* glide_client, int argc, zval* return_value, const char* key, int seconds, zval* fields, const char* condition) {
-    h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = strlen(key);
-    args.fields = fields;
-    args.field_count = 1;
-    args.expiry = seconds;
-    args.condition = condition;
-    
-    return execute_h_generic_command(glide_client, HExpire, &args, return_value, process_h_array_result);
-}
-
-int execute_hpexpire_command(const void* glide_client, int argc, zval* return_value, const char* key, int milliseconds, zval* fields, const char* condition) {
-    h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = strlen(key);
-    args.fields = fields;
-    args.field_count = 1;
-    args.expiry = milliseconds;
-    args.condition = condition;
-    
-    return execute_h_generic_command(glide_client, HPExpire, &args, return_value, process_h_array_result);
-}
-
-int execute_hexpireat_command(const void* glide_client, int argc, zval* return_value, const char* key, int timestamp, zval* fields, const char* condition) {
-    h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = strlen(key);
-    args.fields = fields;
-    args.field_count = 1;
-    args.expiry = timestamp;
-    args.condition = condition;
-    
-    return execute_h_generic_command(glide_client, HExpireAt, &args, return_value, process_h_array_result);
-}
-
-int execute_hpexpireat_command(const void* glide_client, int argc, zval* return_value, const char* key, int timestamp, zval* fields, const char* condition) {
-    h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = strlen(key);
-    args.fields = fields;
-    args.field_count = 1;
-    args.expiry = timestamp;
-    args.condition = condition;
-    
-    return execute_h_generic_command(glide_client, HPExpireAt, &args, return_value, process_h_array_result);
-}
-
-int execute_httl_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields) {
-    h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = strlen(key);
-    args.fields = fields;
-    args.field_count = 1;
-    
-    return execute_h_generic_command(glide_client, HTtl, &args, return_value, process_h_array_result);
-}
-
-int execute_hpttl_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields) {
-    h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = strlen(key);
-    args.fields = fields;
-    args.field_count = 1;
-    
-    return execute_h_generic_command(glide_client, HPTtl, &args, return_value, process_h_array_result);
-}
-
-int execute_hexpiretime_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields) {
-    h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = strlen(key);
-    args.fields = fields;
-    args.field_count = 1;
-    
-    return execute_h_generic_command(glide_client, HExpireTime, &args, return_value, process_h_array_result);
-}
-
-int execute_hpexpiretime_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields) {
-    h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = strlen(key);
-    args.fields = fields;
-    args.field_count = 1;
-    
-    return execute_h_generic_command(glide_client, HPExpireTime, &args, return_value, process_h_array_result);
-}
-
-int execute_hpersist_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields) {
-    h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = strlen(key);
-    args.fields = fields;
-    args.field_count = 1;
-    
-    return execute_h_generic_command(glide_client, HPersist, &args, return_value, process_h_array_result);
-}
-
-int execute_hgetex_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields, int expiry, const char* expiry_type) {
-    h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = strlen(key);
-    args.fields = fields;
-    args.field_count = 1;
-    args.expiry = expiry;
-    args.expiry_type = expiry_type;
-    
-    return execute_h_generic_command(glide_client, HGetEx, &args, return_value, process_h_array_result);
+    if (execute_h_simple_command(valkey_glide, HGetEx, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
+    }
+    return 0;
 }
