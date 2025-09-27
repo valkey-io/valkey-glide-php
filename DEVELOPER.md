@@ -195,6 +195,12 @@ Before starting this step, make sure you've installed all software requirements.
     phpize
     ```
 
+    **Note for macOS users**: phpize on macOS (Homebrew) has a bug where it creates files with read-only permissions, causing permission errors on subsequent runs. If you encounter permission errors, fix them with:
+    ```bash
+    find build -type f -exec chmod u+w {} \;
+    chmod u+w run-tests.php configure config.h.in 2>/dev/null || true
+    ```
+
 4. Configure the build:
 
     ```bash
