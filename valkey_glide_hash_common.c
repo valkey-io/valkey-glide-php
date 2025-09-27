@@ -579,9 +579,9 @@ int prepare_h_hfe_args(h_command_args_t* args,
     }
 
     /* Calculate argument count: key + fields + expiry + optional args */
-    int arg_count = 2; /* key + fields/expiry */
+    int arg_count       = 2; /* key + fields/expiry */
     int need_expiry_str = 0;
-    
+
     if (args->expiry > 0) {
         arg_count++; /* expiry value */
         need_expiry_str = 1;
@@ -594,46 +594,46 @@ int prepare_h_hfe_args(h_command_args_t* args,
     }
 
     /* Allocate arrays */
-    *args_out = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-    
-    int alloc_count = need_expiry_str ? 1 : 0;
+
+    int alloc_count    = need_expiry_str ? 1 : 0;
     *allocated_strings = alloc_count > 0 ? (char**) emalloc(alloc_count * sizeof(char*)) : NULL;
-    *allocated_count = 0;
+    *allocated_count   = 0;
 
     /* Set key */
-    (*args_out)[0] = (uintptr_t) args->key;
+    (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
-    
+
     int arg_idx = 1;
-    
+
     /* Add fields (simplified - assumes single field for now) */
     if (args->field) {
-        (*args_out)[arg_idx] = (uintptr_t) args->field;
+        (*args_out)[arg_idx]     = (uintptr_t) args->field;
         (*args_len_out)[arg_idx] = args->field_len;
         arg_idx++;
     }
-    
+
     /* Add expiry value */
     if (need_expiry_str) {
         char* expiry_str = (char*) emalloc(32);
         snprintf(expiry_str, 32, "%d", args->expiry);
         (*allocated_strings)[(*allocated_count)++] = expiry_str;
-        (*args_out)[arg_idx] = (uintptr_t) expiry_str;
-        (*args_len_out)[arg_idx] = strlen(expiry_str);
+        (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
+        (*args_len_out)[arg_idx]                   = strlen(expiry_str);
         arg_idx++;
     }
-    
+
     /* Add expiry type */
     if (args->expiry_type) {
-        (*args_out)[arg_idx] = (uintptr_t) args->expiry_type;
+        (*args_out)[arg_idx]     = (uintptr_t) args->expiry_type;
         (*args_len_out)[arg_idx] = strlen(args->expiry_type);
         arg_idx++;
     }
-    
+
     /* Add condition */
     if (args->condition) {
-        (*args_out)[arg_idx] = (uintptr_t) args->condition;
+        (*args_out)[arg_idx]     = (uintptr_t) args->condition;
         (*args_len_out)[arg_idx] = strlen(args->condition);
         arg_idx++;
     }
@@ -1880,15 +1880,25 @@ int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_clas
     size_t               key_len;
     zval*                field_value_map;
     zend_long            expiry;
-    char*                expiry_type = NULL;
+    char*                expiry_type     = NULL;
     size_t               expiry_type_len = 0;
-    char*                condition = NULL;
-    size_t               condition_len = 0;
+    char*                condition       = NULL;
+    size_t               condition_len   = 0;
 
     /* Parse parameters: key, fieldValueMap, expiry, [expiry_type], [condition] */
-    if (zend_parse_method_parameters(argc, object, "Oal|ss", &object, ce, &key, &key_len, 
-                                     &field_value_map, &expiry, &expiry_type, &expiry_type_len, 
-                                     &condition, &condition_len) == FAILURE) {
+    if (zend_parse_method_parameters(argc,
+                                     object,
+                                     "Oal|ss",
+                                     &object,
+                                     ce,
+                                     &key,
+                                     &key_len,
+                                     &field_value_map,
+                                     &expiry,
+                                     &expiry_type,
+                                     &expiry_type_len,
+                                     &condition,
+                                     &condition_len) == FAILURE) {
         return 0;
     }
 
@@ -1900,14 +1910,14 @@ int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_clas
 
     /* Set up command args */
     h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = key_len;
-    args.field_values = field_value_map;
-    args.fv_count = 1;
-    args.is_array_arg = 1;
-    args.expiry = (int)expiry;
-    args.expiry_type = expiry_type;
-    args.condition = condition;
+    args.key              = key;
+    args.key_len          = key_len;
+    args.field_values     = field_value_map;
+    args.fv_count         = 1;
+    args.is_array_arg     = 1;
+    args.expiry           = (int) expiry;
+    args.expiry_type      = expiry_type;
+    args.condition        = condition;
 
     /* Execute with batch support */
     if (execute_h_simple_command(valkey_glide, HSetEx, &args, NULL, H_RESPONSE_INT, return_value)) {
@@ -1926,12 +1936,21 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
     size_t               key_len;
     zend_long            seconds;
     zval*                fields;
-    char*                condition = NULL;
+    char*                condition     = NULL;
     size_t               condition_len = 0;
 
     /* Parse parameters: key, seconds, fields, [condition] */
-    if (zend_parse_method_parameters(argc, object, "Osla|s", &object, ce, &key, &key_len, 
-                                     &seconds, &fields, &condition, &condition_len) == FAILURE) {
+    if (zend_parse_method_parameters(argc,
+                                     object,
+                                     "Osla|s",
+                                     &object,
+                                     ce,
+                                     &key,
+                                     &key_len,
+                                     &seconds,
+                                     &fields,
+                                     &condition,
+                                     &condition_len) == FAILURE) {
         return 0;
     }
 
@@ -1941,14 +1960,15 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
     }
 
     h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = key_len;
-    args.fields = fields;
-    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
-    args.expiry = (int)seconds;
-    args.condition = condition;
+    args.key              = key;
+    args.key_len          = key_len;
+    args.fields           = fields;
+    args.field_count      = zend_array_count(Z_ARRVAL_P(fields));
+    args.expiry           = (int) seconds;
+    args.condition        = condition;
 
-    if (execute_h_simple_command(valkey_glide, HExpire, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+    if (execute_h_simple_command(
+            valkey_glide, HExpire, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -1964,11 +1984,20 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
     size_t               key_len;
     zend_long            milliseconds;
     zval*                fields;
-    char*                condition = NULL;
+    char*                condition     = NULL;
     size_t               condition_len = 0;
 
-    if (zend_parse_method_parameters(argc, object, "Osla|s", &object, ce, &key, &key_len, 
-                                     &milliseconds, &fields, &condition, &condition_len) == FAILURE) {
+    if (zend_parse_method_parameters(argc,
+                                     object,
+                                     "Osla|s",
+                                     &object,
+                                     ce,
+                                     &key,
+                                     &key_len,
+                                     &milliseconds,
+                                     &fields,
+                                     &condition,
+                                     &condition_len) == FAILURE) {
         return 0;
     }
 
@@ -1978,14 +2007,15 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
     }
 
     h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = key_len;
-    args.fields = fields;
-    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
-    args.expiry = (int)milliseconds;
-    args.condition = condition;
+    args.key              = key;
+    args.key_len          = key_len;
+    args.fields           = fields;
+    args.field_count      = zend_array_count(Z_ARRVAL_P(fields));
+    args.expiry           = (int) milliseconds;
+    args.condition        = condition;
 
-    if (execute_h_simple_command(valkey_glide, HPExpire, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+    if (execute_h_simple_command(
+            valkey_glide, HPExpire, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2001,11 +2031,20 @@ int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_c
     size_t               key_len;
     zend_long            timestamp;
     zval*                fields;
-    char*                condition = NULL;
+    char*                condition     = NULL;
     size_t               condition_len = 0;
 
-    if (zend_parse_method_parameters(argc, object, "Osla|s", &object, ce, &key, &key_len, 
-                                     &timestamp, &fields, &condition, &condition_len) == FAILURE) {
+    if (zend_parse_method_parameters(argc,
+                                     object,
+                                     "Osla|s",
+                                     &object,
+                                     ce,
+                                     &key,
+                                     &key_len,
+                                     &timestamp,
+                                     &fields,
+                                     &condition,
+                                     &condition_len) == FAILURE) {
         return 0;
     }
 
@@ -2015,14 +2054,15 @@ int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_c
     }
 
     h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = key_len;
-    args.fields = fields;
-    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
-    args.expiry = (int)timestamp;
-    args.condition = condition;
+    args.key              = key;
+    args.key_len          = key_len;
+    args.fields           = fields;
+    args.field_count      = zend_array_count(Z_ARRVAL_P(fields));
+    args.expiry           = (int) timestamp;
+    args.condition        = condition;
 
-    if (execute_h_simple_command(valkey_glide, HExpireAt, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+    if (execute_h_simple_command(
+            valkey_glide, HExpireAt, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2038,11 +2078,20 @@ int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_
     size_t               key_len;
     zend_long            timestamp;
     zval*                fields;
-    char*                condition = NULL;
+    char*                condition     = NULL;
     size_t               condition_len = 0;
 
-    if (zend_parse_method_parameters(argc, object, "Osla|s", &object, ce, &key, &key_len, 
-                                     &timestamp, &fields, &condition, &condition_len) == FAILURE) {
+    if (zend_parse_method_parameters(argc,
+                                     object,
+                                     "Osla|s",
+                                     &object,
+                                     ce,
+                                     &key,
+                                     &key_len,
+                                     &timestamp,
+                                     &fields,
+                                     &condition,
+                                     &condition_len) == FAILURE) {
         return 0;
     }
 
@@ -2052,14 +2101,15 @@ int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_
     }
 
     h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = key_len;
-    args.fields = fields;
-    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
-    args.expiry = (int)timestamp;
-    args.condition = condition;
+    args.key              = key;
+    args.key_len          = key_len;
+    args.fields           = fields;
+    args.field_count      = zend_array_count(Z_ARRVAL_P(fields));
+    args.expiry           = (int) timestamp;
+    args.condition        = condition;
 
-    if (execute_h_simple_command(valkey_glide, HPExpireAt, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+    if (execute_h_simple_command(
+            valkey_glide, HPExpireAt, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2075,7 +2125,8 @@ int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_
     size_t               key_len;
     zval*                fields;
 
-    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) ==
+        FAILURE) {
         return 0;
     }
 
@@ -2085,10 +2136,10 @@ int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_
     }
 
     h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = key_len;
-    args.fields = fields;
-    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
+    args.key              = key;
+    args.key_len          = key_len;
+    args.fields           = fields;
+    args.field_count      = zend_array_count(Z_ARRVAL_P(fields));
 
     if (execute_h_simple_command(valkey_glide, HTtl, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
@@ -2106,7 +2157,8 @@ int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class
     size_t               key_len;
     zval*                fields;
 
-    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) ==
+        FAILURE) {
         return 0;
     }
 
@@ -2116,12 +2168,13 @@ int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class
     }
 
     h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = key_len;
-    args.fields = fields;
-    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
+    args.key              = key;
+    args.key_len          = key_len;
+    args.fields           = fields;
+    args.field_count      = zend_array_count(Z_ARRVAL_P(fields));
 
-    if (execute_h_simple_command(valkey_glide, HPTtl, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+    if (execute_h_simple_command(
+            valkey_glide, HPTtl, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2137,7 +2190,8 @@ int execute_hexpiretime_command(zval* object, int argc, zval* return_value, zend
     size_t               key_len;
     zval*                fields;
 
-    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) ==
+        FAILURE) {
         return 0;
     }
 
@@ -2147,12 +2201,13 @@ int execute_hexpiretime_command(zval* object, int argc, zval* return_value, zend
     }
 
     h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = key_len;
-    args.fields = fields;
-    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
+    args.key              = key;
+    args.key_len          = key_len;
+    args.fields           = fields;
+    args.field_count      = zend_array_count(Z_ARRVAL_P(fields));
 
-    if (execute_h_simple_command(valkey_glide, HExpireTime, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+    if (execute_h_simple_command(
+            valkey_glide, HExpireTime, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2168,7 +2223,8 @@ int execute_hpexpiretime_command(zval* object, int argc, zval* return_value, zen
     size_t               key_len;
     zval*                fields;
 
-    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) ==
+        FAILURE) {
         return 0;
     }
 
@@ -2178,12 +2234,13 @@ int execute_hpexpiretime_command(zval* object, int argc, zval* return_value, zen
     }
 
     h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = key_len;
-    args.fields = fields;
-    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
+    args.key              = key;
+    args.key_len          = key_len;
+    args.fields           = fields;
+    args.field_count      = zend_array_count(Z_ARRVAL_P(fields));
 
-    if (execute_h_simple_command(valkey_glide, HPExpireTime, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+    if (execute_h_simple_command(
+            valkey_glide, HPExpireTime, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2199,7 +2256,8 @@ int execute_hpersist_command(zval* object, int argc, zval* return_value, zend_cl
     size_t               key_len;
     zval*                fields;
 
-    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) ==
+        FAILURE) {
         return 0;
     }
 
@@ -2209,12 +2267,13 @@ int execute_hpersist_command(zval* object, int argc, zval* return_value, zend_cl
     }
 
     h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = key_len;
-    args.fields = fields;
-    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
+    args.key              = key;
+    args.key_len          = key_len;
+    args.fields           = fields;
+    args.field_count      = zend_array_count(Z_ARRVAL_P(fields));
 
-    if (execute_h_simple_command(valkey_glide, HPersist, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+    if (execute_h_simple_command(
+            valkey_glide, HPersist, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2229,12 +2288,21 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
     char*                key = NULL;
     size_t               key_len;
     zval*                fields;
-    zend_long            expiry = 0;
-    char*                expiry_type = NULL;
+    zend_long            expiry          = 0;
+    char*                expiry_type     = NULL;
     size_t               expiry_type_len = 0;
 
-    if (zend_parse_method_parameters(argc, object, "Osa|ls", &object, ce, &key, &key_len, 
-                                     &fields, &expiry, &expiry_type, &expiry_type_len) == FAILURE) {
+    if (zend_parse_method_parameters(argc,
+                                     object,
+                                     "Osa|ls",
+                                     &object,
+                                     ce,
+                                     &key,
+                                     &key_len,
+                                     &fields,
+                                     &expiry,
+                                     &expiry_type,
+                                     &expiry_type_len) == FAILURE) {
         return 0;
     }
 
@@ -2244,14 +2312,15 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
     }
 
     h_command_args_t args = {0};
-    args.key = key;
-    args.key_len = key_len;
-    args.fields = fields;
-    args.field_count = zend_array_count(Z_ARRVAL_P(fields));
-    args.expiry = (int)expiry;
-    args.expiry_type = expiry_type;
+    args.key              = key;
+    args.key_len          = key_len;
+    args.fields           = fields;
+    args.field_count      = zend_array_count(Z_ARRVAL_P(fields));
+    args.expiry           = (int) expiry;
+    args.expiry_type      = expiry_type;
 
-    if (execute_h_simple_command(valkey_glide, HGetEx, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+    if (execute_h_simple_command(
+            valkey_glide, HGetEx, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;

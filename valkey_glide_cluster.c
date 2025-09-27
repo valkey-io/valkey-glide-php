@@ -338,7 +338,8 @@ HKEYS_METHOD_IMPL(ValkeyGlideCluster)
 HVALS_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto long ValkeyGlideCluster::hSetEx(string key, long seconds, string field, string value, ...) */
+/* {{{ proto long ValkeyGlideCluster::hSetEx(string key, long seconds, string field, string value,
+ * ...) */
 HSETEX_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
@@ -354,7 +355,8 @@ HPEXPIRE_METHOD_IMPL(ValkeyGlideCluster)
 HEXPIREAT_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto array ValkeyGlideCluster::hPExpireAt(string key, long timestamp_ms, string field, ...) */
+/* {{{ proto array ValkeyGlideCluster::hPExpireAt(string key, long timestamp_ms, string field, ...)
+ */
 HPEXPIREAT_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
