@@ -88,6 +88,20 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
             arg_count = prepare_h_key_only_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
+        case HSetEx:
+        case HExpire:
+        case HPExpire:
+        case HExpireAt:
+        case HPExpireAt:
+        case HTtl:
+        case HPTtl:
+        case HExpireTime:
+        case HPExpireTime:
+        case HPersist:
+        case HGetEx:
+            arg_count = prepare_h_hfe_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
+            break;
         default:
             return 0;
     }
@@ -177,6 +191,20 @@ int execute_h_simple_command(valkey_glide_object* valkey_glide,
             break;
         case HIncrBy:
             arg_count = prepare_h_incr_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
+            break;
+        case HSetEx:
+        case HExpire:
+        case HPExpire:
+        case HExpireAt:
+        case HPExpireAt:
+        case HTtl:
+        case HPTtl:
+        case HExpireTime:
+        case HPExpireTime:
+        case HPersist:
+        case HGetEx:
+            arg_count = prepare_h_hfe_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         default:
@@ -532,6 +560,81 @@ int prepare_h_randfield_args(h_command_args_t* args,
         const char* withvalues_str = "WITHVALUES";
         (*args_out)[arg_idx]       = (uintptr_t) withvalues_str;
         (*args_len_out)[arg_idx]   = strlen(withvalues_str);
+        arg_idx++;
+    }
+
+    return arg_count;
+}
+
+/**
+ * Prepare arguments for Hash Field Expiration commands
+ */
+int prepare_h_hfe_args(h_command_args_t* args,
+                       uintptr_t**       args_out,
+                       unsigned long**   args_len_out,
+                       char***           allocated_strings,
+                       int*              allocated_count) {
+    if (!args->key) {
+        return 0;
+    }
+
+    /* Calculate argument count: key + fields + expiry + optional args */
+    int arg_count = 2; /* key + fields/expiry */
+    int need_expiry_str = 0;
+    
+    if (args->expiry > 0) {
+        arg_count++; /* expiry value */
+        need_expiry_str = 1;
+    }
+    if (args->expiry_type) {
+        arg_count++; /* expiry type */
+    }
+    if (args->condition) {
+        arg_count++; /* condition */
+    }
+
+    /* Allocate arrays */
+    *args_out = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    
+    int alloc_count = need_expiry_str ? 1 : 0;
+    *allocated_strings = alloc_count > 0 ? (char**) emalloc(alloc_count * sizeof(char*)) : NULL;
+    *allocated_count = 0;
+
+    /* Set key */
+    (*args_out)[0] = (uintptr_t) args->key;
+    (*args_len_out)[0] = args->key_len;
+    
+    int arg_idx = 1;
+    
+    /* Add fields (simplified - assumes single field for now) */
+    if (args->field) {
+        (*args_out)[arg_idx] = (uintptr_t) args->field;
+        (*args_len_out)[arg_idx] = args->field_len;
+        arg_idx++;
+    }
+    
+    /* Add expiry value */
+    if (need_expiry_str) {
+        char* expiry_str = (char*) emalloc(32);
+        snprintf(expiry_str, 32, "%d", args->expiry);
+        (*allocated_strings)[(*allocated_count)++] = expiry_str;
+        (*args_out)[arg_idx] = (uintptr_t) expiry_str;
+        (*args_len_out)[arg_idx] = strlen(expiry_str);
+        arg_idx++;
+    }
+    
+    /* Add expiry type */
+    if (args->expiry_type) {
+        (*args_out)[arg_idx] = (uintptr_t) args->expiry_type;
+        (*args_len_out)[arg_idx] = strlen(args->expiry_type);
+        arg_idx++;
+    }
+    
+    /* Add condition */
+    if (args->condition) {
+        (*args_out)[arg_idx] = (uintptr_t) args->condition;
+        (*args_len_out)[arg_idx] = strlen(args->condition);
         arg_idx++;
     }
 
@@ -2318,4 +2421,128 @@ int execute_hpexpiretime_command(zval* object, int argc, zval* return_value, zen
     efree(cmd_arg_lens);
     
     return result;
+}
+
+// Hash Field Expiration execution functions
+int execute_hsetex_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* field_value_map, int expiry, const char* expiry_type, const char* condition) {
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = strlen(key);
+    args.field_values = field_value_map;
+    args.fv_count = 1;
+    args.expiry = expiry;
+    args.expiry_type = expiry_type;
+    args.condition = condition;
+    
+    return execute_h_generic_command(glide_client, HSetEx, &args, return_value, process_h_int_result);
+}
+
+int execute_hexpire_command(const void* glide_client, int argc, zval* return_value, const char* key, int seconds, zval* fields, const char* condition) {
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = strlen(key);
+    args.fields = fields;
+    args.field_count = 1;
+    args.expiry = seconds;
+    args.condition = condition;
+    
+    return execute_h_generic_command(glide_client, HExpire, &args, return_value, process_h_array_result);
+}
+
+int execute_hpexpire_command(const void* glide_client, int argc, zval* return_value, const char* key, int milliseconds, zval* fields, const char* condition) {
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = strlen(key);
+    args.fields = fields;
+    args.field_count = 1;
+    args.expiry = milliseconds;
+    args.condition = condition;
+    
+    return execute_h_generic_command(glide_client, HPExpire, &args, return_value, process_h_array_result);
+}
+
+int execute_hexpireat_command(const void* glide_client, int argc, zval* return_value, const char* key, int timestamp, zval* fields, const char* condition) {
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = strlen(key);
+    args.fields = fields;
+    args.field_count = 1;
+    args.expiry = timestamp;
+    args.condition = condition;
+    
+    return execute_h_generic_command(glide_client, HExpireAt, &args, return_value, process_h_array_result);
+}
+
+int execute_hpexpireat_command(const void* glide_client, int argc, zval* return_value, const char* key, int timestamp, zval* fields, const char* condition) {
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = strlen(key);
+    args.fields = fields;
+    args.field_count = 1;
+    args.expiry = timestamp;
+    args.condition = condition;
+    
+    return execute_h_generic_command(glide_client, HPExpireAt, &args, return_value, process_h_array_result);
+}
+
+int execute_httl_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields) {
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = strlen(key);
+    args.fields = fields;
+    args.field_count = 1;
+    
+    return execute_h_generic_command(glide_client, HTtl, &args, return_value, process_h_array_result);
+}
+
+int execute_hpttl_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields) {
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = strlen(key);
+    args.fields = fields;
+    args.field_count = 1;
+    
+    return execute_h_generic_command(glide_client, HPTtl, &args, return_value, process_h_array_result);
+}
+
+int execute_hexpiretime_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields) {
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = strlen(key);
+    args.fields = fields;
+    args.field_count = 1;
+    
+    return execute_h_generic_command(glide_client, HExpireTime, &args, return_value, process_h_array_result);
+}
+
+int execute_hpexpiretime_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields) {
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = strlen(key);
+    args.fields = fields;
+    args.field_count = 1;
+    
+    return execute_h_generic_command(glide_client, HPExpireTime, &args, return_value, process_h_array_result);
+}
+
+int execute_hpersist_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields) {
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = strlen(key);
+    args.fields = fields;
+    args.field_count = 1;
+    
+    return execute_h_generic_command(glide_client, HPersist, &args, return_value, process_h_array_result);
+}
+
+int execute_hgetex_command(const void* glide_client, int argc, zval* return_value, const char* key, zval* fields, int expiry, const char* expiry_type) {
+    h_command_args_t args = {0};
+    args.key = key;
+    args.key_len = strlen(key);
+    args.fields = fields;
+    args.field_count = 1;
+    args.expiry = expiry;
+    args.expiry_type = expiry_type;
+    
+    return execute_h_generic_command(glide_client, HGetEx, &args, return_value, process_h_array_result);
 }
