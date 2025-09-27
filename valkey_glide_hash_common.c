@@ -1770,3 +1770,552 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
 
     return 0;
 }
+
+/**
+ * Execute HSETEX command with unified signature
+ */
+int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zend_long            seconds;
+    zval*                z_args = NULL;
+    int                  arg_count;
+
+    /* Parse parameters: key, seconds, field, value, [field, value, ...] */
+    if (zend_parse_method_parameters(
+            argc, object, "Osl*", &object, ce, &key, &key_len, &seconds, &z_args, &arg_count) == FAILURE) {
+        return 0;
+    }
+
+    /* Validate minimum arguments (field, value) */
+    if (arg_count < 2) {
+        zend_throw_exception(spl_ce_InvalidArgumentException, "HSETEX requires at least field and value", 0);
+        return 0;
+    }
+
+    valkey_glide = Z_VALKEY_GLIDE_P(object);
+    if (!valkey_glide || !valkey_glide->client) {
+        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
+        return 0;
+    }
+
+    /* Build command arguments */
+    size_t total_args = 3 + arg_count;
+    char** cmd_args = emalloc(total_args * sizeof(char*));
+    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
+
+    cmd_args[0] = "HSETEX";
+    cmd_arg_lens[0] = 6;
+    cmd_args[1] = key;
+    cmd_arg_lens[1] = key_len;
+    
+    char seconds_str[32];
+    snprintf(seconds_str, sizeof(seconds_str), ZEND_LONG_FMT, seconds);
+    cmd_args[2] = estrdup(seconds_str);
+    cmd_arg_lens[2] = strlen(seconds_str);
+
+    for (int i = 0; i < arg_count; i++) {
+        convert_to_string(&z_args[i]);
+        cmd_args[3 + i] = Z_STRVAL(z_args[i]);
+        cmd_arg_lens[3 + i] = Z_STRLEN(z_args[i]);
+    }
+
+    command_request_t* cmd_request = create_command_request();
+    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
+
+    int result = process_h_int_result_async(valkey_glide, cmd_request, return_value);
+    
+    efree(cmd_args[2]);
+    efree(cmd_args);
+    efree(cmd_arg_lens);
+    
+    return result;
+}
+/**
+ * Execute HEXPIRE command with unified signature
+ */
+int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zend_long            seconds;
+    zval*                z_args = NULL;
+    int                  arg_count;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Osl*", &object, ce, &key, &key_len, &seconds, &z_args, &arg_count) == FAILURE) {
+        return 0;
+    }
+
+    if (arg_count < 1) {
+        zend_throw_exception(spl_ce_InvalidArgumentException, "HEXPIRE requires at least one field", 0);
+        return 0;
+    }
+
+    valkey_glide = Z_VALKEY_GLIDE_P(object);
+    if (!valkey_glide || !valkey_glide->client) {
+        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
+        return 0;
+    }
+
+    size_t total_args = 3 + arg_count;
+    char** cmd_args = emalloc(total_args * sizeof(char*));
+    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
+
+    cmd_args[0] = "HEXPIRE";
+    cmd_arg_lens[0] = 7;
+    cmd_args[1] = key;
+    cmd_arg_lens[1] = key_len;
+    
+    char seconds_str[32];
+    snprintf(seconds_str, sizeof(seconds_str), ZEND_LONG_FMT, seconds);
+    cmd_args[2] = estrdup(seconds_str);
+    cmd_arg_lens[2] = strlen(seconds_str);
+
+    for (int i = 0; i < arg_count; i++) {
+        convert_to_string(&z_args[i]);
+        cmd_args[3 + i] = Z_STRVAL(z_args[i]);
+        cmd_arg_lens[3 + i] = Z_STRLEN(z_args[i]);
+    }
+
+    command_request_t* cmd_request = create_command_request();
+    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
+
+    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
+    
+    efree(cmd_args[2]);
+    efree(cmd_args);
+    efree(cmd_arg_lens);
+    
+    return result;
+}
+/**
+ * Execute HTTL command with unified signature
+ */
+int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zval*                z_args = NULL;
+    int                  arg_count;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Os*", &object, ce, &key, &key_len, &z_args, &arg_count) == FAILURE) {
+        return 0;
+    }
+
+    if (arg_count < 1) {
+        zend_throw_exception(spl_ce_InvalidArgumentException, "HTTL requires at least one field", 0);
+        return 0;
+    }
+
+    valkey_glide = Z_VALKEY_GLIDE_P(object);
+    if (!valkey_glide || !valkey_glide->client) {
+        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
+        return 0;
+    }
+
+    size_t total_args = 2 + arg_count;
+    char** cmd_args = emalloc(total_args * sizeof(char*));
+    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
+
+    cmd_args[0] = "HTTL";
+    cmd_arg_lens[0] = 4;
+    cmd_args[1] = key;
+    cmd_arg_lens[1] = key_len;
+
+    for (int i = 0; i < arg_count; i++) {
+        convert_to_string(&z_args[i]);
+        cmd_args[2 + i] = Z_STRVAL(z_args[i]);
+        cmd_arg_lens[2 + i] = Z_STRLEN(z_args[i]);
+    }
+
+    command_request_t* cmd_request = create_command_request();
+    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
+
+    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
+    
+    efree(cmd_args);
+    efree(cmd_arg_lens);
+    
+    return result;
+}
+/**
+ * Execute HPERSIST command with unified signature
+ */
+int execute_hpersist_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zval*                z_args = NULL;
+    int                  arg_count;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Os*", &object, ce, &key, &key_len, &z_args, &arg_count) == FAILURE) {
+        return 0;
+    }
+
+    if (arg_count < 1) {
+        zend_throw_exception(spl_ce_InvalidArgumentException, "HPERSIST requires at least one field", 0);
+        return 0;
+    }
+
+    valkey_glide = Z_VALKEY_GLIDE_P(object);
+    if (!valkey_glide || !valkey_glide->client) {
+        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
+        return 0;
+    }
+
+    size_t total_args = 2 + arg_count;
+    char** cmd_args = emalloc(total_args * sizeof(char*));
+    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
+
+    cmd_args[0] = "HPERSIST";
+    cmd_arg_lens[0] = 8;
+    cmd_args[1] = key;
+    cmd_arg_lens[1] = key_len;
+
+    for (int i = 0; i < arg_count; i++) {
+        convert_to_string(&z_args[i]);
+        cmd_args[2 + i] = Z_STRVAL(z_args[i]);
+        cmd_arg_lens[2 + i] = Z_STRLEN(z_args[i]);
+    }
+
+    command_request_t* cmd_request = create_command_request();
+    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
+
+    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
+    
+    efree(cmd_args);
+    efree(cmd_arg_lens);
+    
+    return result;
+}
+/**
+ * Execute HPEXPIRE command with unified signature
+ */
+int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zend_long            milliseconds;
+    zval*                z_args = NULL;
+    int                  arg_count;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Osl*", &object, ce, &key, &key_len, &milliseconds, &z_args, &arg_count) == FAILURE) {
+        return 0;
+    }
+
+    if (arg_count < 1) {
+        zend_throw_exception(spl_ce_InvalidArgumentException, "HPEXPIRE requires at least one field", 0);
+        return 0;
+    }
+
+    valkey_glide = Z_VALKEY_GLIDE_P(object);
+    if (!valkey_glide || !valkey_glide->client) {
+        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
+        return 0;
+    }
+
+    size_t total_args = 3 + arg_count;
+    char** cmd_args = emalloc(total_args * sizeof(char*));
+    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
+
+    cmd_args[0] = "HPEXPIRE";
+    cmd_arg_lens[0] = 8;
+    cmd_args[1] = key;
+    cmd_arg_lens[1] = key_len;
+    
+    char ms_str[32];
+    snprintf(ms_str, sizeof(ms_str), ZEND_LONG_FMT, milliseconds);
+    cmd_args[2] = estrdup(ms_str);
+    cmd_arg_lens[2] = strlen(ms_str);
+
+    for (int i = 0; i < arg_count; i++) {
+        convert_to_string(&z_args[i]);
+        cmd_args[3 + i] = Z_STRVAL(z_args[i]);
+        cmd_arg_lens[3 + i] = Z_STRLEN(z_args[i]);
+    }
+
+    command_request_t* cmd_request = create_command_request();
+    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
+
+    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
+    
+    efree(cmd_args[2]);
+    efree(cmd_args);
+    efree(cmd_arg_lens);
+    
+    return result;
+}
+/**
+ * Execute HEXPIREAT command with unified signature
+ */
+int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zend_long            timestamp;
+    zval*                z_args = NULL;
+    int                  arg_count;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Osl*", &object, ce, &key, &key_len, &timestamp, &z_args, &arg_count) == FAILURE) {
+        return 0;
+    }
+
+    if (arg_count < 1) {
+        zend_throw_exception(spl_ce_InvalidArgumentException, "HEXPIREAT requires at least one field", 0);
+        return 0;
+    }
+
+    valkey_glide = Z_VALKEY_GLIDE_P(object);
+    if (!valkey_glide || !valkey_glide->client) {
+        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
+        return 0;
+    }
+
+    size_t total_args = 3 + arg_count;
+    char** cmd_args = emalloc(total_args * sizeof(char*));
+    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
+
+    cmd_args[0] = "HEXPIREAT";
+    cmd_arg_lens[0] = 9;
+    cmd_args[1] = key;
+    cmd_arg_lens[1] = key_len;
+    
+    char ts_str[32];
+    snprintf(ts_str, sizeof(ts_str), ZEND_LONG_FMT, timestamp);
+    cmd_args[2] = estrdup(ts_str);
+    cmd_arg_lens[2] = strlen(ts_str);
+
+    for (int i = 0; i < arg_count; i++) {
+        convert_to_string(&z_args[i]);
+        cmd_args[3 + i] = Z_STRVAL(z_args[i]);
+        cmd_arg_lens[3 + i] = Z_STRLEN(z_args[i]);
+    }
+
+    command_request_t* cmd_request = create_command_request();
+    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
+
+    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
+    
+    efree(cmd_args[2]);
+    efree(cmd_args);
+    efree(cmd_arg_lens);
+    
+    return result;
+}
+/**
+ * Execute HPEXPIREAT command with unified signature
+ */
+int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zend_long            timestamp_ms;
+    zval*                z_args = NULL;
+    int                  arg_count;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Osl*", &object, ce, &key, &key_len, &timestamp_ms, &z_args, &arg_count) == FAILURE) {
+        return 0;
+    }
+
+    if (arg_count < 1) {
+        zend_throw_exception(spl_ce_InvalidArgumentException, "HPEXPIREAT requires at least one field", 0);
+        return 0;
+    }
+
+    valkey_glide = Z_VALKEY_GLIDE_P(object);
+    if (!valkey_glide || !valkey_glide->client) {
+        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
+        return 0;
+    }
+
+    size_t total_args = 3 + arg_count;
+    char** cmd_args = emalloc(total_args * sizeof(char*));
+    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
+
+    cmd_args[0] = "HPEXPIREAT";
+    cmd_arg_lens[0] = 10;
+    cmd_args[1] = key;
+    cmd_arg_lens[1] = key_len;
+    
+    char ts_str[32];
+    snprintf(ts_str, sizeof(ts_str), ZEND_LONG_FMT, timestamp_ms);
+    cmd_args[2] = estrdup(ts_str);
+    cmd_arg_lens[2] = strlen(ts_str);
+
+    for (int i = 0; i < arg_count; i++) {
+        convert_to_string(&z_args[i]);
+        cmd_args[3 + i] = Z_STRVAL(z_args[i]);
+        cmd_arg_lens[3 + i] = Z_STRLEN(z_args[i]);
+    }
+
+    command_request_t* cmd_request = create_command_request();
+    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
+
+    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
+    
+    efree(cmd_args[2]);
+    efree(cmd_args);
+    efree(cmd_arg_lens);
+    
+    return result;
+}
+/**
+ * Execute HPTTL command with unified signature
+ */
+int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zval*                z_args = NULL;
+    int                  arg_count;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Os*", &object, ce, &key, &key_len, &z_args, &arg_count) == FAILURE) {
+        return 0;
+    }
+
+    if (arg_count < 1) {
+        zend_throw_exception(spl_ce_InvalidArgumentException, "HPTTL requires at least one field", 0);
+        return 0;
+    }
+
+    valkey_glide = Z_VALKEY_GLIDE_P(object);
+    if (!valkey_glide || !valkey_glide->client) {
+        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
+        return 0;
+    }
+
+    size_t total_args = 2 + arg_count;
+    char** cmd_args = emalloc(total_args * sizeof(char*));
+    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
+
+    cmd_args[0] = "HPTTL";
+    cmd_arg_lens[0] = 5;
+    cmd_args[1] = key;
+    cmd_arg_lens[1] = key_len;
+
+    for (int i = 0; i < arg_count; i++) {
+        convert_to_string(&z_args[i]);
+        cmd_args[2 + i] = Z_STRVAL(z_args[i]);
+        cmd_arg_lens[2 + i] = Z_STRLEN(z_args[i]);
+    }
+
+    command_request_t* cmd_request = create_command_request();
+    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
+
+    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
+    
+    efree(cmd_args);
+    efree(cmd_arg_lens);
+    
+    return result;
+}
+/**
+ * Execute HEXPIRETIME command with unified signature
+ */
+int execute_hexpiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zval*                z_args = NULL;
+    int                  arg_count;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Os*", &object, ce, &key, &key_len, &z_args, &arg_count) == FAILURE) {
+        return 0;
+    }
+
+    if (arg_count < 1) {
+        zend_throw_exception(spl_ce_InvalidArgumentException, "HEXPIRETIME requires at least one field", 0);
+        return 0;
+    }
+
+    valkey_glide = Z_VALKEY_GLIDE_P(object);
+    if (!valkey_glide || !valkey_glide->client) {
+        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
+        return 0;
+    }
+
+    size_t total_args = 2 + arg_count;
+    char** cmd_args = emalloc(total_args * sizeof(char*));
+    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
+
+    cmd_args[0] = "HEXPIRETIME";
+    cmd_arg_lens[0] = 11;
+    cmd_args[1] = key;
+    cmd_arg_lens[1] = key_len;
+
+    for (int i = 0; i < arg_count; i++) {
+        convert_to_string(&z_args[i]);
+        cmd_args[2 + i] = Z_STRVAL(z_args[i]);
+        cmd_arg_lens[2 + i] = Z_STRLEN(z_args[i]);
+    }
+
+    command_request_t* cmd_request = create_command_request();
+    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
+
+    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
+    
+    efree(cmd_args);
+    efree(cmd_arg_lens);
+    
+    return result;
+}
+/**
+ * Execute HPEXPIRETIME command with unified signature
+ */
+int execute_hpexpiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zval*                z_args = NULL;
+    int                  arg_count;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Os*", &object, ce, &key, &key_len, &z_args, &arg_count) == FAILURE) {
+        return 0;
+    }
+
+    if (arg_count < 1) {
+        zend_throw_exception(spl_ce_InvalidArgumentException, "HPEXPIRETIME requires at least one field", 0);
+        return 0;
+    }
+
+    valkey_glide = Z_VALKEY_GLIDE_P(object);
+    if (!valkey_glide || !valkey_glide->client) {
+        zend_throw_exception(get_valkey_glide_exception_ce(), "ValkeyGlide client is not connected", 0);
+        return 0;
+    }
+
+    size_t total_args = 2 + arg_count;
+    char** cmd_args = emalloc(total_args * sizeof(char*));
+    size_t* cmd_arg_lens = emalloc(total_args * sizeof(size_t));
+
+    cmd_args[0] = "HPEXPIRETIME";
+    cmd_arg_lens[0] = 12;
+    cmd_args[1] = key;
+    cmd_arg_lens[1] = key_len;
+
+    for (int i = 0; i < arg_count; i++) {
+        convert_to_string(&z_args[i]);
+        cmd_args[2 + i] = Z_STRVAL(z_args[i]);
+        cmd_arg_lens[2 + i] = Z_STRLEN(z_args[i]);
+    }
+
+    command_request_t* cmd_request = create_command_request();
+    cmd_request->command = create_command(total_args, (const char**)cmd_args, cmd_arg_lens);
+
+    int result = process_h_array_result_async(valkey_glide, cmd_request, return_value);
+    
+    efree(cmd_args);
+    efree(cmd_arg_lens);
+    
+    return result;
+}

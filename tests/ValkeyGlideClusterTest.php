@@ -936,4 +936,84 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         return $this->valkey_glide->waitaof(uniqid(), 0, 0, 0);
     }
+
+    public function testClusterHashExpiration()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
+        }
+
+        $key = $this->createRandomString(10);
+        
+        // Test HSETEX in cluster
+        $result = $this->valkey_glide_cluster->hSetEx($key, 60, 'field1', 'value1');
+        $this->assertEquals(1, $result);
+        $this->assertEquals('value1', $this->valkey_glide_cluster->hGet($key, 'field1'));
+        
+        // Test multiple fields
+        $result = $this->valkey_glide_cluster->hSetEx($key, 60, 'field2', 'value2', 'field3', 'value3');
+        $this->assertEquals(2, $result);
+        
+        // Test HEXPIRE on multiple fields
+        $this->valkey_glide_cluster->hSet($key, 'field4', 'value4', 'field5', 'value5');
+        $result = $this->valkey_glide_cluster->hExpire($key, 60, 'field4', 'field5');
+        $this->assertEquals([1, 1], $result);
+        
+        // Test HTTL
+        $ttl = $this->valkey_glide_cluster->hTtl($key, 'field1', 'field4');
+        $this->assertCount(2, $ttl);
+        $this->assertGreaterThan(0, $ttl[0]);
+        $this->assertGreaterThan(0, $ttl[1]);
+        
+        // Test HPERSIST
+        $result = $this->valkey_glide_cluster->hPersist($key, 'field1');
+        $this->assertEquals([1], $result);
+        
+        // Verify expiration was removed
+        $ttl = $this->valkey_glide_cluster->hTtl($key, 'field1');
+        $this->assertEquals([-1], $ttl);
+        
+        // Test all expiration commands work in cluster
+        $this->assertEquals([1], $this->valkey_glide_cluster->hPExpire($key, 60000, 'field4'));
+        $this->assertEquals([1], $this->valkey_glide_cluster->hExpireAt($key, time() + 3600, 'field4'));
+        $this->assertEquals([1], $this->valkey_glide_cluster->hPExpireAt($key, (time() + 3600) * 1000, 'field4'));
+        
+        // Test TTL variants
+        $pttl = $this->valkey_glide_cluster->hPTtl($key, 'field4');
+        $this->assertGreaterThan(0, $pttl[0]);
+        
+        $expireTime = $this->valkey_glide_cluster->hExpireTime($key, 'field4');
+        $this->assertGreaterThan(time(), $expireTime[0]);
+        
+        $pexpireTime = $this->valkey_glide_cluster->hPExpireTime($key, 'field4');
+        $this->assertGreaterThan(time() * 1000, $pexpireTime[0]);
+    }
+
+    public function testClusterHashExpirationCrossSlot()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
+        }
+
+        // Test with hash tags to ensure same slot
+        $key1 = '{user:1000}:profile';
+        $key2 = '{user:1000}:settings';
+        
+        $this->valkey_glide_cluster->hSet($key1, 'name', 'John', 'age', '30');
+        $this->valkey_glide_cluster->hSet($key2, 'theme', 'dark', 'lang', 'en');
+        
+        // Test expiration commands work on both keys
+        $result1 = $this->valkey_glide_cluster->hExpire($key1, 60, 'name', 'age');
+        $result2 = $this->valkey_glide_cluster->hExpire($key2, 60, 'theme', 'lang');
+        
+        $this->assertEquals([1, 1], $result1);
+        $this->assertEquals([1, 1], $result2);
+        
+        // Verify TTL works
+        $ttl1 = $this->valkey_glide_cluster->hTtl($key1, 'name');
+        $ttl2 = $this->valkey_glide_cluster->hTtl($key2, 'theme');
+        
+        $this->assertGreaterThan(0, $ttl1[0]);
+        $this->assertGreaterThan(0, $ttl2[0]);
+    }
 }

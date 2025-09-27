@@ -492,6 +492,56 @@ class ValkeyGlideCluster
     public function hVals(string $key): ValkeyGlideCluster|array|false;
 
     /**
+     * @see ValkeyGlide::hSetEx
+     */
+    public function hSetEx(string $key, int $seconds, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+
+    /**
+     * @see ValkeyGlide::hExpire
+     */
+    public function hExpire(string $key, int $seconds, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hPExpire
+     */
+    public function hPExpire(string $key, int $milliseconds, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hExpireAt
+     */
+    public function hExpireAt(string $key, int $unix_timestamp, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hPExpireAt
+     */
+    public function hPExpireAt(string $key, int $unix_timestamp_ms, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hTtl
+     */
+    public function hTtl(string $key, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hPTtl
+     */
+    public function hPTtl(string $key, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hExpireTime
+     */
+    public function hExpireTime(string $key, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hPExpireTime
+     */
+    public function hPExpireTime(string $key, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hPersist
+     */
+    public function hPersist(string $key, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
      * @see ValkeyGlide::incr
      */
     public function incr(string $key, int $by = 1): ValkeyGlideCluster|int|false;

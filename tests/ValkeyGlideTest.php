@@ -3708,6 +3708,91 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
     }
 
+    public function testHashExpiration()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
+        }
+
+        $key = $this->createRandomString(10);
+        
+        // Test HSETEX
+        $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 60, 'field1', 'value1'));
+        $this->assertEquals('value1', $this->valkey_glide->hGet($key, 'field1'));
+        
+        // Test multiple fields with HSETEX
+        $this->assertEquals(2, $this->valkey_glide->hSetEx($key, 60, 'field2', 'value2', 'field3', 'value3'));
+        
+        // Test HEXPIRE
+        $this->valkey_glide->hSet($key, 'field4', 'value4');
+        $result = $this->valkey_glide->hExpire($key, 60, 'field4');
+        $this->assertEquals([1], $result);
+        
+        // Test HEXPIRE on multiple fields
+        $this->valkey_glide->hSet($key, 'field5', 'value5', 'field6', 'value6');
+        $result = $this->valkey_glide->hExpire($key, 60, 'field5', 'field6');
+        $this->assertEquals([1, 1], $result);
+        
+        // Test HTTL
+        $ttl = $this->valkey_glide->hTtl($key, 'field1', 'field4');
+        $this->assertCount(2, $ttl);
+        $this->assertGreaterThan(0, $ttl[0]);
+        $this->assertGreaterThan(0, $ttl[1]);
+        
+        // Test HPERSIST
+        $result = $this->valkey_glide->hPersist($key, 'field1');
+        $this->assertEquals([1], $result);
+        
+        // Verify field no longer has expiration
+        $ttl = $this->valkey_glide->hTtl($key, 'field1');
+        $this->assertEquals([-1], $ttl);
+        
+        // Test millisecond variants
+        $this->assertEquals([1], $this->valkey_glide->hPExpire($key, 60000, 'field4'));
+        $pttl = $this->valkey_glide->hPTtl($key, 'field4');
+        $this->assertGreaterThan(0, $pttl[0]);
+        
+        // Test timestamp variants
+        $futureTimestamp = time() + 3600;
+        $this->assertEquals([1], $this->valkey_glide->hExpireAt($key, $futureTimestamp, 'field4'));
+        
+        $futureTimestampMs = $futureTimestamp * 1000;
+        $this->assertEquals([1], $this->valkey_glide->hPExpireAt($key, $futureTimestampMs, 'field4'));
+        
+        // Test expire time commands
+        $expireTime = $this->valkey_glide->hExpireTime($key, 'field4');
+        $this->assertGreaterThanOrEqual($futureTimestamp - 1, $expireTime[0]);
+        
+        $pexpireTime = $this->valkey_glide->hPExpireTime($key, 'field4');
+        $this->assertGreaterThanOrEqual($futureTimestampMs - 1000, $pexpireTime[0]);
+        
+        // Test error conditions
+        $result = $this->valkey_glide->hExpire($key, 60, 'nonexistent');
+        $this->assertEquals([-2], $result); // -2 = field doesn't exist
+        
+        $result = $this->valkey_glide->hTtl($key, 'nonexistent');
+        $this->assertEquals([-2], $result);
+        
+        $result = $this->valkey_glide->hPersist($key, 'nonexistent');
+        $this->assertEquals([-2], $result);
+        
+        // Test on non-existent key
+        $nonexistentKey = $this->createRandomString(10);
+        $result = $this->valkey_glide->hExpire($nonexistentKey, 60, 'field1');
+        $this->assertEquals([-2], $result);
+        
+        // Test persist on field without expiration
+        $this->valkey_glide->hSet($key, 'no_expire', 'value');
+        $result = $this->valkey_glide->hPersist($key, 'no_expire');
+        $this->assertEquals([-1], $result); // -1 = field has no expiration
+        
+        // Test edge case: zero expiration
+        $result = $this->valkey_glide->hSetEx($key, 0, 'expire_now', 'value');
+        $this->assertEquals(1, $result);
+        sleep(1);
+        $this->assertFalse($this->valkey_glide->hExists($key, 'expire_now'));
+    }
+
     public function testHRandField()
     {
         if (version_compare($this->version, '6.2.0') < 0) {
