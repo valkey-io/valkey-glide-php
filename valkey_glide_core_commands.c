@@ -1606,13 +1606,8 @@ int execute_unlink_array(const void* glide_client,
 
     /* Create temporary zval array from HashTable */
     zval keys_array;
-    array_init(&keys_array);
-
-    zval* key;
-    ZEND_HASH_FOREACH_VAL(keys_hash, key) {
-        add_next_index_zval(&keys_array, key);
-    }
-    ZEND_HASH_FOREACH_END();
+    ZVAL_ARR(&keys_array, keys_hash);
+    GC_TRY_ADDREF(keys_hash);  // keep alive
 
     /* Use core framework with converted array */
     core_command_args_t args = {0};
@@ -1642,6 +1637,7 @@ int execute_unlink_array(const void* glide_client,
             free_command_result(cmd_result);
         }
     }
+    zval_ptr_dtor(&keys_array);
     free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
     return result;
 }
