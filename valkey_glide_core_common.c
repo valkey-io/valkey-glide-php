@@ -102,12 +102,14 @@ int execute_core_command(valkey_glide_object* valkey_glide,
             /* Non-routed commands use standard processor */
             res = processor(result->response, result_ptr, return_value);
         } else {
+            efree(result_ptr);
             ZVAL_FALSE(return_value);
         }
 
         /* Free the result - handle_string_response doesn't free it */
         free_command_result(result);
     } else {
+        efree(result_ptr);
         ZVAL_FALSE(return_value);
     }
 

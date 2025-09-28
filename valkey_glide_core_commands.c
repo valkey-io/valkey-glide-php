@@ -2059,6 +2059,8 @@ int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_e
         arg_count++;
     }
 
+    char minmatchlen_str[32];
+
     /* Add MINMATCHLEN option if specified */
     if (has_minmatchlen) {
         args[arg_count]     = (uintptr_t) "MINMATCHLEN";
@@ -2067,12 +2069,11 @@ int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_e
 
         /* Add the minmatchlen value */
         size_t minmatchlen_len;
-        char*  minmatchlen_str = long_to_string(minmatchlen_value, &minmatchlen_len);
-        if (!minmatchlen_str) {
-            return 0;
-        }
-        args[arg_count]     = (uintptr_t) minmatchlen_str;
-        args_len[arg_count] = minmatchlen_len;
+        minmatchlen_len =
+            snprintf(minmatchlen_str, sizeof(minmatchlen_str), "%ld", minmatchlen_value);
+        minmatchlen_str[minmatchlen_len] = '\0';
+        args[arg_count]                  = (uintptr_t) minmatchlen_str;
+        args_len[arg_count]              = minmatchlen_len;
         arg_count++;
     }
 
