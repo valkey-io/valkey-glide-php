@@ -853,7 +853,6 @@ int prepare_geo_search_unified_args(geo_search_params_t* params,
         size_t count_str_len;
         char*  count_str = long_to_string(params->options.count, &count_str_len);
 
-
         (*args_out)[arg_idx]                       = (uintptr_t) count_str;
         (*args_len_out)[arg_idx++]                 = count_str_len;
         (*allocated_strings)[(*allocated_count)++] = count_str;

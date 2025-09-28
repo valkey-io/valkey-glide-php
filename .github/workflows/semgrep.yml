@@ -29,8 +29,8 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      # A Docker image with Semgrep installed. Do not change this.
-      image: semgrep/semgrep
+      # A Docker image with Semgrep installed. Pinned to specific version to avoid Docker Hub rate limiting.
+      image: semgrep/semgrep:1.45.0
 
     # Skip any PR created by dependabot to avoid permission issues:
     if: (github.actor != 'dependabot[bot]' && github.repository_owner == 'valkey-io')

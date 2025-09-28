@@ -10,6 +10,9 @@ PHP_ARG_ENABLE(valkey_glide_debug, whether to enable debug mode,
 PHP_ARG_ENABLE(debug, whether to enable debug mode (alias for valkey-glide-debug),
 [  --enable-debug   Enable debug mode (alias for valkey-glide-debug)], no, no)
 
+PHP_ARG_ENABLE(header_generation, whether to enable header generation during configure,
+[  --disable-header-generation   Skip header and protobuf generation during configure], yes, no)
+
 if test "$PHP_VALKEY_GLIDE" != "no"; then
 
   AC_MSG_RESULT([=== VALKEY GLIDE CONFIG START ===])
@@ -65,24 +68,39 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     LDFLAGS="$LDFLAGS $PHP_VALKEY_GLIDE_LDFLAGS"
   fi
   
-  dnl Add protobuf-c library linking
-  AC_MSG_CHECKING([for protobuf-c library])
-  AC_CHECK_LIB([protobuf-c], [protobuf_c_empty_string], [
-    AC_MSG_RESULT([found])
-    PHP_ADD_LIBRARY(protobuf-c, 1, VALKEY_GLIDE_SHARED_LIBADD)
-  ], [
-    AC_MSG_ERROR([protobuf-c library not found. Please install libprotobuf-c-dev])
-  ])
-  
-  dnl Add Rust FFI library linking (file will be built during make)
-  AC_MSG_RESULT([Adding Rust FFI library to linking flags])
-  VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD \$(top_builddir)/valkey-glide/ffi/target/release/libglide_ffi.a -lresolv"
-  
-  PHP_SUBST(VALKEY_GLIDE_SHARED_LIBADD)
+  dnl Add protobuf-c library linking (Linux only - macOS uses rpath)
+  case $host_os in
+    darwin*)
+      AC_MSG_CHECKING([for protobuf-c library])
+      AC_MSG_RESULT([skipped on macOS - using rpath linking])
+      ;;
+    *)
+      AC_MSG_CHECKING([for protobuf-c library])
+      AC_CHECK_LIB([protobuf-c], [protobuf_c_empty_string], [
+        AC_MSG_RESULT([found via library check])
+        PHP_ADD_LIBRARY(protobuf-c, 1, VALKEY_GLIDE_SHARED_LIBADD)
+      ], [
+        AC_MSG_ERROR([protobuf-c library not found. Please install libprotobuf-c-dev])
+      ])
+      ;;
+  esac
   
   PHP_NEW_EXTENSION(valkey_glide,
     valkey_glide.c valkey_glide_cluster.c cluster_scan_cursor.c command_response.c logger.c valkey_glide_commands.c valkey_glide_commands_2.c valkey_glide_commands_3.c valkey_glide_core_commands.c valkey_glide_core_common.c valkey_glide_expire_commands.c valkey_glide_geo_commands.c valkey_glide_geo_common.c valkey_glide_hash_common.c valkey_glide_list_common.c valkey_glide_s_common.c valkey_glide_str_commands.c valkey_glide_x_commands.c valkey_glide_x_common.c valkey_glide_z.c valkey_glide_z_common.c valkey_z_php_methods.c src/command_request.pb-c.c src/connection_request.pb-c.c src/response.pb-c.c src/client_constructor_mock.c,
     $ext_shared,, $VALKEY_GLIDE_SHARED_LIBADD)
+
+  dnl Add FFI library only for macOS (keep Mac working as before)
+  case $host_os in
+    darwin*)
+      VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD \$(top_builddir)/valkey-glide/ffi/target/release/libglide_ffi.a -lresolv"
+      ;;
+    *)
+      dnl Add Rust FFI library linking for Linux (like working commit)
+      VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD \$(top_builddir)/valkey-glide/ffi/target/release/libglide_ffi.a -lresolv"
+      ;;
+  esac
+  
+  PHP_SUBST(VALKEY_GLIDE_SHARED_LIBADD)
 
   dnl Set protobuf-related variables
   PROTOC="protoc"
@@ -90,41 +108,44 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
   GEN_INCLUDE_DIR="include/glide"
   GEN_SRC_DIR="src"
 
-  dnl Debug build environment
-  AC_MSG_RESULT([Debug: PEAR_INSTALLDIR=$PEAR_INSTALLDIR])
-  AC_MSG_RESULT([Debug: PEAR_TEMP_DIR=$PEAR_TEMP_DIR])
-  AC_MSG_RESULT([Debug: configure script=$0])
-  AC_MSG_RESULT([Debug: current directory=$(pwd)])
-  AC_MSG_RESULT([Debug: files in current dir=$(ls -la . | head -10)])
-  
   dnl Extract source directory from configure script path
   PECL_SOURCE_DIR=$(dirname "$0")
-  AC_MSG_RESULT([Debug: PECL source dir=$PECL_SOURCE_DIR])
-  AC_MSG_RESULT([Debug: .submodule-commits in source=$(test -f "$PECL_SOURCE_DIR/.submodule-commits" && echo "yes" || echo "no")])
-  AC_MSG_RESULT([Debug: .gitmodules in source=$(test -f "$PECL_SOURCE_DIR/.gitmodules" && echo "yes" || echo "no")])
-  AC_MSG_RESULT([Debug: valkey-glide in source=$(test -d "$PECL_SOURCE_DIR/valkey-glide" && echo "yes" || echo "no")])
-  AC_MSG_RESULT([Debug: files in source dir=$(ls -la "$PECL_SOURCE_DIR" | head -10)])
 
-  dnl Detect PECL vs PIE builds:
-  dnl - PECL: Has .submodule-commits file (created specifically for PECL packages)
-  dnl - PIE: Has .gitmodules file (full git repository)
-  if test -f "$PECL_SOURCE_DIR/.submodule-commits"; then
-    AC_MSG_CHECKING([for header generation (PECL build detected - has .submodule-commits)])
+  dnl Check if header generation is enabled
+  if test "$PHP_HEADER_GENERATION" != "no"; then
+    dnl Generate protobuf files for all builds to avoid make dependency issues
+    AC_MSG_CHECKING([for protobuf file generation])
+    
+    dnl Ensure submodules are available
+    if test -f ".gitmodules" && test -d ".git"; then
+      git submodule update --init --recursive >/dev/null 2>&1 || true
+    fi
+    
+    dnl Generate protobuf files if they don't exist and we have the source
+    if test -d "valkey-glide/glide-core/src/protobuf" && command -v protoc-c >/dev/null 2>&1; then
+      mkdir -p include/glide src
+      python3 utils/remove_optional_from_proto.py >/dev/null 2>&1 || true
+      
+      for proto in valkey-glide/glide-core/src/protobuf/*.proto; do
+        if test -f "$proto"; then
+          protoc-c --c_out=src --proto_path=valkey-glide/glide-core/src/protobuf "$proto" >/dev/null 2>&1 || true
+        fi
+      done
+      cp src/*.pb-c.h include/glide/ 2>/dev/null || true
+      AC_MSG_RESULT([protobuf files generated])
+    else
+      AC_MSG_RESULT([protobuf files will be generated during make])
+    fi
+    
+    dnl Only run full header generation for PECL builds (has .submodule-commits)
+    if test -f "$PECL_SOURCE_DIR/.submodule-commits"; then
+      AC_MSG_CHECKING([for header generation (PECL build detected - has .submodule-commits)])
     
     dnl Save current build directory before changing to source
     BUILD_DIR=$(pwd)
-    AC_MSG_RESULT([Debug: starting in build directory: $BUILD_DIR])
     
     dnl Search for arginfo.h files in starting directory and subdirectories
-    AC_MSG_RESULT([Debug: searching for arginfo.h files in build area])
     ARGINFO_FILES=$(find "$BUILD_DIR" -name "*arginfo.h" 2>/dev/null || echo "none")
-    AC_MSG_RESULT([Debug: arginfo files found: $ARGINFO_FILES])
-    
-    dnl Also search in parent directories in case they're elsewhere
-    PARENT_DIR=$(dirname "$BUILD_DIR")
-    AC_MSG_RESULT([Debug: searching parent directory: $PARENT_DIR])
-    PARENT_ARGINFO=$(find "$PARENT_DIR" -name "*arginfo.h" 2>/dev/null | head -5 || echo "none")
-    AC_MSG_RESULT([Debug: arginfo files in parent: $PARENT_ARGINFO])
     
     dnl Debug tool availability
     AC_MSG_RESULT([Debug: git=$(which git || echo "NOT FOUND")])
@@ -302,6 +323,7 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     fi
     
     dnl For PECL builds, handle submodules using .submodule-commits file
+    dnl For PIE builds, handle submodules using git submodule update
     if test -f ".submodule-commits" && test ! -d "valkey-glide/.git"; then
       AC_MSG_RESULT([cloning submodules from .submodule-commits])
       
@@ -323,8 +345,11 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       git fetch --depth 1 origin "$SUBMODULE_COMMIT" || AC_MSG_ERROR([Failed to fetch commit $SUBMODULE_COMMIT])
       git checkout "$SUBMODULE_COMMIT" || AC_MSG_ERROR([Failed to checkout commit $SUBMODULE_COMMIT])
       cd ..
+    elif test -f ".gitmodules" && test -d ".git"; then
+      AC_MSG_RESULT([updating submodules using git submodule update])
+      git submodule update --init --recursive || AC_MSG_ERROR([Failed to update submodules])
     else
-      AC_MSG_RESULT([submodules already exist or no .submodule-commits])
+      AC_MSG_RESULT([submodules already exist or no submodule info found])
     fi
     
     dnl Generate protobuf files
@@ -365,12 +390,27 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       fi
       
       dnl Set up Rust environment variables for cargo
-      CARGO_DIR=$(dirname "$CARGO_PATH")
-      RUST_TOOLCHAIN_DIR=$(dirname "$CARGO_DIR")
-      AC_MSG_RESULT([Debug: CARGO_HOME=$RUST_TOOLCHAIN_DIR])
-      AC_MSG_RESULT([Debug: CARGO_DIR=$CARGO_DIR])
+      if test -n "$CARGO_PATH"; then
+        CARGO_DIR=$(dirname "$CARGO_PATH")
+        RUST_TOOLCHAIN_DIR=$(dirname "$CARGO_DIR")
+        
+        dnl Use user's home directory for CARGO_HOME to avoid permission issues
+        if test -n "$HOME" && test -d "$HOME"; then
+          CARGO_HOME_DIR="$HOME/.cargo"
+        else
+          CARGO_HOME_DIR="$RUST_TOOLCHAIN_DIR"
+        fi
+        
+        AC_MSG_RESULT([Debug: CARGO_HOME=$CARGO_HOME_DIR])
+        AC_MSG_RESULT([Debug: CARGO_DIR=$CARGO_DIR])
+      else
+        dnl Fallback to user's home directory
+        CARGO_HOME_DIR="$HOME/.cargo"
+        CARGO_DIR="$HOME/.cargo/bin"
+        AC_MSG_RESULT([Debug: Using fallback CARGO_HOME=$CARGO_HOME_DIR])
+      fi
       
-      cd valkey-glide/ffi && CARGO_HOME="$RUST_TOOLCHAIN_DIR" PATH="$CARGO_DIR:$PATH" ../../cargo build --release && CARGO_HOME="$RUST_TOOLCHAIN_DIR" PATH="$CARGO_DIR:$PATH" ../../cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
+      cd valkey-glide/ffi && CARGO_HOME="$CARGO_HOME_DIR" PATH="$CARGO_DIR:$PATH" CARGO_BUILD_JOBS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") ../../cargo build --release && CARGO_HOME="$CARGO_HOME_DIR" PATH="$CARGO_DIR:$PATH" ../../cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
       
       dnl Add include guards to the generated header immediately
       if test -f "include/glide_bindings.h"; then
@@ -424,8 +464,11 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     cd "$BUILD_DIR"
     AC_MSG_RESULT([Debug: returned to build directory: $(pwd)])
     AC_MSG_RESULT([Debug: files in build dir=$(ls -la . | head -10)])
+    else
+      AC_MSG_RESULT([Development/PIE build detected - headers will be generated via Makefile])
+    fi
   else
-    AC_MSG_RESULT([PIE build detected - headers will be generated via Makefile (no .submodule-commits)])
+    AC_MSG_RESULT([Header generation disabled via --disable-header-generation])
   fi
 
   EXTRA_DIST="$EXTRA_DIST valkey_glide.stub.php valkey_glide_cluster.stub.php logger.stub.php"
