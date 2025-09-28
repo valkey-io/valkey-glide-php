@@ -593,7 +593,7 @@ int process_h_array_result_async(CommandResponse* response, void* output, zval* 
  * Batch-compatible wrapper for map responses
  */
 int process_h_map_result_async(CommandResponse* response, void* output, zval* return_value) {
-        return command_response_to_zval(
+    return command_response_to_zval(
         response, (zval*) return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, false);
 }
 
