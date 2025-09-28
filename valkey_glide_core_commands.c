@@ -1554,6 +1554,7 @@ int execute_del_array(const void* glide_client,
             free_command_result(cmd_result);
         }
     }
+    zval_ptr_dtor(&keys_array);
     free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
     return result;
 }

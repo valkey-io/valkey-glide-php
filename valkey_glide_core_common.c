@@ -1601,6 +1601,8 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
             ZVAL_COPY(return_value, object); /* return_value should already contain $this */
         }
 
+
+        zval_ptr_dtor(&temp_array);
         return result;
     } else {
         /* Invalid input - neither single string, array, nor multiple strings */
