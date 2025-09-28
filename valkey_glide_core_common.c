@@ -1583,6 +1583,7 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
         array_init(&temp_array);
 
         for (int i = 0; i < keys_count; i++) {
+            Z_TRY_ADDREF_P(&keys[i]);
             add_next_index_zval(&temp_array, &keys[i]);
         }
 

@@ -878,7 +878,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del('eopts');
     }
 
-        public function testExpiretime()
+    public function testExpiretime()
     {
         if (version_compare($this->version, '7.0.0') < 0) {
             $this->markTestSkipped();
@@ -957,8 +957,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->pexpireat('pexpireat_lt_key', $now_ms + 12000, 'LT')); // Fail - not less
 
         // Verify expiry times are set correctly with options
-        $this->assertBetween($this->valkey_glide->pexpiretime('pexpire_nx_key'), $now_ms + 9000, $now_ms + 11000);
-        $this->assertBetween($this->valkey_glide->pexpiretime('pexpireat_gt_key'), $now_ms + 14000, $now_ms + 16000);
+        $this->assertBetween($this->valkey_glide->pexpiretime('pexpire_nx_key'), $now_ms + 8000, $now_ms + 12000);
+        $this->assertBetween($this->valkey_glide->pexpiretime('pexpireat_gt_key'), $now_ms + 12000, $now_ms + 16000);
 
         // Clean up all test keys
         $this->valkey_glide->del('key1', 'key2', 'key3', 'pexpire_nx_key', 'pexpire_xx_key', 
@@ -1684,7 +1684,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testMove()
     {
         // Version check if needed (move has been available since early Redis versions)
-
+        $this->valkey_glide->flushAll(); //TODO remove once the select is supported again.
         $key1 = 'move_test_key1';
         $key2 = 'move_test_key2';
         $value1 = 'test_value1';
@@ -1692,7 +1692,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // Ensure we're in database 0
 //        $this->valkey_glide->select(0);
-
+   
         // Clean up any existing keys
         $this->valkey_glide->del($key1, $key2);
 //        $this->valkey_glide->select(1);

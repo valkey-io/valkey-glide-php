@@ -1518,13 +1518,9 @@ int execute_del_array(const void* glide_client,
 
     /* Create temporary zval array from HashTable */
     zval keys_array;
-    array_init(&keys_array);
-
-    zval* key;
-    ZEND_HASH_FOREACH_VAL(keys_hash, key) {
-        add_next_index_zval(&keys_array, key);
-    }
-    ZEND_HASH_FOREACH_END();
+    ZVAL_ARR(&keys_array, keys_hash);
+    /* Bump refcount so it stays alive while you pass it down */
+    GC_TRY_ADDREF(keys_hash);
 
     /* Use core framework with converted array */
     core_command_args_t args = {0};
