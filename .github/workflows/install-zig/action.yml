@@ -3,6 +3,19 @@ name: Install zig compiler and ziglang
 runs:
   using: "composite"
   steps:
+    - name: Cache Cargo for zig tools
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          ~/.cargo/bin/cargo-zigbuild
+          ~/.cargo/bin/cbindgen
+        key: cargo-zig-${{ runner.os }}-cargo-zigbuild-v0.20.1-cbindgen
+        restore-keys: |
+          cargo-zig-${{ runner.os }}-
+
     - name: Install zig
       shell: bash
       run: |
@@ -12,4 +25,11 @@ runs:
             sudo apt install -y python3-pip
         fi
         pip3 install ziglang
-        cargo install --locked cargo-zigbuild
+
+        # Only install cargo-zigbuild if not cached
+        if ! command -v cargo-zigbuild &> /dev/null; then
+          echo "Installing cargo-zigbuild..."
+          cargo install --locked cargo-zigbuild
+        else
+          echo "cargo-zigbuild already installed (cached)"
+        fi

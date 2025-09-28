@@ -193,10 +193,7 @@ int prepare_s_key_count_args(s_command_args_t* args,
 
     if (args->has_count) {
         char* count_str = alloc_long_string(args->count, NULL);
-        if (!count_str) {
-            cleanup_s_command_args(*args_out, *args_len_out);
-            return 0;
-        }
+
         (*args_out)[1]     = (uintptr_t) count_str;
         (*args_len_out)[1] = strlen(count_str);
     }
@@ -378,11 +375,7 @@ int prepare_s_scan_args(s_command_args_t* args,
         arg_idx++;
 
         char* count_str = alloc_long_string(args->count, NULL);
-        if (!count_str) {
-            efree((void*) (*args_out)[has_key ? 1 : 0]); /* Free cursor_str */
-            cleanup_s_command_args(*args_out, *args_len_out);
-            return 0;
-        }
+
         (*args_out)[arg_idx]     = (uintptr_t) count_str;
         (*args_len_out)[arg_idx] = strlen(count_str);
         arg_idx++;
@@ -1763,11 +1756,7 @@ int execute_cluster_scan_command(const void* glide_client,
         /* Add COUNT */
         if (has_count) {
             count_str = alloc_long_string(count, NULL);
-            if (!count_str) {
-                efree(args);
-                efree(args_len);
-                return 0;
-            }
+
             args[idx]     = (uintptr_t) "COUNT";
             args_len[idx] = 5;
             idx++;

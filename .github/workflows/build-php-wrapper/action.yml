@@ -60,12 +60,15 @@ runs:
 
     - name: Install protobuf compiler (Ubuntu)
       if: ${{ inputs.os == 'ubuntu' }}
+      uses: arduino/setup-protoc@v3
+      with:
+        version: "25.1"
+        repo-token: ${{ inputs.github-token }}
+
+    - name: Install protobuf-c-compiler (Ubuntu)
+      if: ${{ inputs.os == 'ubuntu' }}
       shell: bash
       run: |
-        PB_REL="https://github.com/protocolbuffers/protobuf/releases"
-        curl -LO $PB_REL/download/v3.20.3/protoc-3.20.3-linux-x86_64.zip
-        unzip protoc-3.20.3-linux-x86_64.zip -d $HOME/.local
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
         # Install protobuf-c-compiler
         sudo apt-get install -y protobuf-c-compiler
 
@@ -100,31 +103,41 @@ runs:
     - name: Install cbindgen
       shell: bash
       run: |
-        cargo install cbindgen
+        if [ -f "$HOME/.cargo/bin/cbindgen" ]; then
+          echo "cbindgen already installed (cached)"
+        else
+          cargo install cbindgen
+        fi
 
     - name: Install ziglang (Ubuntu)
       if: ${{ inputs.os == 'ubuntu' }}
       shell: bash
       run: |
         pip3 install ziglang
-        cargo install --locked cargo-zigbuild
-
-    - name: Build FFI library
-      shell: bash
-      env:
-        TARGET: ${{ inputs.target }}
-        OS: ${{ inputs.os }}
-      working-directory: valkey-glide/ffi
-      run: |
-        # Check if ASAN flags are present - if so, use regular cargo build to avoid Zig linker issues
-        if [[ "$CFLAGS" == *"-fsanitize=address"* ]] || [[ "$CXXFLAGS" == *"-fsanitize=address"* ]]; then
-            echo "ASAN flags detected, using regular cargo build to ensure proper ASAN runtime linking"
-            cargo build --target $TARGET --release
-        elif [[ "$OS" == "ubuntu" ]]; then
-            cargo zigbuild --target $TARGET --release
+        if [ -f "$HOME/.cargo/bin/cargo-zigbuild" ]; then
+          echo "cargo-zigbuild already installed (cached)"
         else
-            cargo build --target $TARGET --release
+          cargo install --locked cargo-zigbuild
         fi
+
+    - name: Setup sccache
+      uses: mozilla-actions/sccache-action@v0.0.4
+
+    - name: Setup Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: |
+          valkey-glide/ffi
+        cache-on-failure: true
+
+    - name: Setup Cargo environment for caching
+      shell: bash
+      run: |
+        # Ensure Cargo uses the cached registry and git databases
+        mkdir -p ~/.cargo
+        echo "Cargo home: $CARGO_HOME"
+        echo "Registry cache: $(ls -la ~/.cargo/registry/ 2>/dev/null || echo 'Not found')"
+        echo "Git cache: $(ls -la ~/.cargo/git/ 2>/dev/null || echo 'Not found')"
 
     - name: Debug FFI library location
       shell: bash
@@ -175,7 +188,7 @@ runs:
     - name: Build PHP extension
       shell: bash
       run: |
-        make
+        make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4")
 
     - name: Verify extension build
       shell: bash

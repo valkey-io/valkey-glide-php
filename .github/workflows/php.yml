@@ -117,19 +117,12 @@ jobs:
           echo "Job running with the following matrix configuration:"
           echo "${{ toJson(matrix) }}"
 
-      - uses: actions/cache@v4
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            valkey-glide/ffi/target
-            valkey-glide/glide-core/src/generated
-            include/
-            src/*.pb-c.c
-            src/*.pb-c.h
-          key: ${{ matrix.host.TARGET }}-php-${{ matrix.php }}
-          restore-keys: |
-            ${{ matrix.host.TARGET }}-php
-            ${{ matrix.host.TARGET }}-glide-core
-            ${{ matrix.host.TARGET }}
+          workspaces: |
+            valkey-glide/ffi
+            valkey-glide/glide-core
+          key: ${{ matrix.host.TARGET }}
 
       - name: Build PHP wrapper
         uses: ./.github/workflows/build-php-wrapper
@@ -229,7 +222,26 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install cbindgen
-        run: cargo install cbindgen
+        run: |
+          if [ -f "$HOME/.cargo/bin/cbindgen" ]; then
+            echo "cbindgen already installed (cached)"
+          else
+            cargo install cbindgen
+          fi
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            valkey-glide/ffi
+            valkey-glide/glide-core
+          key: asan
+
+      - name: Pre-build Rust components
+        run: |
+          echo "=== Pre-building Rust components for make ==="
+          cd valkey-glide/ffi
+          cargo build --release
+          echo "Rust pre-build completed"
 
       - name: Build FFI library
         working-directory: valkey-glide/ffi
@@ -318,7 +330,7 @@ jobs:
           # Run ASAN tests with visible error output
           echo "=== Running make test-asan ==="
 
-          make test-asan
+          make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") test-asan
 
       - name: Display ASAN logs if found
         if: always()
@@ -383,32 +395,49 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            /var/cache/apt/archives
+            /var/lib/apt/lists
             valkey-glide/ffi/target
             valkey-glide/glide-core/src/generated
             include/
             src/*.pb-c.c
             src/*.pb-c.h
-          key: ubuntu-latest-php-valgrind-${{ env.BASE_PHP_VERSION }}
+          key: ubuntu-latest-php-valgrind-${{ env.BASE_PHP_VERSION }}-${{ hashFiles('**/Cargo.lock', '.github/workflows/apt-packages.txt', 'valkey-glide/glide-core/src/protobuf/**/*.proto') }}
           restore-keys: |
-            ubuntu-latest-php-valgrind
-            ubuntu-latest-php
+            ubuntu-latest-php-valgrind-${{ env.BASE_PHP_VERSION }}-
+            ubuntu-latest-php-valgrind-
+            ubuntu-latest-php-
             ubuntu-latest-glide-core
             ubuntu-latest
 
-      - name: Install shared dependencies
-        uses: ./.github/workflows/install-shared-dependencies
+      - name: Cache Cargo dependencies (early)
+        uses: actions/cache@v4
         with:
-          target: x86_64-unknown-linux-gnu
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            valkey-glide/ffi/target/
+            valkey-glide/glide-core/target/
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      - name: Setup ValkeyGlide with enhanced caching
+        uses: ./.github/workflows/setup-valkey-glide
+        with:
+          php-version: ${{ env.BASE_PHP_VERSION }}
           engine-version: ${{ matrix.engine.version }}
-
-      - name: Install Rust and protoc
-        uses: ./.github/workflows/install-rust-and-protoc
-        with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install cbindgen
-        run: cargo install cbindgen
+      - name: Install Valkey engine
+        uses: ./.github/workflows/install-engine
+        with:
+          engine-version: ${{ matrix.engine.version }}
+          target: x86_64-unknown-linux-gnu
 
       - name: Remove optional fields from proto files
         shell: bash
@@ -416,6 +445,20 @@ jobs:
           echo "=== Removing optional fields from proto files ==="
           python3 utils/remove_optional_from_proto.py
           echo "=== Proto file cleanup completed ==="
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            valkey-glide/ffi
+            valkey-glide/glide-core
+          key: valgrind
+
+      - name: Pre-build Rust components
+        run: |
+          echo "=== Pre-building Rust components for make ==="
+          cd valkey-glide/ffi
+          cargo build --release
+          echo "Rust pre-build completed"
 
       - name: Build FFI library with debug symbols
         working-directory: valkey-glide/ffi
@@ -499,8 +542,8 @@ jobs:
 
           # Step 5: Build extension with debug symbols
           echo "=== Step 5: Building extension with debug symbols ==="
-          CFLAGS="-g -O0" make build-modules-pre
-          CFLAGS="-g -O0" make
+          CFLAGS="-g -O0" make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") build-modules-pre
+          CFLAGS="-g -O0" make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4")
 
           # Step 6: Generate test protobuf PHP classes
           echo "=== Step 6: Generating test protobuf PHP classes ==="
@@ -748,7 +791,12 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install cbindgen
-        run: cargo install cbindgen
+        run: |
+          if [ -f "$HOME/.cargo/bin/cbindgen" ]; then
+            echo "cbindgen already installed (cached)"
+          else
+            cargo install cbindgen
+          fi
 
       - name: Remove optional fields from proto files
         shell: bash
@@ -775,7 +823,7 @@ jobs:
 
       - name: Configure PHP extension
         run: |
-          ./configure --enable-valkey-glide
+          ./configure --enable-valkey-glide --disable-header-generation
 
       - name: Lint C code formatting
         run: |
@@ -958,16 +1006,19 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: actions/cache@v4
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            valkey-glide/ffi/target
-            valkey-glide/glide-core/src/generated
-            include/
-          key: aarch64-unknown-linux-gnu-php
-          restore-keys: |
-            aarch64-unknown-linux-gnu-glide-core
-            aarch64-unknown-linux-gnu
+          workspaces: |
+            valkey-glide/ffi
+            valkey-glide/glide-core
+          key: modules-aarch64
+
+      - name: Pre-build Rust components
+        run: |
+          echo "=== Pre-building Rust components for make ==="
+          cd valkey-glide/ffi
+          cargo build --release
+          echo "Rust pre-build completed"
 
       - name: Install zig
         uses: ./.github/workflows/install-zig

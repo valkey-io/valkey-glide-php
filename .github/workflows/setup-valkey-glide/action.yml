@@ -1,0 +1,102 @@
+name: Setup ValkeyGlide with Caching
+description: Common setup for ValkeyGlide builds with aggressive caching
+inputs:
+  php-version:
+    description: PHP version to use
+    required: true
+  engine-version:
+    description: Engine version
+    required: true
+  github-token:
+    description: GitHub token for API access
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Cache APT packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          /var/cache/apt/archives
+          /var/lib/apt/lists
+        key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/apt-packages.txt') }}
+        restore-keys: |
+          apt-${{ runner.os }}-
+
+    - name: Install system dependencies (cached)
+      shell: bash
+      env:
+        PHP_VERSION: ${{ inputs.php-version }}
+      run: |
+        # Skip update if cache hit and recent
+        if [ ! -f "$HOME/.apt-cache-updated" ] || [ $(find "$HOME/.apt-cache-updated" -mmin +60 2>/dev/null) ]; then
+          echo "Updating APT cache..."
+          
+          # Add PHP repository for older PHP versions on Ubuntu 24.04
+          if [ "$PHP_VERSION" != "8.3" ]; then
+            echo "Adding PHP repository for PHP $PHP_VERSION..."
+            sudo add-apt-repository ppa:ondrej/php -y
+          fi
+          
+          sudo apt-get update
+          touch "$HOME/.apt-cache-updated"
+        else
+          echo "Using cached APT packages"
+        fi
+
+        sudo apt-get install -y --no-install-recommends \
+          build-essential \
+          "php${PHP_VERSION}-dev" \
+          protobuf-compiler \
+          libprotobuf-c-dev \
+          libprotobuf-c1 \
+          pkg-config \
+          libssl-dev
+
+    - name: Cache Cargo dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          valkey-glide/ffi/target/
+          valkey-glide/glide-core/target/
+        key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          cargo-${{ runner.os }}-
+
+    - name: Configure Cargo for speed
+      shell: bash
+      run: |
+        mkdir -p ~/.cargo
+        cat >> ~/.cargo/config.toml << EOF
+        [registries.crates-io]
+        protocol = "sparse"
+
+        [build]
+        jobs = 4
+
+        [profile.release]
+        codegen-units = 1
+        lto = true
+        EOF
+
+    - name: Install Rust and protoc
+      uses: ./.github/workflows/install-rust-and-protoc
+      with:
+        github-token: ${{ inputs.github-token }}
+
+    - name: Install cbindgen (cached)
+      shell: bash
+      run: |
+        # Check if cbindgen binary exists in cargo bin directory
+        if [ -f "$HOME/.cargo/bin/cbindgen" ]; then
+          echo "cbindgen already installed (cached)"
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        else
+          echo "Installing cbindgen..."
+          cargo install cbindgen
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        fi

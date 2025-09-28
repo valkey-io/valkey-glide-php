@@ -10,6 +10,9 @@ inputs:
     description: Whether to install composer dependencies
     required: false
     default: "true"
+  github-token:
+    description: GitHub token for API access
+    required: true
 
 runs:
   using: composite
@@ -18,7 +21,7 @@ runs:
       uses: ./.github/workflows/install-shared-dependencies
       with:
         target: x86_64-unknown-linux-gnu
-        github-token: ${{ github.token }}
+        github-token: ${{ inputs.github-token }}
         engine-version: "7.2.5"
 
     - name: Setup PHP
@@ -52,11 +55,16 @@ runs:
     - name: Install Rust and protoc
       uses: ./.github/workflows/install-rust-and-protoc
       with:
-        github-token: ${{ github.token }}
+        github-token: ${{ inputs.github-token }}
 
     - name: Install cbindgen
       shell: bash
-      run: cargo install cbindgen
+      run: |
+        if [ -f "$HOME/.cargo/bin/cbindgen" ]; then
+          echo "cbindgen already installed (cached)"
+        else
+          cargo install cbindgen
+        fi
 
     - name: Install Composer dependencies
       if: inputs.install-composer-deps == 'true'

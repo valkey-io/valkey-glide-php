@@ -368,75 +368,23 @@ int execute_xrange_command(zval* object, int argc, zval* return_value, zend_clas
     char *               key = NULL, *start = NULL, *end = NULL;
     size_t               key_len = 0, start_len = 0, end_len = 0;
     zval*                z_options       = NULL;
-    long                 count           = 0;
+    long                 count           = -1;
     int                  options_created = 0;
 
-    /* Parse parameters - try different combinations based on argument count */
-    if (argc == 4) {
-        /* xrange(key, start, end, count) */
-        if (zend_parse_method_parameters(argc,
-                                         object,
-                                         "Osssl",
-                                         &object,
-                                         ce,
-                                         &key,
-                                         &key_len,
-                                         &start,
-                                         &start_len,
-                                         &end,
-                                         &end_len,
-                                         &count) == FAILURE) {
-            return 0;
-        }
-
-        /* Create options array with COUNT */
-        z_options = emalloc(sizeof(zval));
-        array_init(z_options);
-        add_assoc_long(z_options, "COUNT", count);
-        options_created = 1;
-    } else if (argc == 5) {
-        /* xrange(key, start, end, count, options) */
-        if (zend_parse_method_parameters(argc,
-                                         object,
-                                         "Ossla",
-                                         &object,
-                                         ce,
-                                         &key,
-                                         &key_len,
-                                         &start,
-                                         &start_len,
-                                         &end,
-                                         &end_len,
-                                         &count,
-                                         &z_options) == FAILURE) {
-            return 0;
-        }
-
-        /* Add COUNT to existing options array or create new one */
-        if (z_options && Z_TYPE_P(z_options) == IS_ARRAY) {
-            add_assoc_long(z_options, "COUNT", count);
-        } else {
-            z_options = emalloc(sizeof(zval));
-            array_init(z_options);
-            add_assoc_long(z_options, "COUNT", count);
-            options_created = 1;
-        }
-    } else {
-        /* xrange(key, start, end [, options]) - original format for backward compatibility */
-        if (zend_parse_method_parameters(argc,
-                                         object,
-                                         "Osss|a",
-                                         &object,
-                                         ce,
-                                         &key,
-                                         &key_len,
-                                         &start,
-                                         &start_len,
-                                         &end,
-                                         &end_len,
-                                         &z_options) == FAILURE) {
-            return 0;
-        }
+    /* Parse parameters: xrange(key, start, end [, count]) */
+    if (zend_parse_method_parameters(argc,
+                                     object,
+                                     "Osss|l",
+                                     &object,
+                                     ce,
+                                     &key,
+                                     &key_len,
+                                     &start,
+                                     &start_len,
+                                     &end,
+                                     &end_len,
+                                     &count) == FAILURE) {
+        return 0;
     }
 
     /* Get ValkeyGlide object */
@@ -444,6 +392,14 @@ int execute_xrange_command(zval* object, int argc, zval* return_value, zend_clas
 
     /* If we have a Glide client, use it */
     if (valkey_glide->glide_client) {
+        /* Create options array if count is specified */
+        if (count != -1) {
+            z_options = emalloc(sizeof(zval));
+            array_init(z_options);
+            add_assoc_long(z_options, "COUNT", count);
+            options_created = 1;
+        }
+
         /* Initialize the arguments structure */
         x_command_args_t args = {0};
         args.glide_client     = valkey_glide->glide_client;
@@ -485,75 +441,23 @@ int execute_xrevrange_command(zval* object, int argc, zval* return_value, zend_c
     char *               key = NULL, *start = NULL, *end = NULL;
     size_t               key_len = 0, start_len = 0, end_len = 0;
     zval*                z_options       = NULL;
-    long                 count           = 0;
+    long                 count           = -1;
     int                  options_created = 0;
 
-    /* Parse parameters - try different combinations based on argument count */
-    if (argc == 4) {
-        /* xrevrange(key, end, start, count) */
-        if (zend_parse_method_parameters(argc,
-                                         object,
-                                         "Osssl",
-                                         &object,
-                                         ce,
-                                         &key,
-                                         &key_len,
-                                         &end,
-                                         &end_len,
-                                         &start,
-                                         &start_len,
-                                         &count) == FAILURE) {
-            return 0;
-        }
-
-        /* Create options array with COUNT */
-        z_options = emalloc(sizeof(zval));
-        array_init(z_options);
-        add_assoc_long(z_options, "COUNT", count);
-        options_created = 1;
-    } else if (argc == 5) {
-        /* xrevrange(key, end, start, count, options) */
-        if (zend_parse_method_parameters(argc,
-                                         object,
-                                         "Ossla",
-                                         &object,
-                                         ce,
-                                         &key,
-                                         &key_len,
-                                         &end,
-                                         &end_len,
-                                         &start,
-                                         &start_len,
-                                         &count,
-                                         &z_options) == FAILURE) {
-            return 0;
-        }
-
-        /* Add COUNT to existing options array or create new one */
-        if (z_options && Z_TYPE_P(z_options) == IS_ARRAY) {
-            add_assoc_long(z_options, "COUNT", count);
-        } else {
-            z_options = emalloc(sizeof(zval));
-            array_init(z_options);
-            add_assoc_long(z_options, "COUNT", count);
-            options_created = 1;
-        }
-    } else {
-        /* xrevrange(key, end, start [, options]) - original format for backward compatibility */
-        if (zend_parse_method_parameters(argc,
-                                         object,
-                                         "Osss|a",
-                                         &object,
-                                         ce,
-                                         &key,
-                                         &key_len,
-                                         &end,
-                                         &end_len,
-                                         &start,
-                                         &start_len,
-                                         &z_options) == FAILURE) {
-            return 0;
-        }
+    /* Parse parameters: xrevrange(key, end, start [, count]) */
+    if (zend_parse_method_parameters(argc,
+                                     object,
+                                     "Osss|l",
+                                     &object,
+                                     ce,
+                                     &key,
+                                     &key_len,
+                                     &end,
+                                     &end_len,
+                                     &start,
+                                     &start_len,
+                                     &count) == FAILURE) {
+        return 0;
     }
 
     /* Get ValkeyGlide object */
@@ -561,6 +465,14 @@ int execute_xrevrange_command(zval* object, int argc, zval* return_value, zend_c
 
     /* If we have a Glide client, use it */
     if (valkey_glide->glide_client) {
+        /* Create options array if count is specified */
+        if (count != -1) {
+            z_options = emalloc(sizeof(zval));
+            array_init(z_options);
+            add_assoc_long(z_options, "COUNT", count);
+            options_created = 1;
+        }
+
         /* Initialize the arguments structure */
         x_command_args_t args = {0};
         args.glide_client     = valkey_glide->glide_client;
@@ -627,7 +539,7 @@ int execute_xpending_command(zval* object, int argc, zval* return_value, zend_cl
         /* Format: xpending(key, group, start, end, count) */
         if (zend_parse_method_parameters(argc,
                                          object,
-                                         "Osssl",
+                                         "Ossssl",
                                          &object,
                                          ce,
                                          &key,
@@ -829,20 +741,7 @@ int execute_xreadgroup_command(zval* object, int argc, zval* return_value, zend_
             add_assoc_long(z_options, "COUNT", count);
             options_created = 1;
         } else {
-            /* Try parsing as (group, consumer, streams, options) */
-            if (zend_parse_method_parameters(argc,
-                                             object,
-                                             "Ossa",
-                                             &object,
-                                             ce,
-                                             &group,
-                                             &group_len,
-                                             &consumer,
-                                             &consumer_len,
-                                             &z_streams_and_ids,
-                                             &z_options) == FAILURE) {
-                return 0;
-            }
+            return 0;
         }
     } else if (argc == 5) {
         long block = -1;
@@ -867,46 +766,21 @@ int execute_xreadgroup_command(zval* object, int argc, zval* return_value, zend_
             add_assoc_long(z_options, "BLOCK", block);
             options_created = 1;
         } else {
-            /* Fallback to parsing as (group, consumer, streams, count, options) */
-            if (zend_parse_method_parameters(argc,
-                                             object,
-                                             "Ossala",
-                                             &object,
-                                             ce,
-                                             &group,
-                                             &group_len,
-                                             &consumer,
-                                             &consumer_len,
-                                             &z_streams_and_ids,
-                                             &count,
-                                             &z_options) == FAILURE) {
-                return 0;
-            }
-
-            /* Add COUNT to existing options array or create new one */
-            if (z_options && Z_TYPE_P(z_options) == IS_ARRAY) {
-                add_assoc_long(z_options, "COUNT", count);
-            } else {
-                z_options = emalloc(sizeof(zval));
-                array_init(z_options);
-                add_assoc_long(z_options, "COUNT", count);
-                options_created = 1;
-            }
+            return 0;
         }
     } else {
-        /* Parse as (group, consumer, streams [, options]) - original format for backward
+        /* Parse as (group, consumer, streams) - original format for backward
          * compatibility */
         if (zend_parse_method_parameters(argc,
                                          object,
-                                         "Ossa|a",
+                                         "Ossa",
                                          &object,
                                          ce,
                                          &group,
                                          &group_len,
                                          &consumer,
                                          &consumer_len,
-                                         &z_streams_and_ids,
-                                         &z_options) == FAILURE) {
+                                         &z_streams_and_ids) == FAILURE) {
             return 0;
         }
     }

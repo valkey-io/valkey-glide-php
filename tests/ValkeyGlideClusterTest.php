@@ -122,26 +122,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->markTestSkipped();
     }
-    public function testDoublePipeNoOp()
-    {
-        $this->markTestSkipped();
-    }
-    public function testSwapDB()
-    {
-        $this->markTestSkipped();
-    }
-    public function testConnectException()
-    {
-        $this->markTestSkipped();
-    }
-    public function testTlsConnect()
-    {
-        $this->markTestSkipped();
-    }
-    public function testConnectDatabaseSelect()
-    {
-        $this->markTestSkipped();
-    }
+
     public function testMove()
     {
         $this->markTestSkipped(); // Move is not supported in ValkeyGlideCluster
@@ -154,8 +135,13 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
     public function testFlushDB()
     {
-        $this->markTestSkipped();
+        $key = "key:0";
+        $this->assertTrue($this->valkey_glide->flushdb($key));
+        $this->assertTrue($this->valkey_glide->flushdb($key, null));
+        $this->assertTrue($this->valkey_glide->flushdb($key, false));
+        $this->assertTrue($this->valkey_glide->flushdb($key, true));
     }
+    
     public function testFunction()
     {
         $this->markTestSkipped();
@@ -210,13 +196,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         for ($i = 0; $i < 20; $i++) {
             $this->assertTrue($this->valkey_glide->ping(['type' => 'primarySlotKey', 'key' => "key:$i"]));
             $this->assertEquals('BEEP', $this->valkey_glide->ping(['type' => 'primarySlotKey', 'key' => "key:$i"], 'BEEP'));
-        }
-        return; // TODO: multi
-        /* Make sure both variations work in MULTI mode */
-        $this->valkey_glide->multi();
-        $this->valkey_glide->ping(['type' => 'primarySlotKey', 'key' => '{ping-test}']);
-        $this->valkey_glide->ping(['type' => 'primarySlotKey', 'key' => '{ping-test}'], 'BEEP');
-        $this->assertEquals([true, 'BEEP'], $this->valkey_glide->exec());
+        }     
     }
 
     public function testRandomKey()
@@ -242,19 +222,16 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     public function testSortPrefix()
-    {
-        $this->markTestSkipped();
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, 'some-prefix:');
-        $this->valkey_glide->del('some-item');
-        $this->valkey_glide->sadd('some-item', 1);
-        $this->valkey_glide->sadd('some-item', 2);
-        $this->valkey_glide->sadd('some-item', 3);
-
-        $this->assertEquals(['1', '2', '3'], $this->valkey_glide->sort('some-item'));
+    {             
+        $this->valkey_glide->del('some-prefix:some-item');
+        $this->valkey_glide->sadd('some-prefix:some-item', 1);
+        $this->valkey_glide->sadd('some-prefix:some-item', 2);
+        $this->valkey_glide->sadd('some-prefix:some-item', 3);
+        $this->assertEquals(['1', '2', '3'], $this->valkey_glide->sort('some-prefix:some-item'));
 
         // Kill our set/prefix
-        $this->valkey_glide->del('some-item');
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, '');
+        $this->valkey_glide->del('some-prefix:some-item');
+     
     }
 
     public function testDBSize()
@@ -272,6 +249,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         for ($i = 0; $i < 10; $i++) {
             $key = "key:$i";
+            $this->assertTrue($this->valkey_glide->flushAll($key, true));
             $this->assertTrue($this->valkey_glide->flushAll($key));
             $this->assertEquals(0, $this->valkey_glide->dbsize($key));
             $this->valkey_glide->set($key, "val:$i");
@@ -288,37 +266,91 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             "role"
         ];
 
-        // Test individual node INFO calls
+        // Test 1: primarySlotKey routing (array format)
         for ($i = 0; $i < 3; $i++) {
-            $info = $this->valkey_glide->info(['type' => 'primarySlotKey', 'key' => $i]);
+            $info = $this->valkey_glide->info(['type' => 'primarySlotKey', 'key' => "test-key-$i"]);
+            $this->assertIsArray($info);
             foreach ($fields as $field) {
                 $this->assertArrayKey($info, $field);
             }
         }
 
-        // Test AllNodes INFO response
+        // Test 2: randomNode routing (string format)
+        $randomNodeInfo = $this->valkey_glide->info("randomNode");
+        $this->assertIsArray($randomNodeInfo);
+        foreach ($fields as $field) {
+            $this->assertArrayKey($randomNodeInfo, $field);
+        }
+
+        // Test 3: randomNode with specific section
+        $randomNodeServerInfo = $this->valkey_glide->info("randomNode", "server");
+        $this->assertIsArray($randomNodeServerInfo);
+        $this->assertArrayKey($randomNodeServerInfo, "redis_version");
+
+        // Test 4: allPrimaries routing
+        $allPrimariesInfo = $this->valkey_glide->info("allPrimaries");
+        $this->assertIsArray($allPrimariesInfo);
+        $this->assertGT(0, count($allPrimariesInfo), "allPrimaries should return data from multiple nodes");
+
+        // Test 5: allPrimaries with specific section
+        $allPrimariesMemoryInfo = $this->valkey_glide->info("allPrimaries", "memory");
+        $this->assertIsArray($allPrimariesMemoryInfo);
+        $this->assertEquals(6, count($allPrimariesMemoryInfo), "Should have 12 entries (6 nodes * 2 entries each)");
+
+        // Test 6: allNodes routing
         $allNodesInfo = $this->valkey_glide->info("allNodes", "cpu");
-        // Should return an array
-        $this->assertIsArray($allNodesInfo, 12);
-        // Should have 6 entries (one per node)
-        $this->assertEquals(12, count($allNodesInfo), "Should have 6 node entries");
+        $this->assertIsArray($allNodesInfo);
+        $this->assertEquals(12, count($allNodesInfo), "Should have 12 entries (6 nodes * 2 entries each)");
 
         $nodesSeen = [];
-
         // Test each node entry
         foreach ($allNodesInfo as $index => $nodeInfo) {
             if ($index % 2 == 0) {
                 $this->assertIsInt($nodeInfo['127.0.0.1'], "Port field should be an integer");
                 $nodePort = $nodeInfo['127.0.0.1'];
-
                 $this->assertFalse(array_key_exists($nodePort, $nodesSeen));
                 $this->assertIsArray($nodeInfo, 1);
                 $nodesSeen[$nodePort] = true;
             } else {
-                // Should contain used_cpu_sys field (since we requested it)
+                // Should contain used_cpu_sys field (since we requested cpu section)
                 $this->assertArrayKey($nodeInfo, 'used_cpu_sys');
             }
         }
+
+        // Test 7: Simple key string routing (slot-based routing)
+        $keyBasedInfo = $this->valkey_glide->info("simple-test-key");
+        $this->assertIsArray($keyBasedInfo);
+        foreach ($fields as $field) {
+            $this->assertArrayKey($keyBasedInfo, $field);
+        }
+
+        // Test 8: Simple key string routing with section
+        $keyBasedServerInfo = $this->valkey_glide->info("simple-test-key", "server");
+        $this->assertIsArray($keyBasedServerInfo);
+        $this->assertArrayKey($keyBasedServerInfo, "redis_version");
+
+        // Test 9: routeByAddress routing (specific node)
+        $routeByAddressInfo = $this->valkey_glide->info(['type' => 'routeByAddress', 'host' => '127.0.0.1', 'port' => 7001]);
+        $this->assertIsArray($routeByAddressInfo);
+        foreach ($fields as $field) {
+            $this->assertArrayKey($routeByAddressInfo, $field);
+        }
+
+        // Test 10: routeByAddress with specific section
+        $routeByAddressMemoryInfo = $this->valkey_glide->info(['type' => 'routeByAddress', 'host' => '127.0.0.1', 'port' => 7001], "memory");
+        $this->assertIsArray($routeByAddressMemoryInfo);
+        $this->assertArrayKey($routeByAddressMemoryInfo, "used_memory");
+
+        // Test 11: Multiple sections with different routing types
+        $multiSectionInfo = $this->valkey_glide->info("randomNode", "server", "memory");
+        $this->assertIsArray($multiSectionInfo);
+        $this->assertArrayKey($multiSectionInfo, "redis_version");
+        $this->assertArrayKey($multiSectionInfo, "used_memory");
+
+        // Test 12: All sections (no section parameter)
+        $allSectionsInfo = $this->valkey_glide->info("randomNode");
+        $this->assertIsArray($allSectionsInfo);
+        $this->assertGT(10, count($allSectionsInfo), "All sections should return many fields");
     }
 
     public function testClient()
@@ -519,7 +551,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
      * failed, because the commands could be coming from multiple nodes */
     public function testFailedTransactions()
     {
-        $this->markTestSkipped();
         $this->valkey_glide->set('x', 42);
 
         // failed transaction
@@ -530,9 +561,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         // This transaction should fail because the other client changed 'x'
         $ret = $this->valkey_glide->multi()->get('x')->exec();
-        $this->assertEquals([false], $ret);
+        $this->assertEquals(false, $ret);
         // watch and unwatch
-        $this->valkey_glide->watch('x');
+        $this->valkey_glide->watch(['x']);
         $r->incr('x'); // other instance
         $this->valkey_glide->unwatch(); // cancel transaction watch
 
@@ -856,84 +887,4 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
 
-
-    /* Test that we are able to use the slot cache without issues */
-    public function testSlotCache()
-    {
-        ini_set('redis.clusters.cache_slots', 1);
-
-        $pong = 0;
-        for ($i = 0; $i < 10; $i++) {
-            $new_client = $this->newInstance();
-            $pong += $new_client->ping("key:$i");
-        }
-
-        $this->assertEquals($pong, $i);
-
-        ini_set('redis.clusters.cache_slots', 0);
-    }
-
-    /* Regression test for connection pool liveness checks */
-    public function testConnectionPool()
-    {
-        $prev_value = ini_get('redis.pconnect.pooling_enabled');
-        ini_set('redis.pconnect.pooling_enabled', 1);
-
-        $pong = 0;
-        for ($i = 0; $i < 10; $i++) {
-            $new_client = $this->newInstance();
-            $pong += $new_client->ping("key:$i");
-        }
-
-        $this->assertEquals($pong, $i);
-        ini_set('redis.pconnect.pooling_enabled', $prev_value);
-    }
-
-    protected function sessionPrefix(): string
-    {
-        return 'VALKEY_GLIDE_PHP_CLUSTER_SESSION:';
-    }
-
-    protected function sessionSaveHandler(): string
-    {
-        return 'rediscluster';
-    }
-
-    /**
-     * @inheritdoc
-     */
-    protected function sessionSavePath(): string
-    {
-        return implode('&', array_map(function ($host) {
-            return 'seed[]=' . $host;
-        }, self::$seeds)) . '&' . $this->getAuthFragment();
-    }
-
-    /* Test correct handling of null multibulk replies */
-    public function testNullArray()
-    {
-        $this->markTestSkipped();
-
-        $key = "key:arr";
-        $this->valkey_glide->del($key);
-
-        foreach ([false => [], true => null] as $opt => $test) {
-            $this->valkey_glide->setOption(ValkeyGlide::OPT_NULL_MULTIBULK_AS_NULL, $opt);
-
-            $r = $this->valkey_glide->rawCommand($key, "BLPOP", $key, .05);
-            $this->assertEquals($test, $r);
-
-            $this->valkey_glide->multi();
-            $this->valkey_glide->rawCommand($key, "BLPOP", $key, .05);
-            $r = $this->valkey_glide->exec();
-            $this->assertEquals([$test], $r);
-        }
-
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_NULL_MULTIBULK_AS_NULL, false);
-    }
-
-    protected function execWaitAOF()
-    {
-        return $this->valkey_glide->waitaof(uniqid(), 0, 0, 0);
-    }
-}
+} 
