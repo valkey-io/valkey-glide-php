@@ -277,13 +277,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // Test basic LCS
         $this->assertEquals('224444', $this->valkey_glide->lcs($key1, $key2));
-        
+
         // Test LCS with IDX
         $this->assertEquals(
             ['matches', [[[1, 6], [6, 11]]], 'len', 6],
             $this->valkey_glide->lcs($key1, $key2, ['idx'])
         );
-        
+
         // Test LCS with IDX and WITHMATCHLEN
         $this->assertEquals(
             ['matches', [[[1, 6], [6, 11], 6]], 'len', 6],
@@ -300,7 +300,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         );
 
         // Test MINMATCHLEN with IDX and WITHMATCHLEN
-        
+
         $this->assertEquals(
             ['matches', [[[1, 6], [6, 11],6]], 'len', 6],
             $this->valkey_glide->lcs($key1, $key2, ['idx', 'minmatchlen' => 3, 'withmatchlen'])
@@ -1121,7 +1121,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         $idle1 = $this->valkey_glide->object('idletime', '{idle}1');
         $idle2 = $this->valkey_glide->object('idletime', '{idle}2');
-        
+
 
         /* We're not testing if idle is 0 because CPU scheduling on GitHub CI
          * potatoes can cause that to erroneously fail. */
@@ -1132,7 +1132,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         $idle1 = $this->valkey_glide->object('idletime', '{idle}1');
         $idle2 = $this->valkey_glide->object('idletime', '{idle}2');
-        
+
 
         /* We're not testing if idle is 0 because CPU scheduling on GitHub CI
          * potatoes can cause that to erroneously fail. */
@@ -3863,7 +3863,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     /* GitHub issue #1211 (ignore redundant calls to pipeline or multi) */
     public function testDoublePipeNoOp()
-    {         
+    {
         /* Only the first pipeline should be honored */
         for ($i = 0; $i < 6; $i++) {
             $this->valkey_glide->pipeline();
@@ -3905,7 +3905,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentTypeString()
-    {        
+    {
 
         $key = '{hash}string';
         $dkey = '{hash}' . __FUNCTION__;
@@ -3968,7 +3968,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentTypeList()
-    {         
+    {
         $key = '{hash}list';
         $dkey = '{hash}' . __FUNCTION__;
 
@@ -4028,7 +4028,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentTypeSet()
-    {        
+    {
         $key = '{hash}set';
         $dkey = '{hash}' . __FUNCTION__;
         $this->valkey_glide->del($key);
@@ -4056,7 +4056,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->lSet($key, 0, 'newValue'));
         $this->assertFalse($this->valkey_glide->lrem($key, 'lvalue', 1));
         $this->assertFalse($this->valkey_glide->lPop($key));
-        $this->assertFalse($this->valkey_glide->rPop($key));        
+        $this->assertFalse($this->valkey_glide->rPop($key));
 
         // sorted sets I/F
         $this->assertFalse($this->valkey_glide->zAdd($key, 1, 'zValue1'));
@@ -4087,7 +4087,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentTypeSortedSet()
-    {     
+    {
         $key = '{hash}sortedset';
         $dkey = '{hash}' . __FUNCTION__;
 
@@ -4147,7 +4147,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentTypeHash()
-    {        
+    {
         $key = '{hash}hash';
         $dkey = '{hash}hash';
 
@@ -4176,7 +4176,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->lSet($key, 0, 'newValue'));
         $this->assertFalse($this->valkey_glide->lrem($key, 'lvalue', 1));
         $this->assertFalse($this->valkey_glide->lPop($key));
-        $this->assertFalse($this->valkey_glide->rPop($key));        
+        $this->assertFalse($this->valkey_glide->rPop($key));
 
         // sets I/F
         $this->assertFalse($this->valkey_glide->sAdd($key, 'sValue1'));
@@ -5165,31 +5165,52 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     private function addTestCities()
     {
         // Clear any existing data
-        $this->valkey_glide->del('{geo}_test_key');                
+        $this->valkey_glide->del('{geo}_test_key');
         $this->valkey_glide->del('{geo}_src_key');
         $this->valkey_glide->del('{geo}_dst_key');
-        
+
         // Add cities with their coordinates to source key
-        $this->valkey_glide->geoadd('{geo}_src_key',
-            -121.837478, 39.728494, 'Chico',           // Northern California
-            -121.494400, 38.581572, 'Sacramento',      // Central California  
-            -121.693583, 39.363777, 'Gridley',        // Near Chico
-            -121.591355, 39.145725, 'Marysville',     // Between Chico and Sacramento
-            -122.032182, 37.322998, 'Cupertino'       // Bay Area
-        );
-        
-        // Add cities with their coordinates
-        $this->valkey_glide->geoadd('{geo}_test_key',
-            -121.837478, 39.728494, 'Chico',           // Northern California
-            -121.494400, 38.581572, 'Sacramento',      // Central California  
-            -121.693583, 39.363777, 'Gridley',        // Near Chico
-            -121.591355, 39.145725, 'Marysville',     // Between Chico and Sacramento
-            -122.032182, 37.322998, 'Cupertino'       // Bay Area
+        $this->valkey_glide->geoadd(
+            '{geo}_src_key',
+            -121.837478,
+            39.728494,
+            'Chico',           // Northern California
+            -121.494400,
+            38.581572,
+            'Sacramento',      // Central California
+            -121.693583,
+            39.363777,
+            'Gridley',        // Near Chico
+            -121.591355,
+            39.145725,
+            'Marysville',     // Between Chico and Sacramento
+            -122.032182,
+            37.322998,
+            'Cupertino'       // Bay Area
         );
 
+        // Add cities with their coordinates
+        $this->valkey_glide->geoadd(
+            '{geo}_test_key',
+            -121.837478,
+            39.728494,
+            'Chico',           // Northern California
+            -121.494400,
+            38.581572,
+            'Sacramento',      // Central California
+            -121.693583,
+            39.363777,
+            'Gridley',        // Near Chico
+            -121.591355,
+            39.145725,
+            'Marysville',     // Between Chico and Sacramento
+            -122.032182,
+            37.322998,
+            'Cupertino'       // Bay Area
+        );
     }
 
-        public function testGeoSearchStoreBasicRadius()
+    public function testGeoSearchStoreBasicRadius()
     {
         if (!$this->minVersionCheck('6.2.0')) {
             $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
@@ -5199,7 +5220,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 'Chico', 50, 'km');
         $this->assertIsInt($count);
         $this->assertGTE(2, $count); // Should find at least Chico and Gridley
-        
+
         // Verify the destination key was created and contains expected members
         $members = $this->valkey_glide->zrange('{geo}_dst_key', 0, -1);
         $this->assertIsArray($members);
@@ -5214,11 +5235,16 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Test search and store from longitude/latitude coordinates
-        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
-            [-121.837478, 39.728494], 50, 'km');
+        $count = $this->valkey_glide->geosearchstore(
+            '{geo}_dst_key',
+            '{geo}_src_key',
+            [-121.837478, 39.728494],
+            50,
+            'km'
+        );
         $this->assertIsInt($count);
         $this->assertGTE(2, $count);
-        
+
         // Verify stored results
         $members = $this->valkey_glide->zrange('{geo}_dst_key', 0, -1);
         $this->assertContains('Chico', $members);
@@ -5232,11 +5258,16 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Test rectangular search and store (BYBOX)
-        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
-            'Sacramento', [100, 100], 'km');
+        $count = $this->valkey_glide->geosearchstore(
+            '{geo}_dst_key',
+            '{geo}_src_key',
+            'Sacramento',
+            [100, 100],
+            'km'
+        );
         $this->assertIsInt($count);
         $this->assertGTE(1, $count);
-        
+
         // Verify stored results
         $members = $this->valkey_glide->zrange('{geo}_dst_key', 0, -1);
         $this->assertContains('Sacramento', $members);
@@ -5249,11 +5280,17 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Test COUNT option
-        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
-            'Sacramento', 200, 'km', ['count' => 2]);
+        $count = $this->valkey_glide->geosearchstore(
+            '{geo}_dst_key',
+            '{geo}_src_key',
+            'Sacramento',
+            200,
+            'km',
+            ['count' => 2]
+        );
         $this->assertIsInt($count);
         $this->assertLTE(2, $count);
-        
+
         // Verify stored count matches returned count
         $storedCount = $this->valkey_glide->zcard('{geo}_dst_key');
         $this->assertEquals($count, $storedCount);
@@ -5266,11 +5303,17 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Test COUNT with ANY option
-        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
-            'Sacramento', 200, 'km', ['count' => [3, 'ANY']]);
+        $count = $this->valkey_glide->geosearchstore(
+            '{geo}_dst_key',
+            '{geo}_src_key',
+            'Sacramento',
+            200,
+            'km',
+            ['count' => [3, 'ANY']]
+        );
         $this->assertIsInt($count);
         $this->assertLTE(3, $count);
-        
+
         // Verify stored count
         $storedCount = $this->valkey_glide->zcard('{geo}_dst_key');
         $this->assertEquals($count, $storedCount);
@@ -5283,11 +5326,17 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Test ASC sorting
-        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
-            'Sacramento', 200, 'km', ['sort' => 'ASC']);
+        $count = $this->valkey_glide->geosearchstore(
+            '{geo}_dst_key',
+            '{geo}_src_key',
+            'Sacramento',
+            200,
+            'km',
+            ['sort' => 'ASC']
+        );
         $this->assertIsInt($count);
         $this->assertGTE(1, $count);
-        
+
         // Verify results are stored
         $storedCount = $this->valkey_glide->zcard('{geo}_dst_key');
         $this->assertEquals($count, $storedCount);
@@ -5300,15 +5349,21 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Test STOREDIST option - stores distances instead of geohashes
-        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
-            'Chico', 50, 'km', ['storedist' => true]);
+        $count = $this->valkey_glide->geosearchstore(
+            '{geo}_dst_key',
+            '{geo}_src_key',
+            'Chico',
+            50,
+            'km',
+            ['storedist' => true]
+        );
         $this->assertIsInt($count);
         $this->assertGTE(2, $count);
-        
+
         // Verify the destination key contains distance scores
         $membersWithScores = $this->valkey_glide->zrange('{geo}_dst_key', 0, -1, ['withscores' => true]);
         $this->assertIsArray($membersWithScores);
-        
+
         // Check that scores are distances (should be reasonable values)
         foreach ($membersWithScores as $member => $score) {
             $this->assertIsString($member);
@@ -5325,7 +5380,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Complex query: box search from coordinates with multiple options
-        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key',
+        $count = $this->valkey_glide->geosearchstore(
+            '{geo}_dst_key',
+            '{geo}_src_key',
             [-121.5, 38.5], // coordinates
             [200, 200],     // box dimensions
             'km',
@@ -5335,14 +5392,14 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
                 'storedist' => true
             ]
         );
-        
+
         $this->assertIsInt($count);
         $this->assertLTE(3, $count);
-        
+
         // Verify stored results
         $storedCount = $this->valkey_glide->zcard('{geo}_dst_key');
         $this->assertEquals($count, $storedCount);
-        
+
         // Verify distances are stored as scores
         $membersWithScores = $this->valkey_glide->zrange('{geo}_dst_key', 0, -1, ['withscores' => true]);
         foreach ($membersWithScores as $member => $score) {
@@ -5359,14 +5416,19 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->addTestCities();
         // Test different units
         $units = ['m', 'km', 'ft', 'mi'];
-        
+
         foreach ($units as $unit) {
             $dstKey = "{geo}_dst_key_$unit";
-            $count = $this->valkey_glide->geosearchstore($dstKey, '{geo}_src_key', 
-                'Chico', 50000, $unit);
+            $count = $this->valkey_glide->geosearchstore(
+                $dstKey,
+                '{geo}_src_key',
+                'Chico',
+                50000,
+                $unit
+            );
             $this->assertIsInt($count);
             $this->assertGTE(1, $count);
-            
+
             // Clean up
             $this->valkey_glide->del($dstKey);
         }
@@ -5379,19 +5441,29 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // First search and store
-        $count1 = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
-            'Chico', 30, 'km');
+        $count1 = $this->valkey_glide->geosearchstore(
+            '{geo}_dst_key',
+            '{geo}_src_key',
+            'Chico',
+            30,
+            'km'
+        );
         $this->assertIsInt($count1);
-        
+
         // Second search and store to same destination (should overwrite)
-        $count2 = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
-            'Sacramento', 100, 'km');
+        $count2 = $this->valkey_glide->geosearchstore(
+            '{geo}_dst_key',
+            '{geo}_src_key',
+            'Sacramento',
+            100,
+            'km'
+        );
         $this->assertIsInt($count2);
-        
+
         // Verify the destination was overwritten
         $finalCount = $this->valkey_glide->zcard('{geo}_dst_key');
         $this->assertEquals($count2, $finalCount);
-        
+
         // Verify it contains Sacramento results, not Chico results
         $members = $this->valkey_glide->zrange('{geo}_dst_key', 0, -1);
         $this->assertContains('Sacramento', $members);
@@ -5404,11 +5476,16 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Search in area with no cities
-        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
-            [0, 0], 1, 'km');
+        $count = $this->valkey_glide->geosearchstore(
+            '{geo}_dst_key',
+            '{geo}_src_key',
+            [0, 0],
+            1,
+            'km'
+        );
         $this->assertIsInt($count);
         $this->assertEquals(0, $count);
-        
+
         // Verify destination key is empty or doesn't exist
         $storedCount = $this->valkey_glide->zcard('{geo}_dst_key');
         $this->assertEquals(0, $storedCount);
@@ -5421,11 +5498,16 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Search on non-existent source key
-        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}non_existent_key', 
-            'member', 100, 'km');
+        $count = $this->valkey_glide->geosearchstore(
+            '{geo}_dst_key',
+            '{geo}non_existent_key',
+            'member',
+            100,
+            'km'
+        );
         $this->assertIsInt($count);
         $this->assertEquals(0, $count);
-        
+
         // Verify destination key is empty
         $storedCount = $this->valkey_glide->zcard('{geo}_dst_key');
         $this->assertEquals(0, $storedCount);
@@ -5438,20 +5520,31 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Test that return value matches actual stored count
-        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
-            'Sacramento', 200, 'km');
-        
+        $count = $this->valkey_glide->geosearchstore(
+            '{geo}_dst_key',
+            '{geo}_src_key',
+            'Sacramento',
+            200,
+            'km'
+        );
+
         $actualCount = $this->valkey_glide->zcard('{geo}_dst_key');
         $this->assertEquals($count, $actualCount);
-        
+
         // Test with COUNT limit
-        $limitedCount = $this->valkey_glide->geosearchstore('{geo}_dst_key2', '{geo}_src_key', 
-            'Sacramento', 200, 'km', ['count' => 2]);
-        
+        $limitedCount = $this->valkey_glide->geosearchstore(
+            '{geo}_dst_key2',
+            '{geo}_src_key',
+            'Sacramento',
+            200,
+            'km',
+            ['count' => 2]
+        );
+
         $actualLimitedCount = $this->valkey_glide->zcard('{geo}_dst_key2');
         $this->assertEquals($limitedCount, $actualLimitedCount);
         $this->assertLTE(2, $limitedCount);
-        
+
         // Clean up
         $this->valkey_glide->del('{geo}_dst_key2');
     }
@@ -5463,15 +5556,20 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Store without STOREDIST (should preserve geo data)
-        $count = $this->valkey_glide->geosearchstore('{geo}_dst_key', '{geo}_src_key', 
-            'Chico', 50, 'km');
+        $count = $this->valkey_glide->geosearchstore(
+            '{geo}_dst_key',
+            '{geo}_src_key',
+            'Chico',
+            50,
+            'km'
+        );
         $this->assertGTE(2, $count);
-        
+
         // Verify we can perform geo operations on the stored data
         $distance = $this->valkey_glide->geodist('{geo}_dst_key', 'Chico', 'Gridley', 'km');
         $this->assertIsFloat($distance);
         $this->assertGTE(0, $distance);
-        
+
         // Verify geopos works on stored data
         $positions = $this->valkey_glide->geopos('{geo}_dst_key', 'Chico');
         $this->assertIsArray($positions);
@@ -5491,7 +5589,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertIsArray($result);
         $this->assertContains('Chico', $result);
         $this->assertContains('Gridley', $result);
-        
+
         // Should not contain distant cities
         $this->assertFalse(in_array('Cupertino', $result));
     }
@@ -5516,10 +5614,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Test rectangular search (BYBOX)
-        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Sacramento', [150, 150], 'km');        
+        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Sacramento', [150, 150], 'km');
         $this->assertIsArray($result);
         $this->assertContains('Sacramento', $result);
-        
+
         // Should contain cities within the box
         $this->assertContains('Marysville', $result);
     }
@@ -5532,7 +5630,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->addTestCities();
         $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Chico', 50, 'km', ['withcoord']);
         $this->assertIsArray($result);
-        
+
         foreach ($result as $city => $data) {
             $this->assertIsString($city);
             $this->assertIsArray($data);
@@ -5552,7 +5650,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->addTestCities();
         $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Chico', 50, 'km', ['withdist']);
         $this->assertIsArray($result);
-        
+
         foreach ($result as $city => $data) {
             $this->assertIsString($city);
             $this->assertIsArray($data);
@@ -5570,7 +5668,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->addTestCities();
         $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Chico', 50, 'km', ['withhash']);
         $this->assertIsArray($result);
-        
+
         foreach ($result as $city => $data) {
             $this->assertIsString($city);
             $this->assertIsArray($data);
@@ -5585,10 +5683,15 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
         }
         $this->addTestCities();
-        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Chico', 50, 'km', 
-            ['withdist', 'withhash', 'withcoord']);
+        $result = $this->valkey_glide->geosearch(
+            '{geo}_test_key',
+            'Chico',
+            50,
+            'km',
+            ['withdist', 'withhash', 'withcoord']
+        );
         $this->assertIsArray($result);
-        
+
         foreach ($result as $city => $data) {
             $this->assertIsString($city);
             $this->assertIsArray($data);
@@ -5607,8 +5710,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Test COUNT option
-        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Sacramento', 200, 'km', 
-            ['count' => 2]);
+        $result = $this->valkey_glide->geosearch(
+            '{geo}_test_key',
+            'Sacramento',
+            200,
+            'km',
+            ['count' => 2]
+        );
         $this->assertIsArray($result);
         $this->assertLTE(2, count($result));
     }
@@ -5620,8 +5728,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Test COUNT with ANY option
-        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Sacramento', 200, 'km', 
-            ['count' => [2, 'ANY']]);
+        $result = $this->valkey_glide->geosearch(
+            '{geo}_test_key',
+            'Sacramento',
+            200,
+            'km',
+            ['count' => [2, 'ANY']]
+        );
         $this->assertIsArray($result);
         $this->assertLTE(2, count($result));
     }
@@ -5633,16 +5746,21 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Test ASC sorting with distances
-        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Sacramento', 200, 'km', 
-            ['withdist', 'asc']);
+        $result = $this->valkey_glide->geosearch(
+            '{geo}_test_key',
+            'Sacramento',
+            200,
+            'km',
+            ['withdist', 'asc']
+        );
         $this->assertIsArray($result);
-        
+
         // Verify distances are in ascending order
         $distances = [];
         foreach ($result as $city => $data) {
             $distances[] = $data[0];
         }
-        
+
         $sortedDistances = $distances;
         sort($sortedDistances);
         $this->assertEquals($sortedDistances, $distances);
@@ -5652,20 +5770,25 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         if (!$this->minVersionCheck('6.2.0')) {
             $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
-        }   
+        }
         $this->addTestCities();
 
         // Test DESC sorting with distances
-        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Sacramento', 200, 'km', 
-            ['withdist', 'desc']);
+        $result = $this->valkey_glide->geosearch(
+            '{geo}_test_key',
+            'Sacramento',
+            200,
+            'km',
+            ['withdist', 'desc']
+        );
         $this->assertIsArray($result);
-        
+
         // Verify distances are in descending order
         $distances = [];
         foreach ($result as $city => $data) {
             $distances[] = $data[0];
         }
-        
+
         $sortedDistances = $distances;
         rsort($sortedDistances);
         $this->assertEquals($sortedDistances, $distances);
@@ -5678,16 +5801,21 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Test alternative sort syntax using 'sort' key
-        $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Sacramento', 200, 'km', 
-            ['withdist', 'sort' => 'ASC']);
+        $result = $this->valkey_glide->geosearch(
+            '{geo}_test_key',
+            'Sacramento',
+            200,
+            'km',
+            ['withdist', 'sort' => 'ASC']
+        );
         $this->assertIsArray($result);
-        
+
         // Verify distances are in ascending order
         $distances = [];
         foreach ($result as $city => $data) {
             $distances[] = $data[0];
         }
-        
+
         $sortedDistances = $distances;
         sort($sortedDistances);
         $this->assertEquals($sortedDistances, $distances);
@@ -5701,7 +5829,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->addTestCities();
         // Test different units
         $units = ['m', 'km', 'ft', 'mi'];
-        
+
         foreach ($units as $unit) {
             $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Chico', 50000, $unit);
             $this->assertIsArray($result);
@@ -5716,22 +5844,23 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->addTestCities();
         // Complex query: box search from coordinates with all options
-        $result = $this->valkey_glide->geosearch('{geo}_test_key', 
+        $result = $this->valkey_glide->geosearch(
+            '{geo}_test_key',
             [-121.5, 38.5], // coordinates
             [200, 200],     // box dimensions
             'km',
             [
                 'withdist',
-                'withcoord', 
+                'withcoord',
                 'withhash',
                 'count' => [3, 'ANY'],
                 'sort' => 'ASC'
             ]
         );
-        
+
         $this->assertIsArray($result);
         $this->assertLTE(3, count($result));
-        
+
         foreach ($result as $city => $data) {
             $this->assertIsString($city);
             $this->assertIsArray($data);
@@ -6252,102 +6381,101 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->markTestSkipped();
         }
         foreach (['Pavlo', null] as $consumer) {
-        
-        foreach ([0, 100] as $min_idle_time) {
-            foreach ([false, true] as $justid) {
-                foreach ([0, 10] as $retrycount) {
-                    /* We need to test not passing TIME/IDLE as well as passing either */
-                    if ($min_idle_time == 0) {
-                        $topts = [[], ['IDLE', 1000000], ['TIME', time() * 1000]];
-                    } else {
-                        $topts = [null];
-                    }
-
-                    foreach ($topts as $tinfo) {
-                        if ($tinfo) {
-                            list($ttype, $tvalue) = $tinfo;
-                        } else {
-                            $ttype = null;
-                            $tvalue = null;
-                        }
-
-                        /* Add some messages and create a group */
-                        $this->addStreamsAndGroups(['s'], 10, ['group1' => 0]);
-
-                        /* Create a second stream we can FORCE ownership on */
-                        $fids = $this->addStreamsAndGroups(['f'], 10, ['group1' => 0]);
-                        $fids = $fids['f'];
-
-                        /* Have consumer 'Mike' read the messages */
-                        $oids = $this->valkey_glide->xReadGroup('group1', 'Mike', ['s' => '>']);
-                        $oids = array_keys($oids['s']); /* We're only dealing with stream 's' */
-
-                        /* Construct our options array */
-                        $opts = [];
-                        if ($justid) {
-                            $opts[] = 'JUSTID';
-                        }
-                        if ($retrycount) {
-                            $opts['RETRYCOUNT'] = $retrycount;
-                        }
-                        if ($tvalue !== null) {
-                            $opts[$ttype] = $tvalue;
-                        }
-
-                        /* Now have pavlo XCLAIM them */
-                        $cids = $this->valkey_glide->xClaim('s', 'group1', 'Pavlo', $min_idle_time, $oids, $opts);
-
-                        if (! $justid) {
-                            $cids = array_keys($cids);
-                        }
-
+            foreach ([0, 100] as $min_idle_time) {
+                foreach ([false, true] as $justid) {
+                    foreach ([0, 10] as $retrycount) {
+                        /* We need to test not passing TIME/IDLE as well as passing either */
                         if ($min_idle_time == 0) {
-                            $this->assertEquals($cids, $oids);
+                            $topts = [[], ['IDLE', 1000000], ['TIME', time() * 1000]];
+                        } else {
+                            $topts = [null];
+                        }
 
-                            /* Append the FORCE option to our second stream where we have not already
-                             * assigned to a PEL group */
-                            $opts[] = 'FORCE';
-                            $freturn = $this->valkey_glide->xClaim('f', 'group1', 'Test', 0, $fids, $opts);
+                        foreach ($topts as $tinfo) {
+                            if ($tinfo) {
+                                list($ttype, $tvalue) = $tinfo;
+                            } else {
+                                $ttype = null;
+                                $tvalue = null;
+                            }
+
+                            /* Add some messages and create a group */
+                            $this->addStreamsAndGroups(['s'], 10, ['group1' => 0]);
+
+                            /* Create a second stream we can FORCE ownership on */
+                            $fids = $this->addStreamsAndGroups(['f'], 10, ['group1' => 0]);
+                            $fids = $fids['f'];
+
+                            /* Have consumer 'Mike' read the messages */
+                            $oids = $this->valkey_glide->xReadGroup('group1', 'Mike', ['s' => '>']);
+                            $oids = array_keys($oids['s']); /* We're only dealing with stream 's' */
+
+                            /* Construct our options array */
+                            $opts = [];
+                            if ($justid) {
+                                $opts[] = 'JUSTID';
+                            }
+                            if ($retrycount) {
+                                $opts['RETRYCOUNT'] = $retrycount;
+                            }
+                            if ($tvalue !== null) {
+                                $opts[$ttype] = $tvalue;
+                            }
+
+                            /* Now have pavlo XCLAIM them */
+                            $cids = $this->valkey_glide->xClaim('s', 'group1', 'Pavlo', $min_idle_time, $oids, $opts);
 
                             if (! $justid) {
-                                $freturn = array_keys($freturn);
+                                $cids = array_keys($cids);
                             }
 
-                            $this->assertEquals($freturn, $fids);
+                            if ($min_idle_time == 0) {
+                                $this->assertEquals($cids, $oids);
 
-                            if ($retrycount || $tvalue !== null) {
-                                $pending = null;
-                                if ($consumer != null) {
-                                    $pending = $this->valkey_glide->xPending('s', 'group1', 0, '+', 1, $consumer);
-                                } else {
-                                    $pending = $this->valkey_glide->xPending('s', 'group1', 0, '+', 1);
+                                /* Append the FORCE option to our second stream where we have not already
+                                 * assigned to a PEL group */
+                                $opts[] = 'FORCE';
+                                $freturn = $this->valkey_glide->xClaim('f', 'group1', 'Test', 0, $fids, $opts);
+
+                                if (! $justid) {
+                                    $freturn = array_keys($freturn);
                                 }
-                                
-                                if ($retrycount) {
-                                    $this->assertEquals($pending[0][3], $retrycount);
-                                }
-                                if ($tvalue !== null) {
-                                    if ($ttype == 'IDLE') {
-                                        /* If testing IDLE the value must be >= what we set */
-                                        $this->assertGTE($tvalue, $pending[0][2]);
+
+                                $this->assertEquals($freturn, $fids);
+
+                                if ($retrycount || $tvalue !== null) {
+                                    $pending = null;
+                                    if ($consumer != null) {
+                                        $pending = $this->valkey_glide->xPending('s', 'group1', 0, '+', 1, $consumer);
                                     } else {
-                                        /* Timing tests are notoriously irritating but I don't see
-                                         * how we'll get >= 20,000 ms between XCLAIM and XPENDING no
-                                         * matter how slow the machine/VM running the tests is */
-                                        $this->assertLT(20000, $pending[0][2]);
+                                        $pending = $this->valkey_glide->xPending('s', 'group1', 0, '+', 1);
+                                    }
+
+                                    if ($retrycount) {
+                                        $this->assertEquals($pending[0][3], $retrycount);
+                                    }
+                                    if ($tvalue !== null) {
+                                        if ($ttype == 'IDLE') {
+                                            /* If testing IDLE the value must be >= what we set */
+                                            $this->assertGTE($tvalue, $pending[0][2]);
+                                        } else {
+                                            /* Timing tests are notoriously irritating but I don't see
+                                             * how we'll get >= 20,000 ms between XCLAIM and XPENDING no
+                                             * matter how slow the machine/VM running the tests is */
+                                            $this->assertLT(20000, $pending[0][2]);
+                                        }
                                     }
                                 }
+                            } else {
+                                /* We're verifying that we get no messages when we've set 100 seconds
+                                 * as our idle time, which should match nothing */
+                                $this->assertEquals([], $cids);
                             }
-                        } else {
-                            /* We're verifying that we get no messages when we've set 100 seconds
-                             * as our idle time, which should match nothing */
-                            $this->assertEquals([], $cids);
                         }
                     }
                 }
             }
         }
-    }
     }
 
     /* Make sure our XAUTOCLAIM handler works */

@@ -141,7 +141,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertTrue($this->valkey_glide->flushdb($key, false));
         $this->assertTrue($this->valkey_glide->flushdb($key, true));
     }
-    
+
     public function testFunction()
     {
         $this->markTestSkipped();
@@ -196,7 +196,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         for ($i = 0; $i < 20; $i++) {
             $this->assertTrue($this->valkey_glide->ping(['type' => 'primarySlotKey', 'key' => "key:$i"]));
             $this->assertEquals('BEEP', $this->valkey_glide->ping(['type' => 'primarySlotKey', 'key' => "key:$i"], 'BEEP'));
-        }     
+        }
     }
 
     public function testRandomKey()
@@ -222,7 +222,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     public function testSortPrefix()
-    {             
+    {
         $this->valkey_glide->del('some-prefix:some-item');
         $this->valkey_glide->sadd('some-prefix:some-item', 1);
         $this->valkey_glide->sadd('some-prefix:some-item', 2);
@@ -231,7 +231,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         // Kill our set/prefix
         $this->valkey_glide->del('some-prefix:some-item');
-     
     }
 
     public function testDBSize()
@@ -885,6 +884,4 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Reset
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
-
-
-} 
+}
