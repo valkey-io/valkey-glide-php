@@ -659,7 +659,7 @@ FUNCTION_METHOD_IMPL(ValkeyGlide)
 MULTI_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto bool ValkeyGlideCluster::pipeline() */
+/* {{{ proto bool ValkeyGlide::pipeline() */
 PIPELINE_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 

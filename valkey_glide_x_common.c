@@ -340,16 +340,6 @@ int allocate_command_args(int count, uintptr_t** args_out, unsigned long** args_
     return 1;
 }
 
-/**
- * Free command arguments arrays
- */
-void free_command_args(uintptr_t* args, unsigned long* args_len) {
-    if (args)
-        efree(args);
-    if (args_len)
-        efree(args_len);
-}
-
 
 /**
  * Generic command execution framework with integrated batch support
@@ -360,11 +350,6 @@ int execute_x_generic_command(valkey_glide_object* valkey_glide,
                               void*                result_ptr,
                               x_result_processor_t process_result,
                               zval*                return_value) {
-    /* Check if valkey_glide object is valid */
-    if (!valkey_glide) {
-        return 0;
-    }
-
     /* Prepare arguments ONCE - single switch statement eliminates duplication */
     uintptr_t*     cmd_args          = NULL;
     unsigned long* args_len          = NULL;
@@ -1648,10 +1633,6 @@ int prepare_x_claim_args(x_command_args_t* args,
 
         /* This string needs to be freed later */
         // TODO: Track this string for cleanup
-    } else {
-        /* Failed to allocate memory for min_idle_time */
-        free_command_args(*args_out, *args_len_out);
-        return 0;
     }
 
     /* Add all message IDs */
@@ -1816,10 +1797,6 @@ int prepare_x_autoclaim_args(x_command_args_t* args,
 
         /* This string needs to be freed later */
         // TODO: Track this string for cleanup
-    } else {
-        /* Failed to allocate memory for min_idle_time */
-        free_command_args(*args_out, *args_len_out);
-        return 0;
     }
 
     /* Add start ID */

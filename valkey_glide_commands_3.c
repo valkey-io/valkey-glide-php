@@ -637,6 +637,10 @@ static int initialize_batch_mode(valkey_glide_object* valkey_glide,
         return 0;
     }
 
+    if (valkey_glide->is_in_batch_mode) {
+        return 1;
+    }
+
     /* Initialize batch mode */
     valkey_glide->is_in_batch_mode = true;
     valkey_glide->batch_type       = batch_type;
@@ -679,7 +683,6 @@ int execute_multi_command(zval* object, int argc, zval* return_value, zend_class
 /* Execute a PIPELINE command using the Valkey Glide client - wrapper using common function */
 int execute_pipeline_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
-
     /* Parse parameters - pipeline takes no additional parameters */
     if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
         return 0;
@@ -1722,55 +1725,39 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
         if (command_type == InvalidRequest) {
             return 0; /* Unknown command */
         }
-
-        /* Convert arguments to uint8_t** format for batch processing */
-        uintptr_t*     batch_args  = NULL;
-        unsigned long* arg_lengths = NULL;
-
+        uintptr_t*     cmd_args          = NULL;
+        unsigned long* args_len          = NULL;
+        char**         allocated_strings = NULL;
+        int            allocated_count   = 0;
         if (arg_count > 1) {
-            batch_args  = (uintptr_t*) emalloc((arg_count - 1) * sizeof(uintptr_t));
-            arg_lengths = emalloc((arg_count - 1) * sizeof(unsigned long));
-
-            /* Convert each argument to string and store */
-            for (int i = 1; i < arg_count; i++) {
-                zval* arg = &z_args[i];
-
-                if (Z_TYPE_P(arg) == IS_STRING) {
-                    /* Already a string, use directly */
-                    batch_args[i - 1] = (uintptr_t) Z_STRVAL_P(arg);
-
-                    arg_lengths[i - 1] = Z_STRLEN_P(arg);
-                } else {
-                    /* Convert to string */
-                    zval temp;
-                    ZVAL_COPY(&temp, arg);
-                    convert_to_string(&temp);
-
-                    batch_args[i - 1]  = (uintptr_t) Z_STRVAL(temp);
-                    arg_lengths[i - 1] = Z_STRLEN(temp);
-
-                    /* Note: We're not freeing temp here as batch_args points to its string data
-                     */
-                }
+            if (!convert_zval_args_to_strings(&z_args[1],
+                                              arg_count - 1,
+                                              &cmd_args,
+                                              &args_len,
+                                              &allocated_strings,
+                                              &allocated_count)) {
+                return 0;
             }
         }
+
+
         enum RequestType* output = emalloc(sizeof(enum RequestType));
         *output                  = command_type;
         /* Buffer the command for batch execution */
         int buffer_result = buffer_command_for_batch(valkey_glide,
                                                      command_type,
-                                                     batch_args,
-                                                     arg_lengths,
+                                                     cmd_args,
+                                                     args_len,
                                                      arg_count - 1, /* number of args */
                                                      output,        /* result_ptr */
                                                      command_response_to_zval_wrapper);
 
         /* Free the argument arrays */
-        if (batch_args)
-            efree(batch_args);
-        if (arg_lengths)
-            efree(arg_lengths);
-
+        if (cmd_args)
+            efree(cmd_args);
+        if (args_len)
+            efree(args_len);
+        cleanup_allocated_strings(allocated_strings, allocated_count);
         if (buffer_result) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);

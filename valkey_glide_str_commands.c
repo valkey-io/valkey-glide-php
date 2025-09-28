@@ -237,17 +237,6 @@ static void build_sort_args(const char*     key,
     uintptr_t*     args     = (uintptr_t*) emalloc(max_args * sizeof(uintptr_t));
     unsigned long* args_len = (unsigned long*) emalloc(max_args * sizeof(unsigned long));
 
-    if (!args || !args_len) {
-        if (args)
-            efree(args);
-        if (args_len)
-            efree(args_len);
-        *args_ptr      = NULL;
-        *args_len_ptr  = NULL;
-        *arg_count_ptr = 0;
-        return;
-    }
-
     /* Current argument index */
     unsigned long arg_idx = 0;
 

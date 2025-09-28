@@ -98,14 +98,17 @@ int execute_core_command(valkey_glide_object* valkey_glide,
 
     /* Process result using appropriate handler */
     if (result) {
-        if (!result->command_error && result->response) {
+        if (result->response) {
             /* Non-routed commands use standard processor */
             res = processor(result->response, result_ptr, return_value);
+        } else {
+            ZVAL_FALSE(return_value);
         }
 
         /* Free the result - handle_string_response doesn't free it */
-
         free_command_result(result);
+    } else {
+        ZVAL_FALSE(return_value);
     }
 
     /* Cleanup */
@@ -340,9 +343,6 @@ int prepare_key_value_args(core_command_args_t* args,
             case CORE_ARG_TYPE_DOUBLE:
                 total_args++;
                 break;
-            case CORE_ARG_TYPE_MULTI_STRING:
-                total_args += args->args[i].data.multi_string_arg.count;
-                break;
             case CORE_ARG_TYPE_ARRAY:
                 /* Count elements in the array */
                 total_args += args->args[i].data.array_arg.count;
@@ -422,15 +422,6 @@ int prepare_key_value_args(core_command_args_t* args,
                 }
                 break;
             }
-
-            case CORE_ARG_TYPE_MULTI_STRING:
-                for (int j = 0; j < args->args[i].data.multi_string_arg.count; j++) {
-                    (*cmd_args)[arg_idx] =
-                        (uintptr_t) args->args[i].data.multi_string_arg.values[j];
-                    (*cmd_args_len)[arg_idx] = args->args[i].data.multi_string_arg.lengths[j];
-                    arg_idx++;
-                }
-                break;
 
             case CORE_ARG_TYPE_ARRAY: {
                 /* Expand array elements into individual arguments */
@@ -595,9 +586,6 @@ int prepare_message_args(core_command_args_t* args,
             case CORE_ARG_TYPE_DOUBLE:
                 total_args++;
                 break;
-            case CORE_ARG_TYPE_MULTI_STRING:
-                total_args += args->args[i].data.multi_string_arg.count;
-                break;
             default:
                 break;
         }
@@ -645,15 +633,6 @@ int prepare_message_args(core_command_args_t* args,
                 }
                 break;
             }
-
-            case CORE_ARG_TYPE_MULTI_STRING:
-                for (int j = 0; j < args->args[i].data.multi_string_arg.count; j++) {
-                    (*cmd_args)[arg_idx] =
-                        (uintptr_t) args->args[i].data.multi_string_arg.values[j];
-                    (*cmd_args_len)[arg_idx] = args->args[i].data.multi_string_arg.lengths[j];
-                    arg_idx++;
-                }
-                break;
 
             default:
                 break;

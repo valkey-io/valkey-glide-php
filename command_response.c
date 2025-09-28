@@ -133,39 +133,6 @@ int parse_cluster_route(zval* route_zval, cluster_route_t* route) {
                     return 1;
                 }
             }
-
-            return 0; /* Invalid type-based routing */
-        }
-
-        /* Try direct host/port keys */
-        host_zv = zend_hash_str_find(route_ht, "host", sizeof("host") - 1);
-        port_zv = zend_hash_str_find(route_ht, "port", sizeof("port") - 1);
-
-        if (!host_zv || !port_zv) {
-            /* Try numeric keys (indexed array approach) */
-            host_zv = zend_hash_index_find(route_ht, 0);
-            port_zv = zend_hash_index_find(route_ht, 1);
-        }
-
-        if (host_zv && port_zv && Z_TYPE_P(host_zv) == IS_STRING) {
-            /* Set route type to host:port */
-            route->type = ROUTE_TYPE_HOST_PORT;
-
-            /* Get host from array */
-            route->data.host_port_route.host = Z_STRVAL_P(host_zv);
-
-            /* Get port from array */
-            if (Z_TYPE_P(port_zv) == IS_LONG) {
-                route->data.host_port_route.port = Z_LVAL_P(port_zv);
-            } else {
-                zval temp;
-                ZVAL_COPY(&temp, port_zv);
-                convert_to_long(&temp);
-                route->data.host_port_route.port = Z_LVAL(temp);
-                zval_dtor(&temp);
-            }
-
-            return 1;
         }
     }
 
@@ -271,12 +238,6 @@ CommandResult* execute_command_with_route(const void*          glide_client,
                                           const uintptr_t*     args,
                                           const unsigned long* args_len,
                                           zval*                arg_route) {
-    /* Check if client is valid */
-    if (!glide_client) {
-        printf("Error: glide_client is NULL\n");
-        return NULL;
-    }
-
     /* Validate route parameter */
     if (!arg_route) {
         printf("Error: arg_route is NULL\n");
@@ -696,43 +657,6 @@ int command_response_to_zval(CommandResponse* response,
             ZVAL_NULL(output);
             return -1;
     }
-}
-
-/* Handle a set response */
-int handle_set_response(CommandResult* result, zval* output) {
-    /* Check if the command was successful */
-    if (!result) {
-        return -1;
-    }
-
-    /* Check if there was an error */
-    if (result->command_error) {
-        printf("%s:%d - Error executing command: %s\n",
-               __FILE__,
-               __LINE__,
-               result->command_error->command_error_message);
-        free_command_result(result);
-        return -1;
-    }
-
-    /* Process the result */
-    int ret_val = -1;
-    if (result->response) {
-        if (result->response->response_type == Null) {
-            ZVAL_NULL(output);
-            ret_val = 0;
-        } else if (result->response->response_type == Sets) {
-            ret_val = command_response_to_zval(
-                result->response, output, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
-        } else {
-            ret_val = -1;
-        }
-    }
-
-    /* Free the result */
-    free_command_result(result);
-
-    return ret_val;
 }
 
 /* Convert a long value to a string */

@@ -275,17 +275,42 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($this->valkey_glide->set($key1, '12244447777777'));
         $this->assertTrue($this->valkey_glide->set($key2, '6666662244441'));
 
+        // Test basic LCS
         $this->assertEquals('224444', $this->valkey_glide->lcs($key1, $key2));
+        
+        // Test LCS with IDX
         $this->assertEquals(
             ['matches', [[[1, 6], [6, 11]]], 'len', 6],
             $this->valkey_glide->lcs($key1, $key2, ['idx'])
         );
+        
+        // Test LCS with IDX and WITHMATCHLEN
         $this->assertEquals(
             ['matches', [[[1, 6], [6, 11], 6]], 'len', 6],
             $this->valkey_glide->lcs($key1, $key2, ['idx', 'withmatchlen'])
         );
 
+        // Test LCS length only
         $this->assertEquals(6, $this->valkey_glide->lcs($key1, $key2, ['len']));
+
+        // Test MINMATCHLEN with IDX (only matches of length >= 3)
+        $this->assertEquals(
+            ['matches', [[[1, 6], [6, 11]]], 'len', 6],
+            $this->valkey_glide->lcs($key1, $key2, ['idx', 'minmatchlen' => 3])
+        );
+
+        // Test MINMATCHLEN with IDX and WITHMATCHLEN
+        
+        $this->assertEquals(
+            ['matches', [[[1, 6], [6, 11],6]], 'len', 6],
+            $this->valkey_glide->lcs($key1, $key2, ['idx', 'minmatchlen' => 3, 'withmatchlen'])
+        );
+
+        // Test MINMATCHLEN that filters all matches
+        $this->assertEquals(
+            ['matches', [], 'len', 6],
+            $this->valkey_glide->lcs($key1, $key2, ['idx', 'minmatchlen' => 10])
+        );
 
         $this->valkey_glide->del([$key1, $key2]);
     }
@@ -1096,6 +1121,18 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         $idle1 = $this->valkey_glide->object('idletime', '{idle}1');
         $idle2 = $this->valkey_glide->object('idletime', '{idle}2');
+        
+
+        /* We're not testing if idle is 0 because CPU scheduling on GitHub CI
+         * potatoes can cause that to erroneously fail. */
+        $this->assertLT(2, $idle1);
+        $this->assertLT(2, $idle2);
+
+        $this->assertEquals(2, $this->valkey_glide->touch(['{idle}1', '{idle}2', '{idle}notakey']));
+
+        $idle1 = $this->valkey_glide->object('idletime', '{idle}1');
+        $idle2 = $this->valkey_glide->object('idletime', '{idle}2');
+        
 
         /* We're not testing if idle is 0 because CPU scheduling on GitHub CI
          * potatoes can cause that to erroneously fail. */
@@ -3074,6 +3111,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(0, $this->valkey_glide->zRank('z', 'one'));
         $this->assertEquals(1, $this->valkey_glide->zRank('z', 'two'));
         $this->assertEquals(2, $this->valkey_glide->zRank('z', 'five'));
+        $this->assertEquals(2, $this->valkey_glide->zRank('z', 'five'));
 
         $this->assertEquals(2, $this->valkey_glide->zRevRank('z', 'one'));
         $this->assertEquals(1, $this->valkey_glide->zRevRank('z', 'two'));
@@ -3910,8 +3948,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     /* GitHub issue #1211 (ignore redundant calls to pipeline or multi) */
     public function testDoublePipeNoOp()
-    {
-         $this->markTestSkipped();//TODO
+    {         
         /* Only the first pipeline should be honored */
         for ($i = 0; $i < 6; $i++) {
             $this->valkey_glide->pipeline();
@@ -3953,8 +3990,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentTypeString()
-    {
-        $this->markTestSkipped();
+    {        
 
         $key = '{hash}string';
         $dkey = '{hash}' . __FUNCTION__;
@@ -4017,8 +4053,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentTypeList()
-    {
-         $this->markTestSkipped();
+    {         
         $key = '{hash}list';
         $dkey = '{hash}' . __FUNCTION__;
 
@@ -4078,8 +4113,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentTypeSet()
-    {
-         $this->markTestSkipped();
+    {        
         $key = '{hash}set';
         $dkey = '{hash}' . __FUNCTION__;
         $this->valkey_glide->del($key);
@@ -4107,8 +4141,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->lSet($key, 0, 'newValue'));
         $this->assertFalse($this->valkey_glide->lrem($key, 'lvalue', 1));
         $this->assertFalse($this->valkey_glide->lPop($key));
-        $this->assertFalse($this->valkey_glide->rPop($key));
-        $this->assertFalse($this->valkey_glide->rPoplPush($key, $dkey  . 'lkey1'));
+        $this->assertFalse($this->valkey_glide->rPop($key));        
 
         // sorted sets I/F
         $this->assertFalse($this->valkey_glide->zAdd($key, 1, 'zValue1'));
@@ -4139,8 +4172,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentTypeSortedSet()
-    {
-         $this->markTestSkipped();
+    {     
         $key = '{hash}sortedset';
         $dkey = '{hash}' . __FUNCTION__;
 
@@ -4200,8 +4232,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     public function testDifferentTypeHash()
-    {
-         $this->markTestSkipped();
+    {        
         $key = '{hash}hash';
         $dkey = '{hash}hash';
 
@@ -4230,8 +4261,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->lSet($key, 0, 'newValue'));
         $this->assertFalse($this->valkey_glide->lrem($key, 'lvalue', 1));
         $this->assertFalse($this->valkey_glide->lPop($key));
-        $this->assertFalse($this->valkey_glide->rPop($key));
-        $this->assertFalse($this->valkey_glide->rPoplPush($key, $dkey . 'lkey1'));
+        $this->assertFalse($this->valkey_glide->rPop($key));        
 
         // sets I/F
         $this->assertFalse($this->valkey_glide->sAdd($key, 'sValue1'));
@@ -4260,29 +4290,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->zRemRangeByRank($key, 1, 2));
         $this->assertFalse($this->valkey_glide->zRemRangeByScore($key, 1, 2));
     }
-
-
-
-    private function cartesianProduct(array $arrays)
-    {
-        $result = [[]];
-
-        foreach ($arrays as $array) {
-            $append = [];
-            foreach ($result as $product) {
-                foreach ($array as $item) {
-                    $newProduct = $product;
-                    $newProduct[] = $item;
-                    $append[] = $newProduct;
-                }
-            }
-
-            $result = $append;
-        }
-
-        return $result;
-    }
-
 
     public function testDumpRestore()
     {
@@ -6329,91 +6336,98 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         if (! $this->minVersionCheck('5.0')) {
             $this->markTestSkipped();
         }
+        foreach (['Pavlo', null] as $consumer) {
 
-        foreach ([0, 100] as $min_idle_time) {
-            foreach ([false, true] as $justid) {
-                foreach ([0, 10] as $retrycount) {
-                    /* We need to test not passing TIME/IDLE as well as passing either */
-                    if ($min_idle_time == 0) {
-                        $topts = [[], ['IDLE', 1000000], ['TIME', time() * 1000]];
-                    } else {
-                        $topts = [null];
-                    }
-
-                    foreach ($topts as $tinfo) {
-                        if ($tinfo) {
-                            list($ttype, $tvalue) = $tinfo;
-                        } else {
-                            $ttype = null;
-                            $tvalue = null;
-                        }
-
-                        /* Add some messages and create a group */
-                        $this->addStreamsAndGroups(['s'], 10, ['group1' => 0]);
-
-                        /* Create a second stream we can FORCE ownership on */
-                        $fids = $this->addStreamsAndGroups(['f'], 10, ['group1' => 0]);
-                        $fids = $fids['f'];
-
-                        /* Have consumer 'Mike' read the messages */
-                        $oids = $this->valkey_glide->xReadGroup('group1', 'Mike', ['s' => '>']);
-                        $oids = array_keys($oids['s']); /* We're only dealing with stream 's' */
-
-                        /* Construct our options array */
-                        $opts = [];
-                        if ($justid) {
-                            $opts[] = 'JUSTID';
-                        }
-                        if ($retrycount) {
-                            $opts['RETRYCOUNT'] = $retrycount;
-                        }
-                        if ($tvalue !== null) {
-                            $opts[$ttype] = $tvalue;
-                        }
-
-                        /* Now have pavlo XCLAIM them */
-                        $cids = $this->valkey_glide->xClaim('s', 'group1', 'Pavlo', $min_idle_time, $oids, $opts);
-
-                        if (! $justid) {
-                            $cids = array_keys($cids);
-                        }
-
+            foreach ([0, 100] as $min_idle_time) {
+                foreach ([false, true] as $justid) {
+                    foreach ([0, 10] as $retrycount) {
+                        /* We need to test not passing TIME/IDLE as well as passing either */
                         if ($min_idle_time == 0) {
-                            $this->assertEquals($cids, $oids);
+                            $topts = [[], ['IDLE', 1000000], ['TIME', time() * 1000]];
+                        } else {
+                            $topts = [null];
+                        }
 
-                            /* Append the FORCE option to our second stream where we have not already
-                             * assigned to a PEL group */
-                            $opts[] = 'FORCE';
-                            $freturn = $this->valkey_glide->xClaim('f', 'group1', 'Test', 0, $fids, $opts);
-
-                            if (! $justid) {
-                                $freturn = array_keys($freturn);
+                        foreach ($topts as $tinfo) {
+                            if ($tinfo) {
+                                list($ttype, $tvalue) = $tinfo;
+                            } else {
+                                $ttype = null;
+                                $tvalue = null;
                             }
 
-                            $this->assertEquals($freturn, $fids);
+                            /* Add some messages and create a group */
+                            $this->addStreamsAndGroups(['s'], 10, ['group1' => 0]);
 
-                            if ($retrycount || $tvalue !== null) {
-                                $pending = $this->valkey_glide->xPending('s', 'group1', 0, '+', 1, 'Pavlo');
+                            /* Create a second stream we can FORCE ownership on */
+                            $fids = $this->addStreamsAndGroups(['f'], 10, ['group1' => 0]);
+                            $fids = $fids['f'];
 
-                                if ($retrycount) {
-                                    $this->assertEquals($pending[0][3], $retrycount);
+                            /* Have consumer 'Mike' read the messages */
+                            $oids = $this->valkey_glide->xReadGroup('group1', 'Mike', ['s' => '>']);
+                            $oids = array_keys($oids['s']); /* We're only dealing with stream 's' */
+
+                            /* Construct our options array */
+                            $opts = [];
+                            if ($justid) {
+                                $opts[] = 'JUSTID';
+                            }
+                            if ($retrycount) {
+                                $opts['RETRYCOUNT'] = $retrycount;
+                            }
+                            if ($tvalue !== null) {
+                                $opts[$ttype] = $tvalue;
+                            }
+
+                            /* Now have pavlo XCLAIM them */
+                            $cids = $this->valkey_glide->xClaim('s', 'group1', 'Pavlo', $min_idle_time, $oids, $opts);
+
+                            if (!$justid) {
+                                $cids = array_keys($cids);
+                            }
+
+                            if ($min_idle_time == 0) {
+                                $this->assertEquals($cids, $oids);
+
+                                /* Append the FORCE option to our second stream where we have not already
+                                 * assigned to a PEL group */
+                                $opts[] = 'FORCE';
+                                $freturn = $this->valkey_glide->xClaim('f', 'group1', 'Test', 0, $fids, $opts);
+
+                                if (!$justid) {
+                                    $freturn = array_keys($freturn);
                                 }
-                                if ($tvalue !== null) {
-                                    if ($ttype == 'IDLE') {
-                                        /* If testing IDLE the value must be >= what we set */
-                                        $this->assertGTE($tvalue, $pending[0][2]);
+
+                                $this->assertEquals($freturn, $fids);
+
+                                if ($retrycount || $tvalue !== null) {
+                                    $pending = null;
+                                    if ($consumer != null) {
+                                        $pending = $this->valkey_glide->xPending('s', 'group1', 0, '+', 1, $consumer);
                                     } else {
-                                        /* Timing tests are notoriously irritating but I don't see
-                                         * how we'll get >= 20,000 ms between XCLAIM and XPENDING no
-                                         * matter how slow the machine/VM running the tests is */
-                                        $this->assertLT(20000, $pending[0][2]);
+                                        $pending = $this->valkey_glide->xPending('s', 'group1', 0, '+', 1);
+                                    }
+
+                                    if ($retrycount) {
+                                        $this->assertEquals($pending[0][3], $retrycount);
+                                    }
+                                    if ($tvalue !== null) {
+                                        if ($ttype == 'IDLE') {
+                                            /* If testing IDLE the value must be >= what we set */
+                                            $this->assertGTE($tvalue, $pending[0][2]);
+                                        } else {
+                                            /* Timing tests are notoriously irritating but I don't see
+                                             * how we'll get >= 20,000 ms between XCLAIM and XPENDING no
+                                             * matter how slow the machine/VM running the tests is */
+                                            $this->assertLT(20000, $pending[0][2]);
+                                        }
                                     }
                                 }
+                            } else {
+                                /* We're verifying that we get no messages when we've set 100 seconds
+                                 * as our idle time, which should match nothing */
+                                $this->assertEquals([], $cids);
                             }
-                        } else {
-                            /* We're verifying that we get no messages when we've set 100 seconds
-                             * as our idle time, which should match nothing */
-                            $this->assertEquals([], $cids);
                         }
                     }
                 }

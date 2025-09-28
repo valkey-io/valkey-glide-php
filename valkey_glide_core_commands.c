@@ -243,6 +243,7 @@ static int process_set_result(CommandResponse* response, void* output, zval* ret
     struct set_result_data* data = (struct set_result_data*) output;
 
     if (!response) {
+        efree(output);
         return 0;
     }
 
