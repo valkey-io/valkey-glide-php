@@ -89,7 +89,10 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         default:
-            goto cleanup;
+            if (result_ptr) {
+                efree(result_ptr);
+            }
+            return 0;
     }
 
     if (arg_count <= 0) {
@@ -112,16 +115,22 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
     if (result) {
         if (!result->command_error && result->response && process_result) {
             status = process_result(result->response, result_ptr, return_value);
+        } else {
+            if (result_ptr) {
+                efree(result_ptr);
+            }
         }
         free_command_result(result);
+    } else {
+        if (result_ptr) {
+            efree(result_ptr);
+        }
     }
 
 cleanup:
     /* Clean up allocated resources */
     cleanup_h_command_args(allocated_strings, allocated_count, cmd_args, args_len);
-    if (result_ptr) {
-        efree(result_ptr);
-    }
+
     return status;
 }
 
