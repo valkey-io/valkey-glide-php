@@ -519,7 +519,6 @@ int command_response_to_zval(CommandResponse* response,
                     }
                 }
             } else if (use_associative_array == COMMAND_RESPONSE_ARRAY_ASSOCIATIVE) {
-                zval field, value;
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
                 printf("%s:%d - response->array_value[0]->command_response_type = %d\n ",
                        __FILE__,
@@ -528,6 +527,7 @@ int command_response_to_zval(CommandResponse* response,
 #endif
                 array_init(output);
                 for (int64_t i = 0; i < response->array_value_len; ++i) {
+                    zval field, value;
                     command_response_to_zval(&response->array_value[i],
                                              &field,
                                              COMMAND_RESPONSE_NOT_ASSOSIATIVE,
@@ -542,8 +542,11 @@ int command_response_to_zval(CommandResponse* response,
                         val_zval = zend_hash_index_find(Z_ARRVAL(field), 1);  // field[1]
 
                         if (key_zval && val_zval && Z_TYPE_P(key_zval) == IS_STRING) {
-                            add_assoc_zval(output, Z_STRVAL_P(key_zval), val_zval);
+                            zend_string* key = Z_STR_P(key_zval);
+                            GC_TRY_ADDREF(Z_STR_P(val_zval));
+                            zend_hash_update(Z_ARRVAL_P(output), key, val_zval);
                         }
+                        zval_ptr_dtor(&field);
                     }
                 }
             } else {
