@@ -992,14 +992,6 @@ int execute_hsetexxx_command(zval* object, int argc, zval* return_value, zend_cl
 int execute_hpsetexxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_hsetexatxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_hpsetexatxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hsetexnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpsetexnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hsetexatnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpsetexatnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hsetexxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpsetexxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hsetexatxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpexpireatxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 // Hash Field Expiration NX/XX variants
 int execute_hexpirenx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);

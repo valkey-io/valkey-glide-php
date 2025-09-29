@@ -1467,9 +1467,9 @@ class ValkeyGlide
      *
      * @return ValkeyGlide|mixed|false Returns the value of the field, or false on failure.
      *
-     * @example $valkey_glide->hGetEx('player:1', 'score', ['EX' => 3600]);
+     * @example $valkey_glide->hGetEx('player:1', ['score'], ['EX' => 3600]);
      */
-    public function hGetEx(string $key, string $field, ?array $options = null): mixed;
+    public function hGetEx(string $key, array $fields, ?array $options = null): mixed;
 
     /**
      * Set an expiration time (in seconds) on one or more fields of a given hash key.
@@ -1478,7 +1478,7 @@ class ValkeyGlide
      * @param string $key The key of the hash.
      * @param int $seconds The expiration time in seconds.
      * @param string $field The field name.
-     * @param string$other_fields Additional field names.
+     * @param string $other_fields Additional field names.
      *
      * @return ValkeyGlide|array|false Returns an array indicating the result for each field, or false on failure.
      *
@@ -1493,7 +1493,7 @@ class ValkeyGlide
      * @param string $key The key of the hash.
      * @param int $milliseconds The expiration time in milliseconds.
      * @param string $field The field name.
-     * @param string$other_fields Additional field names.
+     * @param string $other_fields Additional field names.
      *
      * @return ValkeyGlide|array|false Returns an array indicating the result for each field, or false on failure.
      *
@@ -1508,7 +1508,7 @@ class ValkeyGlide
      * @param string $key The key of the hash.
      * @param int $unix_timestamp The expiration time as unix timestamp in seconds.
      * @param string $field The field name.
-     * @param string$other_fields Additional field names.
+     * @param string $other_fields Additional field names.
      *
      * @return ValkeyGlide|array|false Returns an array indicating the result for each field, or false on failure.
      *
@@ -1523,7 +1523,7 @@ class ValkeyGlide
      * @param string $key The key of the hash.
      * @param int $unix_timestamp_ms The expiration time as unix timestamp in milliseconds.
      * @param string $field The field name.
-     * @param string$other_fields Additional field names.
+     * @param string $other_fields Additional field names.
      *
      * @return ValkeyGlide|array|false Returns an array indicating the result for each field, or false on failure.
      *
@@ -1537,7 +1537,7 @@ class ValkeyGlide
      *
      * @param string $key The key of the hash.
      * @param string $field The field name.
-     * @param string$other_fields Additional field names.
+     * @param string $other_fields Additional field names.
      *
      * @return ValkeyGlide|array|false Returns an array indicating the result for each field, or false on failure.
      *
@@ -1551,7 +1551,7 @@ class ValkeyGlide
      *
      * @param string $key The key of the hash.
      * @param string $field The field name.
-     * @param string$other_fields Additional field names.
+     * @param string $other_fields Additional field names.
      *
      * @return ValkeyGlide|array|false Returns an array with TTL values for each field, or false on failure.
      *
@@ -1565,7 +1565,7 @@ class ValkeyGlide
      *
      * @param string $key The key of the hash.
      * @param string $field The field name.
-     * @param string$other_fields Additional field names.
+     * @param string $other_fields Additional field names.
      *
      * @return ValkeyGlide|array|false Returns an array with TTL values in milliseconds for each field, or false on failure.
      *
@@ -1579,7 +1579,7 @@ class ValkeyGlide
      *
      * @param string $key The key of the hash.
      * @param string $field The field name.
-     * @param string$other_fields Additional field names.
+     * @param string $other_fields Additional field names.
      *
      * @return ValkeyGlide|array|false Returns an array with expiration timestamps for each field, or false on failure.
      *
@@ -1593,7 +1593,7 @@ class ValkeyGlide
      *
      * @param string $key The key of the hash.
      * @param string $field The field name.
-     * @param string$other_fields Additional field names.
+     * @param string $other_fields Additional field names.
      *
      * @return ValkeyGlide|array|false Returns an array with expiration timestamps in milliseconds for each field, or false on failure.
      *

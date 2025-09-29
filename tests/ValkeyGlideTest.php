@@ -4040,7 +4040,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         
         // Test HGETEX format: key [EX seconds|PX milliseconds|EXAT unix-time-seconds|PXAT unix-time-milliseconds|PERSIST] FIELDS numfields field [field ...]
         $this->valkey_glide->hSet($key, 'getex_field', 'getex_value');
-        $result = $this->valkey_glide->hGetEx($key, 300, 'getex_field');
+        $result = $this->valkey_glide->hGetEx($key, ['getex_field'], ['EX' => 300]);
         $this->assertEquals(['getex_field' => 'getex_value'], $result); // Should return field-value map
         
         // Verify HGETEX set expiration
@@ -4137,7 +4137,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         
         // Test HGETEX format validation - should get field values AND set expiration
         $this->valkey_glide->hSet($key, 'getex_test', 'getex_original');
-        $result = $this->valkey_glide->hGetEx($key, 15, 'getex_test');
+        $result = $this->valkey_glide->hGetEx($key, ['getex_test'], ['EX' => 15]);
         $this->assertEquals(['getex_test' => 'getex_original'], $result); // Should return field-value map
         
         // HGETEX should have set expiration
@@ -4276,7 +4276,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         
         // Test 6: HGETEX format validation - should work with multiple fields and return values
         $this->valkey_glide->hSet($key, 'getex1', 'value1', 'getex2', 'value2', 'getex3', 'value3');
-        $result = $this->valkey_glide->hGetEx($key, 45, 'getex1', 'getex2');
+        $result = $this->valkey_glide->hGetEx($key, ['getex1', 'getex2'], ['EX' => 45]);
         $this->assertEquals(['getex1' => 'value1', 'getex2' => 'value2'], $result);
         
         // Verify HGETEX set expiration on requested fields only
@@ -4289,7 +4289,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         
         // Test HGETEX with PERSIST option
         $this->valkey_glide->hExpire($key, 60, 'getex1'); // Set expiration first
-        $result = $this->valkey_glide->hGetExPersist($key, 'getex1'); // Remove expiration
+        $result = $this->valkey_glide->hGetEx($key, ['getex1'], ['PERSIST' => true]); // Remove expiration
         $this->assertEquals(['getex1' => 'value1'], $result);
         
         $ttl_after_persist = $this->valkey_glide->hTtl($key, 'getex1');
