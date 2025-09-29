@@ -3833,7 +3833,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHashFieldExpirationNxXxVariants(): void
     {
-        if (!$this->isValkeyVersionAtLeast('9.0.0')) {
+        if (version_compare($this->version, '9.0.0') < 0) {
             $this->markTestSkipped('Hash expiration NX/XX commands require Valkey 9.0.0+');
         }
 
@@ -3878,7 +3878,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHashExpireNxXxVariants(): void
     {
-        if (!$this->isValkeyVersionAtLeast('9.0.0')) {
+        if (version_compare($this->version, '9.0.0') < 0) {
             $this->markTestSkipped('Hash expiration NX/XX commands require Valkey 9.0.0+');
         }
 
