@@ -634,7 +634,6 @@ int command_response_to_zval(CommandResponse* response,
                 } else {
                     // Add the key as a separate array element (original behavior)
                     add_next_index_zval(output, &key);
-                    //       zval_dtor(&key);  // Clean up the key since we're using it as an index
                     // Add the value as the next array element
                     add_next_index_zval(output, &value);
                 }

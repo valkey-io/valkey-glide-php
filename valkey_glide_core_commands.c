@@ -1150,6 +1150,7 @@ int process_info_result(CommandResponse* response, void* output, zval* return_va
             }
         }
         ZEND_HASH_FOREACH_END();
+        zval_ptr_dtor(&temp_result);
         return 1;
     }
     return 0;
