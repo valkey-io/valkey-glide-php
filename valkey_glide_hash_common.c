@@ -1875,12 +1875,16 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
 }
 
 // Helper function for all hSetEx variants with conditions
-static int execute_hsetex_with_condition(zval*             object,
-                                         int               argc,
-                                         zval*             return_value,
-                                         zend_class_entry* ce,
-                                         const char*       expiry_type,
-                                         const char*       condition) {
+// Unified helper function for all hash field expiration variants
+static int execute_hash_expiry_command(zval*             object,
+                                       int               argc,
+                                       zval*             return_value,
+                                       zend_class_entry* ce,
+                                       enum RequestType  cmd_type,
+                                       const char*       expiry_type,
+                                       const char*       condition,
+                                       int               response_type,
+                                       int               min_field_count) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
@@ -1894,8 +1898,11 @@ static int execute_hsetex_with_condition(zval*             object,
         return 0;
     }
 
-    if (fields_count < 2 || fields_count % 2 != 0) {
-        return 0;
+    // Validate field count based on command type
+    if (cmd_type == HSetEx && (fields_count < 2 || fields_count % 2 != 0)) {
+        return 0;  // HSetEx needs field-value pairs
+    } else if (cmd_type == HExpire && fields_count < 1) {
+        return 0;  // HExpire needs at least one field
     }
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
@@ -1913,7 +1920,8 @@ static int execute_hsetex_with_condition(zval*             object,
     args.expiry_type      = (char*) expiry_type;
     args.condition        = (char*) condition;
 
-    if (execute_h_simple_command(valkey_glide, HSetEx, &args, NULL, H_RESPONSE_INT, return_value)) {
+    if (execute_h_simple_command(
+            valkey_glide, cmd_type, &args, NULL, response_type, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -1921,6 +1929,28 @@ static int execute_hsetex_with_condition(zval*             object,
         return 1;
     }
     return 0;
+}
+
+// Helper function for hSetEx variants with conditions
+static int execute_hsetex_with_condition(zval*             object,
+                                         int               argc,
+                                         zval*             return_value,
+                                         zend_class_entry* ce,
+                                         const char*       expiry_type,
+                                         const char*       condition) {
+    return execute_hash_expiry_command(
+        object, argc, return_value, ce, HSetEx, expiry_type, condition, H_RESPONSE_INT, 2);
+}
+
+// Helper function for hExpire variants with conditions
+static int execute_hexpire_with_condition(zval*             object,
+                                          int               argc,
+                                          zval*             return_value,
+                                          zend_class_entry* ce,
+                                          const char*       expiry_type,
+                                          const char*       condition) {
+    return execute_hash_expiry_command(
+        object, argc, return_value, ce, HExpire, expiry_type, condition, H_RESPONSE_ARRAY, 1);
 }
 
 // Hash Field Expiration execution functions
@@ -1974,56 +2004,6 @@ int execute_hsetexatxx_command(zval* object, int argc, zval* return_value, zend_
 
 int execute_hpsetexatxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     return execute_hsetex_with_condition(object, argc, return_value, ce, "PXAT", "XX");
-}
-
-// Helper function for hExpire variants with conditions
-static int execute_hexpire_with_condition(zval*             object,
-                                          int               argc,
-                                          zval*             return_value,
-                                          zend_class_entry* ce,
-                                          const char*       expiry_type,
-                                          const char*       condition) {
-    valkey_glide_object* valkey_glide;
-    char*                key = NULL;
-    size_t               key_len;
-    zval*                fields       = NULL;
-    int                  fields_count = 0;
-    zend_long            expiry;
-
-    if (zend_parse_method_parameters(
-            argc, object, "Osl*", &object, ce, &key, &key_len, &expiry, &fields, &fields_count) ==
-        FAILURE) {
-        return 0;
-    }
-
-    if (fields_count < 1) {
-        return 0;
-    }
-
-    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide || !valkey_glide->glide_client) {
-        return 0;
-    }
-
-    h_command_args_t args = {0};
-    args.key              = key;
-    args.key_len          = key_len;
-    args.field_values     = fields;
-    args.fv_count         = fields_count;
-    args.is_array_arg     = 0;
-    args.expiry           = (int) expiry;
-    args.expiry_type      = (char*) expiry_type;
-    args.condition        = (char*) condition;
-
-    if (execute_h_simple_command(
-            valkey_glide, HExpire, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-        return 1;
-    }
-    return 0;
 }
 
 // hExpire NX/XX variants - reuse existing hExpire infrastructure with conditions

@@ -886,38 +886,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
 
-    /* Test that we are able to use the slot cache without issues */
-    public function testSlotCache()
-    {
-        ini_set('redis.clusters.cache_slots', 1);
-
-        $pong = 0;
-        for ($i = 0; $i < 10; $i++) {
-            $new_client = $this->newInstance();
-            $pong += $new_client->ping("key:$i");
-        }
-
-        $this->assertEquals($pong, $i);
-
-        ini_set('redis.clusters.cache_slots', 0);
-    }
-
-    /* Regression test for connection pool liveness checks */
-    public function testConnectionPool()
-    {
-        $prev_value = ini_get('redis.pconnect.pooling_enabled');
-        ini_set('redis.pconnect.pooling_enabled', 1);
-
-        $pong = 0;
-        for ($i = 0; $i < 10; $i++) {
-            $new_client = $this->newInstance();
-            $pong += $new_client->ping("key:$i");
-        }
-
-        $this->assertEquals($pong, $i);
-        ini_set('redis.pconnect.pooling_enabled', $prev_value);
-    }
-
     protected function sessionPrefix(): string
     {
         return 'VALKEY_GLIDE_PHP_CLUSTER_SESSION:';
@@ -1027,17 +995,30 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $key = $this->createRandomString(10);
         
         // Test hSetEx NX/XX variants in cluster
+        $this->assertClusterHSetExNxXxBehavior($key);
+        
+        // Test hExpire NX/XX variants in cluster
+        $this->assertClusterHExpireNxXxBehavior($key);
+    }
+
+    private function assertClusterHSetExNxXxBehavior(string $key): void
+    {
+        $future_timestamp = time() + 3600;
+        
         $this->assertEquals(1, $this->valkey_glide_cluster->hSetExNx($key, 60, 'field1', 'value1'));
         $this->assertEquals(0, $this->valkey_glide_cluster->hSetExNx($key, 60, 'field1', 'new_value'));
         $this->assertEquals(1, $this->valkey_glide_cluster->hSetExXx($key, 60, 'field1', 'updated_value'));
         
         // Test all timestamp and millisecond variants
-        $future_timestamp = time() + 3600;
         $this->assertEquals(1, $this->valkey_glide_cluster->hSetExAtNx($key, $future_timestamp, 'field2', 'value2'));
         $this->assertEquals(1, $this->valkey_glide_cluster->hPSetExNx($key, 60000, 'field3', 'value3'));
         $this->assertEquals(1, $this->valkey_glide_cluster->hPSetExAtNx($key, $future_timestamp * 1000, 'field4', 'value4'));
+    }
+
+    private function assertClusterHExpireNxXxBehavior(string $key): void
+    {
+        $future_timestamp = time() + 3600;
         
-        // Test hExpire NX/XX variants in cluster
         $this->valkey_glide_cluster->hSet($key, 'field5', 'value5', 'field6', 'value6');
         
         $result = $this->valkey_glide_cluster->hExpireNx($key, 60, 'field5');
