@@ -89,15 +89,24 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case HSetEx:
+            arg_count = prepare_h_hfe_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
+            break;
         case HExpire:
         case HPExpire:
         case HExpireAt:
         case HPExpireAt:
+            arg_count = prepare_h_expire_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
+            break;
         case HTtl:
         case HPTtl:
         case HExpireTime:
         case HPExpireTime:
         case HPersist:
+            arg_count = prepare_h_field_only_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
+            break;
         case HGetEx:
             arg_count = prepare_h_hfe_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
@@ -194,15 +203,24 @@ int execute_h_simple_command(valkey_glide_object* valkey_glide,
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case HSetEx:
+            arg_count = prepare_h_hfe_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
+            break;
         case HExpire:
         case HPExpire:
         case HExpireAt:
         case HPExpireAt:
+            arg_count = prepare_h_expire_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
+            break;
         case HTtl:
         case HPTtl:
         case HExpireTime:
         case HPExpireTime:
         case HPersist:
+            arg_count = prepare_h_field_only_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
+            break;
         case HGetEx:
             arg_count = prepare_h_hfe_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
@@ -567,75 +585,269 @@ int prepare_h_randfield_args(h_command_args_t* args,
 }
 
 /**
+ * Prepare arguments for HTTL, HPTTL, HEXPIRETIME, HPEXPIRETIME, HPERSIST commands
+ * Redis format: HTTL key FIELDS numfields field [field ...]
+ * Redis format: HPERSIST key FIELDS numfields field [field ...]
+ */
+int prepare_h_field_only_args(h_command_args_t* args,
+                              uintptr_t**       args_out,
+                              unsigned long**   args_len_out,
+                              char***           allocated_strings,
+                              int*              allocated_count) {
+    if (!args->key || !args->field_values || args->fv_count == 0) {
+        return 0;
+    }
+
+    int field_count = args->fv_count;     // just fields, no values
+    int arg_count   = 3 + args->fv_count; /* key + "FIELDS" + field_count + fields */
+
+    *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    *allocated_strings = (char**) emalloc(sizeof(char*));
+    *allocated_count   = 0;
+
+    int arg_idx = 0;
+
+    /* Add key */
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
+    (*args_len_out)[arg_idx] = args->key_len;
+    arg_idx++;
+
+    /* Add "FIELDS" keyword */
+    (*args_out)[arg_idx]     = (uintptr_t) "FIELDS";
+    (*args_len_out)[arg_idx] = 6;
+    arg_idx++;
+
+    /* Add field count */
+    char* field_count_str = (char*) emalloc(32);
+    snprintf(field_count_str, 32, "%d", field_count);
+    (*allocated_strings)[(*allocated_count)++] = field_count_str;
+    (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
+    (*args_len_out)[arg_idx]                   = strlen(field_count_str);
+    arg_idx++;
+
+    /* Add fields only */
+    for (int i = 0; i < args->fv_count; i++) {
+        zval* field = &args->field_values[i];
+        zval  temp;
+        if (Z_TYPE_P(field) != IS_STRING) {
+            ZVAL_COPY(&temp, field);
+            convert_to_string(&temp);
+            field = &temp;
+        }
+        (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(field);
+        (*args_len_out)[arg_idx] = Z_STRLEN_P(field);
+        arg_idx++;
+        if (field == &temp) {
+            zval_dtor(&temp);
+        }
+    }
+
+    return arg_count;
+}
+
+/**
+ * Prepare arguments for HEXPIRE commands
+ * Redis format: HEXPIRE key seconds [NX|XX|GT|LT] FIELDS numfields field [field ...]
+ */
+int prepare_h_expire_args(h_command_args_t* args,
+                          uintptr_t**       args_out,
+                          unsigned long**   args_len_out,
+                          char***           allocated_strings,
+                          int*              allocated_count) {
+    if (!args->key || !args->field_values || args->fv_count == 0) {
+        return 0;
+    }
+
+    int field_count = args->fv_count;     // just fields, no values
+    int arg_count   = 4 + args->fv_count; /* key + seconds + "FIELDS" + field_count + fields */
+
+    if (args->condition) {
+        arg_count++; /* condition (NX, XX, GT, LT) */
+    }
+
+    *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    *allocated_strings = (char**) emalloc(2 * sizeof(char*));
+    *allocated_count   = 0;
+
+    int arg_idx = 0;
+
+    /* Add key */
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
+    (*args_len_out)[arg_idx] = args->key_len;
+    arg_idx++;
+
+    /* Add seconds (always required for HEXPIRE) */
+    char* expiry_str = (char*) emalloc(32);
+    snprintf(expiry_str, 32, "%d", args->expiry);
+    (*allocated_strings)[(*allocated_count)++] = expiry_str;
+    (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
+    (*args_len_out)[arg_idx]                   = strlen(expiry_str);
+    arg_idx++;
+
+    /* Add condition if specified (NX, XX, GT, LT) - no conversion needed */
+    if (args->condition) {
+        (*args_out)[arg_idx]     = (uintptr_t) args->condition;
+        (*args_len_out)[arg_idx] = strlen(args->condition);
+        arg_idx++;
+    }
+
+    /* Add "FIELDS" keyword */
+    (*args_out)[arg_idx]     = (uintptr_t) "FIELDS";
+    (*args_len_out)[arg_idx] = 6;
+    arg_idx++;
+
+    /* Add field count */
+    char* field_count_str = (char*) emalloc(32);
+    snprintf(field_count_str, 32, "%d", field_count);
+    (*allocated_strings)[(*allocated_count)++] = field_count_str;
+    (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
+    (*args_len_out)[arg_idx]                   = strlen(field_count_str);
+    arg_idx++;
+
+    /* Add fields only (no values) */
+    for (int i = 0; i < args->fv_count; i++) {
+        zval* field = &args->field_values[i];
+        zval  temp;
+        if (Z_TYPE_P(field) != IS_STRING) {
+            ZVAL_COPY(&temp, field);
+            convert_to_string(&temp);
+            field = &temp;
+        }
+        (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(field);
+        (*args_len_out)[arg_idx] = Z_STRLEN_P(field);
+        arg_idx++;
+        if (field == &temp) {
+            zval_dtor(&temp);
+        }
+    }
+
+    return arg_count;
+}
+
+/**
  * Prepare arguments for Hash Field Expiration commands
+ * NOTE: HSETEX and HEXPIRE have different formats and should use separate functions:
+ * HSETEX format: key [FNX|FXX] [EX seconds|PX milliseconds|EXAT unix-time-seconds|PXAT
+ * unix-time-milliseconds|KEEPTTL] FIELDS numfields field value [field value ...] HEXPIRE format:
+ * key seconds [NX|XX|GT|LT] FIELDS numfields field [field ...]
+ *
+ * This function currently assumes HSETEX format - HEXPIRE commands will be incorrect!
  */
 int prepare_h_hfe_args(h_command_args_t* args,
                        uintptr_t**       args_out,
                        unsigned long**   args_len_out,
                        char***           allocated_strings,
                        int*              allocated_count) {
-    if (!args->key) {
+    if (!args->key || !args->field_values || args->fv_count == 0) {
         return 0;
     }
 
-    /* Calculate argument count: key + fields + expiry + optional args */
-    int arg_count       = 2; /* key + fields/expiry */
-    int need_expiry_str = 0;
+    /* Calculate field count for FIELDS parameter */
+    int field_count = args->fv_count;
+    // For hSetEx, we have field-value pairs, so field count is half
+    if (args->fv_count % 2 == 0) {
+        field_count = args->fv_count / 2;  // Assume this is hSetEx with field-value pairs
+    }
 
-    if (args->expiry > 0) {
-        arg_count++; /* expiry value */
-        need_expiry_str = 1;
-    }
-    if (args->expiry_type) {
-        arg_count++; /* expiry type */
-    }
+    /* Calculate argument count: key + [condition] + [expiry_unit + expiry_time] + "FIELDS" +
+     * field_count + fields/values */
+    int arg_count = 3 + args->fv_count; /* key + "FIELDS" + field_count + fields/values */
+
     if (args->condition) {
-        arg_count++; /* condition */
+        arg_count++; /* condition (FNX, FXX) */
+    }
+    if (args->expiry > 0 || (args->expiry_type && strcmp(args->expiry_type, "KEEPTTL") == 0)) {
+        if (args->expiry_type && strcmp(args->expiry_type, "KEEPTTL") == 0) {
+            arg_count += 1; /* KEEPTTL only (no time parameter) */
+        } else {
+            arg_count += 2; /* expiry unit + expiry value (EX 60, PX 5000, etc.) */
+        }
     }
 
     /* Allocate arrays */
     *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-    int alloc_count    = need_expiry_str ? 1 : 0;
-    *allocated_strings = alloc_count > 0 ? (char**) emalloc(alloc_count * sizeof(char*)) : NULL;
+    /* Allocate strings for expiry value and field count */
+    *allocated_strings = (char**) emalloc(2 * sizeof(char*));
     *allocated_count   = 0;
 
-    /* Set key */
-    (*args_out)[0]     = (uintptr_t) args->key;
-    (*args_len_out)[0] = args->key_len;
+    int arg_idx = 0;
 
-    int arg_idx = 1;
+    /* Add key */
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
+    (*args_len_out)[arg_idx] = args->key_len;
+    arg_idx++;
 
-    /* Add fields (simplified - assumes single field for now) */
-    if (args->field) {
-        (*args_out)[arg_idx]     = (uintptr_t) args->field;
-        (*args_len_out)[arg_idx] = args->field_len;
-        arg_idx++;
-    }
-
-    /* Add expiry value */
-    if (need_expiry_str) {
-        char* expiry_str = (char*) emalloc(32);
-        snprintf(expiry_str, 32, "%d", args->expiry);
-        (*allocated_strings)[(*allocated_count)++] = expiry_str;
-        (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
-        (*args_len_out)[arg_idx]                   = strlen(expiry_str);
-        arg_idx++;
-    }
-
-    /* Add expiry type */
-    if (args->expiry_type) {
-        (*args_out)[arg_idx]     = (uintptr_t) args->expiry_type;
-        (*args_len_out)[arg_idx] = strlen(args->expiry_type);
-        arg_idx++;
-    }
-
-    /* Add condition */
+    /* Add condition if specified (FNX, FXX) - convert NX/XX to FNX/FXX */
     if (args->condition) {
-        (*args_out)[arg_idx]     = (uintptr_t) args->condition;
-        (*args_len_out)[arg_idx] = strlen(args->condition);
+        const char* redis_condition;
+        if (strcmp(args->condition, "NX") == 0) {
+            redis_condition = "FNX";
+        } else if (strcmp(args->condition, "XX") == 0) {
+            redis_condition = "FXX";
+        } else {
+            redis_condition = args->condition; /* Use as-is if already correct */
+        }
+        (*args_out)[arg_idx]     = (uintptr_t) redis_condition;
+        (*args_len_out)[arg_idx] = strlen(redis_condition);
         arg_idx++;
+    }
+
+    /* Add expiry unit and time if specified */
+    if (args->expiry > 0 || (args->expiry_type && strcmp(args->expiry_type, "KEEPTTL") == 0)) {
+        /* Add expiry unit (EX, PX, EXAT, PXAT, KEEPTTL) */
+        const char* expiry_unit  = args->expiry_type ? args->expiry_type : "EX";
+        (*args_out)[arg_idx]     = (uintptr_t) expiry_unit;
+        (*args_len_out)[arg_idx] = strlen(expiry_unit);
+        arg_idx++;
+
+        /* Add expiry time value (only if not KEEPTTL) */
+        if (strcmp(expiry_unit, "KEEPTTL") != 0) {
+            char* expiry_str = (char*) emalloc(32);
+            snprintf(expiry_str, 32, "%d", args->expiry);
+            (*allocated_strings)[(*allocated_count)++] = expiry_str;
+            (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
+            (*args_len_out)[arg_idx]                   = strlen(expiry_str);
+            arg_idx++;
+        }
+    }
+
+    /* Add "FIELDS" keyword */
+    const char* fields_keyword = "FIELDS";
+    (*args_out)[arg_idx]       = (uintptr_t) fields_keyword;
+    (*args_len_out)[arg_idx]   = strlen(fields_keyword);
+    arg_idx++;
+
+    /* Add field count */
+    char* field_count_str = (char*) emalloc(32);
+    snprintf(field_count_str, 32, "%d", field_count);
+    (*allocated_strings)[(*allocated_count)++] = field_count_str;
+    (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
+    (*args_len_out)[arg_idx]                   = strlen(field_count_str);
+    arg_idx++;
+
+    /* Add fields and values */
+    for (int i = 0; i < args->fv_count; i++) {
+        zval* field_or_value = &args->field_values[i];
+
+        /* Convert to string if needed */
+        zval temp;
+        if (Z_TYPE_P(field_or_value) != IS_STRING) {
+            ZVAL_COPY(&temp, field_or_value);
+            convert_to_string(&temp);
+            field_or_value = &temp;
+        }
+
+        (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(field_or_value);
+        (*args_len_out)[arg_idx] = Z_STRLEN_P(field_or_value);
+        arg_idx++;
+
+        if (field_or_value == &temp) {
+            zval_dtor(&temp);
+        }
     }
 
     return arg_count;
@@ -1888,20 +2100,21 @@ static int execute_hash_expiry_command(zval*             object,
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
-    zval*                fields       = NULL;
-    int                  fields_count = 0;
+    zval*                args     = NULL;
+    int                  num_args = 0;
     zend_long            expiry;
 
+    // Parse: object, key, expiry, field1, field2, ... (variadic parameters)
     if (zend_parse_method_parameters(
-            argc, object, "Osl*", &object, ce, &key, &key_len, &expiry, &fields, &fields_count) ==
+            argc, object, "Osl+", &object, ce, &key, &key_len, &expiry, &args, &num_args) ==
         FAILURE) {
         return 0;
     }
 
     // Validate field count based on command type
-    if (cmd_type == HSetEx && (fields_count < 2 || fields_count % 2 != 0)) {
+    if (cmd_type == HSetEx && (num_args < 2 || num_args % 2 != 0)) {
         return 0;  // HSetEx needs field-value pairs
-    } else if (cmd_type == HExpire && fields_count < 1) {
+    } else if (cmd_type == HExpire && num_args < 1) {
         return 0;  // HExpire needs at least one field
     }
 
@@ -1910,18 +2123,18 @@ static int execute_hash_expiry_command(zval*             object,
         return 0;
     }
 
-    h_command_args_t args = {0};
-    args.key              = key;
-    args.key_len          = key_len;
-    args.field_values     = fields;
-    args.fv_count         = fields_count;
-    args.is_array_arg     = 0;
-    args.expiry           = (int) expiry;
-    args.expiry_type      = (char*) expiry_type;
-    args.condition        = (char*) condition;
+    h_command_args_t hargs = {0};
+    hargs.key              = key;
+    hargs.key_len          = key_len;
+    hargs.field_values     = args;
+    hargs.fv_count         = num_args;
+    hargs.is_array_arg     = 0;
+    hargs.expiry           = (int) expiry;
+    hargs.expiry_type      = (char*) expiry_type;
+    hargs.condition        = (char*) condition;
 
     if (execute_h_simple_command(
-            valkey_glide, cmd_type, &args, NULL, response_type, return_value)) {
+            valkey_glide, cmd_type, &hargs, NULL, response_type, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;

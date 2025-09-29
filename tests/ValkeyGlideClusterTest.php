@@ -886,54 +886,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
 
-    protected function sessionPrefix(): string
-    {
-        return 'VALKEY_GLIDE_PHP_CLUSTER_SESSION:';
-    }
-
-    protected function sessionSaveHandler(): string
-    {
-        return 'rediscluster';
-    }
-
-    /**
-     * @inheritdoc
-     */
-    protected function sessionSavePath(): string
-    {
-        return implode('&', array_map(function ($host) {
-            return 'seed[]=' . $host;
-        }, self::$seeds)) . '&' . $this->getAuthFragment();
-    }
-
-    /* Test correct handling of null multibulk replies */
-    public function testNullArray()
-    {
-        $this->markTestSkipped();
-
-        $key = "key:arr";
-        $this->valkey_glide->del($key);
-
-        foreach ([false => [], true => null] as $opt => $test) {
-            $this->valkey_glide->setOption(ValkeyGlide::OPT_NULL_MULTIBULK_AS_NULL, $opt);
-
-            $r = $this->valkey_glide->rawCommand($key, "BLPOP", $key, .05);
-            $this->assertEquals($test, $r);
-
-            $this->valkey_glide->multi();
-            $this->valkey_glide->rawCommand($key, "BLPOP", $key, .05);
-            $r = $this->valkey_glide->exec();
-            $this->assertEquals([$test], $r);
-        }
-
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_NULL_MULTIBULK_AS_NULL, false);
-    }
-
-    protected function execWaitAOF()
-    {
-        return $this->valkey_glide->waitaof(uniqid(), 0, 0, 0);
-    }
-
     public function testClusterHashExpiration()
     {
         if (version_compare($this->version, '9.0.0') < 0) {
@@ -1035,6 +987,263 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->valkey_glide_cluster->hSet($key, 'field7', 'value7');
         $this->assertEquals([1], $this->valkey_glide_cluster->hExpireAtNx($key, $future_timestamp, 'field7'));
         $this->assertEquals([1], $this->valkey_glide_cluster->hPExpireNx($key, 60000, 'field6'));
+    }
+
+    public function testClusterHashExpirationMultipleFields()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
+        }
+
+        $key = $this->createRandomString(10);
+        
+        // Test hSetEx with multiple field-value pairs in cluster
+        $this->assertEquals(2, $this->valkey_glide_cluster->hSetEx($key, 60, 'field1', 'value1', 'field2', 'value2'));
+        $this->assertEquals('value1', $this->valkey_glide_cluster->hGet($key, 'field1'));
+        $this->assertEquals('value2', $this->valkey_glide_cluster->hGet($key, 'field2'));
+        
+        // Test hExpire with multiple fields in cluster
+        $this->valkey_glide_cluster->hSet($key, 'field3', 'value3', 'field4', 'value4');
+        $result = $this->valkey_glide_cluster->hExpire($key, 120, 'field3', 'field4');
+        $this->assertEquals([1, 1], $result);
+        
+        // Test NX/XX variants with multiple fields
+        $result = $this->valkey_glide_cluster->hExpireNx($key, 180, 'field3', 'field4'); // already have expiration
+        $this->assertEquals([0, 0], $result);
+        
+        $result = $this->valkey_glide_cluster->hExpireXx($key, 240, 'field3', 'field4'); // update existing
+        $this->assertEquals([1, 1], $result);
+    }
+
+    public function testClusterHashFieldExpirationRedisCommandFormats()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
+        }
+
+        $key = $this->createRandomString(10);
+        
+        // Test HSETEX format: key [FNX|FXX] [EX seconds|PX milliseconds|EXAT unix-time-seconds|PXAT unix-time-milliseconds|KEEPTTL] FIELDS numfields field value [field value ...]
+        
+        // Basic HSETEX - should generate: HSETEX key EX 60 FIELDS 1 field1 value1
+        $result = $this->valkey_glide_cluster->hSetEx($key, 60, 'field1', 'value1');
+        $this->assertEquals(1, $result);
+        $this->assertEquals('value1', $this->valkey_glide_cluster->hGet($key, 'field1'));
+        
+        // HSETEX with condition - should generate: HSETEX key FNX EX 60 FIELDS 1 field2 value2
+        $result = $this->valkey_glide_cluster->hSetExNx($key, 60, 'field2', 'value2');
+        $this->assertEquals(1, $result);
+        $this->assertEquals('value2', $this->valkey_glide_cluster->hGet($key, 'field2'));
+        
+        // HSETEX with timestamp - should generate: HSETEX key EXAT 1234567890 FIELDS 1 field3 value3
+        $future_timestamp = time() + 3600;
+        $result = $this->valkey_glide_cluster->hSetExAt($key, $future_timestamp, 'field3', 'value3');
+        $this->assertEquals(1, $result);
+        $this->assertEquals('value3', $this->valkey_glide_cluster->hGet($key, 'field3'));
+        
+        // Test HEXPIRE format: key seconds [NX|XX|GT|LT] FIELDS numfields field [field ...]
+        
+        // Basic HEXPIRE - should generate: HEXPIRE key 120 FIELDS 2 field1 field2
+        $result = $this->valkey_glide_cluster->hExpire($key, 120, 'field1', 'field2');
+        $this->assertEquals([1, 1], $result); // Both fields should get expiration
+        
+        // HEXPIRE with condition - should generate: HEXPIRE key 180 NX FIELDS 1 field4
+        $this->valkey_glide_cluster->hSet($key, 'field4', 'value4');
+        $result = $this->valkey_glide_cluster->hExpireNx($key, 180, 'field4');
+        $this->assertEquals([1], $result); // Field should get expiration
+        
+        // HEXPIRE with XX condition - should generate: HEXPIRE key 240 XX FIELDS 1 field4
+        $result = $this->valkey_glide_cluster->hExpireXx($key, 240, 'field4');
+        $this->assertEquals([1], $result); // Field should update expiration
+        
+        // Test HEXPIREAT format: key unix-timestamp [NX|XX|GT|LT] FIELDS numfields field [field ...]
+        $future_timestamp = time() + 7200;
+        $result = $this->valkey_glide_cluster->hExpireAt($key, $future_timestamp, 'field1');
+        $this->assertEquals([1], $result);
+        
+        // Test HPERSIST format: key FIELDS numfields field [field ...]
+        $result = $this->valkey_glide_cluster->hPersist($key, 'field1');
+        $this->assertEquals([1], $result); // Should remove expiration
+        
+        // Test HTTL format: key FIELDS numfields field [field ...]
+        $ttl_result = $this->valkey_glide_cluster->hTtl($key, 'field2');
+        $this->assertIsArray($ttl_result);
+        $this->assertGreaterThan(0, $ttl_result[0]); // Should have TTL
+        
+        // Test HEXPIRETIME format: key FIELDS numfields field [field ...]
+        $expire_time = $this->valkey_glide_cluster->hExpireTime($key, 'field2');
+        $this->assertIsArray($expire_time);
+        $this->assertGreaterThan(time(), $expire_time[0]); // Should be future timestamp
+    }
+
+    public function testClusterHashFieldExpirationRedisCommandFormatValidation()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
+        }
+
+        $key = $this->createRandomString(10);
+        
+        // Test HSETEX format validation by checking behavior differences
+        $result = $this->valkey_glide_cluster->hSetEx($key, 5, 'test_field', 'test_value');
+        $this->assertEquals(1, $result);
+        $this->assertEquals('test_value', $this->valkey_glide_cluster->hGet($key, 'test_field'));
+        
+        // Verify expiration was set (HSETEX format includes expiry in command)
+        $ttl = $this->valkey_glide_cluster->hTtl($key, 'test_field');
+        $this->assertGreaterThan(0, $ttl[0]);
+        $this->assertLessThanOrEqual(5, $ttl[0]);
+        
+        // Test HEXPIRE format validation - should only set expiration, not modify field value
+        $this->valkey_glide_cluster->hSet($key, 'expire_field', 'original_value');
+        $result = $this->valkey_glide_cluster->hExpire($key, 10, 'expire_field');
+        $this->assertEquals([1], $result);
+        
+        // Field value should be unchanged (HEXPIRE format doesn't include values)
+        $this->assertEquals('original_value', $this->valkey_glide_cluster->hGet($key, 'expire_field'));
+        
+        // But expiration should be set
+        $ttl = $this->valkey_glide_cluster->hTtl($key, 'expire_field');
+        $this->assertGreaterThan(8, $ttl[0]);
+        $this->assertLessThanOrEqual(10, $ttl[0]);
+        
+        // Test field-only command format validation (HTTL, HPERSIST)
+        $ttl_result = $this->valkey_glide_cluster->hTtl($key, 'expire_field');
+        $this->assertIsArray($ttl_result);
+        $this->assertGreaterThan(0, $ttl_result[0]);
+        
+        // HPERSIST should remove expiration
+        $persist_result = $this->valkey_glide_cluster->hPersist($key, 'expire_field');
+        $this->assertEquals([1], $persist_result);
+        
+        // Field should no longer have expiration
+        $ttl_after_persist = $this->valkey_glide_cluster->hTtl($key, 'expire_field');
+        $this->assertEquals([-1], $ttl_after_persist); // -1 means no expiration
+        
+        // But field value should still be intact
+        $this->assertEquals('original_value', $this->valkey_glide_cluster->hGet($key, 'expire_field'));
+    }
+
+    public function testClusterHashFieldExpirationConditionFormatValidation()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
+        }
+
+        $key = $this->createRandomString(10);
+        
+        // Test that HSETEX conditions (FNX/FXX) work correctly
+        $result = $this->valkey_glide_cluster->hSetExNx($key, 60, 'fnx_field', 'value1');
+        $this->assertEquals(1, $result); // Should succeed - field doesn't exist
+        $this->assertEquals('value1', $this->valkey_glide_cluster->hGet($key, 'fnx_field'));
+        
+        // Second FNX should fail - field now exists
+        $result = $this->valkey_glide_cluster->hSetExNx($key, 60, 'fnx_field', 'value2');
+        $this->assertEquals(0, $result); // Should fail - field exists
+        $this->assertEquals('value1', $this->valkey_glide_cluster->hGet($key, 'fnx_field')); // Unchanged
+        
+        // FXX should only set if field exists
+        $result = $this->valkey_glide_cluster->hSetExXx($key, 60, 'nonexistent', 'value');
+        $this->assertEquals(0, $result); // Should fail - field doesn't exist
+        
+        $result = $this->valkey_glide_cluster->hSetExXx($key, 60, 'fnx_field', 'updated_value');
+        $this->assertEquals(1, $result); // Should succeed - field exists
+        $this->assertEquals('updated_value', $this->valkey_glide_cluster->hGet($key, 'fnx_field'));
+        
+        // Test that HEXPIRE conditions (NX/XX) work correctly
+        $this->valkey_glide_cluster->hSet($key, 'nx_field', 'test_value');
+        
+        // NX should only set expiration if field has no expiration
+        $result = $this->valkey_glide_cluster->hExpireNx($key, 120, 'nx_field');
+        $this->assertEquals([1], $result); // Should succeed - no expiration
+        
+        // Second NX should fail - field now has expiration
+        $result = $this->valkey_glide_cluster->hExpireNx($key, 180, 'nx_field');
+        $this->assertEquals([0], $result); // Should fail - has expiration
+        
+        // XX should only set expiration if field has expiration
+        $this->valkey_glide_cluster->hSet($key, 'xx_field', 'test_value2');
+        $result = $this->valkey_glide_cluster->hExpireXx($key, 240, 'xx_field');
+        $this->assertEquals([0], $result); // Should fail - no expiration
+        
+        $result = $this->valkey_glide_cluster->hExpireXx($key, 240, 'nx_field');
+        $this->assertEquals([1], $result); // Should succeed - has expiration
+        
+        // Verify field values weren't corrupted by condition logic
+        $this->assertEquals('test_value', $this->valkey_glide_cluster->hGet($key, 'nx_field'));
+        $this->assertEquals('test_value2', $this->valkey_glide_cluster->hGet($key, 'xx_field'));
+    }
+
+    public function testClusterHashFieldExpirationFormatRegressionTests()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
+        }
+
+        $key = $this->createRandomString(10);
+        
+        // These tests would have failed with the original incorrect format implementation
+        
+        // Test 1: HEXPIRE with multiple fields should work (would fail if using HSETEX format)
+        $this->valkey_glide_cluster->hSet($key, 'field1', 'value1', 'field2', 'value2', 'field3', 'value3');
+        $result = $this->valkey_glide_cluster->hExpire($key, 30, 'field1', 'field2', 'field3');
+        $this->assertEquals([1, 1, 1], $result); // All fields should get expiration
+        
+        // Verify all fields have expiration but values are unchanged
+        $this->assertEquals('value1', $this->valkey_glide_cluster->hGet($key, 'field1'));
+        $this->assertEquals('value2', $this->valkey_glide_cluster->hGet($key, 'field2'));
+        $this->assertEquals('value3', $this->valkey_glide_cluster->hGet($key, 'field3'));
+        
+        $ttl1 = $this->valkey_glide_cluster->hTtl($key, 'field1');
+        $ttl2 = $this->valkey_glide_cluster->hTtl($key, 'field2');
+        $ttl3 = $this->valkey_glide_cluster->hTtl($key, 'field3');
+        $this->assertGreaterThan(25, $ttl1[0]);
+        $this->assertGreaterThan(25, $ttl2[0]);
+        $this->assertGreaterThan(25, $ttl3[0]);
+        
+        // Test 2: HTTL with multiple fields should work (would fail if using HSETEX format)
+        $ttl_results = $this->valkey_glide_cluster->hTtl($key, 'field1', 'field2', 'field3');
+        $this->assertCount(3, $ttl_results);
+        $this->assertGreaterThan(0, $ttl_results[0]);
+        $this->assertGreaterThan(0, $ttl_results[1]);
+        $this->assertGreaterThan(0, $ttl_results[2]);
+        
+        // Test 3: HPERSIST with multiple fields should work
+        $persist_results = $this->valkey_glide_cluster->hPersist($key, 'field1', 'field2');
+        $this->assertEquals([1, 1], $persist_results);
+        
+        // Verify persistence worked
+        $ttl_after_persist = $this->valkey_glide_cluster->hTtl($key, 'field1', 'field2', 'field3');
+        $this->assertEquals([-1, -1], array_slice($ttl_after_persist, 0, 2)); // First two should have no expiration
+        $this->assertGreaterThan(0, $ttl_after_persist[2]); // Third should still have expiration
+        
+        // Test 4: HSETEX with field-value pairs should work
+        try {
+            $result = $this->valkey_glide_cluster->hSetEx($key, 60, 'even_field', 'even_value');
+            $this->assertEquals(1, $result);
+            $this->assertEquals('even_value', $this->valkey_glide_cluster->hGet($key, 'even_field'));
+        } catch (Exception $e) {
+            $this->fail('HSETEX with proper field-value pairs should not fail: ' . $e->getMessage());
+        }
+        
+        // Test 5: Verify expiration units are handled correctly in cluster mode
+        $future_timestamp = time() + 3600;
+        
+        // HSETEX with timestamp should work
+        $result = $this->valkey_glide_cluster->hSetExAt($key, $future_timestamp, 'timestamp_field', 'timestamp_value');
+        $this->assertEquals(1, $result);
+        $this->assertEquals('timestamp_value', $this->valkey_glide_cluster->hGet($key, 'timestamp_field'));
+        
+        // HEXPIREAT with timestamp should work
+        $this->valkey_glide_cluster->hSet($key, 'expire_at_field', 'expire_at_value');
+        $result = $this->valkey_glide_cluster->hExpireAt($key, $future_timestamp, 'expire_at_field');
+        $this->assertEquals([1], $result);
+        $this->assertEquals('expire_at_value', $this->valkey_glide_cluster->hGet($key, 'expire_at_field'));
+        
+        // Both should have similar expiration times
+        $expire_time1 = $this->valkey_glide_cluster->hExpireTime($key, 'timestamp_field');
+        $expire_time2 = $this->valkey_glide_cluster->hExpireTime($key, 'expire_at_field');
+        $this->assertLessThan(5, abs($expire_time1[0] - $expire_time2[0])); // Should be within 5 seconds
     }
 
     public function testClusterHashExpirationCrossSlot()

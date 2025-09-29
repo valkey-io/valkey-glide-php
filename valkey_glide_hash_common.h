@@ -186,6 +186,18 @@ int prepare_h_hfe_args(h_command_args_t* args,
                        char***           allocated_strings,
                        int*              allocated_count);
 
+int prepare_h_expire_args(h_command_args_t* args,
+                          uintptr_t**       args_out,
+                          unsigned long**   args_len_out,
+                          char***           allocated_strings,
+                          int*              allocated_count);
+
+int prepare_h_field_only_args(h_command_args_t* args,
+                              uintptr_t**       args_out,
+                              unsigned long**   args_len_out,
+                              char***           allocated_strings,
+                              int*              allocated_count);
+
 /* ====================================================================
  * RESULT PROCESSING FUNCTIONS
  * ==================================================================== */
