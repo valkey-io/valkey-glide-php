@@ -542,124 +542,264 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
         }                                     \
     } while (0)
 
-#define HSETEX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hSetEx) { \
-        if (execute_hsetex_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HSETEX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hSetEx) {                                              \
+        if (execute_hsetex_command(getThis(),                                     \
+                                   ZEND_NUM_ARGS(),                               \
+                                   return_value,                                  \
+                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                       ? get_valkey_glide_cluster_ce()            \
+                                       : get_valkey_glide_ce()))                  \
+            return;                                                               \
+        zval_dtor(return_value);                                                  \
+        RETURN_FALSE;                                                             \
     }
 
-#define HPSETEX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hPSetEx) { \
-        if (execute_hpsetex_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HPSETEX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hPSetEx) {                                              \
+        if (execute_hpsetex_command(getThis(),                                     \
+                                    ZEND_NUM_ARGS(),                               \
+                                    return_value,                                  \
+                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                        ? get_valkey_glide_cluster_ce()            \
+                                        : get_valkey_glide_ce()))                  \
+            return;                                                                \
+        zval_dtor(return_value);                                                   \
+        RETURN_FALSE;                                                              \
     }
 
-#define HSETEXAT_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hSetExAt) { \
-        if (execute_hsetexat_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HSETEXAT_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hSetExAt) {                                              \
+        if (execute_hsetexat_command(getThis(),                                     \
+                                     ZEND_NUM_ARGS(),                               \
+                                     return_value,                                  \
+                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                         ? get_valkey_glide_cluster_ce()            \
+                                         : get_valkey_glide_ce()))                  \
+            return;                                                                 \
+        zval_dtor(return_value);                                                    \
+        RETURN_FALSE;                                                               \
     }
 
-#define HPSETEXAT_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hPSetExAt) { \
-        if (execute_hpsetexat_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HPSETEXAT_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hPSetExAt) {                                              \
+        if (execute_hpsetexat_command(getThis(),                                     \
+                                      ZEND_NUM_ARGS(),                               \
+                                      return_value,                                  \
+                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                          ? get_valkey_glide_cluster_ce()            \
+                                          : get_valkey_glide_ce()))                  \
+            return;                                                                  \
+        zval_dtor(return_value);                                                     \
+        RETURN_FALSE;                                                                \
     }
 
-#define HSETEXNX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hSetExNx) { \
-        if (execute_hsetexnx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HSETEXNX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hSetExNx) {                                              \
+        if (execute_hsetexnx_command(getThis(),                                     \
+                                     ZEND_NUM_ARGS(),                               \
+                                     return_value,                                  \
+                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                         ? get_valkey_glide_cluster_ce()            \
+                                         : get_valkey_glide_ce()))                  \
+            return;                                                                 \
+        zval_dtor(return_value);                                                    \
+        RETURN_FALSE;                                                               \
     }
 
-#define HPSETEXNX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hPSetExNx) { \
-        if (execute_hpsetexnx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HPSETEXNX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hPSetExNx) {                                              \
+        if (execute_hpsetexnx_command(getThis(),                                     \
+                                      ZEND_NUM_ARGS(),                               \
+                                      return_value,                                  \
+                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                          ? get_valkey_glide_cluster_ce()            \
+                                          : get_valkey_glide_ce()))                  \
+            return;                                                                  \
+        zval_dtor(return_value);                                                     \
+        RETURN_FALSE;                                                                \
     }
 
-#define HSETEXATNX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hSetExAtNx) { \
-        if (execute_hsetexatnx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HSETEXATNX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hSetExAtNx) {                                              \
+        if (execute_hsetexatnx_command(getThis(),                                     \
+                                       ZEND_NUM_ARGS(),                               \
+                                       return_value,                                  \
+                                       strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                           ? get_valkey_glide_cluster_ce()            \
+                                           : get_valkey_glide_ce()))                  \
+            return;                                                                   \
+        zval_dtor(return_value);                                                      \
+        RETURN_FALSE;                                                                 \
     }
 
-#define HPSETEXATNX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hPSetExAtNx) { \
-        if (execute_hpsetexatnx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HPSETEXATNX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hPSetExAtNx) {                                              \
+        if (execute_hpsetexatnx_command(getThis(),                                     \
+                                        ZEND_NUM_ARGS(),                               \
+                                        return_value,                                  \
+                                        strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                            ? get_valkey_glide_cluster_ce()            \
+                                            : get_valkey_glide_ce()))                  \
+            return;                                                                    \
+        zval_dtor(return_value);                                                       \
+        RETURN_FALSE;                                                                  \
     }
 
-#define HSETEXXX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hSetExXx) { \
-        if (execute_hsetexxx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HSETEXXX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hSetExXx) {                                              \
+        if (execute_hsetexxx_command(getThis(),                                     \
+                                     ZEND_NUM_ARGS(),                               \
+                                     return_value,                                  \
+                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                         ? get_valkey_glide_cluster_ce()            \
+                                         : get_valkey_glide_ce()))                  \
+            return;                                                                 \
+        zval_dtor(return_value);                                                    \
+        RETURN_FALSE;                                                               \
     }
 
-#define HPSETEXXX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hPSetExXx) { \
-        if (execute_hpsetexxx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HPSETEXXX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hPSetExXx) {                                              \
+        if (execute_hpsetexxx_command(getThis(),                                     \
+                                      ZEND_NUM_ARGS(),                               \
+                                      return_value,                                  \
+                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                          ? get_valkey_glide_cluster_ce()            \
+                                          : get_valkey_glide_ce()))                  \
+            return;                                                                  \
+        zval_dtor(return_value);                                                     \
+        RETURN_FALSE;                                                                \
     }
 
-#define HSETEXATXX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hSetExAtXx) { \
-        if (execute_hsetexatxx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HSETEXATXX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hSetExAtXx) {                                              \
+        if (execute_hsetexatxx_command(getThis(),                                     \
+                                       ZEND_NUM_ARGS(),                               \
+                                       return_value,                                  \
+                                       strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                           ? get_valkey_glide_cluster_ce()            \
+                                           : get_valkey_glide_ce()))                  \
+            return;                                                                   \
+        zval_dtor(return_value);                                                      \
+        RETURN_FALSE;                                                                 \
     }
 
-#define HPSETEXATXX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hPSetExAtXx) { \
-        if (execute_hpsetexatxx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HPSETEXATXX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hPSetExAtXx) {                                              \
+        if (execute_hpsetexatxx_command(getThis(),                                     \
+                                        ZEND_NUM_ARGS(),                               \
+                                        return_value,                                  \
+                                        strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                            ? get_valkey_glide_cluster_ce()            \
+                                            : get_valkey_glide_ce()))                  \
+            return;                                                                    \
+        zval_dtor(return_value);                                                       \
+        RETURN_FALSE;                                                                  \
     }
 
-#define HEXPIRENX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hExpireNx) { \
-        if (execute_hexpirenx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HEXPIRENX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hExpireNx) {                                              \
+        if (execute_hexpirenx_command(getThis(),                                     \
+                                      ZEND_NUM_ARGS(),                               \
+                                      return_value,                                  \
+                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                          ? get_valkey_glide_cluster_ce()            \
+                                          : get_valkey_glide_ce()))                  \
+            return;                                                                  \
+        zval_dtor(return_value);                                                     \
+        RETURN_FALSE;                                                                \
     }
 
-#define HEXPIREXX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hExpireXx) { \
-        if (execute_hexpirexx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HEXPIREXX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hExpireXx) {                                              \
+        if (execute_hexpirexx_command(getThis(),                                     \
+                                      ZEND_NUM_ARGS(),                               \
+                                      return_value,                                  \
+                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                          ? get_valkey_glide_cluster_ce()            \
+                                          : get_valkey_glide_ce()))                  \
+            return;                                                                  \
+        zval_dtor(return_value);                                                     \
+        RETURN_FALSE;                                                                \
     }
 
-#define HPEXPIRENX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hPExpireNx) { \
-        if (execute_hpexpirenx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HPEXPIRENX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hPExpireNx) {                                              \
+        if (execute_hpexpirenx_command(getThis(),                                     \
+                                       ZEND_NUM_ARGS(),                               \
+                                       return_value,                                  \
+                                       strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                           ? get_valkey_glide_cluster_ce()            \
+                                           : get_valkey_glide_ce()))                  \
+            return;                                                                   \
+        zval_dtor(return_value);                                                      \
+        RETURN_FALSE;                                                                 \
     }
 
-#define HPEXPIREXX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hPExpireXx) { \
-        if (execute_hpexpirexx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HPEXPIREXX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hPExpireXx) {                                              \
+        if (execute_hpexpirexx_command(getThis(),                                     \
+                                       ZEND_NUM_ARGS(),                               \
+                                       return_value,                                  \
+                                       strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                           ? get_valkey_glide_cluster_ce()            \
+                                           : get_valkey_glide_ce()))                  \
+            return;                                                                   \
+        zval_dtor(return_value);                                                      \
+        RETURN_FALSE;                                                                 \
     }
 
-#define HEXPIREATNX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hExpireAtNx) { \
-        if (execute_hexpireatnx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HEXPIREATNX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hExpireAtNx) {                                              \
+        if (execute_hexpireatnx_command(getThis(),                                     \
+                                        ZEND_NUM_ARGS(),                               \
+                                        return_value,                                  \
+                                        strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                            ? get_valkey_glide_cluster_ce()            \
+                                            : get_valkey_glide_ce()))                  \
+            return;                                                                    \
+        zval_dtor(return_value);                                                       \
+        RETURN_FALSE;                                                                  \
     }
 
-#define HEXPIREATXX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hExpireAtXx) { \
-        if (execute_hexpireatxx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HEXPIREATXX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hExpireAtXx) {                                              \
+        if (execute_hexpireatxx_command(getThis(),                                     \
+                                        ZEND_NUM_ARGS(),                               \
+                                        return_value,                                  \
+                                        strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                            ? get_valkey_glide_cluster_ce()            \
+                                            : get_valkey_glide_ce()))                  \
+            return;                                                                    \
+        zval_dtor(return_value);                                                       \
+        RETURN_FALSE;                                                                  \
     }
 
-#define HPEXPIREATNX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hPExpireAtNx) { \
-        if (execute_hpexpireatnx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HPEXPIREATNX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hPExpireAtNx) {                                              \
+        if (execute_hpexpireatnx_command(getThis(),                                     \
+                                         ZEND_NUM_ARGS(),                               \
+                                         return_value,                                  \
+                                         strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                             ? get_valkey_glide_cluster_ce()            \
+                                             : get_valkey_glide_ce()))                  \
+            return;                                                                     \
+        zval_dtor(return_value);                                                        \
+        RETURN_FALSE;                                                                   \
     }
 
-#define HPEXPIREATXX_METHOD_IMPL(class_name) \
-    PHP_METHOD(class_name, hPExpireAtXx) { \
-        if (execute_hpexpireatxx_command(getThis(), ZEND_NUM_ARGS(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0 ? get_valkey_glide_cluster_ce() : get_valkey_glide_ce())) return; \
-        zval_dtor(return_value); RETURN_FALSE; \
+#define HPEXPIREATXX_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hPExpireAtXx) {                                              \
+        if (execute_hpexpireatxx_command(getThis(),                                     \
+                                         ZEND_NUM_ARGS(),                               \
+                                         return_value,                                  \
+                                         strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                             ? get_valkey_glide_cluster_ce()            \
+                                             : get_valkey_glide_ce()))                  \
+            return;                                                                     \
+        zval_dtor(return_value);                                                        \
+        RETURN_FALSE;                                                                   \
     }
 
 #define HEXPIRE_METHOD_IMPL(class_name)                                            \

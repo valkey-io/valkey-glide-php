@@ -460,15 +460,18 @@ HVALS_METHOD_IMPL(ValkeyGlide);
 HSETEX_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlide::hPSetEx(string key, int milliseconds, string field, mixed value, mixed ...$fields_and_vals, ?string $condition = null) */
+/* {{{ proto mixed ValkeyGlide::hPSetEx(string key, int milliseconds, string field, mixed value,
+ * mixed ...$fields_and_vals, ?string $condition = null) */
 HPSETEX_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlide::hSetExAt(string key, int timestamp, string field, mixed value, mixed ...$fields_and_vals) */
+/* {{{ proto mixed ValkeyGlide::hSetExAt(string key, int timestamp, string field, mixed value, mixed
+ * ...$fields_and_vals) */
 HSETEXAT_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlide::hPSetExAt(string key, int timestamp, string field, mixed value, mixed ...$fields_and_vals) */
+/* {{{ proto mixed ValkeyGlide::hPSetExAt(string key, int timestamp, string field, mixed value,
+ * mixed ...$fields_and_vals) */
 HPSETEXAT_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 

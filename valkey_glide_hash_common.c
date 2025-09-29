@@ -1875,15 +1875,22 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
 }
 
 // Helper function for all hSetEx variants with conditions
-static int execute_hsetex_with_condition(zval* object, int argc, zval* return_value, zend_class_entry* ce, const char* expiry_type, const char* condition) {
+static int execute_hsetex_with_condition(zval*             object,
+                                         int               argc,
+                                         zval*             return_value,
+                                         zend_class_entry* ce,
+                                         const char*       expiry_type,
+                                         const char*       condition) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
-    zval*                fields = NULL;
+    zval*                fields       = NULL;
     int                  fields_count = 0;
     zend_long            expiry;
 
-    if (zend_parse_method_parameters(argc, object, "Osl*", &object, ce, &key, &key_len, &expiry, &fields, &fields_count) == FAILURE) {
+    if (zend_parse_method_parameters(
+            argc, object, "Osl*", &object, ce, &key, &key_len, &expiry, &fields, &fields_count) ==
+        FAILURE) {
         return 0;
     }
 
@@ -1970,15 +1977,22 @@ int execute_hpsetexatxx_command(zval* object, int argc, zval* return_value, zend
 }
 
 // Helper function for hExpire variants with conditions
-static int execute_hexpire_with_condition(zval* object, int argc, zval* return_value, zend_class_entry* ce, const char* expiry_type, const char* condition) {
+static int execute_hexpire_with_condition(zval*             object,
+                                          int               argc,
+                                          zval*             return_value,
+                                          zend_class_entry* ce,
+                                          const char*       expiry_type,
+                                          const char*       condition) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
-    zval*                fields = NULL;
+    zval*                fields       = NULL;
     int                  fields_count = 0;
     zend_long            expiry;
 
-    if (zend_parse_method_parameters(argc, object, "Osl*", &object, ce, &key, &key_len, &expiry, &fields, &fields_count) == FAILURE) {
+    if (zend_parse_method_parameters(
+            argc, object, "Osl*", &object, ce, &key, &key_len, &expiry, &fields, &fields_count) ==
+        FAILURE) {
         return 0;
     }
 
@@ -2001,7 +2015,8 @@ static int execute_hexpire_with_condition(zval* object, int argc, zval* return_v
     args.expiry_type      = (char*) expiry_type;
     args.condition        = (char*) condition;
 
-    if (execute_h_simple_command(valkey_glide, HExpire, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+    if (execute_h_simple_command(
+            valkey_glide, HExpire, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
