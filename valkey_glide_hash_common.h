@@ -204,6 +204,21 @@ int prepare_h_getex_args(h_command_args_t* args,
                          char***           allocated_strings,
                          int*              allocated_count);
 
+/**
+ * Safely allocate and format an integer as a string
+ * Uses exact buffer size to prevent overruns
+ */
+char* safe_format_int(int value);
+
+/**
+ * Safely populate field arguments from zval array
+ * Handles string conversion and memory management correctly
+ * NOTE: Always creates copies because cleanup code expects to efree() all allocated_strings
+ */
+int populate_field_args(zval* field_values, int fv_count, int start_idx,
+                        uintptr_t* args_out, unsigned long* args_len_out,
+                        char** allocated_strings, int* allocated_count);
+
 /* ====================================================================
  * RESULT PROCESSING FUNCTIONS
  * ==================================================================== */

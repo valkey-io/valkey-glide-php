@@ -585,6 +585,53 @@ int prepare_h_randfield_args(h_command_args_t* args,
 }
 
 /**
+ * Safely populate field arguments from zval array
+ * Handles string conversion and memory management correctly
+ * NOTE: Always creates copies because cleanup code expects to efree() all allocated_strings
+ */
+int populate_field_args(zval* field_values, int fv_count, int start_idx,
+                               uintptr_t* args_out, unsigned long* args_len_out,
+                               char** allocated_strings, int* allocated_count) {
+    int arg_idx = start_idx;
+    
+    for (int i = 0; i < fv_count; i++) {
+        zval* field = &field_values[i];
+        char* field_str;
+        
+        if (Z_TYPE_P(field) == IS_STRING) {
+            /* Create copy of original string - required for cleanup compatibility */
+            field_str = estrdup(Z_STRVAL_P(field));
+        } else {
+            /* Convert to string and create copy */
+            zval temp;
+            ZVAL_COPY(&temp, field);
+            convert_to_string(&temp);
+            field_str = estrdup(Z_STRVAL(temp));
+            zval_dtor(&temp);
+        }
+        
+        /* Store copy in allocated_strings for cleanup */
+        allocated_strings[(*allocated_count)++] = field_str;
+        args_out[arg_idx] = (uintptr_t) field_str;
+        args_len_out[arg_idx] = strlen(field_str);
+        arg_idx++;
+    }
+    
+    return arg_idx;
+}
+
+/**
+ * Safely allocate and format an integer as a string
+ * Uses exact buffer size to prevent overruns
+ */
+char* safe_format_int(int value) {
+    int required_size = snprintf(NULL, 0, "%d", value) + 1;
+    char* str = (char*) emalloc(required_size);
+    snprintf(str, required_size, "%d", value);
+    return str;
+}
+
+/**
  * Prepare arguments for HGETEX command
  * Redis format: HGETEX key [EX seconds|PX milliseconds|EXAT unix-time-seconds|PXAT unix-time-milliseconds|PERSIST] FIELDS numfields field [field ...]
  */
@@ -610,7 +657,7 @@ int prepare_h_getex_args(h_command_args_t* args,
 
     *args_out = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-    *allocated_strings = (char**) emalloc(2 * sizeof(char*));
+    *allocated_strings = (char**) emalloc((2 + args->fv_count) * sizeof(char*)); // expiry + field_count + field conversions
     *allocated_count = 0;
 
     int arg_idx = 0;
@@ -628,8 +675,7 @@ int prepare_h_getex_args(h_command_args_t* args,
         arg_idx++;
 
         if (strcmp(expiry_unit, "PERSIST") != 0) {
-            char* expiry_str = (char*) emalloc(32);
-            snprintf(expiry_str, 32, "%d", args->expiry);
+            char* expiry_str = safe_format_int(args->expiry);
             (*allocated_strings)[(*allocated_count)++] = expiry_str;
             (*args_out)[arg_idx] = (uintptr_t) expiry_str;
             (*args_len_out)[arg_idx] = strlen(expiry_str);
@@ -643,29 +689,15 @@ int prepare_h_getex_args(h_command_args_t* args,
     arg_idx++;
 
     /* Add field count */
-    char* field_count_str = (char*) emalloc(32);
-    snprintf(field_count_str, 32, "%d", field_count);
+    char* field_count_str = safe_format_int(field_count);
     (*allocated_strings)[(*allocated_count)++] = field_count_str;
     (*args_out)[arg_idx] = (uintptr_t) field_count_str;
     (*args_len_out)[arg_idx] = strlen(field_count_str);
     arg_idx++;
 
     /* Add fields only */
-    for (int i = 0; i < args->fv_count; i++) {
-        zval* field = &args->field_values[i];
-        zval temp;
-        if (Z_TYPE_P(field) != IS_STRING) {
-            ZVAL_COPY(&temp, field);
-            convert_to_string(&temp);
-            field = &temp;
-        }
-        (*args_out)[arg_idx] = (uintptr_t) Z_STRVAL_P(field);
-        (*args_len_out)[arg_idx] = Z_STRLEN_P(field);
-        arg_idx++;
-        if (field == &temp) {
-            zval_dtor(&temp);
-        }
-    }
+    populate_field_args(args->field_values, args->fv_count, arg_idx, 
+                       *args_out, *args_len_out, *allocated_strings, allocated_count);
 
     return arg_count;
 }
@@ -689,7 +721,7 @@ int prepare_h_field_only_args(h_command_args_t* args,
 
     *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-    *allocated_strings = (char**) emalloc(sizeof(char*));
+    *allocated_strings = (char**) emalloc((1 + args->fv_count) * sizeof(char*)); // field_count + field conversions
     *allocated_count   = 0;
 
     int arg_idx = 0;
@@ -705,29 +737,15 @@ int prepare_h_field_only_args(h_command_args_t* args,
     arg_idx++;
 
     /* Add field count */
-    char* field_count_str = (char*) emalloc(32);
-    snprintf(field_count_str, 32, "%d", field_count);
+    char* field_count_str = safe_format_int(field_count);
     (*allocated_strings)[(*allocated_count)++] = field_count_str;
     (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
     (*args_len_out)[arg_idx]                   = strlen(field_count_str);
     arg_idx++;
 
     /* Add fields only */
-    for (int i = 0; i < args->fv_count; i++) {
-        zval* field = &args->field_values[i];
-        zval  temp;
-        if (Z_TYPE_P(field) != IS_STRING) {
-            ZVAL_COPY(&temp, field);
-            convert_to_string(&temp);
-            field = &temp;
-        }
-        (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(field);
-        (*args_len_out)[arg_idx] = Z_STRLEN_P(field);
-        arg_idx++;
-        if (field == &temp) {
-            zval_dtor(&temp);
-        }
-    }
+    populate_field_args(args->field_values, args->fv_count, arg_idx,
+                       *args_out, *args_len_out, *allocated_strings, allocated_count);
 
     return arg_count;
 }
@@ -754,7 +772,7 @@ int prepare_h_expire_args(h_command_args_t* args,
 
     *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-    *allocated_strings = (char**) emalloc(2 * sizeof(char*));
+    *allocated_strings = (char**) emalloc((2 + args->fv_count) * sizeof(char*)); // expiry + field_count + field conversions
     *allocated_count   = 0;
 
     int arg_idx = 0;
@@ -765,8 +783,7 @@ int prepare_h_expire_args(h_command_args_t* args,
     arg_idx++;
 
     /* Add seconds (always required for HEXPIRE) */
-    char* expiry_str = (char*) emalloc(32);
-    snprintf(expiry_str, 32, "%d", args->expiry);
+    char* expiry_str = safe_format_int(args->expiry);
     (*allocated_strings)[(*allocated_count)++] = expiry_str;
     (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
     (*args_len_out)[arg_idx]                   = strlen(expiry_str);
@@ -785,41 +802,24 @@ int prepare_h_expire_args(h_command_args_t* args,
     arg_idx++;
 
     /* Add field count */
-    char* field_count_str = (char*) emalloc(32);
-    snprintf(field_count_str, 32, "%d", field_count);
+    char* field_count_str = safe_format_int(field_count);
     (*allocated_strings)[(*allocated_count)++] = field_count_str;
     (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
     (*args_len_out)[arg_idx]                   = strlen(field_count_str);
     arg_idx++;
 
     /* Add fields only (no values) */
-    for (int i = 0; i < args->fv_count; i++) {
-        zval* field = &args->field_values[i];
-        zval  temp;
-        if (Z_TYPE_P(field) != IS_STRING) {
-            ZVAL_COPY(&temp, field);
-            convert_to_string(&temp);
-            field = &temp;
-        }
-        (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(field);
-        (*args_len_out)[arg_idx] = Z_STRLEN_P(field);
-        arg_idx++;
-        if (field == &temp) {
-            zval_dtor(&temp);
-        }
-    }
+    populate_field_args(args->field_values, args->fv_count, arg_idx,
+                       *args_out, *args_len_out, *allocated_strings, allocated_count);
 
     return arg_count;
 }
 
 /**
- * Prepare arguments for Hash Field Expiration commands
- * NOTE: HSETEX and HEXPIRE have different formats and should use separate functions:
- * HSETEX format: key [FNX|FXX] [EX seconds|PX milliseconds|EXAT unix-time-seconds|PXAT
- * unix-time-milliseconds|KEEPTTL] FIELDS numfields field value [field value ...] HEXPIRE format:
- * key seconds [NX|XX|GT|LT] FIELDS numfields field [field ...]
- *
- * This function currently assumes HSETEX format - HEXPIRE commands will be incorrect!
+ * Prepare arguments for Hash Field Expiration commands (HSETEX variants only)
+ * HSETEX format: key [FNX|FXX] [EX seconds|PX milliseconds|EXAT unix-time-seconds|PXAT unix-time-milliseconds|KEEPTTL] FIELDS numfields field value [field value ...]
+ * 
+ * This function expects field-value pairs and calculates field_count = fv_count / 2
  */
 int prepare_h_hfe_args(h_command_args_t* args,
                        uintptr_t**       args_out,
@@ -831,11 +831,11 @@ int prepare_h_hfe_args(h_command_args_t* args,
     }
 
     /* Calculate field count for FIELDS parameter */
-    int field_count = args->fv_count;
-    // For hSetEx, we have field-value pairs, so field count is half
-    if (args->fv_count % 2 == 0) {
-        field_count = args->fv_count / 2;  // Assume this is hSetEx with field-value pairs
+    // HSETEX always uses field-value pairs, so field count is half of fv_count
+    if (args->fv_count % 2 != 0) {
+        return 0; // Invalid: HSETEX requires even number of arguments (field-value pairs)
     }
+    int field_count = args->fv_count / 2;
 
     /* Calculate argument count: key + [condition] + [expiry_unit + expiry_time] + "FIELDS" +
      * field_count + fields/values */
@@ -857,7 +857,7 @@ int prepare_h_hfe_args(h_command_args_t* args,
     *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     /* Allocate strings for expiry value and field count */
-    *allocated_strings = (char**) emalloc(2 * sizeof(char*));
+    *allocated_strings = (char**) emalloc((2 + args->fv_count) * sizeof(char*)); // expiry + field_count + field conversions
     *allocated_count   = 0;
 
     int arg_idx = 0;
@@ -892,8 +892,7 @@ int prepare_h_hfe_args(h_command_args_t* args,
 
         /* Add expiry time value (only if not KEEPTTL) */
         if (strcmp(expiry_unit, "KEEPTTL") != 0) {
-            char* expiry_str = (char*) emalloc(32);
-            snprintf(expiry_str, 32, "%d", args->expiry);
+            char* expiry_str = safe_format_int(args->expiry);
             (*allocated_strings)[(*allocated_count)++] = expiry_str;
             (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
             (*args_len_out)[arg_idx]                   = strlen(expiry_str);
@@ -908,33 +907,15 @@ int prepare_h_hfe_args(h_command_args_t* args,
     arg_idx++;
 
     /* Add field count */
-    char* field_count_str = (char*) emalloc(32);
-    snprintf(field_count_str, 32, "%d", field_count);
+    char* field_count_str = safe_format_int(field_count);
     (*allocated_strings)[(*allocated_count)++] = field_count_str;
     (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
     (*args_len_out)[arg_idx]                   = strlen(field_count_str);
     arg_idx++;
 
     /* Add fields and values */
-    for (int i = 0; i < args->fv_count; i++) {
-        zval* field_or_value = &args->field_values[i];
-
-        /* Convert to string if needed */
-        zval temp;
-        if (Z_TYPE_P(field_or_value) != IS_STRING) {
-            ZVAL_COPY(&temp, field_or_value);
-            convert_to_string(&temp);
-            field_or_value = &temp;
-        }
-
-        (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(field_or_value);
-        (*args_len_out)[arg_idx] = Z_STRLEN_P(field_or_value);
-        arg_idx++;
-
-        if (field_or_value == &temp) {
-            zval_dtor(&temp);
-        }
-    }
+    populate_field_args(args->field_values, args->fv_count, arg_idx,
+                       *args_out, *args_len_out, *allocated_strings, allocated_count);
 
     return arg_count;
 }
