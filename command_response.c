@@ -730,13 +730,14 @@ int command_response_to_stream_zval(CommandResponse* response, zval* output) {
                 // (int)stream_id_len, stream_id);
 
                 /* Create associative array for field-value pairs */
-                zval field_array;
-                array_init(&field_array);
+
                 // printf("%s:%d - DEBUG: Processing stream ID: %.*s,
                 // element->map_value->response_type = %d\n", __FILE__, __LINE__,
                 // (int)stream_id_len, stream_id, element->map_value->response_type);
                 /* Process nested field-value pairs - add safety check */
                 if (element->map_value->response_type == Array) {
+                    zval field_array;
+                    array_init(&field_array);
                     /* Safe version that checks array bounds */
                     if (element->map_value->array_value_len > 0) {
                         // printf("%s:%d - DEBUG: Processing Array response for stream ID: %.*s,

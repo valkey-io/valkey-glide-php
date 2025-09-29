@@ -1208,6 +1208,9 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
                                                      process_info_result);
 
         /* Free the argument arrays */
+        for (int i = 0; i < section_count; i++) {
+            efree((char*) (cmd_args[i]));
+        }
 
         if (cmd_args)
             efree(cmd_args);
@@ -1247,6 +1250,10 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
                                                 cmd_args_len,
                                                 &args[0]); /* Route parameter */
 
+        for (int i = 0; i < section_count; i++) {
+            efree((char*) (cmd_args[i]));
+        }
+
         /* Free the argument arrays */
         if (cmd_args)
             efree(cmd_args);
@@ -1266,6 +1273,9 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
         cmd_result = execute_command(
             valkey_glide->glide_client, Info, processed_args, cmd_args, cmd_args_len);
 
+        for (int i = 0; i < args_count; i++) {
+            efree((char*) (cmd_args[i]));
+        }
         /* Free the argument arrays */
         if (cmd_args)
             efree(cmd_args);
@@ -1978,8 +1988,8 @@ int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_e
 
     /* Prepare command arguments */
     unsigned long arg_count = 2; /* key1 + key2 */
-    uintptr_t
-        args[7]; /* Maximum 7 arguments: key1, key2, LEN, IDX, MINMATCHLEN, value, WITHMATCHLEN */
+    uintptr_t     args[7];       /* Maximum 7 arguments: key1, key2, LEN, IDX, MINMATCHLEN, value,
+                                    WITHMATCHLEN */
     unsigned long args_len[7];
 
     /* First argument: key1 */

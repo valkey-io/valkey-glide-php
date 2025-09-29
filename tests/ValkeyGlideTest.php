@@ -3608,7 +3608,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del('key');
         $this->valkey_glide->zAdd('key', 0, 'a', 1, 'b', 2, 'c', 3, 'd', 4, 'e');
 
-        $result = $this->valkey_glide->zRandMember('key');
+        $result = $this->valkey_glide->zRandMember('key');        
 
         $this->assertEquals(array_intersect($result, ['a', 'b', 'c', 'd', 'e']), $result);
 
