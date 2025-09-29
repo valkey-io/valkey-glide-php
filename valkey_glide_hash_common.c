@@ -108,7 +108,7 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case HGetEx:
-            arg_count = prepare_h_hfe_args(
+            arg_count = prepare_h_getex_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         default:
@@ -222,7 +222,7 @@ int execute_h_simple_command(valkey_glide_object* valkey_glide,
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case HGetEx:
-            arg_count = prepare_h_hfe_args(
+            arg_count = prepare_h_getex_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         default:
@@ -579,6 +579,92 @@ int prepare_h_randfield_args(h_command_args_t* args,
         (*args_out)[arg_idx]       = (uintptr_t) withvalues_str;
         (*args_len_out)[arg_idx]   = strlen(withvalues_str);
         arg_idx++;
+    }
+
+    return arg_count;
+}
+
+/**
+ * Prepare arguments for HGETEX command
+ * Redis format: HGETEX key [EX seconds|PX milliseconds|EXAT unix-time-seconds|PXAT unix-time-milliseconds|PERSIST] FIELDS numfields field [field ...]
+ */
+int prepare_h_getex_args(h_command_args_t* args,
+                         uintptr_t**       args_out,
+                         unsigned long**   args_len_out,
+                         char***           allocated_strings,
+                         int*              allocated_count) {
+    if (!args->key || !args->field_values || args->fv_count == 0) {
+        return 0;
+    }
+
+    int field_count = args->fv_count; // just fields, no values
+    int arg_count = 3 + args->fv_count; /* key + "FIELDS" + field_count + fields */
+
+    if (args->expiry > 0 || (args->expiry_type && strcmp(args->expiry_type, "PERSIST") == 0)) {
+        if (args->expiry_type && strcmp(args->expiry_type, "PERSIST") == 0) {
+            arg_count += 1; /* PERSIST only */
+        } else {
+            arg_count += 2; /* expiry unit + expiry value */
+        }
+    }
+
+    *args_out = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    *allocated_strings = (char**) emalloc(2 * sizeof(char*));
+    *allocated_count = 0;
+
+    int arg_idx = 0;
+
+    /* Add key */
+    (*args_out)[arg_idx] = (uintptr_t) args->key;
+    (*args_len_out)[arg_idx] = args->key_len;
+    arg_idx++;
+
+    /* Add expiry unit and time if specified */
+    if (args->expiry > 0 || (args->expiry_type && strcmp(args->expiry_type, "PERSIST") == 0)) {
+        const char* expiry_unit = args->expiry_type ? args->expiry_type : "EX";
+        (*args_out)[arg_idx] = (uintptr_t) expiry_unit;
+        (*args_len_out)[arg_idx] = strlen(expiry_unit);
+        arg_idx++;
+
+        if (strcmp(expiry_unit, "PERSIST") != 0) {
+            char* expiry_str = (char*) emalloc(32);
+            snprintf(expiry_str, 32, "%d", args->expiry);
+            (*allocated_strings)[(*allocated_count)++] = expiry_str;
+            (*args_out)[arg_idx] = (uintptr_t) expiry_str;
+            (*args_len_out)[arg_idx] = strlen(expiry_str);
+            arg_idx++;
+        }
+    }
+
+    /* Add "FIELDS" keyword */
+    (*args_out)[arg_idx] = (uintptr_t) "FIELDS";
+    (*args_len_out)[arg_idx] = 6;
+    arg_idx++;
+
+    /* Add field count */
+    char* field_count_str = (char*) emalloc(32);
+    snprintf(field_count_str, 32, "%d", field_count);
+    (*allocated_strings)[(*allocated_count)++] = field_count_str;
+    (*args_out)[arg_idx] = (uintptr_t) field_count_str;
+    (*args_len_out)[arg_idx] = strlen(field_count_str);
+    arg_idx++;
+
+    /* Add fields only */
+    for (int i = 0; i < args->fv_count; i++) {
+        zval* field = &args->field_values[i];
+        zval temp;
+        if (Z_TYPE_P(field) != IS_STRING) {
+            ZVAL_COPY(&temp, field);
+            convert_to_string(&temp);
+            field = &temp;
+        }
+        (*args_out)[arg_idx] = (uintptr_t) Z_STRVAL_P(field);
+        (*args_len_out)[arg_idx] = Z_STRLEN_P(field);
+        arg_idx++;
+        if (field == &temp) {
+            zval_dtor(&temp);
+        }
     }
 
     return arg_count;
