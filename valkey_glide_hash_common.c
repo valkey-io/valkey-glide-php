@@ -2354,8 +2354,8 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
     char*                key = NULL;
     size_t               key_len;
     zend_long            seconds;
-    zval*                fields       = NULL;
-    int                  fields_count = 0;
+    zval*                fields        = NULL;
+    int                  fields_count  = 0;
     char*                condition     = NULL;
     size_t               condition_len = 0;
 
@@ -2547,8 +2547,8 @@ int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_
     zval*                fields       = NULL;
     int                  fields_count = 0;
 
-    if (zend_parse_method_parameters(argc, object, "Os*", &object, ce, &key, &key_len, &fields, &fields_count) ==
-        FAILURE) {
+    if (zend_parse_method_parameters(
+            argc, object, "Os*", &object, ce, &key, &key_len, &fields, &fields_count) == FAILURE) {
         return 0;
     }
 
@@ -2580,8 +2580,8 @@ int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class
     zval*                fields       = NULL;
     int                  fields_count = 0;
 
-    if (zend_parse_method_parameters(argc, object, "Os*", &object, ce, &key, &key_len, &fields, &fields_count) ==
-        FAILURE) {
+    if (zend_parse_method_parameters(
+            argc, object, "Os*", &object, ce, &key, &key_len, &fields, &fields_count) == FAILURE) {
         return 0;
     }
 
@@ -2680,8 +2680,8 @@ int execute_hpersist_command(zval* object, int argc, zval* return_value, zend_cl
     zval*                fields       = NULL;
     int                  fields_count = 0;
 
-    if (zend_parse_method_parameters(argc, object, "Os*", &object, ce, &key, &key_len, &fields, &fields_count) ==
-        FAILURE) {
+    if (zend_parse_method_parameters(
+            argc, object, "Os*", &object, ce, &key, &key_len, &fields, &fields_count) == FAILURE) {
         return 0;
     }
 
@@ -2714,15 +2714,8 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
     zval*                fields;
     zval*                options = NULL;
 
-    if (zend_parse_method_parameters(argc,
-                                     object,
-                                     "Osa|a",
-                                     &object,
-                                     ce,
-                                     &key,
-                                     &key_len,
-                                     &fields,
-                                     &options) == FAILURE) {
+    if (zend_parse_method_parameters(
+            argc, object, "Osa|a", &object, ce, &key, &key_len, &fields, &options) == FAILURE) {
         return 0;
     }
 
@@ -2744,22 +2737,22 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
 
         // Check for EX (seconds)
         if ((z_val = zend_hash_str_find(opts_ht, "EX", 2)) != NULL) {
-            args.expiry      = (int)zval_get_long(z_val);
+            args.expiry      = (int) zval_get_long(z_val);
             args.expiry_type = "EX";
         }
-        // Check for PX (milliseconds)  
+        // Check for PX (milliseconds)
         else if ((z_val = zend_hash_str_find(opts_ht, "PX", 2)) != NULL) {
-            args.expiry      = (int)zval_get_long(z_val);
+            args.expiry      = (int) zval_get_long(z_val);
             args.expiry_type = "PX";
         }
         // Check for EXAT (unix timestamp)
         else if ((z_val = zend_hash_str_find(opts_ht, "EXAT", 4)) != NULL) {
-            args.expiry      = (int)zval_get_long(z_val);
+            args.expiry      = (int) zval_get_long(z_val);
             args.expiry_type = "EXAT";
         }
         // Check for PXAT (unix timestamp in milliseconds)
         else if ((z_val = zend_hash_str_find(opts_ht, "PXAT", 4)) != NULL) {
-            args.expiry      = (int)zval_get_long(z_val);
+            args.expiry      = (int) zval_get_long(z_val);
             args.expiry_type = "PXAT";
         }
         // Check for PERSIST
