@@ -343,6 +343,41 @@ HVALS_METHOD_IMPL(ValkeyGlideCluster)
 HSETEX_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto mixed ValkeyGlideCluster::hPSetEx(string key, int milliseconds, string field, mixed value, mixed ...$fields_and_vals, ?string $condition = null) */
+HPSETEX_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::hSetExAt(string key, int timestamp, string field, mixed value, mixed ...$fields_and_vals) */
+HSETEXAT_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::hPSetExAt(string key, int timestamp, string field, mixed value, mixed ...$fields_and_vals) */
+HPSETEXAT_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* Hash field expiration NX variants */
+HSETEXNX_METHOD_IMPL(ValkeyGlideCluster)
+HPSETEXNX_METHOD_IMPL(ValkeyGlideCluster)
+HSETEXATNX_METHOD_IMPL(ValkeyGlideCluster)
+HPSETEXATNX_METHOD_IMPL(ValkeyGlideCluster)
+
+/* Hash field expiration XX variants */
+HSETEXXX_METHOD_IMPL(ValkeyGlideCluster)
+HPSETEXXX_METHOD_IMPL(ValkeyGlideCluster)
+HSETEXATXX_METHOD_IMPL(ValkeyGlideCluster)
+HPSETEXATXX_METHOD_IMPL(ValkeyGlideCluster)
+
+/* Hash field expiration NX/XX variants */
+HEXPIRENX_METHOD_IMPL(ValkeyGlideCluster)
+HEXPIREXX_METHOD_IMPL(ValkeyGlideCluster)
+HPEXPIRENX_METHOD_IMPL(ValkeyGlideCluster)
+HPEXPIREXX_METHOD_IMPL(ValkeyGlideCluster)
+HEXPIREATNX_METHOD_IMPL(ValkeyGlideCluster)
+HEXPIREATXX_METHOD_IMPL(ValkeyGlideCluster)
+HPEXPIREATNX_METHOD_IMPL(ValkeyGlideCluster)
+HPEXPIREATXX_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto array ValkeyGlideCluster::hExpire(string key, long seconds, string field, ...) */
 HEXPIRE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */

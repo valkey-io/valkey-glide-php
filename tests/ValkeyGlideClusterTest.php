@@ -1018,6 +1018,44 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertGreaterThan(time() * 1000, $pexpireTime[0]);
     }
 
+    public function testClusterHashExpirationNxXxVariants()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Hash expiration NX/XX commands require Valkey 9.0.0+');
+        }
+
+        $key = $this->createRandomString(10);
+        
+        // Test hSetEx NX/XX variants in cluster
+        $this->assertEquals(1, $this->valkey_glide_cluster->hSetExNx($key, 60, 'field1', 'value1'));
+        $this->assertEquals(0, $this->valkey_glide_cluster->hSetExNx($key, 60, 'field1', 'new_value'));
+        $this->assertEquals(1, $this->valkey_glide_cluster->hSetExXx($key, 60, 'field1', 'updated_value'));
+        
+        // Test all timestamp and millisecond variants
+        $future_timestamp = time() + 3600;
+        $this->assertEquals(1, $this->valkey_glide_cluster->hSetExAtNx($key, $future_timestamp, 'field2', 'value2'));
+        $this->assertEquals(1, $this->valkey_glide_cluster->hPSetExNx($key, 60000, 'field3', 'value3'));
+        $this->assertEquals(1, $this->valkey_glide_cluster->hPSetExAtNx($key, $future_timestamp * 1000, 'field4', 'value4'));
+        
+        // Test hExpire NX/XX variants in cluster
+        $this->valkey_glide_cluster->hSet($key, 'field5', 'value5', 'field6', 'value6');
+        
+        $result = $this->valkey_glide_cluster->hExpireNx($key, 60, 'field5');
+        $this->assertEquals([1], $result);
+        $result = $this->valkey_glide_cluster->hExpireNx($key, 120, 'field5');
+        $this->assertEquals([0], $result); // already has expiration
+        
+        $result = $this->valkey_glide_cluster->hExpireXx($key, 30, 'field6');
+        $this->assertEquals([0], $result); // no expiration
+        $result = $this->valkey_glide_cluster->hExpireXx($key, 30, 'field5');
+        $this->assertEquals([1], $result); // updated
+        
+        // Test timestamp variants
+        $this->valkey_glide_cluster->hSet($key, 'field7', 'value7');
+        $this->assertEquals([1], $this->valkey_glide_cluster->hExpireAtNx($key, $future_timestamp, 'field7'));
+        $this->assertEquals([1], $this->valkey_glide_cluster->hPExpireNx($key, 60000, 'field6'));
+    }
+
     public function testClusterHashExpirationCrossSlot()
     {
         if (version_compare($this->version, '9.0.0') < 0) {

@@ -497,6 +497,61 @@ class ValkeyGlideCluster
     public function hSetEx(string $key, int $seconds, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
 
     /**
+     * @see ValkeyGlide::hPSetEx
+     */
+    public function hPSetEx(string $key, int $milliseconds, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+
+    /**
+     * @see ValkeyGlide::hSetExAt
+     */
+    public function hSetExAt(string $key, int $timestamp, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+
+    /**
+     * @see ValkeyGlide::hPSetExAt
+     */
+    public function hPSetExAt(string $key, int $timestamp, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+
+    /**
+     * @see ValkeyGlide::hSetExNx
+     */
+    public function hSetExNx(string $key, int $seconds, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+
+    /**
+     * @see ValkeyGlide::hPSetExNx
+     */
+    public function hPSetExNx(string $key, int $milliseconds, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+
+    /**
+     * @see ValkeyGlide::hSetExAtNx
+     */
+    public function hSetExAtNx(string $key, int $timestamp, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+
+    /**
+     * @see ValkeyGlide::hPSetExAtNx
+     */
+    public function hPSetExAtNx(string $key, int $timestamp, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+
+    /**
+     * @see ValkeyGlide::hSetExXx
+     */
+    public function hSetExXx(string $key, int $seconds, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+
+    /**
+     * @see ValkeyGlide::hPSetExXx
+     */
+    public function hPSetExXx(string $key, int $milliseconds, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+
+    /**
+     * @see ValkeyGlide::hSetExAtXx
+     */
+    public function hSetExAtXx(string $key, int $timestamp, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+
+    /**
+     * @see ValkeyGlide::hPSetExAtXx
+     */
+    public function hPSetExAtXx(string $key, int $timestamp, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+
+    /**
      * @see ValkeyGlide::hExpire
      */
     public function hExpire(string $key, int $seconds, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
@@ -535,6 +590,46 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::hPExpireTime
      */
     public function hPExpireTime(string $key, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hExpireNx
+     */
+    public function hExpireNx(string $key, int $seconds, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hExpireXx
+     */
+    public function hExpireXx(string $key, int $seconds, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hPExpireNx
+     */
+    public function hPExpireNx(string $key, int $milliseconds, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hPExpireXx
+     */
+    public function hPExpireXx(string $key, int $milliseconds, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hExpireAtNx
+     */
+    public function hExpireAtNx(string $key, int $timestamp, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hExpireAtXx
+     */
+    public function hExpireAtXx(string $key, int $timestamp, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hPExpireAtNx
+     */
+    public function hPExpireAtNx(string $key, int $timestamp, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hPExpireAtXx
+     */
+    public function hPExpireAtXx(string $key, int $timestamp, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
 
     /**
      * @see ValkeyGlide::hPersist

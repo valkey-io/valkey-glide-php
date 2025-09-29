@@ -3831,6 +3831,110 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->hExists($key, 'expire_now'));
     }
 
+    public function testHashFieldExpirationNxXxVariants(): void
+    {
+        if (!$this->isValkeyVersionAtLeast('9.0.0')) {
+            $this->markTestSkipped('Hash expiration NX/XX commands require Valkey 9.0.0+');
+        }
+
+        $key = $this->createRandomString(10);
+        
+        // Test hSetExNx - only if field doesn't exist
+        $this->assertEquals(1, $this->valkey_glide->hSetExNx($key, 60, 'field1', 'value1'));
+        $this->assertEquals('value1', $this->valkey_glide->hGet($key, 'field1'));
+        
+        // Should fail because field exists
+        $this->assertEquals(0, $this->valkey_glide->hSetExNx($key, 60, 'field1', 'new_value'));
+        $this->assertEquals('value1', $this->valkey_glide->hGet($key, 'field1')); // unchanged
+        
+        // Test hSetExXx - only if field exists
+        $this->assertEquals(0, $this->valkey_glide->hSetExXx($key, 60, 'nonexistent', 'value'));
+        $this->assertEquals(1, $this->valkey_glide->hSetExXx($key, 60, 'field1', 'updated_value'));
+        $this->assertEquals('updated_value', $this->valkey_glide->hGet($key, 'field1'));
+        
+        // Test timestamp variants
+        $future_timestamp = time() + 3600;
+        $this->assertEquals(1, $this->valkey_glide->hSetExAtNx($key, $future_timestamp, 'field2', 'value2'));
+        $this->assertEquals(0, $this->valkey_glide->hSetExAtNx($key, $future_timestamp, 'field2', 'new_value'));
+        
+        $this->assertEquals(1, $this->valkey_glide->hSetExAtXx($key, $future_timestamp, 'field2', 'updated_value2'));
+        $this->assertEquals('updated_value2', $this->valkey_glide->hGet($key, 'field2'));
+        
+        // Test millisecond variants
+        $this->assertEquals(1, $this->valkey_glide->hPSetExNx($key, 60000, 'field3', 'value3'));
+        $this->assertEquals(0, $this->valkey_glide->hPSetExNx($key, 60000, 'field3', 'new_value'));
+        
+        $this->assertEquals(1, $this->valkey_glide->hPSetExXx($key, 60000, 'field3', 'updated_value3'));
+        $this->assertEquals('updated_value3', $this->valkey_glide->hGet($key, 'field3'));
+        
+        // Test millisecond timestamp variants
+        $future_timestamp_ms = (time() + 3600) * 1000;
+        $this->assertEquals(1, $this->valkey_glide->hPSetExAtNx($key, $future_timestamp_ms, 'field4', 'value4'));
+        $this->assertEquals(0, $this->valkey_glide->hPSetExAtNx($key, $future_timestamp_ms, 'field4', 'new_value'));
+        
+        $this->assertEquals(1, $this->valkey_glide->hPSetExAtXx($key, $future_timestamp_ms, 'field4', 'updated_value4'));
+        $this->assertEquals('updated_value4', $this->valkey_glide->hGet($key, 'field4'));
+    }
+
+    public function testHashExpireNxXxVariants(): void
+    {
+        if (!$this->isValkeyVersionAtLeast('9.0.0')) {
+            $this->markTestSkipped('Hash expiration NX/XX commands require Valkey 9.0.0+');
+        }
+
+        $key = $this->createRandomString(10);
+        
+        // Set up fields without expiration
+        $this->valkey_glide->hSet($key, 'field1', 'value1', 'field2', 'value2');
+        
+        // Test hExpireNx - only if field has no expiration
+        $result = $this->valkey_glide->hExpireNx($key, 60, 'field1');
+        $this->assertEquals([1], $result); // 1 = expiration set
+        
+        // Should fail because field already has expiration
+        $result = $this->valkey_glide->hExpireNx($key, 120, 'field1');
+        $this->assertEquals([0], $result); // 0 = expiration not set
+        
+        // Test hExpireXx - only if field has expiration
+        $result = $this->valkey_glide->hExpireXx($key, 30, 'field2');
+        $this->assertEquals([0], $result); // 0 = field has no expiration
+        
+        $result = $this->valkey_glide->hExpireXx($key, 30, 'field1');
+        $this->assertEquals([1], $result); // 1 = expiration updated
+        
+        // Test timestamp variants
+        $future_timestamp = time() + 3600;
+        $this->valkey_glide->hSet($key, 'field3', 'value3');
+        
+        $result = $this->valkey_glide->hExpireAtNx($key, $future_timestamp, 'field3');
+        $this->assertEquals([1], $result);
+        
+        $result = $this->valkey_glide->hExpireAtNx($key, $future_timestamp + 1000, 'field3');
+        $this->assertEquals([0], $result); // already has expiration
+        
+        $result = $this->valkey_glide->hExpireAtXx($key, $future_timestamp + 1000, 'field3');
+        $this->assertEquals([1], $result); // updated expiration
+        
+        // Test millisecond variants
+        $this->valkey_glide->hSet($key, 'field4', 'value4');
+        
+        $result = $this->valkey_glide->hPExpireNx($key, 60000, 'field4');
+        $this->assertEquals([1], $result);
+        
+        $result = $this->valkey_glide->hPExpireXx($key, 30000, 'field4');
+        $this->assertEquals([1], $result);
+        
+        // Test millisecond timestamp variants
+        $future_timestamp_ms = (time() + 3600) * 1000;
+        $this->valkey_glide->hSet($key, 'field5', 'value5');
+        
+        $result = $this->valkey_glide->hPExpireAtNx($key, $future_timestamp_ms, 'field5');
+        $this->assertEquals([1], $result);
+        
+        $result = $this->valkey_glide->hPExpireAtXx($key, $future_timestamp_ms + 60000, 'field5');
+        $this->assertEquals([1], $result);
+    }
+
     public function testHRandField()
     {
         if (version_compare($this->version, '6.2.0') < 0) {
