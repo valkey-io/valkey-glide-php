@@ -51,8 +51,13 @@ void cleanup_s_command_args(uintptr_t* args, unsigned long* args_len) {
 /**
  * Convert array of zvals to string arguments
  */
-int convert_zval_to_string_args(
-    zval* input, int count, uintptr_t** args_out, unsigned long** args_len_out, int offset) {
+int convert_zval_to_string_args(zval*           input,
+                                int             count,
+                                uintptr_t**     args_out,
+                                unsigned long** args_len_out,
+                                int             offset,
+                                char***         allocated_strings,
+                                int*            allocated_count) {
     int  i;
     zval temp;
 
@@ -76,6 +81,15 @@ int convert_zval_to_string_args(
             (*args_out)[offset + i]     = (uintptr_t) str_copy;
             (*args_len_out)[offset + i] = str_len;
             zval_dtor(&temp);
+
+            /* Track the allocated string */
+            if (allocated_strings && allocated_count) {
+                /* Expand the allocated_strings array */
+                *allocated_strings =
+                    erealloc(*allocated_strings, (*allocated_count + 1) * sizeof(char*));
+                (*allocated_strings)[*allocated_count] = str_copy;
+                (*allocated_count)++;
+            }
         }
     }
 
@@ -107,7 +121,9 @@ char* alloc_long_string(long value, size_t* len_out) {
  */
 int prepare_s_key_members_args(s_command_args_t* args,
                                uintptr_t**       args_out,
-                               unsigned long**   args_len_out) {
+                               unsigned long**   args_len_out,
+                               char***           allocated_strings,
+                               int*              allocated_count) {
     if (!args->glide_client || !args->key || args->key_len == 0 || !args->members ||
         args->members_count <= 0) {
         return 0;
@@ -124,7 +140,13 @@ int prepare_s_key_members_args(s_command_args_t* args,
     (*args_len_out)[0] = args->key_len;
 
     /* Convert and set member arguments */
-    convert_zval_to_string_args(args->members, args->members_count, args_out, args_len_out, 1);
+    convert_zval_to_string_args(args->members,
+                                args->members_count,
+                                args_out,
+                                args_len_out,
+                                1,
+                                allocated_strings,
+                                allocated_count);
 
     return arg_count;
 }
@@ -134,7 +156,9 @@ int prepare_s_key_members_args(s_command_args_t* args,
  */
 int prepare_s_key_only_args(s_command_args_t* args,
                             uintptr_t**       args_out,
-                            unsigned long**   args_len_out) {
+                            unsigned long**   args_len_out,
+                            char***           allocated_strings,
+                            int*              allocated_count) {
     if (!args->glide_client || !args->key || args->key_len == 0) {
         return 0;
     }
@@ -154,7 +178,9 @@ int prepare_s_key_only_args(s_command_args_t* args,
  */
 int prepare_s_key_member_args(s_command_args_t* args,
                               uintptr_t**       args_out,
-                              unsigned long**   args_len_out) {
+                              unsigned long**   args_len_out,
+                              char***           allocated_strings,
+                              int*              allocated_count) {
     if (!args->glide_client || !args->key || args->key_len == 0 || !args->member ||
         args->member_len == 0) {
         return 0;
@@ -177,7 +203,9 @@ int prepare_s_key_member_args(s_command_args_t* args,
  */
 int prepare_s_key_count_args(s_command_args_t* args,
                              uintptr_t**       args_out,
-                             unsigned long**   args_len_out) {
+                             unsigned long**   args_len_out,
+                             char***           allocated_strings,
+                             int*              allocated_count) {
     if (!args->glide_client || !args->key || args->key_len == 0) {
         return 0;
     }
@@ -196,6 +224,14 @@ int prepare_s_key_count_args(s_command_args_t* args,
 
         (*args_out)[1]     = (uintptr_t) count_str;
         (*args_len_out)[1] = strlen(count_str);
+
+        /* Track the allocated string */
+        if (allocated_strings && allocated_count) {
+            *allocated_strings =
+                erealloc(*allocated_strings, (*allocated_count + 1) * sizeof(char*));
+            (*allocated_strings)[*allocated_count] = count_str;
+            (*allocated_count)++;
+        }
     }
 
     return arg_count;
@@ -206,7 +242,9 @@ int prepare_s_key_count_args(s_command_args_t* args,
  */
 int prepare_s_multi_key_args(s_command_args_t* args,
                              uintptr_t**       args_out,
-                             unsigned long**   args_len_out) {
+                             unsigned long**   args_len_out,
+                             char***           allocated_strings,
+                             int*              allocated_count) {
     if (!args->glide_client || !args->keys || args->keys_count <= 0) {
         return 0;
     }
@@ -215,7 +253,13 @@ int prepare_s_multi_key_args(s_command_args_t* args,
         return 0;
     }
 
-    convert_zval_to_string_args(args->keys, args->keys_count, args_out, args_len_out, 0);
+    convert_zval_to_string_args(args->keys,
+                                args->keys_count,
+                                args_out,
+                                args_len_out,
+                                0,
+                                allocated_strings,
+                                allocated_count);
 
     return args->keys_count;
 }
@@ -225,7 +269,9 @@ int prepare_s_multi_key_args(s_command_args_t* args,
  */
 int prepare_s_multi_key_limit_args(s_command_args_t* args,
                                    uintptr_t**       args_out,
-                                   unsigned long**   args_len_out) {
+                                   unsigned long**   args_len_out,
+                                   char***           allocated_strings,
+                                   int*              allocated_count) {
     if (!args->glide_client || !args->keys || args->keys_count <= 0) {
         return 0;
     }
@@ -246,8 +292,21 @@ int prepare_s_multi_key_limit_args(s_command_args_t* args,
     (*args_out)[0]     = (uintptr_t) numkeys_str;
     (*args_len_out)[0] = strlen(numkeys_str);
 
+    /* Track the allocated numkeys string */
+    if (allocated_strings && allocated_count) {
+        *allocated_strings = erealloc(*allocated_strings, (*allocated_count + 1) * sizeof(char*));
+        (*allocated_strings)[*allocated_count] = numkeys_str;
+        (*allocated_count)++;
+    }
+
     /* Add keys */
-    convert_zval_to_string_args(args->keys, args->keys_count, args_out, args_len_out, 1);
+    convert_zval_to_string_args(args->keys,
+                                args->keys_count,
+                                args_out,
+                                args_len_out,
+                                1,
+                                allocated_strings,
+                                allocated_count);
 
     /* Add LIMIT if specified */
     if (args->has_limit) {
@@ -256,12 +315,19 @@ int prepare_s_multi_key_limit_args(s_command_args_t* args,
 
         char* limit_str = alloc_long_string(args->limit, NULL);
         if (!limit_str) {
-            efree((void*) (*args_out)[0]); /* Free numkeys_str */
             cleanup_s_command_args(*args_out, *args_len_out);
             return 0;
         }
         (*args_out)[2 + args->keys_count]     = (uintptr_t) limit_str;
         (*args_len_out)[2 + args->keys_count] = strlen(limit_str);
+
+        /* Track the allocated limit string */
+        if (allocated_strings && allocated_count) {
+            *allocated_strings =
+                erealloc(*allocated_strings, (*allocated_count + 1) * sizeof(char*));
+            (*allocated_strings)[*allocated_count] = limit_str;
+            (*allocated_count)++;
+        }
     }
 
     return arg_count;
@@ -272,7 +338,9 @@ int prepare_s_multi_key_limit_args(s_command_args_t* args,
  */
 int prepare_s_dst_multi_key_args(s_command_args_t* args,
                                  uintptr_t**       args_out,
-                                 unsigned long**   args_len_out) {
+                                 unsigned long**   args_len_out,
+                                 char***           allocated_strings,
+                                 int*              allocated_count) {
     if (!args->glide_client || !args->dst_key || args->dst_key_len == 0 || !args->keys ||
         args->keys_count <= 0) {
         return 0;
@@ -289,7 +357,13 @@ int prepare_s_dst_multi_key_args(s_command_args_t* args,
     (*args_len_out)[0] = args->dst_key_len;
 
     /* Add source keys */
-    convert_zval_to_string_args(args->keys, args->keys_count, args_out, args_len_out, 1);
+    convert_zval_to_string_args(args->keys,
+                                args->keys_count,
+                                args_out,
+                                args_len_out,
+                                1,
+                                allocated_strings,
+                                allocated_count);
 
     return arg_count;
 }
@@ -299,7 +373,9 @@ int prepare_s_dst_multi_key_args(s_command_args_t* args,
  */
 int prepare_s_two_key_member_args(s_command_args_t* args,
                                   uintptr_t**       args_out,
-                                  unsigned long**   args_len_out) {
+                                  unsigned long**   args_len_out,
+                                  char***           allocated_strings,
+                                  int*              allocated_count) {
     if (!args->glide_client || !args->src_key || args->src_key_len == 0 || !args->dst_key ||
         args->dst_key_len == 0 || !args->member || args->member_len == 0) {
         return 0;
@@ -324,7 +400,9 @@ int prepare_s_two_key_member_args(s_command_args_t* args,
  */
 int prepare_s_scan_args(s_command_args_t* args,
                         uintptr_t**       args_out,
-                        unsigned long**   args_len_out) {
+                        unsigned long**   args_len_out,
+                        char***           allocated_strings,
+                        int*              allocated_count) {
     if (!args->glide_client || !args->cursor) {
         return 0;
     }
@@ -379,6 +457,14 @@ int prepare_s_scan_args(s_command_args_t* args,
         (*args_out)[arg_idx]     = (uintptr_t) count_str;
         (*args_len_out)[arg_idx] = strlen(count_str);
         arg_idx++;
+
+        /* Track the allocated count string */
+        if (allocated_strings && allocated_count) {
+            *allocated_strings =
+                erealloc(*allocated_strings, (*allocated_count + 1) * sizeof(char*));
+            (*allocated_strings)[*allocated_count] = count_str;
+            (*allocated_count)++;
+        }
     }
 
     /* Add TYPE if provided (SCAN only) */
@@ -641,34 +727,47 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
     }
 
 
+    /* Initialize string tracking arrays */
+    char** allocated_strings = NULL;
+    int    allocated_count   = 0;
+
     /* Prepare arguments based on category */
     switch (category) {
         case S_CMD_KEY_MEMBERS:
-            arg_count = prepare_s_key_members_args(args, &cmd_args, &args_len);
+            arg_count = prepare_s_key_members_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case S_CMD_KEY_ONLY:
-            arg_count = prepare_s_key_only_args(args, &cmd_args, &args_len);
+            arg_count = prepare_s_key_only_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case S_CMD_KEY_MEMBER:
-            arg_count = prepare_s_key_member_args(args, &cmd_args, &args_len);
+            arg_count = prepare_s_key_member_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case S_CMD_KEY_COUNT:
-            arg_count = prepare_s_key_count_args(args, &cmd_args, &args_len);
+            arg_count = prepare_s_key_count_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case S_CMD_MULTI_KEY:
-            arg_count = prepare_s_multi_key_args(args, &cmd_args, &args_len);
+            arg_count = prepare_s_multi_key_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case S_CMD_MULTI_KEY_LIMIT:
-            arg_count = prepare_s_multi_key_limit_args(args, &cmd_args, &args_len);
+            arg_count = prepare_s_multi_key_limit_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case S_CMD_DST_MULTI_KEY:
-            arg_count = prepare_s_dst_multi_key_args(args, &cmd_args, &args_len);
+            arg_count = prepare_s_dst_multi_key_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case S_CMD_TWO_KEY_MEMBER:
-            arg_count = prepare_s_two_key_member_args(args, &cmd_args, &args_len);
+            arg_count = prepare_s_two_key_member_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case S_CMD_SCAN:
-            arg_count = prepare_s_scan_args(args, &cmd_args, &args_len);
+            arg_count = prepare_s_scan_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         default:
             return 0;
@@ -726,60 +825,14 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
 
 
 cleanup:
-    /* Clean up allocated strings for specific categories */
-    if (cmd_args && args_len) {
-        if (category == S_CMD_KEY_COUNT && args->has_count && arg_count > 1) {
-            efree((void*) cmd_args[1]); /* Free count string */
-        } else if (category == S_CMD_MULTI_KEY_LIMIT) {
-            efree((void*) cmd_args[0]); /* Free numkeys string */
-            if (args->has_limit && arg_count > 2 + args->keys_count) {
-                efree((void*) cmd_args[2 + args->keys_count]); /* Free limit string */
-            }
-        } else if (category == S_CMD_SCAN) {
-            /* No need to free cursor string anymore - it's directly referenced */
-            if (args->has_count) {
-                /* Find and free count string */
-                int has_key   = (args->key && args->key_len > 0);
-                int count_idx = (has_key ? 1 : 0) + 1 + (args->pattern ? 2 : 0) + 1;
-                if (count_idx < arg_count) {
-                    efree((void*) cmd_args[count_idx]);
-                }
+    /* Free all allocated strings tracked by the prepare functions */
+    if (allocated_strings && allocated_count > 0) {
+        for (int i = 0; i < allocated_count; i++) {
+            if (allocated_strings[i]) {
+                efree(allocated_strings[i]);
             }
         }
-
-        /* Clean up allocated strings from convert_zval_to_string_args for member-based commands */
-        if (category == S_CMD_KEY_MEMBERS || category == S_CMD_MULTI_KEY ||
-            category == S_CMD_DST_MULTI_KEY) {
-            int start_idx = 0, count = 0;
-
-            if (category == S_CMD_KEY_MEMBERS) {
-                start_idx = 1; /* Skip key, clean up member strings */
-                count     = args->members_count;
-            } else if (category == S_CMD_MULTI_KEY) {
-                start_idx = 0; /* Clean up all key strings */
-                count     = args->keys_count;
-            } else if (category == S_CMD_DST_MULTI_KEY) {
-                start_idx = 1; /* Skip destination key, clean up source key strings */
-                count     = args->keys_count;
-            }
-
-            /* Free converted strings - check if they were allocated by our conversion function */
-            for (int i = 0; i < count && (start_idx + i) < arg_count; i++) {
-                /* Only free if it's not pointing to original string data */
-                if (args->members && category == S_CMD_KEY_MEMBERS) {
-                    zval* element = &args->members[i];
-                    if (Z_TYPE_P(element) != IS_STRING && cmd_args[start_idx + i] != 0) {
-                        efree((void*) cmd_args[start_idx + i]);
-                    }
-                } else if (args->keys &&
-                           (category == S_CMD_MULTI_KEY || category == S_CMD_DST_MULTI_KEY)) {
-                    zval* element = &args->keys[i];
-                    if (Z_TYPE_P(element) != IS_STRING && cmd_args[start_idx + i] != 0) {
-                        efree((void*) cmd_args[start_idx + i]);
-                    }
-                }
-            }
-        }
+        efree(allocated_strings);
     }
 
     cleanup_s_command_args(cmd_args, args_len);

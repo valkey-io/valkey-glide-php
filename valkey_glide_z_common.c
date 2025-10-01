@@ -546,6 +546,11 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             efree(arg_values);
         if (arg_lens)
             efree(arg_lens);
+        for (int i = 0; i < allocated_count; i++) {
+            if (allocated_strings[i]) {
+                efree(allocated_strings[i]);
+            }
+        }
         if (allocated_strings)
             efree(allocated_strings);
         return 0;
@@ -565,6 +570,14 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             efree(arg_values);
         if (arg_lens)
             efree(arg_lens);
+
+        for (int i = 0; i < allocated_count; i++) {
+            if (allocated_strings[i]) {
+                efree(allocated_strings[i]);
+            }
+        }
+        if (allocated_strings)
+            efree(allocated_strings);
 
         return result;
     }
@@ -1817,8 +1830,7 @@ int process_z_array_result(CommandResponse* response, void* output, zval* return
     if (!response || !return_value) {
         return 0;
     }
-    /* Initialize return array */
-    array_init(return_value);
+
     /* Process the result */
     int success = command_response_to_zval(
         response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, true);

@@ -209,11 +209,23 @@ int execute_x_generic_command(valkey_glide_object* valkey_glide,
                               zval*                return_value);
 
 /* Argument preparation */
-int prepare_x_len_args(x_command_args_t* args, uintptr_t** args_out, unsigned long** args_len_out);
+int prepare_x_len_args(x_command_args_t* args,
+                       uintptr_t**       args_out,
+                       unsigned long**   args_len_out,
+                       char***           allocated_strings,
+                       int*              allocated_count);
 
-int prepare_x_del_args(x_command_args_t* args, uintptr_t** args_out, unsigned long** args_len_out);
+int prepare_x_del_args(x_command_args_t* args,
+                       uintptr_t**       args_out,
+                       unsigned long**   args_len_out,
+                       char***           allocated_strings,
+                       int*              allocated_count);
 
-int prepare_x_ack_args(x_command_args_t* args, uintptr_t** args_out, unsigned long** args_len_out);
+int prepare_x_ack_args(x_command_args_t* args,
+                       uintptr_t**       args_out,
+                       unsigned long**   args_len_out,
+                       char***           allocated_strings,
+                       int*              allocated_count);
 
 int prepare_x_add_args(x_command_args_t* args,
                        uintptr_t**       args_out,
@@ -235,25 +247,39 @@ int prepare_x_range_args(x_command_args_t* args,
 
 int prepare_x_claim_args(x_command_args_t* args,
                          uintptr_t**       args_out,
-                         unsigned long**   args_len_out);
+                         unsigned long**   args_len_out,
+                         char***           allocated_strings,
+                         int*              allocated_count);
 
 int prepare_x_autoclaim_args(x_command_args_t* args,
                              uintptr_t**       args_out,
-                             unsigned long**   args_len_out);
+                             unsigned long**   args_len_out,
+                             char***           allocated_strings,
+                             int*              allocated_count);
 
 int prepare_x_group_args(x_command_args_t* args,
                          uintptr_t**       args_out,
-                         unsigned long**   args_len_out);
+                         unsigned long**   args_len_out,
+                         char***           allocated_strings,
+                         int*              allocated_count);
 
 int prepare_x_pending_args(x_command_args_t* args,
                            uintptr_t**       args_out,
-                           unsigned long**   args_len_out);
+                           unsigned long**   args_len_out,
+                           char***           allocated_strings,
+                           int*              allocated_count);
 
-int prepare_x_read_args(x_command_args_t* args, uintptr_t** args_out, unsigned long** args_len_out);
+int prepare_x_read_args(x_command_args_t* args,
+                        uintptr_t**       args_out,
+                        unsigned long**   args_len_out,
+                        char***           allocated_strings,
+                        int*              allocated_count);
 
 int prepare_x_readgroup_args(x_command_args_t* args,
                              uintptr_t**       args_out,
-                             unsigned long**   args_len_out);
+                             unsigned long**   args_len_out,
+                             char***           allocated_strings,
+                             int*              allocated_count);
 
 int prepare_x_info_args(x_command_args_t* args,
                         uintptr_t**       args_out,

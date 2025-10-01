@@ -364,16 +364,20 @@ int execute_x_generic_command(valkey_glide_object* valkey_glide,
         case XGroupDelConsumer:
         case XGroupDestroy:
         case XGroupSetId:
-            arg_count = prepare_x_group_args(args, &cmd_args, &args_len);
+            arg_count = prepare_x_group_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case XLen:
-            arg_count = prepare_x_len_args(args, &cmd_args, &args_len);
+            arg_count = prepare_x_len_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case XDel:
-            arg_count = prepare_x_del_args(args, &cmd_args, &args_len);
+            arg_count = prepare_x_del_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case XAck:
-            arg_count = prepare_x_ack_args(args, &cmd_args, &args_len);
+            arg_count = prepare_x_ack_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case XAdd:
             arg_count = prepare_x_add_args(
@@ -389,19 +393,24 @@ int execute_x_generic_command(valkey_glide_object* valkey_glide,
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case XPending:
-            arg_count = prepare_x_pending_args(args, &cmd_args, &args_len);
+            arg_count = prepare_x_pending_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case XRead:
-            arg_count = prepare_x_read_args(args, &cmd_args, &args_len);
+            arg_count = prepare_x_read_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case XReadGroup:
-            arg_count = prepare_x_readgroup_args(args, &cmd_args, &args_len);
+            arg_count = prepare_x_readgroup_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case XAutoClaim:
-            arg_count = prepare_x_autoclaim_args(args, &cmd_args, &args_len);
+            arg_count = prepare_x_autoclaim_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case XClaim:
-            arg_count = prepare_x_claim_args(args, &cmd_args, &args_len);
+            arg_count = prepare_x_claim_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         case XInfoGroups:
         case XInfoConsumers:
@@ -421,25 +430,32 @@ int execute_x_generic_command(valkey_glide_object* valkey_glide,
             efree(cmd_args);
         if (args_len)
             efree(args_len);
+        for (int i = 0; i < allocated_count; i++) {
+            if (allocated_strings[i]) {
+                efree(allocated_strings[i]);
+            }
+        }
         if (allocated_strings)
             efree(allocated_strings);
         return 0;
     }
 
     if (valkey_glide->is_in_batch_mode) {
-        int result = buffer_command_for_batch(valkey_glide,
-                                              cmd_type,
-                                              cmd_args,
-                                              args_len,
-                                              arg_count,
-
-                                              result_ptr,
-                                              process_result);
+        int result = buffer_command_for_batch(
+            valkey_glide, cmd_type, cmd_args, args_len, arg_count, result_ptr, process_result);
 
         if (cmd_args)
             efree(cmd_args);
         if (args_len)
             efree(args_len);
+
+        for (int i = 0; i < allocated_count; i++) {
+            if (allocated_strings[i]) {
+                efree(allocated_strings[i]);
+            }
+        }
+        if (allocated_strings)
+            efree(allocated_strings);
 
         return result;
     }
@@ -888,11 +904,19 @@ int prepare_x_info_args(x_command_args_t* args,
 /**
  * Prepare arguments for XLEN command.
  */
-int prepare_x_len_args(x_command_args_t* args, uintptr_t** args_out, unsigned long** args_len_out) {
+int prepare_x_len_args(x_command_args_t* args,
+                       uintptr_t**       args_out,
+                       unsigned long**   args_len_out,
+                       char***           allocated_strings,
+                       int*              allocated_count) {
     /* Check if client and key are valid */
     if (!args->glide_client || !args->key || args->key_len <= 0) {
         return 0;
     }
+
+    /* Initialize allocated strings tracking */
+    *allocated_strings = NULL;
+    *allocated_count   = 0;
 
     /* Allocate memory for arguments */
     *args_out     = (uintptr_t*) emalloc(sizeof(uintptr_t));
@@ -908,12 +932,20 @@ int prepare_x_len_args(x_command_args_t* args, uintptr_t** args_out, unsigned lo
 /**
  * Prepare arguments for XACK command.
  */
-int prepare_x_ack_args(x_command_args_t* args, uintptr_t** args_out, unsigned long** args_len_out) {
+int prepare_x_ack_args(x_command_args_t* args,
+                       uintptr_t**       args_out,
+                       unsigned long**   args_len_out,
+                       char***           allocated_strings,
+                       int*              allocated_count) {
     /* Check if client and arguments are valid */
     if (!args->glide_client || !args->key || args->key_len <= 0 || !args->group ||
         args->group_len <= 0 || !args->ids || args->id_count <= 0) {
         return 0;
     }
+
+    /* Initialize allocated strings tracking */
+    *allocated_strings = NULL;
+    *allocated_count   = 0;
 
     /* Prepare command arguments: key + group + IDs */
     unsigned long arg_count = 2 + args->id_count;
@@ -947,12 +979,20 @@ int prepare_x_ack_args(x_command_args_t* args, uintptr_t** args_out, unsigned lo
 /**
  * Prepare arguments for XDEL command.
  */
-int prepare_x_del_args(x_command_args_t* args, uintptr_t** args_out, unsigned long** args_len_out) {
+int prepare_x_del_args(x_command_args_t* args,
+                       uintptr_t**       args_out,
+                       unsigned long**   args_len_out,
+                       char***           allocated_strings,
+                       int*              allocated_count) {
     /* Check if client and arguments are valid */
     if (!args->glide_client || !args->key || args->key_len <= 0 || !args->ids ||
         args->id_count <= 0) {
         return 0;
     }
+
+    /* Initialize allocated strings tracking */
+    *allocated_strings = NULL;
+    *allocated_count   = 0;
 
     /* Prepare command arguments: key + IDs */
     unsigned long arg_count = 1 + args->id_count;
@@ -1035,6 +1075,7 @@ int prepare_x_range_args(x_command_args_t* args,
         *allocated_strings                   = (char**) ecalloc(1, sizeof(char*));
         *allocated_count                     = 0;
         *allocated_strings[*allocated_count] = count_str_copy;
+        (*allocated_count)++;
         if (count_str_copy) {
             memcpy(count_str_copy, count_str, count_str_len);
             count_str_copy[count_str_len] = '\0';
@@ -1182,11 +1223,17 @@ int prepare_x_add_args(x_command_args_t* args,
  */
 int prepare_x_group_args(x_command_args_t* args,
                          uintptr_t**       args_out,
-                         unsigned long**   args_len_out) {
+                         unsigned long**   args_len_out,
+                         char***           allocated_strings,
+                         int*              allocated_count) {
     /* Check if client and arguments are valid */
     if (!args->glide_client || !args->subcommand || args->subcommand_len <= 0 || !args->args) {
         return 0;
     }
+
+    /* Initialize allocated strings tracking */
+    *allocated_strings = NULL;
+    *allocated_count   = 0;
 
     /* Allocate memory for arguments */
     if (!allocate_command_args(args->args_count, args_out, args_len_out)) {
@@ -1221,12 +1268,18 @@ int prepare_x_group_args(x_command_args_t* args,
  */
 int prepare_x_pending_args(x_command_args_t* args,
                            uintptr_t**       args_out,
-                           unsigned long**   args_len_out) {
+                           unsigned long**   args_len_out,
+                           char***           allocated_strings,
+                           int*              allocated_count) {
     /* Check if client and arguments are valid */
     if (!args->glide_client || !args->key || args->key_len <= 0 || !args->group ||
         args->group_len <= 0) {
         return 0;
     }
+
+    /* Initialize allocated strings tracking */
+    *allocated_strings = NULL;
+    *allocated_count   = 0;
 
     /* Count extra args based on options */
     unsigned long extra_args = 0;
@@ -1282,12 +1335,14 @@ int prepare_x_pending_args(x_command_args_t* args,
             memcpy(count_str_copy, count_str, count_str_len);
             count_str_copy[count_str_len] = '\0';
 
+            /* Track this string for cleanup */
+            *allocated_strings      = (char**) ecalloc(1, sizeof(char*));
+            (*allocated_strings)[0] = count_str_copy;
+            *allocated_count        = 1;
+
             (*args_out)[arg_idx]     = (uintptr_t) count_str_copy;
             (*args_len_out)[arg_idx] = count_str_len;
             arg_idx++;
-
-            /* This needs to be freed later */
-            (*args_out)[arg_count - 1] = (uintptr_t) count_str_copy;
         }
     }
 
@@ -1305,12 +1360,18 @@ int prepare_x_pending_args(x_command_args_t* args,
  */
 int prepare_x_readgroup_args(x_command_args_t* args,
                              uintptr_t**       args_out,
-                             unsigned long**   args_len_out) {
+                             unsigned long**   args_len_out,
+                             char***           allocated_strings,
+                             int*              allocated_count) {
     /* Check if client and arguments are valid */
     if (!args->glide_client || !args->group || args->group_len <= 0 || !args->consumer ||
         args->consumer_len <= 0 || !args->streams || !args->ids) {
         return 0;
     }
+
+    /* Initialize allocated strings tracking */
+    *allocated_strings = NULL;
+    *allocated_count   = 0;
 
     /* Get the number of streams and IDs */
     HashTable* streams_ht    = Z_ARRVAL_P(args->streams);
@@ -1338,6 +1399,17 @@ int prepare_x_readgroup_args(x_command_args_t* args,
     /* Allocate memory for arguments */
     if (!allocate_command_args(arg_count, args_out, args_len_out)) {
         return 0;
+    }
+
+    /* Allocate memory to track dynamic strings if needed */
+    int max_strings = 0;
+    if (args->read_opts.has_count)
+        max_strings++;
+    if (args->read_opts.has_block)
+        max_strings++;
+
+    if (max_strings > 0) {
+        *allocated_strings = (char**) ecalloc(max_strings, sizeof(char*));
     }
 
     /* Set arguments */
@@ -1373,6 +1445,10 @@ int prepare_x_readgroup_args(x_command_args_t* args,
             memcpy(count_str_copy, count_str, count_str_len);
             count_str_copy[count_str_len] = '\0';
 
+            /* Track this string for cleanup */
+            (*allocated_strings)[*allocated_count] = count_str_copy;
+            (*allocated_count)++;
+
             (*args_out)[arg_idx]     = (uintptr_t) count_str_copy;
             (*args_len_out)[arg_idx] = count_str_len;
             arg_idx++;
@@ -1395,6 +1471,10 @@ int prepare_x_readgroup_args(x_command_args_t* args,
         if (block_str_copy) {
             memcpy(block_str_copy, block_str, block_str_len);
             block_str_copy[block_str_len] = '\0';
+
+            /* Track this string for cleanup */
+            (*allocated_strings)[*allocated_count] = block_str_copy;
+            (*allocated_count)++;
 
             (*args_out)[arg_idx]     = (uintptr_t) block_str_copy;
             (*args_len_out)[arg_idx] = block_str_len;
@@ -1446,11 +1526,17 @@ int prepare_x_readgroup_args(x_command_args_t* args,
  */
 int prepare_x_read_args(x_command_args_t* args,
                         uintptr_t**       args_out,
-                        unsigned long**   args_len_out) {
+                        unsigned long**   args_len_out,
+                        char***           allocated_strings,
+                        int*              allocated_count) {
     /* Check if client and arguments are valid */
     if (!args->glide_client || !args->streams || !args->ids) {
         return 0;
     }
+
+    /* Initialize allocated strings tracking */
+    *allocated_strings = NULL;
+    *allocated_count   = 0;
 
     /* Get the number of streams and IDs */
     HashTable* streams_ht    = Z_ARRVAL_P(args->streams);
@@ -1480,6 +1566,17 @@ int prepare_x_read_args(x_command_args_t* args,
         return 0;
     }
 
+    /* Allocate memory to track dynamic strings if needed */
+    int max_strings = 0;
+    if (args->read_opts.has_count)
+        max_strings++;
+    if (args->read_opts.has_block)
+        max_strings++;
+
+    if (max_strings > 0) {
+        *allocated_strings = (char**) ecalloc(max_strings, sizeof(char*));
+    }
+
     /* Set arguments */
     unsigned int arg_idx = 0;
 
@@ -1499,6 +1596,10 @@ int prepare_x_read_args(x_command_args_t* args,
         if (count_str_copy) {
             memcpy(count_str_copy, count_str, count_str_len);
             count_str_copy[count_str_len] = '\0';
+
+            /* Track this string for cleanup */
+            (*allocated_strings)[*allocated_count] = count_str_copy;
+            (*allocated_count)++;
 
             (*args_out)[arg_idx]     = (uintptr_t) count_str_copy;
             (*args_len_out)[arg_idx] = count_str_len;
@@ -1522,6 +1623,10 @@ int prepare_x_read_args(x_command_args_t* args,
         if (block_str_copy) {
             memcpy(block_str_copy, block_str, block_str_len);
             block_str_copy[block_str_len] = '\0';
+
+            /* Track this string for cleanup */
+            (*allocated_strings)[*allocated_count] = block_str_copy;
+            (*allocated_count)++;
 
             (*args_out)[arg_idx]     = (uintptr_t) block_str_copy;
             (*args_len_out)[arg_idx] = block_str_len;
@@ -1573,13 +1678,19 @@ int prepare_x_read_args(x_command_args_t* args,
  */
 int prepare_x_claim_args(x_command_args_t* args,
                          uintptr_t**       args_out,
-                         unsigned long**   args_len_out) {
+                         unsigned long**   args_len_out,
+                         char***           allocated_strings,
+                         int*              allocated_count) {
     /* Check if client and arguments are valid */
     if (!args->glide_client || !args->key || args->key_len <= 0 || !args->group ||
         args->group_len <= 0 || !args->consumer || args->consumer_len <= 0 || !args->ids ||
         args->id_count <= 0) {
         return 0;
     }
+
+    /* Initialize allocated strings tracking */
+    *allocated_strings = NULL;
+    *allocated_count   = 0;
 
     /* Count options */
     unsigned long extra_args = 0;
@@ -1601,6 +1712,18 @@ int prepare_x_claim_args(x_command_args_t* args,
     if (!allocate_command_args(arg_count, args_out, args_len_out)) {
         return 0;
     }
+
+    /* Calculate maximum number of strings we might allocate */
+    int max_strings = 1; /* min_idle_time */
+    if (args->claim_opts.has_idle)
+        max_strings++;
+    if (args->claim_opts.has_time)
+        max_strings++;
+    if (args->claim_opts.has_retrycount)
+        max_strings++;
+
+    /* Allocate memory to track dynamic strings */
+    *allocated_strings = (char**) ecalloc(max_strings, sizeof(char*));
 
     /* Set key, group, consumer, min_idle_time */
     unsigned int arg_idx     = 0;
@@ -1627,12 +1750,13 @@ int prepare_x_claim_args(x_command_args_t* args,
         memcpy(min_idle_str_copy, min_idle_str, min_idle_str_len);
         min_idle_str_copy[min_idle_str_len] = '\0';
 
+        /* Track this string for cleanup */
+        (*allocated_strings)[*allocated_count] = min_idle_str_copy;
+        (*allocated_count)++;
+
         (*args_out)[arg_idx]     = (uintptr_t) min_idle_str_copy;
         (*args_len_out)[arg_idx] = min_idle_str_len;
         arg_idx++;
-
-        /* This string needs to be freed later */
-        // TODO: Track this string for cleanup
     }
 
     /* Add all message IDs */
@@ -1664,12 +1788,13 @@ int prepare_x_claim_args(x_command_args_t* args,
             memcpy(idle_str_copy, idle_str, idle_str_len);
             idle_str_copy[idle_str_len] = '\0';
 
+            /* Track this string for cleanup */
+            (*allocated_strings)[*allocated_count] = idle_str_copy;
+            (*allocated_count)++;
+
             (*args_out)[arg_idx]     = (uintptr_t) idle_str_copy;
             (*args_len_out)[arg_idx] = idle_str_len;
             arg_idx++;
-
-            /* This string needs to be freed later */
-            // TODO: Track this string for cleanup
         }
     }
 
@@ -1689,12 +1814,13 @@ int prepare_x_claim_args(x_command_args_t* args,
             memcpy(time_str_copy, time_str, time_str_len);
             time_str_copy[time_str_len] = '\0';
 
+            /* Track this string for cleanup */
+            (*allocated_strings)[*allocated_count] = time_str_copy;
+            (*allocated_count)++;
+
             (*args_out)[arg_idx]     = (uintptr_t) time_str_copy;
             (*args_len_out)[arg_idx] = time_str_len;
             arg_idx++;
-
-            /* This string needs to be freed later */
-            // TODO: Track this string for cleanup
         }
     }
 
@@ -1714,12 +1840,13 @@ int prepare_x_claim_args(x_command_args_t* args,
             memcpy(retry_str_copy, retry_str, retry_str_len);
             retry_str_copy[retry_str_len] = '\0';
 
+            /* Track this string for cleanup */
+            (*allocated_strings)[*allocated_count] = retry_str_copy;
+            (*allocated_count)++;
+
             (*args_out)[arg_idx]     = (uintptr_t) retry_str_copy;
             (*args_len_out)[arg_idx] = retry_str_len;
             arg_idx++;
-
-            /* This string needs to be freed later */
-            // TODO: Track this string for cleanup
         }
     }
 
@@ -1743,13 +1870,19 @@ int prepare_x_claim_args(x_command_args_t* args,
  */
 int prepare_x_autoclaim_args(x_command_args_t* args,
                              uintptr_t**       args_out,
-                             unsigned long**   args_len_out) {
+                             unsigned long**   args_len_out,
+                             char***           allocated_strings,
+                             int*              allocated_count) {
     /* Check if client and arguments are valid */
     if (!args->glide_client || !args->key || args->key_len <= 0 || !args->group ||
         args->group_len <= 0 || !args->consumer || args->consumer_len <= 0 || !args->start ||
         args->start_len <= 0) {
         return 0;
     }
+
+    /* Initialize allocated strings tracking */
+    *allocated_strings = NULL;
+    *allocated_count   = 0;
 
     /* Count options */
     unsigned long extra_args = 0;
@@ -1765,6 +1898,14 @@ int prepare_x_autoclaim_args(x_command_args_t* args,
     if (!allocate_command_args(arg_count, args_out, args_len_out)) {
         return 0;
     }
+
+    /* Calculate maximum number of strings we might allocate */
+    int max_strings = 1; /* min_idle_time */
+    if (args->claim_opts.has_count)
+        max_strings++;
+
+    /* Allocate memory to track dynamic strings */
+    *allocated_strings = (char**) ecalloc(max_strings, sizeof(char*));
 
     /* Set key, group, consumer */
     unsigned int arg_idx     = 0;
@@ -1791,12 +1932,13 @@ int prepare_x_autoclaim_args(x_command_args_t* args,
         memcpy(min_idle_str_copy, min_idle_str, min_idle_str_len);
         min_idle_str_copy[min_idle_str_len] = '\0';
 
+        /* Track this string for cleanup */
+        (*allocated_strings)[*allocated_count] = min_idle_str_copy;
+        (*allocated_count)++;
+
         (*args_out)[arg_idx]     = (uintptr_t) min_idle_str_copy;
         (*args_len_out)[arg_idx] = min_idle_str_len;
         arg_idx++;
-
-        /* This string needs to be freed later */
-        // TODO: Track this string for cleanup
     }
 
     /* Add start ID */
@@ -1821,12 +1963,13 @@ int prepare_x_autoclaim_args(x_command_args_t* args,
             memcpy(count_str_copy, count_str, count_str_len);
             count_str_copy[count_str_len] = '\0';
 
+            /* Track this string for cleanup */
+            (*allocated_strings)[*allocated_count] = count_str_copy;
+            (*allocated_count)++;
+
             (*args_out)[arg_idx]     = (uintptr_t) count_str_copy;
             (*args_len_out)[arg_idx] = count_str_len;
             arg_idx++;
-
-            /* This string needs to be freed later */
-            // TODO: Track this string for cleanup
         }
     }
 
@@ -1901,6 +2044,7 @@ int prepare_x_trim_args(x_command_args_t* args,
             *allocated_strings                   = (char**) ecalloc(1, sizeof(char*));
             *allocated_count                     = 0;
             *allocated_strings[*allocated_count] = limit_str_copy;
+            *allocated_count                     = 1;
             limit_str_copy[limit_str_len]        = '\0';
 
             (*args_out)[arg_idx]     = (uintptr_t) limit_str_copy;

@@ -31,7 +31,6 @@ typedef enum {
     CORE_ARG_TYPE_LONG,
     CORE_ARG_TYPE_DOUBLE,
     CORE_ARG_TYPE_ARRAY,
-    CORE_ARG_TYPE_MULTI_STRING,
     CORE_ARG_TYPE_KEY_VALUE_PAIRS
 } core_arg_type_t;
 
