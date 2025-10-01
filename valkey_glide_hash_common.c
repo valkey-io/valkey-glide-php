@@ -270,25 +270,164 @@ cleanup:
  * ARGUMENT PREPARATION FUNCTIONS
  * ==================================================================== */
 
-/**
- * Prepare arguments for single-key commands (HLEN, HKEYS, HVALS, HGETALL)
- */
+// Unified parameter preparation with configurable components
+typedef struct {
+    bool        needs_expiry;
+    bool        needs_condition;
+    bool        needs_fields_keyword;
+    bool        field_value_pairs;  // true for HSETEX, false for HEXPIRE/HTTL
+    const char* condition_prefix;   // "F" for HSETEX (FNX/FXX), NULL for HEXPIRE (NX/XX)
+} h_arg_config_t;
+
+static int prepare_h_args_unified(h_command_args_t*     args,
+                                  uintptr_t**           args_out,
+                                  unsigned long**       args_len_out,
+                                  char***               allocated_strings,
+                                  int*                  allocated_count,
+                                  const h_arg_config_t* config) {
+    if (!args->key)
+        return 0;
+
+    // Calculate field count and validate
+    int field_count = config->field_value_pairs ? args->fv_count / 2 : args->fv_count;
+    if (config->field_value_pairs && args->fv_count % 2 != 0)
+        return 0;
+
+    // Calculate argument count
+    int arg_count = 1;  // key
+    if (config->needs_condition && args->condition)
+        arg_count++;
+    if (config->needs_expiry && args->expiry > 0)
+        arg_count += 2;  // unit + value
+    if (config->needs_fields_keyword)
+        arg_count += 2;           // "FIELDS" + count
+    arg_count += args->fv_count;  // fields or field-value pairs
+
+    // Allocate arrays
+    *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    *allocated_strings = (char**) emalloc((2 + args->fv_count) * sizeof(char*));
+    *allocated_count   = 0;
+
+    int arg_idx = 0;
+
+    // Add key
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
+    (*args_len_out)[arg_idx] = args->key_len;
+    arg_idx++;
+
+    // Add condition
+    if (config->needs_condition && args->condition) {
+        const char* condition = args->condition;
+        if (config->condition_prefix) {
+            // Convert NX/XX to FNX/FXX for HSETEX
+            static char condition_buf[4];
+            snprintf(condition_buf,
+                     sizeof(condition_buf),
+                     "%s%s",
+                     config->condition_prefix,
+                     args->condition);
+            condition = condition_buf;
+        }
+        (*args_out)[arg_idx]     = (uintptr_t) condition;
+        (*args_len_out)[arg_idx] = strlen(condition);
+        arg_idx++;
+    }
+
+    // Add expiry
+    if (config->needs_expiry && args->expiry > 0) {
+        const char* expiry_unit  = args->expiry_type ? args->expiry_type : "EX";
+        (*args_out)[arg_idx]     = (uintptr_t) expiry_unit;
+        (*args_len_out)[arg_idx] = strlen(expiry_unit);
+        arg_idx++;
+
+        char* expiry_str                           = safe_format_int(args->expiry);
+        (*allocated_strings)[(*allocated_count)++] = expiry_str;
+        (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
+        (*args_len_out)[arg_idx]                   = strlen(expiry_str);
+        arg_idx++;
+    }
+
+    // Add FIELDS keyword and count
+    if (config->needs_fields_keyword) {
+        (*args_out)[arg_idx]     = (uintptr_t) "FIELDS";
+        (*args_len_out)[arg_idx] = 6;
+        arg_idx++;
+
+        char* field_count_str                      = safe_format_int(field_count);
+        (*allocated_strings)[(*allocated_count)++] = field_count_str;
+        (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
+        (*args_len_out)[arg_idx]                   = strlen(field_count_str);
+        arg_idx++;
+    }
+
+    // Add fields/field-value pairs
+    populate_field_args(args->field_values,
+                        args->fv_count,
+                        arg_idx,
+                        *args_out,
+                        *args_len_out,
+                        *allocated_strings,
+                        allocated_count);
+
+    return arg_count;
+}
+
+// Simplified preparation functions using unified approach
 int prepare_h_key_only_args(h_command_args_t* args,
                             uintptr_t**       args_out,
                             unsigned long**   args_len_out,
                             char***           allocated_strings,
                             int*              allocated_count) {
-    /* Allocate argument arrays */
     *args_out          = (uintptr_t*) emalloc(sizeof(uintptr_t));
     *args_len_out      = (unsigned long*) emalloc(sizeof(unsigned long));
     *allocated_strings = NULL;
     *allocated_count   = 0;
-
-    /* Set key as the only argument */
     (*args_out)[0]     = (uintptr_t) args->key;
     (*args_len_out)[0] = args->key_len;
-
     return 1;
+}
+
+int prepare_h_hfe_args(h_command_args_t* args,
+                       uintptr_t**       args_out,
+                       unsigned long**   args_len_out,
+                       char***           allocated_strings,
+                       int*              allocated_count) {
+    h_arg_config_t config = {.needs_expiry         = true,
+                             .needs_condition      = true,
+                             .needs_fields_keyword = true,
+                             .field_value_pairs    = true,
+                             .condition_prefix     = "F"};
+    return prepare_h_args_unified(
+        args, args_out, args_len_out, allocated_strings, allocated_count, &config);
+}
+
+int prepare_h_expire_args(h_command_args_t* args,
+                          uintptr_t**       args_out,
+                          unsigned long**   args_len_out,
+                          char***           allocated_strings,
+                          int*              allocated_count) {
+    h_arg_config_t config = {.needs_expiry         = true,
+                             .needs_condition      = true,
+                             .needs_fields_keyword = true,
+                             .field_value_pairs    = false,
+                             .condition_prefix     = NULL};
+    return prepare_h_args_unified(
+        args, args_out, args_len_out, allocated_strings, allocated_count, &config);
+}
+
+int prepare_h_field_only_args(h_command_args_t* args,
+                              uintptr_t**       args_out,
+                              unsigned long**   args_len_out,
+                              char***           allocated_strings,
+                              int*              allocated_count) {
+    h_arg_config_t config = {.needs_expiry         = false,
+                             .needs_condition      = false,
+                             .needs_fields_keyword = true,
+                             .field_value_pairs    = false,
+                             .condition_prefix     = NULL};
+    return prepare_h_args_unified(
+        args, args_out, args_len_out, allocated_strings, allocated_count, &config);
 }
 
 /**
@@ -702,243 +841,6 @@ int prepare_h_getex_args(h_command_args_t* args,
     arg_idx++;
 
     /* Add fields only */
-    populate_field_args(args->field_values,
-                        args->fv_count,
-                        arg_idx,
-                        *args_out,
-                        *args_len_out,
-                        *allocated_strings,
-                        allocated_count);
-
-    return arg_count;
-}
-
-/**
- * Prepare arguments for HTTL, HPTTL, HEXPIRETIME, HPEXPIRETIME, HPERSIST commands
- * Redis format: HTTL key FIELDS numfields field [field ...]
- * Redis format: HPERSIST key FIELDS numfields field [field ...]
- */
-int prepare_h_field_only_args(h_command_args_t* args,
-                              uintptr_t**       args_out,
-                              unsigned long**   args_len_out,
-                              char***           allocated_strings,
-                              int*              allocated_count) {
-    if (!args->key || !args->field_values || args->fv_count == 0) {
-        return 0;
-    }
-
-    int field_count = args->fv_count;     // just fields, no values
-    int arg_count   = 3 + args->fv_count; /* key + "FIELDS" + field_count + fields */
-
-    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-    *allocated_strings =
-        (char**) emalloc((1 + args->fv_count) * sizeof(char*));  // field_count + field conversions
-    *allocated_count = 0;
-
-    int arg_idx = 0;
-
-    /* Add key */
-    (*args_out)[arg_idx]     = (uintptr_t) args->key;
-    (*args_len_out)[arg_idx] = args->key_len;
-    arg_idx++;
-
-    /* Add "FIELDS" keyword */
-    (*args_out)[arg_idx]     = (uintptr_t) "FIELDS";
-    (*args_len_out)[arg_idx] = 6;
-    arg_idx++;
-
-    /* Add field count */
-    char* field_count_str                      = safe_format_int(field_count);
-    (*allocated_strings)[(*allocated_count)++] = field_count_str;
-    (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
-    (*args_len_out)[arg_idx]                   = strlen(field_count_str);
-    arg_idx++;
-
-    /* Add fields only */
-    populate_field_args(args->field_values,
-                        args->fv_count,
-                        arg_idx,
-                        *args_out,
-                        *args_len_out,
-                        *allocated_strings,
-                        allocated_count);
-
-    return arg_count;
-}
-
-/**
- * Prepare arguments for HEXPIRE commands
- * Redis format: HEXPIRE key seconds [NX|XX|GT|LT] FIELDS numfields field [field ...]
- */
-int prepare_h_expire_args(h_command_args_t* args,
-                          uintptr_t**       args_out,
-                          unsigned long**   args_len_out,
-                          char***           allocated_strings,
-                          int*              allocated_count) {
-    if (!args->key || !args->field_values || args->fv_count == 0) {
-        return 0;
-    }
-
-    int field_count = args->fv_count;     // just fields, no values
-    int arg_count   = 4 + args->fv_count; /* key + seconds + "FIELDS" + field_count + fields */
-
-    if (args->condition) {
-        arg_count++; /* condition (NX, XX, GT, LT) */
-    }
-
-    *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-    *allocated_strings = (char**) emalloc(
-        (2 + args->fv_count) * sizeof(char*));  // expiry + field_count + field conversions
-    *allocated_count = 0;
-
-    int arg_idx = 0;
-
-    /* Add key */
-    (*args_out)[arg_idx]     = (uintptr_t) args->key;
-    (*args_len_out)[arg_idx] = args->key_len;
-    arg_idx++;
-
-    /* Add seconds (always required for HEXPIRE) */
-    char* expiry_str                           = safe_format_int(args->expiry);
-    (*allocated_strings)[(*allocated_count)++] = expiry_str;
-    (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
-    (*args_len_out)[arg_idx]                   = strlen(expiry_str);
-    arg_idx++;
-
-    /* Add condition if specified (NX, XX, GT, LT) - no conversion needed */
-    if (args->condition) {
-        (*args_out)[arg_idx]     = (uintptr_t) args->condition;
-        (*args_len_out)[arg_idx] = strlen(args->condition);
-        arg_idx++;
-    }
-
-    /* Add "FIELDS" keyword */
-    (*args_out)[arg_idx]     = (uintptr_t) "FIELDS";
-    (*args_len_out)[arg_idx] = 6;
-    arg_idx++;
-
-    /* Add field count */
-    char* field_count_str                      = safe_format_int(field_count);
-    (*allocated_strings)[(*allocated_count)++] = field_count_str;
-    (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
-    (*args_len_out)[arg_idx]                   = strlen(field_count_str);
-    arg_idx++;
-
-    /* Add fields only (no values) */
-    populate_field_args(args->field_values,
-                        args->fv_count,
-                        arg_idx,
-                        *args_out,
-                        *args_len_out,
-                        *allocated_strings,
-                        allocated_count);
-
-    return arg_count;
-}
-
-/**
- * Prepare arguments for Hash Field Expiration commands (HSETEX variants only)
- * HSETEX format: key [FNX|FXX] [EX seconds|PX milliseconds|EXAT unix-time-seconds|PXAT
- * unix-time-milliseconds|KEEPTTL] FIELDS numfields field value [field value ...]
- *
- * This function expects field-value pairs and calculates field_count = fv_count / 2
- */
-int prepare_h_hfe_args(h_command_args_t* args,
-                       uintptr_t**       args_out,
-                       unsigned long**   args_len_out,
-                       char***           allocated_strings,
-                       int*              allocated_count) {
-    if (!args->key || !args->field_values || args->fv_count == 0) {
-        return 0;
-    }
-
-    /* Calculate field count for FIELDS parameter */
-    // HSETEX always uses field-value pairs, so field count is half of fv_count
-    if (args->fv_count % 2 != 0) {
-        return 0;  // Invalid: HSETEX requires even number of arguments (field-value pairs)
-    }
-    int field_count = args->fv_count / 2;
-
-    /* Calculate argument count: key + [condition] + [expiry_unit + expiry_time] + "FIELDS" +
-     * field_count + fields/values */
-    int arg_count = 3 + args->fv_count; /* key + "FIELDS" + field_count + fields/values */
-
-    if (args->condition) {
-        arg_count++; /* condition (FNX, FXX) */
-    }
-    if (args->expiry > 0 || (args->expiry_type && strcmp(args->expiry_type, "KEEPTTL") == 0)) {
-        if (args->expiry_type && strcmp(args->expiry_type, "KEEPTTL") == 0) {
-            arg_count += 1; /* KEEPTTL only (no time parameter) */
-        } else {
-            arg_count += 2; /* expiry unit + expiry value (EX 60, PX 5000, etc.) */
-        }
-    }
-
-    /* Allocate arrays */
-    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-
-    /* Allocate strings for expiry value and field count */
-    *allocated_strings = (char**) emalloc(
-        (2 + args->fv_count) * sizeof(char*));  // expiry + field_count + field conversions
-    *allocated_count = 0;
-
-    int arg_idx = 0;
-
-    /* Add key */
-    (*args_out)[arg_idx]     = (uintptr_t) args->key;
-    (*args_len_out)[arg_idx] = args->key_len;
-    arg_idx++;
-
-    /* Add condition if specified (FNX, FXX) - convert NX/XX to FNX/FXX */
-    if (args->condition) {
-        const char* redis_condition;
-        if (strcmp(args->condition, "NX") == 0) {
-            redis_condition = "FNX";
-        } else if (strcmp(args->condition, "XX") == 0) {
-            redis_condition = "FXX";
-        } else {
-            redis_condition = args->condition; /* Use as-is if already correct */
-        }
-        (*args_out)[arg_idx]     = (uintptr_t) redis_condition;
-        (*args_len_out)[arg_idx] = strlen(redis_condition);
-        arg_idx++;
-    }
-
-    /* Add expiry unit and time if specified */
-    if (args->expiry > 0 || (args->expiry_type && strcmp(args->expiry_type, "KEEPTTL") == 0)) {
-        /* Add expiry unit (EX, PX, EXAT, PXAT, KEEPTTL) */
-        const char* expiry_unit  = args->expiry_type ? args->expiry_type : "EX";
-        (*args_out)[arg_idx]     = (uintptr_t) expiry_unit;
-        (*args_len_out)[arg_idx] = strlen(expiry_unit);
-        arg_idx++;
-
-        /* Add expiry time value (only if not KEEPTTL) */
-        if (strcmp(expiry_unit, "KEEPTTL") != 0) {
-            char* expiry_str                           = safe_format_int(args->expiry);
-            (*allocated_strings)[(*allocated_count)++] = expiry_str;
-            (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
-            (*args_len_out)[arg_idx]                   = strlen(expiry_str);
-            arg_idx++;
-        }
-    }
-
-    /* Add "FIELDS" keyword */
-    const char* fields_keyword = "FIELDS";
-    (*args_out)[arg_idx]       = (uintptr_t) fields_keyword;
-    (*args_len_out)[arg_idx]   = strlen(fields_keyword);
-    arg_idx++;
-
-    /* Add field count */
-    char* field_count_str                      = safe_format_int(field_count);
-    (*allocated_strings)[(*allocated_count)++] = field_count_str;
-    (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
-    (*args_len_out)[arg_idx]                   = strlen(field_count_str);
-    arg_idx++;
-
-    /* Add fields and values */
     populate_field_args(args->field_values,
                         args->fv_count,
                         arg_idx,
@@ -2249,58 +2151,31 @@ static int execute_hexpire_with_condition(zval*             object,
         object, argc, return_value, ce, HExpire, expiry_type, condition, H_RESPONSE_ARRAY, 1);
 }
 
-// Hash Field Expiration execution functions
-int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hsetex_with_condition(object, argc, return_value, ce, NULL, NULL);
-}
+// Unified hash field expiration command execution
+#define DEFINE_HSETEX_COMMAND(name, expiry_type, condition)                 \
+    int execute_##name##_command(                                           \
+        zval* object, int argc, zval* return_value, zend_class_entry* ce) { \
+        return execute_hsetex_with_condition(                               \
+            object, argc, return_value, ce, expiry_type, condition);        \
+    }
 
-int execute_hpsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hsetex_with_condition(object, argc, return_value, ce, "PX", NULL);
-}
-
-int execute_hsetexat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hsetex_with_condition(object, argc, return_value, ce, "EXAT", NULL);
-}
-
-int execute_hpsetexat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hsetex_with_condition(object, argc, return_value, ce, "PXAT", NULL);
-}
-
-// Helper function for all hSetEx variants with conditions
+// Base variants
+DEFINE_HSETEX_COMMAND(hsetex, NULL, NULL)
+DEFINE_HSETEX_COMMAND(hpsetex, "PX", NULL)
+DEFINE_HSETEX_COMMAND(hsetexat, "EXAT", NULL)
+DEFINE_HSETEX_COMMAND(hpsetexat, "PXAT", NULL)
 
 // NX variants
-int execute_hsetexnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hsetex_with_condition(object, argc, return_value, ce, NULL, "NX");
-}
-
-int execute_hpsetexnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hsetex_with_condition(object, argc, return_value, ce, "PX", "NX");
-}
-
-int execute_hsetexatnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hsetex_with_condition(object, argc, return_value, ce, "EXAT", "NX");
-}
-
-int execute_hpsetexatnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hsetex_with_condition(object, argc, return_value, ce, "PXAT", "NX");
-}
+DEFINE_HSETEX_COMMAND(hsetexnx, NULL, "NX")
+DEFINE_HSETEX_COMMAND(hpsetexnx, "PX", "NX")
+DEFINE_HSETEX_COMMAND(hsetexatnx, "EXAT", "NX")
+DEFINE_HSETEX_COMMAND(hpsetexatnx, "PXAT", "NX")
 
 // XX variants
-int execute_hsetexxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hsetex_with_condition(object, argc, return_value, ce, NULL, "XX");
-}
-
-int execute_hpsetexxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hsetex_with_condition(object, argc, return_value, ce, "PX", "XX");
-}
-
-int execute_hsetexatxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hsetex_with_condition(object, argc, return_value, ce, "EXAT", "XX");
-}
-
-int execute_hpsetexatxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hsetex_with_condition(object, argc, return_value, ce, "PXAT", "XX");
-}
+DEFINE_HSETEX_COMMAND(hsetexxx, NULL, "XX")
+DEFINE_HSETEX_COMMAND(hpsetexxx, "PX", "XX")
+DEFINE_HSETEX_COMMAND(hsetexatxx, "EXAT", "XX")
+DEFINE_HSETEX_COMMAND(hpsetexatxx, "PXAT", "XX")
 
 // hExpire NX/XX variants - reuse existing hExpire infrastructure with conditions
 int execute_hexpirenx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
