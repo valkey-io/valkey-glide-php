@@ -79,6 +79,15 @@
 
 
 
+/**
+ * Enum for hash field expiration conditions
+ */
+enum HashFieldCondition: string
+{
+    case NX = 'NX';  // Only if field doesn't exist
+    case XX = 'XX';  // Only if field exists
+}
+
 
 class ValkeyGlide
 {
@@ -1312,7 +1321,7 @@ class ValkeyGlide
      *
      * @return ValkeyGlide|int|false Returns the number of fields that were added or updated, or false on failure.
      */
-    public function hSetEx(string $key, int $seconds, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
+    public function hSetEx(string $key, int $seconds, HashFieldCondition|string|null $condition, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
 
     /**
      * Set hash fields with expiration time in milliseconds.
@@ -1325,7 +1334,7 @@ class ValkeyGlide
      *
      * @return ValkeyGlide|int|false Returns the number of fields that were added or updated, or false on failure.
      */
-    public function hPSetEx(string $key, int $milliseconds, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
+    public function hPSetEx(string $key, int $milliseconds, HashFieldCondition|string|null $condition, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
 
     /**
      * Set hash fields with expiration at Unix timestamp in seconds.
@@ -1338,7 +1347,7 @@ class ValkeyGlide
      *
      * @return ValkeyGlide|int|false Returns the number of fields that were added or updated, or false on failure.
      */
-    public function hSetExAt(string $key, int $timestamp, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
+    public function hSetExAt(string $key, int $timestamp, HashFieldCondition|string|null $condition, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
 
     /**
      * Set hash fields with expiration at Unix timestamp in milliseconds.
@@ -1351,111 +1360,7 @@ class ValkeyGlide
      *
      * @return ValkeyGlide|int|false Returns the number of fields that were added or updated, or false on failure.
      */
-    public function hPSetExAt(string $key, int $timestamp, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
-
-    /**
-     * Set hash fields with expiration in seconds, only if fields don't exist.
-     *
-     * @param string $key The key of the hash.
-     * @param int $seconds The expiration time in seconds.
-     * @param string $field The field name.
-     * @param mixed $value The field value.
-     * @param mixed $fields_and_vals Additional field-value pairs.
-     *
-     * @return ValkeyGlide|int|false Returns the number of fields that were added, or false on failure.
-     */
-    public function hSetExNx(string $key, int $seconds, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
-
-    /**
-     * Set hash fields with expiration in milliseconds, only if fields don't exist.
-     *
-     * @param string $key The key of the hash.
-     * @param int $milliseconds The expiration time in milliseconds.
-     * @param string $field The field name.
-     * @param mixed $value The field value.
-     * @param mixed $fields_and_vals Additional field-value pairs.
-     *
-     * @return ValkeyGlide|int|false Returns the number of fields that were added, or false on failure.
-     */
-    public function hPSetExNx(string $key, int $milliseconds, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
-
-    /**
-     * Set hash fields with expiration at Unix timestamp in seconds, only if fields don't exist.
-     *
-     * @param string $key The key of the hash.
-     * @param int $timestamp The Unix timestamp in seconds.
-     * @param string $field The field name.
-     * @param mixed $value The field value.
-     * @param mixed $fields_and_vals Additional field-value pairs.
-     *
-     * @return ValkeyGlide|int|false Returns the number of fields that were added, or false on failure.
-     */
-    public function hSetExAtNx(string $key, int $timestamp, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
-
-    /**
-     * Set hash fields with expiration at Unix timestamp in milliseconds, only if fields don't exist.
-     *
-     * @param string $key The key of the hash.
-     * @param int $timestamp The Unix timestamp in milliseconds.
-     * @param string $field The field name.
-     * @param mixed $value The field value.
-     * @param mixed $fields_and_vals Additional field-value pairs.
-     *
-     * @return ValkeyGlide|int|false Returns the number of fields that were added, or false on failure.
-     */
-    public function hPSetExAtNx(string $key, int $timestamp, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
-
-    /**
-     * Set hash fields with expiration in seconds, only if fields already exist.
-     *
-     * @param string $key The key of the hash.
-     * @param int $seconds The expiration time in seconds.
-     * @param string $field The field name.
-     * @param mixed $value The field value.
-     * @param mixed $fields_and_vals Additional field-value pairs.
-     *
-     * @return ValkeyGlide|int|false Returns the number of fields that were updated, or false on failure.
-     */
-    public function hSetExXx(string $key, int $seconds, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
-
-    /**
-     * Set hash fields with expiration in milliseconds, only if fields already exist.
-     *
-     * @param string $key The key of the hash.
-     * @param int $milliseconds The expiration time in milliseconds.
-     * @param string $field The field name.
-     * @param mixed $value The field value.
-     * @param mixed $fields_and_vals Additional field-value pairs.
-     *
-     * @return ValkeyGlide|int|false Returns the number of fields that were updated, or false on failure.
-     */
-    public function hPSetExXx(string $key, int $milliseconds, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
-
-    /**
-     * Set hash fields with expiration at Unix timestamp in seconds, only if fields already exist.
-     *
-     * @param string $key The key of the hash.
-     * @param int $timestamp The Unix timestamp in seconds.
-     * @param string $field The field name.
-     * @param mixed $value The field value.
-     * @param mixed $fields_and_vals Additional field-value pairs.
-     *
-     * @return ValkeyGlide|int|false Returns the number of fields that were updated, or false on failure.
-     */
-    public function hSetExAtXx(string $key, int $timestamp, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
-
-    /**
-     * Set hash fields with expiration at Unix timestamp in milliseconds, only if fields already exist.
-     *
-     * @param string $key The key of the hash.
-     * @param int $timestamp The Unix timestamp in milliseconds.
-     * @param string $field The field name.
-     * @param mixed $value The field value.
-     * @param mixed $fields_and_vals Additional field-value pairs.
-     *
-     * @return ValkeyGlide|int|false Returns the number of fields that were updated, or false on failure.
-     */
-    public function hPSetExAtXx(string $key, int $timestamp, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
+    public function hPSetExAt(string $key, int $timestamp, HashFieldCondition|string|null $condition, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
 
     /**
      * Get the value of a hash field and optionally set its expiration.

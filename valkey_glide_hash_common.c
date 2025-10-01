@@ -2151,31 +2151,19 @@ static int execute_hexpire_with_condition(zval*             object,
         object, argc, return_value, ce, HExpire, expiry_type, condition, H_RESPONSE_ARRAY, 1);
 }
 
-// Unified hash field expiration command execution
-#define DEFINE_HSETEX_COMMAND(name, expiry_type, condition)                 \
-    int execute_##name##_command(                                           \
-        zval* object, int argc, zval* return_value, zend_class_entry* ce) { \
-        return execute_hsetex_with_condition(                               \
-            object, argc, return_value, ce, expiry_type, condition);        \
+// Unified hash field expiration command execution - condition extracted from parameters
+#define DEFINE_HSETEX_COMMAND(name, expiry_type)                               \
+    int execute_##name##_command(                                              \
+        zval* object, int argc, zval* return_value, zend_class_entry* ce) {    \
+        return execute_hsetex_with_condition(                                  \
+            object, argc, return_value, ce, expiry_type);                     \
     }
 
-// Base variants
-DEFINE_HSETEX_COMMAND(hsetex, NULL, NULL)
-DEFINE_HSETEX_COMMAND(hpsetex, "PX", NULL)
-DEFINE_HSETEX_COMMAND(hsetexat, "EXAT", NULL)
-DEFINE_HSETEX_COMMAND(hpsetexat, "PXAT", NULL)
-
-// NX variants
-DEFINE_HSETEX_COMMAND(hsetexnx, NULL, "NX")
-DEFINE_HSETEX_COMMAND(hpsetexnx, "PX", "NX")
-DEFINE_HSETEX_COMMAND(hsetexatnx, "EXAT", "NX")
-DEFINE_HSETEX_COMMAND(hpsetexatnx, "PXAT", "NX")
-
-// XX variants
-DEFINE_HSETEX_COMMAND(hsetexxx, NULL, "XX")
-DEFINE_HSETEX_COMMAND(hpsetexxx, "PX", "XX")
-DEFINE_HSETEX_COMMAND(hsetexatxx, "EXAT", "XX")
-DEFINE_HSETEX_COMMAND(hpsetexatxx, "PXAT", "XX")
+// Simplified hash field expiration command execution - condition now comes from parameter
+DEFINE_HSETEX_COMMAND(hsetex, NULL)
+DEFINE_HSETEX_COMMAND(hpsetex, "PX")
+DEFINE_HSETEX_COMMAND(hsetexat, "EXAT")
+DEFINE_HSETEX_COMMAND(hpsetexat, "PXAT")
 
 // hExpire NX/XX variants - reuse existing hExpire infrastructure with conditions
 int execute_hexpirenx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
