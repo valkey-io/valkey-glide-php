@@ -21,6 +21,48 @@
 
 extern zend_class_entry* ce;
 extern zend_class_entry* get_valkey_glide_exception_ce();
+
+/* ====================================================================
+ * HELPER FUNCTIONS
+ * ==================================================================== */
+
+/**
+ * Helper to add an allocated string to arguments and update all indices
+ */
+static inline void add_allocated_string_arg(const char*     str,
+                                             int*            arg_idx,
+                                             uintptr_t*      args_out,
+                                             unsigned long*  args_len_out,
+                                             char**          allocated_strings,
+                                             int*            allocated_count) {
+    allocated_strings[(*allocated_count)++] = (char*)str;
+    args_out[*arg_idx] = (uintptr_t)str;
+    args_len_out[*arg_idx] = strlen(str);
+    (*arg_idx)++;
+}
+
+/**
+ * Unified helper for simple hash argument preparation
+ */
+static int prepare_h_simple_args(h_command_args_t* args,
+                                  uintptr_t**       args_out,
+                                  unsigned long**   args_len_out,
+                                  char***           allocated_strings,
+                                  int*              allocated_count,
+                                  int               arg_count) {
+    /* Allocate argument arrays */
+    *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    *allocated_strings = NULL;
+    *allocated_count   = 0;
+
+    /* Set key as first argument */
+    (*args_out)[0]     = (uintptr_t) args->key;
+    (*args_len_out)[0] = args->key_len;
+
+    return arg_count;
+}
+
 /* ====================================================================
  * CORE FRAMEWORK FUNCTIONS
  * ==================================================================== */
@@ -76,7 +118,7 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
         case HIncrBy:
         case HIncrByFloat:
             arg_count = prepare_h_incr_args(
-                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count, cmd_type);
             break;
         case HRandField:
             arg_count = prepare_h_randfield_args(
@@ -200,7 +242,7 @@ int execute_h_simple_command(valkey_glide_object* valkey_glide,
             break;
         case HIncrBy:
             arg_count = prepare_h_incr_args(
-                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count, cmd_type);
             break;
         case HSetEx:
             arg_count = prepare_h_hfe_args(
@@ -293,12 +335,17 @@ static int prepare_h_args_unified(h_command_args_t*     args,
     if (config->field_value_pairs && args->fv_count % 2 != 0)
         return 0;
 
-    // Calculate argument count
+    // Calculate argument count (including PERSIST support)
     int arg_count = 1;  // key
     if (config->needs_condition && args->condition)
         arg_count++;
-    if (config->needs_expiry && args->expiry > 0)
-        arg_count += 2;  // unit + value
+    if (config->needs_expiry && (args->expiry > 0 || args->expiry_enum == EXPIRY_PERSIST)) {
+        if (args->expiry_enum == EXPIRY_PERSIST) {
+            arg_count += 1;  // PERSIST only
+        } else {
+            arg_count += 2;  // unit + value
+        }
+    }
     if (config->needs_fields_keyword)
         arg_count += 2;           // "FIELDS" + count
     arg_count += args->fv_count;  // fields or field-value pairs
@@ -334,18 +381,17 @@ static int prepare_h_args_unified(h_command_args_t*     args,
         arg_idx++;
     }
 
-    // Add expiry
-    if (config->needs_expiry && args->expiry > 0) {
+    // Add expiry (including PERSIST support)
+    if (config->needs_expiry && (args->expiry > 0 || args->expiry_enum == EXPIRY_PERSIST)) {
         const char* expiry_unit  = args->expiry_type ? args->expiry_type : "EX";
         (*args_out)[arg_idx]     = (uintptr_t) expiry_unit;
         (*args_len_out)[arg_idx] = strlen(expiry_unit);
         arg_idx++;
 
-        char* expiry_str                           = safe_format_int(args->expiry);
-        (*allocated_strings)[(*allocated_count)++] = expiry_str;
-        (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
-        (*args_len_out)[arg_idx]                   = strlen(expiry_str);
-        arg_idx++;
+        if (args->expiry_enum != EXPIRY_PERSIST) {
+            char* expiry_str = safe_format_int(args->expiry);
+            add_allocated_string_arg(expiry_str, &arg_idx, *args_out, *args_len_out, *allocated_strings, allocated_count);
+        }
     }
 
     // Add FIELDS keyword and count
@@ -354,11 +400,8 @@ static int prepare_h_args_unified(h_command_args_t*     args,
         (*args_len_out)[arg_idx] = 6;
         arg_idx++;
 
-        char* field_count_str                      = safe_format_int(field_count);
-        (*allocated_strings)[(*allocated_count)++] = field_count_str;
-        (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
-        (*args_len_out)[arg_idx]                   = strlen(field_count_str);
-        arg_idx++;
+        char* field_count_str = safe_format_int(field_count);
+        add_allocated_string_arg(field_count_str, &arg_idx, *args_out, *args_len_out, *allocated_strings, allocated_count);
     }
 
     // Add fields/field-value pairs
@@ -379,13 +422,7 @@ int prepare_h_key_only_args(h_command_args_t* args,
                             unsigned long**   args_len_out,
                             char***           allocated_strings,
                             int*              allocated_count) {
-    *args_out          = (uintptr_t*) emalloc(sizeof(uintptr_t));
-    *args_len_out      = (unsigned long*) emalloc(sizeof(unsigned long));
-    *allocated_strings = NULL;
-    *allocated_count   = 0;
-    (*args_out)[0]     = (uintptr_t) args->key;
-    (*args_len_out)[0] = args->key_len;
-    return 1;
+    return prepare_h_simple_args(args, args_out, args_len_out, allocated_strings, allocated_count, 1);
 }
 
 int prepare_h_hfe_args(h_command_args_t* args,
@@ -442,15 +479,11 @@ int prepare_h_single_field_args(h_command_args_t* args,
         return 0;
     }
 
-    /* Allocate argument arrays */
-    *args_out          = (uintptr_t*) emalloc(2 * sizeof(uintptr_t));
-    *args_len_out      = (unsigned long*) emalloc(2 * sizeof(unsigned long));
-    *allocated_strings = NULL;
-    *allocated_count   = 0;
+    if (prepare_h_simple_args(args, args_out, args_len_out, allocated_strings, allocated_count, 2) != 2) {
+        return 0;
+    }
 
-    /* Set key and field arguments */
-    (*args_out)[0]     = (uintptr_t) args->key;
-    (*args_len_out)[0] = args->key_len;
+    /* Add field argument */
     (*args_out)[1]     = (uintptr_t) args->field;
     (*args_len_out)[1] = args->field_len;
 
@@ -469,16 +502,11 @@ int prepare_h_field_value_args(h_command_args_t* args,
         return 0;
     }
 
-    /* Allocate argument arrays */
-    *args_out          = (uintptr_t*) emalloc(3 * sizeof(uintptr_t));
-    *args_len_out      = (unsigned long*) emalloc(3 * sizeof(unsigned long));
-    *allocated_strings = NULL;
-    *allocated_count   = 0;
+    if (prepare_h_simple_args(args, args_out, args_len_out, allocated_strings, allocated_count, 3) != 3) {
+        return 0;
+    }
 
-
-    /* Set key, field, and value arguments */
-    (*args_out)[0]     = (uintptr_t) args->key;
-    (*args_len_out)[0] = args->key_len;
+    /* Add field and value arguments */
     (*args_out)[1]     = (uintptr_t) args->field;
     (*args_len_out)[1] = args->field_len;
     (*args_out)[2]     = (uintptr_t) args->value;
@@ -628,7 +656,8 @@ int prepare_h_incr_args(h_command_args_t* args,
                         uintptr_t**       args_out,
                         unsigned long**   args_len_out,
                         char***           allocated_strings,
-                        int*              allocated_count) {
+                        int*              allocated_count,
+                        enum RequestType  cmd_type) {
     if (!args->field) {
         return 0;
     }
@@ -649,11 +678,11 @@ int prepare_h_incr_args(h_command_args_t* args,
     char*  incr_str;
     size_t incr_len;
 
-    if (args->float_incr != 0.0) {
-        /* HINCRBYFLOAT */
+    if (cmd_type == HIncrByFloat) {
+        /* HINCRBYFLOAT - always use float_incr */
         incr_str = double_to_string(args->float_incr, &incr_len);
     } else {
-        /* HINCRBY */
+        /* HINCRBY - always use increment */
         incr_str = long_to_string(args->increment, &incr_len);
     }
 
@@ -690,16 +719,18 @@ int prepare_h_randfield_args(h_command_args_t* args,
         }
     }
 
-    *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-    *allocated_strings = need_count_str ? (char**) emalloc(sizeof(char*)) : NULL;
-    *allocated_count   = 0;
+    /* Use helper for basic allocation and key setup */
+    if (prepare_h_simple_args(args, args_out, args_len_out, allocated_strings, allocated_count, arg_count) != arg_count) {
+        return 0;
+    }
 
-    /* First argument: key */
-    int arg_idx              = 0;
-    (*args_out)[arg_idx]     = (uintptr_t) args->key;
-    (*args_len_out)[arg_idx] = args->key_len;
-    arg_idx++;
+    /* Override allocated_strings if we need count conversion */
+    if (need_count_str) {
+        *allocated_strings = (char**) emalloc(sizeof(char*));
+        *allocated_count = 0;
+    }
+
+    int arg_idx = 1; /* Start after key (already set by helper) */
 
     /* Add count if needed */
     if (need_count_str) {
@@ -754,10 +785,7 @@ int populate_field_args(zval*          field_values,
         }
 
         /* Store copy in allocated_strings for cleanup */
-        allocated_strings[(*allocated_count)++] = field_str;
-        args_out[arg_idx]                       = (uintptr_t) field_str;
-        args_len_out[arg_idx]                   = strlen(field_str);
-        arg_idx++;
+        add_allocated_string_arg(field_str, &arg_idx, args_out, args_len_out, allocated_strings, allocated_count);
     }
 
     return arg_idx;
@@ -784,72 +812,15 @@ int prepare_h_getex_args(h_command_args_t* args,
                          unsigned long**   args_len_out,
                          char***           allocated_strings,
                          int*              allocated_count) {
-    if (!args->key || !args->field_values || args->fv_count == 0) {
-        return 0;
-    }
-
-    int field_count = args->fv_count;     // just fields, no values
-    int arg_count   = 3 + args->fv_count; /* key + "FIELDS" + field_count + fields */
-
-    if (args->expiry > 0 || (args->expiry_type && strcmp(args->expiry_type, "PERSIST") == 0)) {
-        if (args->expiry_type && strcmp(args->expiry_type, "PERSIST") == 0) {
-            arg_count += 1; /* PERSIST only */
-        } else {
-            arg_count += 2; /* expiry unit + expiry value */
-        }
-    }
-
-    *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
-    *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-    *allocated_strings = (char**) emalloc(
-        (2 + args->fv_count) * sizeof(char*));  // expiry + field_count + field conversions
-    *allocated_count = 0;
-
-    int arg_idx = 0;
-
-    /* Add key */
-    (*args_out)[arg_idx]     = (uintptr_t) args->key;
-    (*args_len_out)[arg_idx] = args->key_len;
-    arg_idx++;
-
-    /* Add expiry unit and time if specified */
-    if (args->expiry > 0 || (args->expiry_type && strcmp(args->expiry_type, "PERSIST") == 0)) {
-        const char* expiry_unit  = args->expiry_type ? args->expiry_type : "EX";
-        (*args_out)[arg_idx]     = (uintptr_t) expiry_unit;
-        (*args_len_out)[arg_idx] = strlen(expiry_unit);
-        arg_idx++;
-
-        if (strcmp(expiry_unit, "PERSIST") != 0) {
-            char* expiry_str                           = safe_format_int(args->expiry);
-            (*allocated_strings)[(*allocated_count)++] = expiry_str;
-            (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
-            (*args_len_out)[arg_idx]                   = strlen(expiry_str);
-            arg_idx++;
-        }
-    }
-
-    /* Add "FIELDS" keyword */
-    (*args_out)[arg_idx]     = (uintptr_t) "FIELDS";
-    (*args_len_out)[arg_idx] = 6;
-    arg_idx++;
-
-    /* Add field count */
-    char* field_count_str                      = safe_format_int(field_count);
-    (*allocated_strings)[(*allocated_count)++] = field_count_str;
-    (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
-    (*args_len_out)[arg_idx]                   = strlen(field_count_str);
-    arg_idx++;
-
-    /* Add fields only */
-    populate_field_args(args->field_values,
-                        args->fv_count,
-                        arg_idx,
-                        *args_out,
-                        *args_len_out,
-                        *allocated_strings,
-                        allocated_count);
-
-    return arg_count;
+    static const h_arg_config_t config = {
+        .needs_expiry = true,
+        .needs_condition = false,
+        .needs_fields_keyword = true,
+        .field_value_pairs = false,
+        .condition_prefix = NULL
+    };
+    
+    return prepare_h_args_unified(args, args_out, args_len_out, allocated_strings, allocated_count, &config);
 }
 
 /* ====================================================================
@@ -2156,7 +2127,7 @@ static int execute_hexpire_with_condition(zval*             object,
     int execute_##name##_command(                                              \
         zval* object, int argc, zval* return_value, zend_class_entry* ce) {    \
         return execute_hsetex_with_condition(                                  \
-            object, argc, return_value, ce, expiry_type);                     \
+            object, argc, return_value, ce, expiry_type, NULL);               \
     }
 
 // Simplified hash field expiration command execution - condition now comes from parameter
@@ -2588,25 +2559,30 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
         if ((z_val = zend_hash_str_find(opts_ht, "EX", 2)) != NULL) {
             args.expiry      = (int) zval_get_long(z_val);
             args.expiry_type = "EX";
+            args.expiry_enum = EXPIRY_EX;
         }
         // Check for PX (milliseconds)
         else if ((z_val = zend_hash_str_find(opts_ht, "PX", 2)) != NULL) {
             args.expiry      = (int) zval_get_long(z_val);
             args.expiry_type = "PX";
+            args.expiry_enum = EXPIRY_PX;
         }
         // Check for EXAT (unix timestamp)
         else if ((z_val = zend_hash_str_find(opts_ht, "EXAT", 4)) != NULL) {
             args.expiry      = (int) zval_get_long(z_val);
             args.expiry_type = "EXAT";
+            args.expiry_enum = EXPIRY_EXAT;
         }
         // Check for PXAT (unix timestamp in milliseconds)
         else if ((z_val = zend_hash_str_find(opts_ht, "PXAT", 4)) != NULL) {
             args.expiry      = (int) zval_get_long(z_val);
             args.expiry_type = "PXAT";
+            args.expiry_enum = EXPIRY_PXAT;
         }
         // Check for PERSIST
         else if (zend_hash_str_exists(opts_ht, "PERSIST", 7)) {
             args.expiry_type = "PERSIST";
+            args.expiry_enum = EXPIRY_PERSIST;
         }
     }
 

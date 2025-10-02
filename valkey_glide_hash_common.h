@@ -29,6 +29,16 @@
  * STRUCTURES AND TYPES
  * ==================================================================== */
 
+// Expiry type enumeration to reduce string comparisons
+typedef enum {
+    EXPIRY_NONE = 0,
+    EXPIRY_EX,      // seconds
+    EXPIRY_PX,      // milliseconds  
+    EXPIRY_EXAT,    // unix timestamp seconds
+    EXPIRY_PXAT,    // unix timestamp milliseconds
+    EXPIRY_PERSIST  // remove expiration
+} expiry_type_t;
+
 /**
  * Generic hash command arguments structure
  */
@@ -62,10 +72,31 @@ typedef struct _h_command_args_t {
     int  withvalues; /* Whether to return values with fields */
 
     /* Hash Field Expiration specific */
-    int         expiry;      /* Expiration time (seconds/milliseconds/timestamp) */
-    const char* expiry_type; /* Expiry type: EX, PX, EXAT, PXAT, KEEPTTL, PERSIST */
-    const char* condition;   /* Condition: NX, XX, GT, LT */
+    int           expiry;      /* Expiration time (seconds/milliseconds/timestamp) */
+    expiry_type_t expiry_enum; /* Expiry type enum for fast comparison */
+    const char*   expiry_type; /* Expiry type string: EX, PX, EXAT, PXAT, KEEPTTL, PERSIST */
+    const char*   condition;   /* Condition: NX, XX, GT, LT */
 } h_command_args_t;
+
+// Helper functions for expiry type conversion
+static inline expiry_type_t get_expiry_type(const char* expiry_str) {
+    if (!expiry_str) return EXPIRY_EX;  // default
+    if (strcmp(expiry_str, "PX") == 0) return EXPIRY_PX;
+    if (strcmp(expiry_str, "EXAT") == 0) return EXPIRY_EXAT;
+    if (strcmp(expiry_str, "PXAT") == 0) return EXPIRY_PXAT;
+    if (strcmp(expiry_str, "PERSIST") == 0) return EXPIRY_PERSIST;
+    return EXPIRY_EX;  // default to EX
+}
+
+static inline const char* expiry_type_to_string(expiry_type_t type) {
+    switch (type) {
+        case EXPIRY_PX: return "PX";
+        case EXPIRY_EXAT: return "EXAT";
+        case EXPIRY_PXAT: return "PXAT";
+        case EXPIRY_PERSIST: return "PERSIST";
+        default: return "EX";
+    }
+}
 
 
 /**
@@ -166,7 +197,8 @@ int prepare_h_incr_args(h_command_args_t* args,
                         uintptr_t**       args_out,
                         unsigned long**   args_len_out,
                         char***           allocated_strings,
-                        int*              allocated_count);
+                        int*              allocated_count,
+                        enum RequestType  cmd_type);
 
 /**
  * Prepare arguments for HRANDFIELD command
