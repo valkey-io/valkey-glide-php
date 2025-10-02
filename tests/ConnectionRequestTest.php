@@ -394,6 +394,58 @@ class ConnectionRequestTest extends \TestSuite
         $this->assertEquals(7, $request->getDatabaseId());
     }
 
+    public function testClusterDatabaseId()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            addresses: [['host' => 'localhost', 'port' => 8080]],
+            database_id: 5
+        );
+
+        $this->assertEquals(5, $request->getDatabaseId());
+    }
+
+    public function testClusterDatabaseIdDefault()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            addresses: [['host' => 'localhost', 'port' => 8080]]
+        );
+
+        $this->assertEquals(0, $request->getDatabaseId());
+    }
+
+    public function testStandaloneDatabaseIdNegative()
+    {
+        $this->expectException(ValkeyGlideException::class);
+        $this->expectExceptionMessage('Database ID must be non-negative');
+        
+        ClientConstructorMock::simulate_standalone_constructor(
+            addresses: [['host' => 'localhost', 'port' => 8080]],
+            database_id: -1
+        );
+    }
+
+    public function testStandaloneDatabaseIdTooHigh()
+    {
+        $this->expectException(ValkeyGlideException::class);
+        $this->expectExceptionMessage('Database ID must be between 0 and 15 inclusive');
+        
+        ClientConstructorMock::simulate_standalone_constructor(
+            addresses: [['host' => 'localhost', 'port' => 8080]],
+            database_id: 16
+        );
+    }
+
+    public function testClusterDatabaseIdNegative()
+    {
+        $this->expectException(ValkeyGlideException::class);
+        $this->expectExceptionMessage('Database ID must be non-negative');
+        
+        ClientConstructorMock::simulate_cluster_constructor(
+            addresses: [['host' => 'localhost', 'port' => 8080]],
+            database_id: -1
+        );
+    }
+
     public function testClusterPeriodicChecksDisabled()
     {
         $request = ClientConstructorMock::simulate_cluster_constructor(

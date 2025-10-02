@@ -558,6 +558,147 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $valkey_glide->close();
     }
 
+    // ==============================================
+    // DATABASE_ID PARAMETER TESTS
+    // ==============================================
+
+    /**
+     * Test that cluster constructor accepts database_id parameter
+     */
+    public function testClusterConstructorAcceptsDatabaseId(): void
+    {
+        $addresses = [['host' => 'localhost', 'port' => 7001]];
+        
+        // Test that constructor accepts all 12 parameters including database_id
+        try {
+            $client = new ValkeyGlideCluster(
+                $addresses,                          // addresses
+                false,                               // use_tls
+                null,                                // credentials
+                ValkeyGlide::READ_FROM_PRIMARY,     // read_from
+                null,                                // request_timeout
+                null,                                // reconnect_strategy
+                null,                                // client_name
+                null,                                // periodic_checks
+                null,                                // client_az
+                null,                                // advanced_config
+                null,                                // lazy_connect
+                0                                    // database_id
+            );
+            
+            // We expect this to fail with connection error, not parameter error
+            $this->fail('Expected connection error');
+            
+        } catch (ArgumentCountError $e) {
+            $this->fail('Constructor should accept database_id parameter: ' . $e->getMessage());
+        } catch (Exception $e) {
+            // Connection error is expected since no cluster is running
+            $this->assertStringContains('Failed to create initial connections', $e->getMessage());
+        }
+    }
+
+    /**
+     * Test that cluster constructor works with null database_id (default)
+     */
+    public function testClusterConstructorWithNullDatabaseId(): void
+    {
+        $addresses = [['host' => 'localhost', 'port' => 7001]];
+        
+        try {
+            $client = new ValkeyGlideCluster(
+                $addresses,                          // addresses
+                false,                               // use_tls
+                null,                                // credentials
+                ValkeyGlide::READ_FROM_PRIMARY,     // read_from
+                null,                                // request_timeout
+                null,                                // reconnect_strategy
+                null,                                // client_name
+                null,                                // periodic_checks
+                null,                                // client_az
+                null,                                // advanced_config
+                null,                                // lazy_connect
+                null                                 // database_id = null (default)
+            );
+            
+            $this->fail('Expected connection error');
+            
+        } catch (ArgumentCountError $e) {
+            $this->fail('Constructor should accept null database_id: ' . $e->getMessage());
+        } catch (Exception $e) {
+            // Connection error is expected since no cluster is running
+            $this->assertStringContains('Failed to create initial connections', $e->getMessage());
+        }
+    }
+
+    /**
+     * Test backward compatibility - constructor should work without database_id
+     */
+    public function testClusterConstructorBackwardCompatibility(): void
+    {
+        $addresses = [['host' => 'localhost', 'port' => 7001]];
+        
+        try {
+            // Test with 11 parameters (without database_id) - should still work
+            $client = new ValkeyGlideCluster(
+                $addresses,                          // addresses
+                false,                               // use_tls
+                null,                                // credentials
+                ValkeyGlide::READ_FROM_PRIMARY,     // read_from
+                null,                                // request_timeout
+                null,                                // reconnect_strategy
+                null,                                // client_name
+                null,                                // periodic_checks
+                null,                                // client_az
+                null,                                // advanced_config
+                null                                 // lazy_connect
+                // database_id omitted - should default to null/0
+            );
+            
+            $this->fail('Expected connection error');
+            
+        } catch (ArgumentCountError $e) {
+            $this->fail('Constructor should work without database_id for backward compatibility: ' . $e->getMessage());
+        } catch (Exception $e) {
+            // Connection error is expected since no cluster is running
+            $this->assertStringContains('Failed to create initial connections', $e->getMessage());
+        }
+    }
+
+    /**
+     * Test that constructor parameter count is correct
+     */
+    public function testClusterConstructorParameterCount(): void
+    {
+        $addresses = [['host' => 'localhost', 'port' => 7001]];
+        
+        // Test with too many parameters (13) - should fail
+        try {
+            $client = new ValkeyGlideCluster(
+                $addresses,                          // 1
+                false,                               // 2
+                null,                                // 3
+                ValkeyGlide::READ_FROM_PRIMARY,     // 4
+                null,                                // 5
+                null,                                // 6
+                null,                                // 7
+                null,                                // 8
+                null,                                // 9
+                null,                                // 10
+                null,                                // 11
+                0,                                   // 12 - database_id
+                'extra_param'                        // 13 - should cause error
+            );
+            
+            $this->fail('Expected ArgumentCountError for too many parameters');
+            
+        } catch (ArgumentCountError $e) {
+            // This is expected - too many parameters
+            $this->assertStringContains('expects at most 12 arguments', $e->getMessage());
+        } catch (Exception $e) {
+            $this->fail('Expected ArgumentCountError, got: ' . $e->getMessage());
+        }
+    }
+
     public function testClusterClientCreateDeleteLoop()
     {
         // Simple test that creates and deletes ValkeyGlideCluster clients in a loop
