@@ -321,6 +321,20 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
     }
 
 /* Additional unified macros for new converted commands */
+#define SELECT_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, select) {                                              \
+        if (execute_select_command(getThis(),                                     \
+                                   ZEND_NUM_ARGS(),                               \
+                                   return_value,                                  \
+                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                       ? get_valkey_glide_cluster_ce()            \
+                                       : get_valkey_glide_ce())) {                \
+            return;                                                               \
+        }                                                                         \
+        zval_dtor(return_value);                                                  \
+        RETURN_FALSE;                                                             \
+    }
+
 #define GET_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, get) {                                              \
         if (execute_get_command(getThis(),                                     \

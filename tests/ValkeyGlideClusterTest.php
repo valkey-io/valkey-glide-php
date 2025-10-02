@@ -112,10 +112,13 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->markTestSkipped();
     }
+
     public function testSelect()
     {
-        $this->markTestSkipped();
+        $this->assertFalse(@$this->valkey_glide->select(-1));
+        $this->assertTrue($this->valkey_glide->select(0));
     }
+
     public function testReconnectSelect()
     {
         $this->markTestSkipped();

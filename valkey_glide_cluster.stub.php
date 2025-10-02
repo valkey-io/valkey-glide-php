@@ -248,6 +248,11 @@ class ValkeyGlideCluster
     public function dbSize(mixed $route): ValkeyGlideCluster|int;
 
     /**
+     * @see ValkeyGlide::select
+     */
+    public function select(int $db): ValkeyGlideCluster|bool;
+
+    /**
      * @see https://valkey.io/commands/copy
      */
     public function copy(string $src, string $dst, ?array $options = null): ValkeyGlideCluster|bool;

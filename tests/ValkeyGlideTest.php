@@ -2594,13 +2594,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
     }
 
-/*    public function testSelect()
+    public function testSelect()
     {
         $this->assertFalse(@$this->valkey_glide->select(-1));
         $this->assertTrue($this->valkey_glide->select(0));
     }
-*/
-
 
     public function testMset()
     {
