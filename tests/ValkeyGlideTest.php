@@ -1633,13 +1633,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $value2 = 'test_value2';
 
         // Ensure we're in database 0
-//        $this->valkey_glide->select(0);
+        $this->valkey_glide->select(0);
 
         // Clean up any existing keys
         $this->valkey_glide->del($key1, $key2);
-//        $this->valkey_glide->select(1);
+        $this->valkey_glide->select(1);
         $this->valkey_glide->del($key1, $key2);
-//        $this->valkey_glide->select(0);
+        $this->valkey_glide->select(0);
 
         // Test successful move
         $this->valkey_glide->set($key1, $value1);
@@ -1647,9 +1647,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // Verify key moved
         $this->assertEquals(0, $this->valkey_glide->exists($key1)); // Gone from db 0
-        // Verification disabled until select() command is supported.
-//        $this->valkey_glide->select(1);
-//        $this->assertKeyEquals($value1, $key1); // Present in db 1
+        // Verify key is present in database 1
+        $this->valkey_glide->select(1);
+        $this->assertKeyEquals($value1, $key1); // Present in db 1
     }
 
     public function testBlmove()
