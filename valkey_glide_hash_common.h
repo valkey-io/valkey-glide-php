@@ -33,7 +33,7 @@
 typedef enum {
     EXPIRY_NONE = 0,
     EXPIRY_EX,      // seconds
-    EXPIRY_PX,      // milliseconds  
+    EXPIRY_PX,      // milliseconds
     EXPIRY_EXAT,    // unix timestamp seconds
     EXPIRY_PXAT,    // unix timestamp milliseconds
     EXPIRY_PERSIST  // remove expiration
@@ -80,21 +80,31 @@ typedef struct _h_command_args_t {
 
 // Helper functions for expiry type conversion
 static inline expiry_type_t get_expiry_type(const char* expiry_str) {
-    if (!expiry_str) return EXPIRY_EX;  // default
-    if (strcmp(expiry_str, "PX") == 0) return EXPIRY_PX;
-    if (strcmp(expiry_str, "EXAT") == 0) return EXPIRY_EXAT;
-    if (strcmp(expiry_str, "PXAT") == 0) return EXPIRY_PXAT;
-    if (strcmp(expiry_str, "PERSIST") == 0) return EXPIRY_PERSIST;
+    if (!expiry_str)
+        return EXPIRY_EX;  // default
+    if (strcmp(expiry_str, "PX") == 0)
+        return EXPIRY_PX;
+    if (strcmp(expiry_str, "EXAT") == 0)
+        return EXPIRY_EXAT;
+    if (strcmp(expiry_str, "PXAT") == 0)
+        return EXPIRY_PXAT;
+    if (strcmp(expiry_str, "PERSIST") == 0)
+        return EXPIRY_PERSIST;
     return EXPIRY_EX;  // default to EX
 }
 
 static inline const char* expiry_type_to_string(expiry_type_t type) {
     switch (type) {
-        case EXPIRY_PX: return "PX";
-        case EXPIRY_EXAT: return "EXAT";
-        case EXPIRY_PXAT: return "PXAT";
-        case EXPIRY_PERSIST: return "PERSIST";
-        default: return "EX";
+        case EXPIRY_PX:
+            return "PX";
+        case EXPIRY_EXAT:
+            return "EXAT";
+        case EXPIRY_PXAT:
+            return "PXAT";
+        case EXPIRY_PERSIST:
+            return "PERSIST";
+        default:
+            return "EX";
     }
 }
 
