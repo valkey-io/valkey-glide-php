@@ -571,7 +571,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         
         // Test that constructor accepts all 12 parameters including database_id
         try {
-            $client = new ValkeyGlideCluster(
+            $valkey_glide = new ValkeyGlideCluster(
                 $addresses,                          // addresses
                 false,                               // use_tls
                 null,                                // credentials
@@ -585,10 +585,9 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 null,                                // lazy_connect
                 0                                    // database_id
             );
-            
-            // We expect this to fail with connection error, not parameter error
-            $this->fail('Expected connection error');
-            
+
+            $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
+            $valkey_glide->close();
         } catch (ArgumentCountError $e) {
             $this->fail('Constructor should accept database_id parameter: ' . $e->getMessage());
         } catch (Exception $e) {
@@ -602,11 +601,9 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
      */
     public function testClusterConstructorWithNullDatabaseId(): void
     {
-        $addresses = [['host' => 'localhost', 'port' => 7001]];
-        
         try {
-            $client = new ValkeyGlideCluster(
-                $addresses,                          // addresses
+            $valkey_glide = new ValkeyGlideCluster(
+                [['host' => '127.0.0.1', 'port' => 7001]],                          // addresses
                 false,                               // use_tls
                 null,                                // credentials
                 ValkeyGlide::READ_FROM_PRIMARY,     // read_from
@@ -619,9 +616,9 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 null,                                // lazy_connect
                 null                                 // database_id = null (default)
             );
-            
-            $this->fail('Expected connection error');
-            
+
+            $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
+            $valkey_glide->close();
         } catch (ArgumentCountError $e) {
             $this->fail('Constructor should accept null database_id: ' . $e->getMessage());
         } catch (Exception $e) {
@@ -639,7 +636,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         
         try {
             // Test with 11 parameters (without database_id) - should still work
-            $client = new ValkeyGlideCluster(
+            $valkey_glide = new ValkeyGlideCluster(
                 $addresses,                          // addresses
                 false,                               // use_tls
                 null,                                // credentials
@@ -653,9 +650,9 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 null                                 // lazy_connect
                 // database_id omitted - should default to null/0
             );
-            
-            $this->fail('Expected connection error');
-            
+
+            $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
+            $valkey_glide->close();
         } catch (ArgumentCountError $e) {
             $this->fail('Constructor should work without database_id for backward compatibility: ' . $e->getMessage());
         } catch (Exception $e) {
