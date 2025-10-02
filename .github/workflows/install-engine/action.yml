@@ -71,7 +71,7 @@ runs:
         if [[ ! -e /usr/local/bin/redis-server ]]; then
             $SUDO cp valkey-server /usr/local/bin/redis-server
         fi
-        echo 'export PATH=/usr/local/bin:$PATH' >>~/.bash_profile
+        echo "/usr/local/bin" >> $GITHUB_PATH
 
     - name: Build and install engine
       if: ${{ steps.cache-valkey.outputs.cache-hit != 'true' }}
@@ -87,7 +87,7 @@ runs:
             echo "sudo command does not exist"
             make install
         fi
-        echo 'export PATH=/usr/local/bin:$PATH' >>~/.bash_profile
+        echo "/usr/local/bin" >> $GITHUB_PATH
 
     # TODO: This seems redundant to me. Is it necessary? Do we check that the Python we install is the correct version?
     # Why here and not elsewhere? All Git git repos were created equal
