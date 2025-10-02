@@ -424,17 +424,6 @@ class ConnectionRequestTest extends \TestSuite
         );
     }
 
-    public function testStandaloneDatabaseIdTooHigh()
-    {
-        $this->expectException(ValkeyGlideException::class);
-        $this->expectExceptionMessage('Database ID must be between 0 and 15 inclusive');
-        
-        ClientConstructorMock::simulate_standalone_constructor(
-            addresses: [['host' => 'localhost', 'port' => 8080]],
-            database_id: 16
-        );
-    }
-
     public function testClusterDatabaseIdNegative()
     {
         $this->expectException(ValkeyGlideException::class);

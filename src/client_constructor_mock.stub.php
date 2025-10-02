@@ -89,7 +89,7 @@ class ClientConstructorMock
      * @param int|null $request_timeout          Request timeout in milliseconds.
      * @param array|null $reconnect_strategy     Reconnection strategy ['num_of_retries' => 3, 'factor' => 2,
      *                                           'exponent_base' => 10, 'jitter_percent' => 15].
-     * @param int|null $database_id              Database ID to select (0-15)
+     * @param int|null $database_id              Database ID to select (0 or higher)
      * @param string|null $client_name           Client name identifier.
      * @param string|null $client_az             Client availability zone.
      * @param array|null $advanced_config        Advanced configuration ['connection_timeout' => 5000,

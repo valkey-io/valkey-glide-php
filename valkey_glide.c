@@ -472,11 +472,6 @@ PHP_METHOD(ValkeyGlide, __construct) {
             zend_throw_exception(valkey_glide_exception_ce, error_message, 0);
             return;
         }
-        if (common_params.database_id > 15) {
-            const char* error_message = "Database ID must be between 0 and 15 inclusive.";
-            zend_throw_exception(valkey_glide_exception_ce, error_message, 0);
-            return;
-        }
     }
 
     /* Validate addresses array */

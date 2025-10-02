@@ -116,12 +116,6 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
         valkey_glide_cleanup_client_config(&client_config);
         return;
     }
-    if (!database_id_is_null && database_id > 15) {
-        const char* error_message = "Database ID must be between 0 and 15 inclusive.";
-        zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
-        valkey_glide_cleanup_client_config(&client_config);
-        return;
-    }
 
     client_config.database_id = database_id_is_null ? -1 : database_id; /* -1 means not set */
 
