@@ -83,9 +83,14 @@ class ValkeyGlide
 {
     /**
      * Hash field condition constants
+     * @var string
      */
-    public const string CONDITION_NX = 'NX';  // Only if field doesn't exist
-    public const string CONDITION_XX = 'XX';  // Only if field exists
+    public const CONDITION_NX = "NX";  // Only if field doesn't exist
+    
+    /**
+     * @var string
+     */
+    public const CONDITION_XX = "XX";  // Only if field exists
 
     /**
      *
