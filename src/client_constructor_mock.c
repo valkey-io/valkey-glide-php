@@ -178,7 +178,7 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
                                                        6379,
                                                        &protobuf_message_len,
                                                        &client_config.base,
-                                                       0,
+                                                       client_config.base.database_id,
                                                        client_config.periodic_checks_status,
                                                        true);
 
