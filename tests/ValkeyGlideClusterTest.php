@@ -231,23 +231,25 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         ];
 
         // Test with negative database_id
-        $this->expectException(ValkeyGlideException::class);
-        $this->expectExceptionMessage('Database ID must be non-negative');
-        
-        new ValkeyGlideCluster(
-            $addresses,
-            false,                               // use_tls
-            null,                                // credentials
-            ValkeyGlide::READ_FROM_PRIMARY,     // read_from
-            null,                                // request_timeout
-            null,                                // reconnect_strategy
-            null,                                // client_name
-            null,                                // periodic_checks
-            null,                                // client_az
-            null,                                // advanced_config
-            null,                                // lazy_connect
-            -1                                   // database_id = -1 (invalid)
-        );
+        try {
+            new ValkeyGlideCluster(
+                $addresses,
+                false,                               // use_tls
+                null,                                // credentials
+                ValkeyGlide::READ_FROM_PRIMARY,     // read_from
+                null,                                // request_timeout
+                null,                                // reconnect_strategy
+                null,                                // client_name
+                null,                                // periodic_checks
+                null,                                // client_az
+                null,                                // advanced_config
+                null,                                // lazy_connect
+                -1                                   // database_id = -1 (invalid)
+            );
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains('Database ID must be non-negative', $e->getMessage());
+        }
     }
 
     protected static array $seeds = [];
