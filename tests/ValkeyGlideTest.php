@@ -77,6 +77,41 @@ require_once __DIR__ . '/ValkeyGlideBaseTest.php';
 
 class ValkeyGlideTest extends ValkeyGlideBaseTest
 {
+    /**
+     * Helper function to check hash field TTL within expected range
+     * 
+     * @param string $key Hash key
+     * @param string $field Hash field
+     * @param int $originalTtlMs Original TTL set in milliseconds
+     * @param float $setTime Time when expiration was set (from microtime(true))
+     * @param int|null $minTtl Minimum expected TTL in milliseconds (null = auto-calculate)
+     * @param int|null $maxTtl Maximum expected TTL in milliseconds (null = use original)
+     * @param string $message Optional assertion message
+     */
+    protected function assertFieldTtlInRange($key, $field, $originalTtlMs, $setTime, $minTtl = null, $maxTtl = null, $message = '')
+    {
+        $currentTime = microtime(true) * 1000; // Current time in milliseconds
+        $ttl = $this->valkey_glide->hPTtl($key, $field);
+        
+        // Auto-calculate range based on elapsed time since expiration was set
+        if ($minTtl === null) {
+            $elapsedMs = $currentTime - ($setTime * 1000);
+            $minTtl = max(0, $originalTtlMs - $elapsedMs - 200); // 200ms buffer for execution time
+        }
+        
+        if ($maxTtl === null) {
+            $maxTtl = $originalTtlMs;
+        }
+        
+        $this->assertGreaterThanOrEqual($minTtl, $ttl, 
+            $message ?: "Field TTL ($ttl ms) should be >= $minTtl ms (original: $originalTtlMs ms)");
+        
+        $this->assertLessThanOrEqual($maxTtl, $ttl, 
+            $message ?: "Field TTL ($ttl ms) should be <= $maxTtl ms (original: $originalTtlMs ms)");
+        
+        return $ttl;
+    }
+
     public function testMinimumVersion()
     {
         $this->assertTrue(version_compare($this->version, '2.4.0') >= 0);
@@ -3772,10 +3807,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals([1, 1], $result);
         
         // Test HTTL
+        $setTime1 = microtime(true);
         $ttl = $this->valkey_glide->hTtl($key, 'field1', 'field4');
         $this->assertCount(2, $ttl);
-        $this->assertGreaterThan(0, $ttl[0]);
-        $this->assertGreaterThan(0, $ttl[1]);
+        $this->assertFieldTtlInRange($key, 'field1', 60000, $setTime1);
+        $this->assertFieldTtlInRange($key, 'field4', 60000, $setTime1);
         
         // Test HPERSIST
         $result = $this->valkey_glide->hPersist($key, 'field1');
@@ -3786,9 +3822,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals([-1], $ttl);
         
         // Test millisecond variants
+        $pexpireTime = microtime(true);
         $this->assertEquals([1], $this->valkey_glide->hPExpire($key, 60000, 'field4'));
-        $pttl = $this->valkey_glide->hPTtl($key, 'field4');
-        $this->assertGreaterThan(0, $pttl[0]);
+        $this->assertFieldTtlInRange($key, 'field4', 60000, $pexpireTime);
         
         // Test timestamp variants
         $futureTimestamp = time() + 3600;
@@ -3870,18 +3906,14 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $key = $this->createRandomString(10);
         
         // Test hSetEx with multiple field-value pairs - verify values AND expiration
+        $setTime = microtime(true);
         $this->assertEquals(2, $this->valkey_glide->hSetEx($key, 2, null, 'field1', 'value1', 'field2', 'value2'));
         $this->assertEquals('value1', $this->valkey_glide->hGet($key, 'field1'));
         $this->assertEquals('value2', $this->valkey_glide->hGet($key, 'field2'));
         
-        // Verify expiration is actually set (should be > 0 and <= 2 seconds)
-        $ttl = $this->valkey_glide->hTtl($key, 'field1');
-        $this->assertGreaterThan(0, $ttl[0]);
-        $this->assertLessThanOrEqual(2, $ttl[0]);
-        
-        $ttl = $this->valkey_glide->hTtl($key, 'field2');
-        $this->assertGreaterThan(0, $ttl[0]);
-        $this->assertLessThanOrEqual(2, $ttl[0]);
+        // Verify expiration is actually set using helper
+        $this->assertFieldTtlInRange($key, 'field1', 2000, $setTime);
+        $this->assertFieldTtlInRange($key, 'field2', 2000, $setTime);
         
         // Test hSetEx with NX condition - verify correct field-value pairing
         $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 10, ValkeyGlide::CONDITION_NX, 'field1', 'new1', 'field3', 'value3')); // field1 exists, field3 new
@@ -3889,23 +3921,18 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals('value3', $this->valkey_glide->hGet($key, 'field3')); // new field with correct value
         
         // Verify field3 got the correct expiration time (10 seconds)
-        $ttl = $this->valkey_glide->hTtl($key, 'field3');
-        $this->assertGreaterThan(8, $ttl[0]); // should be close to 10
-        $this->assertLessThanOrEqual(10, $ttl[0]);
+        $setTime3 = microtime(true);
+        $this->assertFieldTtlInRange($key, 'field3', 10000, $setTime3, 8000); // Min 8 seconds
         
         // Test hExpire with multiple fields - verify expiration times are applied
         $this->valkey_glide->hSet($key, 'field4', 'value4', 'field5', 'value5');
+        $expireTime = microtime(true);
         $result = $this->valkey_glide->hExpire($key, 5, 'field4', 'field5');
         $this->assertEquals([1, 1], $result); // both fields got expiration
         
-        // Verify both fields have the correct expiration time (5 seconds)
-        $ttl = $this->valkey_glide->hTtl($key, 'field4');
-        $this->assertGreaterThan(3, $ttl[0]);
-        $this->assertLessThanOrEqual(5, $ttl[0]);
-        
-        $ttl = $this->valkey_glide->hTtl($key, 'field5');
-        $this->assertGreaterThan(3, $ttl[0]);
-        $this->assertLessThanOrEqual(5, $ttl[0]);
+        // Verify both fields have the correct expiration time using helper
+        $this->assertFieldTtlInRange($key, 'field4', 5000, $expireTime, 3000);
+        $this->assertFieldTtlInRange($key, 'field5', 5000, $expireTime, 3000);
         
         // Test timestamp variants with verification
         $future_timestamp = time() + 30;
@@ -3919,12 +3946,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertLessThanOrEqual($future_timestamp, $expire_time[0]);
         
         // Test millisecond precision
+        $pexpireTime = microtime(true);
         $result = $this->valkey_glide->hPExpire($key, 8000, 'field7'); // 8 seconds in milliseconds
         $this->assertEquals([1], $result);
         
-        $ttl = $this->valkey_glide->hPTtl($key, 'field7');
-        $this->assertGreaterThan(6000, $ttl[0]); // should be > 6 seconds in ms
-        $this->assertLessThanOrEqual(8000, $ttl[0]); // should be <= 8 seconds in ms
+        $this->assertFieldTtlInRange($key, 'field7', 8000, $pexpireTime, 6000); // Min 6 seconds
     }
 
     public function testHashFieldExpirationParameterOrder(): void
@@ -3939,29 +3965,26 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // If order is wrong, we'd get incorrect field-value pairs or wrong expiration times
         
         // Set a field with a very specific expiration time and value
+        $setTime1 = microtime(true);
         $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 3, null, 'test_field', 'test_value'));
         
         // Verify the field has the correct value (not the expiration time)
         $this->assertEquals('test_value', $this->valkey_glide->hGet($key, 'test_field'));
         
-        // Verify the field has the correct expiration time (not the value)
-        $ttl = $this->valkey_glide->hTtl($key, 'test_field');
-        $this->assertGreaterThan(0, $ttl[0]);
-        $this->assertLessThanOrEqual(3, $ttl[0]);
+        // Verify the field has the correct expiration time - auto-calculated range
+        $this->assertFieldTtlInRange($key, 'test_field', 3000, $setTime1);
         
         // Test with multiple fields to ensure field-value pairing is correct
+        $setTime2 = microtime(true);
         $this->assertEquals(2, $this->valkey_glide->hSetEx($key, 4, null, 'field_a', 'value_a', 'field_b', 'value_b'));
         
         // Verify each field has its correct value (not swapped)
         $this->assertEquals('value_a', $this->valkey_glide->hGet($key, 'field_a'));
         $this->assertEquals('value_b', $this->valkey_glide->hGet($key, 'field_b'));
         
-        // Verify both fields have the same expiration time (4 seconds)
-        $ttl_a = $this->valkey_glide->hTtl($key, 'field_a');
-        $ttl_b = $this->valkey_glide->hTtl($key, 'field_b');
-        $this->assertGreaterThan(2, $ttl_a[0]);
-        $this->assertLessThanOrEqual(4, $ttl_a[0]);
-        $this->assertGreaterThan(2, $ttl_b[0]);
+        // Verify both fields have the same expiration time - auto-calculated range
+        $this->assertFieldTtlInRange($key, 'field_a', 4000, $setTime2);
+        $this->assertFieldTtlInRange($key, 'field_b', 4000, $setTime2);
         $this->assertLessThanOrEqual(4, $ttl_b[0]);
         
         // Test hExpire parameter order: key, expiry_time, field1, field2...
