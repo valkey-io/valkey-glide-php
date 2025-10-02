@@ -69,7 +69,6 @@ uint8_t* create_connection_request(const char*                               hos
                                    int                                       port,
                                    size_t*                                   len,
                                    valkey_glide_base_client_configuration_t* config,
-                                   int                                       database_id,
                                    valkey_glide_periodic_checks_status_t     periodic_checks,
                                    bool                                      is_cluster);
 

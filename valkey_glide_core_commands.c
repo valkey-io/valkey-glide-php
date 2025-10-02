@@ -127,7 +127,7 @@ uint8_t* create_connection_request(const char*                               hos
 
     /* Set database ID for standalone clients if it is valid. */
     if (config->database_id >= 0) {
-        conn_req.database_id = database_id;
+        conn_req.database_id = config->database_id;
     } else {
         conn_req.database_id = 0;
     }
