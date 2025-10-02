@@ -57,8 +57,14 @@ jobs:
         uses: ./.github/workflows/setup-valkey-glide
         with:
           php-version: ${{ matrix.php }}
-          engine-version: "7.2.5"
+          engine-version: ${{ matrix.engine.version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Engine
+        uses: ./.github/workflows/install-engine
+        with:
+          engine-version: ${{ matrix.engine.version }}
+          target: ${{ matrix.host.TARGET }}
 
       - name: Generate PHP protobuf classes for testing
         run: |
