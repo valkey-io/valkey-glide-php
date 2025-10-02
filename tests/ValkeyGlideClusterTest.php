@@ -175,9 +175,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     public function testClusterConstructorWithDatabaseId(): void
     {
         $addresses = [
-            ['host' => $this->getHost(), 'port' => 7001],
-            ['host' => $this->getHost(), 'port' => 7002],
-            ['host' => $this->getHost(), 'port' => 7003]
+            ['host' => 'localhost', 'port' => 7001],
+            ['host' => 'localhost', 'port' => 7002],
+            ['host' => 'localhost', 'port' => 7003]
         ];
 
         // Test with database 0 (default)
@@ -225,9 +225,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     public function testClusterConstructorWithInvalidDatabaseId(): void
     {
         $addresses = [
-            ['host' => $this->getHost(), 'port' => 7001],
-            ['host' => $this->getHost(), 'port' => 7002],
-            ['host' => $this->getHost(), 'port' => 7003]
+            ['host' => 'localhost', 'port' => 7001],
+            ['host' => 'localhost', 'port' => 7002],
+            ['host' => 'localhost', 'port' => 7003]
         ];
 
         // Test with negative database_id
