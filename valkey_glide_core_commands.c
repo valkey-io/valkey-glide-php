@@ -223,14 +223,12 @@ static const ConnectionResponse* create_base_glide_client(
 
 /* Create a Valkey Glide client */
 const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config) {
-    return create_base_glide_client(
-        config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false);
+    return create_base_glide_client(config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false);
 }
 
 const ConnectionResponse* create_glide_cluster_client(
     valkey_glide_cluster_client_configuration_t* config) {
-    return create_base_glide_client(
-        &config->base, config->periodic_checks_status, true);
+    return create_base_glide_client(&config->base, config->periodic_checks_status, true);
 }
 
 /* Custom result processor for SET commands with GET option support */
