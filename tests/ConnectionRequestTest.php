@@ -415,24 +415,28 @@ class ConnectionRequestTest extends \TestSuite
 
     public function testStandaloneDatabaseIdNegative()
     {
-        $this->expectException(ValkeyGlideException::class);
-        $this->expectExceptionMessage('Database ID must be non-negative');
-        
-        ClientConstructorMock::simulate_standalone_constructor(
-            addresses: [['host' => 'localhost', 'port' => 8080]],
-            database_id: -1
-        );
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(
+                addresses: [['host' => 'localhost', 'port' => 8080]],
+                database_id: -1
+            );
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains('Database ID must be non-negative', $e->getMessage());
+        }
     }
 
     public function testClusterDatabaseIdNegative()
     {
-        $this->expectException(ValkeyGlideException::class);
-        $this->expectExceptionMessage('Database ID must be non-negative');
-        
-        ClientConstructorMock::simulate_cluster_constructor(
-            addresses: [['host' => 'localhost', 'port' => 8080]],
-            database_id: -1
-        );
+        try {
+            ClientConstructorMock::simulate_cluster_constructor(
+                addresses: [['host' => 'localhost', 'port' => 8080]],
+                database_id: -1
+            );
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains('Database ID must be non-negative', $e->getMessage());
+        }
     }
 
     public function testClusterPeriodicChecksDisabled()
