@@ -6630,6 +6630,47 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertKeyEquals('bar', '{key}dst');
     }
 
+    public function testCopyWithDatabase()
+    {
+        if (version_compare($this->version, '6.2.0') < 0) {
+            $this->markTestSkipped();
+        }
+
+        // Test copy to different database using DB option
+        $this->valkey_glide->select(0);
+        $this->valkey_glide->del('{key}src', '{key}dst');
+        $this->valkey_glide->select(1);
+        $this->valkey_glide->del('{key}src', '{key}dst');
+        $this->valkey_glide->select(0);
+
+        $this->valkey_glide->set('{key}src', 'test_value');
+        
+        // Test with string key
+        $this->assertTrue($this->valkey_glide->copy('{key}src', '{key}dst', ['DB' => 1]));
+        
+        // Verify key exists in database 1
+        $this->valkey_glide->select(1);
+        $this->assertKeyEquals('test_value', '{key}dst');
+        
+        // Test with constant
+        $this->valkey_glide->select(0);
+        $this->valkey_glide->set('{key}src2', 'constant_test');
+        $this->assertTrue($this->valkey_glide->copy('{key}src2', '{key}dst2', [ValkeyGlide::COPY_DB => 1]));
+        
+        // Verify with constant
+        $this->valkey_glide->select(1);
+        $this->assertKeyEquals('constant_test', '{key}dst2');
+        
+        // Test combined options
+        $this->valkey_glide->select(0);
+        $this->assertTrue($this->valkey_glide->copy('{key}src', '{key}dst', [
+            ValkeyGlide::COPY_DB => 1,
+            ValkeyGlide::COPY_REPLACE => true
+        ]));
+        
+        $this->valkey_glide->select(0);
+    }
+
     public function testFunction()
     {
         if (version_compare($this->version, '7.0') < 0) {

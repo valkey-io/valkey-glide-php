@@ -885,4 +885,47 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Reset
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
+
+    public function testCopyCluster()
+    {
+        if (version_compare($this->version, '6.2.0') < 0) {
+            $this->markTestSkipped('COPY command requires Valkey 6.2.0+');
+        }
+
+        $this->valkey_glide->del('{key}dst');
+        $this->valkey_glide->set('{key}src', 'foo');
+        $this->assertTrue($this->valkey_glide->copy('{key}src', '{key}dst'));
+        $this->assertKeyEquals('foo', '{key}dst');
+
+        $this->valkey_glide->set('{key}src', 'bar');
+        $this->assertFalse($this->valkey_glide->copy('{key}src', '{key}dst'));
+        $this->assertKeyEquals('foo', '{key}dst');
+
+        $this->assertTrue($this->valkey_glide->copy('{key}src', '{key}dst', ['REPLACE' => true]));
+        $this->assertKeyEquals('bar', '{key}dst');
+    }
+
+    public function testCopyClusterWithDatabase()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('COPY with database ID in cluster mode requires Valkey 9.0.0+');
+        }
+
+        // Test copy to different database in cluster mode
+        $this->valkey_glide->del('{key}src', '{key}dst');
+        $this->valkey_glide->set('{key}src', 'cluster_test_value');
+        
+        // Test with string key
+        $this->assertTrue($this->valkey_glide->copy('{key}src', '{key}dst', ['DB' => 1]));
+        
+        // Test with constant
+        $this->valkey_glide->set('{key}src2', 'cluster_constant_test');
+        $this->assertTrue($this->valkey_glide->copy('{key}src2', '{key}dst2', [ValkeyGlide::COPY_DB => 1]));
+        
+        // Test combined options
+        $this->assertTrue($this->valkey_glide->copy('{key}src', '{key}dst', [
+            ValkeyGlide::COPY_DB => 1,
+            ValkeyGlide::COPY_REPLACE => true
+        ]));
+    }
 }
