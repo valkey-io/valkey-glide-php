@@ -184,7 +184,7 @@ php -r "if (extension_loaded('valkey_glide')) echo 'SUCCESS: Extension loaded!';
 
 3. Build the FFI library (required dependency):
     ```bash
-    python3 utils/remove_optional_from_proto.py
+    python3 utils/patch_proto_and_rust.py
     cd valkey-glide/ffi
     cargo build --release
     cd ../../
