@@ -55,7 +55,7 @@ def remove_optional_from_proto(directory):
     return True
 
 def patch_rust_jitter_percent(rust_types_file):
-    """Patch the Rust types.rs file to fix jitter_percent type mismatch"""
+    """Patch the Rust types.rs file to fix jitter_percent and refresh_interval_seconds type mismatches"""
     
     if not os.path.exists(rust_types_file):
         log_message(f"Rust types file not found: {rust_types_file}", "ERROR")
@@ -68,29 +68,42 @@ def patch_rust_jitter_percent(rust_types_file):
             content = f.read()
         
         # Check if the file needs patching
-        target_pattern = r'jitter_percent:\s*strategy\.jitter_percent,'
-        replacement = 'jitter_percent: Some(strategy.jitter_percent),'
+        jitter_pattern = r'jitter_percent:\s*strategy\.jitter_percent,'
+        jitter_replacement = 'jitter_percent: Some(strategy.jitter_percent),'
         
-        if re.search(target_pattern, content):
+        refresh_pattern = r'refresh_interval_seconds,\s*\n\s*}'
+        refresh_replacement = 'refresh_interval_seconds: Some(refresh_interval_seconds),\n                }'
+        
+        needs_patching = False
+        new_content = content
+        
+        # Apply jitter_percent patch
+        if re.search(jitter_pattern, content):
             create_backup(rust_types_file)
-            
-            # Apply the patch
-            new_content = re.sub(target_pattern, replacement, content)
-            
+            new_content = re.sub(jitter_pattern, jitter_replacement, new_content)
+            needs_patching = True
+            log_message("Applied jitter_percent patch")
+        elif 'Some(strategy.jitter_percent)' in content:
+            log_message("jitter_percent already patched")
+        
+        # Apply refresh_interval_seconds patch
+        if re.search(refresh_pattern, new_content):
+            if not needs_patching:
+                create_backup(rust_types_file)
+            new_content = re.sub(refresh_pattern, refresh_replacement, new_content)
+            needs_patching = True
+            log_message("Applied refresh_interval_seconds patch")
+        elif 'refresh_interval_seconds: Some(refresh_interval_seconds)' in new_content:
+            log_message("refresh_interval_seconds already patched")
+        
+        if needs_patching:
             with open(rust_types_file, 'w') as f:
                 f.write(new_content)
-            
-            log_message(f"Successfully patched jitter_percent in: {rust_types_file}")
+            log_message(f"Successfully patched Rust types file: {rust_types_file}")
             return True
         else:
-            # Check if it's already patched
-            if 'Some(strategy.jitter_percent)' in content:
-                log_message(f"File already patched: {rust_types_file}")
-                return True
-            else:
-                log_message(f"Could not find target pattern in: {rust_types_file}", "WARN")
-                log_message("Looking for pattern: jitter_percent: strategy.jitter_percent,", "DEBUG")
-                return False
+            log_message(f"File already patched: {rust_types_file}")
+            return True
     
     except Exception as e:
         log_message(f"Error patching {rust_types_file}: {e}", "ERROR")
@@ -102,13 +115,22 @@ def verify_rust_patch(rust_types_file):
         with open(rust_types_file, 'r') as f:
             content = f.read()
         
-        # Check for the fixed pattern
-        if 'Some(strategy.jitter_percent)' in content:
+        # Check for the fixed patterns
+        jitter_fixed = 'Some(strategy.jitter_percent)' in content
+        refresh_fixed = 'refresh_interval_seconds: Some(refresh_interval_seconds)' in content
+        
+        if jitter_fixed and refresh_fixed:
             log_message("Rust patch verification: SUCCESS")
             return True
         else:
-            log_message("Rust patch verification: FAILED", "ERROR")
+            missing = []
+            if not jitter_fixed:
+                missing.append("jitter_percent fix")
+            if not refresh_fixed:
+                missing.append("refresh_interval_seconds fix")
+            log_message(f"Rust patch verification: FAILED - Missing: {', '.join(missing)}", "ERROR")
             return False
+    
     except Exception as e:
         log_message(f"Error verifying patch: {e}", "ERROR")
         return False
