@@ -884,22 +884,4 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Reset
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
