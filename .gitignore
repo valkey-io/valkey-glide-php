@@ -85,6 +85,7 @@ tests/.libs/**
 *.dep
 *.lo
 *.loT
+*.o
 valkey_glide.la
 valkey_glide_arginfo.h
 valkey_glide_cluster_arginfo.h

@@ -434,14 +434,14 @@ int execute_bitop_command(zval* object, int argc, zval* return_value, zend_class
     args.key_len             = key_len;
 
     /* Add operation as first argument */
-    args.args[0].type                  = CORE_ARG_TYPE_STRING;
-    args.args[0].data.string_arg.value = op;
-    args.args[0].data.string_arg.len   = op_len;
+    CORE_ARG(&args, 0).type                  = CORE_ARG_TYPE_STRING;
+    CORE_ARG(&args, 0).data.string_arg.value = op;
+    CORE_ARG(&args, 0).data.string_arg.len   = op_len;
 
     /* Add source keys as array argument (no limit on number of keys) */
-    args.args[1].type                 = CORE_ARG_TYPE_ARRAY;
-    args.args[1].data.array_arg.array = &keys_array;
-    args.args[1].data.array_arg.count = keys_count;
+    CORE_ARG(&args, 1).type                 = CORE_ARG_TYPE_ARRAY;
+    CORE_ARG(&args, 1).data.array_arg.array = &keys_array;
+    CORE_ARG(&args, 1).data.array_arg.count = keys_count;
     args.arg_count                    = 2; /* operation + source keys array */
 
     int result =
@@ -490,8 +490,8 @@ int execute_bitpos_command(zval* object, int argc, zval* return_value, zend_clas
     args.key_len             = key_len;
 
     /* Add bit value argument */
-    args.args[0].type                = CORE_ARG_TYPE_LONG;
-    args.args[0].data.long_arg.value = bit;
+    CORE_ARG(&args, 0).type                = CORE_ARG_TYPE_LONG;
+    CORE_ARG(&args, 0).data.long_arg.value = bit;
     args.arg_count                   = 1;
 
     /* Set range options */
@@ -669,9 +669,9 @@ int execute_set_command_internal(valkey_glide_object* valkey_glide,
     args.raw_options         = opts;
 
     /* Add value argument */
-    args.args[0].type                  = CORE_ARG_TYPE_STRING;
-    args.args[0].data.string_arg.value = val;
-    args.args[0].data.string_arg.len   = val_len;
+    CORE_ARG(&args, 0).type                  = CORE_ARG_TYPE_STRING;
+    CORE_ARG(&args, 0).data.string_arg.value = val;
+    CORE_ARG(&args, 0).data.string_arg.len   = val_len;
     args.arg_count                     = 1;
 
     /* Parse options */
@@ -894,9 +894,9 @@ int execute_echo_command(zval* object, int argc, zval* return_value, zend_class_
     }
 
     /* Add message argument to core framework */
-    core_args.args[0].type                  = CORE_ARG_TYPE_STRING;
-    core_args.args[0].data.string_arg.value = msg;
-    core_args.args[0].data.string_arg.len   = msg_len;
+    CORE_ARG(&core_args, 0).type                  = CORE_ARG_TYPE_STRING;
+    CORE_ARG(&core_args, 0).data.string_arg.value = msg;
+    CORE_ARG(&core_args, 0).data.string_arg.len   = msg_len;
     core_args.arg_count                     = 1;
 
 
@@ -983,9 +983,9 @@ int execute_ping_command(zval* object, int argc, zval* return_value, zend_class_
 
     /* Add optional message argument to core framework */
     if (msg && msg_len > 0) {
-        core_args.args[0].type                  = CORE_ARG_TYPE_STRING;
-        core_args.args[0].data.string_arg.value = msg;
-        core_args.args[0].data.string_arg.len   = msg_len;
+        CORE_ARG(&core_args, 0).type                  = CORE_ARG_TYPE_STRING;
+        CORE_ARG(&core_args, 0).data.string_arg.value = msg;
+        CORE_ARG(&core_args, 0).data.string_arg.len   = msg_len;
         core_args.arg_count                     = 1;
     }
 
@@ -1438,8 +1438,8 @@ int execute_getbit_command(zval* object, int argc, zval* return_value, zend_clas
     args.key_len             = key_len;
 
     /* Add offset argument */
-    args.args[0].type                = CORE_ARG_TYPE_LONG;
-    args.args[0].data.long_arg.value = offset;
+    CORE_ARG(&args, 0).type                = CORE_ARG_TYPE_LONG;
+    CORE_ARG(&args, 0).data.long_arg.value = offset;
     args.arg_count                   = 1;
 
     if (execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value)) {
@@ -1484,12 +1484,12 @@ int execute_setbit_command(zval* object, int argc, zval* return_value, zend_clas
     args.key_len             = key_len;
 
     /* Add offset argument */
-    args.args[0].type                = CORE_ARG_TYPE_LONG;
-    args.args[0].data.long_arg.value = offset;
+    CORE_ARG(&args, 0).type                = CORE_ARG_TYPE_LONG;
+    CORE_ARG(&args, 0).data.long_arg.value = offset;
 
     /* Add value argument (0 or 1) */
-    args.args[1].type                = CORE_ARG_TYPE_LONG;
-    args.args[1].data.long_arg.value = value ? 1 : 0;
+    CORE_ARG(&args, 1).type                = CORE_ARG_TYPE_LONG;
+    CORE_ARG(&args, 1).data.long_arg.value = value ? 1 : 0;
     args.arg_count                   = 2;
 
     if (execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value)) {
@@ -1531,9 +1531,9 @@ int execute_del_array(const void* glide_client,
     args.glide_client        = glide_client;
     args.cmd_type            = Del;
 
-    args.args[0].type                 = CORE_ARG_TYPE_ARRAY;
-    args.args[0].data.array_arg.array = &keys_array;
-    args.args[0].data.array_arg.count = zend_hash_num_elements(keys_hash);
+    CORE_ARG(&args, 0).type                 = CORE_ARG_TYPE_ARRAY;
+    CORE_ARG(&args, 0).data.array_arg.array = &keys_array;
+    CORE_ARG(&args, 0).data.array_arg.count = zend_hash_num_elements(keys_hash);
     args.arg_count                    = 1;
 
     /* Use direct command execution for legacy function */
@@ -1622,9 +1622,9 @@ int execute_unlink_array(const void* glide_client,
     args.glide_client        = glide_client;
     args.cmd_type            = Unlink;
 
-    args.args[0].type                 = CORE_ARG_TYPE_ARRAY;
-    args.args[0].data.array_arg.array = &keys_array;
-    args.args[0].data.array_arg.count = zend_hash_num_elements(keys_hash);
+    CORE_ARG(&args, 0).type                 = CORE_ARG_TYPE_ARRAY;
+    CORE_ARG(&args, 0).data.array_arg.array = &keys_array;
+    CORE_ARG(&args, 0).data.array_arg.count = zend_hash_num_elements(keys_hash);
     args.arg_count                    = 1;
 
     /* Use direct command execution for legacy function */
@@ -1717,13 +1717,13 @@ int execute_setrange_command(zval* object, int argc, zval* return_value, zend_cl
     args.key_len             = key_len;
 
     /* Add offset argument */
-    args.args[0].type                = CORE_ARG_TYPE_LONG;
-    args.args[0].data.long_arg.value = offset;
+    CORE_ARG(&args, 0).type                = CORE_ARG_TYPE_LONG;
+    CORE_ARG(&args, 0).data.long_arg.value = offset;
 
     /* Add value argument */
-    args.args[1].type                  = CORE_ARG_TYPE_STRING;
-    args.args[1].data.string_arg.value = val;
-    args.args[1].data.string_arg.len   = val_len;
+    CORE_ARG(&args, 1).type                  = CORE_ARG_TYPE_STRING;
+    CORE_ARG(&args, 1).data.string_arg.value = val;
+    CORE_ARG(&args, 1).data.string_arg.len   = val_len;
     args.arg_count                     = 2;
 
     if (execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value)) {

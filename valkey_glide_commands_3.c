@@ -76,11 +76,11 @@ int execute_wait_command(zval* object, int argc, zval* return_value, zend_class_
         args.cmd_type            = Wait;
 
         /* WAIT is a server-level command (not key-based) with 2 arguments: numreplicas, timeout */
-        args.args[0].type                = CORE_ARG_TYPE_LONG;
-        args.args[0].data.long_arg.value = numreplicas;
+        CORE_ARG(&args, 0).type                = CORE_ARG_TYPE_LONG;
+        CORE_ARG(&args, 0).data.long_arg.value = numreplicas;
 
-        args.args[1].type                = CORE_ARG_TYPE_LONG;
-        args.args[1].data.long_arg.value = timeout;
+        CORE_ARG(&args, 1).type                = CORE_ARG_TYPE_LONG;
+        CORE_ARG(&args, 1).data.long_arg.value = timeout;
         args.arg_count                   = 2;
 
 
