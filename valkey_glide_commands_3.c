@@ -81,7 +81,7 @@ int execute_wait_command(zval* object, int argc, zval* return_value, zend_class_
 
         CORE_ARG(&args, 1).type                = CORE_ARG_TYPE_LONG;
         CORE_ARG(&args, 1).data.long_arg.value = timeout;
-        args.arg_count                   = 2;
+        args.arg_count                         = 2;
 
 
         if (execute_core_command(

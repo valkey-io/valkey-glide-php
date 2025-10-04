@@ -46,7 +46,7 @@ int execute_mset_command(zval* object, int argc, zval* return_value, zend_class_
         CORE_ARG(&args, 0).type                 = CORE_ARG_TYPE_ARRAY;
         CORE_ARG(&args, 0).data.array_arg.array = z_arr;
         CORE_ARG(&args, 0).data.array_arg.count = zend_hash_num_elements(Z_ARRVAL_P(z_arr));
-        args.arg_count                    = 1;
+        args.arg_count                          = 1;
 
         if (execute_core_command(
                 valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
@@ -86,7 +86,7 @@ int execute_msetnx_command(zval* object, int argc, zval* return_value, zend_clas
         CORE_ARG(&args, 0).type                 = CORE_ARG_TYPE_ARRAY;
         CORE_ARG(&args, 0).data.array_arg.array = z_arr;
         CORE_ARG(&args, 0).data.array_arg.count = zend_hash_num_elements(Z_ARRVAL_P(z_arr));
-        args.arg_count                    = 1;
+        args.arg_count                          = 1;
 
         if (execute_core_command(
                 valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
@@ -161,7 +161,7 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
         CORE_ARG(&core_args, 0).type                  = CORE_ARG_TYPE_STRING;
         CORE_ARG(&core_args, 0).data.string_arg.value = "ASYNC";
         CORE_ARG(&core_args, 0).data.string_arg.len   = 5;
-        core_args.arg_count                     = 1;
+        core_args.arg_count                           = 1;
     }
 
     /* Execute using unified core framework */
@@ -237,7 +237,7 @@ int execute_flushall_command(zval* object, int argc, zval* return_value, zend_cl
         CORE_ARG(&core_args, 0).type                  = CORE_ARG_TYPE_STRING;
         CORE_ARG(&core_args, 0).data.string_arg.value = "ASYNC";
         CORE_ARG(&core_args, 0).data.string_arg.len   = 5;
-        core_args.arg_count                     = 1;
+        core_args.arg_count                           = 1;
     }
 
     /* Execute using unified core framework */
@@ -611,7 +611,7 @@ int execute_copy_command(zval* object, int argc, zval* return_value, zend_class_
         CORE_ARG(&args, 1).type                  = CORE_ARG_TYPE_STRING;
         CORE_ARG(&args, 1).data.string_arg.value = "REPLACE";
         CORE_ARG(&args, 1).data.string_arg.len   = 7;
-        arg_count                          = 2;
+        arg_count                                = 2;
     }
 
     args.arg_count = arg_count;
@@ -663,7 +663,7 @@ int execute_pfadd_command(zval* object, int argc, zval* return_value, zend_class
     CORE_ARG(&args, 0).type                 = CORE_ARG_TYPE_ARRAY;
     CORE_ARG(&args, 0).data.array_arg.array = z_elements;
     CORE_ARG(&args, 0).data.array_arg.count = elements_count;
-    args.arg_count                    = 1;
+    args.arg_count                          = 1;
 
     if (execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
@@ -744,7 +744,7 @@ int execute_pfmerge_command(zval* object, int argc, zval* return_value, zend_cla
     CORE_ARG(&args, 0).type                 = CORE_ARG_TYPE_ARRAY;
     CORE_ARG(&args, 0).data.array_arg.array = z_keys;
     CORE_ARG(&args, 0).data.array_arg.count = keys_count;
-    args.arg_count                    = 1;
+    args.arg_count                          = 1;
 
     if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
@@ -771,7 +771,7 @@ int execute_select_command_internal(valkey_glide_object* valkey_glide,
     /* Add database index argument */
     CORE_ARG(&args, 0).type                = CORE_ARG_TYPE_LONG;
     CORE_ARG(&args, 0).data.long_arg.value = dbindex;
-    args.arg_count                   = 1;
+    args.arg_count                         = 1;
 
     return execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value);
 }
@@ -820,7 +820,7 @@ int execute_move_command_internal(valkey_glide_object* valkey_glide,
     /* Add db argument */
     CORE_ARG(&args, 0).type                = CORE_ARG_TYPE_LONG;
     CORE_ARG(&args, 0).data.long_arg.value = db;
-    args.arg_count                   = 1;
+    args.arg_count                         = 1;
 
 
     return execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value);

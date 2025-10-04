@@ -31,93 +31,97 @@ int convert_to_dynamic_args(core_command_args_t* args, int new_capacity) {
     if (args->args_type == CORE_ARGS_DYNAMIC) {
         return 1; /* Already dynamic */
     }
-    
+
     if (new_capacity <= 8) {
         return 1; /* No need to convert */
     }
-    
+
     /* Allocate dynamic array */
-    core_arg_t* dynamic_args = (core_arg_t*)emalloc(new_capacity * sizeof(core_arg_t));
+    core_arg_t* dynamic_args = (core_arg_t*) emalloc(new_capacity * sizeof(core_arg_t));
     if (!dynamic_args) {
         return 0;
     }
-    
+
     /* Copy existing fixed args */
     if (args->arg_count > 0) {
         memcpy(dynamic_args, args->fixed_args, args->arg_count * sizeof(core_arg_t));
     }
-    
+
     /* Switch to dynamic */
     args->dynamic_args = dynamic_args;
-    args->args_type = CORE_ARGS_DYNAMIC;
-    
+    args->args_type    = CORE_ARGS_DYNAMIC;
+
     return 1;
 }
 
 /* Cleanup function that handles both fixed and dynamic */
 void cleanup_core_args(core_command_args_t* args) {
-    if (!args) return;
-    
+    if (!args)
+        return;
+
     if (args->args_type == CORE_ARGS_DYNAMIC && args->dynamic_args) {
         efree(args->dynamic_args);
         args->dynamic_args = NULL;
     }
-    
+
     args->args_type = CORE_ARGS_FIXED;
     args->arg_count = 0;
 }
 
 /* Helper functions for adding arguments */
 int add_string_arg(core_command_args_t* args, const char* value, size_t len) {
-    if (!args || !value) return 0;
-    
+    if (!args || !value)
+        return 0;
+
     /* Convert to dynamic if needed */
     if (args->arg_count >= 8 && args->args_type == CORE_ARGS_FIXED) {
         if (!convert_to_dynamic_args(args, args->arg_count + 1)) {
             return 0;
         }
     }
-    
-    CORE_ARG(args, args->arg_count).type = CORE_ARG_TYPE_STRING;
+
+    CORE_ARG(args, args->arg_count).type                  = CORE_ARG_TYPE_STRING;
     CORE_ARG(args, args->arg_count).data.string_arg.value = value;
-    CORE_ARG(args, args->arg_count).data.string_arg.len = len;
+    CORE_ARG(args, args->arg_count).data.string_arg.len   = len;
     args->arg_count++;
-    
+
     return 1;
 }
 
 int add_long_arg(core_command_args_t* args, long value) {
-    if (!args) return 0;
-    
+    if (!args)
+        return 0;
+
     /* Convert to dynamic if needed */
     if (args->arg_count >= 8 && args->args_type == CORE_ARGS_FIXED) {
         if (!convert_to_dynamic_args(args, args->arg_count + 1)) {
             return 0;
         }
     }
-    
-    CORE_ARG(args, args->arg_count).type = CORE_ARG_TYPE_LONG;
+
+    CORE_ARG(args, args->arg_count).type                = CORE_ARG_TYPE_LONG;
     CORE_ARG(args, args->arg_count).data.long_arg.value = value;
     args->arg_count++;
-    
+
     return 1;
 }
 
 int add_array_arg(core_command_args_t* args, zval* array, int count) {
-    if (!args || !array) return 0;
-    
+    if (!args || !array)
+        return 0;
+
     /* Convert to dynamic if needed */
     if (args->arg_count >= 8 && args->args_type == CORE_ARGS_FIXED) {
         if (!convert_to_dynamic_args(args, args->arg_count + 1)) {
             return 0;
         }
     }
-    
-    CORE_ARG(args, args->arg_count).type = CORE_ARG_TYPE_ARRAY;
+
+    CORE_ARG(args, args->arg_count).type                 = CORE_ARG_TYPE_ARRAY;
     CORE_ARG(args, args->arg_count).data.array_arg.array = array;
     CORE_ARG(args, args->arg_count).data.array_arg.count = count;
     args->arg_count++;
-    
+
     return 1;
 }
 
@@ -1659,8 +1663,8 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
 
     core_command_args_t args;
     INIT_CORE_ARGS(&args);
-    args.glide_client        = valkey_glide->glide_client;
-    args.cmd_type            = cmd_type;
+    args.glide_client = valkey_glide->glide_client;
+    args.cmd_type     = cmd_type;
 
     /* Detect single key vs multi-key scenario */
     if (keys_count == 1 && Z_TYPE_P(keys) == IS_STRING) {
@@ -1674,7 +1678,7 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
         CORE_ARG(&args, 0).type                 = CORE_ARG_TYPE_ARRAY;
         CORE_ARG(&args, 0).data.array_arg.array = keys;
         CORE_ARG(&args, 0).data.array_arg.count = keys_count;
-        args.arg_count                    = 1; /* Triggers multi-key mode in core framework */
+        args.arg_count                          = 1; /* Triggers multi-key mode in core framework */
     } else if (keys_count > 1 && Z_TYPE_P(keys) == IS_STRING) {
         /* Multiple separate string arguments case: del('x', 'y', 'z') */
         /* Convert to temporary array for multi-key processing */
@@ -1689,7 +1693,7 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
         CORE_ARG(&args, 0).type                 = CORE_ARG_TYPE_ARRAY;
         CORE_ARG(&args, 0).data.array_arg.array = &temp_array;
         CORE_ARG(&args, 0).data.array_arg.count = keys_count;
-        args.arg_count                    = 1; /* Triggers multi-key mode in core framework */
+        args.arg_count                          = 1; /* Triggers multi-key mode in core framework */
 
         /* Execute using core framework with batch support */
         int result =

@@ -93,7 +93,7 @@ int execute_append_command(zval* object, int argc, zval* return_value, zend_clas
         CORE_ARG(&args, 0).type                  = CORE_ARG_TYPE_STRING;
         CORE_ARG(&args, 0).data.string_arg.value = value;
         CORE_ARG(&args, 0).data.string_arg.len   = value_len;
-        args.arg_count                     = 1;
+        args.arg_count                           = 1;
 
         if (execute_core_command(
                 valkey_glide, &args, NULL, process_core_int_result, return_value)) {
@@ -139,7 +139,7 @@ int execute_getrange_command(zval* object, int argc, zval* return_value, zend_cl
         CORE_ARG(&args, 0).data.long_arg.value = start;
         CORE_ARG(&args, 1).type                = CORE_ARG_TYPE_LONG;
         CORE_ARG(&args, 1).data.long_arg.value = end;
-        args.arg_count                   = 2;
+        args.arg_count                         = 2;
 
         /* Allocate string result processor on heap for batch support */
 
