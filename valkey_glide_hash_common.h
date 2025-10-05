@@ -777,33 +777,34 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
         RETURN_FALSE;                                                                   \
     }
 
-#define HEXPIRE_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, hExpire) {                                              \
-        if (execute_hexpire_command(getThis(),                                     \
-                                    ZEND_NUM_ARGS(),                               \
-                                    return_value,                                  \
-                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                        ? get_valkey_glide_cluster_ce()            \
-                                        : get_valkey_glide_ce())) {                \
-            return;                                                                \
-        }                                                                          \
-        zval_dtor(return_value);                                                   \
-        RETURN_FALSE;                                                              \
+#define HEXPIRE_METHOD_IMPL(class_name)                                                \
+    PHP_METHOD(class_name, hExpire) {                                                  \
+        if (execute_hexpire_unified_php(getThis(),                                     \
+                                        ZEND_NUM_ARGS(),                               \
+                                        return_value,                                  \
+                                        strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                            ? get_valkey_glide_cluster_ce()            \
+                                            : get_valkey_glide_ce())) {                \
+            return;                                                                    \
+        }                                                                              \
+        zval_dtor(return_value);                                                       \
+        RETURN_FALSE;                                                                  \
     }
 
-#define HTTL_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, hTtl) {                                              \
-        if (execute_httl_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
+#define HTTL_METHOD_IMPL(class_name)                                                \
+    PHP_METHOD(class_name, hTtl) {                                                  \
+        if (execute_httl_unified_php(getThis(),                                     \
+                                     ZEND_NUM_ARGS(),                               \
+                                     return_value,                                  \
+                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                         ? get_valkey_glide_cluster_ce()            \
+                                         : get_valkey_glide_ce())) {                \
+            return;                                                                 \
+        }                                                                           \
+        zval_dtor(return_value);                                                    \
+        RETURN_FALSE;                                                               \
     }
+
 
 #define HPERSIST_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, hPersist) {                                              \
@@ -932,23 +933,40 @@ int execute_hsetexatxx_command(zval* object, int argc, zval* return_value, zend_
 int execute_hpsetexatxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 // Hash Field Expiration NX/XX variants
-int execute_hexpirenx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hexpirexx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpexpirenx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpexpirexx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hexpireatnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hexpireatxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpexpireatnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpexpireatxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hexpiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpexpiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_hpersist_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+
+/**
+ * Unified HExpire function with time unit parameter
+ */
+int execute_hexpire_unified(
+    zval* object, int argc, zval* return_value, zend_class_entry* ce, const char* time_unit);
+
+/**
+ * Unified PHP HExpire function that parses time unit from PHP parameters
+ * Time units are case-insensitive: "EX", "ex", "Ex" all work
+ *
+ * PHP Usage Examples:
+ * $client->hExpire("mykey", 3600, ValkeyGlide::TIME_UNIT_SECONDS, ["field1", "field2"]);
+ * $client->hExpire("mykey", 3600, "ex", ["field1", "field2"]);  // case-insensitive
+ * $client->hExpire("mykey", 3600000, ValkeyGlide::TIME_UNIT_MILLISECONDS, ["field1", "field2"]);
+ * $client->hExpire("mykey", 1640995200, ValkeyGlide::TIME_UNIT_TIMESTAMP_SECONDS, ["field1",
+ * "field2"]); $client->hExpire("mykey", 1640995200000,
+ * ValkeyGlide::TIME_UNIT_TIMESTAMP_MILLISECONDS, ["field1", "field2"]); $client->hExpire("mykey",
+ * 3600, ValkeyGlide::TIME_UNIT_SECONDS, ValkeyGlide::CONDITION_NX, ["field1", "field2"]);
+ */
+int execute_hexpire_unified_php(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+
+/**
+ * Unified PHP HTTL function that parses time unit from PHP parameters
+ * Time units are case-insensitive: "EX", "ex", "Ex" all work
+ *
+ * PHP Usage Examples:
+ * $client->hTtl("mykey", ValkeyGlide::TIME_UNIT_SECONDS, ["field1", "field2"]);
+ * $client->hTtl("mykey", "px", ["field1", "field2"]);  // case-insensitive
+ */
+int execute_httl_unified_php(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 #endif /* VALKEY_GLIDE_HASH_COMMON_H */

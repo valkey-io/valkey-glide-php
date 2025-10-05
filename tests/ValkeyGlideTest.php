@@ -3796,19 +3796,19 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test multiple fields with HSETEX
         $this->assertEquals(2, $this->valkey_glide->hSetEx($key, 60, null, 'field2', 'value2', 'field3', 'value3'));
         
-        // Test HEXPIRE
+        // Test HEXPIRE with unified API
         $this->valkey_glide->hSet($key, 'field4', 'value4');
-        $result = $this->valkey_glide->hExpire($key, 60, 'field4');
+        $result = $this->valkey_glide->hExpire($key, 60, ValkeyGlide::TIME_UNIT_SECONDS, ['field4']);
         $this->assertEquals([1], $result);
         
         // Test HEXPIRE on multiple fields
         $this->valkey_glide->hSet($key, 'field5', 'value5', 'field6', 'value6');
-        $result = $this->valkey_glide->hExpire($key, 60, 'field5', 'field6');
+        $result = $this->valkey_glide->hExpire($key, 60, ValkeyGlide::TIME_UNIT_SECONDS, ['field5', 'field6']);
         $this->assertEquals([1, 1], $result);
         
-        // Test HTTL
+        // Test HTTL with unified API
         $setTime1 = microtime(true);
-        $ttl = $this->valkey_glide->hTtl($key, 'field1', 'field4');
+        $ttl = $this->valkey_glide->hTtl($key, ValkeyGlide::TIME_UNIT_SECONDS, ['field1', 'field4']);
         $this->assertCount(2, $ttl);
         $this->assertFieldTtlInRange($key, 'field1', 60000, $setTime1);
         $this->assertFieldTtlInRange($key, 'field4', 60000, $setTime1);
@@ -3927,7 +3927,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test hExpire with multiple fields - verify expiration times are applied
         $this->valkey_glide->hSet($key, 'field4', 'value4', 'field5', 'value5');
         $expireTime = microtime(true);
-        $result = $this->valkey_glide->hExpire($key, 5, 'field4', 'field5');
+        $result = $this->valkey_glide->hExpire($key, 5, 'EX', ['field4', 'field5']);
         $this->assertEquals([1, 1], $result); // both fields got expiration
         
         // Verify both fields have the correct expiration time using helper
@@ -3987,14 +3987,14 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFieldTtlInRange($key, 'field_b', 4000, $setTime2);
         $this->assertLessThanOrEqual(4, $ttl_b[0]);
         
-        // Test hExpire parameter order: key, expiry_time, field1, field2...
+        // Test hExpire parameter order: key, time_value, time_unit, fields
         $this->valkey_glide->hSet($key, 'expire_test1', 'val1', 'expire_test2', 'val2');
-        $result = $this->valkey_glide->hExpire($key, 6, 'expire_test1', 'expire_test2');
+        $result = $this->valkey_glide->hExpire($key, 6, 'EX', ['expire_test1', 'expire_test2']);
         $this->assertEquals([1, 1], $result);
         
         // Verify both fields have the correct expiration time (6 seconds)
-        $ttl1 = $this->valkey_glide->hTtl($key, 'expire_test1');
-        $ttl2 = $this->valkey_glide->hTtl($key, 'expire_test2');
+        $ttl1 = $this->valkey_glide->hTtl($key, 'EX', ['expire_test1']);
+        $ttl2 = $this->valkey_glide->hTtl($key, 'EX', ['expire_test2']);
         $this->assertGreaterThan(4, $ttl1[0]);
         $this->assertLessThanOrEqual(6, $ttl1[0]);
         $this->assertGreaterThan(4, $ttl2[0]);
@@ -4030,7 +4030,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test HEXPIRE format: key seconds [NX|XX|GT|LT] FIELDS numfields field [field ...]
         
         // Basic HEXPIRE - should generate: HEXPIRE key 120 FIELDS 2 field1 field2
-        $result = $this->valkey_glide->hExpire($key, 120, 'field1', 'field2');
+        $result = $this->valkey_glide->hExpire($key, 120, 'EX', ['field1', 'field2']);
         $this->assertEquals([1, 1], $result); // Both fields should get expiration
         
         // HEXPIRE with condition - should generate: HEXPIRE key 180 NX FIELDS 1 field4
@@ -4052,7 +4052,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals([1], $result); // Should remove expiration
         
         // Test HTTL format: key FIELDS numfields field [field ...]
-        $ttl_result = $this->valkey_glide->hTtl($key, 'field2');
+        $ttl_result = $this->valkey_glide->hTtl($key, 'EX', ['field2']);
         $this->assertIsArray($ttl_result);
         $this->assertGreaterThan(0, $ttl_result[0]); // Should have TTL
         
@@ -4131,16 +4131,43 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         
         // Test HEXPIRE format validation - should only set expiration, not modify field value
         $this->valkey_glide->hSet($key, 'expire_field', 'original_value');
-        $result = $this->valkey_glide->hExpire($key, 10, 'expire_field');
+        $result = $this->valkey_glide->hExpire($key, 10, 'EX', ['expire_field']);
         $this->assertEquals([1], $result);
         
         // Field value should be unchanged (HEXPIRE format doesn't include values)
         $this->assertEquals('original_value', $this->valkey_glide->hGet($key, 'expire_field'));
         
         // But expiration should be set
-        $ttl = $this->valkey_glide->hTtl($key, 'expire_field');
+        $ttl = $this->valkey_glide->hTtl($key, 'EX', ['expire_field']);
         $this->assertGreaterThan(8, $ttl[0]);
         $this->assertLessThanOrEqual(10, $ttl[0]);
+        
+        // Test different time units
+        $this->valkey_glide->hSet($key, 'ms_field', 'ms_value');
+        $result = $this->valkey_glide->hExpire($key, 5000, ValkeyGlide::TIME_UNIT_MILLISECONDS, ['ms_field']); // 5000 milliseconds
+        $this->assertEquals([1], $result);
+        
+        $ttl_ms = $this->valkey_glide->hTtl($key, ValkeyGlide::TIME_UNIT_MILLISECONDS, ['ms_field']);
+        $this->assertGreaterThan(4000, $ttl_ms[0]); // Should be > 4 seconds in milliseconds
+        
+        // Test timestamp expiration
+        $future_timestamp = time() + 3600; // 1 hour from now
+        $this->valkey_glide->hSet($key, 'timestamp_field', 'timestamp_value');
+        $result = $this->valkey_glide->hExpire($key, $future_timestamp, ValkeyGlide::TIME_UNIT_TIMESTAMP_SECONDS, ['timestamp_field']);
+        $this->assertEquals([1], $result);
+        
+        // Test case-insensitive time units
+        $this->valkey_glide->hSet($key, 'case_test1', 'value1', 'case_test2', 'value2');
+        $result1 = $this->valkey_glide->hExpire($key, 30, 'ex', ['case_test1']); // lowercase
+        $result2 = $this->valkey_glide->hExpire($key, 30000, 'PX', ['case_test2']); // uppercase
+        $this->assertEquals([1], $result1);
+        $this->assertEquals([1], $result2);
+        
+        // Verify TTL works with case-insensitive units too
+        $ttl1 = $this->valkey_glide->hTtl($key, 'Ex', ['case_test1']); // mixed case
+        $ttl2 = $this->valkey_glide->hTtl($key, 'px', ['case_test2']); // lowercase
+        $this->assertGreaterThan(0, $ttl1[0]);
+        $this->assertGreaterThan(0, $ttl2[0]);
         
         // Test field-only command format validation (HTTL, HPERSIST)
         $ttl_result = $this->valkey_glide->hTtl($key, 'expire_field');

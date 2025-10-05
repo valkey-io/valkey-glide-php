@@ -93,6 +93,27 @@ class ValkeyGlide
     public const CONDITION_XX = "XX";  // Only if field exists
 
     /**
+     * Time unit constants for hash field expiration
+     * @var string
+     */
+    public const TIME_UNIT_SECONDS = "EX";           // Expire in seconds
+    
+    /**
+     * @var string
+     */
+    public const TIME_UNIT_MILLISECONDS = "PX";      // Expire in milliseconds
+    
+    /**
+     * @var string
+     */
+    public const TIME_UNIT_TIMESTAMP_SECONDS = "EXAT";   // Expire at timestamp (seconds)
+    
+    /**
+     * @var string
+     */
+    public const TIME_UNIT_TIMESTAMP_MILLISECONDS = "PXAT"; // Expire at timestamp (milliseconds)
+
+    /**
      *
      * @var int
      * @cvalue VALKEY_GLIDE_NOT_FOUND

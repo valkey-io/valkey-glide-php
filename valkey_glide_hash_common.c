@@ -2152,49 +2152,25 @@ DEFINE_HSETEX_COMMAND(hsetexat, "EXAT")
 DEFINE_HSETEX_COMMAND(hpsetexat, "PXAT")
 
 // hExpire NX/XX variants - reuse existing hExpire infrastructure with conditions
-int execute_hexpirenx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hexpire_with_condition(object, argc, return_value, ce, NULL, "NX");
-}
 
-int execute_hexpirexx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hexpire_with_condition(object, argc, return_value, ce, NULL, "XX");
-}
 
-int execute_hpexpirenx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hexpire_with_condition(object, argc, return_value, ce, "PX", "NX");
-}
-
-int execute_hpexpirexx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hexpire_with_condition(object, argc, return_value, ce, "PX", "XX");
-}
-
-int execute_hexpireatnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hexpire_with_condition(object, argc, return_value, ce, "EXAT", "NX");
-}
-
-int execute_hexpireatxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hexpire_with_condition(object, argc, return_value, ce, "EXAT", "XX");
-}
-
-int execute_hpexpireatnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hexpire_with_condition(object, argc, return_value, ce, "PXAT", "NX");
-}
-
-int execute_hpexpireatxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_hexpire_with_condition(object, argc, return_value, ce, "PXAT", "XX");
-}
-
-int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+/**
+ * Unified HExpire function with time unit parameter
+ * @param time_unit: "EX" (seconds), "PX" (milliseconds), "EXAT" (timestamp seconds), "PXAT"
+ * (timestamp milliseconds)
+ */
+int execute_hexpire_unified(
+    zval* object, int argc, zval* return_value, zend_class_entry* ce, const char* time_unit) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
-    zend_long            seconds;
+    zend_long            time_value;
     zval*                fields        = NULL;
     int                  fields_count  = 0;
     char*                condition     = NULL;
     size_t               condition_len = 0;
 
-    /* Parse parameters: key, seconds, field1, field2, ..., [condition] */
+    /* Parse parameters: key, time_value, field1, field2, ..., [condition] */
     if (zend_parse_method_parameters(argc,
                                      object,
                                      "Osl*|s",
@@ -2202,7 +2178,7 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
                                      ce,
                                      &key,
                                      &key_len,
-                                     &seconds,
+                                     &time_value,
                                      &fields,
                                      &fields_count,
                                      &condition,
@@ -2218,11 +2194,30 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
     core_command_args_t args;
     INIT_CORE_ARGS(&args);
     args.glide_client = valkey_glide->glide_client;
-    args.cmd_type     = HExpire;
-    args.key          = key;
-    args.key_len      = key_len;
 
-    add_long_arg(&args, seconds);
+    /* Determine command type based on time unit */
+    if (strcasecmp(time_unit, "EX") == 0) {
+        args.cmd_type = HExpire;
+    } else if (strcasecmp(time_unit, "PX") == 0) {
+        args.cmd_type = HPExpire;
+    } else if (strcasecmp(time_unit, "EXAT") == 0) {
+        args.cmd_type = HExpireAt;
+    } else if (strcasecmp(time_unit, "PXAT") == 0) {
+        args.cmd_type = HPExpireAt;
+    } else {
+        return 0; /* Invalid time unit */
+    }
+
+    args.key     = key;
+    args.key_len = key_len;
+
+    /* Set up routing for cluster mode */
+    args.has_route   = 1;
+    zval route_key;
+    ZVAL_STRINGL(&route_key, key, key_len);
+    args.route_param = &route_key;
+
+    add_long_arg(&args, time_value);
     if (condition) {
         add_string_arg(&args, condition, strlen(condition));
     }
@@ -2244,26 +2239,31 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
     return 0;
 }
 
-int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+
+/**
+ * Unified HTTL function with time unit parameter
+ * Usage: hTtl(key, time_unit, fields)
+ * time_unit: "EX" (seconds), "PX" (milliseconds)
+ */
+int execute_httl_unified_php(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
-    zend_long            milliseconds;
-    zval*                fields;
-    char*                condition     = NULL;
-    size_t               condition_len = 0;
+    char*                time_unit = NULL;
+    size_t               time_unit_len;
+    zval*                fields = NULL;
 
+    /* Parse parameters: key, time_unit, fields */
     if (zend_parse_method_parameters(argc,
                                      object,
-                                     "Osla|s",
+                                     "Ossa",
                                      &object,
                                      ce,
                                      &key,
                                      &key_len,
-                                     &milliseconds,
-                                     &fields,
-                                     &condition,
-                                     &condition_len) == FAILURE) {
+                                     &time_unit,
+                                     &time_unit_len,
+                                     &fields) == FAILURE) {
         return 0;
     }
 
@@ -2275,130 +2275,25 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
     core_command_args_t args;
     INIT_CORE_ARGS(&args);
     args.glide_client = valkey_glide->glide_client;
-    args.cmd_type     = HPExpire;
-    args.key          = key;
-    args.key_len      = key_len;
 
-    add_long_arg(&args, milliseconds);
-    if (condition) {
-        add_string_arg(&args, condition, strlen(condition));
-    }
-    add_string_arg(&args, "FIELDS", 6);
-    int field_count = zend_array_count(Z_ARRVAL_P(fields));
-    add_long_arg(&args, field_count);
-    add_array_arg(&args, fields, field_count);
-
-    int result =
-        execute_core_command(valkey_glide, &args, NULL, process_core_array_result, return_value);
-    cleanup_core_args(&args);
-
-    if (result) {
-        if (valkey_glide->is_in_batch_mode) {
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-        return 1;
-    }
-    return 0;
-}
-
-int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    valkey_glide_object* valkey_glide;
-    char*                key = NULL;
-    size_t               key_len;
-    zend_long            timestamp;
-    zval*                fields;
-    char*                condition     = NULL;
-    size_t               condition_len = 0;
-
-    if (zend_parse_method_parameters(argc,
-                                     object,
-                                     "Osla|s",
-                                     &object,
-                                     ce,
-                                     &key,
-                                     &key_len,
-                                     &timestamp,
-                                     &fields,
-                                     &condition,
-                                     &condition_len) == FAILURE) {
-        return 0;
+    /* Determine command type based on time unit */
+    if (strcasecmp(time_unit, "EX") == 0) {
+        args.cmd_type = HTtl;
+    } else if (strcasecmp(time_unit, "PX") == 0) {
+        args.cmd_type = HPTtl;
+    } else {
+        return 0; /* Invalid time unit */
     }
 
-    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide || !valkey_glide->glide_client) {
-        return 0;
-    }
+    args.key     = key;
+    args.key_len = key_len;
 
-    core_command_args_t args;
-    INIT_CORE_ARGS(&args);
-    args.glide_client = valkey_glide->glide_client;
-    args.cmd_type     = HExpireAt;
-    args.key          = key;
-    args.key_len      = key_len;
+    /* Set up routing for cluster mode */
+    args.has_route   = 1;
+    zval route_key;
+    ZVAL_STRINGL(&route_key, key, key_len);
+    args.route_param = &route_key;
 
-    add_long_arg(&args, timestamp);
-    if (condition) {
-        add_string_arg(&args, condition, strlen(condition));
-    }
-    add_string_arg(&args, "FIELDS", 6);
-    int field_count = zend_array_count(Z_ARRVAL_P(fields));
-    add_long_arg(&args, field_count);
-    add_array_arg(&args, fields, field_count);
-
-    int result =
-        execute_core_command(valkey_glide, &args, NULL, process_core_array_result, return_value);
-    cleanup_core_args(&args);
-
-    if (result) {
-        if (valkey_glide->is_in_batch_mode) {
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-        return 1;
-    }
-    return 0;
-}
-
-int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    valkey_glide_object* valkey_glide;
-    char*                key = NULL;
-    size_t               key_len;
-    zend_long            timestamp;
-    zval*                fields;
-    char*                condition     = NULL;
-    size_t               condition_len = 0;
-
-    if (zend_parse_method_parameters(argc,
-                                     object,
-                                     "Osla|s",
-                                     &object,
-                                     ce,
-                                     &key,
-                                     &key_len,
-                                     &timestamp,
-                                     &fields,
-                                     &condition,
-                                     &condition_len) == FAILURE) {
-        return 0;
-    }
-
-    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide || !valkey_glide->glide_client) {
-        return 0;
-    }
-
-    core_command_args_t args;
-    INIT_CORE_ARGS(&args);
-    args.glide_client = valkey_glide->glide_client;
-    args.cmd_type     = HPExpireAt;
-    args.key          = key;
-    args.key_len      = key_len;
-
-    add_long_arg(&args, timestamp);
-    if (condition) {
-        add_string_arg(&args, condition, strlen(condition));
-    }
     add_string_arg(&args, "FIELDS", 6);
     int field_count = zend_array_count(Z_ARRVAL_P(fields));
     add_long_arg(&args, field_count);
@@ -2502,89 +2397,6 @@ int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class
     return 0;
 }
 
-int execute_hexpiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    valkey_glide_object* valkey_glide;
-    char*                key = NULL;
-    size_t               key_len;
-    zval*                fields;
-
-    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) ==
-        FAILURE) {
-        return 0;
-    }
-
-    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide || !valkey_glide->glide_client) {
-        return 0;
-    }
-
-    core_command_args_t args;
-    INIT_CORE_ARGS(&args);
-    args.glide_client = valkey_glide->glide_client;
-    args.cmd_type     = HExpireTime;
-    args.key          = key;
-    args.key_len      = key_len;
-
-    add_string_arg(&args, "FIELDS", 6);
-    int field_count = zend_array_count(Z_ARRVAL_P(fields));
-    add_long_arg(&args, field_count);
-    add_array_arg(&args, fields, field_count);
-
-    int result =
-        execute_core_command(valkey_glide, &args, NULL, process_core_array_result, return_value);
-    cleanup_core_args(&args);
-
-    if (result) {
-        if (valkey_glide->is_in_batch_mode) {
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-        return 1;
-    }
-    return 0;
-}
-
-int execute_hpexpiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    valkey_glide_object* valkey_glide;
-    char*                key = NULL;
-    size_t               key_len;
-    zval*                fields;
-
-    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) ==
-        FAILURE) {
-        return 0;
-    }
-
-    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide || !valkey_glide->glide_client) {
-        return 0;
-    }
-
-    core_command_args_t args;
-    INIT_CORE_ARGS(&args);
-    args.glide_client = valkey_glide->glide_client;
-    args.cmd_type     = HPExpireTime;
-    args.key          = key;
-    args.key_len      = key_len;
-
-    add_string_arg(&args, "FIELDS", 6);
-    int field_count = zend_array_count(Z_ARRVAL_P(fields));
-    add_long_arg(&args, field_count);
-    add_array_arg(&args, fields, field_count);
-
-    int result =
-        execute_core_command(valkey_glide, &args, NULL, process_core_array_result, return_value);
-    cleanup_core_args(&args);
-
-    if (result) {
-        if (valkey_glide->is_in_batch_mode) {
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-        return 1;
-    }
-    return 0;
-}
 
 int execute_hpersist_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -2675,6 +2487,94 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
         }
     }
 
+    add_string_arg(&args, "FIELDS", 6);
+    int field_count = zend_array_count(Z_ARRVAL_P(fields));
+    add_long_arg(&args, field_count);
+    add_array_arg(&args, fields, field_count);
+
+    int result =
+        execute_core_command(valkey_glide, &args, NULL, process_core_array_result, return_value);
+    cleanup_core_args(&args);
+
+    if (result) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Unified PHP HExpire function that takes time unit as parameter
+ * Usage: hExpire(key, time_value, time_unit, [condition], fields)
+ * time_unit: "EX", "PX", "EXAT", "PXAT"
+ */
+int execute_hexpire_unified_php(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zend_long            time_value;
+    char*                time_unit = NULL;
+    size_t               time_unit_len;
+    char*                condition     = NULL;
+    size_t               condition_len = 0;
+    zval*                fields        = NULL;
+
+    /* Parse parameters: key, time_value, time_unit, [condition], fields */
+    if (zend_parse_method_parameters(argc,
+                                     object,
+                                     "Osls|sa",
+                                     &object,
+                                     ce,
+                                     &key,
+                                     &key_len,
+                                     &time_value,
+                                     &time_unit,
+                                     &time_unit_len,
+                                     &condition,
+                                     &condition_len,
+                                     &fields) == FAILURE) {
+        return 0;
+    }
+
+    /* Call unified function with parsed parameters */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    core_command_args_t args;
+    INIT_CORE_ARGS(&args);
+    args.glide_client = valkey_glide->glide_client;
+
+    /* Determine command type based on time unit */
+    if (strcasecmp(time_unit, "EX") == 0) {
+        args.cmd_type = HExpire;
+    } else if (strcasecmp(time_unit, "PX") == 0) {
+        args.cmd_type = HPExpire;
+    } else if (strcasecmp(time_unit, "EXAT") == 0) {
+        args.cmd_type = HExpireAt;
+    } else if (strcasecmp(time_unit, "PXAT") == 0) {
+        args.cmd_type = HPExpireAt;
+    } else {
+        return 0; /* Invalid time unit */
+    }
+
+    args.key     = key;
+    args.key_len = key_len;
+
+    /* Set up routing for cluster mode */
+    args.has_route   = 1;
+    zval route_key;
+    ZVAL_STRINGL(&route_key, key, key_len);
+    args.route_param = &route_key;
+
+    add_long_arg(&args, time_value);
+    if (condition) {
+        add_string_arg(&args, condition, strlen(condition));
+    }
     add_string_arg(&args, "FIELDS", 6);
     int field_count = zend_array_count(Z_ARRVAL_P(fields));
     add_long_arg(&args, field_count);
