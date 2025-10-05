@@ -488,19 +488,8 @@ HSETEXATXX_METHOD_IMPL(ValkeyGlide)
 HPSETEXATXX_METHOD_IMPL(ValkeyGlide)
 
 /* Hash field expiration NX/XX variants */
-HEXPIRENX_METHOD_IMPL(ValkeyGlide)
-HEXPIREXX_METHOD_IMPL(ValkeyGlide)
-HPEXPIRENX_METHOD_IMPL(ValkeyGlide)
-HPEXPIREXX_METHOD_IMPL(ValkeyGlide)
-HEXPIREATNX_METHOD_IMPL(ValkeyGlide)
-HEXPIREATXX_METHOD_IMPL(ValkeyGlide)
-HPEXPIREATNX_METHOD_IMPL(ValkeyGlide)
-HPEXPIREATXX_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto array ValkeyGlide::hExpire(string key, long seconds, string field, ...) */
-HEXPIRE_METHOD_IMPL(ValkeyGlide)
-/* }}} */
 
 /* {{{ proto array ValkeyGlide::hTtl(string key, string field, ...) */
 HTTL_METHOD_IMPL(ValkeyGlide)
@@ -510,29 +499,11 @@ HTTL_METHOD_IMPL(ValkeyGlide)
 HPERSIST_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto array ValkeyGlide::hPExpire(string key, long milliseconds, string field, ...) */
-HPEXPIRE_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto array ValkeyGlide::hExpireAt(string key, long timestamp, string field, ...) */
-HEXPIREAT_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto array ValkeyGlide::hPExpireAt(string key, long timestamp_ms, string field, ...) */
-HPEXPIREAT_METHOD_IMPL(ValkeyGlide)
-/* }}} */
 
 /* {{{ proto array ValkeyGlide::hPTtl(string key, string field, ...) */
 HPTTL_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto array ValkeyGlide::hExpireTime(string key, string field, ...) */
-HEXPIRETIME_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto array ValkeyGlide::hPExpireTime(string key, string field, ...) */
-HPEXPIRETIME_METHOD_IMPL(ValkeyGlide)
-/* }}} */
 
 /* {{{ proto mixed ValkeyGlide::hGetEx(string key, string field, long seconds, ...) */
 HGETEX_METHOD_IMPL(ValkeyGlide)

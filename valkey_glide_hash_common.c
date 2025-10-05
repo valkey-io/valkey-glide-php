@@ -2211,11 +2211,6 @@ int execute_hexpire_unified(
     args.key     = key;
     args.key_len = key_len;
 
-    /* Set up routing for cluster mode */
-    args.has_route   = 1;
-    zval route_key;
-    ZVAL_STRINGL(&route_key, key, key_len);
-    args.route_param = &route_key;
 
     add_long_arg(&args, time_value);
     if (condition) {
@@ -2288,11 +2283,6 @@ int execute_httl_unified_php(zval* object, int argc, zval* return_value, zend_cl
     args.key     = key;
     args.key_len = key_len;
 
-    /* Set up routing for cluster mode */
-    args.has_route   = 1;
-    zval route_key;
-    ZVAL_STRINGL(&route_key, key, key_len);
-    args.route_param = &route_key;
 
     add_string_arg(&args, "FIELDS", 6);
     int field_count = zend_array_count(Z_ARRVAL_P(fields));
@@ -2565,11 +2555,6 @@ int execute_hexpire_unified_php(zval* object, int argc, zval* return_value, zend
     args.key     = key;
     args.key_len = key_len;
 
-    /* Set up routing for cluster mode */
-    args.has_route   = 1;
-    zval route_key;
-    ZVAL_STRINGL(&route_key, key, key_len);
-    args.route_param = &route_key;
 
     add_long_arg(&args, time_value);
     if (condition) {
