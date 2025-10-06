@@ -279,11 +279,18 @@ jobs:
           pecl version || echo "PECL version command failed"
 
           # Install the package using PECL (this tests the real user experience)
-          # Use all available CPU cores for compilation
+          # Use all available CPU cores for compilation and add undefined symbol detection
           export MAKEFLAGS="-j$(nproc)"
           export CARGO_BUILD_JOBS=$(nproc)
 
-          sudo env "MAKEFLAGS=-j$(nproc)" "CARGO_BUILD_JOBS=$(nproc)" pecl install -f "${{ env.PACKAGE_DIR }}.tgz" 2>&1 | tee pecl_install.log
+          # Add linker flags to detect undefined symbols at build time
+          if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
+            export LDFLAGS="$LDFLAGS -Wl,-undefined,error"
+          else
+            export LDFLAGS="$LDFLAGS -Wl,--no-undefined"
+          fi
+
+          sudo env "MAKEFLAGS=-j$(nproc)" "CARGO_BUILD_JOBS=$(nproc)" "LDFLAGS=$LDFLAGS" pecl install -f "${{ env.PACKAGE_DIR }}.tgz" 2>&1 | tee pecl_install.log
           PECL_EXIT_CODE=$?
 
           if [ $PECL_EXIT_CODE -ne 0 ]; then

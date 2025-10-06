@@ -200,11 +200,26 @@ jobs:
           # Add local repository
           pie repository:add composer http://localhost:8000
 
-          echo "=== Attempting PIE installation with verbose output ==="
+          echo "=== Testing PIE repository setup (without building) ==="
+          # Only test that PIE can see the package, don't actually install it
+          pie search valkey-io/valkey-glide-php --no-interaction -v
+          echo "SUCCESS: PIE can access manual repository and find package"
+
+      - name: Verify PIE installation
+        run: |
+          echo "=== Attempting PIE installation with undefined symbol detection ==="
           set +e
           export CARGO_BUILD_JOBS=$(nproc)
+
+          # Add linker flags to detect undefined symbols at build time
+          if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
+            export LDFLAGS="$LDFLAGS -Wl,-undefined,error"
+          else
+            export LDFLAGS="$LDFLAGS -Wl,--no-undefined"
+          fi
+
           # Make Rust available to root by preserving environment
-          sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$(nproc)" pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -vvv 2>&1 | tee pie_install.log
+          sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$(nproc)" "LDFLAGS=$LDFLAGS" pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -vvv 2>&1 | tee pie_install.log
           PIE_EXIT_CODE=$?
           set -e
 
@@ -234,6 +249,25 @@ jobs:
                 echo "SUCCESS: Shared object built at: $SO_FILE"
                 ls -la "$SO_FILE"
                 echo "File size: $(if [[ "${{ matrix.host.OS }}" == "macos" ]]; then stat -f%z "$SO_FILE" 2>/dev/null; else stat -c%s "$SO_FILE" 2>/dev/null; fi || echo "unknown") bytes"
+                
+                # Check for undefined symbols in the built extension
+                echo "=== Checking for undefined symbols in PIE-built extension ==="
+                if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
+                  # macOS: Use nm to check for undefined symbols
+                  if nm -u "$SO_FILE" 2>/dev/null | grep -v "dyld_stub_binder" | grep -q "U "; then
+                    echo "ERROR: Undefined symbols found in PIE-built extension:"
+                    nm -u "$SO_FILE" | grep -v "dyld_stub_binder"
+                    exit 1
+                  fi
+                else
+                  # Linux: Use objdump to check for undefined symbols
+                  if objdump -T "$SO_FILE" 2>/dev/null | grep -q "UND"; then
+                    echo "ERROR: Undefined symbols found in PIE-built extension:"
+                    objdump -T "$SO_FILE" | grep "UND"
+                    exit 1
+                  fi
+                fi
+                echo "SUCCESS: No undefined symbols detected in PIE-built extension"
               else
                 echo "WARNING: PIE reported success but valkey_glide.so not found"
                 find "$PIE_WORK_DIR" -name "*.so" -type f 2>/dev/null || echo "No .so files found at all"
@@ -272,14 +306,11 @@ jobs:
             fi
           fi
 
-      - name: Verify PIE installation
-        run: |
           echo "=== Checking PHP extension directory ==="
           php-config --extension-dir
           ls -la $(php-config --extension-dir) | grep valkey || echo "valkey_glide.so not found in extension directory"
 
           echo "=== Looking for built extension in PIE working directory ==="
-          PIE_WORK_DIR=$(find "$HOME/.config/pie" -name "valkey-glide-php" -type d | head -1)
           if [ -n "$PIE_WORK_DIR" ]; then
             echo "PIE working directory: $PIE_WORK_DIR"
             find "$PIE_WORK_DIR" -name "*.so" -type f 2>/dev/null || echo "No .so files found in PIE directory"
