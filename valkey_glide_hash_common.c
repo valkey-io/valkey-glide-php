@@ -2414,7 +2414,7 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
     } else {
         add_variadic_string_args(&cmd_args, args, args_count);
     }
-    
+
     add_long_arg(&cmd_args, time_value);
 
     int result = execute_core_command(
@@ -2476,7 +2476,7 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
     } else {
         add_variadic_string_args(&cmd_args, args, args_count);
     }
-    
+
     add_long_arg(&cmd_args, time_value);
 
     int result = execute_core_command(
@@ -2538,7 +2538,7 @@ int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_c
     } else {
         add_variadic_string_args(&cmd_args, args, args_count);
     }
-    
+
     add_long_arg(&cmd_args, timestamp);
 
     int result = execute_core_command(
@@ -2600,7 +2600,7 @@ int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_
     } else {
         add_variadic_string_args(&cmd_args, args, args_count);
     }
-    
+
     add_long_arg(&cmd_args, timestamp);
 
     int result = execute_core_command(
