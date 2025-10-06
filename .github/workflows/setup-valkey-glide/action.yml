@@ -88,6 +88,15 @@ runs:
       with:
         github-token: ${{ inputs.github-token }}
 
+    - name: Install Valkey engine
+      uses: ./.github/workflows/install-engine
+      with:
+        engine-version: ${{ inputs.engine-version }}
+        target: x86_64-unknown-linux-gnu
+
+    - name: Install zig
+      uses: ./.github/workflows/install-zig
+
     - name: Install cbindgen (cached)
       shell: bash
       run: |

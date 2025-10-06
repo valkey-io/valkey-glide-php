@@ -60,6 +60,12 @@ jobs:
           install-composer-deps: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install Valkey engine
+        uses: ./.github/workflows/install-engine
+        with:
+          engine-version: ${{ matrix.engine.version }}
+          target: x86_64-unknown-linux-gnu
+
       - name: Create manual Composer repository
         run: |
           mkdir -p web

@@ -68,6 +68,12 @@ jobs:
           install-composer-deps: "false"
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install Valkey engine
+        uses: ./.github/workflows/install-engine
+        with:
+          engine-version: ${{ matrix.engine.version }}
+          target: x86_64-unknown-linux-gnu
+
       - name: Generate PHP protobuf classes for testing
         run: |
           echo "=== Generating PHP protobuf classes for testing ==="

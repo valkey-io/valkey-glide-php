@@ -433,12 +433,6 @@ jobs:
           engine-version: ${{ matrix.engine.version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Valkey engine
-        uses: ./.github/workflows/install-engine
-        with:
-          engine-version: ${{ matrix.engine.version }}
-          target: x86_64-unknown-linux-gnu
-
       - name: Remove optional fields from proto files
         shell: bash
         run: |
