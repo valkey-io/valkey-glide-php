@@ -23,7 +23,7 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
     {
         $this->valkey_glide    = $this->newInstance();
         $info           = $this->valkey_glide->info("randomNode");
-        $this->version  = $info['redis_version'] ?? '0.0.0';
+        $this->version  = $info['valkey_version'] ?? $info['redis_version'] ?? '0.0.0';
 
         $this->is_valkey = $this->detectValkey($info);
     }
