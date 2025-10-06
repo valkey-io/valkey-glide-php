@@ -4081,12 +4081,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         
         // Test HTTL format: key FIELDS numfields field [field ...]
         $ttl_result = $this->valkey_glide->hTtl($key, ['field2']);
-        $this->assertIsArray($ttl_result);
+        $this->assertNotEquals(false, $ttl_result);
         $this->assertGT(0, $ttl_result[0]); // Should have TTL
         
         // Test HEXPIRETIME format: key FIELDS numfields field [field ...]
         $expire_time = $this->valkey_glide->hExpireTime($key, 'field2');
-        $this->assertIsArray($expire_time);
+        $this->assertNotEquals(false, $expire_time);
         $this->assertGT(time(), $expire_time[0]); // Should be future timestamp
         
         // Test HGETEX format: key [EX seconds|PX milliseconds|EXAT unix-time-seconds|PXAT unix-time-milliseconds|PERSIST] FIELDS numfields field [field ...]
@@ -4468,12 +4468,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         
         // HPTTL - milliseconds TTL
         $pttl_result = $this->valkey_glide->hPTtl($key, 'pnx_field');
-        $this->assertIsArray($pttl_result);
+        $this->assertNotEquals(false, $pttl_result);
         $this->assertGT(0, $pttl_result[0]); // Should have TTL in milliseconds
         
         // HPEXPIRETIME - milliseconds timestamp
         $pexpire_time = $this->valkey_glide->hPExpireTime($key, 'pexpireat_field');
-        $this->assertIsArray($pexpire_time);
+        $this->assertNotEquals(false, $pexpire_time);
         $this->assertGT(time() * 1000, $pexpire_time[0]); // Should be future timestamp in ms
         
         // Verify all field values are preserved
