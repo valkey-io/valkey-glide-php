@@ -2365,6 +2365,309 @@ int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_
     return 0;
 }
 
+int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zend_long            time_value;
+    zval*                args       = NULL;
+    int                  args_count = 0;
+
+    // Parse arguments: object, key, time_value, and variadic field arguments
+    if (zend_parse_method_parameters(
+            argc, object, "Osl*", &object, ce, &key, &key_len, &time_value, &args, &args_count) ==
+        FAILURE) {
+        return 0;
+    }
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    // Handle both array and variadic arguments
+    zval* fields_array = NULL;
+    int   fields_count = 0;
+
+    if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
+        // Single array argument: hExpire($key, $time, ['field1', 'field2'])
+        fields_array = &args[0];
+        fields_count = zend_hash_num_elements(Z_ARRVAL_P(fields_array));
+    } else {
+        // Variadic arguments: hExpire($key, $time, 'field1', 'field2')
+        fields_array = args;
+        fields_count = args_count;
+    }
+
+    core_command_args_t cmd_args;
+    INIT_CORE_ARGS(&cmd_args);
+    cmd_args.glide_client = valkey_glide->glide_client;
+    cmd_args.cmd_type     = HExpire;
+    cmd_args.key          = key;
+    cmd_args.key_len      = key_len;
+
+    add_long_arg(&cmd_args, time_value);
+    add_string_arg(&cmd_args, "FIELDS", 6);
+    add_long_arg(&cmd_args, fields_count);
+
+    if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
+        add_array_arg(&cmd_args, fields_array, fields_count);
+    } else {
+        add_variadic_string_args(&cmd_args, args, args_count);
+    }
+
+    int result = execute_core_command(
+        valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
+    cleanup_core_args(&cmd_args);
+
+    if (result) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zend_long            time_value;
+    zval*                args       = NULL;
+    int                  args_count = 0;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Osl*", &object, ce, &key, &key_len, &time_value, &args, &args_count) ==
+        FAILURE) {
+        return 0;
+    }
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    zval* fields_array = NULL;
+    int   fields_count = 0;
+
+    if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
+        fields_array = &args[0];
+        fields_count = zend_hash_num_elements(Z_ARRVAL_P(fields_array));
+    } else {
+        fields_array = args;
+        fields_count = args_count;
+    }
+
+    core_command_args_t cmd_args;
+    INIT_CORE_ARGS(&cmd_args);
+    cmd_args.glide_client = valkey_glide->glide_client;
+    cmd_args.cmd_type     = HPExpire;
+    cmd_args.key          = key;
+    cmd_args.key_len      = key_len;
+
+    add_long_arg(&cmd_args, time_value);
+    add_string_arg(&cmd_args, "FIELDS", 6);
+    add_long_arg(&cmd_args, fields_count);
+
+    if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
+        add_array_arg(&cmd_args, fields_array, fields_count);
+    } else {
+        add_variadic_string_args(&cmd_args, args, args_count);
+    }
+
+    int result = execute_core_command(
+        valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
+    cleanup_core_args(&cmd_args);
+
+    if (result) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zend_long            timestamp;
+    zval*                args       = NULL;
+    int                  args_count = 0;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Osl*", &object, ce, &key, &key_len, &timestamp, &args, &args_count) ==
+        FAILURE) {
+        return 0;
+    }
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    zval* fields_array = NULL;
+    int   fields_count = 0;
+
+    if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
+        fields_array = &args[0];
+        fields_count = zend_hash_num_elements(Z_ARRVAL_P(fields_array));
+    } else {
+        fields_array = args;
+        fields_count = args_count;
+    }
+
+    core_command_args_t cmd_args;
+    INIT_CORE_ARGS(&cmd_args);
+    cmd_args.glide_client = valkey_glide->glide_client;
+    cmd_args.cmd_type     = HExpireAt;
+    cmd_args.key          = key;
+    cmd_args.key_len      = key_len;
+
+    add_long_arg(&cmd_args, timestamp);
+    add_string_arg(&cmd_args, "FIELDS", 6);
+    add_long_arg(&cmd_args, fields_count);
+
+    if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
+        add_array_arg(&cmd_args, fields_array, fields_count);
+    } else {
+        add_variadic_string_args(&cmd_args, args, args_count);
+    }
+
+    int result = execute_core_command(
+        valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
+    cleanup_core_args(&cmd_args);
+
+    if (result) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+int execute_hexpiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zval*                args       = NULL;
+    int                  args_count = 0;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Os*", &object, ce, &key, &key_len, &args, &args_count) == FAILURE) {
+        return 0;
+    }
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    zval* fields_array = NULL;
+    int   fields_count = 0;
+
+    if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
+        fields_array = &args[0];
+        fields_count = zend_hash_num_elements(Z_ARRVAL_P(fields_array));
+    } else {
+        fields_array = args;
+        fields_count = args_count;
+    }
+
+    core_command_args_t cmd_args;
+    INIT_CORE_ARGS(&cmd_args);
+    cmd_args.glide_client = valkey_glide->glide_client;
+    cmd_args.cmd_type     = HExpireTime;
+    cmd_args.key          = key;
+    cmd_args.key_len      = key_len;
+
+    add_string_arg(&cmd_args, "FIELDS", 6);
+    add_long_arg(&cmd_args, fields_count);
+
+    if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
+        add_array_arg(&cmd_args, fields_array, fields_count);
+    } else {
+        add_variadic_string_args(&cmd_args, args, args_count);
+    }
+
+    int result = execute_core_command(
+        valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
+    cleanup_core_args(&cmd_args);
+
+    if (result) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+int execute_hpexpiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zval*                args       = NULL;
+    int                  args_count = 0;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Os*", &object, ce, &key, &key_len, &args, &args_count) == FAILURE) {
+        return 0;
+    }
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    zval* fields_array = NULL;
+    int   fields_count = 0;
+
+    if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
+        fields_array = &args[0];
+        fields_count = zend_hash_num_elements(Z_ARRVAL_P(fields_array));
+    } else {
+        fields_array = args;
+        fields_count = args_count;
+    }
+
+    core_command_args_t cmd_args;
+    INIT_CORE_ARGS(&cmd_args);
+    cmd_args.glide_client = valkey_glide->glide_client;
+    cmd_args.cmd_type     = HPExpireTime;
+    cmd_args.key          = key;
+    cmd_args.key_len      = key_len;
+
+    add_string_arg(&cmd_args, "FIELDS", 6);
+    add_long_arg(&cmd_args, fields_count);
+
+    if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
+        add_array_arg(&cmd_args, fields_array, fields_count);
+    } else {
+        add_variadic_string_args(&cmd_args, args, args_count);
+    }
+
+    int result = execute_core_command(
+        valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
+    cleanup_core_args(&cmd_args);
+
+    if (result) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
+    }
+    return 0;
+}
+
 int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
