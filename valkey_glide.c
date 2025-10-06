@@ -695,8 +695,7 @@ PHP_FUNCTION(valkey_glide_logger_get_level) {
 
 // Methods that need manual implementation (macros not available)
 PHP_METHOD(ValkeyGlide, hPExpire) {
-    if (execute_hexpire_unified_php(
-            getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
+    if (execute_hpexpire_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
         return;
     }
     zval_dtor(return_value);
@@ -704,8 +703,7 @@ PHP_METHOD(ValkeyGlide, hPExpire) {
 }
 
 PHP_METHOD(ValkeyGlide, hExpireAt) {
-    if (execute_hexpire_unified_php(
-            getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
+    if (execute_hexpireat_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
         return;
     }
     zval_dtor(return_value);
@@ -713,8 +711,7 @@ PHP_METHOD(ValkeyGlide, hExpireAt) {
 }
 
 PHP_METHOD(ValkeyGlide, hPExpireAt) {
-    if (execute_hexpire_unified_php(
-            getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
+    if (execute_hpexpireat_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
         return;
     }
     zval_dtor(return_value);
@@ -722,7 +719,7 @@ PHP_METHOD(ValkeyGlide, hPExpireAt) {
 }
 
 PHP_METHOD(ValkeyGlide, hExpireTime) {
-    if (execute_httl_unified_php(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
+    if (execute_hexpiretime_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
         return;
     }
     zval_dtor(return_value);
@@ -730,7 +727,7 @@ PHP_METHOD(ValkeyGlide, hExpireTime) {
 }
 
 PHP_METHOD(ValkeyGlide, hPExpireTime) {
-    if (execute_httl_unified_php(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
+    if (execute_hpexpiretime_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
         return;
     }
     zval_dtor(return_value);

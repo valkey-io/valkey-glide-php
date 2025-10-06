@@ -3822,11 +3822,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test HEXPIRE with unified API
         $this->valkey_glide->hSet($key, 'field4', 'value4');
         $result = $this->valkey_glide->hExpire($key, 60, 'field4');
+        $this->assertNotFalse($result, 'hExpire should not return false');
         $this->assertEquals([1], $result);
         
         // Test HEXPIRE on multiple fields
         $this->valkey_glide->hSet($key, 'field5', 'value5', 'field6', 'value6');
         $result = $this->valkey_glide->hExpire($key, 60, 'field5', 'field6');
+        $this->assertNotFalse($result, 'hExpire should not return false');
         $this->assertEquals([1, 1], $result);
         
         // Test HTTL with unified API
@@ -3849,20 +3851,28 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         
         // Test millisecond variants
         $pexpireTime = microtime(true);
-        $this->assertEquals([1], $this->valkey_glide->hPExpire($key, 60000, 'field4'));
+        $result = $this->valkey_glide->hPExpire($key, 60000, 'field4');
+        $this->assertNotFalse($result, 'hPExpire should not return false');
+        $this->assertEquals([1], $result);
         $this->assertFieldTtlInRange($key, 'field4', 60000, $pexpireTime);
         
         // Test timestamp variants
         $futureTimestamp = time() + 3600;
         
         $futureTimestampMs = $futureTimestamp * 1000;
-        $this->assertEquals([1], $this->valkey_glide->hPExpireAt($key, $futureTimestampMs, 'field4'));
+        $result = $this->valkey_glide->hPExpireAt($key, $futureTimestampMs, 'field4');
+        $this->assertNotFalse($result, 'hPExpireAt should not return false');
+        $this->assertEquals([1], $result);
         
         // Test expire time commands
         $expireTime = $this->valkey_glide->hExpireTime($key, 'field4');
+        $this->assertNotFalse($expireTime, 'hExpireTime should not return false');
+        $this->assertIsArray($expireTime, 'hExpireTime should return array');
         $this->assertGTE($futureTimestamp - 1, $expireTime[0]);
         
         $pexpireTime = $this->valkey_glide->hPExpireTime($key, 'field4');
+        $this->assertNotFalse($pexpireTime, 'hPExpireTime should not return false');
+        $this->assertIsArray($pexpireTime, 'hPExpireTime should return array');
         $this->assertGTE($futureTimestampMs - 1000, $pexpireTime[0]);
         
         // Test error conditions
