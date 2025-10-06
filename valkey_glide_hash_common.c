@@ -2736,15 +2736,7 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
     cmd_args.key          = key;
     cmd_args.key_len      = key_len;
 
-    add_long_arg(&cmd_args, time_value);
-    add_string_arg(&cmd_args, "FIELDS", 6);
-    add_long_arg(&cmd_args, fields_count);
-
-    if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
-        add_array_arg(&cmd_args, fields_array, fields_count);
-    } else {
-        add_variadic_string_args(&cmd_args, args, args_count);
-    }
+    add_hfe_time_fields_args(&cmd_args, time_value, args, args_count);
 
     int result = execute_core_command(
         valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
@@ -2797,15 +2789,7 @@ int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_c
     cmd_args.key          = key;
     cmd_args.key_len      = key_len;
 
-    add_long_arg(&cmd_args, timestamp);
-    add_string_arg(&cmd_args, "FIELDS", 6);
-    add_long_arg(&cmd_args, fields_count);
-
-    if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
-        add_array_arg(&cmd_args, fields_array, fields_count);
-    } else {
-        add_variadic_string_args(&cmd_args, args, args_count);
-    }
+    add_hfe_time_fields_args(&cmd_args, timestamp, args, args_count);
 
     int result = execute_core_command(
         valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
@@ -2858,15 +2842,7 @@ int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_
     cmd_args.key          = key;
     cmd_args.key_len      = key_len;
 
-    add_long_arg(&cmd_args, timestamp);
-    add_string_arg(&cmd_args, "FIELDS", 6);
-    add_long_arg(&cmd_args, fields_count);
-
-    if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
-        add_array_arg(&cmd_args, fields_array, fields_count);
-    } else {
-        add_variadic_string_args(&cmd_args, args, args_count);
-    }
+    add_hfe_time_fields_args(&cmd_args, timestamp, args, args_count);
 
     int result = execute_core_command(
         valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
@@ -2986,9 +2962,7 @@ int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class
     args.key          = key;
     args.key_len      = key_len;
 
-    add_string_arg(&args, "FIELDS", 6);
-    add_long_arg(&args, fields_count);
-    add_array_arg(&args, fields, fields_count);
+    add_hfe_fields_args(&args, fields, fields_count);
 
     int result =
         execute_core_command(valkey_glide, &args, NULL, process_core_array_result, return_value);
