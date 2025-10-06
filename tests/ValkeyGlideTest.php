@@ -78,6 +78,17 @@ require_once __DIR__ . '/ValkeyGlideBaseTest.php';
 class ValkeyGlideTest extends ValkeyGlideBaseTest
 {
     /**
+     * Generate a random string of specified length
+     * 
+     * @param int $length Length of the random string
+     * @return string Random string
+     */
+    private function createRandomString($length = 10)
+    {
+        return bin2hex(random_bytes(ceil($length / 2)));
+    }
+
+    /**
      * Compare major version number against a minimum required version
      * 
      * @param int $minMajorVersion Minimum required major version
