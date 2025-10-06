@@ -698,36 +698,6 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
 #define HPSETEX_METHOD_IMPL(class_name) \
     HSETEX_VARIANT_METHOD_IMPL(class_name, hPSetEx, execute_hpsetex_command)
 
-#define HSETEXAT_METHOD_IMPL(class_name) \
-    HSETEX_VARIANT_METHOD_IMPL(class_name, hSetExAt, execute_hsetexat_command)
-
-#define HPSETEXAT_METHOD_IMPL(class_name) \
-    HSETEX_VARIANT_METHOD_IMPL(class_name, hPSetExAt, execute_hpsetexat_command)
-
-#define HSETEXNX_METHOD_IMPL(class_name) \
-    HSETEX_VARIANT_METHOD_IMPL(class_name, hSetExNx, execute_hsetexnx_command)
-
-#define HPSETEXNX_METHOD_IMPL(class_name) \
-    HSETEX_VARIANT_METHOD_IMPL(class_name, hPSetExNx, execute_hpsetexnx_command)
-
-#define HSETEXATNX_METHOD_IMPL(class_name) \
-    HSETEX_VARIANT_METHOD_IMPL(class_name, hSetExAtNx, execute_hsetexatnx_command)
-
-#define HPSETEXATNX_METHOD_IMPL(class_name) \
-    HSETEX_VARIANT_METHOD_IMPL(class_name, hPSetExAtNx, execute_hpsetexatnx_command)
-
-#define HSETEXXX_METHOD_IMPL(class_name) \
-    HSETEX_VARIANT_METHOD_IMPL(class_name, hSetExXx, execute_hsetexxx_command)
-
-#define HPSETEXXX_METHOD_IMPL(class_name) \
-    HSETEX_VARIANT_METHOD_IMPL(class_name, hPSetExXx, execute_hpsetexxx_command)
-
-#define HSETEXATXX_METHOD_IMPL(class_name) \
-    HSETEX_VARIANT_METHOD_IMPL(class_name, hSetExAtXx, execute_hsetexatxx_command)
-
-#define HPSETEXATXX_METHOD_IMPL(class_name) \
-    HSETEX_VARIANT_METHOD_IMPL(class_name, hPSetExAtXx, execute_hpsetexatxx_command)
-
 
 #define HEXPIRE_METHOD_IMPL(class_name)                                                \
     PHP_METHOD(class_name, hExpire) {                                                  \
