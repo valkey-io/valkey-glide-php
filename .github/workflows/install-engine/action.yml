@@ -89,6 +89,10 @@ runs:
         fi
         echo 'export PATH=/usr/local/bin:$PATH' >>~/.bash_profile
 
+        # Print installed server version
+        echo "=== Installed Valkey/Redis server version ==="
+        redis-server -v || valkey-server -v || echo "Could not determine server version"
+
     # TODO: This seems redundant to me. Is it necessary? Do we check that the Python we install is the correct version?
     # Why here and not elsewhere? All Git git repos were created equal
     - name: Verify Valkey installation and symlinks

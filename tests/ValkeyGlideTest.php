@@ -78,6 +78,18 @@ require_once __DIR__ . '/ValkeyGlideBaseTest.php';
 class ValkeyGlideTest extends ValkeyGlideBaseTest
 {
     /**
+     * Compare major version number against a minimum required version
+     * 
+     * @param int $minMajorVersion Minimum required major version
+     * @return bool True if current version's major number >= minMajorVersion
+     */
+    protected function compare_major_version_number($minMajorVersion)
+    {
+        $currentMajor = intval(explode('.', $this->version)[0]);
+        return $currentMajor >= $minMajorVersion;
+    }
+
+    /**
      * Helper function to check hash field TTL within expected range
      * 
      * @param string $key Hash key
@@ -3783,7 +3795,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHashExpiration()
     {
-        if (version_compare($this->version, '9.0.0') < 0) {
+        if (!$this->compare_major_version_number(9)) {
             $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
         }
 
@@ -3868,7 +3880,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHashFieldExpirationNxXxVariants(): void
     {
-        if (version_compare($this->version, '9.0.0') < 0) {
+        if (!$this->compare_major_version_number(9)) {
             $this->markTestSkipped('Hash expiration NX/XX commands require Valkey 9.0.0+');
         }
 
@@ -3883,7 +3895,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHashExpireNxXxVariants(): void
     {
-        if (version_compare($this->version, '9.0.0') < 0) {
+        if (!$this->compare_major_version_number(9)) {
             $this->markTestSkipped('Hash expiration NX/XX commands require Valkey 9.0.0+');
         }
 
@@ -3898,7 +3910,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHashFieldExpirationMultipleFields(): void
     {
-        if (version_compare($this->version, '9.0.0') < 0) {
+        if (!$this->compare_major_version_number(9)) {
             $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
         }
 
@@ -3953,7 +3965,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHashFieldExpirationParameterOrder(): void
     {
-        if (version_compare($this->version, '9.0.0') < 0) {
+        if (!$this->compare_major_version_number(9)) {
             $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
         }
 
@@ -4001,7 +4013,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHashFieldExpirationRedisCommandFormats(): void
     {
-        if (version_compare($this->version, '9.0.0') < 0) {
+        if (!$this->compare_major_version_number(9)) {
             $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
         }
 
@@ -4068,7 +4080,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHashFieldExpirationCommandValidation(): void
     {
-        if (version_compare($this->version, '9.0.0') < 0) {
+        if (!$this->compare_major_version_number(9)) {
             $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
         }
 
@@ -4104,7 +4116,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHashFieldExpirationRedisCommandFormatValidation(): void
     {
-        if (version_compare($this->version, '9.0.0') < 0) {
+        if (!$this->compare_major_version_number(9)) {
             $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
         }
 
@@ -4193,7 +4205,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHashFieldExpirationConditionFormatValidation(): void
     {
-        if (version_compare($this->version, '9.0.0') < 0) {
+        if (!$this->compare_major_version_number(9)) {
             $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
         }
 
@@ -4240,7 +4252,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHashFieldExpirationFormatRegressionTests(): void
     {
-        if (version_compare($this->version, '9.0.0') < 0) {
+        if (!$this->compare_major_version_number(9)) {
             $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
         }
 
@@ -4334,7 +4346,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHashFieldExpirationAllVariantsFormatValidation(): void
     {
-        if (version_compare($this->version, '9.0.0') < 0) {
+        if (!$this->compare_major_version_number(9)) {
             $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+');
         }
 
