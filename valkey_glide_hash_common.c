@@ -2177,7 +2177,7 @@ int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_clas
     // Parse: object, key, expiry_time, condition, field-value pairs
     if (zend_parse_method_parameters(argc,
                                      object,
-                                     "Osls*",
+                                     "Osl!*",
                                      &object,
                                      ce,
                                      &key,
@@ -2244,7 +2244,7 @@ int execute_hpsetex_command(zval* object, int argc, zval* return_value, zend_cla
 
     if (zend_parse_method_parameters(argc,
                                      object,
-                                     "Osls*",
+                                     "Osl!*",
                                      &object,
                                      ce,
                                      &key,
@@ -2308,7 +2308,7 @@ int execute_hsetexat_command(zval* object, int argc, zval* return_value, zend_cl
 
     if (zend_parse_method_parameters(argc,
                                      object,
-                                     "Osls*",
+                                     "Osl!*",
                                      &object,
                                      ce,
                                      &key,
@@ -2372,7 +2372,7 @@ int execute_hpsetexat_command(zval* object, int argc, zval* return_value, zend_c
 
     if (zend_parse_method_parameters(argc,
                                      object,
-                                     "Osls*",
+                                     "Osl!*",
                                      &object,
                                      ce,
                                      &key,
@@ -2579,18 +2579,37 @@ int execute_httl_unified_php(zval* object, int argc, zval* return_value, zend_cl
 /**
  * Helper function to add FIELDS syntax to core command args
  * Handles: FIELDS numfields field1 field2 ...
+ * Supports both array and variadic arguments
  */
 static int add_hfe_fields_args(core_command_args_t* cmd_args, zval* fields, int fields_count) {
     add_string_arg(cmd_args, "FIELDS", 6);
-    add_long_arg(cmd_args, fields_count);
 
-    // Add all fields as individual string arguments
-    for (int i = 0; i < fields_count; i++) {
-        zval* field = &fields[i];
-        if (Z_TYPE_P(field) != IS_STRING) {
-            convert_to_string(field);
+    // Handle the case where we have one array argument
+    if (fields_count == 1 && Z_TYPE(fields[0]) == IS_ARRAY) {
+        zval* array       = &fields[0];
+        int   array_count = zend_hash_num_elements(Z_ARRVAL_P(array));
+        add_long_arg(cmd_args, array_count);
+
+        // Iterate through array elements
+        zval* element;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(array), element) {
+            if (Z_TYPE_P(element) != IS_STRING) {
+                convert_to_string(element);
+            }
+            add_string_arg(cmd_args, Z_STRVAL_P(element), Z_STRLEN_P(element));
         }
-        add_string_arg(cmd_args, Z_STRVAL_P(field), Z_STRLEN_P(field));
+        ZEND_HASH_FOREACH_END();
+    } else {
+        // Handle variadic arguments
+        add_long_arg(cmd_args, fields_count);
+
+        for (int i = 0; i < fields_count; i++) {
+            zval* field = &fields[i];
+            if (Z_TYPE_P(field) != IS_STRING) {
+                convert_to_string(field);
+            }
+            add_string_arg(cmd_args, Z_STRVAL_P(field), Z_STRLEN_P(field));
+        }
     }
 
     return 1;
@@ -2599,13 +2618,44 @@ static int add_hfe_fields_args(core_command_args_t* cmd_args, zval* fields, int 
 /**
  * Helper function for HFE commands with time parameter
  * Handles: time_value FIELDS numfields field1 field2 ...
+ * Supports both array and variadic arguments
  */
 static int add_hfe_time_fields_args(core_command_args_t* cmd_args,
                                     long                 time_value,
                                     zval*                fields,
                                     int                  fields_count) {
     add_long_arg(cmd_args, time_value);
-    return add_hfe_fields_args(cmd_args, fields, fields_count);
+    add_string_arg(cmd_args, "FIELDS", 6);
+
+    // Handle the case where we have one array argument
+    if (fields_count == 1 && Z_TYPE(fields[0]) == IS_ARRAY) {
+        zval* array       = &fields[0];
+        int   array_count = zend_hash_num_elements(Z_ARRVAL_P(array));
+        add_long_arg(cmd_args, array_count);
+
+        // Iterate through array elements
+        zval* element;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(array), element) {
+            if (Z_TYPE_P(element) != IS_STRING) {
+                convert_to_string(element);
+            }
+            add_string_arg(cmd_args, Z_STRVAL_P(element), Z_STRLEN_P(element));
+        }
+        ZEND_HASH_FOREACH_END();
+    } else {
+        // Handle variadic arguments
+        add_long_arg(cmd_args, fields_count);
+
+        for (int i = 0; i < fields_count; i++) {
+            zval* field = &fields[i];
+            if (Z_TYPE_P(field) != IS_STRING) {
+                convert_to_string(field);
+            }
+            add_string_arg(cmd_args, Z_STRVAL_P(field), Z_STRLEN_P(field));
+        }
+    }
+
+    return 1;
 }
 
 int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
@@ -2633,7 +2683,15 @@ int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_
     cmd_args.key          = key;
     cmd_args.key_len      = key_len;
 
-    add_hfe_fields_args(&cmd_args, fields, fields_count);
+    add_string_arg(&cmd_args, "FIELDS", 6);
+    add_long_arg(&cmd_args, fields_count);
+
+    // Handle both array and variadic arguments like the working functions
+    if (fields_count == 1 && Z_TYPE(fields[0]) == IS_ARRAY) {
+        add_array_arg(&cmd_args, &fields[0], zend_hash_num_elements(Z_ARRVAL_P(&fields[0])));
+    } else {
+        add_variadic_string_args(&cmd_args, fields, fields_count);
+    }
 
     int result = execute_core_command(
         valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
@@ -2962,7 +3020,14 @@ int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class
     args.key          = key;
     args.key_len      = key_len;
 
-    add_hfe_fields_args(&args, fields, fields_count);
+    add_string_arg(&args, "FIELDS", 6);
+    add_long_arg(&args, fields_count);
+
+    if (fields_count == 1 && Z_TYPE(fields[0]) == IS_ARRAY) {
+        add_array_arg(&args, &fields[0], zend_hash_num_elements(Z_ARRVAL_P(&fields[0])));
+    } else {
+        add_variadic_string_args(&args, fields, fields_count);
+    }
 
     int result =
         execute_core_command(valkey_glide, &args, NULL, process_core_array_result, return_value);
