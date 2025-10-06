@@ -42,15 +42,22 @@ runs:
         git clone https://github.com/valkey-io/valkey.git
         cd valkey/src
         git checkout $ENGINE_VERSION
-        SOURCES_VERSION=`grep ' VALKEY_VERSION ' version.h | grep -o -E '[0-9]+\.[0-9]\.[0-9]'` || :
+        SOURCES_VERSION=`grep ' VALKEY_VERSION ' version.h | grep -o -E '[0-9]+\.[0-9]+(\.[0-9]+)?'` || :
         if [[ -z $SOURCES_VERSION ]]; then
-            SOURCES_VERSION=`grep ' REDIS_VERSION ' version.h | grep -o -E '[0-9]+\.[0-9]\.[0-9]'`
+            SOURCES_VERSION=`grep ' REDIS_VERSION ' version.h | grep -o -E '[0-9]+\.[0-9]+(\.[0-9]+)?'`
         fi
         echo "SOURCES_VERSION=$SOURCES_VERSION" >> $GITHUB_ENV
 
         # Get git commit SHA for unique cache key
         GIT_SHA=$(git rev-parse HEAD)
         echo "GIT_SHA=$GIT_SHA" >> $GITHUB_ENV
+
+        # Debug output
+        echo "=== Engine Installation Debug ==="
+        echo "ENGINE_VERSION (input): $ENGINE_VERSION"
+        echo "SOURCES_VERSION (detected): $SOURCES_VERSION"
+        echo "GIT_SHA: $GIT_SHA"
+        echo "Cache key will be: valkey-$SOURCES_VERSION-$GIT_SHA-${{ inputs.target }}"
 
     - uses: actions/cache@v4
       id: cache-valkey
@@ -76,6 +83,7 @@ runs:
             $SUDO cp valkey-server /usr/local/bin/redis-server
         fi
         echo 'export PATH=/usr/local/bin:$PATH' >>~/.bash_profile
+        echo "/usr/local/bin" >> $GITHUB_PATH
 
         # Print installed server version
         echo "=== Installed Valkey/Redis server version (from cache) ==="
@@ -96,6 +104,7 @@ runs:
             make install
         fi
         echo 'export PATH=/usr/local/bin:$PATH' >>~/.bash_profile
+        echo "/usr/local/bin" >> $GITHUB_PATH
 
         # Print installed server version
         echo "=== Installed Valkey/Redis server version ==="
