@@ -511,6 +511,62 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
         RETURN_FALSE;                                                                   \
     }
 
+#define HPEXPIRE_METHOD_IMPL(class_name)                                               \
+    PHP_METHOD(class_name, hPExpire) {                                                 \
+        if (execute_hexpire_unified_php(getThis(),                                     \
+                                        ZEND_NUM_ARGS(),                               \
+                                        return_value,                                  \
+                                        strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                            ? get_valkey_glide_cluster_ce()            \
+                                            : get_valkey_glide_ce())) {                \
+            return;                                                                    \
+        }                                                                              \
+        zval_dtor(return_value);                                                       \
+        RETURN_FALSE;                                                                  \
+    }
+
+#define HPEXPIREAT_METHOD_IMPL(class_name)                                             \
+    PHP_METHOD(class_name, hPExpireAt) {                                               \
+        if (execute_hexpire_unified_php(getThis(),                                     \
+                                        ZEND_NUM_ARGS(),                               \
+                                        return_value,                                  \
+                                        strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                            ? get_valkey_glide_cluster_ce()            \
+                                            : get_valkey_glide_ce())) {                \
+            return;                                                                    \
+        }                                                                              \
+        zval_dtor(return_value);                                                       \
+        RETURN_FALSE;                                                                  \
+    }
+
+#define HEXPIRETIME_METHOD_IMPL(class_name)                                         \
+    PHP_METHOD(class_name, hExpireTime) {                                           \
+        if (execute_httl_unified_php(getThis(),                                     \
+                                     ZEND_NUM_ARGS(),                               \
+                                     return_value,                                  \
+                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                         ? get_valkey_glide_cluster_ce()            \
+                                         : get_valkey_glide_ce())) {                \
+            return;                                                                 \
+        }                                                                           \
+        zval_dtor(return_value);                                                    \
+        RETURN_FALSE;                                                               \
+    }
+
+#define HPEXPIRETIME_METHOD_IMPL(class_name)                                        \
+    PHP_METHOD(class_name, hPExpireTime) {                                          \
+        if (execute_httl_unified_php(getThis(),                                     \
+                                     ZEND_NUM_ARGS(),                               \
+                                     return_value,                                  \
+                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                         ? get_valkey_glide_cluster_ce()            \
+                                         : get_valkey_glide_ce())) {                \
+            return;                                                                 \
+        }                                                                           \
+        zval_dtor(return_value);                                                    \
+        RETURN_FALSE;                                                               \
+    }
+
 #define HMGET_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, hMget) {                                              \
         if (execute_hmget_command(getThis(),                                     \

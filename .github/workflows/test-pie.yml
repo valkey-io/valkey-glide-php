@@ -299,16 +299,61 @@ jobs:
           fi
 
           echo "=== Checking if extension is loaded ==="
+          php -m 2>&1 | tee load_check.log
+
+          # Check for undefined symbol errors
+          if grep -i "undefined symbol" load_check.log; then
+            echo "ERROR: Undefined symbols detected during extension loading!"
+            grep -i "undefined symbol" load_check.log
+            exit 1
+          fi
+
+          # Check for library loading failures  
+          if grep -i "unable to load\|cannot open shared object\|no such file" load_check.log; then
+            echo "ERROR: Library loading failure detected!"
+            grep -i "unable to load\|cannot open shared object\|no such file" load_check.log
+            exit 1
+          fi
+
           php -m | grep -i valkey || echo "valkey extension not loaded"
 
           echo "=== Checking PHP configuration ==="
           php --ini
 
-          echo "=== Manually enabling extension ==="
+          echo "=== Manually enabling extension with error detection ==="
+          php -d extension=valkey_glide -m 2>&1 | tee manual_load.log
+
+          # Check manual loading for errors
+          if grep -i "undefined symbol\|unable to load\|cannot open shared object" manual_load.log; then
+            echo "ERROR: Extension loading failed with errors!"
+            grep -i "undefined symbol\|unable to load\|cannot open shared object" manual_load.log
+            exit 1
+          fi
+
           php -d extension=valkey_glide -m | grep -i valkey && echo "Extension works when manually enabled!" || echo "Extension still not working"
 
-          echo "=== Testing extension functionality ==="
-          php -d extension=valkey_glide -r "if (extension_loaded('valkey_glide')) { echo 'SUCCESS: Extension loaded and functional!'; } else { echo 'ERROR: Extension not functional'; }"
+          echo "=== Testing extension functionality with comprehensive checks ==="
+          php -d extension=valkey_glide -r "
+            if (!extension_loaded('valkey_glide')) {
+              echo 'ERROR: Extension not loaded' . PHP_EOL;
+              exit(1);
+            }
+            if (!class_exists('ValkeyGlide')) {
+              echo 'ERROR: ValkeyGlide class not found' . PHP_EOL;
+              exit(1);
+            }
+            if (!class_exists('ValkeyGlideCluster')) {
+              echo 'ERROR: ValkeyGlideCluster class not found' . PHP_EOL;
+              exit(1);
+            }
+            echo 'SUCCESS: Extension loaded and all classes available!' . PHP_EOL;
+          " 2>&1 | tee function_test.log
+
+          # Check for errors in functionality test
+          if grep -i "ERROR:" function_test.log; then
+            echo "Extension functionality test failed!"
+            exit 1
+          fi
 
       - name: Run PHP Extension Tests
         uses: ./.github/workflows/run-php-tests

@@ -485,6 +485,10 @@ HTTL_METHOD_IMPL(ValkeyGlide)
 HPERSIST_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto array ValkeyGlide::hExpire(string key, long seconds, string field, ...) */
+HEXPIRE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 
 /* {{{ proto array ValkeyGlide::hPTtl(string key, string field, ...) */
 HPTTL_METHOD_IMPL(ValkeyGlide)

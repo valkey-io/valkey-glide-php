@@ -375,21 +375,20 @@ HPSETEXATXX_METHOD_IMPL(ValkeyGlideCluster)
 
 /* {{{ proto array ValkeyGlideCluster::hExpire(string key, long time_value, string time_unit, string
  * field, ...) */
+HEXPIRE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto array ValkeyGlideCluster::hPExpire(string key, long milliseconds, string field, ...) */
-/* }}} */
-
-/* {{{ proto array ValkeyGlideCluster::hExpireAt(string key, long timestamp, string field, ...) */
+HPEXPIRE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto array ValkeyGlideCluster::hPExpireAt(string key, long timestamp_ms, string field, ...)
  */
+HPEXPIREAT_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto array ValkeyGlideCluster::hTtl(string key, string field, ...) */
 HTTL_METHOD_IMPL(ValkeyGlideCluster)
-HEXPIRE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto array ValkeyGlideCluster::hPTtl(string key, string field, ...) */
@@ -397,9 +396,11 @@ HPTTL_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto array ValkeyGlideCluster::hExpireTime(string key, string field, ...) */
+HEXPIRETIME_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto array ValkeyGlideCluster::hPExpireTime(string key, string field, ...) */
+HPEXPIRETIME_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto array ValkeyGlideCluster::hPersist(string key, string field, ...) */
@@ -490,10 +491,6 @@ EXPIREAT_METHOD_IMPL(ValkeyGlideCluster)
 
 /* {{{ proto bool ValkeyGlideCluster::pexpire(string key, long ms) */
 PEXPIRE_METHOD_IMPL(ValkeyGlideCluster)
-/* }}} */
-
-/* {{{ proto bool ValkeyGlideCluster::pexpireat(string key, long ts) */
-PEXPIREAT_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ ValkeyGlide::expiretime(string $key): int */
@@ -891,7 +888,6 @@ ECHO_METHOD_IMPL(ValkeyGlideCluster)
  * $argvN]) */
 RAWCOMMAND_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
-
 
 COPY_METHOD_IMPL(ValkeyGlideCluster)
 #endif /* PHP_REDIS_CLUSTER_C */
