@@ -16,10 +16,13 @@ runs:
   steps:
     - name: Debug setup-valkey-glide inputs
       shell: bash
+      env:
+        PHP_VERSION: ${{ inputs.php-version }}
+        ENGINE_VERSION: ${{ inputs.engine-version }}
       run: |
         echo "=== Setup ValkeyGlide Debug ==="
-        echo "php-version: ${{ inputs.php-version }}"
-        echo "engine-version: ${{ inputs.engine-version }}"
+        echo "php-version: $PHP_VERSION"
+        echo "engine-version: $ENGINE_VERSION"
         echo "github-token: [REDACTED]"
 
     - name: Cache APT packages

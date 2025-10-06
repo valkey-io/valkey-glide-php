@@ -33,6 +33,8 @@ runs:
 
     - name: Prepare Valkey sources
       shell: bash
+      env:
+        TARGET: ${{ inputs.target }}
       run: |
         echo "Cloning and checking out Valkey $ENGINE_VERSION"
         if [[ -d valkey ]]; then
@@ -57,7 +59,7 @@ runs:
         echo "ENGINE_VERSION (input): $ENGINE_VERSION"
         echo "SOURCES_VERSION (detected): $SOURCES_VERSION"
         echo "GIT_SHA: $GIT_SHA"
-        echo "Cache key will be: valkey-$SOURCES_VERSION-$GIT_SHA-${{ inputs.target }}"
+        echo "Cache key will be: valkey-$SOURCES_VERSION-$GIT_SHA-$TARGET"
 
     - uses: actions/cache@v4
       id: cache-valkey

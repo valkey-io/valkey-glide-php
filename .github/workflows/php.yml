@@ -543,18 +543,30 @@ jobs:
           echo "=== Checking for undefined symbols in built extension ==="
           if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
             # macOS: Use nm to check for undefined symbols (exclude system symbols)
-            if nm -u modules/valkey_glide.so 2>/dev/null | grep -v "dyld_stub_binder" | grep -E "^_zim_|^_execute_.*command" | head -5; then
-              echo "ERROR: Found undefined symbols in extension"
+            echo "Running: nm -u modules/valkey_glide.so | grep -v dyld_stub_binder"
+            UNDEFINED_SYMBOLS=$(nm -u modules/valkey_glide.so 2>/dev/null | grep -v "dyld_stub_binder" | grep -E "^_zim_|^_execute_.*command" || true)
+            if [ -n "$UNDEFINED_SYMBOLS" ]; then
+              echo "❌ ERROR: Found undefined symbols in extension:"
+              echo "$UNDEFINED_SYMBOLS"
+              echo ""
+              echo "=== All undefined symbols (for debugging) ==="
+              nm -u modules/valkey_glide.so 2>/dev/null | head -20 || true
               exit 1
             fi
           else
             # Linux: Use objdump to check for undefined symbols
-            if objdump -T modules/valkey_glide.so 2>/dev/null | grep "UND" | grep -E "zim_|execute_.*command" | head -5; then
-              echo "ERROR: Found undefined symbols in extension"
+            echo "Running: objdump -T modules/valkey_glide.so | grep UND"
+            UNDEFINED_SYMBOLS=$(objdump -T modules/valkey_glide.so 2>/dev/null | grep "UND" | grep -E "zim_|execute_.*command" || true)
+            if [ -n "$UNDEFINED_SYMBOLS" ]; then
+              echo "❌ ERROR: Found undefined symbols in extension:"
+              echo "$UNDEFINED_SYMBOLS"
+              echo ""
+              echo "=== All undefined symbols (for debugging) ==="
+              objdump -T modules/valkey_glide.so 2>/dev/null | grep "UND" | head -20 || true
               exit 1
             fi
           fi
-          echo "SUCCESS: No problematic undefined symbols detected"
+          echo "✅ SUCCESS: No problematic undefined symbols detected"
 
           # Test extension loading
           echo "=== Testing extension loading ==="
@@ -579,18 +591,30 @@ jobs:
           echo "=== Checking for undefined symbols in built extension ==="
           if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
             # macOS: Use nm to check for undefined symbols (exclude system symbols)
-            if nm -u modules/valkey_glide.so 2>/dev/null | grep -v "dyld_stub_binder" | grep -E "^_zim_|^_execute_.*command" | head -5; then
-              echo "ERROR: Found undefined symbols in extension"
+            echo "Running: nm -u modules/valkey_glide.so | grep -v dyld_stub_binder"
+            UNDEFINED_SYMBOLS=$(nm -u modules/valkey_glide.so 2>/dev/null | grep -v "dyld_stub_binder" | grep -E "^_zim_|^_execute_.*command" || true)
+            if [ -n "$UNDEFINED_SYMBOLS" ]; then
+              echo "❌ ERROR: Found undefined symbols in extension:"
+              echo "$UNDEFINED_SYMBOLS"
+              echo ""
+              echo "=== All undefined symbols (for debugging) ==="
+              nm -u modules/valkey_glide.so 2>/dev/null | head -20 || true
               exit 1
             fi
           else
             # Linux: Use objdump to check for undefined symbols
-            if objdump -T modules/valkey_glide.so 2>/dev/null | grep "UND" | grep -E "zim_|execute_.*command" | head -5; then
-              echo "ERROR: Found undefined symbols in extension"
+            echo "Running: objdump -T modules/valkey_glide.so | grep UND"
+            UNDEFINED_SYMBOLS=$(objdump -T modules/valkey_glide.so 2>/dev/null | grep "UND" | grep -E "zim_|execute_.*command" || true)
+            if [ -n "$UNDEFINED_SYMBOLS" ]; then
+              echo "❌ ERROR: Found undefined symbols in extension:"
+              echo "$UNDEFINED_SYMBOLS"
+              echo ""
+              echo "=== All undefined symbols (for debugging) ==="
+              objdump -T modules/valkey_glide.so 2>/dev/null | grep "UND" | head -20 || true
               exit 1
             fi
           fi
-          echo "SUCCESS: No problematic undefined symbols detected"
+          echo "✅ SUCCESS: No problematic undefined symbols detected"
 
           # Step 6: Generate test protobuf PHP classes
           echo "=== Step 6: Generating test protobuf PHP classes ==="
