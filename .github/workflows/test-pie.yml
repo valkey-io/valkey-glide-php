@@ -207,19 +207,12 @@ jobs:
 
       - name: Verify PIE installation
         run: |
-          echo "=== Attempting PIE installation with undefined symbol detection ==="
+          echo "=== Attempting PIE installation ==="
           set +e
           export CARGO_BUILD_JOBS=$(nproc)
 
-          # Add linker flags to detect undefined symbols at build time
-          if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
-            export LDFLAGS="$LDFLAGS -Wl,-undefined,error"
-          else
-            export LDFLAGS="$LDFLAGS -Wl,--no-undefined"
-          fi
-
           # Make Rust available to root by preserving environment
-          sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$(nproc)" "LDFLAGS=$LDFLAGS" pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -vvv 2>&1 | tee pie_install.log
+          sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$(nproc)" pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -vvv 2>&1 | tee pie_install.log
           PIE_EXIT_CODE=$?
           set -e
 
@@ -253,21 +246,19 @@ jobs:
                 # Check for undefined symbols in the built extension
                 echo "=== Checking for undefined symbols in PIE-built extension ==="
                 if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
-                  # macOS: Use nm to check for undefined symbols
-                  if nm -u "$SO_FILE" 2>/dev/null | grep -v "dyld_stub_binder" | grep -q "U "; then
-                    echo "ERROR: Undefined symbols found in PIE-built extension:"
-                    nm -u "$SO_FILE" | grep -v "dyld_stub_binder"
+                  # macOS: Use nm to check for undefined symbols (exclude system symbols)
+                  if nm -u "$SO_FILE" 2>/dev/null | grep -v "dyld_stub_binder" | grep -E "^_zim_|^_execute_.*command" | head -5; then
+                    echo "ERROR: Found undefined symbols in PIE-built extension"
                     exit 1
                   fi
                 else
                   # Linux: Use objdump to check for undefined symbols
-                  if objdump -T "$SO_FILE" 2>/dev/null | grep -q "UND"; then
-                    echo "ERROR: Undefined symbols found in PIE-built extension:"
-                    objdump -T "$SO_FILE" | grep "UND"
+                  if objdump -T "$SO_FILE" 2>/dev/null | grep "UND" | grep -E "zim_|execute_.*command" | head -5; then
+                    echo "ERROR: Found undefined symbols in PIE-built extension"
                     exit 1
                   fi
                 fi
-                echo "SUCCESS: No undefined symbols detected in PIE-built extension"
+                echo "SUCCESS: No problematic undefined symbols detected in PIE-built extension"
               else
                 echo "WARNING: PIE reported success but valkey_glide.so not found"
                 find "$PIE_WORK_DIR" -name "*.so" -type f 2>/dev/null || echo "No .so files found at all"

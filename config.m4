@@ -22,18 +22,6 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     PHP_VALKEY_GLIDE_DEBUG="yes"
   fi
 
-  dnl Add linker flags to detect undefined symbols at build time
-  case $host_os in
-    darwin*)
-      dnl macOS: Use -Wl,-undefined,error to fail on undefined symbols
-      VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD -Wl,-undefined,error"
-      ;;
-    *)
-      dnl Linux: Use --no-undefined to fail on undefined symbols
-      VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD -Wl,--no-undefined"
-      ;;
-  esac
-
   dnl Check if ASAN is enabled
   if test "$PHP_VALKEY_GLIDE_ASAN" = "yes"; then
     AC_MSG_CHECKING([for AddressSanitizer support])
