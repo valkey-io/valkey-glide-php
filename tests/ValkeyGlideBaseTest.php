@@ -131,6 +131,15 @@ abstract class ValkeyGlideBaseTest extends TestSuite
             throw new Exception("Failed to connect to Valkey/Redis server. Please ensure server is running and accessible.");
         }
 
+        // Debug: Show what keys are available in INFO response
+        echo "DEBUG: Available INFO keys: " . implode(', ', array_keys($info)) . "\n";
+        if (isset($info['valkey_version'])) {
+            echo "DEBUG: valkey_version found: " . $info['valkey_version'] . "\n";
+        }
+        if (isset($info['redis_version'])) {
+            echo "DEBUG: redis_version found: " . $info['redis_version'] . "\n";
+        }
+
         $this->version = (isset($info['valkey_version']) ? $info['valkey_version'] : 
                          (isset($info['redis_version']) ? $info['redis_version'] : '0.0.0'));
         $this->is_valkey = $this->detectValkey($info);
