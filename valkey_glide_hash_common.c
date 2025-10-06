@@ -175,7 +175,7 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
         execute_command(valkey_glide->glide_client, cmd_type, arg_count, cmd_args, args_len);
 
     /* Process result */
-    if (result) {
+    if (result && Z_TYPE_P(return_value) != IS_FALSE) {
         if (!result->command_error && result->response && process_result) {
             status = process_result(result->response, result_ptr, return_value);
         }
@@ -294,7 +294,7 @@ int execute_h_simple_command(valkey_glide_object* valkey_glide,
 
 
     /* Process result using standard handlers */
-    if (result) {
+    if (result && Z_TYPE_P(return_value) != IS_FALSE) {
         if (!result->command_error && result->response && processor) {
             status = processor(result->response, result_ptr, return_value);
         }
@@ -2224,7 +2224,7 @@ int execute_hexpire_unified(
         execute_core_command(valkey_glide, &args, NULL, process_core_array_result, return_value);
     cleanup_core_args(&args);
 
-    if (result) {
+    if (result && Z_TYPE_P(return_value) != IS_FALSE) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2293,7 +2293,7 @@ int execute_httl_unified_php(zval* object, int argc, zval* return_value, zend_cl
         execute_core_command(valkey_glide, &args, NULL, process_core_array_result, return_value);
     cleanup_core_args(&args);
 
-    if (result) {
+    if (result && Z_TYPE_P(return_value) != IS_FALSE) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2355,7 +2355,7 @@ int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_
         valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
     cleanup_core_args(&cmd_args);
 
-    if (result) {
+    if (result && Z_TYPE_P(return_value) != IS_FALSE) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2420,7 +2420,7 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
         valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
     cleanup_core_args(&cmd_args);
 
-    if (result) {
+    if (result && Z_TYPE_P(return_value) != IS_FALSE) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2481,7 +2481,7 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
         valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
     cleanup_core_args(&cmd_args);
 
-    if (result) {
+    if (result && Z_TYPE_P(return_value) != IS_FALSE) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2542,7 +2542,68 @@ int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_c
         valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
     cleanup_core_args(&cmd_args);
 
-    if (result) {
+    if (result && Z_TYPE_P(return_value) != IS_FALSE) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zend_long            timestamp;
+    zval*                args       = NULL;
+    int                  args_count = 0;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Osl*", &object, ce, &key, &key_len, &timestamp, &args, &args_count) ==
+        FAILURE) {
+        return 0;
+    }
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    zval* fields_array = NULL;
+    int   fields_count = 0;
+
+    if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
+        fields_array = &args[0];
+        fields_count = zend_hash_num_elements(Z_ARRVAL_P(fields_array));
+    } else {
+        fields_array = args;
+        fields_count = args_count;
+    }
+
+    core_command_args_t cmd_args;
+    INIT_CORE_ARGS(&cmd_args);
+    cmd_args.glide_client = valkey_glide->glide_client;
+    cmd_args.cmd_type     = HPExpireAt;
+    cmd_args.key          = key;
+    cmd_args.key_len      = key_len;
+
+    add_long_arg(&cmd_args, timestamp);
+    add_string_arg(&cmd_args, "FIELDS", 6);
+    add_long_arg(&cmd_args, fields_count);
+
+    if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
+        add_array_arg(&cmd_args, fields_array, fields_count);
+    } else {
+        add_variadic_string_args(&cmd_args, args, args_count);
+    }
+
+    int result = execute_core_command(
+        valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
+    cleanup_core_args(&cmd_args);
+
+    if (result && Z_TYPE_P(return_value) != IS_FALSE) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2600,7 +2661,7 @@ int execute_hexpiretime_command(zval* object, int argc, zval* return_value, zend
         valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
     cleanup_core_args(&cmd_args);
 
-    if (result) {
+    if (result && Z_TYPE_P(return_value) != IS_FALSE) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2658,7 +2719,7 @@ int execute_hpexpiretime_command(zval* object, int argc, zval* return_value, zen
         valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
     cleanup_core_args(&cmd_args);
 
-    if (result) {
+    if (result && Z_TYPE_P(return_value) != IS_FALSE) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2700,7 +2761,7 @@ int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class
         execute_core_command(valkey_glide, &args, NULL, process_core_array_result, return_value);
     cleanup_core_args(&args);
 
-    if (result) {
+    if (result && Z_TYPE_P(return_value) != IS_FALSE) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2809,7 +2870,7 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
         execute_core_command(valkey_glide, &args, NULL, process_core_array_result, return_value);
     cleanup_core_args(&args);
 
-    if (result) {
+    if (result && Z_TYPE_P(return_value) != IS_FALSE) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2892,7 +2953,7 @@ int execute_hexpire_unified_php(zval* object, int argc, zval* return_value, zend
         execute_core_command(valkey_glide, &args, NULL, process_core_array_result, return_value);
     cleanup_core_args(&args);
 
-    if (result) {
+    if (result && Z_TYPE_P(return_value) != IS_FALSE) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
