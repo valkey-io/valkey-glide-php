@@ -584,22 +584,19 @@ jobs:
           # Check for undefined symbols in built extension
           echo "=== Checking for undefined symbols in built extension ==="
           if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
-            # macOS: Use nm to check for undefined symbols
-            if nm -u modules/valkey_glide.so 2>/dev/null | grep -v "dyld_stub_binder" | grep -q "U "; then
-              echo "ERROR: Undefined symbols found in extension:"
-              nm -u modules/valkey_glide.so | grep -v "dyld_stub_binder"
+            # macOS: Use nm to check for undefined symbols (exclude system symbols)
+            if nm -u modules/valkey_glide.so 2>/dev/null | grep -v "dyld_stub_binder" | grep -E "^_zim_|^_execute_.*command" | head -5; then
+              echo "ERROR: Found undefined symbols in extension"
               exit 1
             fi
           else
             # Linux: Use objdump to check for undefined symbols
-            if objdump -T modules/valkey_glide.so 2>/dev/null | grep -q "UND"; then
-              echo "ERROR: Undefined symbols found in extension:"
-              objdump -T modules/valkey_glide.so | grep "UND"
+            if objdump -T modules/valkey_glide.so 2>/dev/null | grep "UND" | grep -E "zim_|execute_.*command" | head -5; then
+              echo "ERROR: Found undefined symbols in extension"
               exit 1
             fi
           fi
-
-          echo "SUCCESS: No undefined symbols detected"
+          echo "SUCCESS: No problematic undefined symbols detected"
 
           # Step 6: Generate test protobuf PHP classes
           echo "=== Step 6: Generating test protobuf PHP classes ==="
