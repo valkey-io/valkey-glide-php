@@ -67,6 +67,7 @@ jobs:
           php-version: ${{ matrix.php }}
           install-composer-deps: "false"
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: ${{ matrix.engine.version }}
 
       - name: Install Valkey engine
         uses: ./.github/workflows/install-engine
