@@ -3832,16 +3832,19 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test HTTL with unified API
         $setTime1 = microtime(true);
         $ttl = $this->valkey_glide->hTtl($key, 'field1', 'field4');
+        $this->assertNotEquals(false, $ttl, 'hTtl should not return false');
         $this->assertCount(2, $ttl);
         $this->assertFieldTtlInRange($key, 'field1', 60000, $setTime1);
         $this->assertFieldTtlInRange($key, 'field4', 60000, $setTime1);
         
         // Test HPERSIST
-        $result = $this->valkey_glide->hPersist($key, [['field1']]);
+        $result = $this->valkey_glide->hPersist($key, ['field1']);
+        $this->assertNotEquals(false, $result, 'hPersist should not return false');
         $this->assertEquals([1], $result);
         
         // Verify field no longer has expiration
         $ttl = $this->valkey_glide->hTtl($key, ['field1']);
+        $this->assertNotEquals(false, $ttl, 'hTtl should not return false');
         $this->assertEquals([-1], $ttl);
         
         // Test millisecond variants

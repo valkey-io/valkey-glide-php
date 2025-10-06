@@ -525,18 +525,18 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
         RETURN_FALSE;                                                               \
     }
 
-#define HPEXPIREAT_METHOD_IMPL(class_name)                                           \
-    PHP_METHOD(class_name, hPExpireAt) {                                             \
-        if (execute_hexpireat_command(getThis(),                                     \
-                                      ZEND_NUM_ARGS(),                               \
-                                      return_value,                                  \
-                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                          ? get_valkey_glide_cluster_ce()            \
-                                          : get_valkey_glide_ce())) {                \
-            return;                                                                  \
-        }                                                                            \
-        zval_dtor(return_value);                                                     \
-        RETURN_FALSE;                                                                \
+#define HPEXPIREAT_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hPExpireAt) {                                              \
+        if (execute_hpexpireat_command(getThis(),                                     \
+                                       ZEND_NUM_ARGS(),                               \
+                                       return_value,                                  \
+                                       strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                           ? get_valkey_glide_cluster_ce()            \
+                                           : get_valkey_glide_ce())) {                \
+            return;                                                                   \
+        }                                                                             \
+        zval_dtor(return_value);                                                      \
+        RETURN_FALSE;                                                                 \
     }
 
 #define HEXPIRETIME_METHOD_IMPL(class_name)                                            \
@@ -787,10 +787,12 @@ int execute_hsetexatxx_command(zval* object, int argc, zval* return_value, zend_
 int execute_hpsetexatxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 // Hash Field Expiration NX/XX variants
+
 int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_hexpiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_hpexpiretime_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
