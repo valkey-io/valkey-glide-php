@@ -163,6 +163,7 @@ void cleanup_core_args(core_command_args_t* args);
 int add_string_arg(core_command_args_t* args, const char* value, size_t len);
 int add_long_arg(core_command_args_t* args, long value);
 int add_array_arg(core_command_args_t* args, zval* array, int count);
+int add_variadic_string_args(core_command_args_t* args, zval* variadic_args, int count);
 
 /*
  * USAGE EXAMPLE:
