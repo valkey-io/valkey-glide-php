@@ -131,17 +131,17 @@ int add_variadic_string_args(core_command_args_t* args, zval* variadic_args, int
 
     for (int i = 0; i < count; i++) {
         zval* arg = &variadic_args[i];
-        
+
         // Convert to string if needed
         if (Z_TYPE_P(arg) != IS_STRING) {
             convert_to_string(arg);
         }
-        
+
         if (!add_string_arg(args, Z_STRVAL_P(arg), Z_STRLEN_P(arg))) {
             return 0;
         }
     }
-    
+
     return 1;
 }
 

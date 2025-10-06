@@ -2307,11 +2307,12 @@ int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
-    zval*                args = NULL;
+    zval*                args       = NULL;
     int                  args_count = 0;
 
     // Parse arguments: object, key, and variadic field arguments
-    if (zend_parse_method_parameters(argc, object, "Os*", &object, ce, &key, &key_len, &args, &args_count) == FAILURE) {
+    if (zend_parse_method_parameters(
+            argc, object, "Os*", &object, ce, &key, &key_len, &args, &args_count) == FAILURE) {
         return 0;
     }
 
@@ -2322,8 +2323,8 @@ int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_
 
     // Handle both array and variadic arguments
     zval* fields_array = NULL;
-    int fields_count = 0;
-    
+    int   fields_count = 0;
+
     if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
         // Single array argument: hTtl($key, ['field1', 'field2'])
         fields_array = &args[0];
@@ -2343,15 +2344,15 @@ int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_
 
     add_string_arg(&cmd_args, "FIELDS", 6);
     add_long_arg(&cmd_args, fields_count);
-    
+
     if (args_count == 1 && Z_TYPE(args[0]) == IS_ARRAY) {
         add_array_arg(&cmd_args, fields_array, fields_count);
     } else {
         add_variadic_string_args(&cmd_args, args, args_count);
     }
 
-    int result =
-        execute_core_command(valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
+    int result = execute_core_command(
+        valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
     cleanup_core_args(&cmd_args);
 
     if (result) {
