@@ -2406,6 +2406,7 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
     cmd_args.key          = key;
     cmd_args.key_len      = key_len;
 
+    add_long_arg(&cmd_args, time_value);
     add_string_arg(&cmd_args, "FIELDS", 6);
     add_long_arg(&cmd_args, fields_count);
 
@@ -2414,8 +2415,6 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
     } else {
         add_variadic_string_args(&cmd_args, args, args_count);
     }
-
-    add_long_arg(&cmd_args, time_value);
 
     int result = execute_core_command(
         valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
@@ -2468,6 +2467,7 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
     cmd_args.key          = key;
     cmd_args.key_len      = key_len;
 
+    add_long_arg(&cmd_args, time_value);
     add_string_arg(&cmd_args, "FIELDS", 6);
     add_long_arg(&cmd_args, fields_count);
 
@@ -2476,8 +2476,6 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
     } else {
         add_variadic_string_args(&cmd_args, args, args_count);
     }
-
-    add_long_arg(&cmd_args, time_value);
 
     int result = execute_core_command(
         valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
@@ -2530,6 +2528,7 @@ int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_c
     cmd_args.key          = key;
     cmd_args.key_len      = key_len;
 
+    add_long_arg(&cmd_args, timestamp);
     add_string_arg(&cmd_args, "FIELDS", 6);
     add_long_arg(&cmd_args, fields_count);
 
@@ -2538,8 +2537,6 @@ int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_c
     } else {
         add_variadic_string_args(&cmd_args, args, args_count);
     }
-
-    add_long_arg(&cmd_args, timestamp);
 
     int result = execute_core_command(
         valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);
@@ -2592,6 +2589,7 @@ int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_
     cmd_args.key          = key;
     cmd_args.key_len      = key_len;
 
+    add_long_arg(&cmd_args, timestamp);
     add_string_arg(&cmd_args, "FIELDS", 6);
     add_long_arg(&cmd_args, fields_count);
 
@@ -2600,8 +2598,6 @@ int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_
     } else {
         add_variadic_string_args(&cmd_args, args, args_count);
     }
-
-    add_long_arg(&cmd_args, timestamp);
 
     int result = execute_core_command(
         valkey_glide, &cmd_args, NULL, process_core_array_result, return_value);

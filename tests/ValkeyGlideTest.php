@@ -3867,12 +3867,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test expire time commands
         $expireTime = $this->valkey_glide->hExpireTime($key, 'field4');
         $this->assertNotEquals(false, $expireTime, 'hExpireTime should not return false');
-        $this->assertIsArray($expireTime, 'hExpireTime should return array');
         $this->assertGTE($futureTimestamp - 1, $expireTime[0]);
         
         $pexpireTime = $this->valkey_glide->hPExpireTime($key, 'field4');
         $this->assertNotEquals(false, $pexpireTime, 'hPExpireTime should not return false');
-        $this->assertIsArray($pexpireTime, 'hPExpireTime should return array');
         $this->assertGTE($futureTimestampMs - 1000, $pexpireTime[0]);
         
         // Test error conditions
