@@ -389,6 +389,7 @@ HPSETEXATXX_METHOD_IMPL(ValkeyGlideCluster)
 
 /* {{{ proto array ValkeyGlideCluster::hTtl(string key, string field, ...) */
 HTTL_METHOD_IMPL(ValkeyGlideCluster)
+HEXPIRE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto array ValkeyGlideCluster::hPTtl(string key, string field, ...) */

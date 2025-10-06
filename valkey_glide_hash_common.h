@@ -673,6 +673,20 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
     HSETEX_VARIANT_METHOD_IMPL(class_name, hPSetExAtXx, execute_hpsetexatxx_command)
 
 
+#define HEXPIRE_METHOD_IMPL(class_name)                                                \
+    PHP_METHOD(class_name, hExpire) {                                                  \
+        if (execute_hexpire_unified_php(getThis(),                                     \
+                                        ZEND_NUM_ARGS(),                               \
+                                        return_value,                                  \
+                                        strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                            ? get_valkey_glide_cluster_ce()            \
+                                            : get_valkey_glide_ce())) {                \
+            return;                                                                    \
+        }                                                                              \
+        zval_dtor(return_value);                                                       \
+        RETURN_FALSE;                                                                  \
+    }
+
 #define HTTL_METHOD_IMPL(class_name)                                                \
     PHP_METHOD(class_name, hTtl) {                                                  \
         if (execute_httl_unified_php(getThis(),                                     \

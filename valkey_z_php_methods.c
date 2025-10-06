@@ -462,30 +462,16 @@ HSETEX_METHOD_IMPL(ValkeyGlide)
 
 /* {{{ proto mixed ValkeyGlide::hPSetEx(string key, int milliseconds, string field, mixed value,
  * mixed ...$fields_and_vals, ?string $condition = null) */
-HPSETEX_METHOD_IMPL(ValkeyGlide)
-/* }}} */
 
 /* {{{ proto mixed ValkeyGlide::hSetExAt(string key, int timestamp, string field, mixed value, mixed
  * ...$fields_and_vals) */
-HSETEXAT_METHOD_IMPL(ValkeyGlide)
-/* }}} */
 
 /* {{{ proto mixed ValkeyGlide::hPSetExAt(string key, int timestamp, string field, mixed value,
  * mixed ...$fields_and_vals) */
-HPSETEXAT_METHOD_IMPL(ValkeyGlide)
-/* }}} */
 
 /* Hash field expiration NX variants */
-HSETEXNX_METHOD_IMPL(ValkeyGlide)
-HPSETEXNX_METHOD_IMPL(ValkeyGlide)
-HSETEXATNX_METHOD_IMPL(ValkeyGlide)
-HPSETEXATNX_METHOD_IMPL(ValkeyGlide)
 
 /* Hash field expiration XX variants */
-HSETEXXX_METHOD_IMPL(ValkeyGlide)
-HPSETEXXX_METHOD_IMPL(ValkeyGlide)
-HSETEXATXX_METHOD_IMPL(ValkeyGlide)
-HPSETEXATXX_METHOD_IMPL(ValkeyGlide)
 
 /* Hash field expiration NX/XX variants */
 /* }}} */

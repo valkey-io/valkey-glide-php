@@ -13,6 +13,7 @@
 #include "valkey_glide_arginfo.h"          // Include generated arginfo header
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_hash_common.h"
 
 /* Enum support includes - must be BEFORE arginfo includes */
 #if PHP_VERSION_ID >= 80100
@@ -687,4 +688,51 @@ PHP_FUNCTION(valkey_glide_logger_get_level) {
     ZEND_PARSE_PARAMETERS_END();
 
     RETURN_LONG(valkey_glide_logger_get_level());
+}
+
+
+// Individual HFE methods that call unified layer
+
+// Methods that need manual implementation (macros not available)
+PHP_METHOD(ValkeyGlide, hPExpire) {
+    if (execute_hexpire_unified_php(
+            getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
+        return;
+    }
+    zval_dtor(return_value);
+    RETURN_FALSE;
+}
+
+PHP_METHOD(ValkeyGlide, hExpireAt) {
+    if (execute_hexpire_unified_php(
+            getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
+        return;
+    }
+    zval_dtor(return_value);
+    RETURN_FALSE;
+}
+
+PHP_METHOD(ValkeyGlide, hPExpireAt) {
+    if (execute_hexpire_unified_php(
+            getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
+        return;
+    }
+    zval_dtor(return_value);
+    RETURN_FALSE;
+}
+
+PHP_METHOD(ValkeyGlide, hExpireTime) {
+    if (execute_httl_unified_php(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
+        return;
+    }
+    zval_dtor(return_value);
+    RETURN_FALSE;
+}
+
+PHP_METHOD(ValkeyGlide, hPExpireTime) {
+    if (execute_httl_unified_php(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
+        return;
+    }
+    zval_dtor(return_value);
+    RETURN_FALSE;
 }
