@@ -1350,12 +1350,14 @@ class ValkeyGlide
      *
      * @param string $key The key of the hash.
      * @param int $milliseconds The expiration time in milliseconds.
+     * @param string|null $condition Optional condition (NX, XX).
      * @param string $field The field name.
      * @param mixed $value The field value.
      * @param mixed $fields_and_vals Additional field-value pairs.
      *
      * @return ValkeyGlide|int|false Returns the number of fields that were added or updated, or false on failure.
      */
+    public function hPSetEx(string $key, int $milliseconds, ?string $condition, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
 
     /**
      * Get hash field values with optional expiration settings.
@@ -1497,51 +1499,6 @@ class ValkeyGlide
      * Removes expiration from hash fields.
      */
     public function hPersist(string $key, string|array $fields): ValkeyGlide|array|false;
-
-    /**
-     * Set expiration time for hash fields in seconds, only if fields don't have expiration.
-     *
-     * @param string $key The key of the hash.
-     * @param int $seconds The expiration time in seconds.
-     * @param string $field The field name.
-     * @param string $other_fields Additional field names.
-     *
-     * @return ValkeyGlide|array|false Returns array of results for each field, or false on failure.
-     */
-
-    /**
-     * Set expiration time for hash fields in milliseconds, only if fields don't have expiration.
-     *
-     * @param string $key The key of the hash.
-     * @param int $milliseconds The expiration time in milliseconds.
-     * @param string $field The field name.
-     * @param string $other_fields Additional field names.
-     *
-     * @return ValkeyGlide|array|false Returns array of results for each field, or false on failure.
-     */
-
-    /**
-     * Set expiration at Unix timestamp for hash fields, only if fields don't have expiration.
-     *
-     * @param string $key The key of the hash.
-     * @param int $timestamp The Unix timestamp in seconds.
-     * @param string $field The field name.
-     * @param string $other_fields Additional field names.
-     *
-     * @return ValkeyGlide|array|false Returns array of results for each field, or false on failure.
-     */
-
-    /**
-     * Set expiration at Unix timestamp in milliseconds for hash fields, only if fields don't have expiration.
-     *
-     * @param string $key The key of the hash.
-     * @param int $timestamp The Unix timestamp in milliseconds.
-     * @param string $field The field name.
-     * @param string $other_fields Additional field names.
-     *
-     * @return ValkeyGlide|array|false Returns array of results for each field, or false on failure.
-     */
-
 
     /**
      * Iterate over the fields and values of a hash in an incremental fashion.

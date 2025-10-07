@@ -529,6 +529,11 @@ class ValkeyGlideCluster
     public function hSetEx(string $key, int $seconds, ?string $condition, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
 
     /**
+     * @see ValkeyGlide::hPSetEx
+     */
+    public function hPSetEx(string $key, int $milliseconds, ?string $condition, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+
+    /**
      * @see ValkeyGlide::hGetEx
      */
     public function hGetEx(string $key, array $fields, ?array $options = null): mixed;
@@ -544,10 +549,6 @@ class ValkeyGlideCluster
     public function hPExpireAt(string $key, int $unix_timestamp_ms, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
 
     /**
-     * @see ValkeyGlide::hPSetEx
-     */
-
-                        /**
      * @see ValkeyGlide::hPExpire
      */
     public function hPExpire(string $key, int $milliseconds, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
@@ -555,13 +556,12 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::hExpireAt
      */
+    public function hExpireAt(string $key, int $unix_timestamp, string $field, string ...$other_fields): ValkeyGlide|array|false;
 
     /**
      * @see ValkeyGlide::hTtl
      */
     public function hTtl(string $key, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
-
-    /**
 
     /**
      * @see ValkeyGlide::hPTtl
@@ -582,8 +582,6 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::hPersist
      */
     public function hPersist(string $key, string|array $fields): ValkeyGlideCluster|array|false;
-
-                    /**
 
     /**
      * @see ValkeyGlide::incr
