@@ -393,11 +393,12 @@ int prepare_h_hfe_args(h_command_args_t* args,
                        unsigned long**   args_len_out,
                        char***           allocated_strings,
                        int*              allocated_count) {
-    h_arg_config_t config = {.needs_expiry         = true,
-                             .needs_condition      = true,
-                             .needs_fields_keyword = true,
-                             .field_value_pairs    = true,
-                             .condition_prefix     = "F"};
+    h_arg_config_t config = {
+        .needs_expiry         = true,
+        .needs_condition      = true,
+        .needs_fields_keyword = true,
+        .field_value_pairs    = true,
+        .condition_prefix     = "F"};  // Correct: F prefix for HSETEX (NX->FNX, XX->FXX)
     return prepare_h_args_unified(
         args, args_out, args_len_out, allocated_strings, allocated_count, &config);
 }
@@ -407,13 +408,71 @@ int prepare_h_expire_args(h_command_args_t* args,
                           unsigned long**   args_len_out,
                           char***           allocated_strings,
                           int*              allocated_count) {
-    h_arg_config_t config = {.needs_expiry         = true,
-                             .needs_condition      = true,
-                             .needs_fields_keyword = true,
-                             .field_value_pairs    = false,
-                             .condition_prefix     = NULL};
-    return prepare_h_args_unified(
-        args, args_out, args_len_out, allocated_strings, allocated_count, &config);
+    if (!args->key)
+        return 0;
+
+    // Calculate field count
+    int field_count = args->fv_count;
+
+    // Calculate argument count: key + expiry + condition + "FIELDS" + count + fields
+    int arg_count = 1;  // key
+    if (args->expiry > 0)
+        arg_count++;  // expiry value (no EX keyword for HEXPIRE)
+    if (args->condition)
+        arg_count++;              // condition
+    arg_count += 2;               // "FIELDS" + count
+    arg_count += args->fv_count;  // fields
+
+    // Allocate arrays
+    *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    *allocated_strings = (char**) emalloc((2 + args->fv_count) * sizeof(char*));
+    *allocated_count   = 0;
+
+    int arg_idx = 0;
+
+    // Add key
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
+    (*args_len_out)[arg_idx] = args->key_len;
+    arg_idx++;
+
+    // Add expiry value directly (no EX keyword for HEXPIRE)
+    if (args->expiry > 0) {
+        char* expiry_str                           = safe_format_int(args->expiry);
+        (*allocated_strings)[(*allocated_count)++] = expiry_str;
+        (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
+        (*args_len_out)[arg_idx]                   = strlen(expiry_str);
+        arg_idx++;
+    }
+
+    // Add condition (NX/XX directly, no prefix for HEXPIRE)
+    if (args->condition) {
+        (*args_out)[arg_idx]     = (uintptr_t) args->condition;
+        (*args_len_out)[arg_idx] = strlen(args->condition);
+        arg_idx++;
+    }
+
+    // Add FIELDS keyword and count
+    (*args_out)[arg_idx]     = (uintptr_t) "FIELDS";
+    (*args_len_out)[arg_idx] = 6;
+    arg_idx++;
+
+    char* field_count_str                      = safe_format_int(field_count);
+    (*allocated_strings)[(*allocated_count)++] = field_count_str;
+    (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
+    (*args_len_out)[arg_idx]                   = strlen(field_count_str);
+    arg_idx++;
+
+    // Add fields (no values for HEXPIRE)
+    populate_field_args(args->field_values,
+                        args->fv_count,
+                        arg_idx,
+                        *args_out,
+                        *args_len_out,
+                        *allocated_strings,
+                        allocated_count);
+
+    return arg_count;
 }
 
 int prepare_h_field_only_args(h_command_args_t* args,
@@ -2089,13 +2148,27 @@ static int execute_hash_expiry_command(zval*             object,
     zval*                args     = NULL;
     int                  num_args = 0;
     zend_long            expiry;
+    char*                condition_str = NULL;
+    size_t               condition_len = 0;
 
-    // Parse: object, key, expiry, field1, field2, ... (variadic parameters)
-    if (zend_parse_method_parameters(
-            argc, object, "Osl+", &object, ce, &key, &key_len, &expiry, &args, &num_args) ==
-        FAILURE) {
+    // Parse: object, key, expiry, condition (nullable), field1, field2, ... (variadic parameters)
+    if (zend_parse_method_parameters(argc,
+                                     object,
+                                     "Osls!+",
+                                     &object,
+                                     ce,
+                                     &key,
+                                     &key_len,
+                                     &expiry,
+                                     &condition_str,
+                                     &condition_len,
+                                     &args,
+                                     &num_args) == FAILURE) {
         return 0;
     }
+
+    // Use provided condition or fall back to default
+    const char* final_condition = condition_str ? condition_str : condition;
 
     // Validate field count based on command type
     if (cmd_type == HSetEx && (num_args < 2 || num_args % 2 != 0)) {
@@ -2117,7 +2190,7 @@ static int execute_hash_expiry_command(zval*             object,
     hargs.is_array_arg     = 0;
     hargs.expiry           = (int) expiry;
     hargs.expiry_type      = (char*) expiry_type;
-    hargs.condition        = (char*) condition;
+    hargs.condition        = (char*) final_condition;
 
     if (execute_h_simple_command(
             valkey_glide, cmd_type, &hargs, NULL, response_type, return_value)) {
