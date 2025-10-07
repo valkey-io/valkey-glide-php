@@ -4109,9 +4109,22 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $key = $this->createRandomString(10);
         
         // Test that HSETEX requires field-value pairs (even number of arguments)
-        $this->assertEquals(2, $this->valkey_glide->hSetEx($key, 'f2', 'v2', 60, null, 'f1', 'v1'));
+        $this->assertEquals(2, $this->valkey_glide->hSetEx($key, 60, null, 'f1', 'v1', 'f2', 'v2'));
         $this->assertEquals('v1', $this->valkey_glide->hGet($key, 'f1'));
         $this->assertEquals('v2', $this->valkey_glide->hGet($key, 'f2'));
+        
+        // Test HPSETEX with milliseconds
+        $this->assertEquals(2, $this->valkey_glide->hPSetEx($key, 60000, null, 'f3', 'v3', 'f4', 'v4'));
+        $this->assertEquals('v3', $this->valkey_glide->hGet($key, 'f3'));
+        $this->assertEquals('v4', $this->valkey_glide->hGet($key, 'f4'));
+        
+        // Verify HPSETEX set expiration in milliseconds
+        $ttl3 = $this->valkey_glide->hPTtl($key, 'f3');
+        $ttl4 = $this->valkey_glide->hPTtl($key, 'f4');
+        $this->assertGT(50000, $ttl3[0]); // Should be close to 60000ms
+        $this->assertLTE(60000, $ttl3[0]);
+        $this->assertGT(50000, $ttl4[0]);
+        $this->assertLTE(60000, $ttl4[0]);
         
         // Test that HEXPIRE works with field names only
         $result = $this->valkey_glide->hExpire($key, 120, 'f1', 'f2');
@@ -4245,7 +4258,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals('value1', $this->valkey_glide->hGet($key, 'fnx_field')); // Unchanged
         
         // FXX should only set if field exists
-        $result = $this->valkey_glide->hSetEx($key, 'nonexistent', 'value', null, 60, ValkeyGlide::CONDITION_XX);
+        $result = $this->valkey_glide->hSetEx($key, 60, ValkeyGlide::CONDITION_XX, 'nonexistent', 'value');
         $this->assertEquals(0, $result); // Should fail - field doesn't exist
         
         $result = $this->valkey_glide->hSetEx($key, 60, ValkeyGlide::CONDITION_XX, 'fnx_field', 'updated_value');
