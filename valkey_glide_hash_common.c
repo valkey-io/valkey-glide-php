@@ -1550,7 +1550,7 @@ int execute_hset_command(zval* object, int argc, zval* return_value, zend_class_
     char*                key = NULL;
     size_t               key_len;
     zval*                z_args = NULL;
-    int                  arg_count;
+    int                  arg_count = 0;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
