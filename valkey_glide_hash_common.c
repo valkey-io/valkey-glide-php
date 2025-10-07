@@ -1510,7 +1510,7 @@ int execute_hdel_command(zval* object, int argc, zval* return_value, zend_class_
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
-            argc, object, "Oss*", &object, ce, &key, &key_len, &fields, &fields_count) == FAILURE) {
+            argc, object, "Os*", &object, ce, &key, &key_len, &fields, &fields_count) == FAILURE) {
         return 0;
     }
 
@@ -1549,12 +1549,12 @@ int execute_hset_command(zval* object, int argc, zval* return_value, zend_class_
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
-    zval*                z_args = NULL;
+    zval*                z_args    = NULL;
     int                  arg_count = 0;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
-            argc, object, "Oss*", &object, ce, &key, &key_len, &z_args, &arg_count) == FAILURE) {
+            argc, object, "Os*", &object, ce, &key, &key_len, &z_args, &arg_count) == FAILURE) {
         return 0;
     }
 
@@ -1657,7 +1657,7 @@ int execute_hmset_command(zval* object, int argc, zval* return_value, zend_class
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
-            argc, object, "Oss*", &object, ce, &key, &key_len, &arr_keyvals) == FAILURE) {
+            argc, object, "Osa", &object, ce, &key, &key_len, &arr_keyvals) == FAILURE) {
         return 0;
     }
 
@@ -1778,7 +1778,7 @@ int execute_hmget_command(zval* object, int argc, zval* return_value, zend_class
     HashTable*           fields_hash;
 
     /* Parse parameters */
-    if (zend_parse_method_parameters(argc, object, "Oss*", &object, ce, &key, &key_len, &fields) ==
+    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) ==
         FAILURE) {
         return 0;
     }
@@ -2292,7 +2292,7 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
     zend_long            milliseconds;
     char*                field = NULL;
     size_t               field_len;
-    zval*                other_fields = NULL;
+    zval*                other_fields       = NULL;
     int                  other_fields_count = 0;
 
     if (zend_parse_method_parameters(argc,
@@ -2321,19 +2321,19 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
     args.expiry           = (int) milliseconds;
 
     /* Build field array: first field + other fields */
-    int total_fields = 1 + other_fields_count;
-    zval* all_fields = emalloc(total_fields * sizeof(zval));
-    
+    int   total_fields = 1 + other_fields_count;
+    zval* all_fields   = emalloc(total_fields * sizeof(zval));
+
     /* Add first field */
     ZVAL_STRINGL(&all_fields[0], field, field_len);
-    
+
     /* Add other fields */
     for (int i = 0; i < other_fields_count; i++) {
         ZVAL_COPY(&all_fields[i + 1], &other_fields[i]);
     }
-    
+
     args.field_values = all_fields;
-    args.fv_count = total_fields;
+    args.fv_count     = total_fields;
 
     if (execute_h_simple_command(
             valkey_glide, HPExpire, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
@@ -2342,14 +2342,14 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
             zval_dtor(&all_fields[i]);
         }
         efree(all_fields);
-        
+
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
         }
         return 1;
     }
-    
+
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
         zval_dtor(&all_fields[i]);
