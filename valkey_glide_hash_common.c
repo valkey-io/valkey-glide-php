@@ -341,7 +341,7 @@ static int prepare_h_args_unified(h_command_args_t*     args,
         (*args_len_out)[arg_idx] = strlen(expiry_unit);
         arg_idx++;
 
-        char* expiry_str                           = safe_format_int(args->expiry);
+        char* expiry_str                           = safe_format_long_long(args->expiry);
         (*allocated_strings)[(*allocated_count)++] = expiry_str;
         (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
         (*args_len_out)[arg_idx]                   = strlen(expiry_str);
@@ -880,7 +880,7 @@ int prepare_h_getex_args(h_command_args_t* args,
         arg_idx++;
 
         if (strcmp(expiry_unit, "PERSIST") != 0) {
-            char* expiry_str                           = safe_format_int(args->expiry);
+            char* expiry_str                           = safe_format_long_long(args->expiry);
             (*allocated_strings)[(*allocated_count)++] = expiry_str;
             (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
             (*args_len_out)[arg_idx]                   = strlen(expiry_str);
@@ -2467,6 +2467,11 @@ int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_c
         return 0;
     }
 
+    /* Check if field parameter is actually a condition */
+    if (field && (strcmp(field, "NX") == 0 || strcmp(field, "XX") == 0)) {
+        return execute_hexpire_with_condition(object, argc, return_value, ce, "EXAT", field);
+    }
+
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
@@ -2538,6 +2543,11 @@ int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_
                                      &other_fields,
                                      &other_fields_count) == FAILURE) {
         return 0;
+    }
+
+    /* Check if field parameter is actually a condition */
+    if (field && (strcmp(field, "NX") == 0 || strcmp(field, "XX") == 0)) {
+        return execute_hexpire_with_condition(object, argc, return_value, ce, "PXAT", field);
     }
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);

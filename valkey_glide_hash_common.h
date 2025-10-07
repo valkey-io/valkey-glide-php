@@ -72,7 +72,7 @@ typedef struct _h_command_args_t {
     int  withvalues; /* Whether to return values with fields */
 
     /* Hash Field Expiration specific */
-    long long     expiry;      /* Expiration time (seconds/milliseconds/timestamp) - 64-bit for timestamps */
+    long long expiry; /* Expiration time (seconds/milliseconds/timestamp) - 64-bit for timestamps */
     expiry_type_t expiry_enum; /* Expiry type enum for fast comparison */
     const char*   expiry_type; /* Expiry type string: EX, PX, EXAT, PXAT, KEEPTTL, PERSIST */
     const char*   condition;   /* Condition: NX, XX, GT, LT */
