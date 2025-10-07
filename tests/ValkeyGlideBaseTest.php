@@ -145,10 +145,6 @@ abstract class ValkeyGlideBaseTest extends TestSuite
             self::$debug_logged = true;
         }
 
-        $this->version = (isset($info['valkey_version']) ? $info['valkey_version'] : 
-                         (isset($info['redis_version']) ? $info['redis_version'] : '0.0.0'));
-        $this->is_valkey = $this->detectValkey($info);
-        
         // Log server type and version for debugging (only once per test suite)
         if (!self::$version_logged) {
             $server_type = $this->is_valkey ? 'Valkey' : 'Redis';
