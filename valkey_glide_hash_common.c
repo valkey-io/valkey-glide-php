@@ -2310,6 +2310,11 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
         return 0;
     }
 
+    /* Check if field parameter is actually a condition */
+    if (field && (strcmp(field, "NX") == 0 || strcmp(field, "XX") == 0)) {
+        return execute_hexpire_with_condition(object, argc, return_value, ce, NULL, field);
+    }
+
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
@@ -2382,6 +2387,11 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
                                      &other_fields,
                                      &other_fields_count) == FAILURE) {
         return 0;
+    }
+
+    /* Check if field parameter is actually a condition */
+    if (field && (strcmp(field, "NX") == 0 || strcmp(field, "XX") == 0)) {
+        return execute_hexpire_with_condition(object, argc, return_value, ce, "PX", field);
     }
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
