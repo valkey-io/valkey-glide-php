@@ -2220,13 +2220,11 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
     size_t               field_len;
     zval*                other_fields       = NULL;
     int                  other_fields_count = 0;
-    char*                condition          = NULL;
-    size_t               condition_len      = 0;
 
-    /* Parse parameters: key, seconds, field, other_fields..., [condition] */
+    /* Parse parameters: key, seconds, field, other_fields... */
     if (zend_parse_method_parameters(argc,
                                      object,
-                                     "Osls*|s",
+                                     "Osls*",
                                      &object,
                                      ce,
                                      &key,
@@ -2235,9 +2233,7 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
                                      &field,
                                      &field_len,
                                      &other_fields,
-                                     &other_fields_count,
-                                     &condition,
-                                     &condition_len) == FAILURE) {
+                                     &other_fields_count) == FAILURE) {
         return 0;
     }
 
@@ -2265,7 +2261,6 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
 
     args.field_values = all_fields;
     args.fv_count     = total_fields;
-    args.condition    = condition;
 
     if (execute_h_simple_command(
             valkey_glide, HExpire, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
