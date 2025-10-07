@@ -29,6 +29,8 @@ jobs:
 
       - name: Install Rust and protoc
         uses: ./.github/workflows/install-rust-and-protoc
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Add Rust to PATH
         run: |
