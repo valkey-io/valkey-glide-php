@@ -1399,6 +1399,17 @@ class ValkeyGlide
     public function hPExpire(string $key, int $milliseconds, string $field, string ...$other_fields): ValkeyGlide|array|false;
 
     /**
+     * Sets the expiration time for hash fields using Unix timestamp in seconds.
+     *
+     * @param string $key The key of the hash.
+     * @param int $unix_timestamp The expiration time as Unix timestamp in seconds.
+     * @param string $field The field name.
+     * @param string $other_fields Additional field names.
+     * @return ValkeyGlide|array|false Returns an array of expiration results, or false on failure.
+     */
+    public function hExpireAt(string $key, int $unix_timestamp, string $field, string ...$other_fields): ValkeyGlide|array|false;
+
+    /**
      * Set an expiration time (unix timestamp in milliseconds) on one or more fields of a given hash key.
      * Similar to pexpireAt but for hash fields.
      *
