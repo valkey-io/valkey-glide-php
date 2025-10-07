@@ -354,6 +354,10 @@ HPSETEX_METHOD_IMPL(ValkeyGlideCluster)
 HEXPIRE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto array ValkeyGlideCluster::hExpireAt(string key, long timestamp, string field, ...) */
+HEXPIREAT_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto array ValkeyGlideCluster::hPExpire(string key, long milliseconds, string field, ...) */
 HPEXPIRE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */

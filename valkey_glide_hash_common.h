@@ -713,6 +713,20 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
         RETURN_FALSE;                                                              \
     }
 
+#define HEXPIREAT_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hExpireAt) {                                              \
+        if (execute_hexpireat_command(getThis(),                                     \
+                                      ZEND_NUM_ARGS(),                               \
+                                      return_value,                                  \
+                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                          ? get_valkey_glide_cluster_ce()            \
+                                          : get_valkey_glide_ce())) {                \
+            return;                                                                  \
+        }                                                                            \
+        zval_dtor(return_value);                                                     \
+        RETURN_FALSE;                                                                \
+    }
+
 #define HTTL_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, hTtl) {                                              \
         if (execute_httl_command(getThis(),                                     \
