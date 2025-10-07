@@ -834,6 +834,13 @@ char* safe_format_int(int value) {
     return str;
 }
 
+char* safe_format_long_long(long long value) {
+    int   required_size = snprintf(NULL, 0, "%lld", value) + 1;
+    char* str           = (char*) emalloc(required_size);
+    snprintf(str, required_size, "%lld", value);
+    return str;
+}
+
 /**
  * Prepare arguments for HGETEX command
  * Redis format: HGETEX key [EX seconds|PX milliseconds|EXAT unix-time-seconds|PXAT

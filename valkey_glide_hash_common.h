@@ -251,6 +251,7 @@ int prepare_h_getex_args(h_command_args_t* args,
  * Uses exact buffer size to prevent overruns
  */
 char* safe_format_int(int value);
+char* safe_format_long_long(long long value);
 
 /**
  * Safely allocate and format a long long as a string
