@@ -90,6 +90,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     ];
 
 
+    private static $debug_logged = false;
+    private static $version_logged = false;
 
     protected static array $seeds = [];
     private static string $seed_source = '';
@@ -167,10 +169,25 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->version  = $info['valkey_version'] ?? $info['redis_version'] ?? '0.0.0';
 
         $this->is_valkey = $this->detectValkey($info);
-        
-        // Log server type and version for debugging
-        $server_type = $this->is_valkey ? 'Valkey' : 'Redis';
-        echo "Connected to $server_type cluster server version: {$this->version}\n";
+
+        // Debug: Show what keys are available in INFO response (only once per test suite)
+        if (!self::$debug_logged) {
+            echo "DEBUG: Available INFO keys: " . implode(', ', array_keys($info)) . "\n";
+            if (isset($info['valkey_version'])) {
+                echo "DEBUG: valkey_version found: " . $info['valkey_version'] . "\n";
+            }
+            if (isset($info['redis_version'])) {
+                echo "DEBUG: redis_version found: " . $info['redis_version'] . "\n";
+            }
+            self::$debug_logged = true;
+        }
+
+        // Log server type and version for debugging (only once per test suite)
+        if (!self::$version_logged) {
+            $server_type = $this->is_valkey ? 'Valkey' : 'Redis';
+            echo "Connected to $server_type server version: {$this->version}\n";
+            self::$version_logged = true;
+        }
     }
 
     /* Override newInstance as we want a ValkeyGlideCluster object */
