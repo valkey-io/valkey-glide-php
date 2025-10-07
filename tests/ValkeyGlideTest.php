@@ -114,7 +114,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     protected function assertFieldTtlInRange($key, $field, $originalTtlMs, $setTime, $minTtl = null, $maxTtl = null, $message = '')
     {
         $currentTime = microtime(true) * 1000; // Current time in milliseconds
-        $ttl = $this->valkey_glide->hPTtl($key, $field);
+        $ttl_result = $this->valkey_glide->hPTtl($key, $field);
+        
+        // Extract TTL value from array result
+        $ttl = is_array($ttl_result) ? $ttl_result[0] : $ttl_result;
         
         // Auto-calculate range based on elapsed time since expiration was set
         if ($minTtl === null) {
@@ -3817,7 +3820,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals('value1', $this->valkey_glide->hGet($key, 'field1'));
         
         // Test multiple fields with HSETEX
-        $this->assertEquals(2, $this->valkey_glide->hSetEx($key, 60, null, 'field2', 'value2', 'field3', 'value3'));
+        $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 60, null, 'field2', 'value2', 'field3', 'value3'));
         
         // Test HEXPIRE with unified API
         $this->valkey_glide->hSet($key, 'field4', 'value4');
@@ -3940,7 +3943,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         
         // Test hSetEx with multiple field-value pairs - verify values AND expiration
         $setTime = microtime(true);
-        $this->assertEquals(2, $this->valkey_glide->hSetEx($key, 2, null, 'field1', 'value1', 'field2', 'value2'));
+        $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 2, null, 'field1', 'value1', 'field2', 'value2'));
         $this->assertEquals('value1', $this->valkey_glide->hGet($key, 'field1'));
         $this->assertEquals('value2', $this->valkey_glide->hGet($key, 'field2'));
         
@@ -3970,6 +3973,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test timestamp variants with verification
         $future_timestamp = time() + 30;
         $this->valkey_glide->hSet($key, 'field7', 'value7', 'field8', 'value8');
+        $result = $this->valkey_glide->hExpireAt($key, $future_timestamp, 'field7', 'field8');
         $this->assertEquals([1, 1], $result);
         
         // Verify expiration times are set to the future timestamp
@@ -4008,7 +4012,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         
         // Test with multiple fields to ensure field-value pairing is correct
         $setTime2 = microtime(true);
-        $this->assertEquals(2, $this->valkey_glide->hSetEx($key, 4, null, 'field_a', 'value_a', 'field_b', 'value_b'));
+        $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 4, null, 'field_a', 'value_a', 'field_b', 'value_b'));
         
         // Verify each field has its correct value (not swapped)
         $this->assertEquals('value_a', $this->valkey_glide->hGet($key, 'field_a'));
@@ -4109,7 +4113,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $key = $this->createRandomString(10);
         
         // Test that HSETEX requires field-value pairs (even number of arguments)
-        $this->assertEquals(2, $this->valkey_glide->hSetEx($key, 60, null, 'f1', 'v1', 'f2', 'v2'));
+        $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 60, null, 'f1', 'v1', 'f2', 'v2'));
         $this->assertEquals('v1', $this->valkey_glide->hGet($key, 'f1'));
         $this->assertEquals('v2', $this->valkey_glide->hGet($key, 'f2'));
         
@@ -4414,6 +4418,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test all HSETEX variants (HSETEX format with field-value pairs)
         
         // HPSETEX - milliseconds
+        $result = $this->valkey_glide->hPSetEx($key, 5000, null, 'psetex_field', 'psetex_value');
         $this->assertEquals(1, $result);
         $this->assertEquals('psetex_value', $this->valkey_glide->hGet($key, 'psetex_field'));
         $pttl = $this->valkey_glide->hPTtl($key, 'psetex_field');
@@ -4421,23 +4426,29 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         
         // HSETEXAT - timestamp
         $future_timestamp = time() + 1800;
+        $result = $this->valkey_glide->hSetEx($key, $future_timestamp, null, 'setat_field', 'setat_value');
         $this->assertEquals(1, $result);
         $this->assertEquals('setat_value', $this->valkey_glide->hGet($key, 'setat_field'));
         
         // HPSETEXAT - timestamp in milliseconds
         $future_timestamp_ms = (time() + 1800) * 1000;
+        $result = $this->valkey_glide->hPSetEx($key, $future_timestamp_ms, null, 'psetat_field', 'psetat_value');
         $this->assertEquals(1, $result);
         $this->assertEquals('psetat_value', $this->valkey_glide->hGet($key, 'psetat_field'));
         
         // HSETEX condition variants
+        $result = $this->valkey_glide->hSetEx($key, 60, ValkeyGlide::CONDITION_NX, 'new_field', 'new_value');
         $this->assertEquals(1, $result); // Should succeed - field doesn't exist
         
+        $result = $this->valkey_glide->hSetEx($key, 60, ValkeyGlide::CONDITION_XX, 'new_field', 'updated_value');
         $this->assertEquals(1, $result); // Should succeed - field exists
         $this->assertEquals('updated_value', $this->valkey_glide->hGet($key, 'new_field'));
         
         // HPSETEX condition variants
+        $result = $this->valkey_glide->hPSetEx($key, 60000, ValkeyGlide::CONDITION_NX, 'pnx_field', 'pnx_value');
         $this->assertEquals(1, $result); // Should succeed - field doesn't exist
         
+        $result = $this->valkey_glide->hPSetEx($key, 60000, ValkeyGlide::CONDITION_XX, 'pnx_field', 'pxx_value');
         $this->assertEquals(1, $result); // Should succeed - field exists
         $this->assertEquals('pxx_value', $this->valkey_glide->hGet($key, 'pnx_field'));
         
