@@ -72,7 +72,7 @@ typedef struct _h_command_args_t {
     int  withvalues; /* Whether to return values with fields */
 
     /* Hash Field Expiration specific */
-    int           expiry;      /* Expiration time (seconds/milliseconds/timestamp) */
+    long long     expiry;      /* Expiration time (seconds/milliseconds/timestamp) - 64-bit for timestamps */
     expiry_type_t expiry_enum; /* Expiry type enum for fast comparison */
     const char*   expiry_type; /* Expiry type string: EX, PX, EXAT, PXAT, KEEPTTL, PERSIST */
     const char*   condition;   /* Condition: NX, XX, GT, LT */
@@ -251,6 +251,12 @@ int prepare_h_getex_args(h_command_args_t* args,
  * Uses exact buffer size to prevent overruns
  */
 char* safe_format_int(int value);
+
+/**
+ * Safely allocate and format a long long as a string
+ * Uses exact buffer size to prevent overruns
+ */
+char* safe_format_long_long(long long value);
 
 /**
  * Safely populate field arguments from zval array
