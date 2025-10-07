@@ -491,6 +491,25 @@ HPERSIST_METHOD_IMPL(ValkeyGlide)
 HEXPIRE_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto array ValkeyGlide::hPExpire(string key, long milliseconds, string field, ...) */
+HPEXPIRE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::hExpireAt(string key, long timestamp, string field, ...) */
+HEXPIREAT_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::hPExpireAt(string key, long timestamp_ms, string field, ...) */
+HPEXPIREAT_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::hExpireTime(string key, string field, ...) */
+HEXPIRETIME_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::hPExpireTime(string key, string field, ...) */
+HPEXPIRETIME_METHOD_IMPL(ValkeyGlide)
+/* }}} */
 
 /* {{{ proto array ValkeyGlide::hPTtl(string key, string field, ...) */
 HPTTL_METHOD_IMPL(ValkeyGlide)

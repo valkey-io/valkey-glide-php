@@ -693,47 +693,4 @@ PHP_FUNCTION(valkey_glide_logger_get_level) {
 
 // Individual HFE methods that call unified layer
 
-// Methods that need manual implementation (macros not available)
-PHP_METHOD(ValkeyGlide, hPExpire) {
-    if (execute_hpexpire_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
-        return;
-    }
-    zval_dtor(return_value);
-    RETURN_FALSE;
-}
-
-PHP_METHOD(ValkeyGlide, hExpireAt) {
-    if (execute_hexpireat_command(
-            getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
-        return;
-    }
-    zval_dtor(return_value);
-    RETURN_FALSE;
-}
-
-PHP_METHOD(ValkeyGlide, hPExpireAt) {
-    if (execute_hpexpireat_command(
-            getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
-        return;
-    }
-    zval_dtor(return_value);
-    RETURN_FALSE;
-}
-
-PHP_METHOD(ValkeyGlide, hExpireTime) {
-    if (execute_hexpiretime_command(
-            getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
-        return;
-    }
-    zval_dtor(return_value);
-    RETURN_FALSE;
-}
-
-PHP_METHOD(ValkeyGlide, hPExpireTime) {
-    if (execute_hpexpiretime_command(
-            getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce())) {
-        return;
-    }
-    zval_dtor(return_value);
-    RETURN_FALSE;
-}
+// HFE methods are implemented in valkey_z_php_methods.c
