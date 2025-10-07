@@ -107,12 +107,7 @@ typedef struct {
 } core_options_t;
 
 /* Argument allocation type */
-typedef enum {
-    CORE_ARGS_FIXED,  /* Fixed array (args[8]) - no cleanup needed */
-    CORE_ARGS_DYNAMIC /* Dynamic array - needs efree() cleanup */
-} core_args_type_t;
-
-/* Core command arguments structure */
+/* Core command arguments structure - simplified without dynamic support */
 typedef struct {
     const void*      glide_client;
     enum RequestType cmd_type;
@@ -121,13 +116,9 @@ typedef struct {
     const char* key;
     size_t      key_len;
 
-    /* Flexible arguments - either fixed or dynamic */
-    union {
-        core_arg_t  fixed_args[8]; /* Fixed array for <= 8 args */
-        core_arg_t* dynamic_args;  /* Dynamic array for > 8 args */
-    };
-    int              arg_count;
-    core_args_type_t args_type; /* FIXED or DYNAMIC */
+    /* Fixed arguments array - sufficient for current usage */
+    core_arg_t fixed_args[8];
+    int        arg_count;
 
     /* Routing support for cluster commands */
     zval*     route_param; /* Route parameter for cluster commands */
@@ -140,30 +131,17 @@ typedef struct {
 } core_command_args_t;
 
 /* Helper macros for accessing args uniformly */
-#define CORE_ARGS(args_struct)                                               \
-    ((args_struct)->args_type == CORE_ARGS_FIXED ? (args_struct)->fixed_args \
-                                                 : (args_struct)->dynamic_args)
+#define CORE_ARGS(args_struct) /* Access a specific argument by index */
+#define CORE_ARG(args_struct, index) ((args_struct)->fixed_args[index])
 
-#define CORE_ARG(args_struct, index) (CORE_ARGS(args_struct)[index])
-
-/* Initialize core_command_args_t for fixed args (default) */
+/* Initialize core_command_args_t */
 #define INIT_CORE_ARGS(args_struct)                       \
     do {                                                  \
         memset((args_struct), 0, sizeof(*(args_struct))); \
-        (args_struct)->args_type = CORE_ARGS_FIXED;       \
     } while (0)
 
-/* Convert to dynamic args when needed */
-int convert_to_dynamic_args(core_command_args_t* args, int new_capacity);
-
-/* Cleanup function that handles both fixed and dynamic */
+/* Cleanup function */
 void cleanup_core_args(core_command_args_t* args);
-
-/* Helper functions for adding arguments */
-int add_string_arg(core_command_args_t* args, const char* value, size_t len);
-int add_long_arg(core_command_args_t* args, long value);
-int add_array_arg(core_command_args_t* args, zval* array, int count);
-int add_variadic_string_args(core_command_args_t* args, zval* variadic_args, int count);
 
 /*
  * USAGE EXAMPLE:
@@ -171,52 +149,20 @@ int add_variadic_string_args(core_command_args_t* args, zval* variadic_args, int
  * core_command_args_t args;
  * INIT_CORE_ARGS(&args);
  * args.glide_client = client;
- * args.cmd_type = HSet;
+ * args.cmd_type = SomeCommand;
  * args.key = "mykey";
  * args.key_len = 5;
  *
- * // Add arguments easily (auto-converts to dynamic if needed)
- * add_string_arg(&args, "FIELDS", 6);        // String literals (safe)
- * add_string_arg(&args, condition, strlen(condition)); // PHP parameters (safe)
- * add_long_arg(&args, 3600);                 // Converted to string by core framework
- * add_array_arg(&args, fields_array, field_count);
+ * // Set arguments directly in fixed array (up to 8 args)
+ * args.fixed_args[0].type = CORE_ARG_TYPE_STRING;
+ * args.fixed_args[0].data.string_arg.value = "arg1";
+ * args.fixed_args[0].data.string_arg.len = 4;
+ * args.arg_count = 1;
  *
  * // Execute command
  * execute_core_command(valkey_glide, &args, NULL, processor, return_value);
  *
- * // Cleanup (handles both fixed and dynamic)
- * cleanup_core_args(&args);
- *
- * STRING SAFETY:
- * - String literals and PHP parameters are safe (managed lifetimes)
- * - Core framework handles numeric→string conversion with proper tracking
- * - No manual string copying needed for current use cases
- */
-
-/*
- * HFE COMMAND EXAMPLE (much simpler than h_command_args_t):
- *
- * // HSetEx with unlimited field-value pairs
- * core_command_args_t args;
- * INIT_CORE_ARGS(&args);
- * args.glide_client = client;
- * args.cmd_type = HSetEx;
- * args.key = key;
- * args.key_len = key_len;
- *
- * add_string_arg(&args, "FNX", 3);        // condition
- * add_string_arg(&args, "EX", 2);         // expiry type
- * add_long_arg(&args, 3600);              // expiry value
- * add_string_arg(&args, "FIELDS", 6);     // keyword
- * add_long_arg(&args, field_count);       // field count
- *
- * // Add unlimited field-value pairs (auto-converts to dynamic)
- * for (int i = 0; i < field_count; i++) {
- *     add_string_arg(&args, fields[i], field_lens[i]);
- *     add_string_arg(&args, values[i], value_lens[i]);
- * }
- *
- * execute_core_command(valkey_glide, &args, NULL, processor, return_value);
+ * // Cleanup
  * cleanup_core_args(&args);
  */
 

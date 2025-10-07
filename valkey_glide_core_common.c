@@ -23,131 +23,16 @@
 #include "valkey_glide_z_common.h"
 
 /* ====================================================================
- * DYNAMIC ARGS SUPPORT
+ * CORE FRAMEWORK IMPLEMENTATION
  * ==================================================================== */
 
-/* Convert fixed args to dynamic when more than 8 args needed */
-int convert_to_dynamic_args(core_command_args_t* args, int new_capacity) {
-    if (args->args_type == CORE_ARGS_DYNAMIC) {
-        return 1; /* Already dynamic */
-    }
-
-    if (new_capacity <= 8) {
-        return 1; /* No need to convert */
-    }
-
-    /* Allocate dynamic array */
-    core_arg_t* dynamic_args = (core_arg_t*) emalloc(new_capacity * sizeof(core_arg_t));
-    if (!dynamic_args) {
-        return 0;
-    }
-
-    /* Copy existing fixed args */
-    if (args->arg_count > 0) {
-        memcpy(dynamic_args, args->fixed_args, args->arg_count * sizeof(core_arg_t));
-    }
-
-    /* Switch to dynamic */
-    args->dynamic_args = dynamic_args;
-    args->args_type    = CORE_ARGS_DYNAMIC;
-
-    return 1;
-}
-
-/* Cleanup function that handles both fixed and dynamic */
+/* Cleanup function for core args */
 void cleanup_core_args(core_command_args_t* args) {
     if (!args)
         return;
 
-    if (args->args_type == CORE_ARGS_DYNAMIC && args->dynamic_args) {
-        efree(args->dynamic_args);
-        args->dynamic_args = NULL;
-    }
-
-    args->args_type = CORE_ARGS_FIXED;
     args->arg_count = 0;
 }
-
-/* Helper functions for adding arguments */
-int add_string_arg(core_command_args_t* args, const char* value, size_t len) {
-    if (!args || !value)
-        return 0;
-
-    /* Convert to dynamic if needed */
-    if (args->arg_count >= 8 && args->args_type == CORE_ARGS_FIXED) {
-        if (!convert_to_dynamic_args(args, args->arg_count + 1)) {
-            return 0;
-        }
-    }
-
-    CORE_ARG(args, args->arg_count).type                  = CORE_ARG_TYPE_STRING;
-    CORE_ARG(args, args->arg_count).data.string_arg.value = value;
-    CORE_ARG(args, args->arg_count).data.string_arg.len   = len;
-    args->arg_count++;
-
-    return 1;
-}
-
-int add_long_arg(core_command_args_t* args, long value) {
-    if (!args)
-        return 0;
-
-    /* Convert to dynamic if needed */
-    if (args->arg_count >= 8 && args->args_type == CORE_ARGS_FIXED) {
-        if (!convert_to_dynamic_args(args, args->arg_count + 1)) {
-            return 0;
-        }
-    }
-
-    CORE_ARG(args, args->arg_count).type                = CORE_ARG_TYPE_LONG;
-    CORE_ARG(args, args->arg_count).data.long_arg.value = value;
-    args->arg_count++;
-
-    return 1;
-}
-
-int add_array_arg(core_command_args_t* args, zval* array, int count) {
-    if (!args || !array)
-        return 0;
-
-    /* Convert to dynamic if needed */
-    if (args->arg_count >= 8 && args->args_type == CORE_ARGS_FIXED) {
-        if (!convert_to_dynamic_args(args, args->arg_count + 1)) {
-            return 0;
-        }
-    }
-
-    CORE_ARG(args, args->arg_count).type                 = CORE_ARG_TYPE_ARRAY;
-    CORE_ARG(args, args->arg_count).data.array_arg.array = array;
-    CORE_ARG(args, args->arg_count).data.array_arg.count = count;
-    args->arg_count++;
-
-    return 1;
-}
-
-int add_variadic_string_args(core_command_args_t* args, zval* variadic_args, int count) {
-    if (!args || !variadic_args || count <= 0)
-        return 0;
-
-    for (int i = 0; i < count; i++) {
-        zval* arg = &variadic_args[i];
-
-        // Convert to string if needed
-        if (Z_TYPE_P(arg) != IS_STRING) {
-            convert_to_string(arg);
-        }
-
-        if (!add_string_arg(args, Z_STRVAL_P(arg), Z_STRLEN_P(arg))) {
-            return 0;
-        }
-    }
-
-    return 1;
-}
-
-/* ====================================================================
- * CORE FRAMEWORK IMPLEMENTATION
- * ==================================================================== */
 
 /**
  * Main command execution framework
