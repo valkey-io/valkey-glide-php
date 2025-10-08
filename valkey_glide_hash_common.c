@@ -848,12 +848,12 @@ int prepare_h_getex_args(h_command_args_t* args,
                          unsigned long**   args_len_out,
                          char***           allocated_strings,
                          int*              allocated_count) {
-    if (!args->key || !args->field_values || args->fv_count == 0) {
+    if (!args->key || !args->fields || args->field_count == 0) {
         return 0;
     }
 
-    int field_count = args->fv_count;     // just fields, no values
-    int arg_count   = 3 + args->fv_count; /* key + "FIELDS" + field_count + fields */
+    int field_count = args->field_count;     // just fields, no values
+    int arg_count   = 3 + args->field_count; /* key + "FIELDS" + field_count + fields */
 
     if (args->expiry > 0 || (args->expiry_type && strcmp(args->expiry_type, "PERSIST") == 0)) {
         if (args->expiry_type && strcmp(args->expiry_type, "PERSIST") == 0) {
@@ -866,7 +866,7 @@ int prepare_h_getex_args(h_command_args_t* args,
     *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
     *allocated_strings = (char**) emalloc(
-        (2 + args->fv_count) * sizeof(char*));  // expiry + field_count + field conversions
+        (2 + args->field_count) * sizeof(char*));  // expiry + field_count + field conversions
     *allocated_count = 0;
 
     int arg_idx = 0;
@@ -905,8 +905,8 @@ int prepare_h_getex_args(h_command_args_t* args,
     arg_idx++;
 
     /* Add fields only */
-    populate_field_args(args->field_values,
-                        args->fv_count,
+    populate_field_args(args->fields,
+                        args->field_count,
                         arg_idx,
                         *args_out,
                         *args_len_out,
@@ -976,6 +976,55 @@ int process_h_map_result_async(CommandResponse* response, void* output, zval* re
 }
 
 /**
+ * Custom processor for HGETEX that maps field names to values
+ */
+int process_h_getex_result_async(CommandResponse* response, void* output, zval* return_value) {
+    h_command_args_t* args = (h_command_args_t*) output;
+
+    if (!response || !args || !args->fields) {
+        ZVAL_FALSE(return_value);
+        return 0;
+    }
+
+    // First get the array of values
+    zval temp_array;
+    if (!command_response_to_zval(response, &temp_array, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false)) {
+        ZVAL_FALSE(return_value);
+        return 0;
+    }
+
+    // Create associative array mapping fields to values
+    array_init(return_value);
+
+    if (Z_TYPE(temp_array) == IS_ARRAY) {
+        HashTable* values_ht = Z_ARRVAL(temp_array);
+        int        value_idx = 0;
+
+        for (int i = 0; i < args->field_count && value_idx < zend_hash_num_elements(values_ht);
+             i++) {
+            zval* value = zend_hash_index_find(values_ht, value_idx);
+            if (value) {
+                // Convert field zval to string key
+                zval*        field_zval = &args->fields[i];
+                zend_string* field_str  = zval_get_string(field_zval);
+
+                // Add to associative array
+                zval value_copy;
+                ZVAL_COPY(&value_copy, value);
+                add_assoc_zval_ex(
+                    return_value, ZSTR_VAL(field_str), ZSTR_LEN(field_str), &value_copy);
+
+                zend_string_release(field_str);
+                value_idx++;
+            }
+        }
+    }
+
+    zval_dtor(&temp_array);
+    return 1;
+}
+
+/**
  * Batch-compatible wrapper for OK responses
  */
 int process_h_ok_result_async(CommandResponse* response, void* output, zval* return_value) {
@@ -1005,6 +1054,8 @@ z_result_processor_t get_processor_for_response_type(int response_type) {
             return process_h_array_result_async;
         case H_RESPONSE_MAP:
             return process_h_map_result_async;
+        case H_RESPONSE_GETEX:
+            return process_h_getex_result_async;
         case H_RESPONSE_OK:
             return process_h_ok_result_async;
         default:
@@ -2976,8 +3027,23 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
     h_command_args_t args = {0};
     args.key              = key;
     args.key_len          = key_len;
-    args.fields           = fields;
-    args.field_count      = zend_array_count(Z_ARRVAL_P(fields));
+
+    // Extract fields from the array parameter
+    int   field_count = zend_array_count(Z_ARRVAL_P(fields));
+    zval* field_array = emalloc(field_count * sizeof(zval));
+
+    // Copy fields from the PHP array to our zval array
+    HashTable* fields_ht = Z_ARRVAL_P(fields);
+    zval*      field_val;
+    int        i = 0;
+    ZEND_HASH_FOREACH_VAL(fields_ht, field_val) {
+        ZVAL_COPY(&field_array[i], field_val);
+        i++;
+    }
+    ZEND_HASH_FOREACH_END();
+
+    args.fields      = field_array;
+    args.field_count = field_count;
 
     // Parse options array if provided (consistent with getEx)
     if (options && Z_TYPE_P(options) == IS_ARRAY) {
@@ -3010,8 +3076,16 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
         }
     }
 
-    if (execute_h_simple_command(
-            valkey_glide, HGetEx, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
+    int result = execute_h_simple_command(
+        valkey_glide, HGetEx, &args, &args, H_RESPONSE_GETEX, return_value);
+
+    // Cleanup allocated field array
+    for (int j = 0; j < field_count; j++) {
+        zval_dtor(&field_array[j]);
+    }
+    efree(field_array);
+
+    if (result) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
             return 1;
