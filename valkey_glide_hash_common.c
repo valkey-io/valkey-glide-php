@@ -438,7 +438,7 @@ int prepare_h_expire_args(h_command_args_t* args,
 
     // Add expiry value directly (no EX keyword for HEXPIRE)
     if (args->expiry > 0) {
-        char* expiry_str                           = safe_format_int(args->expiry);
+        char* expiry_str                           = safe_format_long_long(args->expiry);
         (*allocated_strings)[(*allocated_count)++] = expiry_str;
         (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
         (*args_len_out)[arg_idx]                   = strlen(expiry_str);
@@ -2195,7 +2195,7 @@ static int execute_hash_expiry_command(zval*             object,
     hargs.field_values     = args;
     hargs.fv_count         = num_args;
     hargs.is_array_arg     = 0;
-    hargs.expiry           = (int) expiry;
+    hargs.expiry           = (long long) expiry;
     hargs.expiry_type      = (char*) expiry_type;
     hargs.condition        = (char*) final_condition;
 
@@ -2330,7 +2330,7 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
     h_command_args_t args = {0};
     args.key              = key;
     args.key_len          = key_len;
-    args.expiry           = (int) seconds;
+    args.expiry           = (long long) seconds;
 
     /* Build field array: first field + other fields */
     int   total_fields = 1 + other_fields_count;
@@ -2409,7 +2409,7 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
     h_command_args_t args = {0};
     args.key              = key;
     args.key_len          = key_len;
-    args.expiry           = (int) milliseconds;
+    args.expiry           = (long long) milliseconds;
 
     /* Build field array: first field + other fields */
     int   total_fields = 1 + other_fields_count;
@@ -2487,7 +2487,7 @@ int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_c
     h_command_args_t args = {0};
     args.key              = key;
     args.key_len          = key_len;
-    args.expiry           = (int) timestamp;
+    args.expiry           = (long long) timestamp;
 
     /* Build field array: first field + other fields */
     int   total_fields = 1 + other_fields_count;
@@ -2565,7 +2565,7 @@ int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_
     h_command_args_t args = {0};
     args.key              = key;
     args.key_len          = key_len;
-    args.expiry           = (int) timestamp;
+    args.expiry           = (long long) timestamp;
 
     /* Build field array: first field + other fields */
     int   total_fields = 1 + other_fields_count;
