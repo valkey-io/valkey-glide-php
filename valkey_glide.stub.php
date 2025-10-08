@@ -1335,8 +1335,11 @@ class ValkeyGlide
     /**
      * Set hash fields with expiration time in seconds.
      *
+     * @see https://valkey.io/commands/hsetex/
+     *
      * @param string $key The key of the hash.
      * @param int $seconds The expiration time in seconds.
+     * @param string|null $mode Optional condition (NX, XX).
      * @param string $field The field name.
      * @param mixed $value The field value.
      * @param mixed $fields_and_vals Additional field-value pairs.
@@ -1348,9 +1351,11 @@ class ValkeyGlide
     /**
      * Set hash fields with expiration time in milliseconds.
      *
+     * @see https://valkey.io/commands/hsetex/
+     *
      * @param string $key The key of the hash.
      * @param int $milliseconds The expiration time in milliseconds.
-     * @param string|null $condition Optional condition (NX, XX).
+     * @param string|null $mode Optional condition (NX, XX).
      * @param string $field The field name.
      * @param mixed $value The field value.
      * @param mixed $fields_and_vals Additional field-value pairs.
@@ -1362,20 +1367,25 @@ class ValkeyGlide
     /**
      * Get hash field values with optional expiration settings.
      *
+     * @see https://valkey.io/commands/hgetex/
+     *
      * @param string $key The key of the hash.
      * @param array $fields Array of field names to retrieve.
      * @param array|null $options Optional expiration settings.
      *
-     * @return mixed Returns the field values or false on failure.
+     * @return ValkeyGlide|array|false Returns an associative array of field-value pairs, or false on failure.
      */
-    public function hGetEx(string $key, array $fields, ?array $options = null): mixed;
+    public function hGetEx(string $key, array $fields, ?array $options = null): ValkeyGlide|array|false;
 
     /**
      * Set an expiration time (in seconds) on one or more fields of a given hash key.
      * Similar to expire but for hash fields.
      *
+     * @see https://valkey.io/commands/hexpire/
+     *
      * @param string $key The key of the hash.
      * @param int $seconds The expiration time in seconds.
+     * @param string|null $mode Optional condition (NX, XX, GT, LT).
      * @param string $field The field name.
      * @param string $other_fields Additional field names.
      *
@@ -1389,8 +1399,11 @@ class ValkeyGlide
      * Set an expiration time (in milliseconds) on one or more fields of a given hash key.
      * Similar to pexpire but for hash fields.
      *
+     * @see https://valkey.io/commands/hexpire/
+     *
      * @param string $key The key of the hash.
      * @param int $milliseconds The expiration time in milliseconds.
+     * @param string|null $mode Optional condition (NX, XX, GT, LT).
      * @param string $field The field name.
      * @param string $other_fields Additional field names.
      *
@@ -1403,8 +1416,11 @@ class ValkeyGlide
     /**
      * Sets the expiration time for hash fields using Unix timestamp in seconds.
      *
+     * @see https://valkey.io/commands/hexpireat/
+     *
      * @param string $key The key of the hash.
      * @param int $unix_timestamp The expiration time as Unix timestamp in seconds.
+     * @param string|null $mode Optional condition (NX, XX, GT, LT).
      * @param string $field The field name.
      * @param string $other_fields Additional field names.
      * @return ValkeyGlide|array|false Returns an array of expiration results, or false on failure.
@@ -1415,8 +1431,11 @@ class ValkeyGlide
      * Set an expiration time (unix timestamp in milliseconds) on one or more fields of a given hash key.
      * Similar to pexpireAt but for hash fields.
      *
+     * @see https://valkey.io/commands/hexpireat/
+     *
      * @param string $key The key of the hash.
      * @param int $unix_timestamp_ms The expiration time as unix timestamp in milliseconds.
+     * @param string|null $mode Optional condition (NX, XX, GT, LT).
      * @param string $field The field name.
      * @param string $other_fields Additional field names.
      *
@@ -1443,6 +1462,8 @@ class ValkeyGlide
      * Get the remaining time to live (in seconds) of one or more fields of a given hash key.
      * Similar to ttl but for hash fields.
      *
+     * @see https://valkey.io/commands/httl/
+     *
      * @param string $key The key of the hash.
      * @param string $field The field name.
      * @param string $other_fields Additional field names.
@@ -1456,6 +1477,8 @@ class ValkeyGlide
     /**
      * Get the remaining time to live (in milliseconds) of one or more fields of a given hash key.
      * Similar to pttl but for hash fields.
+     *
+     * @see https://valkey.io/commands/httl/
      *
      * @param string $key The key of the hash.
      * @param string $field The field name.
@@ -1471,6 +1494,8 @@ class ValkeyGlide
      * Get the expiration time (unix timestamp in seconds) of one or more fields of a given hash key.
      * Similar to expireTime but for hash fields.
      *
+     * @see https://valkey.io/commands/hexpiretime/
+     *
      * @param string $key The key of the hash.
      * @param string $field The field name.
      * @param string $other_fields Additional field names.
@@ -1485,6 +1510,8 @@ class ValkeyGlide
      * Get the expiration time (unix timestamp in milliseconds) of one or more fields of a given hash key.
      * Similar to pexpireTime but for hash fields.
      *
+     * @see https://valkey.io/commands/hexpiretime/
+     *
      * @param string $key The key of the hash.
      * @param string $field The field name.
      * @param string $other_fields Additional field names.
@@ -1496,7 +1523,18 @@ class ValkeyGlide
     public function hPExpireTime(string $key, string $field, string ...$other_fields): ValkeyGlide|array|false;
 
     /**
-     * Removes expiration from hash fields.
+     * Remove the expiration time from one or more fields of a given hash key.
+     * Similar to persist but for hash fields.
+     *
+     * @see https://valkey.io/commands/hpersist/
+     *
+     * @param string $key The key of the hash.
+     * @param string $field The field name.
+     * @param string $other_fields Additional field names.
+     *
+     * @return ValkeyGlide|array|false Returns an array indicating the result for each field, or false on failure.
+     *
+     * @example $valkey_glide->hPersist('player:1', 'score', 'level');
      */
     public function hPersist(string $key, string $field, string ...$other_fields): ValkeyGlide|array|false;
 
