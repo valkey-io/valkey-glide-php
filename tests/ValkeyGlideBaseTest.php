@@ -123,6 +123,12 @@ abstract class ValkeyGlideBaseTest extends TestSuite
         return isset($info['server_name']) && $info['server_name'] === 'valkey';
     }
 
+    protected function compare_major_version_number($minMajorVersion)
+    {
+        $currentMajor = intval(explode('.', $this->version)[0]);
+        return $currentMajor >= $minMajorVersion;
+    }
+
     public function setUp()
     {
         $this->valkey_glide = $this->newInstance();
