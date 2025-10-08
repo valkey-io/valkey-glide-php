@@ -49,16 +49,16 @@ int execute_expire_command(zval* object, int argc, zval* return_value, zend_clas
         args.key_len             = key_len;
 
         /* Add time argument */
-        CORE_ARG(&args, 0).type                = CORE_ARG_TYPE_LONG;
-        CORE_ARG(&args, 0).data.long_arg.value = seconds;
-        args.arg_count                         = 1;
+        args.args[0].type                = CORE_ARG_TYPE_LONG;
+        args.args[0].data.long_arg.value = seconds;
+        args.arg_count                   = 1;
 
         /* Add mode argument if provided */
         if (mode && mode_len > 0) {
-            CORE_ARG(&args, 1).type                  = CORE_ARG_TYPE_STRING;
-            CORE_ARG(&args, 1).data.string_arg.value = mode;
-            CORE_ARG(&args, 1).data.string_arg.len   = mode_len;
-            args.arg_count                           = 2;
+            args.args[1].type                  = CORE_ARG_TYPE_STRING;
+            args.args[1].data.string_arg.value = mode;
+            args.args[1].data.string_arg.len   = mode_len;
+            args.arg_count                     = 2;
         }
 
         if (execute_core_command(
@@ -109,16 +109,16 @@ int execute_expireat_command(zval* object, int argc, zval* return_value, zend_cl
         args.key_len             = key_len;
 
         /* Add timestamp argument */
-        CORE_ARG(&args, 0).type                = CORE_ARG_TYPE_LONG;
-        CORE_ARG(&args, 0).data.long_arg.value = timestamp;
-        args.arg_count                         = 1;
+        args.args[0].type                = CORE_ARG_TYPE_LONG;
+        args.args[0].data.long_arg.value = timestamp;
+        args.arg_count                   = 1;
 
         /* Add mode argument if provided */
         if (mode && mode_len > 0) {
-            CORE_ARG(&args, 1).type                  = CORE_ARG_TYPE_STRING;
-            CORE_ARG(&args, 1).data.string_arg.value = mode;
-            CORE_ARG(&args, 1).data.string_arg.len   = mode_len;
-            args.arg_count                           = 2;
+            args.args[1].type                  = CORE_ARG_TYPE_STRING;
+            args.args[1].data.string_arg.value = mode;
+            args.args[1].data.string_arg.len   = mode_len;
+            args.arg_count                     = 2;
         }
 
         if (execute_core_command(
@@ -170,16 +170,16 @@ int execute_pexpire_command(zval* object, int argc, zval* return_value, zend_cla
         args.key_len             = key_len;
 
         /* Add milliseconds argument */
-        CORE_ARG(&args, 0).type                = CORE_ARG_TYPE_LONG;
-        CORE_ARG(&args, 0).data.long_arg.value = milliseconds;
-        args.arg_count                         = 1;
+        args.args[0].type                = CORE_ARG_TYPE_LONG;
+        args.args[0].data.long_arg.value = milliseconds;
+        args.arg_count                   = 1;
 
         /* Add mode argument if provided */
         if (mode && mode_len > 0) {
-            CORE_ARG(&args, 1).type                  = CORE_ARG_TYPE_STRING;
-            CORE_ARG(&args, 1).data.string_arg.value = mode;
-            CORE_ARG(&args, 1).data.string_arg.len   = mode_len;
-            args.arg_count                           = 2;
+            args.args[1].type                  = CORE_ARG_TYPE_STRING;
+            args.args[1].data.string_arg.value = mode;
+            args.args[1].data.string_arg.len   = mode_len;
+            args.arg_count                     = 2;
         }
 
         if (execute_core_command(
@@ -231,16 +231,16 @@ int execute_pexpireat_command(zval* object, int argc, zval* return_value, zend_c
         args.key_len             = key_len;
 
         /* Add timestamp in milliseconds argument */
-        CORE_ARG(&args, 0).type                = CORE_ARG_TYPE_LONG;
-        CORE_ARG(&args, 0).data.long_arg.value = timestamp_ms;
-        args.arg_count                         = 1;
+        args.args[0].type                = CORE_ARG_TYPE_LONG;
+        args.args[0].data.long_arg.value = timestamp_ms;
+        args.arg_count                   = 1;
 
         /* Add mode argument if provided */
         if (mode && mode_len > 0) {
-            CORE_ARG(&args, 1).type                  = CORE_ARG_TYPE_STRING;
-            CORE_ARG(&args, 1).data.string_arg.value = mode;
-            CORE_ARG(&args, 1).data.string_arg.len   = mode_len;
-            args.arg_count                           = 2;
+            args.args[1].type                  = CORE_ARG_TYPE_STRING;
+            args.args[1].data.string_arg.value = mode;
+            args.args[1].data.string_arg.len   = mode_len;
+            args.arg_count                     = 2;
         }
 
         if (execute_core_command(

@@ -201,7 +201,7 @@ int prepare_core_args(core_command_args_t* args,
                 /* Single key: DEL key */
 
                 return prepare_key_only_args(args, cmd_args, cmd_args_len);
-            } else if (args->arg_count > 0 && CORE_ARG(args, 0).type == CORE_ARG_TYPE_ARRAY) {
+            } else if (args->arg_count > 0 && args->args[0].type == CORE_ARG_TYPE_ARRAY) {
                 /* Multi-key: DEL key1 key2 key3 */
 
                 return prepare_multi_key_args(args, cmd_args, cmd_args_len);
@@ -218,7 +218,7 @@ int prepare_core_args(core_command_args_t* args,
             if (args->key && args->key_len > 0 && args->arg_count == 0) {
                 /* Single key: PFCOUNT key */
                 return prepare_key_only_args(args, cmd_args, cmd_args_len);
-            } else if (args->arg_count > 0 && CORE_ARG(args, 0).type == CORE_ARG_TYPE_ARRAY) {
+            } else if (args->arg_count > 0 && args->args[0].type == CORE_ARG_TYPE_ARRAY) {
                 /* Multi-key: PFCOUNT key1 key2 key3 */
                 return prepare_multi_key_args(args, cmd_args, cmd_args_len);
             }
@@ -346,7 +346,7 @@ int prepare_key_value_args(core_command_args_t* args,
 
     /* Add primary arguments */
     for (int i = 0; i < args->arg_count; i++) {
-        switch (CORE_ARG(args, i).type) {
+        switch (args->args[i].type) {
             case CORE_ARG_TYPE_STRING:
             case CORE_ARG_TYPE_LONG:
             case CORE_ARG_TYPE_DOUBLE:
@@ -354,7 +354,7 @@ int prepare_key_value_args(core_command_args_t* args,
                 break;
             case CORE_ARG_TYPE_ARRAY:
                 /* Count elements in the array */
-                total_args += CORE_ARG(args, i).data.array_arg.count;
+                total_args += args->args[i].data.array_arg.count;
                 break;
             default:
                 break;
@@ -401,16 +401,16 @@ int prepare_key_value_args(core_command_args_t* args,
 
     /* Add primary arguments */
     for (int i = 0; i < args->arg_count; i++) {
-        switch (CORE_ARG(args, i).type) {
+        switch (args->args[i].type) {
             case CORE_ARG_TYPE_STRING:
-                (*cmd_args)[arg_idx]     = (uintptr_t) CORE_ARG(args, i).data.string_arg.value;
-                (*cmd_args_len)[arg_idx] = CORE_ARG(args, i).data.string_arg.len;
+                (*cmd_args)[arg_idx]     = (uintptr_t) args->args[i].data.string_arg.value;
+                (*cmd_args_len)[arg_idx] = args->args[i].data.string_arg.len;
                 arg_idx++;
                 break;
 
             case CORE_ARG_TYPE_LONG: {
                 size_t len;
-                char*  str = core_long_to_string(CORE_ARG(args, i).data.long_arg.value, &len);
+                char*  str = core_long_to_string(args->args[i].data.long_arg.value, &len);
                 if (str) {
                     (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
@@ -422,7 +422,7 @@ int prepare_key_value_args(core_command_args_t* args,
 
             case CORE_ARG_TYPE_DOUBLE: {
                 size_t len;
-                char*  str = core_double_to_string(CORE_ARG(args, i).data.double_arg.value, &len);
+                char*  str = core_double_to_string(args->args[i].data.double_arg.value, &len);
                 if (str) {
                     (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
@@ -434,7 +434,7 @@ int prepare_key_value_args(core_command_args_t* args,
 
             case CORE_ARG_TYPE_ARRAY: {
                 /* Expand array elements into individual arguments */
-                zval* array = CORE_ARG(args, i).data.array_arg.array;
+                zval* array = args->args[i].data.array_arg.array;
                 if (Z_TYPE_P(array) == IS_ARRAY) {
                     HashTable* ht = Z_ARRVAL_P(array);
                     zval*      element;
@@ -589,7 +589,7 @@ int prepare_message_args(core_command_args_t* args,
     int total_args = 0;
 
     for (int i = 0; i < args->arg_count; i++) {
-        switch (CORE_ARG(args, i).type) {
+        switch (args->args[i].type) {
             case CORE_ARG_TYPE_STRING:
             case CORE_ARG_TYPE_LONG:
             case CORE_ARG_TYPE_DOUBLE:
@@ -612,16 +612,16 @@ int prepare_message_args(core_command_args_t* args,
 
     /* Add all arguments */
     for (int i = 0; i < args->arg_count; i++) {
-        switch (CORE_ARG(args, i).type) {
+        switch (args->args[i].type) {
             case CORE_ARG_TYPE_STRING:
-                (*cmd_args)[arg_idx]     = (uintptr_t) CORE_ARG(args, i).data.string_arg.value;
-                (*cmd_args_len)[arg_idx] = CORE_ARG(args, i).data.string_arg.len;
+                (*cmd_args)[arg_idx]     = (uintptr_t) args->args[i].data.string_arg.value;
+                (*cmd_args_len)[arg_idx] = args->args[i].data.string_arg.len;
                 arg_idx++;
                 break;
 
             case CORE_ARG_TYPE_LONG: {
                 size_t len;
-                char*  str = core_long_to_string(CORE_ARG(args, i).data.long_arg.value, &len);
+                char*  str = core_long_to_string(args->args[i].data.long_arg.value, &len);
                 if (str) {
                     (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
@@ -633,7 +633,7 @@ int prepare_message_args(core_command_args_t* args,
 
             case CORE_ARG_TYPE_DOUBLE: {
                 size_t len;
-                char*  str = core_double_to_string(CORE_ARG(args, i).data.double_arg.value, &len);
+                char*  str = core_double_to_string(args->args[i].data.double_arg.value, &len);
                 if (str) {
                     (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
@@ -659,11 +659,11 @@ int prepare_key_value_pairs_args(core_command_args_t* args,
                                  unsigned long**      cmd_args_len,
                                  char***              allocated_strings,
                                  int*                 allocated_count) {
-    if (args->arg_count == 0 || CORE_ARG(args, 0).type != CORE_ARG_TYPE_ARRAY) {
+    if (args->arg_count == 0 || args->args[0].type != CORE_ARG_TYPE_ARRAY) {
         return 0;
     }
 
-    zval* arr = CORE_ARG(args, 0).data.array_arg.array;
+    zval* arr = args->args[0].data.array_arg.array;
     if (Z_TYPE_P(arr) != IS_ARRAY) {
         return 0;
     }
@@ -736,12 +736,12 @@ int prepare_key_value_pairs_args(core_command_args_t* args,
 int prepare_multi_key_args(core_command_args_t* args,
                            uintptr_t**          cmd_args,
                            unsigned long**      cmd_args_len) {
-    if (args->arg_count == 0 || CORE_ARG(args, 0).type != CORE_ARG_TYPE_ARRAY) {
+    if (args->arg_count == 0 || args->args[0].type != CORE_ARG_TYPE_ARRAY) {
         return 0;
     }
 
-    zval* keys      = CORE_ARG(args, 0).data.array_arg.array;
-    int   key_count = CORE_ARG(args, 0).data.array_arg.count;
+    zval* keys      = args->args[0].data.array_arg.array;
+    int   key_count = args->args[0].data.array_arg.count;
 
     if (!allocate_core_arg_arrays(key_count, cmd_args, cmd_args_len)) {
         return 0;
@@ -798,8 +798,8 @@ int prepare_bit_operation_args(core_command_args_t* args,
         case BitOp:
             total_args += 1; /* operation */
             /* Handle array of source keys */
-            if (args->arg_count > 1 && CORE_ARG(args, 1).type == CORE_ARG_TYPE_ARRAY) {
-                total_args += CORE_ARG(args, 1).data.array_arg.count;
+            if (args->arg_count > 1 && args->args[1].type == CORE_ARG_TYPE_ARRAY) {
+                total_args += args->args[1].data.array_arg.count;
             }
             break;
         default:
@@ -818,8 +818,8 @@ int prepare_bit_operation_args(core_command_args_t* args,
     /* Handle BitOp differently - operation comes first */
     if (args->cmd_type == BitOp) {
         /* Add operation */
-        (*cmd_args)[arg_idx]     = (uintptr_t) CORE_ARG(args, 0).data.string_arg.value;
-        (*cmd_args_len)[arg_idx] = CORE_ARG(args, 0).data.string_arg.len;
+        (*cmd_args)[arg_idx]     = (uintptr_t) args->args[0].data.string_arg.value;
+        (*cmd_args_len)[arg_idx] = args->args[0].data.string_arg.len;
         arg_idx++;
 
         /* Add destination key */
@@ -828,8 +828,8 @@ int prepare_bit_operation_args(core_command_args_t* args,
         arg_idx++;
 
         /* Add source keys from array */
-        if (args->arg_count > 1 && CORE_ARG(args, 1).type == CORE_ARG_TYPE_ARRAY) {
-            zval* array = CORE_ARG(args, 1).data.array_arg.array;
+        if (args->arg_count > 1 && args->args[1].type == CORE_ARG_TYPE_ARRAY) {
+            zval* array = args->args[1].data.array_arg.array;
             if (Z_TYPE_P(array) == IS_ARRAY) {
                 HashTable* ht = Z_ARRVAL_P(array);
                 zval*      element;
@@ -868,10 +868,10 @@ int prepare_bit_operation_args(core_command_args_t* args,
 
         /* Add arguments based on command type */
         for (int i = 0; i < args->arg_count; i++) {
-            switch (CORE_ARG(args, i).type) {
+            switch (args->args[i].type) {
                 case CORE_ARG_TYPE_LONG: {
                     size_t len;
-                    char*  str = core_long_to_string(CORE_ARG(args, i).data.long_arg.value, &len);
+                    char*  str = core_long_to_string(args->args[i].data.long_arg.value, &len);
                     if (str) {
                         (*cmd_args)[arg_idx]     = (uintptr_t) str;
                         (*cmd_args_len)[arg_idx] = len;
@@ -947,10 +947,10 @@ int prepare_expire_args(core_command_args_t* args,
 
     /* Add all arguments (time value and optional mode) */
     for (int i = 0; i < args->arg_count; i++) {
-        switch (CORE_ARG(args, i).type) {
+        switch (args->args[i].type) {
             case CORE_ARG_TYPE_LONG: {
                 size_t len;
-                char*  str = core_long_to_string(CORE_ARG(args, i).data.long_arg.value, &len);
+                char*  str = core_long_to_string(args->args[i].data.long_arg.value, &len);
                 if (str) {
                     (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
@@ -960,8 +960,8 @@ int prepare_expire_args(core_command_args_t* args,
                 break;
             }
             case CORE_ARG_TYPE_STRING:
-                (*cmd_args)[arg_idx]     = (uintptr_t) CORE_ARG(args, i).data.string_arg.value;
-                (*cmd_args_len)[arg_idx] = CORE_ARG(args, i).data.string_arg.len;
+                (*cmd_args)[arg_idx]     = (uintptr_t) args->args[i].data.string_arg.value;
+                (*cmd_args_len)[arg_idx] = args->args[i].data.string_arg.len;
                 arg_idx++;
                 break;
             default:
@@ -1014,10 +1014,10 @@ int prepare_range_args(core_command_args_t* args,
 
     /* Add range-specific arguments */
     for (int i = 0; i < args->arg_count && arg_idx < total_args; i++) {
-        switch (CORE_ARG(args, i).type) {
+        switch (args->args[i].type) {
             case CORE_ARG_TYPE_LONG: {
                 size_t len;
-                char*  str = core_long_to_string(CORE_ARG(args, i).data.long_arg.value, &len);
+                char*  str = core_long_to_string(args->args[i].data.long_arg.value, &len);
                 if (str) {
                     (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
@@ -1027,8 +1027,8 @@ int prepare_range_args(core_command_args_t* args,
                 break;
             }
             case CORE_ARG_TYPE_STRING:
-                (*cmd_args)[arg_idx]     = (uintptr_t) CORE_ARG(args, i).data.string_arg.value;
-                (*cmd_args_len)[arg_idx] = CORE_ARG(args, i).data.string_arg.len;
+                (*cmd_args)[arg_idx]     = (uintptr_t) args->args[i].data.string_arg.value;
+                (*cmd_args_len)[arg_idx] = args->args[i].data.string_arg.len;
                 arg_idx++;
                 break;
             default:
@@ -1567,7 +1567,7 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
     }
 
     core_command_args_t args;
-    INIT_CORE_ARGS(&args);
+    memset(&args, 0, sizeof(args));
     args.glide_client = valkey_glide->glide_client;
     args.cmd_type     = cmd_type;
 
@@ -1580,10 +1580,10 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
         args.arg_count = 0; /* Triggers single-key mode in core framework */
     } else if (keys_count > 0 && Z_TYPE_P(keys) == IS_ARRAY) {
         /* Multi-key array case */
-        CORE_ARG(&args, 0).type                 = CORE_ARG_TYPE_ARRAY;
-        CORE_ARG(&args, 0).data.array_arg.array = keys;
-        CORE_ARG(&args, 0).data.array_arg.count = keys_count;
-        args.arg_count                          = 1; /* Triggers multi-key mode in core framework */
+        args.args[0].type                 = CORE_ARG_TYPE_ARRAY;
+        args.args[0].data.array_arg.array = keys;
+        args.args[0].data.array_arg.count = keys_count;
+        args.arg_count                    = 1; /* Triggers multi-key mode in core framework */
     } else if (keys_count > 1 && Z_TYPE_P(keys) == IS_STRING) {
         /* Multiple separate string arguments case: del('x', 'y', 'z') */
         /* Convert to temporary array for multi-key processing */
@@ -1595,10 +1595,10 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
         }
 
         /* Use multi-key mode with temporary array */
-        CORE_ARG(&args, 0).type                 = CORE_ARG_TYPE_ARRAY;
-        CORE_ARG(&args, 0).data.array_arg.array = &temp_array;
-        CORE_ARG(&args, 0).data.array_arg.count = keys_count;
-        args.arg_count                          = 1; /* Triggers multi-key mode in core framework */
+        args.args[0].type                 = CORE_ARG_TYPE_ARRAY;
+        args.args[0].data.array_arg.array = &temp_array;
+        args.args[0].data.array_arg.count = keys_count;
+        args.arg_count                    = 1; /* Triggers multi-key mode in core framework */
 
         /* Execute using core framework with batch support */
         int result =
@@ -1651,19 +1651,19 @@ void debug_print_core_args(core_command_args_t* args) {
     printf("  arg_count: %d\n", args->arg_count);
 
     for (int i = 0; i < args->arg_count; i++) {
-        printf("  arg[%d]: type=%d\n", i, CORE_ARG(args, i).type);
-        switch (CORE_ARG(args, i).type) {
+        printf("  arg[%d]: type=%d\n", i, args->args[i].type);
+        switch (args->args[i].type) {
             case CORE_ARG_TYPE_STRING:
                 printf("    string: %.*s (len: %zu)\n",
-                       (int) CORE_ARG(args, i).data.string_arg.len,
-                       CORE_ARG(args, i).data.string_arg.value,
-                       CORE_ARG(args, i).data.string_arg.len);
+                       (int) args->args[i].data.string_arg.len,
+                       args->args[i].data.string_arg.value,
+                       args->args[i].data.string_arg.len);
                 break;
             case CORE_ARG_TYPE_LONG:
-                printf("    long: %ld\n", CORE_ARG(args, i).data.long_arg.value);
+                printf("    long: %ld\n", args->args[i].data.long_arg.value);
                 break;
             case CORE_ARG_TYPE_DOUBLE:
-                printf("    double: %f\n", CORE_ARG(args, i).data.double_arg.value);
+                printf("    double: %f\n", args->args[i].data.double_arg.value);
                 break;
             default:
                 printf("    (other type)\n");

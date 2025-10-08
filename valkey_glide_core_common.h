@@ -117,7 +117,7 @@ typedef struct {
     size_t      key_len;
 
     /* Fixed arguments array - sufficient for current usage */
-    core_arg_t fixed_args[8];
+    core_arg_t args[8];
     int        arg_count;
 
     /* Routing support for cluster commands */
@@ -130,16 +130,6 @@ typedef struct {
     zval*          raw_options; /* Raw PHP options array for complex parsing */
 } core_command_args_t;
 
-/* Helper macros for accessing args uniformly */
-#define CORE_ARGS(args_struct) /* Access a specific argument by index */
-#define CORE_ARG(args_struct, index) ((args_struct)->fixed_args[index])
-
-/* Initialize core_command_args_t */
-#define INIT_CORE_ARGS(args_struct)                       \
-    do {                                                  \
-        memset((args_struct), 0, sizeof(*(args_struct))); \
-    } while (0)
-
 /* Cleanup function */
 void cleanup_core_args(core_command_args_t* args);
 
@@ -147,16 +137,16 @@ void cleanup_core_args(core_command_args_t* args);
  * USAGE EXAMPLE:
  *
  * core_command_args_t args;
- * INIT_CORE_ARGS(&args);
+ * memset(&args, 0, sizeof(args));
  * args.glide_client = client;
  * args.cmd_type = SomeCommand;
  * args.key = "mykey";
  * args.key_len = 5;
  *
  * // Set arguments directly in fixed array (up to 8 args)
- * args.fixed_args[0].type = CORE_ARG_TYPE_STRING;
- * args.fixed_args[0].data.string_arg.value = "arg1";
- * args.fixed_args[0].data.string_arg.len = 4;
+ * args.args[0].type = CORE_ARG_TYPE_STRING;
+ * args.args[0].data.string_arg.value = "arg1";
+ * args.args[0].data.string_arg.len = 4;
  * args.arg_count = 1;
  *
  * // Execute command

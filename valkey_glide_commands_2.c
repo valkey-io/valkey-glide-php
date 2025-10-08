@@ -56,10 +56,10 @@ int execute_rename_command(zval* object, int argc, zval* return_value, zend_clas
     args.key_len             = src_len;
 
     /* Add destination key as argument */
-    CORE_ARG(&args, 0).type                  = CORE_ARG_TYPE_STRING;
-    CORE_ARG(&args, 0).data.string_arg.value = dst;
-    CORE_ARG(&args, 0).data.string_arg.len   = dst_len;
-    args.arg_count                           = 1;
+    args.args[0].type                  = CORE_ARG_TYPE_STRING;
+    args.args[0].data.string_arg.value = dst;
+    args.args[0].data.string_arg.len   = dst_len;
+    args.arg_count                     = 1;
 
     int result =
         execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value);
@@ -105,10 +105,10 @@ int execute_renamenx_command(zval* object, int argc, zval* return_value, zend_cl
     args.key_len             = src_len;
 
     /* Add destination key as argument */
-    CORE_ARG(&args, 0).type                  = CORE_ARG_TYPE_STRING;
-    CORE_ARG(&args, 0).data.string_arg.value = dst;
-    CORE_ARG(&args, 0).data.string_arg.len   = dst_len;
-    args.arg_count                           = 1;
+    args.args[0].type                  = CORE_ARG_TYPE_STRING;
+    args.args[0].data.string_arg.value = dst;
+    args.args[0].data.string_arg.len   = dst_len;
+    args.arg_count                     = 1;
 
     int result =
         execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value);
@@ -282,9 +282,9 @@ int execute_incr_command(zval* object, int argc, zval* return_value, zend_class_
         args.key_len             = key_len;
 
         /* Add increment argument */
-        CORE_ARG(&args, 0).type                = CORE_ARG_TYPE_LONG;
-        CORE_ARG(&args, 0).data.long_arg.value = value;
-        args.arg_count                         = 1;
+        args.args[0].type                = CORE_ARG_TYPE_LONG;
+        args.args[0].data.long_arg.value = value;
+        args.arg_count                   = 1;
 
 
         if (execute_core_command(
@@ -328,9 +328,9 @@ int execute_incrby_command(zval* object, int argc, zval* return_value, zend_clas
     args.key_len             = key_len;
 
     /* Add increment argument */
-    CORE_ARG(&args, 0).type                = CORE_ARG_TYPE_LONG;
-    CORE_ARG(&args, 0).data.long_arg.value = value;
-    args.arg_count                         = 1;
+    args.args[0].type                = CORE_ARG_TYPE_LONG;
+    args.args[0].data.long_arg.value = value;
+    args.arg_count                   = 1;
 
 
     /* Execute the INCRBY command using the Glide client */
@@ -373,9 +373,9 @@ int execute_incrbyfloat_command(zval* object, int argc, zval* return_value, zend
     args.key_len             = key_len;
 
     /* Add increment argument */
-    CORE_ARG(&args, 0).type                  = CORE_ARG_TYPE_DOUBLE;
-    CORE_ARG(&args, 0).data.double_arg.value = value;
-    args.arg_count                           = 1;
+    args.args[0].type                  = CORE_ARG_TYPE_DOUBLE;
+    args.args[0].data.double_arg.value = value;
+    args.arg_count                     = 1;
 
     if (execute_core_command(valkey_glide, &args, NULL, process_core_double_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
@@ -448,9 +448,9 @@ int execute_decr_command(zval* object, int argc, zval* return_value, zend_class_
         args.key_len             = key_len;
 
         /* Add decrement argument */
-        CORE_ARG(&args, 0).type                = CORE_ARG_TYPE_LONG;
-        CORE_ARG(&args, 0).data.long_arg.value = value;
-        args.arg_count                         = 1;
+        args.args[0].type                = CORE_ARG_TYPE_LONG;
+        args.args[0].data.long_arg.value = value;
+        args.arg_count                   = 1;
         if (execute_core_command(
                 valkey_glide, &args, NULL, process_core_int_result, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
@@ -494,9 +494,9 @@ int execute_decrby_command(zval* object, int argc, zval* return_value, zend_clas
     args.key_len             = key_len;
 
     /* Add decrement argument */
-    CORE_ARG(&args, 0).type                = CORE_ARG_TYPE_LONG;
-    CORE_ARG(&args, 0).data.long_arg.value = value;
-    args.arg_count                         = 1;
+    args.args[0].type                = CORE_ARG_TYPE_LONG;
+    args.args[0].data.long_arg.value = value;
+    args.arg_count                   = 1;
 
     if (execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
@@ -534,10 +534,10 @@ int execute_mget_command(zval* object, int argc, zval* return_value, zend_class_
     args.cmd_type            = MGet;
 
     /* Set up array argument for keys */
-    CORE_ARG(&args, 0).type                 = CORE_ARG_TYPE_ARRAY;
-    CORE_ARG(&args, 0).data.array_arg.array = z_array;
-    CORE_ARG(&args, 0).data.array_arg.count = zend_hash_num_elements(Z_ARRVAL_P(z_array));
-    args.arg_count                          = 1;
+    args.args[0].type                 = CORE_ARG_TYPE_ARRAY;
+    args.args[0].data.array_arg.array = z_array;
+    args.args[0].data.array_arg.count = zend_hash_num_elements(Z_ARRVAL_P(z_array));
+    args.arg_count                    = 1;
 
     if (execute_core_command(valkey_glide, &args, NULL, process_core_array_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
