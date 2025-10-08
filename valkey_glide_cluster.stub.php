@@ -526,12 +526,12 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::hSetEx
      */
-    public function hSetEx(string $key, int $seconds, ?string $condition, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+    public function hSetEx(string $key, int $seconds, ?string $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
 
     /**
      * @see ValkeyGlide::hPSetEx
      */
-    public function hPSetEx(string $key, int $milliseconds, ?string $condition, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+    public function hPSetEx(string $key, int $milliseconds, ?string $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
 
     /**
      * @see ValkeyGlide::hGetEx
@@ -541,22 +541,22 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::hExpire
      */
-    public function hExpire(string $key, int $seconds, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+    public function hExpire(string $key, int $seconds, ?string $mode, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
 
     /**
      * @see ValkeyGlide::hPExpireAt
      */
-    public function hPExpireAt(string $key, int $unix_timestamp_ms, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+    public function hPExpireAt(string $key, int $unix_timestamp_ms, ?string $mode, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
 
     /**
      * @see ValkeyGlide::hPExpire
      */
-    public function hPExpire(string $key, int $milliseconds, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+    public function hPExpire(string $key, int $milliseconds, ?string $mode, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
 
     /**
      * @see ValkeyGlide::hExpireAt
      */
-    public function hExpireAt(string $key, int $unix_timestamp, string $field, string ...$other_fields): ValkeyGlide|array|false;
+    public function hExpireAt(string $key, int $unix_timestamp, ?string $mode, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
 
     /**
      * @see ValkeyGlide::hTtl
@@ -581,7 +581,7 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::hPersist
      */
-    public function hPersist(string $key, string|array $fields): ValkeyGlideCluster|array|false;
+    public function hPersist(string $key, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
 
     /**
      * @see ValkeyGlide::incr
