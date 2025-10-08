@@ -26,14 +26,6 @@
  * CORE FRAMEWORK IMPLEMENTATION
  * ==================================================================== */
 
-/* Cleanup function for core args */
-void cleanup_core_args(core_command_args_t* args) {
-    if (!args)
-        return;
-
-    args->arg_count = 0;
-}
-
 /**
  * Main command execution framework
  * This is the central function that handles all ValkeyGlide/Valkey commands
@@ -1566,10 +1558,9 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
         return 0;
     }
 
-    core_command_args_t args;
-    memset(&args, 0, sizeof(args));
-    args.glide_client = valkey_glide->glide_client;
-    args.cmd_type     = cmd_type;
+    core_command_args_t args = {0};
+    args.glide_client        = valkey_glide->glide_client;
+    args.cmd_type            = cmd_type;
 
     /* Detect single key vs multi-key scenario */
     if (keys_count == 1 && Z_TYPE_P(keys) == IS_STRING) {

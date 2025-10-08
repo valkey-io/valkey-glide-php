@@ -130,32 +130,6 @@ typedef struct {
     zval*          raw_options; /* Raw PHP options array for complex parsing */
 } core_command_args_t;
 
-/* Cleanup function */
-void cleanup_core_args(core_command_args_t* args);
-
-/*
- * USAGE EXAMPLE:
- *
- * core_command_args_t args;
- * memset(&args, 0, sizeof(args));
- * args.glide_client = client;
- * args.cmd_type = SomeCommand;
- * args.key = "mykey";
- * args.key_len = 5;
- *
- * // Set arguments directly in fixed array (up to 8 args)
- * args.args[0].type = CORE_ARG_TYPE_STRING;
- * args.args[0].data.string_arg.value = "arg1";
- * args.args[0].data.string_arg.len = 4;
- * args.arg_count = 1;
- *
- * // Execute command
- * execute_core_command(valkey_glide, &args, NULL, processor, return_value);
- *
- * // Cleanup
- * cleanup_core_args(&args);
- */
-
 /* ====================================================================
  * CORE FRAMEWORK FUNCTIONS
  * ==================================================================== */
