@@ -736,11 +736,11 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->multi();
         $this->valkey_glide->hSetEx($key1, 60, null, 'expire_field', 'expire_value');
         $this->valkey_glide->hPSetEx($key1, 30000, null, 'pexpire_field', 'pexpire_value');
-        $this->valkey_glide->hExpire($key1, 120, 'field1', 'field2');
-        $this->valkey_glide->hPExpire($key1, 90000, 'field3');
+        $this->valkey_glide->hExpire($key1, 120, null, 'field1', 'field2');
+        $this->valkey_glide->hPExpire($key1, 90000, null, 'field3');
         $this->valkey_glide->hTtl($key1, 'field1');
         $this->valkey_glide->hPTtl($key1, 'field3');
-        $this->valkey_glide->hPersist($key1, ['field1']);
+        $this->valkey_glide->hPersist($key1, 'field1');
         $results = $this->valkey_glide->exec();
 
         // Verify results
