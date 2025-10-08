@@ -14,6 +14,17 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Debug setup-valkey-glide inputs
+      shell: bash
+      env:
+        PHP_VERSION: ${{ inputs.php-version }}
+        ENGINE_VERSION: ${{ inputs.engine-version }}
+      run: |
+        echo "=== Setup ValkeyGlide Debug ==="
+        echo "php-version: $PHP_VERSION"
+        echo "engine-version: $ENGINE_VERSION"
+        echo "github-token: [REDACTED]"
+
     - name: Cache APT packages
       uses: actions/cache@v4
       with:
@@ -87,6 +98,15 @@ runs:
       uses: ./.github/workflows/install-rust-and-protoc
       with:
         github-token: ${{ inputs.github-token }}
+
+    - name: Install Valkey engine
+      uses: ./.github/workflows/install-engine
+      with:
+        engine-version: ${{ inputs.engine-version }}
+        target: x86_64-unknown-linux-gnu
+
+    - name: Install zig
+      uses: ./.github/workflows/install-zig
 
     - name: Install cbindgen (cached)
       shell: bash

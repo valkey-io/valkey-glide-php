@@ -27,12 +27,15 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup ValkeyGlide with Caching
-        uses: ./.github/workflows/setup-valkey-glide
+      - name: Install Rust and protoc
+        uses: ./.github/workflows/install-rust-and-protoc
         with:
-          php-version: "8.1"
-          engine-version: "7.2.5"
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add Rust to PATH
+        run: |
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          source $HOME/.cargo/env || true
 
       - name: Determine version
         id: version

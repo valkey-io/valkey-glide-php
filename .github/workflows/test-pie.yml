@@ -59,6 +59,13 @@ jobs:
           php-version: ${{ matrix.php }}
           install-composer-deps: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: ${{ matrix.engine.version }}
+
+      - name: Install Valkey engine
+        uses: ./.github/workflows/install-engine
+        with:
+          engine-version: ${{ matrix.engine.version }}
+          target: x86_64-unknown-linux-gnu
 
       - name: Create manual Composer repository
         run: |
@@ -200,9 +207,17 @@ jobs:
           # Add local repository
           pie repository:add composer http://localhost:8000
 
-          echo "=== Attempting PIE installation with verbose output ==="
+          echo "=== Testing PIE repository setup ==="
+          # Test that PIE can access the repository by listing repositories
+          pie repository:list
+          echo "SUCCESS: PIE repository configured correctly"
+
+      - name: Verify PIE installation
+        run: |
+          echo "=== Attempting PIE installation ==="
           set +e
           export CARGO_BUILD_JOBS=$(nproc)
+
           # Make Rust available to root by preserving environment
           sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$(nproc)" pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -vvv 2>&1 | tee pie_install.log
           PIE_EXIT_CODE=$?
@@ -234,6 +249,23 @@ jobs:
                 echo "SUCCESS: Shared object built at: $SO_FILE"
                 ls -la "$SO_FILE"
                 echo "File size: $(if [[ "${{ matrix.host.OS }}" == "macos" ]]; then stat -f%z "$SO_FILE" 2>/dev/null; else stat -c%s "$SO_FILE" 2>/dev/null; fi || echo "unknown") bytes"
+                
+                # Check for undefined symbols in the built extension
+                echo "=== Checking for undefined symbols in PIE-built extension ==="
+                if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
+                  # macOS: Use nm to check for undefined symbols (exclude system symbols)
+                  if nm -u "$SO_FILE" 2>/dev/null | grep -v "dyld_stub_binder" | grep -E "^_zim_|^_execute_.*command" | head -5; then
+                    echo "ERROR: Found undefined symbols in PIE-built extension"
+                    exit 1
+                  fi
+                else
+                  # Linux: Use objdump to check for undefined symbols
+                  if objdump -T "$SO_FILE" 2>/dev/null | grep "UND" | grep -E "zim_|execute_.*command" | head -5; then
+                    echo "ERROR: Found undefined symbols in PIE-built extension"
+                    exit 1
+                  fi
+                fi
+                echo "SUCCESS: No problematic undefined symbols detected in PIE-built extension"
               else
                 echo "WARNING: PIE reported success but valkey_glide.so not found"
                 find "$PIE_WORK_DIR" -name "*.so" -type f 2>/dev/null || echo "No .so files found at all"
@@ -272,14 +304,11 @@ jobs:
             fi
           fi
 
-      - name: Verify PIE installation
-        run: |
           echo "=== Checking PHP extension directory ==="
           php-config --extension-dir
           ls -la $(php-config --extension-dir) | grep valkey || echo "valkey_glide.so not found in extension directory"
 
           echo "=== Looking for built extension in PIE working directory ==="
-          PIE_WORK_DIR=$(find "$HOME/.config/pie" -name "valkey-glide-php" -type d | head -1)
           if [ -n "$PIE_WORK_DIR" ]; then
             echo "PIE working directory: $PIE_WORK_DIR"
             find "$PIE_WORK_DIR" -name "*.so" -type f 2>/dev/null || echo "No .so files found in PIE directory"
@@ -299,16 +328,61 @@ jobs:
           fi
 
           echo "=== Checking if extension is loaded ==="
+          php -m 2>&1 | tee load_check.log
+
+          # Check for undefined symbol errors
+          if grep -i "undefined symbol" load_check.log; then
+            echo "ERROR: Undefined symbols detected during extension loading!"
+            grep -i "undefined symbol" load_check.log
+            exit 1
+          fi
+
+          # Check for library loading failures  
+          if grep -i "unable to load\|cannot open shared object\|no such file" load_check.log; then
+            echo "ERROR: Library loading failure detected!"
+            grep -i "unable to load\|cannot open shared object\|no such file" load_check.log
+            exit 1
+          fi
+
           php -m | grep -i valkey || echo "valkey extension not loaded"
 
           echo "=== Checking PHP configuration ==="
           php --ini
 
-          echo "=== Manually enabling extension ==="
+          echo "=== Manually enabling extension with error detection ==="
+          php -d extension=valkey_glide -m 2>&1 | tee manual_load.log
+
+          # Check manual loading for errors
+          if grep -i "undefined symbol\|unable to load\|cannot open shared object" manual_load.log; then
+            echo "ERROR: Extension loading failed with errors!"
+            grep -i "undefined symbol\|unable to load\|cannot open shared object" manual_load.log
+            exit 1
+          fi
+
           php -d extension=valkey_glide -m | grep -i valkey && echo "Extension works when manually enabled!" || echo "Extension still not working"
 
-          echo "=== Testing extension functionality ==="
-          php -d extension=valkey_glide -r "if (extension_loaded('valkey_glide')) { echo 'SUCCESS: Extension loaded and functional!'; } else { echo 'ERROR: Extension not functional'; }"
+          echo "=== Testing extension functionality with comprehensive checks ==="
+          php -d extension=valkey_glide -r "
+            if (!extension_loaded('valkey_glide')) {
+              echo 'ERROR: Extension not loaded' . PHP_EOL;
+              exit(1);
+            }
+            if (!class_exists('ValkeyGlide')) {
+              echo 'ERROR: ValkeyGlide class not found' . PHP_EOL;
+              exit(1);
+            }
+            if (!class_exists('ValkeyGlideCluster')) {
+              echo 'ERROR: ValkeyGlideCluster class not found' . PHP_EOL;
+              exit(1);
+            }
+            echo 'SUCCESS: Extension loaded and all classes available!' . PHP_EOL;
+          " 2>&1 | tee function_test.log
+
+          # Check for errors in functionality test
+          if grep -i "ERROR:" function_test.log; then
+            echo "Extension functionality test failed!"
+            exit 1
+          fi
 
       - name: Run PHP Extension Tests
         uses: ./.github/workflows/run-php-tests

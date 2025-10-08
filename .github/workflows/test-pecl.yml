@@ -48,6 +48,16 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install Rust and protoc
+        uses: ./.github/workflows/install-rust-and-protoc
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add Rust to PATH
+        run: |
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          source $HOME/.cargo/env || true
+
       - name: Output Matrix Parameters for this job
         run: |
           echo "Job running with the following matrix configuration:"
@@ -59,6 +69,13 @@ jobs:
           php-version: ${{ matrix.php }}
           engine-version: ${{ matrix.engine.version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: ${{ matrix.engine.version }}
+
+      - name: Install Valkey engine
+        uses: ./.github/workflows/install-engine
+        with:
+          engine-version: ${{ matrix.engine.version }}
+          target: x86_64-unknown-linux-gnu
 
       - name: Install Engine
         uses: ./.github/workflows/install-engine

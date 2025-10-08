@@ -106,7 +106,8 @@ typedef struct {
     int    has_ifeq;   /* IFEQ flag */
 } core_options_t;
 
-/* Core command arguments structure */
+/* Argument allocation type */
+/* Core command arguments structure - simplified without dynamic support */
 typedef struct {
     const void*      glide_client;
     enum RequestType cmd_type;
@@ -115,8 +116,8 @@ typedef struct {
     const char* key;
     size_t      key_len;
 
-    /* Additional arguments */
-    core_arg_t args[8]; /* Support up to 8 flexible arguments */
+    /* Fixed arguments array - sufficient for current usage */
+    core_arg_t args[8];
     int        arg_count;
 
     /* Routing support for cluster commands */
