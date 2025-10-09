@@ -117,13 +117,6 @@ jobs:
           echo "Job running with the following matrix configuration:"
           echo "${{ toJson(matrix) }}"
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            valkey-glide/ffi
-            valkey-glide/glide-core
-          key: ${{ matrix.host.TARGET }}
-
       - name: Build PHP wrapper
         uses: ./.github/workflows/build-php-wrapper
         with:
@@ -212,6 +205,7 @@ jobs:
       - name: Install shared dependencies
         uses: ./.github/workflows/install-shared-dependencies
         with:
+          os: ${{ inputs.os }}
           target: x86_64-apple-darwin
           github-token: ${{ secrets.GITHUB_TOKEN }}
           engine-version: ${{ matrix.engine.version }}
