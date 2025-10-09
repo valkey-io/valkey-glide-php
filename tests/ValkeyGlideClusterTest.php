@@ -211,6 +211,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
                 false, // use_tls
                 $this->getAuth(), // credentials
                 ValkeyGlide::READ_FROM_PRIMARY, // read_from
+                null, // request_timeout
+                null, // reconnect_strategy
+                null, // client_name
+                null, // periodic_checks
+                null, // client_az
+                null, // advanced_config
+                null, // lazy_connect
+                0     // database_id - enable multi-database support
             );
         } catch (Exception $ex) {
             TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());
@@ -967,9 +975,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             $this->markTestSkipped('Multi-database operations in cluster mode require Valkey 9.0.0+');
         }
 
-        // In Valkey 9.0+, SELECT should work with multiple databases
+        // SELECT should work in Valkey 9.0+ clusters
         $this->assertTrue($this->valkey_glide->select(0));
-        $this->assertTrue($this->valkey_glide->select(1), 'SELECT 1 should succeed in Valkey 9.0+ cluster with multi-database support');
+        $this->assertTrue($this->valkey_glide->select(1));
         $this->assertTrue($this->valkey_glide->select(2));
         $this->assertTrue($this->valkey_glide->select(15));
         $this->assertFalse(@$this->valkey_glide->select(-1));
@@ -1011,15 +1019,15 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->valkey_glide->select(0);
         $this->valkey_glide->set($key, 'move_test_value');
         
-        // In Valkey 9.0+, MOVE should succeed if cluster has multi-database support
+        // In Valkey 9.0+, MOVE should succeed - failure indicates missing cluster-databases config
         $result = $this->valkey_glide->move($key, 1);
-        $this->assertTrue($result, 'MOVE should succeed in Valkey 9.0+ cluster with multi-database support');
+        $this->assertTrue($result, 'MOVE should succeed in Valkey 9.0+ cluster (ensure cluster-databases > 1 is configured)');
         
         // Verify MOVE worked correctly
-        $this->assertFalse($this->valkey_glide->exists($key)); // Should not exist in DB 0
+        $this->assertEquals(0, $this->valkey_glide->exists($key)); // Should not exist in DB 0
         
         $this->valkey_glide->select(1);
-        $this->assertTrue($this->valkey_glide->exists($key)); // Should exist in DB 1
+        $this->assertEquals(1, $this->valkey_glide->exists($key)); // Should exist in DB 1
         $this->assertEquals('move_test_value', $this->valkey_glide->get($key));
         
         // Clean up
@@ -1039,9 +1047,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->valkey_glide->select(0);
         $this->valkey_glide->set($srcKey, 'copy_test_value');
         
-        // In Valkey 9.0+, COPY should succeed if cluster has multi-database support
+        // COPY with DB parameter should work in Valkey 9.0+ clusters
         $result = $this->valkey_glide->copy($srcKey, $dstKey, ['DB' => 1]);
-        $this->assertTrue($result, 'COPY should succeed in Valkey 9.0+ cluster with multi-database support');
+        $this->assertTrue($result, 'COPY should succeed in Valkey 9.0+ cluster');
         
         // Verify COPY worked correctly
         $this->assertEquals('copy_test_value', $this->valkey_glide->get($srcKey)); // Original still exists
