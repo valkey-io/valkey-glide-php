@@ -60,12 +60,6 @@ jobs:
           engine-version: ${{ matrix.engine.version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Engine
-        uses: ./.github/workflows/install-engine
-        with:
-          engine-version: ${{ matrix.engine.version }}
-          target: ${{ matrix.host.TARGET }}
-
       - name: Generate PHP protobuf classes for testing
         run: |
           echo "=== Generating PHP protobuf classes for testing ==="
