@@ -346,6 +346,59 @@ HKEYS_METHOD_IMPL(ValkeyGlideCluster)
 HVALS_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto long ValkeyGlideCluster::hSetEx(string key, long seconds, string field, string value,
+ * ...) */
+HSETEX_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto long ValkeyGlideCluster::hPSetEx(string key, long milliseconds, string field, string
+ * value,
+ * ...) */
+HPSETEX_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hExpire(string key, long time_value, string time_unit, string
+ * field, ...) */
+HEXPIRE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hExpireAt(string key, long timestamp, string field, ...) */
+HEXPIREAT_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hPExpire(string key, long milliseconds, string field, ...) */
+HPEXPIRE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hPExpireAt(string key, long timestamp_ms, string field, ...)
+ */
+HPEXPIREAT_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hTtl(string key, string field, ...) */
+HTTL_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hPTtl(string key, string field, ...) */
+HPTTL_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hExpireTime(string key, string field, ...) */
+HEXPIRETIME_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hPExpireTime(string key, string field, ...) */
+HPEXPIRETIME_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hPersist(string key, string field, ...) */
+HPERSIST_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::hGetEx(string key, string field, long seconds, ...) */
+HGETEX_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto string ValkeyGlideCluster::hget(string key, string mem) */
 HGET_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
@@ -428,7 +481,8 @@ EXPIREAT_METHOD_IMPL(ValkeyGlideCluster)
 PEXPIRE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto bool ValkeyGlideCluster::pexpireat(string key, long ts) */
+/* {{{ proto bool ValkeyGlideCluster::pexpireAt(string key, long milliseconds_timestamp [, string
+ * mode]) */
 PEXPIREAT_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
@@ -827,7 +881,6 @@ ECHO_METHOD_IMPL(ValkeyGlideCluster)
  * $argvN]) */
 RAWCOMMAND_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
-
 
 COPY_METHOD_IMPL(ValkeyGlideCluster)
 #endif /* PHP_REDIS_CLUSTER_C */

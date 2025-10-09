@@ -721,6 +721,45 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key1);
     }
 
+    public function testHashFieldExpirationBatch()
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('Hash field expiration requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $key1 = 'batch_hfe_' . uniqid();
+
+        // Setup hash with fields
+        $this->valkey_glide->hSet($key1, 'field1', 'value1', 'field2', 'value2', 'field3', 'value3');
+
+        // Execute HFE operations in batch
+        $this->valkey_glide->multi();
+        $this->valkey_glide->hSetEx($key1, 60, null, 'expire_field', 'expire_value');
+        $this->valkey_glide->hPSetEx($key1, 30000, null, 'pexpire_field', 'pexpire_value');
+        $this->valkey_glide->hExpire($key1, 120, null, 'field1', 'field2');
+        $this->valkey_glide->hPExpire($key1, 90000, null, 'field3');
+        $this->valkey_glide->hTtl($key1, 'field1');
+        $this->valkey_glide->hPTtl($key1, 'field3');
+        $this->valkey_glide->hPersist($key1, 'field1');
+        $results = $this->valkey_glide->exec();
+
+        // Verify results
+        $this->assertEquals(1, $results[0]); // hSetEx
+        $this->assertEquals(1, $results[1]); // hPSetEx
+        $this->assertEquals([1, 1], $results[2]); // hExpire
+        $this->assertEquals([1], $results[3]); // hPExpire
+        $this->assertIsArray($results[4]); // hTtl
+        $this->assertIsArray($results[5]); // hPTtl
+        $this->assertEquals([1], $results[6]); // hPersist
+
+        // Verify values were set
+        $this->assertEquals('expire_value', $this->valkey_glide->hGet($key1, 'expire_field'));
+        $this->assertEquals('pexpire_value', $this->valkey_glide->hGet($key1, 'pexpire_field'));
+
+        // Cleanup
+        $this->valkey_glide->del($key1);
+    }
+
     // ===================================================================
     // LIST ADVANCED OPERATIONS BATCH TESTS
     // ===================================================================

@@ -81,6 +81,38 @@
 
 class ValkeyGlideCluster
 {
+    /**
+     * Hash field condition constants
+     * @var string
+     */
+    public const CONDITION_NX = "NX";  // Only if field doesn't exist
+    
+    /**
+     * @var string
+     */
+    public const CONDITION_XX = "XX";  // Only if field exists
+
+    /**
+     * Time unit constants for hash field expiration
+     * @var string
+     */
+    public const TIME_UNIT_SECONDS = "EX";           // Expire in seconds
+    
+    /**
+     * @var string
+     */
+    public const TIME_UNIT_MILLISECONDS = "PX";      // Expire in milliseconds
+    
+    /**
+     * @var string
+     */
+    public const TIME_UNIT_TIMESTAMP_SECONDS = "EXAT";   // Expire at timestamp (seconds)
+    
+    /**
+     * @var string
+     */
+    public const TIME_UNIT_TIMESTAMP_MILLISECONDS = "PXAT"; // Expire at timestamp (milliseconds)
+
                     /**
                    *  @var int
          * Enables the periodic checks with the default configurations.
@@ -500,6 +532,66 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::hvals
      */
     public function hVals(string $key): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hSetEx
+     */
+    public function hSetEx(string $key, int $seconds, ?string $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+
+    /**
+     * @see ValkeyGlide::hPSetEx
+     */
+    public function hPSetEx(string $key, int $milliseconds, ?string $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+
+    /**
+     * @see ValkeyGlide::hGetEx
+     */
+    public function hGetEx(string $key, array $fields, ?array $options = null): mixed;
+
+    /**
+     * @see ValkeyGlide::hExpire
+     */
+    public function hExpire(string $key, int $seconds, ?string $mode, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hPExpireAt
+     */
+    public function hPExpireAt(string $key, int $unix_timestamp_ms, ?string $mode, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hPExpire
+     */
+    public function hPExpire(string $key, int $milliseconds, ?string $mode, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hExpireAt
+     */
+    public function hExpireAt(string $key, int $unix_timestamp, ?string $mode, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hTtl
+     */
+    public function hTtl(string $key, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hPTtl
+     */
+    public function hPTtl(string $key, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hExpireTime
+     */
+    public function hExpireTime(string $key, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hPExpireTime
+     */
+    public function hPExpireTime(string $key, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::hPersist
+     */
+    public function hPersist(string $key, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;
 
     /**
      * @see ValkeyGlide::incr
