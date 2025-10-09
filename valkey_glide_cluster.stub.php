@@ -285,6 +285,16 @@ class ValkeyGlideCluster
     public function select(int $db): ValkeyGlideCluster|bool;
 
     /**
+     * Move a key to a different database on the same valkey instance.
+     * This command is supported in cluster mode starting with Valkey 9.0.
+     *
+     * @param string $key The key to move
+     * @param int $index The database index to move the key to
+     * @return ValkeyGlideCluster|bool True if the key was moved
+     */
+    public function move(string $key, int $index): ValkeyGlideCluster|bool;
+
+    /**
      * @see https://valkey.io/commands/copy
      */
     public function copy(string $src, string $dst, ?array $options = null): ValkeyGlideCluster|bool;

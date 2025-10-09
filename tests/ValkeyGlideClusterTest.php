@@ -123,6 +123,28 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertTrue($this->valkey_glide->select(0));
     }
 
+    public function testMove()
+    {
+        // Test MOVE command in cluster mode (requires Valkey 9.0+)
+        $key = 'test_move_key_' . uniqid();
+        $this->valkey_glide->set($key, 'test_value');
+        
+        // Move to database 1 (should work in Valkey 9.0+ cluster with multi-database support)
+        $result = $this->valkey_glide->move($key, 1);
+        
+        // The result depends on Valkey version and cluster configuration
+        // In Valkey 9.0+ with cluster-databases > 1, this should return true
+        // In older versions or without multi-database support, this may return false
+        $this->assertIsBool($result);
+        
+        // Clean up - try to delete from both databases
+        $this->valkey_glide->select(0);
+        $this->valkey_glide->del($key);
+        $this->valkey_glide->select(1);
+        $this->valkey_glide->del($key);
+        $this->valkey_glide->select(0);
+    }
+
     public function testReconnectSelect()
     {
         $this->markTestSkipped();

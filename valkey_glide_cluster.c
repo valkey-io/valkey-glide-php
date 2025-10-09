@@ -882,6 +882,14 @@ ECHO_METHOD_IMPL(ValkeyGlideCluster)
 RAWCOMMAND_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto boolean ValkeyGlideCluster::select(int dbindex) */
+SELECT_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto boolean ValkeyGlideCluster::move(string key, int dbindex) */
+MOVE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 COPY_METHOD_IMPL(ValkeyGlideCluster)
 #endif /* PHP_REDIS_CLUSTER_C */
 /* vim: set tabstop=4 softtabstop=4 expandtab shiftwidth=4: */
