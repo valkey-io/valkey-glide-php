@@ -60,6 +60,7 @@ runs:
           build-essential \
           "php${PHP_VERSION}-dev" \
           protobuf-compiler \
+          protobuf-c-compiler \
           libprotobuf-c-dev \
           libprotobuf-c1 \
           pkg-config \
