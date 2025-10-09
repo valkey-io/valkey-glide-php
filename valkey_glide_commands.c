@@ -836,13 +836,14 @@ int execute_select_command(zval* object, int argc, zval* return_value, zend_clas
         return 0;
     }
 
+    /* SELECT cannot be used in batch mode */
+    if (valkey_glide->is_in_batch_mode) {
+        php_printf("Error: SELECT command cannot be used in batch mode\n");
+        return 0;
+    }
+
     /* Execute the SELECT command using the Glide client */
     if (execute_select_command_internal(valkey_glide, dbindex, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
         return 1;
     }
 
