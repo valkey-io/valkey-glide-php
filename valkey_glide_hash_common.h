@@ -247,19 +247,6 @@ int prepare_h_getex_args(h_command_args_t* args,
                          int*              allocated_count);
 
 /**
- * Safely allocate and format an integer as a string
- * Uses exact buffer size to prevent overruns
- */
-char* safe_format_int(int value);
-char* safe_format_long_long(long long value);
-
-/**
- * Safely allocate and format a long long as a string
- * Uses exact buffer size to prevent overruns
- */
-char* safe_format_long_long(long long value);
-
-/**
  * Safely populate field arguments from zval array
  * Handles string conversion and memory management correctly
  * NOTE: Always creates copies because cleanup code expects to efree() all allocated_strings

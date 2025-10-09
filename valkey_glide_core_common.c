@@ -1710,3 +1710,36 @@ void debug_print_command_result(CommandResult* result) {
     }
 }
 #endif
+
+char* safe_format_int(int value, size_t* len_out) {
+    int   required_size = snprintf(NULL, 0, "%d", value) + 1;
+    char* str           = (char*) emalloc(required_size);
+    int   actual_len    = snprintf(str, required_size, "%d", value);
+    if (len_out)
+        *len_out = actual_len;
+    return str;
+}
+
+char* safe_format_long_long(long long value, size_t* len_out) {
+    int   required_size = snprintf(NULL, 0, "%lld", value) + 1;
+    char* str           = (char*) emalloc(required_size);
+    int   actual_len    = snprintf(str, required_size, "%lld", value);
+    if (len_out)
+        *len_out = actual_len;
+    return str;
+}
+
+void add_string_arg(char*           str,
+                    size_t          len,
+                    uintptr_t**     args_out,
+                    unsigned long** args_len_out,
+                    int*            arg_idx,
+                    char***         allocated_strings,
+                    int*            allocated_count) {
+    if (str && args_out && args_len_out && arg_idx) {
+        (*args_out)[*arg_idx]     = (uintptr_t) str;
+        (*args_len_out)[*arg_idx] = len;
+        add_tracked_string(*allocated_strings, allocated_count, str);
+        (*arg_idx)++;
+    }
+}

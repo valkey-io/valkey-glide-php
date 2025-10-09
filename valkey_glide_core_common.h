@@ -295,4 +295,28 @@ void debug_print_command_result(CommandResult* result);
     } while (0)
 #endif
 
+/**
+ * Safely allocate and format an integer as a string
+ * Uses exact buffer size to prevent overruns
+ */
+char* safe_format_int(int value, size_t* len_out);
+
+/**
+ * Safely allocate and format a long long as a string
+ * Uses exact buffer size to prevent overruns
+ */
+char* safe_format_long_long(long long value, size_t* len_out);
+
+/**
+ * Add string to args array and track for cleanup
+ * Combines add_tracked_string with argument array population
+ */
+void add_string_arg(char*           str,
+                    size_t          len,
+                    uintptr_t**     args_out,
+                    unsigned long** args_len_out,
+                    int*            arg_idx,
+                    char***         allocated_strings,
+                    int*            allocated_count);
+
 #endif /* VALKEY_GLIDE_CORE_COMMON_H */

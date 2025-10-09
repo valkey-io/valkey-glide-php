@@ -19,9 +19,11 @@
 
 #include "command_response.h"
 #include "include/glide_bindings.h"
+#include "php.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
 #include "valkey_glide_z_common.h"
+#include "zend_exceptions.h"
 
 /* Execute an MSET command using the Valkey Glide client - MIGRATED TO CORE FRAMEWORK */
 int execute_mset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
@@ -567,11 +569,11 @@ int execute_copy_command(zval* object, int argc, zval* return_value, zend_class_
     valkey_glide_object* valkey_glide;
     char *               src = NULL, *dst = NULL;
     size_t               src_len, dst_len;
-    zend_bool            replace = 0;
-    zval*                z_opts  = NULL;
+    zend_bool            replace          = 0;
+    zval*                z_opts           = NULL;
     char*                db_str_allocated = NULL; /* Track allocated memory */
-    core_command_args_t  args = {0};
-    int                  arg_count = 1;
+    core_command_args_t  args             = {0};
+    int                  arg_count        = 1;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
@@ -602,10 +604,10 @@ int execute_copy_command(zval* object, int argc, zval* return_value, zend_class_
         HashTable* ht = Z_ARRVAL_P(z_opts);
         zval*      replace_val;
         zval*      db_val;
-        
+
         /* Check for REPLACE option (case-insensitive) */
-        zend_string *key;
-        zval *val;
+        zend_string* key;
+        zval*        val;
         ZEND_HASH_FOREACH_STR_KEY_VAL(ht, key, val) {
             if (key && ZSTR_LEN(key) == 7 && strcasecmp(ZSTR_VAL(key), "REPLACE") == 0) {
                 if (Z_TYPE_P(val) == IS_TRUE) {
@@ -615,26 +617,31 @@ int execute_copy_command(zval* object, int argc, zval* return_value, zend_class_
                 if (Z_TYPE_P(val) == IS_LONG) {
                     zend_long db_id = Z_LVAL_P(val);
                     if (db_id < 0) {
-                        zend_throw_exception(get_valkey_glide_exception_ce(), "Database ID must be non-negative", 0);
+                        zend_throw_exception(
+                            get_valkey_glide_exception_ce(), "Database ID must be non-negative", 0);
                         return 0;
                     }
-                    
+
                     /* Add DB argument */
                     args.args[arg_count].type                  = CORE_ARG_TYPE_STRING;
                     args.args[arg_count].data.string_arg.value = "DB";
                     args.args[arg_count].data.string_arg.len   = 2;
                     arg_count++;
-                    
+
                     /* Add database ID */
-                    db_str_allocated = emalloc(32);
-                    snprintf(db_str_allocated, 32, "%ld", db_id);
-                    args.args[arg_count].type                  = CORE_ARG_TYPE_STRING;
+                    size_t db_str_len;
+                    if (db_str_allocated) {
+                        efree(db_str_allocated);
+                    }
+                    db_str_allocated          = safe_format_long_long(db_id, &db_str_len);
+                    args.args[arg_count].type = CORE_ARG_TYPE_STRING;
                     args.args[arg_count].data.string_arg.value = db_str_allocated;
-                    args.args[arg_count].data.string_arg.len   = strlen(db_str_allocated);
+                    args.args[arg_count].data.string_arg.len   = db_str_len;
                     arg_count++;
                 }
             }
-        } ZEND_HASH_FOREACH_END();
+        }
+        ZEND_HASH_FOREACH_END();
     }
 
     /* Optional REPLACE flag */

@@ -17,6 +17,7 @@
 
 #include "common.h"
 #include "ext/standard/php_var.h"
+#include "valkey_glide_core_common.h"
 #include "valkey_glide_z_common.h"
 
 extern zend_class_entry* ce;
@@ -338,11 +339,15 @@ static int prepare_h_args_unified(h_command_args_t*     args,
         (*args_len_out)[arg_idx] = strlen(expiry_unit);
         arg_idx++;
 
-        char* expiry_str                           = safe_format_long_long(args->expiry);
-        (*allocated_strings)[(*allocated_count)++] = expiry_str;
-        (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
-        (*args_len_out)[arg_idx]                   = strlen(expiry_str);
-        arg_idx++;
+        size_t expiry_len;
+        char*  expiry_str = safe_format_long_long(args->expiry, &expiry_len);
+        add_string_arg(expiry_str,
+                       expiry_len,
+                       args_out,
+                       args_len_out,
+                       &arg_idx,
+                       allocated_strings,
+                       allocated_count);
     }
 
     // Add FIELDS keyword and count
@@ -351,11 +356,15 @@ static int prepare_h_args_unified(h_command_args_t*     args,
         (*args_len_out)[arg_idx] = 6;
         arg_idx++;
 
-        char* field_count_str                      = safe_format_int(field_count);
-        (*allocated_strings)[(*allocated_count)++] = field_count_str;
-        (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
-        (*args_len_out)[arg_idx]                   = strlen(field_count_str);
-        arg_idx++;
+        size_t field_count_len;
+        char*  field_count_str = safe_format_int(field_count, &field_count_len);
+        add_string_arg(field_count_str,
+                       field_count_len,
+                       args_out,
+                       args_len_out,
+                       &arg_idx,
+                       allocated_strings,
+                       allocated_count);
     }
 
     // Add fields/field-value pairs
@@ -435,11 +444,15 @@ int prepare_h_expire_args(h_command_args_t* args,
 
     // Add expiry value directly (no EX keyword for HEXPIRE)
     if (args->expiry > 0) {
-        char* expiry_str                           = safe_format_long_long(args->expiry);
-        (*allocated_strings)[(*allocated_count)++] = expiry_str;
-        (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
-        (*args_len_out)[arg_idx]                   = strlen(expiry_str);
-        arg_idx++;
+        size_t expiry_len;
+        char*  expiry_str = safe_format_long_long(args->expiry, &expiry_len);
+        add_string_arg(expiry_str,
+                       expiry_len,
+                       args_out,
+                       args_len_out,
+                       &arg_idx,
+                       allocated_strings,
+                       allocated_count);
     }
 
     // Add condition (NX/XX directly, no prefix for HEXPIRE)
@@ -454,11 +467,15 @@ int prepare_h_expire_args(h_command_args_t* args,
     (*args_len_out)[arg_idx] = 6;
     arg_idx++;
 
-    char* field_count_str                      = safe_format_int(field_count);
-    (*allocated_strings)[(*allocated_count)++] = field_count_str;
-    (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
-    (*args_len_out)[arg_idx]                   = strlen(field_count_str);
-    arg_idx++;
+    size_t field_count_len;
+    char*  field_count_str = safe_format_int(field_count, &field_count_len);
+    add_string_arg(field_count_str,
+                   field_count_len,
+                   args_out,
+                   args_len_out,
+                   &arg_idx,
+                   allocated_strings,
+                   allocated_count);
 
     // Add fields (no values for HEXPIRE)
     populate_field_args(args->field_values,
@@ -821,24 +838,6 @@ int populate_field_args(zval*          field_values,
 }
 
 /**
- * Safely allocate and format an integer as a string
- * Uses exact buffer size to prevent overruns
- */
-char* safe_format_int(int value) {
-    int   required_size = snprintf(NULL, 0, "%d", value) + 1;
-    char* str           = (char*) emalloc(required_size);
-    snprintf(str, required_size, "%d", value);
-    return str;
-}
-
-char* safe_format_long_long(long long value) {
-    int   required_size = snprintf(NULL, 0, "%lld", value) + 1;
-    char* str           = (char*) emalloc(required_size);
-    snprintf(str, required_size, "%lld", value);
-    return str;
-}
-
-/**
  * Prepare arguments for HGETEX command
  * Redis format: HGETEX key [EX seconds|PX milliseconds|EXAT unix-time-seconds|PXAT
  * unix-time-milliseconds|PERSIST] FIELDS numfields field [field ...]
@@ -884,11 +883,15 @@ int prepare_h_getex_args(h_command_args_t* args,
         arg_idx++;
 
         if (strcmp(expiry_unit, "PERSIST") != 0) {
-            char* expiry_str                           = safe_format_long_long(args->expiry);
-            (*allocated_strings)[(*allocated_count)++] = expiry_str;
-            (*args_out)[arg_idx]                       = (uintptr_t) expiry_str;
-            (*args_len_out)[arg_idx]                   = strlen(expiry_str);
-            arg_idx++;
+            size_t expiry_len;
+            char*  expiry_str = safe_format_long_long(args->expiry, &expiry_len);
+            add_string_arg(expiry_str,
+                           expiry_len,
+                           args_out,
+                           args_len_out,
+                           &arg_idx,
+                           allocated_strings,
+                           allocated_count);
         }
     }
 
@@ -898,11 +901,15 @@ int prepare_h_getex_args(h_command_args_t* args,
     arg_idx++;
 
     /* Add field count */
-    char* field_count_str                      = safe_format_int(field_count);
-    (*allocated_strings)[(*allocated_count)++] = field_count_str;
-    (*args_out)[arg_idx]                       = (uintptr_t) field_count_str;
-    (*args_len_out)[arg_idx]                   = strlen(field_count_str);
-    arg_idx++;
+    size_t field_count_len;
+    char*  field_count_str = safe_format_int(field_count, &field_count_len);
+    add_string_arg(field_count_str,
+                   field_count_len,
+                   args_out,
+                   args_len_out,
+                   &arg_idx,
+                   allocated_strings,
+                   allocated_count);
 
     /* Add fields only */
     populate_field_args(args->fields,
