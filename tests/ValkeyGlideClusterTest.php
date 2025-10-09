@@ -125,34 +125,21 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testMove()
     {
-        // Test MOVE command in cluster mode (requires Valkey 9.0+)
-        $key = 'test_move_key_' . uniqid();
+        // Basic MOVE method availability test
+        $key = '{key}test_move_' . uniqid();
         $this->valkey_glide->set($key, 'test_value');
         
-        // Move to database 1 (should work in Valkey 9.0+ cluster with multi-database support)
+        // MOVE should return boolean (may be false if multi-database not supported)
         $result = $this->valkey_glide->move($key, 1);
-        
-        // The result depends on Valkey version and cluster configuration
-        // In Valkey 9.0+ with cluster-databases > 1, this should return true
-        // In older versions or without multi-database support, this may return false
         $this->assertIsBool($result);
         
-        // Clean up - try to delete from both databases
-        $this->valkey_glide->select(0);
+        // Clean up
         $this->valkey_glide->del($key);
-        $this->valkey_glide->select(1);
-        $this->valkey_glide->del($key);
-        $this->valkey_glide->select(0);
     }
 
     public function testReconnectSelect()
     {
         $this->markTestSkipped();
-    }
-
-    public function testMove()
-    {
-        $this->markTestSkipped(); // Move is not supported in ValkeyGlideCluster
     }
 
     /* These 'directed node' commands work differently in ValkeyGlideCluster */
@@ -972,5 +959,82 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             ValkeyGlide::COPY_DB => 1,
             ValkeyGlide::COPY_REPLACE => true
         ]));
+    }
+
+    public function testSelectMultipleDatabase()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Multi-database operations in cluster mode require Valkey 9.0.0+');
+        }
+
+        $this->assertTrue($this->valkey_glide->select(1));
+        $this->assertTrue($this->valkey_glide->select(2));
+        $this->assertTrue($this->valkey_glide->select(15));
+        $this->assertFalse(@$this->valkey_glide->select(-1));
+        $this->assertTrue($this->valkey_glide->select(0));
+    }
+
+    public function testDatabaseIsolation()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Multi-database operations in cluster mode require Valkey 9.0.0+');
+        }
+
+        $key = '{key}isolation_test_' . uniqid();
+        
+        $this->valkey_glide->select(0);
+        $this->valkey_glide->set($key, 'value_db0');
+        $this->valkey_glide->select(1);
+        $this->valkey_glide->set($key, 'value_db1');
+        
+        $this->valkey_glide->select(0);
+        $this->assertEquals('value_db0', $this->valkey_glide->get($key));
+        $this->valkey_glide->select(1);
+        $this->assertEquals('value_db1', $this->valkey_glide->get($key));
+        
+        // Clean up
+        $this->valkey_glide->del($key);
+        $this->valkey_glide->select(0);
+        $this->valkey_glide->del($key);
+    }
+
+    public function testMoveMultiDatabase()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Multi-database MOVE in cluster mode requires Valkey 9.0.0+');
+        }
+
+        $key = '{key}move_test_' . uniqid();
+        
+        $this->valkey_glide->select(0);
+        $this->valkey_glide->set($key, 'move_test_value');
+        $this->assertTrue($this->valkey_glide->move($key, 1));
+        $this->assertFalse($this->valkey_glide->exists($key));
+        
+        $this->valkey_glide->select(1);
+        $this->assertEquals('move_test_value', $this->valkey_glide->get($key));
+        $this->valkey_glide->del($key);
+        $this->valkey_glide->select(0);
+    }
+
+    public function testCopyMultiDatabase()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Multi-database COPY in cluster mode requires Valkey 9.0.0+');
+        }
+
+        $srcKey = '{key}copy_src_' . uniqid();
+        $dstKey = '{key}copy_dst_' . uniqid();
+        
+        $this->valkey_glide->select(0);
+        $this->valkey_glide->set($srcKey, 'copy_test_value');
+        $this->assertTrue($this->valkey_glide->copy($srcKey, $dstKey, ['DB' => 1]));
+        
+        $this->valkey_glide->select(1);
+        $this->assertEquals('copy_test_value', $this->valkey_glide->get($dstKey));
+        
+        $this->valkey_glide->del($dstKey);
+        $this->valkey_glide->select(0);
+        $this->valkey_glide->del($srcKey);
     }
 }
