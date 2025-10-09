@@ -967,7 +967,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             $this->markTestSkipped('Multi-database operations in cluster mode require Valkey 9.0.0+');
         }
 
-        $this->assertTrue($this->valkey_glide->select(1));
+        // In Valkey 9.0+, SELECT should work with multiple databases
+        $this->assertTrue($this->valkey_glide->select(0));
+        $this->assertTrue($this->valkey_glide->select(1), 'SELECT 1 should succeed in Valkey 9.0+ cluster with multi-database support');
         $this->assertTrue($this->valkey_glide->select(2));
         $this->assertTrue($this->valkey_glide->select(15));
         $this->assertFalse(@$this->valkey_glide->select(-1));
@@ -1008,11 +1010,19 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         
         $this->valkey_glide->select(0);
         $this->valkey_glide->set($key, 'move_test_value');
-        $this->assertTrue($this->valkey_glide->move($key, 1));
-        $this->assertFalse($this->valkey_glide->exists($key));
+        
+        // In Valkey 9.0+, MOVE should succeed if cluster has multi-database support
+        $result = $this->valkey_glide->move($key, 1);
+        $this->assertTrue($result, 'MOVE should succeed in Valkey 9.0+ cluster with multi-database support');
+        
+        // Verify MOVE worked correctly
+        $this->assertFalse($this->valkey_glide->exists($key)); // Should not exist in DB 0
         
         $this->valkey_glide->select(1);
+        $this->assertTrue($this->valkey_glide->exists($key)); // Should exist in DB 1
         $this->assertEquals('move_test_value', $this->valkey_glide->get($key));
+        
+        // Clean up
         $this->valkey_glide->del($key);
         $this->valkey_glide->select(0);
     }
@@ -1028,11 +1038,18 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         
         $this->valkey_glide->select(0);
         $this->valkey_glide->set($srcKey, 'copy_test_value');
-        $this->assertTrue($this->valkey_glide->copy($srcKey, $dstKey, ['DB' => 1]));
+        
+        // In Valkey 9.0+, COPY should succeed if cluster has multi-database support
+        $result = $this->valkey_glide->copy($srcKey, $dstKey, ['DB' => 1]);
+        $this->assertTrue($result, 'COPY should succeed in Valkey 9.0+ cluster with multi-database support');
+        
+        // Verify COPY worked correctly
+        $this->assertEquals('copy_test_value', $this->valkey_glide->get($srcKey)); // Original still exists
         
         $this->valkey_glide->select(1);
-        $this->assertEquals('copy_test_value', $this->valkey_glide->get($dstKey));
+        $this->assertEquals('copy_test_value', $this->valkey_glide->get($dstKey)); // Copy exists
         
+        // Clean up
         $this->valkey_glide->del($dstKey);
         $this->valkey_glide->select(0);
         $this->valkey_glide->del($srcKey);
