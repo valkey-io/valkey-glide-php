@@ -117,7 +117,7 @@ include/glide_bindings.h: valkey-glide/ffi/target/release/libglide_ffi.a ensure-
 	@echo "DEBUG: Current directory: $$(pwd)"
 	@echo "DEBUG: valkey-glide directory exists: $$([ -d valkey-glide ] && echo YES || echo NO)"
 	@echo "DEBUG: valkey-glide/glide-core/src/protobuf exists: $$([ -d valkey-glide/glide-core/src/protobuf ] && echo YES || echo NO)"
-	@python3 utils/remove_optional_from_proto.py || true
+	@python3 utils/patch_proto_and_rust.py || true
 	@mkdir -p include
 	@export PATH="$$HOME/.cargo/bin:$$PATH" && \
 	if [ -f "$$HOME/.cargo/env" ]; then \

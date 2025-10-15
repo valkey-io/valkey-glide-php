@@ -431,7 +431,7 @@ jobs:
         shell: bash
         run: |
           echo "=== Removing optional fields from proto files ==="
-          python3 utils/remove_optional_from_proto.py
+          python3 utils/patch_proto_and_rust.py
           echo "=== Proto file cleanup completed ==="
 
       - uses: Swatinem/rust-cache@v2
@@ -867,7 +867,7 @@ jobs:
         shell: bash
         run: |
           echo "=== Removing optional fields from proto files ==="
-          python3 utils/remove_optional_from_proto.py
+          python3 utils/patch_proto_and_rust.py
           echo "=== Proto file cleanup completed ==="
 
       - uses: actions/cache@v4

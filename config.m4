@@ -124,7 +124,7 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     dnl Generate protobuf files if they don't exist and we have the source
     if test -d "valkey-glide/glide-core/src/protobuf" && command -v protoc-c >/dev/null 2>&1; then
       mkdir -p include/glide src
-      python3 utils/remove_optional_from_proto.py >/dev/null 2>&1 || true
+      python3 utils/patch_proto_and_rust.py >/dev/null 2>&1 || true
       
       for proto in valkey-glide/glide-core/src/protobuf/*.proto; do
         if test -f "$proto"; then
@@ -356,9 +356,9 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     mkdir -p include/glide src
     
     dnl Run Python script to modify proto files (like in Makefile.frag)
-    if test -f "utils/remove_optional_from_proto.py"; then
+    if test -f "utils/patch_proto_and_rust.py"; then
       AC_MSG_RESULT([running proto modification script])
-      python3 utils/remove_optional_from_proto.py || AC_MSG_RESULT([proto script failed, continuing])
+      python3 utils/patch_proto_and_rust.py || AC_MSG_RESULT([proto script failed, continuing])
     fi
     
     if test -d "valkey-glide/glide-core/src/protobuf"; then

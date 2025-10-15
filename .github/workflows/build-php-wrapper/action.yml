@@ -93,7 +93,7 @@ runs:
       shell: bash
       run: |
         echo "=== Removing optional fields from proto files ==="
-        python3 utils/remove_optional_from_proto.py
+        python3 utils/patch_proto_and_rust.py
         echo "=== Proto file cleanup completed ==="
 
     - name: Install Rust and Cargo

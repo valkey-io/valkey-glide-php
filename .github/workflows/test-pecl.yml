@@ -141,7 +141,7 @@ jobs:
 
           # Copy utils directory
           mkdir -p "$PACKAGE_DIR/utils"
-          cp utils/remove_optional_from_proto.py "$PACKAGE_DIR/utils/"
+          cp utils/patch_proto_and_rust.py "$PACKAGE_DIR/utils/"
 
           # Copy documentation files
           cp README.md "$PACKAGE_DIR/"
