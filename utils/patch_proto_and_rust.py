@@ -109,6 +109,74 @@ def patch_rust_types_rs(rust_types_file):
         log_message(f"Error patching {rust_types_file}: {e}", "ERROR")
         return False
 
+def patch_request_type_rs(request_type_file):
+    """Patch the Rust request_type.rs file to add missing pub/sub RequestType mappings"""
+    
+    if not os.path.exists(request_type_file):
+        log_message(f"Request type file not found: {request_type_file}", "ERROR")
+        return False
+    
+    log_message(f"Patching RequestType file: {request_type_file}")
+    
+    try:
+        with open(request_type_file, 'r') as f:
+            content = f.read()
+        
+        needs_patching = False
+        new_content = content
+        
+        # Patch get_command method - add pub/sub commands before the _ => todo!() line
+        get_command_pattern = r'(\s+RequestType::FtSearch => Some\(cmd\("FT\.SEARCH"\)\),)\s*\n(\s+_ => todo!\(\),)'
+        get_command_replacement = r'''\1
+            RequestType::Subscribe => Some(cmd("SUBSCRIBE")),
+            RequestType::PSubscribe => Some(cmd("PSUBSCRIBE")),
+            RequestType::Unsubscribe => Some(cmd("UNSUBSCRIBE")),
+            RequestType::PUnsubscribe => Some(cmd("PUNSUBSCRIBE")),
+            RequestType::SSubscribe => Some(cmd("SSUBSCRIBE")),
+            RequestType::SUnsubscribe => Some(cmd("SUNSUBSCRIBE")),
+\2'''
+        
+        if re.search(get_command_pattern, content) and 'RequestType::Subscribe =>' not in content:
+            create_backup(request_type_file)
+            new_content = re.sub(get_command_pattern, get_command_replacement, new_content)
+            needs_patching = True
+            log_message("Applied get_command pub/sub patch")
+        elif 'RequestType::Subscribe =>' in content:
+            log_message("get_command already patched")
+        
+        # Patch From<ProtobufRequestType> trait - add pub/sub mappings before the _ => todo!() line
+        from_trait_pattern = r'(\s+ProtobufRequestType::FtSearch => RequestType::FtSearch,)\s*\n(\s+_ => todo!\(\),)'
+        from_trait_replacement = r'''\1
+            ProtobufRequestType::Subscribe => RequestType::Subscribe,
+            ProtobufRequestType::PSubscribe => RequestType::PSubscribe,
+            ProtobufRequestType::Unsubscribe => RequestType::Unsubscribe,
+            ProtobufRequestType::PUnsubscribe => RequestType::PUnsubscribe,
+            ProtobufRequestType::SSubscribe => RequestType::SSubscribe,
+            ProtobufRequestType::SUnsubscribe => RequestType::SUnsubscribe,
+\2'''
+        
+        if re.search(from_trait_pattern, new_content) and 'ProtobufRequestType::Subscribe =>' not in new_content:
+            if not needs_patching:
+                create_backup(request_type_file)
+            new_content = re.sub(from_trait_pattern, from_trait_replacement, new_content)
+            needs_patching = True
+            log_message("Applied From trait pub/sub patch")
+        elif 'ProtobufRequestType::Subscribe =>' in new_content:
+            log_message("From trait already patched")
+        
+        if needs_patching:
+            with open(request_type_file, 'w') as f:
+                f.write(new_content)
+            log_message(f"Successfully patched RequestType file: {request_type_file}")
+            return True
+        else:
+            log_message(f"RequestType file already patched: {request_type_file}")
+            return True
+    
+    except Exception as e:
+        log_message(f"Error patching {request_type_file}: {e}", "ERROR")
+        return False
+
 def verify_rust_patch(rust_types_file):
     """Verify that the Rust patch was applied correctly"""
     try:
@@ -135,6 +203,32 @@ def verify_rust_patch(rust_types_file):
         log_message(f"Error verifying patch: {e}", "ERROR")
         return False
 
+def verify_request_type_patch(request_type_file):
+    """Verify that the RequestType patch was applied correctly"""
+    try:
+        with open(request_type_file, 'r') as f:
+            content = f.read()
+        
+        # Check for the pub/sub patterns
+        get_command_fixed = 'RequestType::Subscribe =>' in content
+        from_trait_fixed = 'ProtobufRequestType::Subscribe =>' in content
+        
+        if get_command_fixed and from_trait_fixed:
+            log_message("RequestType patch verification: SUCCESS")
+            return True
+        else:
+            missing = []
+            if not get_command_fixed:
+                missing.append("get_command pub/sub mappings")
+            if not from_trait_fixed:
+                missing.append("From trait pub/sub mappings")
+            log_message(f"RequestType patch verification: FAILED - Missing: {', '.join(missing)}", "ERROR")
+            return False
+    
+    except Exception as e:
+        log_message(f"Error verifying RequestType patch: {e}", "ERROR")
+        return False
+
 def main():
     """Main function to run all patching operations for protobuf and Rust files"""
     log_message("Starting build-time patching process for protobuf and Rust files")
@@ -145,6 +239,7 @@ def main():
     # Define paths
     protobuf_directory = base_dir / "valkey-glide" / "glide-core" / "src" / "protobuf"
     rust_types_file = base_dir / "valkey-glide" / "glide-core" / "src" / "client" / "types.rs"
+    request_type_file = base_dir / "valkey-glide" / "glide-core" / "src" / "request_type.rs"
     
     success = True
     
@@ -168,6 +263,19 @@ def main():
                 success = False
     else:
         log_message(f"Rust types file not found: {rust_types_file}", "ERROR")
+        success = False
+    
+    # Step 3: Patch RequestType pub/sub mappings
+    log_message("=== Phase 3: Patching RequestType Pub/Sub Mappings ===")
+    if request_type_file.exists():
+        if not patch_request_type_rs(str(request_type_file)):
+            success = False
+        else:
+            # Verify the patch
+            if not verify_request_type_patch(str(request_type_file)):
+                success = False
+    else:
+        log_message(f"RequestType file not found: {request_type_file}", "ERROR")
         success = False
     
     # Summary
