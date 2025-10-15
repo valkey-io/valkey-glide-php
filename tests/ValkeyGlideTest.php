@@ -7684,7 +7684,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         try {
             // Subscribe to pattern
             $subscribeResult = $this->valkey_glide->psubscribe([$testPattern], $callback);
-            $this->assertTrue(is_array($subscribeResult) || $subscribeResult === true);
+            $this->assertNull($subscribeResult);
             
             usleep(100000); // Let subscription register
             
@@ -7726,7 +7726,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         try {
             // Subscribe to channel
             $result = $this->valkey_glide->subscribe([$testChannel], $subscribeCallback);
-            $this->assertTrue(is_array($result) || $result === true);
+            $this->assertNull($result);
             
             // Give subscription time to register
             usleep(100000); // 100ms
@@ -7772,7 +7772,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         try {
             // Subscribe to pattern
             $result = $this->valkey_glide->psubscribe([$testPattern], $psubscribeCallback);
-            $this->assertTrue(is_array($result) || $result === true);
+            $this->assertNull($result);
             
             // Give subscription time to register
             usleep(100000); // 100ms
@@ -8151,7 +8151,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         
         try {
             $result = $this->valkey_glide->psubscribe($patterns, $callback);
-            $this->assertTrue(is_bool($result) || is_array($result));
+            $this->assertNull($result);
         } catch (Exception $e) {
             $this->assertStringContains('connection', strtolower($e->getMessage()));
         }

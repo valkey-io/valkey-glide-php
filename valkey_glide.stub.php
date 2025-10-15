@@ -2764,37 +2764,6 @@ class ValkeyGlide
     public function sscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): array|false;
 
     /**
-     * Subscribes the client to the specified shard channels.
-     *
-     * @param array    $channels One or more channel names.
-     * @param callable $cb       The callback PhpValkeyGlide will invoke when we receive a message
-     *                           from one of the subscribed channels.
-     *
-     * @return bool True on success, false on faiilure.  Note that this command will block the
-     *              client in a subscribe loop, waiting for messages to arrive.
-     *
-     * @see https://valkey.io/commands/ssubscribe
-     *
-     * @example
-     * $valkey_glide = new ValkeyGlide(['host' => 'localhost']);
-     *
-     * $valkey_glide->ssubscribe(['channel-1', 'channel-2'], function ($valkey_glide, $channel, $message) {
-     *     echo "[$channel]: $message\n";
-     *
-     *     // Unsubscribe from the message channel when we read 'quit'
-     *     if ($message == 'quit') {
-     *         echo "Unsubscribing from '$channel'\n";
-     *         $valkey_glide->sunsubscribe([$channel]);
-     *     }
-     * });
-     *
-     * // Once we read 'quit' from both channel-1 and channel-2 the subscribe loop will be
-     * // broken and this command will execute.
-     * echo "Subscribe loop ended\n";
-     */
-    /* TODO public function ssubscribe(array $channels, callable $cb): bool; */
-
-    /**
      * Retrieve the length of a ValkeyGlide STRING key.
      *
      * @param string $key The key we want the length of.
@@ -2807,62 +2776,6 @@ class ValkeyGlide
      * @example $valkey_glide->strlen('mykey');
      */
     public function strlen(string $key): ValkeyGlide|int|false;
-
-    /**
-     * Subscribe to one or more ValkeyGlide pubsub channels.
-     *
-     * @param array    $channels One or more channel names.
-     * @param callable $cb       The callback PhpValkeyGlide will invoke when we receive a message
-     *                           from one of the subscribed channels.
-     *
-     * @return bool True on success, false on faiilure.  Note that this command will block the
-     *              client in a subscribe loop, waiting for messages to arrive.
-     *
-     * @see https://valkey.io/commands/subscribe
-     *
-     * @example
-     * $valkey_glide = new ValkeyGlide(['host' => 'localhost']);
-     *
-     * $valkey_glide->subscribe(['channel-1', 'channel-2'], function ($valkey_glide, $channel, $message) {
-     *     echo "[$channel]: $message\n";
-     *
-     *     // Unsubscribe from the message channel when we read 'quit'
-     *     if ($message == 'quit') {
-     *         echo "Unsubscribing from '$channel'\n";
-     *         $valkey_glide->unsubscribe([$channel]);
-     *     }
-     * });
-     *
-     * // Once we read 'quit' from both channel-1 and channel-2 the subscribe loop will be
-     * // broken and this command will execute.
-     * echo "Subscribe loop ended\n";
-     */
-    /* TODO public function subscribe(array $channels, callable $cb): bool; */
-
-    /**
-     * Unsubscribes the client from the given shard channels,
-     * or from all of them if none is given.
-     *
-     * @param array $channels One or more channels to unsubscribe from.
-     * @return ValkeyGlide|array|bool The array of unsubscribed channels.
-     *
-     * @see https://valkey.io/commands/sunsubscribe
-     * @see ValkeyGlide::ssubscribe()
-     *
-     * @example
-     * $valkey_glide->ssubscribe(['channel-1', 'channel-2'], function ($valkey_glide, $channel, $message) {
-     *     if ($message == 'quit') {
-     *         echo "$channel => 'quit' detected, unsubscribing!\n";
-     *         $valkey_glide->sunsubscribe([$channel]);
-     *     } else {
-     *         echo "$channel => $message\n";
-     *     }
-     * });
-     *
-     * echo "We've unsubscribed from both channels, exiting\n";
-     */
-    /* TODO public function sunsubscribe(array $channels): ValkeyGlide|array|bool; */
-
 
     /**
      * Retrieve the server time from the connected ValkeyGlide instance.
@@ -2935,29 +2848,6 @@ class ValkeyGlide
      * @example $valkey_glide->unlink(['key1', 'key2', 'key3']);
      */
     public function unlink(array|string $key, string ...$other_keys): ValkeyGlide|int|false;
-
-    /**
-     * Unsubscribe from one or more subscribed channels.
-     *
-     * @param array $channels One or more channels to unsubscribe from.
-     * @return ValkeyGlide|array|bool The array of unsubscribed channels.
-     *
-     * @see https://valkey.io/commands/unsubscribe
-     * @see ValkeyGlide::subscribe()
-     *
-     * @example
-     * $valkey_glide->subscribe(['channel-1', 'channel-2'], function ($valkey_glide, $channel, $message) {
-     *     if ($message == 'quit') {
-     *         echo "$channel => 'quit' detected, unsubscribing!\n";
-     *         $valkey_glide->unsubscribe([$channel]);
-     *     } else {
-     *         echo "$channel => $message\n";
-     *     }
-     * });
-     *
-     * echo "We've unsubscribed from both channels, exiting\n";
-     */
-    /* TODO public function unsubscribe(array $channels): bool; */
 
     /**
      * Remove any previously WATCH'ed keys in a transaction.
@@ -4065,7 +3955,7 @@ class ValkeyGlide
      * Subscribe to channels
      * 
      * Each client supports only ONE active callback at a time. New subscribe() calls
-     * will overwrite the previous callback. This matches standard Redis client behavior.
+     * will overwrite the previous callback.
      * 
      * For multiple independent callbacks, use separate client instances.
      * 
@@ -4082,7 +3972,7 @@ class ValkeyGlide
      * Subscribe to channels by pattern
      * 
      * Each client supports only ONE active callback at a time. New psubscribe() calls
-     * will overwrite the previous callback. This matches standard Redis client behavior.
+     * will overwrite the previous callback.
      * 
      * For multiple independent callbacks, use separate client instances.
      * 
@@ -4099,7 +3989,7 @@ class ValkeyGlide
      * Unsubscribe from channels
      * 
      * @param array|string $channels Channel name(s) to unsubscribe from. If empty or not provided, unsubscribes from all channels.
-     * @return bool Always returns true (matches PHPRedis behavior)
+     * @return bool Always returns true.
      * 
      * @see https://valkey.io/commands/unsubscribe
      */
@@ -4109,7 +3999,7 @@ class ValkeyGlide
      * Unsubscribe from channel patterns
      * 
      * @param array|string $patterns Pattern(s) to unsubscribe from. If empty or not provided, unsubscribes from all patterns.
-     * @return bool Always returns true (matches PHPRedis behavior)
+     * @return bool Always returns true.
      * 
      * @see https://valkey.io/commands/punsubscribe
      */
