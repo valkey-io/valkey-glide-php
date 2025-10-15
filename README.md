@@ -6,7 +6,7 @@ Valkey General Language Independent Driver for the Enterprise (GLIDE) is the off
 
 > We chose [PHPRedis](https://github.com/phpredis/phpredis) because it is a powerful and widely adopted Redis client for PHP.
 
-⚠️ **Note:** This client is currently under active development. Not all features are available yet, but a public preview with a subset of core functionality will be released soon.
+⚠️ **Note:** This client is currently under active development. Core functionality including Pub/Sub messaging is available, with additional features being added regularly.
 
 # Why Choose Valkey GLIDE?
 
