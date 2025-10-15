@@ -8276,7 +8276,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->assertStringContains('connection', strtolower($e->getMessage()));
         }
     }
-    */
 
     public function testMultipleChannelSubscription()
     {
