@@ -695,3 +695,120 @@ int execute_pubsub_introspection_command(zval*             object,
 
     return 1;
 }
+
+int execute_ssubscribe_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    zval *channels = NULL, *callback = NULL;
+
+    if (zend_parse_method_parameters(argc, object, "Oaz", &object, ce, &channels, &callback) ==
+        FAILURE) {
+        return 0;
+    }
+
+    if (!zend_is_callable(callback, 0, NULL)) {
+        php_printf("Error: Callback must be callable\n");
+        return 0;
+    }
+
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        php_printf("Error: ValkeyGlide client not initialized\n");
+        return 0;
+    }
+
+    /* SSUBSCRIBE cannot be used in batch mode */
+    if (valkey_glide->is_in_batch_mode) {
+        php_printf("Error: SSUBSCRIBE command cannot be used in batch mode\n");
+        return 0;
+    }
+
+    replace_callback(valkey_glide, callback);
+
+    if (execute_pubsub_command(valkey_glide, SSubscribe, channels, "ssubscribe")) {
+        ZVAL_NULL(return_value);  // Return null on successful subscription
+        return 1;
+    }
+    ZVAL_FALSE(return_value);
+    return 1;
+}
+
+int execute_sunsubscribe_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    zval* channels = NULL;
+
+    if (zend_parse_method_parameters(argc, object, "O|z!", &object, ce, &channels) == FAILURE) {
+        return 0;
+    }
+
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        php_printf("Error: ValkeyGlide client not initialized\n");
+        return 0;
+    }
+
+    /* SUNSUBSCRIBE cannot be used in batch mode */
+    if (valkey_glide->is_in_batch_mode) {
+        php_printf("Error: SUNSUBSCRIBE command cannot be used in batch mode\n");
+        return 0;
+    }
+
+    if (!execute_pubsub_command(valkey_glide, SUnsubscribe, channels, "sunsubscribe")) {
+        return 0;
+    }
+
+    if (!channels ||
+        (Z_TYPE_P(channels) == IS_ARRAY && zend_hash_num_elements(Z_ARRVAL_P(channels)) == 0)) {
+        invalidate_callback(valkey_glide);
+    }
+
+    ZVAL_TRUE(return_value);  // Return true for successful unsubscribe
+    return 1;
+}
+
+int execute_spublish_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    char*  channel = NULL;
+    char*  message = NULL;
+    size_t channel_len, message_len;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Oss", &object, ce, &channel, &channel_len, &message, &message_len) ==
+        FAILURE) {
+        return 0;
+    }
+
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        php_printf("Error: ValkeyGlide client not initialized\n");
+        ZVAL_LONG(return_value, 0);
+        return 1;
+    }
+
+    const uintptr_t     args[]     = {(uintptr_t) channel, (uintptr_t) message};
+    const unsigned long args_len[] = {channel_len, message_len};
+
+    CommandResult* cmd_result =
+        command(valkey_glide->glide_client, 0, SPublish, 2, args, args_len, NULL, 0, 0);
+
+    if (!cmd_result) {
+        php_printf("Error: Failed to execute spublish command\n");
+        ZVAL_LONG(return_value, 0);
+        return 1;
+    }
+
+    if (cmd_result->command_error) {
+        php_printf("Error: %s\n", cmd_result->command_error->command_error_message);
+        free_command_result(cmd_result);
+        ZVAL_LONG(return_value, 0);
+        return 1;
+    }
+
+    long subscriber_count = 0;
+    if (cmd_result->response && cmd_result->response->response_type == Int) {
+        subscriber_count = cmd_result->response->int_value;
+    }
+
+    free_command_result(cmd_result);
+    ZVAL_LONG(return_value, subscriber_count);
+    return 1;
+}

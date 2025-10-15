@@ -31,7 +31,10 @@ int execute_subscribe_command(zval* object, int argc, zval* return_value, zend_c
 int execute_psubscribe_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_unsubscribe_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_punsubscribe_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_ssubscribe_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_sunsubscribe_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_publish_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_spublish_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_pubsub_introspection_command(zval*             object,
                                          int               argc,
                                          zval*             return_value,
@@ -101,6 +104,45 @@ int execute_pubsub_introspection_command(zval*             object,
             return;                                                                \
         }                                                                          \
         RETURN_FALSE;                                                              \
+    }
+
+#define SSUBSCRIBE_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, ssubscribe) {                                              \
+        if (execute_ssubscribe_command(getThis(),                                     \
+                                       ZEND_NUM_ARGS(),                               \
+                                       return_value,                                  \
+                                       strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                           ? get_valkey_glide_cluster_ce()            \
+                                           : get_valkey_glide_ce())) {                \
+            return;                                                                   \
+        }                                                                             \
+        RETURN_FALSE;                                                                 \
+    }
+
+#define SUNSUBSCRIBE_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, sunsubscribe) {                                              \
+        if (execute_sunsubscribe_command(getThis(),                                     \
+                                         ZEND_NUM_ARGS(),                               \
+                                         return_value,                                  \
+                                         strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                             ? get_valkey_glide_cluster_ce()            \
+                                             : get_valkey_glide_ce())) {                \
+            return;                                                                     \
+        }                                                                               \
+        RETURN_FALSE;                                                                   \
+    }
+
+#define SPUBLISH_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, spublish) {                                              \
+        if (execute_spublish_command(getThis(),                                     \
+                                     ZEND_NUM_ARGS(),                               \
+                                     return_value,                                  \
+                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                         ? get_valkey_glide_cluster_ce()            \
+                                         : get_valkey_glide_ce())) {                \
+            return;                                                                 \
+        }                                                                           \
+        RETURN_FALSE;                                                               \
     }
 
 #define PUBSUB_METHOD_IMPL(class_name)                                                          \

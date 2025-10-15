@@ -2,7 +2,7 @@
 
 #### Features
 
-* PHP: Add comprehensive Pub/Sub support - Added `subscribe()`, `psubscribe()`, `unsubscribe()`, `punsubscribe()`, `publish()`, and `pubSub()` methods for both standalone and cluster clients. Includes support for message callbacks, pattern subscriptions, and introspection commands (CHANNELS, NUMSUB, NUMPAT, SHARDCHANNELS, SHARDNUMSUB). Thread-safe callback management with single callback per client limitation matching standard Redis behavior.
+* PHP: Add comprehensive Pub/Sub support - Added `subscribe()`, `psubscribe()`, `unsubscribe()`, `punsubscribe()`, `ssubscribe()`, `sunsubscribe()`, `publish()`, `spublish()`, and `pubSub()` methods for both standalone and cluster clients. Includes support for message callbacks, pattern subscriptions, shard-level pub/sub, and introspection commands (CHANNELS, NUMSUB, NUMPAT, SHARDCHANNELS, SHARDNUMSUB). Thread-safe callback management with single callback per client limitation matching standard Redis behavior.
 
 #### Changes
 

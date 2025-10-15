@@ -8123,6 +8123,160 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
     }
 
+    public function testShardPubSubIntrospectionWithActiveSubscriptions()
+    {
+        // Skip test if Valkey version < 7.0 (shard pub/sub requires Valkey 7.0+)
+        try {
+            $info = $this->valkey_glide->info(['server']);
+            if (isset($info['redis_version'])) {
+                $version = $info['redis_version'];
+                if (version_compare($version, '7.0.0', '<')) {
+                    echo "Skipping shard pub/sub test - requires Valkey 7.0+, current version: $version\n";
+                    return;
+                }
+            }
+        } catch (Exception $e) {
+            echo "Skipping shard pub/sub test - could not determine Valkey version\n";
+            return;
+        }
+
+        $testChannel = 'shard_test_' . uniqid();
+        $testMessage = 'shard_message_' . uniqid();
+        $receivedMessages = [];
+        
+        $callback = function($valkey, $channel, $message) use (&$receivedMessages) {
+            $receivedMessages[] = ['channel' => $channel, 'message' => $message];
+        };
+        
+        try {
+            // Test SHARDCHANNELS before any subscriptions
+            $shardChannelsBefore = $this->valkey_glide->pubSub('shardchannels');
+            $this->assertIsArray($shardChannelsBefore, 'SHARDCHANNELS should return array');
+            
+            // Test SHARDNUMSUB before any subscriptions
+            $shardNumsubBefore = $this->valkey_glide->pubSub('shardnumsub');
+            $this->assertIsArray($shardNumsubBefore, 'SHARDNUMSUB should return array');
+            
+            // Subscribe to a shard channel - should return null on success
+            $ssubscribeResult = $this->valkey_glide->ssubscribe($testChannel, $callback);
+            $this->assertNull($ssubscribeResult, 'ssubscribe() should return null on success');
+            usleep(100000); // Wait for subscription to register
+            
+            // Test SHARDCHANNELS after subscription - should include our channel
+            $shardChannelsAfter = $this->valkey_glide->pubSub('shardchannels');
+            $this->assertIsArray($shardChannelsAfter, 'SHARDCHANNELS after subscription should return array');
+            $this->assertContains($testChannel, $shardChannelsAfter, 'SHARDCHANNELS should contain subscribed shard channel');
+            
+            // Test SHARDCHANNELS with pattern matching our channel
+            $shardChannelsPattern = $this->valkey_glide->pubSub('shardchannels', 'shard_test_*');
+            $this->assertIsArray($shardChannelsPattern, 'SHARDCHANNELS with pattern should return array');
+            $this->assertContains($testChannel, $shardChannelsPattern, 'SHARDCHANNELS pattern should match our shard channel');
+            
+            // Test SHARDNUMSUB for our specific channel
+            $shardNumsub = $this->valkey_glide->pubSub('shardnumsub', [$testChannel]);
+            $this->assertIsArray($shardNumsub, 'SHARDNUMSUB should return array');
+            $this->assertGreaterThanOrEqual(2, count($shardNumsub), 'SHARDNUMSUB should return channel and count');
+            if (count($shardNumsub) >= 2) {
+                $this->assertEquals($testChannel, $shardNumsub[0], 'First element should be shard channel name');
+                $this->assertIsInt($shardNumsub[1], 'Second element should be subscriber count');
+                $this->assertGreaterThan(0, $shardNumsub[1], 'Shard subscriber count should be > 0');
+            }
+            
+            // Test spublish - should return subscriber count
+            $spublishResult = $this->valkey_glide->spublish($testChannel, $testMessage);
+            $this->assertIsInt($spublishResult, 'spublish() should return integer');
+            $this->assertGreaterThan(0, $spublishResult, 'spublish() should return > 0 subscribers');
+            
+            usleep(200000); // Wait for message to be received
+            
+            // Verify callback received the message
+            $this->assertNotEmpty($receivedMessages, 'Shard callback should have received message');
+            $received = $receivedMessages[0];
+            $this->assertEquals($testChannel, $received['channel'], 'Received shard channel should match');
+            $this->assertEquals($testMessage, $received['message'], 'Received shard message should match');
+            
+            // Clean up shard subscription - should return true
+            $sunsubscribeResult = $this->valkey_glide->sunsubscribe();
+            $this->assertTrue($sunsubscribeResult, 'sunsubscribe() should return true');
+            
+        } catch (Exception $e) {
+            // Clean up on error
+            try {
+                $this->valkey_glide->sunsubscribe();
+            } catch (Exception $cleanup) {
+                // Ignore cleanup errors
+            }
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testShardPubSubBasicOperations()
+    {
+        // Skip test if Valkey version < 7.0 (shard pub/sub requires Valkey 7.0+)
+        try {
+            $info = $this->valkey_glide->info(['server']);
+            if (isset($info['redis_version'])) {
+                $version = $info['redis_version'];
+                if (version_compare($version, '7.0.0', '<')) {
+                    echo "Skipping shard pub/sub test - requires Valkey 7.0+, current version: $version\n";
+                    return;
+                }
+            }
+        } catch (Exception $e) {
+            echo "Skipping shard pub/sub test - could not determine Valkey version\n";
+            return;
+        }
+
+        $testChannel = 'shard_basic_' . uniqid();
+        $receivedMessages = [];
+        
+        $callback = function($valkey, $channel, $message) use (&$receivedMessages) {
+            $receivedMessages[] = $message;
+        };
+        
+        try {
+            // Test ssubscribe with string channel
+            $result1 = $this->valkey_glide->ssubscribe($testChannel, $callback);
+            $this->assertNull($result1, 'ssubscribe with string should return null');
+            
+            // Test ssubscribe with array channel (should overwrite previous)
+            $result2 = $this->valkey_glide->ssubscribe([$testChannel], $callback);
+            $this->assertNull($result2, 'ssubscribe with array should return null');
+            
+            usleep(100000);
+            
+            // Test spublish
+            $publishResult = $this->valkey_glide->spublish($testChannel, 'test_message');
+            $this->assertIsInt($publishResult, 'spublish should return integer');
+            
+            usleep(200000);
+            
+            // Test sunsubscribe with specific channel
+            $unsubResult1 = $this->valkey_glide->sunsubscribe($testChannel);
+            $this->assertTrue($unsubResult1, 'sunsubscribe with channel should return true');
+            
+            // Test sunsubscribe with array
+            $this->valkey_glide->ssubscribe([$testChannel], $callback);
+            usleep(100000);
+            $unsubResult2 = $this->valkey_glide->sunsubscribe([$testChannel]);
+            $this->assertTrue($unsubResult2, 'sunsubscribe with array should return true');
+            
+            // Test sunsubscribe all (no parameters)
+            $this->valkey_glide->ssubscribe($testChannel, $callback);
+            usleep(100000);
+            $unsubResult3 = $this->valkey_glide->sunsubscribe();
+            $this->assertTrue($unsubResult3, 'sunsubscribe all should return true');
+            
+        } catch (Exception $e) {
+            try {
+                $this->valkey_glide->sunsubscribe();
+            } catch (Exception $cleanup) {
+                // Ignore cleanup errors
+            }
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
     public function testMultipleChannelSubscription()
     {
         $channels = ['channel1_' . uniqid(), 'channel2_' . uniqid(), 'channel3_' . uniqid()];

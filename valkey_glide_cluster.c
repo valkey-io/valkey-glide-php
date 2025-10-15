@@ -559,6 +559,10 @@ ZREMRANGEBYRANK_METHOD_IMPL(ValkeyGlideCluster)
 PUBLISH_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto int ValkeyGlideCluster::spublish(string channel, string message) */
+SPUBLISH_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto mixed ValkeyGlideCluster::pubSub(string subcommand, mixed argument) */
 PUBSUB_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
@@ -687,12 +691,20 @@ SUBSCRIBE_METHOD_IMPL(ValkeyGlideCluster)
 PSUBSCRIBE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto null ValkeyGlideCluster::ssubscribe(array chans, callable cb) */
+SSUBSCRIBE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto array ValkeyGlideCluster::unsubscribe(array chans) */
 UNSUBSCRIBE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto array ValkeyGlideCluster::punsubscribe(array pats) */
 PUNSUBSCRIBE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::sunsubscribe(array chans) */
+SUNSUBSCRIBE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto mixed ValkeyGlideCluster::eval(string script, [array args, int numkeys) */

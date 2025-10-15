@@ -542,17 +542,17 @@ PHP_METHOD(ValkeyGlide, close) {
 /* Basic method stubs - these need to be implemented with ValkeyGlide */
 
 PUBLISH_METHOD_IMPL(ValkeyGlide)
+SPUBLISH_METHOD_IMPL(ValkeyGlide)
 
 PUBSUB_METHOD_IMPL(ValkeyGlide)
 
 // ValkeyGlide pubsub methods
 SUBSCRIBE_METHOD_IMPL(ValkeyGlide)
 PSUBSCRIBE_METHOD_IMPL(ValkeyGlide)
+SSUBSCRIBE_METHOD_IMPL(ValkeyGlide)
 UNSUBSCRIBE_METHOD_IMPL(ValkeyGlide)
 PUNSUBSCRIBE_METHOD_IMPL(ValkeyGlide)
-
-PHP_METHOD(ValkeyGlide, sunsubscribe) { /* TODO: Implement */
-}
+SUNSUBSCRIBE_METHOD_IMPL(ValkeyGlide)
 
 PHP_METHOD(ValkeyGlide, pubsub) { /* TODO: Implement */
 }

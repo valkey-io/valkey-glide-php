@@ -3931,6 +3931,49 @@ class ValkeyGlide
     public function publish(string $channel, string $message): int;
 
     /**
+     * Subscribe to shard channels
+     * 
+     * Each client supports only ONE active callback at a time. New ssubscribe() calls
+     * will overwrite the previous callback. This matches standard Redis client behavior.
+     * 
+     * For multiple independent callbacks, use separate client instances.
+     * 
+     * @param array|string $channels Shard channel name(s) to subscribe to
+     * @param callable $callback Callback function to handle messages: function($client, $channel, $message)
+     *                          The first parameter is the client instance itself (ValkeyGlide or ValkeyGlideCluster)
+     * @return null|false Returns null on successful subscription, false on failure.
+     * 
+     * @see https://valkey.io/commands/ssubscribe
+     */
+    public function ssubscribe(array|string $channels, callable $callback): null|false;
+
+    /**
+     * Unsubscribe from shard channels
+     * 
+     * @param array|string $channels Shard channel name(s) to unsubscribe from. If empty or not provided, unsubscribes from all shard channels.
+     * @return bool Always returns true (matches standard behavior)
+     * 
+     * @see https://valkey.io/commands/sunsubscribe
+     */
+    public function sunsubscribe(array|string $channels = []): bool;
+
+    /**
+     * Publish a message to a shard channel
+     * 
+     * @param string $channel The shard channel name
+     * @param string $message The message to publish
+    /**
+     * Publish a message to a shard channel
+     * 
+     * @param string $channel The shard channel name
+     * @param string $message The message to publish
+     * @return int Number of subscribers that received the message
+     * 
+     * @see https://valkey.io/commands/spublish
+     */
+    public function spublish(string $channel, string $message): int;
+
+    /**
      * Introspection into the pub/sub subsystem
      * 
      * @param string $subcommand The subcommand:
