@@ -4098,8 +4098,8 @@ class ValkeyGlide
     /**
      * Unsubscribe from channels
      * 
-     * @param array|string $channels Channel name(s) to unsubscribe from
-     * @return bool Success status
+     * @param array|string $channels Channel name(s) to unsubscribe from. If empty or not provided, unsubscribes from all channels.
+     * @return bool Always returns true (matches PHPRedis behavior)
      * 
      * @see https://valkey.io/commands/unsubscribe
      */
@@ -4108,8 +4108,8 @@ class ValkeyGlide
     /**
      * Unsubscribe from channel patterns
      * 
-     * @param array|string $patterns Pattern(s) to unsubscribe from
-     * @return bool Success status
+     * @param array|string $patterns Pattern(s) to unsubscribe from. If empty or not provided, unsubscribes from all patterns.
+     * @return bool Always returns true (matches PHPRedis behavior)
      * 
      * @see https://valkey.io/commands/punsubscribe
      */

@@ -415,7 +415,7 @@ int execute_psubscribe_command(zval* object, int argc, zval* return_value, zend_
 int execute_unsubscribe_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     zval* channels = NULL;
 
-    if (zend_parse_method_parameters(argc, object, "O|a!", &object, ce, &channels) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "O|z!", &object, ce, &channels) == FAILURE) {
         return 0;
     }
 
@@ -436,7 +436,8 @@ int execute_unsubscribe_command(zval* object, int argc, zval* return_value, zend
         return 0;
     }
 
-    if (!channels || zend_hash_num_elements(Z_ARRVAL_P(channels)) == 0) {
+    if (!channels ||
+        (Z_TYPE_P(channels) == IS_ARRAY && zend_hash_num_elements(Z_ARRVAL_P(channels)) == 0)) {
         invalidate_callback(valkey_glide);
     }
 
@@ -447,7 +448,7 @@ int execute_unsubscribe_command(zval* object, int argc, zval* return_value, zend
 int execute_punsubscribe_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     zval* patterns = NULL;
 
-    if (zend_parse_method_parameters(argc, object, "O|a!", &object, ce, &patterns) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "O|z!", &object, ce, &patterns) == FAILURE) {
         return 0;
     }
 
@@ -468,7 +469,8 @@ int execute_punsubscribe_command(zval* object, int argc, zval* return_value, zen
         return 0;
     }
 
-    if (!patterns || zend_hash_num_elements(Z_ARRVAL_P(patterns)) == 0) {
+    if (!patterns ||
+        (Z_TYPE_P(patterns) == IS_ARRAY && zend_hash_num_elements(Z_ARRVAL_P(patterns)) == 0)) {
         invalidate_callback(valkey_glide);
     }
 

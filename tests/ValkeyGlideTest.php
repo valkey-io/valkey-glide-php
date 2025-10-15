@@ -7823,6 +7823,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             
             // Unsubscribe
             $unsubscribeResult = $this->valkey_glide->unsubscribe([$testChannel]);
+            $this->assertTrue($unsubscribeResult, 'unsubscribe() should return true');
             usleep(100000);
             
             // Publish another message - should NOT be received
@@ -7859,6 +7860,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             
             // Unsubscribe from pattern
             $punsubscribeResult = $this->valkey_glide->punsubscribe([$testPattern]);
+            $this->assertTrue($punsubscribeResult, 'punsubscribe() should return true');
             usleep(100000);
             
             // Publish another message - should NOT be received
@@ -7896,6 +7898,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             
             // Unsubscribe from all channels (no parameters)
             $unsubscribeResult = $this->valkey_glide->unsubscribe();
+            $this->assertTrue($unsubscribeResult, 'unsubscribe() should return true');
             usleep(100000);
             
             // Publish to both channels again - should NOT be received
@@ -8066,8 +8069,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $channelsBefore = $this->valkey_glide->pubSub('channels');
             $this->assertIsArray($channelsBefore, 'CHANNELS should return array');
             
-            // Subscribe to a channel
-            $this->valkey_glide->subscribe($testChannel, $callback);
+            // Subscribe to a channel - should return null on success
+            $subscribeResult = $this->valkey_glide->subscribe($testChannel, $callback);
+            $this->assertNull($subscribeResult, 'subscribe() should return null on success');
             usleep(100000); // Wait for subscription to register
             
             // Test CHANNELS after subscription - should include our channel
@@ -8090,8 +8094,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
                 $this->assertGreaterThan(0, $numsub[1], 'Subscriber count should be > 0');
             }
             
-            // Subscribe to a pattern
-            $this->valkey_glide->psubscribe($testPattern, $patternCallback);
+            // Subscribe to a pattern - should return null on success
+            $psubscribeResult = $this->valkey_glide->psubscribe($testPattern, $patternCallback);
+            $this->assertNull($psubscribeResult, 'psubscribe() should return null on success');
             usleep(100000); // Wait for pattern subscription to register
             
             // Test NUMPAT after pattern subscription
@@ -8099,9 +8104,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->assertIsInt($numpatAfter, 'NUMPAT after pattern subscription should return integer');
             $this->assertGreaterThan($numpatBefore, $numpatAfter, 'NUMPAT should increase after pattern subscription');
             
-            // Clean up subscriptions
-            $this->valkey_glide->unsubscribe();
-            $this->valkey_glide->punsubscribe();
+            // Clean up subscriptions - should return true
+            $unsubscribeResult = $this->valkey_glide->unsubscribe();
+            $this->assertTrue($unsubscribeResult, 'unsubscribe() should return true');
+            
+            $punsubscribeResult = $this->valkey_glide->punsubscribe();
+            $this->assertTrue($punsubscribeResult, 'punsubscribe() should return true');
             
         } catch (Exception $e) {
             // Clean up on error
