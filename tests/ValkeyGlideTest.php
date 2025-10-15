@@ -8123,7 +8123,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
     }
 
-    /*
     public function testShardPubSubIntrospectionWithActiveSubscriptions()
     {
         // Skip test if Valkey version < 7.0 (shard pub/sub requires Valkey 7.0+)
