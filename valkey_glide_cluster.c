@@ -16,6 +16,7 @@
 #include "valkey_glide_geo_common.h"
 #include "valkey_glide_hash_common.h" /* Include hash command framework */
 #include "valkey_glide_list_common.h"
+#include "valkey_glide_pubsub.h"
 #include "valkey_glide_s_common.h"
 #include "valkey_glide_x_common.h"
 #include "valkey_glide_z_common.h"
@@ -77,7 +78,7 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     valkey_glide_build_client_config_base(&common_params, &client_config.base, true);
 
     /* Issue the connection request. */
-    const ConnectionResponse* conn_resp = create_glide_cluster_client(&client_config);
+    const ConnectionResponse* conn_resp = create_glide_cluster_client(&client_config, valkey_glide);
 
     if (conn_resp->connection_error_message) {
         zend_throw_exception(
@@ -555,8 +556,7 @@ ZREMRANGEBYRANK_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto long ValkeyGlideCluster::publish(string key, string msg) */
-PHP_METHOD(ValkeyGlideCluster, publish) {
-}
+PUBLISH_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto bool ValkeyGlideCluster::rename(string key1, string key2) */
@@ -676,23 +676,19 @@ SORT_RO_METHOD_IMPL(ValkeyGlideCluster)
 OBJECT_METHOD_IMPL(ValkeyGlideCluster)
 
 /* {{{ proto null ValkeyGlideCluster::subscribe(array chans, callable cb) */
-PHP_METHOD(ValkeyGlideCluster, subscribe) {
-}
+SUBSCRIBE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto null ValkeyGlideCluster::psubscribe(array pats, callable cb) */
-PHP_METHOD(ValkeyGlideCluster, psubscribe) {
-}
+PSUBSCRIBE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto array ValkeyGlideCluster::unsubscribe(array chans) */
-PHP_METHOD(ValkeyGlideCluster, unsubscribe) {
-}
+UNSUBSCRIBE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto array ValkeyGlideCluster::punsubscribe(array pats) */
-PHP_METHOD(ValkeyGlideCluster, punsubscribe) {
-}
+PUNSUBSCRIBE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto mixed ValkeyGlideCluster::eval(string script, [array args, int numkeys) */

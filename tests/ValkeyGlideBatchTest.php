@@ -3913,6 +3913,34 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key1);
     }
 
+    public function test_pubsub_commands_not_allowed_in_batch_mode(): void {
+        $key1 = $this->generate_random_string(10);
+        $callback = function($client, $channel, $message, $pattern = null) {
+            // Test callback
+        };
+        
+        // Start batch mode
+        $this->valkey_glide->multi();
+        $this->valkey_glide->set($key1, 'test_value');
+        
+        // Test pubsub commands in batch mode - should all return false
+        $subscribeResult = $this->valkey_glide->subscribe(['test_channel'], $callback);
+        $this->assertFalse($subscribeResult, 'SUBSCRIBE should return false in batch mode');
+        
+        $psubscribeResult = $this->valkey_glide->psubscribe(['test_*'], $callback);
+        $this->assertFalse($psubscribeResult, 'PSUBSCRIBE should return false in batch mode');
+        
+        $unsubscribeResult = $this->valkey_glide->unsubscribe(['test_channel']);
+        $this->assertFalse($unsubscribeResult, 'UNSUBSCRIBE should return false in batch mode');
+        
+        $punsubscribeResult = $this->valkey_glide->punsubscribe(['test_*']);
+        $this->assertFalse($punsubscribeResult, 'PUNSUBSCRIBE should return false in batch mode');
+        
+        // Cancel the batch and cleanup
+        $this->valkey_glide->discard();
+        $this->valkey_glide->del($key1);
+    }
+
     // ===================================================================
     // CLOSING CLASS
     // ===================================================================

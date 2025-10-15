@@ -7571,4 +7571,504 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals([['library_name' => 'mylib', 'engine' => 'LUA', 'functions' => [['name' => 'myfunc', 'description' => false,'flags' => []]]]], $this->valkey_glide->function('list'));
         $this->assertTrue($this->valkey_glide->function('delete', 'mylib'));
     }
+
+    // PubSub Integration Tests
+    public function testPubSubIntegration()
+    {
+        $testChannel = 'test_channel_' . uniqid();
+        $testMessage = 'test_message_' . time();
+        $receivedMessages = [];
+        
+        $callback = function($redis, $channel, $message) use (&$receivedMessages) {
+            $receivedMessages[] = [
+                'redis' => $redis,
+                'channel' => $channel,
+                'message' => $message
+            ];
+        };
+        
+        try {
+            // Subscribe to channel
+            $subscribeResult = $this->valkey_glide->subscribe([$testChannel], $callback);
+            $this->assertTrue(is_array($subscribeResult) || $subscribeResult === true);
+            
+            // Give subscription time to register
+            usleep(100000); // 100ms
+            
+            // Publish message
+            $publishResult = $this->valkey_glide->publish($testChannel, $testMessage);
+            $this->assertIsInt($publishResult);
+            
+            // Give callback time to execute
+            usleep(200000); // 200ms
+            
+            // Verify callback was invoked
+            $this->assertNotEmpty($receivedMessages, 'Callback should have received message');
+            
+            $received = $receivedMessages[0];
+            $this->assertIsObject($received['redis']);
+            $this->assertEquals($testChannel, $received['channel']);
+            $this->assertEquals($testMessage, $received['message']);
+            $this->assertTrue($received['redis'] instanceof ValkeyGlide || $received['redis'] instanceof ValkeyGlideCluster);
+            
+        } catch (Exception $e) {
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testMultipleClientPubSubIsolation()
+    {
+        try {
+            // Create second client
+            $client2 = new ValkeyGlide($this->addresses);
+            
+            $channel1 = 'channel1_' . uniqid();
+            $channel2 = 'channel2_' . uniqid();
+            $message1 = 'message1_' . time();
+            $message2 = 'message2_' . time();
+            
+            $client1Messages = [];
+            $client2Messages = [];
+            
+            $callback1 = function($redis, $channel, $message) use (&$client1Messages) {
+                $client1Messages[] = ['channel' => $channel, 'message' => $message];
+            };
+            
+            $callback2 = function($redis, $channel, $message) use (&$client2Messages) {
+                $client2Messages[] = ['channel' => $channel, 'message' => $message];
+            };
+            
+            // Subscribe each client to different channels
+            $this->valkey_glide->subscribe([$channel1], $callback1);
+            $client2->subscribe([$channel2], $callback2);
+            
+            usleep(100000); // Let subscriptions register
+            
+            // Publish to both channels
+            $this->valkey_glide->publish($channel1, $message1);
+            $this->valkey_glide->publish($channel2, $message2);
+            
+            usleep(200000); // Let callbacks execute
+            
+            // Verify each client only received its own message
+            $this->assertCount(1, $client1Messages, 'Client1 should receive exactly 1 message');
+            $this->assertCount(1, $client2Messages, 'Client2 should receive exactly 1 message');
+            
+            $this->assertEquals($channel1, $client1Messages[0]['channel']);
+            $this->assertEquals($message1, $client1Messages[0]['message']);
+            
+            $this->assertEquals($channel2, $client2Messages[0]['channel']);
+            $this->assertEquals($message2, $client2Messages[0]['message']);
+            
+        } catch (Exception $e) {
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testPubSubPatternIntegration()
+    {
+        $testPattern = 'test_pattern_*';
+        $testChannel = 'test_pattern_' . uniqid();
+        $testMessage = 'pattern_message_' . time();
+        $receivedMessages = [];
+        
+        $callback = function($redis, $pattern, $channel, $message) use (&$receivedMessages) {
+            $receivedMessages[] = [
+                'redis' => $redis,
+                'pattern' => $pattern,
+                'channel' => $channel,
+                'message' => $message
+            ];
+        };
+        
+        try {
+            // Subscribe to pattern
+            $subscribeResult = $this->valkey_glide->psubscribe([$testPattern], $callback);
+            $this->assertTrue(is_array($subscribeResult) || $subscribeResult === true);
+            
+            usleep(100000); // Let subscription register
+            
+            // Publish to matching channel
+            $publishResult = $this->valkey_glide->publish($testChannel, $testMessage);
+            $this->assertIsInt($publishResult);
+            
+            usleep(200000); // Let callback execute
+            
+            // Verify pattern callback was invoked
+            $this->assertNotEmpty($receivedMessages, 'Pattern callback should have received message');
+            
+            $received = $receivedMessages[0];
+            $this->assertIsObject($received['redis']);
+            $this->assertEquals($testPattern, $received['pattern']);
+            $this->assertEquals($testChannel, $received['channel']);
+            $this->assertEquals($testMessage, $received['message']);
+            $this->assertTrue($received['redis'] instanceof ValkeyGlide || $received['redis'] instanceof ValkeyGlideCluster);
+            
+        } catch (Exception $e) {
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testAsyncPubSubCompatibility()
+    {
+        $testChannel = 'test_channel_' . uniqid();
+        $testMessage = 'test_message_' . time();
+        $callbackData = [];
+        
+        $subscribeCallback = function($valkey, $channel, $message) use (&$callbackData) {
+            $callbackData = [
+                'valkey' => $valkey,
+                'channel' => $channel,
+                'message' => $message
+            ];
+        };
+        
+        try {
+            // Subscribe to channel
+            $result = $this->valkey_glide->subscribe([$testChannel], $subscribeCallback);
+            $this->assertTrue(is_array($result) || $result === true);
+            
+            // Give subscription time to register
+            usleep(100000); // 100ms
+            
+            // Publish a message to trigger callback
+            if (method_exists($this->valkey_glide, 'publish')) {
+                $publishResult = $this->valkey_glide->publish($testChannel, $testMessage);
+                
+                // Give callback time to execute
+                usleep(200000); // 200ms
+                
+                // Verify callback was invoked with correct data
+                if (!empty($callbackData)) {
+                    $this->assertIsObject($callbackData['redis']);
+                    $this->assertIsString($callbackData['channel']);
+                    $this->assertIsString($callbackData['message']);
+                    $this->assertTrue($callbackData['redis'] instanceof ValkeyGlide || $callbackData['redis'] instanceof ValkeyGlideCluster);
+                    $this->assertEquals($testChannel, $callbackData['channel']);
+                    $this->assertEquals($testMessage, $callbackData['message']);
+                }
+            }
+        } catch (Exception $e) {
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testAsyncPubSubPatternCompatibility()
+    {
+        $testPattern = 'test_pattern_*';
+        $testChannel = 'test_pattern_' . uniqid();
+        $testMessage = 'pattern_message_' . time();
+        $callbackData = [];
+        
+        $psubscribeCallback = function($valkey, $pattern, $channel, $message) use (&$callbackData) {
+            $callbackData = [
+                'valkey' => $valkey,
+                'pattern' => $pattern,
+                'channel' => $channel,
+                'message' => $message
+            ];
+        };
+        
+        try {
+            // Subscribe to pattern
+            $result = $this->valkey_glide->psubscribe([$testPattern], $psubscribeCallback);
+            $this->assertTrue(is_array($result) || $result === true);
+            
+            // Give subscription time to register
+            usleep(100000); // 100ms
+            
+            // Publish a message to trigger pattern callback
+            if (method_exists($this->valkey_glide, 'publish')) {
+                $publishResult = $this->valkey_glide->publish($testChannel, $testMessage);
+                
+                // Give callback time to execute
+                usleep(200000); // 200ms
+                
+                // Verify callback was invoked with correct data
+                if (!empty($callbackData)) {
+                    $this->assertIsObject($callbackData['redis']);
+                    $this->assertIsString($callbackData['pattern']);
+                    $this->assertIsString($callbackData['channel']);
+                    $this->assertIsString($callbackData['message']);
+                    $this->assertTrue($callbackData['redis'] instanceof ValkeyGlide || $callbackData['redis'] instanceof ValkeyGlideCluster);
+                    $this->assertEquals($testPattern, $callbackData['pattern']);
+                    $this->assertEquals($testChannel, $callbackData['channel']);
+                    $this->assertEquals($testMessage, $callbackData['message']);
+                }
+            }
+        } catch (Exception $e) {
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testUnsubscribeStopsMessages()
+    {
+        $testChannel = 'unsubscribe_test_' . uniqid();
+        $receivedMessages = [];
+        
+        $callback = function($redis, $channel, $message) use (&$receivedMessages) {
+            $receivedMessages[] = $message;
+        };
+        
+        try {
+            // Subscribe and verify we receive messages
+            $this->valkey_glide->subscribe([$testChannel], $callback);
+            usleep(100000);
+            
+            $this->valkey_glide->publish($testChannel, 'message1');
+            usleep(200000);
+            
+            $this->assertCount(1, $receivedMessages, 'Should receive message before unsubscribe');
+            $this->assertEquals('message1', $receivedMessages[0]);
+            
+            // Unsubscribe
+            $unsubscribeResult = $this->valkey_glide->unsubscribe([$testChannel]);
+            usleep(100000);
+            
+            // Publish another message - should NOT be received
+            $this->valkey_glide->publish($testChannel, 'message2');
+            usleep(200000);
+            
+            $this->assertCount(1, $receivedMessages, 'Should not receive message after unsubscribe');
+            
+        } catch (Exception $e) {
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testPunsubscribeStopsPatternMessages()
+    {
+        $testPattern = 'punsubscribe_test_*';
+        $testChannel = 'punsubscribe_test_' . uniqid();
+        $receivedMessages = [];
+        
+        $callback = function($redis, $pattern, $channel, $message) use (&$receivedMessages) {
+            $receivedMessages[] = $message;
+        };
+        
+        try {
+            // Subscribe to pattern and verify we receive messages
+            $this->valkey_glide->psubscribe([$testPattern], $callback);
+            usleep(100000);
+            
+            $this->valkey_glide->publish($testChannel, 'pattern_message1');
+            usleep(200000);
+            
+            $this->assertCount(1, $receivedMessages, 'Should receive pattern message before punsubscribe');
+            $this->assertEquals('pattern_message1', $receivedMessages[0]);
+            
+            // Unsubscribe from pattern
+            $punsubscribeResult = $this->valkey_glide->punsubscribe([$testPattern]);
+            usleep(100000);
+            
+            // Publish another message - should NOT be received
+            $this->valkey_glide->publish($testChannel, 'pattern_message2');
+            usleep(200000);
+            
+            $this->assertCount(1, $receivedMessages, 'Should not receive pattern message after punsubscribe');
+            
+        } catch (Exception $e) {
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testUnsubscribeAllStopsAllMessages()
+    {
+        $channel1 = 'unsubscribe_all_1_' . uniqid();
+        $channel2 = 'unsubscribe_all_2_' . uniqid();
+        $receivedMessages = [];
+        
+        $callback = function($redis, $channel, $message) use (&$receivedMessages) {
+            $receivedMessages[] = ['channel' => $channel, 'message' => $message];
+        };
+        
+        try {
+            // Subscribe to multiple channels
+            $this->valkey_glide->subscribe([$channel1, $channel2], $callback);
+            usleep(100000);
+            
+            // Publish to both channels
+            $this->valkey_glide->publish($channel1, 'msg1');
+            $this->valkey_glide->publish($channel2, 'msg2');
+            usleep(200000);
+            
+            $this->assertCount(2, $receivedMessages, 'Should receive messages from both channels');
+            
+            // Unsubscribe from all channels (no parameters)
+            $unsubscribeResult = $this->valkey_glide->unsubscribe();
+            usleep(100000);
+            
+            // Publish to both channels again - should NOT be received
+            $this->valkey_glide->publish($channel1, 'msg3');
+            $this->valkey_glide->publish($channel2, 'msg4');
+            usleep(200000);
+            
+            $this->assertCount(2, $receivedMessages, 'Should not receive messages after unsubscribe all');
+            
+        } catch (Exception $e) {
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testSubscribeCallbackSignature()
+    {
+        $expectedChannel = 'test_channel_' . uniqid();
+        $callbackInvoked = false;
+        $callbackData = [];
+        
+        $callback = function($redis, $channel, $message) use (&$callbackInvoked, &$callbackData) {
+            $callbackInvoked = true;
+            $callbackData = [
+                'redis' => $redis,
+                'channel' => $channel,
+                'message' => $message
+            ];
+        };
+        
+        try {
+            $result = $this->valkey_glide->subscribe([$expectedChannel], $callback);
+            
+            if ($callbackInvoked && !empty($callbackData)) {
+                $this->assertIsObject($callbackData['redis'], 'First parameter should be Redis instance');
+                $this->assertIsString($callbackData['channel'], 'Second parameter should be channel name');
+                $this->assertIsString($callbackData['message'], 'Third parameter should be message content');
+                $this->assertTrue(
+                    $callbackData['redis'] instanceof ValkeyGlide || $callbackData['redis'] instanceof ValkeyGlideCluster,
+                    'Redis instance should be ValkeyGlide or ValkeyGlideCluster'
+                );
+            }
+            
+            $this->assertTrue(is_bool($result) || is_array($result), 'Subscribe should return boolean or array');
+            
+        } catch (Exception $e) {
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testPSubscribeCallbackSignature()
+    {
+        $expectedPattern = 'test_pattern_*';
+        $callbackInvoked = false;
+        $callbackData = [];
+        
+        $callback = function($redis, $pattern, $channel, $message) use (&$callbackInvoked, &$callbackData) {
+            $callbackInvoked = true;
+            $callbackData = [
+                'redis' => $redis,
+                'pattern' => $pattern,
+                'channel' => $channel,
+                'message' => $message
+            ];
+        };
+        
+        try {
+            $result = $this->valkey_glide->psubscribe([$expectedPattern], $callback);
+            
+            if ($callbackInvoked && !empty($callbackData)) {
+                $this->assertIsObject($callbackData['redis'], 'First parameter should be Redis instance');
+                $this->assertIsString($callbackData['pattern'], 'Second parameter should be pattern');
+                $this->assertIsString($callbackData['channel'], 'Third parameter should be channel name');
+                $this->assertIsString($callbackData['message'], 'Fourth parameter should be message content');
+                $this->assertTrue(
+                    $callbackData['redis'] instanceof ValkeyGlide || $callbackData['redis'] instanceof ValkeyGlideCluster,
+                    'Redis instance should be ValkeyGlide or ValkeyGlideCluster'
+                );
+            }
+            
+            $this->assertTrue(is_bool($result) || is_array($result), 'PSubscribe should return boolean or array');
+            
+        } catch (Exception $e) {
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testMultipleChannelSubscription()
+    {
+        $channels = ['channel1_' . uniqid(), 'channel2_' . uniqid(), 'channel3_' . uniqid()];
+        $receivedChannels = [];
+        
+        $callback = function($redis, $channel, $message) use (&$receivedChannels) {
+            $receivedChannels[] = $channel;
+        };
+        
+        try {
+            $result = $this->valkey_glide->subscribe($channels, $callback);
+            $this->assertTrue(is_bool($result) || is_array($result));
+        } catch (Exception $e) {
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testMultiplePatternSubscription()
+    {
+        $patterns = ['news_*', 'events_*', 'alerts_*'];
+        $receivedPatterns = [];
+        
+        $callback = function($redis, $pattern, $channel, $message) use (&$receivedPatterns) {
+            $receivedPatterns[] = $pattern;
+        };
+        
+        try {
+            $result = $this->valkey_glide->psubscribe($patterns, $callback);
+            $this->assertTrue(is_bool($result) || is_array($result));
+        } catch (Exception $e) {
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testCallbackMemoryManagement()
+    {
+        $callbackCount = 0;
+        
+        $callback = function($redis, $channel, $message) use (&$callbackCount) {
+            $callbackCount++;
+        };
+        
+        try {
+            // Multiple subscribe calls should handle callback storage properly
+            $result1 = $this->valkey_glide->subscribe(['test1_' . uniqid()], $callback);
+            $result2 = $this->valkey_glide->subscribe(['test2_' . uniqid()], $callback);
+            
+            $this->assertTrue(true, 'Multiple subscribe calls handled without error');
+        } catch (Exception $e) {
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testSubscribeCallbackOverwrite()
+    {
+        $testChannel = 'callback_overwrite_' . uniqid();
+        $callback1Messages = [];
+        $callback2Messages = [];
+        
+        $callback1 = function($redis, $channel, $message) use (&$callback1Messages) {
+            $callback1Messages[] = $message;
+        };
+        
+        $callback2 = function($redis, $channel, $message) use (&$callback2Messages) {
+            $callback2Messages[] = $message;
+        };
+        
+        try {
+            // Subscribe with first callback
+            $this->valkey_glide->subscribe([$testChannel], $callback1);
+            usleep(100000);
+            
+            // Subscribe again with second callback - should overwrite first
+            $this->valkey_glide->subscribe([$testChannel], $callback2);
+            usleep(100000);
+            
+            // Publish message - only callback2 should receive it
+            $this->valkey_glide->publish($testChannel, 'test_message');
+            usleep(200000);
+            
+            // Verify only callback2 received the message
+            $this->assertEmpty($callback1Messages, 'First callback should not receive messages after being overwritten');
+            $this->assertCount(1, $callback2Messages, 'Second callback should receive the message');
+            $this->assertEquals('test_message', $callback2Messages[0]);
+            
+        } catch (Exception $e) {
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
 }

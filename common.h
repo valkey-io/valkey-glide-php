@@ -190,6 +190,12 @@ typedef struct {
     size_t                command_count;
     size_t                command_capacity;
 
+    /* PubSub callback */
+    _Atomic(void*) pubsub_callback;
+
+    /* Client type for efficient unregistration */
+    bool is_cluster_client;
+
     zend_object std;
 } valkey_glide_object;
 

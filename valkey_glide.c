@@ -6,14 +6,17 @@
 #endif
 #include "cluster_scan_cursor.h"          // Include ClusterScanCursor class
 #include "cluster_scan_cursor_arginfo.h"  // Include ClusterScanCursor arginfo header
+#include "command_response.h"             // Include command execution functions
 #include "common.h"
-#include "logger.h"          // Include logger functionality
+#include "include/glide/command_request.pb-c.h"  // Include protobuf command constants
+#include "logger.h"                              // Include logger functionality
 #include "logger_arginfo.h"  // Include logger functions arginfo - MUST BE LAST for ext_functions
 #include "php_valkey_glide.h"
 #include "valkey_glide_arginfo.h"          // Include generated arginfo header
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_hash_common.h"
+#include "valkey_glide_pubsub.h"
 
 /* Enum support includes - must be BEFORE arginfo includes */
 #if PHP_VERSION_ID >= 80100
@@ -72,6 +75,9 @@ zend_object* create_valkey_glide_object(zend_class_entry* ce) {
 
     zend_object_std_init(&valkey_glide->std, ce);
     object_properties_init(&valkey_glide->std, ce);
+
+    // Initialize pubsub callback to NULL
+    valkey_glide->pubsub_callback = NULL;
 
     memcpy(&valkey_glide_object_handlers,
            zend_get_std_object_handlers(),
@@ -390,9 +396,16 @@ void free_valkey_glide_object(zend_object* object) {
 
     /* Free the Valkey Glide client if it exists */
     if (valkey_glide->glide_client) {
+        // Unregister client mapping FIRST (prevents new callbacks) - optimized version
+        unregister_client_mapping_typed(valkey_glide->glide_client,
+                                        valkey_glide->is_cluster_client);
+
         close_glide_client(valkey_glide->glide_client);
         valkey_glide->glide_client = NULL;
     }
+
+    /* Safely invalidate and release callback */
+    invalidate_callback(valkey_glide);
 
     /* Clean up the standard object */
     zend_object_std_dtor(&valkey_glide->std);
@@ -491,7 +504,7 @@ PHP_METHOD(ValkeyGlide, __construct) {
     valkey_glide_build_client_config_base(&common_params, &client_config, false);
 
     /* Issue the connection request. */
-    const ConnectionResponse* conn_resp = create_glide_client(&client_config);
+    const ConnectionResponse* conn_resp = create_glide_client(&client_config, valkey_glide);
 
     if (conn_resp->connection_error_message) {
         VALKEY_LOG_ERROR("php_construct", conn_resp->connection_error_message);
@@ -528,23 +541,20 @@ PHP_METHOD(ValkeyGlide, close) {
 
 /* Basic method stubs - these need to be implemented with ValkeyGlide */
 
-PHP_METHOD(ValkeyGlide, publish) { /* TODO: Implement */
-}
-PHP_METHOD(ValkeyGlide, psubscribe) { /* TODO: Implement */
-}
-PHP_METHOD(ValkeyGlide, ssubscribe) { /* TODO: Implement */
-}
-PHP_METHOD(ValkeyGlide, subscribe) { /* TODO: Implement */
-}
-PHP_METHOD(ValkeyGlide, unsubscribe) { /* TODO: Implement */
-}
-PHP_METHOD(ValkeyGlide, punsubscribe) { /* TODO: Implement */
-}
+PUBLISH_METHOD_IMPL(ValkeyGlide)
+
+// ValkeyGlide pubsub methods
+SUBSCRIBE_METHOD_IMPL(ValkeyGlide)
+PSUBSCRIBE_METHOD_IMPL(ValkeyGlide)
+UNSUBSCRIBE_METHOD_IMPL(ValkeyGlide)
+PUNSUBSCRIBE_METHOD_IMPL(ValkeyGlide)
+
 PHP_METHOD(ValkeyGlide, sunsubscribe) { /* TODO: Implement */
 }
 
 PHP_METHOD(ValkeyGlide, pubsub) { /* TODO: Implement */
 }
+
 PHP_METHOD(ValkeyGlide, eval) { /* TODO: Implement */
 }
 PHP_METHOD(ValkeyGlide, eval_ro) { /* TODO: Implement */

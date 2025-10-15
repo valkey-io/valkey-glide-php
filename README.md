@@ -302,6 +302,75 @@ try {
 ?>
 ```
 
+## PubSub (Publish/Subscribe)
+
+Valkey GLIDE supports Redis-compatible publish/subscribe messaging with multiple client support.
+
+### Basic PubSub Usage
+
+```php
+// Create subscriber client
+$subscriber = new ValkeyGlide([['host' => 'localhost', 'port' => 6379]]);
+
+// Subscribe to channels with callback
+$subscriber->subscribe(['news', 'updates'], function($redis, $channel, $message) {
+    echo "Received on $channel: $message\n";
+});
+
+// Create publisher client  
+$publisher = new ValkeyGlide([['host' => 'localhost', 'port' => 6379]]);
+
+// Publish messages
+$publisher->publish('news', 'Breaking news!');
+$publisher->publish('updates', 'System update available');
+```
+
+### Pattern Subscriptions
+
+```php
+// Subscribe to patterns
+$subscriber->psubscribe(['news.*', 'events.*'], function($redis, $pattern, $channel, $message) {
+    echo "Pattern $pattern matched $channel: $message\n";
+});
+
+// These will trigger the pattern callback
+$publisher->publish('news.sports', 'Team wins championship');
+$publisher->publish('events.concert', 'Concert tonight');
+```
+
+### Multiple Client Support
+
+Each client can have independent subscriptions and callbacks:
+
+```php
+$client1 = new ValkeyGlide([['host' => 'localhost', 'port' => 6379]]);
+$client2 = new ValkeyGlide([['host' => 'localhost', 'port' => 6379]]);
+
+// Independent callbacks per client
+$client1->subscribe(['channel1'], $callback1);
+$client2->subscribe(['channel2'], $callback2);
+```
+
+### Callback Behavior
+
+- **Single Callback**: Each client supports one active callback at a time.
+- **Callback Overwriting**: New `subscribe()` calls overwrite the previous callback. It is optional to unsubscribe before subscribing again.
+- **Memory Safe**: Previous callbacks are automatically cleaned up on resubscription and destruction of the client.
+- **PHPRedis Compatible**: Matches standard Redis client behavior.
+
+### Unsubscribing
+
+```php
+// Unsubscribe from specific channels
+$subscriber->unsubscribe(['news', 'updates']);
+
+// Unsubscribe from all channels
+$subscriber->unsubscribe();
+
+// Unsubscribe from patterns
+$subscriber->punsubscribe(['news.*']);
+```
+
 ### Contributing
 
 All contributions are automatically validated through our CI pipeline, ensuring:

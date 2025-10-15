@@ -29,6 +29,7 @@
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
 #include "valkey_glide_list_common.h"
+#include "valkey_glide_pubsub.h"
 #include "valkey_glide_z_common.h"
 
 extern zend_class_entry* ce;
@@ -188,7 +189,8 @@ uint8_t* create_connection_request(const char*                               hos
 static const ConnectionResponse* create_base_glide_client(
     valkey_glide_base_client_configuration_t* config,
     valkey_glide_periodic_checks_status_t     periodic_checks,
-    bool                                      is_cluster) {
+    bool                                      is_cluster,
+    valkey_glide_object*                      valkey_glide) {
     /* Create a connection request using first address or default */
     size_t      len;
     const char* default_host = "localhost";
@@ -205,10 +207,12 @@ static const ConnectionResponse* create_base_glide_client(
     ClientType client_type;
     client_type.tag = SyncClient;
 
-    /* Create the client */
+    /* Create the client with appropriate pubsub callback based on client type */
     const ConnectionResponse* conn_resp =
-        create_client(request_bytes, len, &client_type, NULL /* No PubSub callback */
-        );
+        create_client(request_bytes,
+                      len,
+                      &client_type,
+                      is_cluster ? cluster_pubsub_callback : standalone_pubsub_callback);
 
     /* Free the request bytes as they're no longer needed */
     efree(request_bytes);
@@ -216,19 +220,30 @@ static const ConnectionResponse* create_base_glide_client(
     /* Check if there was an error */
     if (conn_resp->connection_error_message) {
         printf("Error creating client: %s\n", conn_resp->connection_error_message);
+    } else if (valkey_glide && conn_resp->conn_ptr) {
+        /* Set client type and register the client mapping for pubsub callbacks */
+        valkey_glide->is_cluster_client = is_cluster;
+        if (is_cluster) {
+            register_cluster_client_mapping(conn_resp->conn_ptr, valkey_glide);
+        } else {
+            register_standalone_client_mapping(conn_resp->conn_ptr, valkey_glide);
+        }
     }
 
     return conn_resp;
 }
 
 /* Create a Valkey Glide client */
-const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config) {
-    return create_base_glide_client(config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false);
+const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config,
+                                              valkey_glide_object* valkey_glide) {
+    return create_base_glide_client(
+        config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, valkey_glide);
 }
 
 const ConnectionResponse* create_glide_cluster_client(
-    valkey_glide_cluster_client_configuration_t* config) {
-    return create_base_glide_client(&config->base, config->periodic_checks_status, true);
+    valkey_glide_cluster_client_configuration_t* config, valkey_glide_object* valkey_glide) {
+    return create_base_glide_client(
+        &config->base, config->periodic_checks_status, true, valkey_glide);
 }
 
 /* Custom result processor for SET commands with GET option support */

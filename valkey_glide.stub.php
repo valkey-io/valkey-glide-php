@@ -4072,6 +4072,59 @@ class ValkeyGlide
      * $valkey_glide->zUnionStore('dst', ['zs1', 'zs2', 'zs3']);
      */
     public function zunionstore(string $dst, array $keys, ?array $weights = null, ?string $aggregate = null): ValkeyGlide|int|false;
+
+    /**
+     * Publish a message to a channel
+     * 
+     * @param string $channel The channel name
+     * @param string $message The message to publish
+     * @return int Number of subscribers that received the message
+     */
+    public function publish(string $channel, string $message): int;
+
+    /**
+     * Subscribe to channels
+     * 
+     * Each client supports only ONE active callback at a time. New subscribe() calls
+     * will overwrite the previous callback. This matches standard Redis client behavior.
+     * 
+     * For multiple independent callbacks, use separate client instances.
+     * 
+     * @param array|string $channels Channel name(s) to subscribe to
+     * @param callable $callback Callback function to handle messages: function($redis, $channel, $message)
+     * @return bool Success status
+     */
+    public function subscribe(array|string $channels, callable $callback): bool;
+
+    /**
+     * Subscribe to channels by pattern
+     * 
+     * Each client supports only ONE active callback at a time. New psubscribe() calls
+     * will overwrite the previous callback. This matches standard Redis client behavior.
+     * 
+     * For multiple independent callbacks, use separate client instances.
+     * 
+     * @param array|string $patterns Pattern(s) to subscribe to
+     * @param callable $callback Callback function to handle messages: function($redis, $pattern, $channel, $message)
+     * @return bool Success status
+     */
+    public function psubscribe(array|string $patterns, callable $callback): bool;
+
+    /**
+     * Unsubscribe from channels
+     * 
+     * @param array|string $channels Channel name(s) to unsubscribe from
+     * @return bool Success status
+     */
+    public function unsubscribe(array|string $channels = []): bool;
+
+    /**
+     * Unsubscribe from channel patterns
+     * 
+     * @param array|string $patterns Pattern(s) to unsubscribe from
+     * @return bool Success status
+     */
+    public function punsubscribe(array|string $patterns = []): bool;
 }
 
 class ValkeyGlideException extends RuntimeException
