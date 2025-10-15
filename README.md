@@ -354,7 +354,7 @@ $client2->subscribe(['channel2'], $callback2);
 ### Callback Behavior
 
 - **Single Callback**: Each client supports one active callback at a time.
-- **Callback Overwriting**: New `subscribe()` calls overwrite the previous callback. It is optional to unsubscribe before subscribing again.
+- **Callback Resubscription**: New `subscribe()` calls are considered resubscriptions and overwrite the previous callback. It is optional to unsubscribe before subscribing again.
 - **Memory Safe**: Previous callbacks are automatically cleaned up on resubscription and destruction of the client.
 - **PHPRedis Compatible**: Matches standard Redis client behavior.
 
