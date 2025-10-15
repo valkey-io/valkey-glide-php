@@ -13,9 +13,14 @@
   +----------------------------------------------------------------------+
 */
 
+#include "valkey_glide_pubsub.h"
+
 #include <stdatomic.h>
 
 #include "common.h"
+
+// Forward declarations
+static void release_callback(safe_callback_t* safe_cb);
 
 // Cross-platform thread-local storage
 #if __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_THREADS__)
@@ -28,13 +33,6 @@
 #else
 #error "Thread-local storage not supported on this compiler"
 #endif
-
-// Safe callback wrapper with reference counting
-typedef struct {
-    zval*        callback;
-    _Atomic int  refcount;
-    _Atomic bool valid;
-} safe_callback_t;
 
 // Separate thread-local hash tables for standalone and cluster clients
 static THREAD_LOCAL HashTable* g_standalone_client_map = NULL;
@@ -72,7 +70,7 @@ static void replace_callback(valkey_glide_object* obj, zval* new_callback) {
 }
 
 // Helper to safely invalidate and clear callback
-static void invalidate_callback(valkey_glide_object* obj) {
+void invalidate_callback(valkey_glide_object* obj) {
     replace_callback(obj, NULL);
 }
 
@@ -263,13 +261,13 @@ void register_client_mapping(const void* rust_client_ptr, valkey_glide_object* o
 }
 // Helper function for pubsub command execution
 static bool execute_pubsub_command(valkey_glide_object* valkey_glide,
-                                   CommandType          command_type,
+                                   enum RequestType     command_type,
                                    zval*                channels_or_patterns,
                                    const char*          command_name) {
     if (!channels_or_patterns) {
         // Handle unsubscribe all case
         CommandResult* cmd_result =
-            execute_command(valkey_glide->glide_client, command_type, 0, NULL, NULL);
+            command(valkey_glide->glide_client, 0, command_type, 0, NULL, NULL, NULL, 0, 0);
 
         if (!cmd_result) {
             php_printf("Error: Failed to execute %s command\n", command_name);
@@ -307,11 +305,15 @@ static bool execute_pubsub_command(valkey_glide_object* valkey_glide,
     }
     ZEND_HASH_FOREACH_END();
 
-    CommandResult* cmd_result = execute_command(valkey_glide->glide_client,
-                                                command_type,
-                                                num_items,
-                                                (const uintptr_t*) args,
-                                                (const unsigned long*) args_len);
+    CommandResult* cmd_result = command(valkey_glide->glide_client,
+                                        0,
+                                        command_type,
+                                        num_items,
+                                        (const uintptr_t*) args,
+                                        (const unsigned long*) args_len,
+                                        NULL,
+                                        0,
+                                        0);
 
     efree(args);
     efree(args_len);
@@ -333,15 +335,15 @@ static bool execute_pubsub_command(valkey_glide_object* valkey_glide,
 
 // Execute command implementations
 int execute_subscribe_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    zval *channels, *callback;
+    zval *channels = NULL, *callback = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(2, 2)
-    Z_PARAM_ARRAY(channels)
-    Z_PARAM_ZVAL(callback)
-    ZEND_PARSE_PARAMETERS_END();
+    if (zend_parse_method_parameters(argc, object, "Oaz", &object, ce, &channels, &callback) ==
+        FAILURE) {
+        return 0;
+    }
 
     if (!zend_is_callable(callback, 0, NULL)) {
-        zend_throw_exception(zend_ce_exception, "Callback must be callable", 0);
+        php_printf("Error: Callback must be callable\n");
         return 0;
     }
 
@@ -361,22 +363,23 @@ int execute_subscribe_command(zval* object, int argc, zval* return_value, zend_c
     replace_callback(valkey_glide, callback);
 
     if (execute_pubsub_command(valkey_glide, Subscribe, channels, "subscribe")) {
-        ZVAL_TRUE(return_value);
+        ZVAL_NULL(return_value);  // PHPRedis returns null on successful subscription
         return 1;
     }
-    return 0;
+    ZVAL_FALSE(return_value);
+    return 1;
 }
 
 int execute_psubscribe_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    zval *patterns, *callback;
+    zval *patterns = NULL, *callback = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(2, 2)
-    Z_PARAM_ARRAY(patterns)
-    Z_PARAM_ZVAL(callback)
-    ZEND_PARSE_PARAMETERS_END();
+    if (zend_parse_method_parameters(argc, object, "Oaz", &object, ce, &patterns, &callback) ==
+        FAILURE) {
+        return 0;
+    }
 
     if (!zend_is_callable(callback, 0, NULL)) {
-        zend_throw_exception(zend_ce_exception, "Callback must be callable", 0);
+        php_printf("Error: Callback must be callable\n");
         return 0;
     }
 
@@ -396,19 +399,19 @@ int execute_psubscribe_command(zval* object, int argc, zval* return_value, zend_
     replace_callback(valkey_glide, callback);
 
     if (execute_pubsub_command(valkey_glide, PSubscribe, patterns, "psubscribe")) {
-        ZVAL_TRUE(return_value);
+        ZVAL_NULL(return_value);  // PHPRedis returns null on successful subscription
         return 1;
     }
-    return 0;
+    ZVAL_FALSE(return_value);
+    return 1;
 }
 
 int execute_unsubscribe_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     zval* channels = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(0, 1)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_ARRAY_OR_NULL(channels)
-    ZEND_PARSE_PARAMETERS_END();
+    if (zend_parse_method_parameters(argc, object, "O|a!", &object, ce, &channels) == FAILURE) {
+        return 0;
+    }
 
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
@@ -431,17 +434,16 @@ int execute_unsubscribe_command(zval* object, int argc, zval* return_value, zend
         invalidate_callback(valkey_glide);
     }
 
-    array_init(return_value);
+    ZVAL_TRUE(return_value);  // PHPRedis returns true for successful unsubscribe
     return 1;
 }
 
 int execute_punsubscribe_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     zval* patterns = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(0, 1)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_ARRAY_OR_NULL(patterns)
-    ZEND_PARSE_PARAMETERS_END();
+    if (zend_parse_method_parameters(argc, object, "O|a!", &object, ce, &patterns) == FAILURE) {
+        return 0;
+    }
 
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
@@ -464,17 +466,20 @@ int execute_punsubscribe_command(zval* object, int argc, zval* return_value, zen
         invalidate_callback(valkey_glide);
     }
 
-    array_init(return_value);
+    ZVAL_TRUE(return_value);  // PHPRedis returns true for successful unsubscribe
     return 1;
 }
 
 int execute_publish_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    zend_string *channel, *message;
+    char*  channel = NULL;
+    char*  message = NULL;
+    size_t channel_len, message_len;
 
-    ZEND_PARSE_PARAMETERS_START(2, 2)
-    Z_PARAM_STR(channel)
-    Z_PARAM_STR(message)
-    ZEND_PARSE_PARAMETERS_END();
+    if (zend_parse_method_parameters(
+            argc, object, "Oss", &object, ce, &channel, &channel_len, &message, &message_len) ==
+        FAILURE) {
+        return 0;
+    }
 
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
@@ -484,11 +489,11 @@ int execute_publish_command(zval* object, int argc, zval* return_value, zend_cla
         return 1;
     }
 
-    const uintptr_t     args[]     = {(uintptr_t) ZSTR_VAL(channel), (uintptr_t) ZSTR_VAL(message)};
-    const unsigned long args_len[] = {ZSTR_LEN(channel), ZSTR_LEN(message)};
+    const uintptr_t     args[]     = {(uintptr_t) channel, (uintptr_t) message};
+    const unsigned long args_len[] = {channel_len, message_len};
 
     CommandResult* cmd_result =
-        execute_command(valkey_glide->glide_client, Publish, 2, args, args_len);
+        command(valkey_glide->glide_client, 0, Publish, 2, args, args_len, NULL, 0, 0);
 
     if (!cmd_result) {
         php_printf("Error: Failed to execute publish command\n");
@@ -512,66 +517,3 @@ int execute_publish_command(zval* object, int argc, zval* return_value, zend_cla
     ZVAL_LONG(return_value, subscriber_count);
     return 1;
 }
-
-// PubSub method implementation macros
-#define SUBSCRIBE_METHOD_IMPL(class_name)                        \
-    PHP_METHOD(class_name, subscribe) {                          \
-        shared_subscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU); \
-    }
-
-#define PSUBSCRIBE_METHOD_IMPL(class_name)                        \
-    PHP_METHOD(class_name, psubscribe) {                          \
-        shared_psubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU); \
-    }
-
-#define UNSUBSCRIBE_METHOD_IMPL(class_name)                        \
-    PHP_METHOD(class_name, unsubscribe) {                          \
-        shared_unsubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU); \
-    }
-
-#define PUNSUBSCRIBE_METHOD_IMPL(class_name)                        \
-    PHP_METHOD(class_name, punsubscribe) {                          \
-        shared_punsubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU); \
-    }
-
-#define PUBLISH_METHOD_IMPL(class_name)                                                              \
-    PHP_METHOD(class_name, publish) {                                                                \
-        zend_string *channel, *message;                                                              \
-                                                                                                     \
-        ZEND_PARSE_PARAMETERS_START(2, 2)                                                            \
-        Z_PARAM_STR(channel)                                                                         \
-        Z_PARAM_STR(message)                                                                         \
-        ZEND_PARSE_PARAMETERS_END();                                                                 \
-                                                                                                     \
-        valkey_glide_object* valkey_glide =                                                          \
-            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());                        \
-        if (!valkey_glide || !valkey_glide->glide_client) {                                          \
-            php_printf("Error: ValkeyGlide client not initialized\n");                               \
-            RETURN_LONG(0);                                                                          \
-        }                                                                                            \
-                                                                                                     \
-        const uintptr_t     args[] = {(uintptr_t) ZSTR_VAL(channel), (uintptr_t) ZSTR_VAL(message)}; \
-        const unsigned long args_len[] = {ZSTR_LEN(channel), ZSTR_LEN(message)};                     \
-                                                                                                     \
-        CommandResult* cmd_result =                                                                  \
-            execute_command(valkey_glide->glide_client, Publish, 2, args, args_len);                 \
-                                                                                                     \
-        if (!cmd_result) {                                                                           \
-            php_printf("Error: Failed to execute publish command\n");                                \
-            RETURN_LONG(0);                                                                          \
-        }                                                                                            \
-                                                                                                     \
-        if (cmd_result->command_error) {                                                             \
-            php_printf("Error: %s\n", cmd_result->command_error->command_error_message);             \
-            free_command_result(cmd_result);                                                         \
-            RETURN_LONG(0);                                                                          \
-        }                                                                                            \
-                                                                                                     \
-        long subscriber_count = 0;                                                                   \
-        if (cmd_result->response && cmd_result->response->response_type == Int) {                    \
-            subscriber_count = cmd_result->response->int_value;                                      \
-        }                                                                                            \
-                                                                                                     \
-        free_command_result(cmd_result);                                                             \
-        RETURN_LONG(subscriber_count);                                                               \
-    }

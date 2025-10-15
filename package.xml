@@ -75,6 +75,8 @@ Requirements:
    <file name="valkey_glide_hash_common.h" role="src" />
    <file name="valkey_glide_list_common.c" role="src" />
    <file name="valkey_glide_list_common.h" role="src" />
+   <file name="valkey_glide_pubsub.c" role="src" />
+   <file name="valkey_glide_pubsub.h" role="src" />
    <file name="valkey_glide_s_common.c" role="src" />
    <file name="valkey_glide_s_common.h" role="src" />
    <file name="valkey_glide_str_commands.c" role="src" />
@@ -90,7 +92,7 @@ Requirements:
     <file name="client_constructor_mock.stub.php" role="src" />
    </dir>
    <dir name="utils">
-    <file name="remove_optional_from_proto.py" role="src" />
+    <file name="patch_proto_and_rust.py" role="src" />
    </dir>
    <dir name="valkey-glide">
     <file name=".gitkeep" role="src" />

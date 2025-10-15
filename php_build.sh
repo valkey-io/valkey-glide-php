@@ -2,7 +2,7 @@
 
 git submodule update --init --recursive
 
-python3 utils/remove_optional_from_proto.py
+python3 utils/patch_proto_and_rust.py
 cd valkey-glide/ffi
 cargo build --release
 cd ../../

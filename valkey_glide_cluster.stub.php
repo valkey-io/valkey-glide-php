@@ -790,7 +790,7 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::psubscribe
      */
-    public function psubscribe(array $patterns, callable $callback): void;
+    public function psubscribe(array $patterns, callable $callback): null|false;
 
     /**
      * @see ValkeyGlide::pttl
@@ -810,7 +810,12 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::punsubscribe
      */
-    public function punsubscribe(array $patterns): bool|array;
+    public function punsubscribe(array $patterns): bool;
+
+    /**
+     * @see ValkeyGlide::publish
+     */
+    public function publish(string $channel, string $message): int;
 
     /**
      * @see ValkeyGlide::randomkey
@@ -982,7 +987,7 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::subscribe
      */
-    public function subscribe(array $channels, callable $cb): void;
+    public function subscribe(array $channels, callable $cb): null|false;
 
     /**
      * @see ValkeyGlide::sunion()
@@ -1012,7 +1017,7 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::unsubscribe
      */
-    public function unsubscribe(array $channels): bool|array;
+    public function unsubscribe(array $channels): bool;
 
     /**
      * @see ValkeyGlide::unlink

@@ -2116,7 +2116,7 @@ class ValkeyGlide
      *
      * @return ValkeyGlide|array|bool  The array of subscribed patterns or false on failure.
      */
-   /* public function punsubscribe(array $patterns): ValkeyGlide|array|bool;*/
+   /* public function punsubscribe(array $patterns): bool;*/
 
     /**
      * Pop one or more elements from the end of a list.
@@ -3001,7 +3001,7 @@ class ValkeyGlide
      *
      * echo "We've unsubscribed from both channels, exiting\n";
      */
-    /* TODO public function unsubscribe(array $channels): ValkeyGlide|array|bool; */
+    /* TODO public function unsubscribe(array $channels): bool; */
 
     /**
      * Remove any previously WATCH'ed keys in a transaction.
@@ -4092,9 +4092,9 @@ class ValkeyGlide
      * 
      * @param array|string $channels Channel name(s) to subscribe to
      * @param callable $callback Callback function to handle messages: function($redis, $channel, $message)
-     * @return bool Success status
+     * @return null|false Returns null on successful subscription, false on failure.
      */
-    public function subscribe(array|string $channels, callable $callback): bool;
+    public function subscribe(array|string $channels, callable $callback): null|false;
 
     /**
      * Subscribe to channels by pattern
@@ -4106,9 +4106,9 @@ class ValkeyGlide
      * 
      * @param array|string $patterns Pattern(s) to subscribe to
      * @param callable $callback Callback function to handle messages: function($redis, $pattern, $channel, $message)
-     * @return bool Success status
+     * @return null|false Returns null on successful subscription, false on failure.
      */
-    public function psubscribe(array|string $patterns, callable $callback): bool;
+    public function psubscribe(array|string $patterns, callable $callback): null|false;
 
     /**
      * Unsubscribe from channels
