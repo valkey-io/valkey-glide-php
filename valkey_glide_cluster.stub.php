@@ -809,6 +809,11 @@ class ValkeyGlideCluster
     public function publish(string $channel, string $message): int;
 
     /**
+     * @see ValkeyGlide::pubSub
+     */
+    public function pubSub(string $subcommand, mixed $argument = null): mixed;
+
+    /**
      * @see ValkeyGlide::randomkey
      */
     public function randomKey(mixed $route): ValkeyGlideCluster|bool|string;

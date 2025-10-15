@@ -17,6 +17,7 @@
 
 #include <stdatomic.h>
 
+#include "command_response.h"
 #include "common.h"
 
 // Forward declarations
@@ -520,5 +521,175 @@ int execute_publish_command(zval* object, int argc, zval* return_value, zend_cla
 
     free_command_result(cmd_result);
     ZVAL_LONG(return_value, subscriber_count);
+    return 1;
+}
+
+int execute_pubsub_introspection_command(zval*             object,
+                                         int               argc,
+                                         zval*             return_value,
+                                         zend_class_entry* ce) {
+    char*  subcommand = NULL;
+    size_t subcommand_len;
+    zval*  argument = NULL;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Os|z", &object, ce, &subcommand, &subcommand_len, &argument) ==
+        FAILURE) {
+        return 0;
+    }
+
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        ZVAL_FALSE(return_value);
+        return 1;
+    }
+
+    // Determine RequestType and validate arguments based on subcommand
+    enum RequestType command_type;
+    bool             requires_argument = false;
+    bool             allows_multiple   = false;
+
+    if (strcasecmp(subcommand, "CHANNELS") == 0) {
+        command_type = PubSubChannels;
+        // Optional pattern argument
+    } else if (strcasecmp(subcommand, "NUMSUB") == 0) {
+        command_type    = PubSubNumSub;
+        allows_multiple = true;
+        // Optional channels argument(s)
+    } else if (strcasecmp(subcommand, "NUMPAT") == 0) {
+        command_type = PubSubNumPat;
+        // No arguments allowed
+        if (argument && Z_TYPE_P(argument) != IS_NULL) {
+            ZVAL_FALSE(return_value);
+            return 1;
+        }
+    } else if (strcasecmp(subcommand, "SHARDCHANNELS") == 0) {
+        command_type = PubSubShardChannels;
+        // Optional pattern argument
+    } else if (strcasecmp(subcommand, "SHARDNUMSUB") == 0) {
+        command_type    = PubSubShardNumSub;
+        allows_multiple = true;
+        // Optional channels argument(s)
+    } else {
+        ZVAL_FALSE(return_value);
+        return 1;
+    }
+
+    // Build command arguments - optimize for 0-1 args case
+    const char*  single_arg;
+    size_t       single_arg_len;
+    const char** args        = NULL;
+    size_t*      args_len    = NULL;
+    int          num_args    = 0;
+    bool         use_dynamic = false;
+
+    if (argument && Z_TYPE_P(argument) != IS_NULL) {
+        if (Z_TYPE_P(argument) == IS_STRING) {
+            // Single argument - no allocation needed
+            single_arg     = Z_STRVAL_P(argument);
+            single_arg_len = Z_STRLEN_P(argument);
+            num_args       = 1;
+        } else if (Z_TYPE_P(argument) == IS_ARRAY && allows_multiple) {
+            int array_count = zend_hash_num_elements(Z_ARRVAL_P(argument));
+            if (array_count == 0) {
+                // Empty array - no arguments
+                num_args = 0;
+            } else if (array_count == 1) {
+                // Single element - no allocation needed
+                zval* first_entry = zend_hash_index_find(Z_ARRVAL_P(argument), 0);
+                if (first_entry && Z_TYPE_P(first_entry) == IS_STRING) {
+                    single_arg     = Z_STRVAL_P(first_entry);
+                    single_arg_len = Z_STRLEN_P(first_entry);
+                    num_args       = 1;
+                }
+            } else {
+                // Multiple elements - use dynamic allocation
+                use_dynamic = true;
+                args        = emalloc(array_count * sizeof(char*));
+                args_len    = emalloc(array_count * sizeof(size_t));
+
+                zval* entry;
+                ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(argument), entry) {
+                    if (Z_TYPE_P(entry) == IS_STRING) {
+                        args[num_args]     = Z_STRVAL_P(entry);
+                        args_len[num_args] = Z_STRLEN_P(entry);
+                        num_args++;
+                    }
+                }
+                ZEND_HASH_FOREACH_END();
+            }
+        } else if (!allows_multiple) {
+            // Invalid argument type for commands that don't allow arrays
+            ZVAL_FALSE(return_value);
+            return 1;
+        }
+    }
+
+    // Prepare arguments for command call
+    const uintptr_t*     cmd_args;
+    const unsigned long* cmd_args_len;
+
+    if (num_args == 0) {
+        cmd_args     = NULL;
+        cmd_args_len = NULL;
+    } else if (num_args == 1 && !use_dynamic) {
+        cmd_args     = (const uintptr_t*) &single_arg;
+        cmd_args_len = (const unsigned long*) &single_arg_len;
+    } else {
+        cmd_args     = (const uintptr_t*) args;
+        cmd_args_len = (const unsigned long*) args_len;
+    }
+
+    CommandResult* cmd_result = command(
+        valkey_glide->glide_client, 0, command_type, num_args, cmd_args, cmd_args_len, NULL, 0, 0);
+
+    // Clean up dynamic allocation only if used
+    if (use_dynamic) {
+        if (args) {
+            efree(args);
+        }
+        if (args_len) {
+            efree(args_len);
+        }
+    }
+
+    if (!cmd_result) {
+        ZVAL_FALSE(return_value);
+        return 1;
+    }
+
+    // Parse result based on subcommand
+    if (command_type == PubSubNumPat) {
+        // Return integer count for NUMPAT
+        if (cmd_result->command_error) {
+            free_command_result(cmd_result);
+            ZVAL_LONG(return_value, 0);
+        } else if (cmd_result->response && cmd_result->response->response_type == Int) {
+            ZVAL_LONG(return_value, cmd_result->response->int_value);
+            free_command_result(cmd_result);
+        } else {
+            free_command_result(cmd_result);
+            ZVAL_LONG(return_value, 0);
+        }
+    } else {
+        // Return array for CHANNELS, NUMSUB, SHARDCHANNELS, SHARDNUMSUB
+        if (cmd_result->command_error) {
+            array_init(return_value);
+            free_command_result(cmd_result);
+        } else if (cmd_result->response) {
+            // Use command_response_to_zval to parse array response
+            int result = command_response_to_zval(cmd_result->response, return_value, 0, false);
+            if (result <= 0) {
+                // If parsing failed, return empty array
+                array_init(return_value);
+            }
+            free_command_result(cmd_result);
+        } else {
+            array_init(return_value);
+            free_command_result(cmd_result);
+        }
+    }
+
     return 1;
 }

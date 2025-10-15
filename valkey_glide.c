@@ -543,6 +543,8 @@ PHP_METHOD(ValkeyGlide, close) {
 
 PUBLISH_METHOD_IMPL(ValkeyGlide)
 
+PUBSUB_METHOD_IMPL(ValkeyGlide)
+
 // ValkeyGlide pubsub methods
 SUBSCRIBE_METHOD_IMPL(ValkeyGlide)
 PSUBSCRIBE_METHOD_IMPL(ValkeyGlide)

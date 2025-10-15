@@ -7982,6 +7982,139 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
     }
 
+    public function testPubSubIntrospection()
+    {
+        try {
+            // Test PUBSUB NUMPAT - should return integer
+            $numPatResult = $this->valkey_glide->pubSub('numpat');
+            $this->assertIsInt($numPatResult, 'PUBSUB NUMPAT should return integer');
+            $this->assertGreaterThanOrEqual(0, $numPatResult, 'Pattern count should be non-negative');
+
+            // Test PUBSUB CHANNELS - should return array
+            $channelsResult = $this->valkey_glide->pubSub('channels');
+            $this->assertIsArray($channelsResult, 'PUBSUB CHANNELS should return array');
+
+            // Test PUBSUB CHANNELS with pattern - should return array
+            $channelsPatternResult = $this->valkey_glide->pubSub('channels', 'test_*');
+            $this->assertIsArray($channelsPatternResult, 'PUBSUB CHANNELS with pattern should return array');
+
+            // Test PUBSUB CHANNELS with single-element array - should return array
+            $channelsArrayResult = $this->valkey_glide->pubSub('channels', ['test_*']);
+            $this->assertIsArray($channelsArrayResult, 'PUBSUB CHANNELS with array should return array');
+
+            // Test PUBSUB NUMSUB - should return array
+            $numsubResult = $this->valkey_glide->pubSub('numsub');
+            $this->assertIsArray($numsubResult, 'PUBSUB NUMSUB should return array');
+
+            // Test PUBSUB NUMSUB with single channel - should return array
+            $numsubSingleResult = $this->valkey_glide->pubSub('numsub', 'test_channel');
+            $this->assertIsArray($numsubSingleResult, 'PUBSUB NUMSUB with channel should return array');
+
+            // Test PUBSUB NUMSUB with multiple channels - should return array
+            $numsubMultiResult = $this->valkey_glide->pubSub('numsub', ['test_channel1', 'test_channel2']);
+            $this->assertIsArray($numsubMultiResult, 'PUBSUB NUMSUB with multiple channels should return array');
+
+            // Test PUBSUB SHARDCHANNELS - should return array
+            $shardChannelsResult = $this->valkey_glide->pubSub('shardchannels');
+            $this->assertIsArray($shardChannelsResult, 'PUBSUB SHARDCHANNELS should return array');
+
+            // Test PUBSUB SHARDCHANNELS with pattern - should return array
+            $shardChannelsPatternResult = $this->valkey_glide->pubSub('shardchannels', 'shard_*');
+            $this->assertIsArray($shardChannelsPatternResult, 'PUBSUB SHARDCHANNELS with pattern should return array');
+
+            // Test PUBSUB SHARDNUMSUB - should return array
+            $shardNumsubResult = $this->valkey_glide->pubSub('shardnumsub');
+            $this->assertIsArray($shardNumsubResult, 'PUBSUB SHARDNUMSUB should return array');
+
+            // Test PUBSUB SHARDNUMSUB with channels - should return array
+            $shardNumsubChannelsResult = $this->valkey_glide->pubSub('shardnumsub', ['shard_channel1', 'shard_channel2']);
+            $this->assertIsArray($shardNumsubChannelsResult, 'PUBSUB SHARDNUMSUB with channels should return array');
+
+            // Test invalid subcommand - should return false
+            $invalidResult = $this->valkey_glide->pubSub('invalid');
+            $this->assertFalse($invalidResult, 'Invalid subcommand should return false');
+
+            // Test NUMPAT with argument (should fail) - should return false
+            $numpatWithArgResult = $this->valkey_glide->pubSub('numpat', 'invalid_arg');
+            $this->assertFalse($numpatWithArgResult, 'NUMPAT with argument should return false');
+
+        } catch (Exception $e) {
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
+    public function testPubSubIntrospectionWithActiveSubscriptions()
+    {
+        $testChannel = 'pubsub_test_' . uniqid();
+        $testPattern = 'pubsub_pattern_*';
+        $receivedMessages = [];
+        
+        $callback = function($valkey, $channel, $message) use (&$receivedMessages) {
+            $receivedMessages[] = ['channel' => $channel, 'message' => $message];
+        };
+        
+        $patternCallback = function($valkey, $pattern, $channel, $message) use (&$receivedMessages) {
+            $receivedMessages[] = ['pattern' => $pattern, 'channel' => $channel, 'message' => $message];
+        };
+        
+        try {
+            // Test NUMPAT before any pattern subscriptions
+            $numpatBefore = $this->valkey_glide->pubSub('numpat');
+            $this->assertIsInt($numpatBefore, 'NUMPAT should return integer');
+            
+            // Test CHANNELS before any subscriptions
+            $channelsBefore = $this->valkey_glide->pubSub('channels');
+            $this->assertIsArray($channelsBefore, 'CHANNELS should return array');
+            
+            // Subscribe to a channel
+            $this->valkey_glide->subscribe($testChannel, $callback);
+            usleep(100000); // Wait for subscription to register
+            
+            // Test CHANNELS after subscription - should include our channel
+            $channelsAfter = $this->valkey_glide->pubSub('channels');
+            $this->assertIsArray($channelsAfter, 'CHANNELS after subscription should return array');
+            $this->assertContains($testChannel, $channelsAfter, 'CHANNELS should contain subscribed channel');
+            
+            // Test CHANNELS with pattern matching our channel
+            $channelsPattern = $this->valkey_glide->pubSub('channels', 'pubsub_test_*');
+            $this->assertIsArray($channelsPattern, 'CHANNELS with pattern should return array');
+            $this->assertContains($testChannel, $channelsPattern, 'CHANNELS pattern should match our channel');
+            
+            // Test NUMSUB for our specific channel
+            $numsub = $this->valkey_glide->pubSub('numsub', [$testChannel]);
+            $this->assertIsArray($numsub, 'NUMSUB should return array');
+            $this->assertGreaterThanOrEqual(2, count($numsub), 'NUMSUB should return channel and count');
+            if (count($numsub) >= 2) {
+                $this->assertEquals($testChannel, $numsub[0], 'First element should be channel name');
+                $this->assertIsInt($numsub[1], 'Second element should be subscriber count');
+                $this->assertGreaterThan(0, $numsub[1], 'Subscriber count should be > 0');
+            }
+            
+            // Subscribe to a pattern
+            $this->valkey_glide->psubscribe($testPattern, $patternCallback);
+            usleep(100000); // Wait for pattern subscription to register
+            
+            // Test NUMPAT after pattern subscription
+            $numpatAfter = $this->valkey_glide->pubSub('numpat');
+            $this->assertIsInt($numpatAfter, 'NUMPAT after pattern subscription should return integer');
+            $this->assertGreaterThan($numpatBefore, $numpatAfter, 'NUMPAT should increase after pattern subscription');
+            
+            // Clean up subscriptions
+            $this->valkey_glide->unsubscribe();
+            $this->valkey_glide->punsubscribe();
+            
+        } catch (Exception $e) {
+            // Clean up on error
+            try {
+                $this->valkey_glide->unsubscribe();
+                $this->valkey_glide->punsubscribe();
+            } catch (Exception $cleanup) {
+                // Ignore cleanup errors
+            }
+            $this->assertStringContains('connection', strtolower($e->getMessage()));
+        }
+    }
+
     public function testMultipleChannelSubscription()
     {
         $channels = ['channel1_' . uniqid(), 'channel2_' . uniqid(), 'channel3_' . uniqid()];

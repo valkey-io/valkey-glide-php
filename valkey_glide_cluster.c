@@ -559,6 +559,10 @@ ZREMRANGEBYRANK_METHOD_IMPL(ValkeyGlideCluster)
 PUBLISH_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto mixed ValkeyGlideCluster::pubSub(string subcommand, mixed argument) */
+PUBSUB_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto bool ValkeyGlideCluster::rename(string key1, string key2) */
 RENAME_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */

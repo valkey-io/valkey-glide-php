@@ -32,6 +32,10 @@ int execute_psubscribe_command(zval* object, int argc, zval* return_value, zend_
 int execute_unsubscribe_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_punsubscribe_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_publish_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_pubsub_introspection_command(zval*             object,
+                                         int               argc,
+                                         zval*             return_value,
+                                         zend_class_entry* ce);
 
 // PubSub method implementation macros
 #define SUBSCRIBE_METHOD_IMPL(class_name)                                            \
@@ -97,6 +101,19 @@ int execute_publish_command(zval* object, int argc, zval* return_value, zend_cla
             return;                                                                \
         }                                                                          \
         RETURN_FALSE;                                                              \
+    }
+
+#define PUBSUB_METHOD_IMPL(class_name)                                                          \
+    PHP_METHOD(class_name, pubSub) {                                                            \
+        if (execute_pubsub_introspection_command(getThis(),                                     \
+                                                 ZEND_NUM_ARGS(),                               \
+                                                 return_value,                                  \
+                                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                                     ? get_valkey_glide_cluster_ce()            \
+                                                     : get_valkey_glide_ce())) {                \
+            return;                                                                             \
+        }                                                                                       \
+        RETURN_FALSE;                                                                           \
     }
 
 // Function declarations

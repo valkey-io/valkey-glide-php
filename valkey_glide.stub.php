@@ -4041,6 +4041,27 @@ class ValkeyGlide
     public function publish(string $channel, string $message): int;
 
     /**
+     * Introspection into the pub/sub subsystem
+     * 
+     * @param string $subcommand The subcommand:
+     *   - "numpat": $argument must be null/empty
+     *   - "channels": $argument can be null/empty, string pattern, or single-element array
+     *   - "shardchannels": $argument can be null/empty, string pattern, or single-element array
+     *   - "numsub": $argument can be null/empty, string, or array of channels (supports multi-element arrays)
+     *   - "shardnumsub": $argument can be null/empty, string, or array of channels (supports multi-element arrays)
+     * @param mixed $argument Optional argument based on subcommand requirements above
+     * @return mixed Return value by subcommand:
+     *   - "numpat": int - Number of pattern subscriptions
+     *   - "channels": array - List of active channel names (strings)
+     *   - "shardchannels": array - List of active shard channel names (strings)
+     *   - "numsub": array - Channel names and subscriber counts [channel1, count1, channel2, count2, ...]
+     *   - "shardnumsub": array - Shard channel names and subscriber counts [channel1, count1, channel2, count2, ...]
+     * 
+     * @see https://valkey.io/commands/pubsub
+     */
+    public function pubSub(string $subcommand, mixed $argument = null): mixed;
+
+    /**
      * Subscribe to channels
      * 
      * Each client supports only ONE active callback at a time. New subscribe() calls
@@ -4049,7 +4070,8 @@ class ValkeyGlide
      * For multiple independent callbacks, use separate client instances.
      * 
      * @param array|string $channels Channel name(s) to subscribe to
-     * @param callable $callback Callback function to handle messages: function($redis, $channel, $message)
+     * @param callable $callback Callback function to handle messages: function($client, $channel, $message)
+     *                          The first parameter is the client instance itself (ValkeyGlide or ValkeyGlideCluster)
      * @return null|false Returns null on successful subscription, false on failure.
      * 
      * @see https://valkey.io/commands/subscribe
@@ -4065,7 +4087,8 @@ class ValkeyGlide
      * For multiple independent callbacks, use separate client instances.
      * 
      * @param array|string $patterns Pattern(s) to subscribe to
-     * @param callable $callback Callback function to handle messages: function($redis, $pattern, $channel, $message)
+     * @param callable $callback Callback function to handle messages: function($client, $pattern, $channel, $message)
+     *                          The first parameter is the client instance itself (ValkeyGlide or ValkeyGlideCluster)
      * @return null|false Returns null on successful subscription, false on failure.
      * 
      * @see https://valkey.io/commands/psubscribe
