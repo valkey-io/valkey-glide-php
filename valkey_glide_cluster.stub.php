@@ -789,6 +789,7 @@ class ValkeyGlideCluster
 
     /**
      * @see ValkeyGlide::psubscribe
+     * @see https://valkey.io/commands/psubscribe
      */
     public function psubscribe(array $patterns, callable $callback): null|false;
 
@@ -796,16 +797,6 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::pttl
      */
     public function pttl(string $key): ValkeyGlideCluster|int|false;
-
-    /**
-     * @see ValkeyGlide::publish
-     */
-    /* TODO public function publish(string $channel, string $message): ValkeyGlideCluster|bool|int;*/
-
-    /**
-     * @see ValkeyGlide::pubsub
-     */
-    /* TODO public function pubsub(mixed $route, string ...$values): mixed;*/
 
     /**
      * @see ValkeyGlide::punsubscribe

@@ -135,11 +135,13 @@ static void execute_pubsub_callback(HashTable*     client_map,
     // Convert C data to PHP strings
     zval args[4];
     ZVAL_OBJ(&args[0], &obj->std);
-    ZVAL_STRINGL(&args[1], (char*) channel, channel_len);
-    ZVAL_STRINGL(&args[2], (char*) message, message_len);
     if (pattern && pattern_len > 0) {
-        ZVAL_STRINGL(&args[3], (char*) pattern, pattern_len);
+        ZVAL_STRINGL(&args[1], (char*) pattern, pattern_len);
+        ZVAL_STRINGL(&args[2], (char*) channel, channel_len);
+        ZVAL_STRINGL(&args[3], (char*) message, message_len);
     } else {
+        ZVAL_STRINGL(&args[1], (char*) channel, channel_len);
+        ZVAL_STRINGL(&args[2], (char*) message, message_len);
         ZVAL_NULL(&args[3]);
     }
 
@@ -151,10 +153,13 @@ static void execute_pubsub_callback(HashTable*     client_map,
     }
 
     // Cleanup
-    zval_ptr_dtor(&args[1]);
-    zval_ptr_dtor(&args[2]);
     if (pattern && pattern_len > 0) {
-        zval_ptr_dtor(&args[3]);
+        zval_ptr_dtor(&args[1]);  // pattern
+        zval_ptr_dtor(&args[2]);  // channel
+        zval_ptr_dtor(&args[3]);  // message
+    } else {
+        zval_ptr_dtor(&args[1]);  // channel
+        zval_ptr_dtor(&args[2]);  // message
     }
 
     // Release callback reference
