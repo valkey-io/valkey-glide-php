@@ -3945,7 +3945,7 @@ class ValkeyGlide
      * 
      * @see https://valkey.io/commands/ssubscribe
      */
-    public function ssubscribe(array|string $channels, callable $callback): null|false;
+    // public function ssubscribe(array|string $channels, callable $callback): null|false;
 
     /**
      * Unsubscribe from shard channels
@@ -3955,7 +3955,7 @@ class ValkeyGlide
      * 
      * @see https://valkey.io/commands/sunsubscribe
      */
-    public function sunsubscribe(array|string $channels = []): bool;
+    // public function sunsubscribe(array|string $channels = []): bool;
 
     /**
      * Publish a message to a shard channel
@@ -3971,7 +3971,7 @@ class ValkeyGlide
      * 
      * @see https://valkey.io/commands/spublish
      */
-    public function spublish(string $channel, string $message): int;
+    // public function spublish(string $channel, string $message): int;
 
     /**
      * Introspection into the pub/sub subsystem
@@ -4026,7 +4026,7 @@ class ValkeyGlide
      * 
      * @see https://valkey.io/commands/psubscribe
      */
-    public function psubscribe(array|string $patterns, callable $callback): null|false;
+    // public function psubscribe(array|string $patterns, callable $callback): null|false;
 
     /**
      * Unsubscribe from channels
@@ -4046,7 +4046,7 @@ class ValkeyGlide
      * 
      * @see https://valkey.io/commands/punsubscribe
      */
-    public function punsubscribe(array|string $patterns = []): bool;
+    // public function punsubscribe(array|string $patterns = []): bool;
 }
 
 class ValkeyGlideException extends RuntimeException
