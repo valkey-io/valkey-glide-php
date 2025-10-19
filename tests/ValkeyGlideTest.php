@@ -906,7 +906,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals($future_ms, $this->valkey_glide->pexpiretime('key3'));
 
         // Test PEXPIRE with options (Redis 7.0+)
-        
+
         // PEXPIRE NX -- Set expiry only when the key has no expiry
         $this->assertTrue($this->valkey_glide->set('pexpire_nx_key', 'value'));
         $this->assertTrue($this->valkey_glide->pexpire('pexpire_nx_key', 10000, 'NX')); // Success - no expiry
@@ -961,9 +961,19 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertBetween($this->valkey_glide->pexpiretime('pexpireat_gt_key'), $now_ms + 12000, $now_ms + 16000);
 
         // Clean up all test keys
-        $this->valkey_glide->del('key1', 'key2', 'key3', 'pexpire_nx_key', 'pexpire_xx_key', 
-                                 'pexpire_gt_key', 'pexpire_lt_key', 'pexpireat_nx_key', 
-                                 'pexpireat_xx_key', 'pexpireat_gt_key', 'pexpireat_lt_key');
+        $this->valkey_glide->del(
+            'key1',
+            'key2',
+            'key3',
+            'pexpire_nx_key',
+            'pexpire_xx_key',
+            'pexpire_gt_key',
+            'pexpire_lt_key',
+            'pexpireat_nx_key',
+            'pexpireat_xx_key',
+            'pexpireat_gt_key',
+            'pexpireat_lt_key'
+        );
     }
 
     public function testGetEx()
@@ -1692,7 +1702,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // Ensure we're in database 0
 //        $this->valkey_glide->select(0);
-   
+
         // Clean up any existing keys
         $this->valkey_glide->del($key1, $key2);
 //        $this->valkey_glide->select(1);
@@ -3608,7 +3618,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del('key');
         $this->valkey_glide->zAdd('key', 0, 'a', 1, 'b', 2, 'c', 3, 'd', 4, 'e');
 
-        $result = $this->valkey_glide->zRandMember('key');        
+        $result = $this->valkey_glide->zRandMember('key');
 
         $this->assertEquals(array_intersect($result, ['a', 'b', 'c', 'd', 'e']), $result);
 
