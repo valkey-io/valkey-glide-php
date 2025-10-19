@@ -33,6 +33,8 @@ runs:
 
     - name: Prepare Valkey sources
       shell: bash
+      env:
+        TARGET: ${{ inputs.target }}
       run: |
         echo "Cloning and checking out Valkey $ENGINE_VERSION"
         if [[ -d valkey ]]; then
@@ -42,11 +44,22 @@ runs:
         git clone https://github.com/valkey-io/valkey.git
         cd valkey/src
         git checkout $ENGINE_VERSION
-        SOURCES_VERSION=`grep ' VALKEY_VERSION ' version.h | grep -o -E '[0-9]+\.[0-9]\.[0-9]'` || :
+        SOURCES_VERSION=`grep ' VALKEY_VERSION ' version.h | grep -o -E '[0-9]+\.[0-9]+(\.[0-9]+)?'` || :
         if [[ -z $SOURCES_VERSION ]]; then
-            SOURCES_VERSION=`grep ' REDIS_VERSION ' version.h | grep -o -E '[0-9]+\.[0-9]\.[0-9]'`
+            SOURCES_VERSION=`grep ' REDIS_VERSION ' version.h | grep -o -E '[0-9]+\.[0-9]+(\.[0-9]+)?'`
         fi
         echo "SOURCES_VERSION=$SOURCES_VERSION" >> $GITHUB_ENV
+
+        # Get git commit SHA for unique cache key
+        GIT_SHA=$(git rev-parse HEAD)
+        echo "GIT_SHA=$GIT_SHA" >> $GITHUB_ENV
+
+        # Debug output
+        echo "=== Engine Installation Debug ==="
+        echo "ENGINE_VERSION (input): $ENGINE_VERSION"
+        echo "SOURCES_VERSION (detected): $SOURCES_VERSION"
+        echo "GIT_SHA: $GIT_SHA"
+        echo "Cache key will be: valkey-$SOURCES_VERSION-$GIT_SHA-$TARGET"
 
     - uses: actions/cache@v4
       id: cache-valkey
@@ -54,7 +67,7 @@ runs:
         path: |
           valkey/src/valkey-server
           valkey/src/valkey-cli
-        key: valkey-${{ env.SOURCES_VERSION }}-${{ inputs.target }}
+        key: valkey-${{ env.SOURCES_VERSION }}-${{ env.GIT_SHA }}-${{ inputs.target }}
 
     # Manual install, because makefile target rebuilds everything, we want to avoid that
     - name: Install cached engine
@@ -72,13 +85,18 @@ runs:
             $SUDO cp valkey-server /usr/local/bin/redis-server
         fi
         echo 'export PATH=/usr/local/bin:$PATH' >>~/.bash_profile
+        echo "/usr/local/bin" >> $GITHUB_PATH
+
+        # Print installed server version
+        echo "=== Installed Valkey/Redis server version (from cache) ==="
+        redis-server -v || valkey-server -v || echo "Could not determine server version"
 
     - name: Build and install engine
       if: ${{ steps.cache-valkey.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
         cd valkey
-        make BUILD_TLS=yes
+        make BUILD_TLS=yes -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4")
         if command -v sudo &> /dev/null
         then
             echo "sudo command exists"
@@ -88,16 +106,24 @@ runs:
             make install
         fi
         echo 'export PATH=/usr/local/bin:$PATH' >>~/.bash_profile
+        echo "/usr/local/bin" >> $GITHUB_PATH
+
+        # Print installed server version
+        echo "=== Installed Valkey/Redis server version ==="
+        redis-server -v || valkey-server -v || echo "Could not determine server version"
 
     # TODO: This seems redundant to me. Is it necessary? Do we check that the Python we install is the correct version?
     # Why here and not elsewhere? All Git git repos were created equal
     - name: Verify Valkey installation and symlinks
       if: ${{ !contains(inputs.engine-version, '-rc') }}
       shell: bash
+      env:
+        ENGINE_VERSION: ${{ inputs.engine-version }}
       run: |
         # In Valkey releases, the engine is built with symlinks from valkey-server and valkey-cli
         # to redis-server and redis-cli. This step ensures that the engine is properly installed
         # with the expected version and that Valkey symlinks are correctly created.
+        # This verification runs for both cached and freshly built installations.
         INSTALLED_VER=$(redis-server -v) || INSTALLED_VER=$(valkey-server -v)
         if [[ $INSTALLED_VER != *"${ENGINE_VERSION}"* ]]; then
             echo "Wrong version has been installed. Expected: $ENGINE_VERSION, Installed: $INSTALLED_VER"

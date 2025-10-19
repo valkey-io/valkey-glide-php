@@ -13,6 +13,9 @@ inputs:
   github-token:
     description: GitHub token for API access
     required: true
+  engine-version:
+    description: Engine version to install
+    required: true
 
 runs:
   using: composite
@@ -22,7 +25,7 @@ runs:
       with:
         target: x86_64-unknown-linux-gnu
         github-token: ${{ inputs.github-token }}
-        engine-version: "7.2.5"
+        engine-version: ${{ inputs.engine-version }}
 
     - name: Setup PHP
       uses: shivammathur/setup-php@v2

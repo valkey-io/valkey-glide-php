@@ -80,8 +80,6 @@ static zval* build_php_connection_request(uint8_t*                              
 PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
-    zend_long database_id         = 0;
-    zend_bool database_id_is_null = 1;
 
     ZEND_PARSE_PARAMETERS_START(1, 11)
     Z_PARAM_ARRAY(common_params.addresses)
@@ -91,7 +89,7 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     Z_PARAM_LONG(common_params.read_from)
     Z_PARAM_LONG_OR_NULL(common_params.request_timeout, common_params.request_timeout_is_null)
     Z_PARAM_ARRAY_OR_NULL(common_params.reconnect_strategy)
-    Z_PARAM_LONG_OR_NULL(database_id, database_id_is_null)
+    Z_PARAM_LONG_OR_NULL(common_params.database_id, common_params.database_id_is_null)
     Z_PARAM_STRING_OR_NULL(common_params.client_name, common_params.client_name_len)
     Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
     Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
@@ -106,35 +104,27 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
         return;
     }
 
-    /* Build client configuration from individual parameters */
-    valkey_glide_client_configuration_t client_config;
-    memset(&client_config, 0, sizeof(client_config));
-    client_config.database_id = database_id_is_null ? -1 : database_id; /* -1 means not set */
-
-    /* Validate database_id range */
-    if (client_config.database_id != -1 &&
-        (client_config.database_id < 0 || client_config.database_id > 15)) {
-        const char* error_message = "Database ID must be between 0 and 15 inclusive.";
+    /* Validate database_id range before setting */
+    if (!common_params.database_id_is_null && common_params.database_id < 0) {
+        const char* error_message = "Database ID must be non-negative.";
         zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
-        valkey_glide_cleanup_client_config(&client_config.base);
         return;
     }
 
+    /* Build client configuration from individual parameters */
+    valkey_glide_base_client_configuration_t client_config;
+    memset(&client_config, 0, sizeof(client_config));
+
     /* Populate configuration parameters shared between client and cluster connections. */
-    valkey_glide_build_client_config_base(&common_params, &client_config.base, false);
+    valkey_glide_build_client_config_base(&common_params, &client_config, false);
 
     /* Build the connection request. */
     size_t   protobuf_message_len;
-    uint8_t* request_bytes = create_connection_request("localhost",
-                                                       6379,
-                                                       &protobuf_message_len,
-                                                       &client_config.base,
-                                                       client_config.database_id,
-                                                       0,
-                                                       false);
+    uint8_t* request_bytes = create_connection_request(
+        "localhost", 6379, &protobuf_message_len, &client_config, 0, false);
 
     zval* php_request =
-        build_php_connection_request(request_bytes, protobuf_message_len, &client_config.base);
+        build_php_connection_request(request_bytes, protobuf_message_len, &client_config);
     RETURN_ZVAL(php_request, 1, 1);
 }
 
@@ -145,7 +135,7 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
 
-    ZEND_PARSE_PARAMETERS_START(1, 11)
+    ZEND_PARSE_PARAMETERS_START(1, 12)
     Z_PARAM_ARRAY(common_params.addresses)
     Z_PARAM_OPTIONAL
     Z_PARAM_BOOL(common_params.use_tls)
@@ -158,7 +148,15 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
     Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
     Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
     Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
+    Z_PARAM_LONG_OR_NULL(common_params.database_id, common_params.database_id_is_null)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
+
+    /* Validate database_id range before setting */
+    if (!common_params.database_id_is_null && common_params.database_id < 0) {
+        const char* error_message = "Database ID must be non-negative.";
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+        return;
+    }
 
     /* Build cluster client configuration from individual parameters */
     valkey_glide_cluster_client_configuration_t client_config;
@@ -178,7 +176,6 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
                                                        6379,
                                                        &protobuf_message_len,
                                                        &client_config.base,
-                                                       0,
                                                        client_config.periodic_checks_status,
                                                        true);
 

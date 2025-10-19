@@ -10,6 +10,12 @@ if [ -z "$VALKEY_BIN" ] || [ -z "$CLI_BIN" ]; then
   exit 1
 fi
 
+# Check Valkey version for multi-database support
+VALKEY_VERSION=$("$VALKEY_BIN" --version | grep -o 'v=[0-9]\+\.[0-9]\+' | cut -d'=' -f2)
+MAJOR_VERSION=$(echo "$VALKEY_VERSION" | cut -d'.' -f1)
+
+echo "Detected Valkey version: $VALKEY_VERSION"
+
 # 1. Clean previous setup
 echo "Cleaning up old cluster data..."
 rm -rf "$BASE_DIR"
@@ -32,6 +38,12 @@ logfile "$NODE_DIR/valkey.log"
 protected-mode no
 enable-debug-command yes
 EOF
+
+  # Add multi-database support for Valkey 9+
+  if [ "$MAJOR_VERSION" -ge 9 ]; then
+    echo "cluster-databases 16" >> "$NODE_DIR/valkey.conf"
+    echo "Added multi-database support for Valkey $VALKEY_VERSION"
+  fi
 done
 
 # 3. Start each node
@@ -58,6 +70,18 @@ if ../valkey-glide/utils/cluster_manager.py --tls start --prefix tls-cluster --c
 else
     echo "⚠️  WARNING: TLS cluster setup failed (ports 8001-8006 may be in use), continuing without TLS cluster..."
 fi
+
+# 6. Test multi-database support if Valkey 9+
+if [ "$MAJOR_VERSION" -ge 9 ]; then
+    echo "Testing multi-database support in cluster..."
+    if "$CLI_BIN" -c -h 127.0.0.1 -p 7001 SELECT 1 >/dev/null 2>&1; then
+        echo "✅ Multi-database support confirmed (SELECT command works)"
+    else
+        echo "⚠️  Multi-database support not working (SELECT command failed)"
+    fi
+fi
+
+echo "Cluster setup complete!"
 
 # 6. Use cluster_manager.py to create cluster with auth
 echo "Setting up auth cluster..."

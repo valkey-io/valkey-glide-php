@@ -31,7 +31,6 @@ typedef enum {
     CORE_ARG_TYPE_LONG,
     CORE_ARG_TYPE_DOUBLE,
     CORE_ARG_TYPE_ARRAY,
-    CORE_ARG_TYPE_MULTI_STRING,
     CORE_ARG_TYPE_KEY_VALUE_PAIRS
 } core_arg_type_t;
 
@@ -107,7 +106,8 @@ typedef struct {
     int    has_ifeq;   /* IFEQ flag */
 } core_options_t;
 
-/* Core command arguments structure */
+/* Argument allocation type */
+/* Core command arguments structure - simplified without dynamic support */
 typedef struct {
     const void*      glide_client;
     enum RequestType cmd_type;
@@ -116,8 +116,8 @@ typedef struct {
     const char* key;
     size_t      key_len;
 
-    /* Additional arguments */
-    core_arg_t args[8]; /* Support up to 8 flexible arguments */
+    /* Fixed arguments array - sufficient for current usage */
+    core_arg_t args[8];
     int        arg_count;
 
     /* Routing support for cluster commands */
@@ -294,5 +294,29 @@ void debug_print_command_result(CommandResult* result);
     do {                                   \
     } while (0)
 #endif
+
+/**
+ * Safely allocate and format an integer as a string
+ * Uses exact buffer size to prevent overruns
+ */
+char* safe_format_int(int value, size_t* len_out);
+
+/**
+ * Safely allocate and format a long long as a string
+ * Uses exact buffer size to prevent overruns
+ */
+char* safe_format_long_long(long long value, size_t* len_out);
+
+/**
+ * Add string to args array and track for cleanup
+ * Combines add_tracked_string with argument array population
+ */
+void add_string_arg(char*           str,
+                    size_t          len,
+                    uintptr_t**     args_out,
+                    unsigned long** args_len_out,
+                    int*            arg_idx,
+                    char***         allocated_strings,
+                    int*            allocated_count);
 
 #endif /* VALKEY_GLIDE_CORE_COMMON_H */

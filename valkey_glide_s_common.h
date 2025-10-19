@@ -134,36 +134,61 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
 /* Argument preparation functions */
 int prepare_s_key_members_args(s_command_args_t* args,
                                uintptr_t**       args_out,
-                               unsigned long**   args_len_out);
+                               unsigned long**   args_len_out,
+                               char***           allocated_strings,
+                               int*              allocated_count);
 int prepare_s_key_only_args(s_command_args_t* args,
                             uintptr_t**       args_out,
-                            unsigned long**   args_len_out);
+                            unsigned long**   args_len_out,
+                            char***           allocated_strings,
+                            int*              allocated_count);
 int prepare_s_key_member_args(s_command_args_t* args,
                               uintptr_t**       args_out,
-                              unsigned long**   args_len_out);
+                              unsigned long**   args_len_out,
+                              char***           allocated_strings,
+                              int*              allocated_count);
 int prepare_s_key_count_args(s_command_args_t* args,
                              uintptr_t**       args_out,
-                             unsigned long**   args_len_out);
+                             unsigned long**   args_len_out,
+                             char***           allocated_strings,
+                             int*              allocated_count);
 int prepare_s_multi_key_args(s_command_args_t* args,
                              uintptr_t**       args_out,
-                             unsigned long**   args_len_out);
+                             unsigned long**   args_len_out,
+                             char***           allocated_strings,
+                             int*              allocated_count);
 int prepare_s_multi_key_limit_args(s_command_args_t* args,
                                    uintptr_t**       args_out,
-                                   unsigned long**   args_len_out);
+                                   unsigned long**   args_len_out,
+                                   char***           allocated_strings,
+                                   int*              allocated_count);
 int prepare_s_dst_multi_key_args(s_command_args_t* args,
                                  uintptr_t**       args_out,
-                                 unsigned long**   args_len_out);
+                                 unsigned long**   args_len_out,
+                                 char***           allocated_strings,
+                                 int*              allocated_count);
 int prepare_s_two_key_member_args(s_command_args_t* args,
                                   uintptr_t**       args_out,
-                                  unsigned long**   args_len_out);
-int prepare_s_scan_args(s_command_args_t* args, uintptr_t** args_out, unsigned long** args_len_out);
+                                  unsigned long**   args_len_out,
+                                  char***           allocated_strings,
+                                  int*              allocated_count);
+int prepare_s_scan_args(s_command_args_t* args,
+                        uintptr_t**       args_out,
+                        unsigned long**   args_len_out,
+                        char***           allocated_strings,
+                        int*              allocated_count);
 
 
 /* Utility functions */
 int  allocate_s_command_args(int count, uintptr_t** args_out, unsigned long** args_len_out);
 void cleanup_s_command_args(uintptr_t* args, unsigned long* args_len);
-int  convert_zval_to_string_args(
-     zval* input, int count, uintptr_t** args_out, unsigned long** args_len_out, int offset);
+int  convert_zval_to_string_args(zval*           input,
+                                 int             count,
+                                 uintptr_t**     args_out,
+                                 unsigned long** args_len_out,
+                                 int             offset,
+                                 char***         allocated_strings,
+                                 int*            allocated_count);
 
 char* alloc_long_string(long value, size_t* len_out);
 

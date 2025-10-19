@@ -48,33 +48,21 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Rust and protoc
-        uses: ./.github/workflows/install-rust-and-protoc
-
-      - name: Add Rust to PATH
-        run: |
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          source $HOME/.cargo/env || true
-
       - name: Output Matrix Parameters for this job
         run: |
           echo "Job running with the following matrix configuration:"
           echo "${{ toJson(matrix) }}"
 
-      - name: Setup PHP Extension Build Environment
-        uses: ./.github/workflows/setup-php-extension
+      - name: Setup ValkeyGlide with Caching
+        uses: ./.github/workflows/setup-valkey-glide
         with:
           php-version: ${{ matrix.php }}
-          install-composer-deps: "false"
+          engine-version: ${{ matrix.engine.version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate PHP protobuf classes for testing
         run: |
           echo "=== Generating PHP protobuf classes for testing ==="
-
-          # Install protobuf compiler and PHP plugin
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler libprotobuf-c-dev protobuf-c-compiler libprotobuf-c1
 
           # Install protobuf PHP runtime for testing
           composer require google/protobuf

@@ -19,9 +19,11 @@
 
 #include "command_response.h"
 #include "include/glide_bindings.h"
+#include "php.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
 #include "valkey_glide_z_common.h"
+#include "zend_exceptions.h"
 
 /* Execute an MSET command using the Valkey Glide client - MIGRATED TO CORE FRAMEWORK */
 int execute_mset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
@@ -567,8 +569,11 @@ int execute_copy_command(zval* object, int argc, zval* return_value, zend_class_
     valkey_glide_object* valkey_glide;
     char *               src = NULL, *dst = NULL;
     size_t               src_len, dst_len;
-    zend_bool            replace = 0;
-    zval*                z_opts  = NULL;
+    zend_bool            replace          = 0;
+    zval*                z_opts           = NULL;
+    char*                db_str_allocated = NULL; /* Track allocated memory */
+    core_command_args_t  args             = {0};
+    int                  arg_count        = 1;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
@@ -583,51 +588,90 @@ int execute_copy_command(zval* object, int argc, zval* return_value, zend_class_
         return 0;
     }
 
-    /* Check for the REPLACE option if options array was passed */
-    if (z_opts && Z_TYPE_P(z_opts) == IS_ARRAY) {
-        HashTable* ht = Z_ARRVAL_P(z_opts);
-        zval*      replace_val;
-        replace_val = zend_hash_str_find(ht, "replace", sizeof("replace") - 1);
-        if (replace_val && Z_TYPE_P(replace_val) == IS_TRUE) {
-            replace = 1;
-        }
-    }
-
-    core_command_args_t args = {0};
-    args.glide_client        = valkey_glide->glide_client;
-    args.cmd_type            = Copy;
-    args.key                 = src; /* Source key */
-    args.key_len             = src_len;
+    /* Initialize args structure */
+    args.glide_client = valkey_glide->glide_client;
+    args.cmd_type     = Copy;
+    args.key          = src; /* Source key */
+    args.key_len      = src_len;
 
     /* Destination key */
     args.args[0].type                  = CORE_ARG_TYPE_STRING;
     args.args[0].data.string_arg.value = dst;
     args.args[0].data.string_arg.len   = dst_len;
 
-    int arg_count = 1;
+    /* Check for options if options array was passed */
+    if (z_opts && Z_TYPE_P(z_opts) == IS_ARRAY) {
+        HashTable* ht = Z_ARRVAL_P(z_opts);
+        zval*      replace_val;
+        zval*      db_val;
+
+        /* Check for REPLACE option (case-insensitive) */
+        zend_string* key;
+        zval*        val;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(ht, key, val) {
+            if (key && ZSTR_LEN(key) == 7 && strcasecmp(ZSTR_VAL(key), "REPLACE") == 0) {
+                if (Z_TYPE_P(val) == IS_TRUE) {
+                    replace = 1;
+                }
+            } else if (key && ZSTR_LEN(key) == 2 && strcasecmp(ZSTR_VAL(key), "DB") == 0) {
+                if (Z_TYPE_P(val) == IS_LONG) {
+                    zend_long db_id = Z_LVAL_P(val);
+                    if (db_id < 0) {
+                        zend_throw_exception(
+                            get_valkey_glide_exception_ce(), "Database ID must be non-negative", 0);
+                        return 0;
+                    }
+
+                    /* Add DB argument */
+                    args.args[arg_count].type                  = CORE_ARG_TYPE_STRING;
+                    args.args[arg_count].data.string_arg.value = "DB";
+                    args.args[arg_count].data.string_arg.len   = 2;
+                    arg_count++;
+
+                    /* Add database ID */
+                    size_t db_str_len;
+                    if (db_str_allocated) {
+                        efree(db_str_allocated);
+                    }
+                    db_str_allocated          = safe_format_long_long(db_id, &db_str_len);
+                    args.args[arg_count].type = CORE_ARG_TYPE_STRING;
+                    args.args[arg_count].data.string_arg.value = db_str_allocated;
+                    args.args[arg_count].data.string_arg.len   = db_str_len;
+                    arg_count++;
+                }
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+    }
 
     /* Optional REPLACE flag */
     if (replace) {
-        args.args[1].type                  = CORE_ARG_TYPE_STRING;
-        args.args[1].data.string_arg.value = "REPLACE";
-        args.args[1].data.string_arg.len   = 7;
-        arg_count                          = 2;
+        args.args[arg_count].type                  = CORE_ARG_TYPE_STRING;
+        args.args[arg_count].data.string_arg.value = "REPLACE";
+        args.args[arg_count].data.string_arg.len   = 7;
+        arg_count++;
     }
 
     args.arg_count = arg_count;
 
     /* Execute the COPY command using the Glide client */
+    int result = 0;
     if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
-            return 1;
+            result = 1;
+        } else {
+            result = 1;
         }
-
-        return 1;
-    } else {
-        return 0;
     }
+
+    /* Cleanup allocated memory */
+    if (db_str_allocated) {
+        efree(db_str_allocated);
+    }
+
+    return result;
 }
 
 /* Unified PFADD command implementation */
@@ -792,13 +836,14 @@ int execute_select_command(zval* object, int argc, zval* return_value, zend_clas
         return 0;
     }
 
+    /* SELECT cannot be used in batch mode */
+    if (valkey_glide->is_in_batch_mode) {
+        php_printf("Error: SELECT command cannot be used in batch mode\n");
+        return 0;
+    }
+
     /* Execute the SELECT command using the Glide client */
     if (execute_select_command_internal(valkey_glide, dbindex, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
         return 1;
     }
 

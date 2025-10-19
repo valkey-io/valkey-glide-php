@@ -29,6 +29,14 @@ runs:
         echo "=== DEBUG: Environment ==="
         echo "PATH=$PATH"
 
+        echo "=== DEBUG: Which commands are being used ==="
+        which valkey-server || echo "valkey-server not found in PATH"
+        which redis-server || echo "redis-server not found in PATH"
+
+        echo "=== DEBUG: Version of found commands ==="
+        valkey-server --version 2>/dev/null || echo "valkey-server --version failed"
+        redis-server --version 2>/dev/null || echo "redis-server --version failed"
+
         echo "=== DEBUG: Checking for installed binaries in /usr/local/bin ==="
         ls -la /usr/local/bin/ | grep -E "(valkey|redis)" || echo "No valkey/redis binaries in /usr/local/bin"
 
@@ -65,6 +73,15 @@ runs:
 
         # Start cluster servers (7001-7006)
         echo "=== Starting Valkey cluster ==="
+
+        echo "=== DEBUG: Checking valkey binaries before cluster setup ==="
+        VALKEY_SERVER_PATH=$(which valkey-server)
+        VALKEY_CLI_PATH=$(which valkey-cli)
+        echo "valkey-server path: $VALKEY_SERVER_PATH"
+        echo "valkey-cli path: $VALKEY_CLI_PATH"
+        echo "valkey-server version: $($VALKEY_SERVER_PATH --version)"
+        echo "valkey-cli version: $($VALKEY_CLI_PATH --version)"
+
         ./create-valkey-cluster.sh
 
         # Final server status check

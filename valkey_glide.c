@@ -13,6 +13,7 @@
 #include "valkey_glide_arginfo.h"          // Include generated arginfo header
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_hash_common.h"
 
 /* Enum support includes - must be BEFORE arginfo includes */
 #if PHP_VERSION_ID >= 80100
@@ -28,9 +29,10 @@
 #include <ext/standard/info.h>
 
 /* Include configuration parsing */
-extern int  parse_valkey_glide_client_configuration(zval*                                config_obj,
-                                                    valkey_glide_client_configuration_t* config);
-extern void free_valkey_glide_client_configuration(valkey_glide_client_configuration_t* config);
+extern int parse_valkey_glide_client_configuration(
+    zval* config_obj, valkey_glide_base_client_configuration_t* config);
+extern void free_valkey_glide_client_configuration(
+    valkey_glide_base_client_configuration_t* config);
 
 void register_mock_constructor_class(void);
 
@@ -115,6 +117,8 @@ void valkey_glide_init_common_constructor_params(
     params->advanced_config         = NULL;
     params->lazy_connect            = 0;
     params->lazy_connect_is_null    = 1;
+    params->database_id             = 0;
+    params->database_id_is_null     = 1;
 }
 
 void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
@@ -135,6 +139,10 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
 
     /* Set lazy connect option */
     config->lazy_connect = params->lazy_connect_is_null ? false : params->lazy_connect;
+
+    /* Set database_id */
+    config->database_id =
+        params->database_id_is_null ? -1 : params->database_id; /* -1 means not set */
 
     /* Map read_from enum value to client's ReadFrom enum */
     switch (params->read_from) {
@@ -437,8 +445,6 @@ PHP_MINFO_FUNCTION(redis)
 PHP_METHOD(ValkeyGlide, __construct) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
-    zend_long            database_id         = 0;
-    zend_bool            database_id_is_null = 1;
     valkey_glide_object* valkey_glide;
 
     ZEND_PARSE_PARAMETERS_START(1, 11)
@@ -449,7 +455,7 @@ PHP_METHOD(ValkeyGlide, __construct) {
     Z_PARAM_LONG(common_params.read_from)
     Z_PARAM_LONG_OR_NULL(common_params.request_timeout, common_params.request_timeout_is_null)
     Z_PARAM_ARRAY_OR_NULL(common_params.reconnect_strategy)
-    Z_PARAM_LONG_OR_NULL(database_id, database_id_is_null)
+    Z_PARAM_LONG_OR_NULL(common_params.database_id, common_params.database_id_is_null)
     Z_PARAM_STRING_OR_NULL(common_params.client_name, common_params.client_name_len)
     Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
     Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
@@ -460,6 +466,15 @@ PHP_METHOD(ValkeyGlide, __construct) {
 
     VALKEY_LOG_DEBUG("php_construct", "Starting ValkeyGlide construction");
 
+    /* Validate database_id range early */
+    if (!common_params.database_id_is_null) {
+        if (common_params.database_id < 0) {
+            const char* error_message = "Database ID must be non-negative.";
+            zend_throw_exception(valkey_glide_exception_ce, error_message, 0);
+            return;
+        }
+    }
+
     /* Validate addresses array */
     if (!common_params.addresses ||
         zend_hash_num_elements(Z_ARRVAL_P(common_params.addresses)) == 0) {
@@ -469,21 +484,11 @@ PHP_METHOD(ValkeyGlide, __construct) {
     }
 
     /* Build client configuration from individual parameters */
-    valkey_glide_client_configuration_t client_config;
+    valkey_glide_base_client_configuration_t client_config;
     memset(&client_config, 0, sizeof(client_config));
-    client_config.database_id = database_id_is_null ? -1 : database_id; /* -1 means not set */
-
-    /* Validate database_id range */
-    if (client_config.database_id != -1 &&
-        (client_config.database_id < 0 || client_config.database_id > 15)) {
-        const char* error_message = "Database ID must be between 0 and 15 inclusive.";
-        zend_throw_exception(valkey_glide_exception_ce, error_message, 0);
-        valkey_glide_cleanup_client_config(&client_config.base);
-        return;
-    }
 
     /* Populate configuration parameters shared between client and cluster connections. */
-    valkey_glide_build_client_config_base(&common_params, &client_config.base, false);
+    valkey_glide_build_client_config_base(&common_params, &client_config, false);
 
     /* Issue the connection request. */
     const ConnectionResponse* conn_resp = create_glide_client(&client_config);
@@ -499,7 +504,7 @@ PHP_METHOD(ValkeyGlide, __construct) {
     free_connection_response((ConnectionResponse*) conn_resp);
 
     /* Clean up temporary configuration structures */
-    valkey_glide_cleanup_client_config(&client_config.base);
+    valkey_glide_cleanup_client_config(&client_config);
 }
 /* }}} */
 
@@ -688,3 +693,8 @@ PHP_FUNCTION(valkey_glide_logger_get_level) {
 
     RETURN_LONG(valkey_glide_logger_get_level());
 }
+
+
+// Individual HFE methods that call unified layer
+
+// HFE methods are implemented in valkey_z_php_methods.c

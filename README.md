@@ -184,7 +184,7 @@ php -r "if (extension_loaded('valkey_glide')) echo 'SUCCESS: Extension loaded!';
 
 3. Build the FFI library (required dependency):
     ```bash
-    python3 utils/remove_optional_from_proto.py
+    python3 utils/patch_proto_and_rust.py
     cd valkey-glide/ffi
     cargo build --release
     cd ../../
@@ -267,11 +267,20 @@ try {
         ['host' => 'localhost', 'port' => 7003]
     ];
     
-    // Create ValkeyGlideCluster client
+    // Create ValkeyGlideCluster client with multi-database support (Valkey 9.0+)
     $client = new ValkeyGlideCluster(
         $addresses,                          // addresses
         false,                               // use_tls
         null,                                // credentials
+        ValkeyGlide::READ_FROM_PREFER_REPLICA, // read_from
+        null,                                // request_timeout
+        null,                                // reconnect_strategy
+        null,                                // client_name
+        null,                                // periodic_checks
+        null,                                // client_az
+        null,                                // advanced_config
+        null,                                // lazy_connect
+        1                                    // database_id (requires Valkey 9.0+ with cluster-databases > 1)
     );
     
     // Basic operations

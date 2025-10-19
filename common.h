@@ -110,12 +110,8 @@ typedef struct {
     char*                                              client_az;       /* NULL if not set */
     valkey_glide_advanced_base_client_configuration_t* advanced_config; /* NULL if not set */
     bool                                               lazy_connect;    /* false if not set */
+    int                                                database_id;     /* -1 if not set */
 } valkey_glide_base_client_configuration_t;
-
-typedef struct {
-    valkey_glide_base_client_configuration_t base;
-    int                                      database_id; /* -1 if not set */
-} valkey_glide_client_configuration_t;
 
 typedef struct {
     valkey_glide_base_client_configuration_t base;
@@ -125,11 +121,11 @@ typedef struct {
 } valkey_glide_cluster_client_configuration_t;
 
 /* Configuration parsing functions */
-int parse_valkey_glide_client_configuration(zval*                                config_obj,
-                                            valkey_glide_client_configuration_t* config);
+int parse_valkey_glide_client_configuration(zval*                                     config_obj,
+                                            valkey_glide_base_client_configuration_t* config);
 int parse_valkey_glide_cluster_client_configuration(
     zval* config_obj, valkey_glide_cluster_client_configuration_t* config);
-void free_valkey_glide_client_configuration(valkey_glide_client_configuration_t* config);
+void free_valkey_glide_client_configuration(valkey_glide_base_client_configuration_t* config);
 void free_valkey_glide_cluster_client_configuration(
     valkey_glide_cluster_client_configuration_t* config);
 
@@ -148,6 +144,8 @@ typedef struct {
     zval*     advanced_config;
     zend_bool lazy_connect;
     zend_bool lazy_connect_is_null;
+    zend_long database_id;
+    zend_bool database_id_is_null;
 } valkey_glide_php_common_constructor_params_t;
 
 void valkey_glide_init_common_constructor_params(

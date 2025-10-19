@@ -346,9 +346,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     {
         $key1 = 'batch_db_' . uniqid();
 
-        // Execute SELECT, DBSIZE, TYPE in multi/exec batch
+        // Execute FLUSHDB, SET, DBSIZE, TYPE in multi/exec batch
         $results = $this->valkey_glide->multi()
-           // ->select(0) // Select database 0 (likely current) //TODO return once select is supported
             ->flushDB()
             ->set('x', 'y')
             ->set($key1, 'test_value')
@@ -359,8 +358,10 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Verify transaction results
         $this->assertIsArray($results);
         $this->assertCount(5, $results);
-        //$this->assertTrue($results[0]); // SELECT result
-        $this->assertEquals(2, $results[3]);
+        $this->assertTrue($results[0]); // FLUSHDB result
+        $this->assertTrue($results[1]); // SET result
+        $this->assertTrue($results[2]); // SET result
+        $this->assertEquals(2, $results[3]); // DBSIZE result
         $this->assertEquals(ValkeyGlide::VALKEY_GLIDE_STRING, $results[4]); // TYPE result
 
         // Verify server-side effects
@@ -716,6 +717,45 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals('value_b', $this->valkey_glide->hget($key1, 'beta'));
         $this->assertEquals('value_c', $this->valkey_glide->hget($key1, 'gamma'));
         $this->assertEquals('value_d', $this->valkey_glide->hget($key1, 'delta'));
+
+        // Cleanup
+        $this->valkey_glide->del($key1);
+    }
+
+    public function testHashFieldExpirationBatch()
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('Hash field expiration requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $key1 = 'batch_hfe_' . uniqid();
+
+        // Setup hash with fields
+        $this->valkey_glide->hSet($key1, 'field1', 'value1', 'field2', 'value2', 'field3', 'value3');
+
+        // Execute HFE operations in batch
+        $this->valkey_glide->multi();
+        $this->valkey_glide->hSetEx($key1, 60, null, 'expire_field', 'expire_value');
+        $this->valkey_glide->hPSetEx($key1, 30000, null, 'pexpire_field', 'pexpire_value');
+        $this->valkey_glide->hExpire($key1, 120, null, 'field1', 'field2');
+        $this->valkey_glide->hPExpire($key1, 90000, null, 'field3');
+        $this->valkey_glide->hTtl($key1, 'field1');
+        $this->valkey_glide->hPTtl($key1, 'field3');
+        $this->valkey_glide->hPersist($key1, 'field1');
+        $results = $this->valkey_glide->exec();
+
+        // Verify results
+        $this->assertEquals(1, $results[0]); // hSetEx
+        $this->assertEquals(1, $results[1]); // hPSetEx
+        $this->assertEquals([1, 1], $results[2]); // hExpire
+        $this->assertEquals([1], $results[3]); // hPExpire
+        $this->assertIsArray($results[4]); // hTtl
+        $this->assertIsArray($results[5]); // hPTtl
+        $this->assertEquals([1], $results[6]); // hPersist
+
+        // Verify values were set
+        $this->assertEquals('expire_value', $this->valkey_glide->hGet($key1, 'expire_field'));
+        $this->assertEquals('pexpire_value', $this->valkey_glide->hGet($key1, 'pexpire_field'));
 
         // Cleanup
         $this->valkey_glide->del($key1);
@@ -1370,27 +1410,23 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testMoveBatch()
     {
-        //TODO return once select is supported
-        $this->markTestSkipped();
         $key1 = 'batch_move_' . uniqid();
 
         // Setup test data in database 0
         $this->valkey_glide->select(0);
         $this->valkey_glide->set($key1, 'move_test_value');
 
-        // Execute MOVE, SELECT, EXISTS in multi/exec batch
+        // Execute MOVE, EXISTS in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->move($key1, 1) // Move to database 1
-            ->select(1)
-            ->exists($key1)
+            ->exists($key1) // Check if key still exists in current db
             ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
-        $this->assertCount(3, $results);
+        $this->assertCount(2, $results);
         $this->assertTrue($results[0]); // MOVE result (success)
-        $this->assertTrue($results[1]); // SELECT result
-        $this->assertEquals(1, $results[2]); // EXISTS result (key exists in db 1)
+        $this->assertEquals(0, $results[1]); // EXISTS result (key no longer in db 0)
 
         // Verify server-side effects
         $this->valkey_glide->select(0);
@@ -3846,6 +3882,35 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         // Cleanup
         $this->valkey_glide->function('FLUSH');
+    }
+
+    // ===================================================================
+    // SELECT COMMAND BATCH MODE PREVENTION TESTS
+    // ===================================================================
+
+    public function testSelectFailsInBatchMode()
+    {
+        $key1 = 'batch_select_test_' . uniqid();
+        
+        // Verify SELECT works in normal mode
+        $result = $this->valkey_glide->select(0);
+        $this->assertTrue($result, 'SELECT should work in normal mode');
+        
+        // Test SELECT returns false in batch mode and logs error
+        $this->valkey_glide->multi();
+        $this->valkey_glide->set($key1, 'test_value');
+        
+        // Capture output to check for error message
+        ob_start();
+        $selectResult = $this->valkey_glide->select(1);
+        $output = ob_get_clean();
+        
+        $this->assertFalse($selectResult, 'SELECT should return false in batch mode');
+        $this->assertStringContains('Error: SELECT command cannot be used in batch mode', $output);
+        
+        // Cancel the batch and cleanup
+        $this->valkey_glide->discard();
+        $this->valkey_glide->del($key1);
     }
 
     // ===================================================================

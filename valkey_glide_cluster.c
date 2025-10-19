@@ -39,7 +39,7 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     valkey_glide_init_common_constructor_params(&common_params);
     valkey_glide_object* valkey_glide;
 
-    ZEND_PARSE_PARAMETERS_START(1, 11)
+    ZEND_PARSE_PARAMETERS_START(1, 12)
     Z_PARAM_ARRAY(common_params.addresses)
     Z_PARAM_OPTIONAL
     Z_PARAM_BOOL(common_params.use_tls)
@@ -52,9 +52,17 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
     Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
     Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
+    Z_PARAM_LONG_OR_NULL(common_params.database_id, common_params.database_id_is_null)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+
+    /* Validate database_id range early */
+    if (!common_params.database_id_is_null && common_params.database_id < 0) {
+        const char* error_message = "Database ID must be non-negative.";
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+        return;
+    }
 
     /* Build cluster client configuration from individual parameters */
     valkey_glide_cluster_client_configuration_t client_config;
@@ -338,6 +346,59 @@ HKEYS_METHOD_IMPL(ValkeyGlideCluster)
 HVALS_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto long ValkeyGlideCluster::hSetEx(string key, long seconds, string field, string value,
+ * ...) */
+HSETEX_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto long ValkeyGlideCluster::hPSetEx(string key, long milliseconds, string field, string
+ * value,
+ * ...) */
+HPSETEX_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hExpire(string key, long time_value, string time_unit, string
+ * field, ...) */
+HEXPIRE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hExpireAt(string key, long timestamp, string field, ...) */
+HEXPIREAT_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hPExpire(string key, long milliseconds, string field, ...) */
+HPEXPIRE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hPExpireAt(string key, long timestamp_ms, string field, ...)
+ */
+HPEXPIREAT_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hTtl(string key, string field, ...) */
+HTTL_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hPTtl(string key, string field, ...) */
+HPTTL_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hExpireTime(string key, string field, ...) */
+HEXPIRETIME_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hPExpireTime(string key, string field, ...) */
+HPEXPIRETIME_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::hPersist(string key, string field, ...) */
+HPERSIST_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::hGetEx(string key, string field, long seconds, ...) */
+HGETEX_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto string ValkeyGlideCluster::hget(string key, string mem) */
 HGET_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
@@ -420,7 +481,8 @@ EXPIREAT_METHOD_IMPL(ValkeyGlideCluster)
 PEXPIRE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto bool ValkeyGlideCluster::pexpireat(string key, long ts) */
+/* {{{ proto bool ValkeyGlideCluster::pexpireAt(string key, long milliseconds_timestamp [, string
+ * mode]) */
 PEXPIREAT_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
@@ -820,6 +882,13 @@ ECHO_METHOD_IMPL(ValkeyGlideCluster)
 RAWCOMMAND_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto boolean ValkeyGlideCluster::select(int dbindex) */
+SELECT_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto boolean ValkeyGlideCluster::move(string key, int dbindex) */
+MOVE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
 
 COPY_METHOD_IMPL(ValkeyGlideCluster)
 #endif /* PHP_REDIS_CLUSTER_C */
