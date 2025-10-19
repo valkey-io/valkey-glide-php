@@ -81,6 +81,8 @@ require_once __DIR__ . "/TestSuite.php";
  */
 abstract class ValkeyGlideBaseTest extends TestSuite
 {
+    private static $debug_logged = false;
+    private static $version_logged = false;
     public function __construct($host, $port, $auth, $tls)
     {
         parent::__construct($host, $port, $auth, $tls);
@@ -121,6 +123,12 @@ abstract class ValkeyGlideBaseTest extends TestSuite
         return isset($info['server_name']) && $info['server_name'] === 'valkey';
     }
 
+    protected function compare_major_version_number($minMajorVersion)
+    {
+        $currentMajor = intval(explode('.', $this->version)[0]);
+        return $currentMajor >= $minMajorVersion;
+    }
+
     public function setUp()
     {
         $this->valkey_glide = $this->newInstance();
@@ -131,8 +139,27 @@ abstract class ValkeyGlideBaseTest extends TestSuite
             throw new Exception("Failed to connect to Valkey/Redis server. Please ensure server is running and accessible.");
         }
 
-        $this->version = (isset($info['redis_version']) ? $info['redis_version'] : '0.0.0');
+        $this->version  = $info['valkey_version'] ?? $info['redis_version'] ?? '0.0.0';
         $this->is_valkey = $this->detectValkey($info);
+
+        // Debug: Show what keys are available in INFO response (only once per test suite)
+        if (!self::$debug_logged) {
+            echo "DEBUG: Available INFO keys: " . implode(', ', array_keys($info)) . "\n";
+            if (isset($info['valkey_version'])) {
+                echo "DEBUG: valkey_version found: " . $info['valkey_version'] . "\n";
+            }
+            if (isset($info['redis_version'])) {
+                echo "DEBUG: redis_version found: " . $info['redis_version'] . "\n";
+            }
+            self::$debug_logged = true;
+        }
+
+        // Log server type and version for debugging (only once per test suite)
+        if (!self::$version_logged) {
+            $server_type = $this->is_valkey ? 'Valkey' : 'Redis';
+            echo "Connected to $server_type server version: {$this->version}\n";
+            self::$version_logged = true;
+        }
     }
 
     protected function minVersionCheck($version)

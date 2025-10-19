@@ -89,7 +89,7 @@ class ClientConstructorMock
      * @param int|null $request_timeout          Request timeout in milliseconds.
      * @param array|null $reconnect_strategy     Reconnection strategy ['num_of_retries' => 3, 'factor' => 2,
      *                                           'exponent_base' => 10, 'jitter_percent' => 15].
-     * @param int|null $database_id              Database ID to select (0-15)
+     * @param int|null $database_id              Database ID to select (0 or higher)
      * @param string|null $client_name           Client name identifier.
      * @param string|null $client_az             Client availability zone.
      * @param array|null $advanced_config        Advanced configuration ['connection_timeout' => 5000,
@@ -128,6 +128,10 @@ class ClientConstructorMock
      *                                                'tls_config' => ['use_insecure_tls' => false]].
      *                                                connection_timeout is in milliseconds.
      * @param bool|null $lazy_connect                 Whether to use lazy connection.
+     * @param int|null $database_id                   Index of the logical database to connect to. Must be non-negative 
+     *                                                and within the range supported by the server configuration. 
+     *                                                For cluster mode, requires Valkey 9.0+ with cluster-databases > 1.
+     *                                                If not specified, defaults to database 0.
      */
     public static function simulate_cluster_constructor(
         array $addresses,
@@ -140,6 +144,7 @@ class ClientConstructorMock
         ?int $periodic_checks = ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS,
         ?string $client_az = null,
         ?array $advanced_config = null,
-        ?bool $lazy_connect = null
+        ?bool $lazy_connect = null,
+        ?int $database_id = null
     ): \Connection_request\ConnectionRequest;
 }

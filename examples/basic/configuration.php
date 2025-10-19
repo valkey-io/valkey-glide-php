@@ -62,7 +62,7 @@ $reconnect_strategy = [
     'factor' => 2.0,
     'exponent_base' => 2
 ];
-$database_id = 0; // Database number (0-15 for standalone)
+$database_id = 0; // Database number (0 or higher for standalone)
 $client_name = 'valkey-glide-example';
 $inflight_requests_limit = 250;
 $client_az = null; // Availability zone for AZ_AFFINITY reads

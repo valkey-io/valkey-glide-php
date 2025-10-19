@@ -22,6 +22,7 @@
 
 #include "command_response.h"
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_core_common.h"
 
 /* Import the string conversion functions from command_response.c */
 extern char* long_to_string(long value, size_t* len);
@@ -444,23 +445,27 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             /* Set arguments */
             arg_values[0] = (uintptr_t) args->key;
             arg_lens[0]   = args->key_len;
+            int arg_idx   = 1; /* Start after key */
 
             /* Add start and end parameters */
-            char start_str[32], end_str[32];
-            int  start_str_len = snprintf(start_str, sizeof(start_str), "%ld", args->start);
-            int  end_str_len   = snprintf(end_str, sizeof(end_str), "%ld", args->end);
+            size_t start_len, end_len;
+            char*  start_str_copy = safe_format_long_long(args->start, &start_len);
+            char*  end_str_copy   = safe_format_long_long(args->end, &end_len);
 
-            char* start_str_copy = estrndup(start_str, start_str_len);
-            char* end_str_copy   = estrndup(end_str, end_str_len);
-
-            arg_values[1]        = (uintptr_t) start_str_copy;
-            arg_lens[1]          = start_str_len;
-            allocated_strings[0] = start_str_copy;
-
-            arg_values[2]        = (uintptr_t) end_str_copy;
-            arg_lens[2]          = end_str_len;
-            allocated_strings[1] = end_str_copy;
-            allocated_count      = 2;
+            add_string_arg(start_str_copy,
+                           start_len,
+                           &arg_values,
+                           &arg_lens,
+                           &arg_idx,
+                           &allocated_strings,
+                           &allocated_count);
+            add_string_arg(end_str_copy,
+                           end_len,
+                           &arg_values,
+                           &arg_lens,
+                           &arg_idx,
+                           &allocated_strings,
+                           &allocated_count);
             break;
 
         case ZDiffStore:

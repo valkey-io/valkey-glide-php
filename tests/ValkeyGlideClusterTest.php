@@ -90,6 +90,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     ];
 
 
+    private static $debug_logged = false;
+    private static $version_logged = false;
 
     protected static array $seeds = [];
     private static string $seed_source = '';
@@ -114,18 +116,30 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->markTestSkipped();
     }
+
     public function testSelect()
     {
-        $this->markTestSkipped();
-    }
-    public function testReconnectSelect()
-    {
-        $this->markTestSkipped();
+        $this->assertFalse(@$this->valkey_glide->select(-1));
+        $this->assertTrue($this->valkey_glide->select(0));
     }
 
     public function testMove()
     {
-        $this->markTestSkipped(); // Move is not supported in ValkeyGlideCluster
+        // Basic MOVE method availability test
+        $key = '{key}test_move_' . uniqid();
+        $this->valkey_glide->set($key, 'test_value');
+        
+        // MOVE should return boolean (may be false if multi-database not supported)
+        $result = $this->valkey_glide->move($key, 1);
+        $this->assertIsBool($result);
+        
+        // Clean up
+        $this->valkey_glide->del($key);
+    }
+
+    public function testReconnectSelect()
+    {
+        $this->markTestSkipped();
     }
 
     /* These 'directed node' commands work differently in ValkeyGlideCluster */
@@ -164,9 +178,28 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->valkey_glide    = $this->newInstance();
         $info           = $this->valkey_glide->info("randomNode");
-        $this->version  = $info['redis_version'] ?? '0.0.0';
+        $this->version  = $info['valkey_version'] ?? $info['redis_version'] ?? '0.0.0';
 
         $this->is_valkey = $this->detectValkey($info);
+
+        // Debug: Show what keys are available in INFO response (only once per test suite)
+        if (!self::$debug_logged) {
+            echo "DEBUG: Available INFO keys: " . implode(', ', array_keys($info)) . "\n";
+            if (isset($info['valkey_version'])) {
+                echo "DEBUG: valkey_version found: " . $info['valkey_version'] . "\n";
+            }
+            if (isset($info['redis_version'])) {
+                echo "DEBUG: redis_version found: " . $info['redis_version'] . "\n";
+            }
+            self::$debug_logged = true;
+        }
+
+        // Log server type and version for debugging (only once per test suite)
+        if (!self::$version_logged) {
+            $server_type = $this->is_valkey ? 'Valkey' : 'Redis';
+            echo "Connected to $server_type server version: {$this->version}\n";
+            self::$version_logged = true;
+        }
     }
 
     /* Override newInstance as we want a ValkeyGlideCluster object */
@@ -178,6 +211,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
                 false, // use_tls
                 $this->getAuth(), // credentials
                 ValkeyGlide::READ_FROM_PRIMARY, // read_from
+                null, // request_timeout
+                null, // reconnect_strategy
+                null, // client_name
+                null, // periodic_checks
+                null, // client_az
+                null, // advanced_config
+                null, // lazy_connect
+                0     // database_id - enable multi-database support
             );
         } catch (Exception $ex) {
             TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());
@@ -883,5 +924,142 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         // Reset
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+    }
+
+    public function testCopyCluster()
+    {
+        if (version_compare($this->version, '6.2.0') < 0) {
+            $this->markTestSkipped('COPY command requires Valkey 6.2.0+');
+        }
+
+        $this->valkey_glide->del('{key}dst');
+        $this->valkey_glide->set('{key}src', 'foo');
+        $this->assertTrue($this->valkey_glide->copy('{key}src', '{key}dst'));
+        $this->assertKeyEquals('foo', '{key}dst');
+
+        $this->valkey_glide->set('{key}src', 'bar');
+        $this->assertFalse($this->valkey_glide->copy('{key}src', '{key}dst'));
+        $this->assertKeyEquals('foo', '{key}dst');
+
+        $this->assertTrue($this->valkey_glide->copy('{key}src', '{key}dst', ['REPLACE' => true]));
+        $this->assertKeyEquals('bar', '{key}dst');
+    }
+
+    public function testCopyClusterWithDatabase()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('COPY with database ID in cluster mode requires Valkey 9.0.0+');
+        }
+
+        // Test copy to different database in cluster mode
+        $this->valkey_glide->del('{key}src', '{key}dst');
+        $this->valkey_glide->set('{key}src', 'cluster_test_value');
+        
+        // Test with string key
+        $this->assertTrue($this->valkey_glide->copy('{key}src', '{key}dst', ['DB' => 1]));
+        
+        // Test with constant
+        $this->valkey_glide->set('{key}src2', 'cluster_constant_test');
+        $this->assertTrue($this->valkey_glide->copy('{key}src2', '{key}dst2', [ValkeyGlide::COPY_DB => 1]));
+        
+        // Test combined options
+        $this->assertTrue($this->valkey_glide->copy('{key}src', '{key}dst', [
+            ValkeyGlide::COPY_DB => 1,
+            ValkeyGlide::COPY_REPLACE => true
+        ]));
+    }
+
+    public function testSelectMultipleDatabase()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Multi-database operations in cluster mode require Valkey 9.0.0+');
+        }
+
+        // SELECT should work in Valkey 9.0+ clusters
+        $this->assertTrue($this->valkey_glide->select(0));
+        $this->assertTrue($this->valkey_glide->select(1));
+        $this->assertTrue($this->valkey_glide->select(2));
+        $this->assertTrue($this->valkey_glide->select(15));
+        $this->assertFalse(@$this->valkey_glide->select(-1));
+        $this->assertTrue($this->valkey_glide->select(0));
+    }
+
+    public function testDatabaseIsolation()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Multi-database operations in cluster mode require Valkey 9.0.0+');
+        }
+
+        $key = '{key}isolation_test_' . uniqid();
+        
+        $this->valkey_glide->select(0);
+        $this->valkey_glide->set($key, 'value_db0');
+        $this->valkey_glide->select(1);
+        $this->valkey_glide->set($key, 'value_db1');
+        
+        $this->valkey_glide->select(0);
+        $this->assertEquals('value_db0', $this->valkey_glide->get($key));
+        $this->valkey_glide->select(1);
+        $this->assertEquals('value_db1', $this->valkey_glide->get($key));
+        
+        // Clean up
+        $this->valkey_glide->del($key);
+        $this->valkey_glide->select(0);
+        $this->valkey_glide->del($key);
+    }
+
+    public function testMoveMultiDatabase()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Multi-database MOVE in cluster mode requires Valkey 9.0.0+');
+        }
+
+        $key = '{key}move_test_' . uniqid();
+        
+        $this->valkey_glide->select(0);
+        $this->valkey_glide->set($key, 'move_test_value');
+        
+        // In Valkey 9.0+, MOVE should succeed - failure indicates missing cluster-databases config
+        $result = $this->valkey_glide->move($key, 1);
+        $this->assertTrue($result, 'MOVE should succeed in Valkey 9.0+ cluster (ensure cluster-databases > 1 is configured)');
+        
+        // Verify MOVE worked correctly
+        $this->assertEquals(0, $this->valkey_glide->exists($key)); // Should not exist in DB 0
+        
+        $this->valkey_glide->select(1);
+        $this->assertEquals(1, $this->valkey_glide->exists($key)); // Should exist in DB 1
+        $this->assertEquals('move_test_value', $this->valkey_glide->get($key));
+        
+        // Clean up
+        $this->valkey_glide->del($key);
+        $this->valkey_glide->select(0);
+    }
+
+    public function testCopyMultiDatabase()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Multi-database COPY in cluster mode requires Valkey 9.0.0+');
+        }
+
+        $srcKey = '{key}copy_src_' . uniqid();
+        $dstKey = '{key}copy_dst_' . uniqid();
+        
+        $this->valkey_glide->select(0);
+        $this->valkey_glide->set($srcKey, 'copy_test_value');
+        
+        // COPY with DB parameter should work in Valkey 9.0+ clusters
+        $result = $this->valkey_glide->copy($srcKey, $dstKey, ['DB' => 1]);
+        $this->assertTrue($result, 'COPY should succeed in Valkey 9.0+ cluster');
+        
+        // Verify COPY worked correctly
+        $this->assertEquals('copy_test_value', $this->valkey_glide->get($srcKey)); // Original still exists
+        
+        $this->valkey_glide->select(1);
+        $this->assertEquals('copy_test_value', $this->valkey_glide->get($dstKey)); // Copy exists
+        
+        // Clean up
+        $this->valkey_glide->del($dstKey);
+        $this->valkey_glide->select(0);
+        $this->valkey_glide->del($srcKey);
     }
 }

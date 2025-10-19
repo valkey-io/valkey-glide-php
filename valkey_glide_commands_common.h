@@ -58,7 +58,7 @@ void free_command_response(CommandResponse* command_response_ptr);
 void free_command_result(CommandResult* command_result_ptr);
 
 /* Helper functions for Valkey Glide integration */
-const ConnectionResponse* create_glide_client(valkey_glide_client_configuration_t* config);
+const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config);
 
 const ConnectionResponse* create_glide_cluster_client(
     valkey_glide_cluster_client_configuration_t* config);
@@ -69,7 +69,6 @@ uint8_t* create_connection_request(const char*                               hos
                                    int                                       port,
                                    size_t*                                   len,
                                    valkey_glide_base_client_configuration_t* config,
-                                   int                                       database_id,
                                    valkey_glide_periodic_checks_status_t     periodic_checks,
                                    bool                                      is_cluster);
 
@@ -322,6 +321,20 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
     }
 
 /* Additional unified macros for new converted commands */
+#define SELECT_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, select) {                                              \
+        if (execute_select_command(getThis(),                                     \
+                                   ZEND_NUM_ARGS(),                               \
+                                   return_value,                                  \
+                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                       ? get_valkey_glide_cluster_ce()            \
+                                       : get_valkey_glide_ce())) {                \
+            return;                                                               \
+        }                                                                         \
+        zval_dtor(return_value);                                                  \
+        RETURN_FALSE;                                                             \
+    }
+
 #define GET_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, get) {                                              \
         if (execute_get_command(getThis(),                                     \

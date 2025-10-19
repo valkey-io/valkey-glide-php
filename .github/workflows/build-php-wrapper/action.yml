@@ -69,8 +69,9 @@ runs:
       if: ${{ inputs.os == 'ubuntu' }}
       shell: bash
       run: |
-        # Install protobuf-c-compiler
+        # Install protobuf-c-compiler for PHP extension builds
         sudo apt-get install -y protobuf-c-compiler
+        echo "protoc-c version: $(protoc-c --version)"
 
     - name: Install protobuf compiler (macOS)
       if: ${{ inputs.os == 'macos' }}

@@ -44,7 +44,6 @@ uint8_t* create_connection_request(const char*                               hos
                                    int                                       port,
                                    size_t*                                   len,
                                    valkey_glide_base_client_configuration_t* config,
-                                   int                                       database_id,
                                    valkey_glide_periodic_checks_status_t     periodic_checks,
                                    bool                                      is_cluster) {
     /* Create a connection request */
@@ -127,8 +126,8 @@ uint8_t* create_connection_request(const char*                               hos
     }
 
     /* Set database ID for standalone clients if it is valid. */
-    if (!is_cluster && database_id >= 0) {
-        conn_req.database_id = database_id;
+    if (config->database_id >= 0) {
+        conn_req.database_id = config->database_id;
     } else {
         conn_req.database_id = 0;
     }
@@ -188,7 +187,6 @@ uint8_t* create_connection_request(const char*                               hos
 /* Create a Valkey Glide client or Cluster client using shared properties. */
 static const ConnectionResponse* create_base_glide_client(
     valkey_glide_base_client_configuration_t* config,
-    int                                       database_id,
     valkey_glide_periodic_checks_status_t     periodic_checks,
     bool                                      is_cluster) {
     /* Create a connection request using first address or default */
@@ -197,7 +195,7 @@ static const ConnectionResponse* create_base_glide_client(
     int         default_port = 6379;
 
     uint8_t* request_bytes = create_connection_request(
-        default_host, default_port, &len, config, database_id, periodic_checks, is_cluster);
+        default_host, default_port, &len, config, periodic_checks, is_cluster);
 
     if (!request_bytes) {
         return NULL;
@@ -224,14 +222,13 @@ static const ConnectionResponse* create_base_glide_client(
 }
 
 /* Create a Valkey Glide client */
-const ConnectionResponse* create_glide_client(valkey_glide_client_configuration_t* config) {
-    return create_base_glide_client(
-        &config->base, config->database_id, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false);
+const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config) {
+    return create_base_glide_client(config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false);
 }
 
 const ConnectionResponse* create_glide_cluster_client(
     valkey_glide_cluster_client_configuration_t* config) {
-    return create_base_glide_client(&config->base, 0, config->periodic_checks_status, true);
+    return create_base_glide_client(&config->base, config->periodic_checks_status, true);
 }
 
 /* Custom result processor for SET commands with GET option support */

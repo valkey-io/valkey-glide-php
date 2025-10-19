@@ -456,6 +456,70 @@ HVALS_METHOD_IMPL(ValkeyGlide);
 
 /* }}} */
 
+/* {{{ proto long ValkeyGlide::hSetEx(string key, long seconds, string field, string value, ...) */
+HSETEX_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto long ValkeyGlide::hPSetEx(string key, long milliseconds, string field, string value,
+ * ...) */
+HPSETEX_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::hSetExAt(string key, int timestamp, string field, mixed value, mixed
+ * ...$fields_and_vals) */
+
+/* {{{ proto mixed ValkeyGlide::hPSetExAt(string key, int timestamp, string field, mixed value,
+ * mixed ...$fields_and_vals) */
+
+/* Hash field expiration NX variants */
+
+/* Hash field expiration XX variants */
+
+/* Hash field expiration NX/XX variants */
+/* }}} */
+
+
+/* {{{ proto array ValkeyGlide::hTtl(string key, string field, ...) */
+HTTL_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::hPersist(string key, string field, ...) */
+HPERSIST_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::hExpire(string key, long seconds, string field, ...) */
+HEXPIRE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::hPExpire(string key, long milliseconds, string field, ...) */
+HPEXPIRE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::hExpireAt(string key, long timestamp, string field, ...) */
+HEXPIREAT_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::hPExpireAt(string key, long timestamp_ms, string field, ...) */
+HPEXPIREAT_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::hExpireTime(string key, string field, ...) */
+HEXPIRETIME_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::hPExpireTime(string key, string field, ...) */
+HPEXPIRETIME_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::hPTtl(string key, string field, ...) */
+HPTTL_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+
+/* {{{ proto mixed ValkeyGlide::hGetEx(string key, string field, long seconds, ...) */
+HGETEX_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto array ValkeyGlide::hGetAll(string key) */
 HGETALL_METHOD_IMPL(ValkeyGlide);
 
