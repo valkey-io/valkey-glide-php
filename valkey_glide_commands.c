@@ -492,12 +492,7 @@ int execute_object_command_impl(valkey_glide_object* valkey_glide,
     /* Check for batch mode */
     if (valkey_glide->is_in_batch_mode) {
         /* Create a copy of subcommand for the callback */
-        char* subcommand_copy = emalloc(subcommand_len + 1);
-        if (!subcommand_copy) {
-            return -1;
-        }
-        memcpy(subcommand_copy, subcommand, subcommand_len);
-        subcommand_copy[subcommand_len] = '\0';
+        char* subcommand_copy = estrndup(subcommand, subcommand_len);
 
         /* Buffer command for batch execution */
         int result = buffer_command_for_batch(
