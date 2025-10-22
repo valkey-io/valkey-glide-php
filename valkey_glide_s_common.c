@@ -580,7 +580,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
             args->cursor = "0";
         }
 
-        array_init(return_value);
+        ZVAL_NULL(return_value);
         return 0;
     }
 
