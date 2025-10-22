@@ -488,17 +488,11 @@ int execute_object_command_impl(valkey_glide_object* valkey_glide,
     }
     /* For HELP and other subcommands, use CustomCommand (default) */
 
-    char* subcommand_copy = emalloc(subcommand_len + 1);
-    if (!subcommand_copy) {
-        return -1;
-    }
-    memcpy(subcommand_copy, subcommand, subcommand_len);
-    subcommand_copy[subcommand_len] = '\0';
 
     /* Check for batch mode */
     if (valkey_glide->is_in_batch_mode) {
         /* Create a copy of subcommand for the callback */
-
+        char* subcommand_copy = estrndup(subcommand, subcommand_len);
 
         /* Buffer command for batch execution */
         int result = buffer_command_for_batch(
@@ -518,7 +512,6 @@ int execute_object_command_impl(valkey_glide_object* valkey_glide,
     CommandResult* result =
         execute_command(valkey_glide->glide_client, req_type, 1, args, args_len);
     if (result == NULL) {
-        efree(subcommand_copy);
         return -1;
     }
 
@@ -526,7 +519,7 @@ int execute_object_command_impl(valkey_glide_object* valkey_glide,
     int ret_val = -1; /* Default to error */
     if (result->response) {
         ret_val = process_object_command_result(
-            result->response, subcommand_copy, subcommand_len, return_value);
+            result->response, subcommand, subcommand_len, return_value);
     }
 
     /* Clean up */

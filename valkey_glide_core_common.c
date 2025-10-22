@@ -103,12 +103,14 @@ int execute_core_command(valkey_glide_object* valkey_glide,
             /* Non-routed commands use standard processor */
             res = processor(result->response, result_ptr, return_value);
         } else {
+            efree(result_ptr);
             ZVAL_FALSE(return_value);
         }
 
         /* Free the result - handle_string_response doesn't free it */
         free_command_result(result);
     } else {
+        efree(result_ptr);
         ZVAL_FALSE(return_value);
     }
 
@@ -1582,6 +1584,7 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
         array_init(&temp_array);
 
         for (int i = 0; i < keys_count; i++) {
+            Z_TRY_ADDREF_P(&keys[i]);
             add_next_index_zval(&temp_array, &keys[i]);
         }
 
@@ -1600,6 +1603,8 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
             ZVAL_COPY(return_value, object); /* return_value should already contain $this */
         }
 
+
+        zval_ptr_dtor(&temp_array);
         return result;
     } else {
         /* Invalid input - neither single string, array, nor multiple strings */
