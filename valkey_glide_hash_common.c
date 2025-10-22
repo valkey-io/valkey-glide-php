@@ -1107,12 +1107,13 @@ int process_h_mget_result(CommandResponse* response, void* output, zval* return_
         efree(args);
         return 0;
     }
-    /* Initialize return array */
-    array_init(return_value);
+
 
     /* Process the result - map back to original field names */
     int ret_val = 0;
     if (response && response->response_type == Array) {
+        /* Initialize return array */
+        array_init(return_value);
         for (int i = 0; i < args->field_count && i < response->array_value_len; i++) {
             zval*  field = &args->fields[i];
             zval   field_value;
@@ -1146,6 +1147,8 @@ int process_h_mget_result(CommandResponse* response, void* output, zval* return_
             }
         }
         ret_val = 1;
+    } else {
+        ZVAL_NULL(return_value);
     }
 
     /* Free field array */
