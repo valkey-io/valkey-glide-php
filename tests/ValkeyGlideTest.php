@@ -1755,7 +1755,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testMove()
     {
         // Version check if needed (move has been available since early Redis versions)
-        $this->valkey_glide->flushAll(); //TODO remove once the select is supported again.
         $key1 = 'move_test_key1';
         $key2 = 'move_test_key2';
         $value1 = 'test_value1';
