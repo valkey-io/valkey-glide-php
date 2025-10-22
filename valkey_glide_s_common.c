@@ -528,7 +528,7 @@ int process_s_bool_result_async(CommandResponse* response, void* output, zval* r
  */
 int process_s_set_result_async(CommandResponse* response, void* output, zval* return_value) {
     if (!response) {
-        array_init(return_value);
+        ZVAL_NULL(return_value);
         return 0;
     }
 
@@ -539,8 +539,7 @@ int process_s_set_result_async(CommandResponse* response, void* output, zval* re
         return command_response_to_zval(
             response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
     }
-
-    array_init(return_value);
+    ZVAL_NULL(return_value);
     return 0;
 }
 
