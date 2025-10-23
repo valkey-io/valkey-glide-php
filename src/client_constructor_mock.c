@@ -49,6 +49,13 @@ static void build_php_connection_request(uint8_t*                               
         return;
     }
 
+    // DEBUG: Temporarily replace call_user_function with simple object creation
+    // to isolate whether leak is in our code or in protobuf object creation
+
+    // Option 1: Simple stdClass object
+    object_init(php_request);
+
+    /* ORIGINAL CODE - COMMENTED OUT FOR DEBUGGING
     zval buffer_param, callable, retval;
     ZVAL_UNDEF(&retval);
     ZVAL_STRINGL(&buffer_param, (char*) request_bytes, request_len);
@@ -66,6 +73,7 @@ static void build_php_connection_request(uint8_t*                               
     }
     zval_ptr_dtor(&callable);
     zval_ptr_dtor(&buffer_param);
+    */
 
     efree(request_bytes);
     valkey_glide_cleanup_client_config(base_config);
