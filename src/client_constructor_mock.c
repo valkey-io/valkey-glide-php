@@ -60,9 +60,10 @@ static void build_php_connection_request(uint8_t*                               
     add_next_index_string(&callable, "deserialize");
 
     if (call_user_function(NULL, NULL, &callable, &retval, 1, params) == SUCCESS) {
-        ZVAL_COPY(php_request, &retval);
+        ZVAL_COPY_VALUE(php_request, &retval);
+    } else {
+        zval_ptr_dtor(&retval);
     }
-    zval_ptr_dtor(&retval);
     zval_ptr_dtor(&callable);
     zval_ptr_dtor(&buffer_param);
 
