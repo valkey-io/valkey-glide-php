@@ -49,13 +49,6 @@ static void build_php_connection_request(uint8_t*                               
         return;
     }
 
-    // DEBUG: Temporarily replace call_user_function with simple object creation
-    // to isolate whether leak is in our code or in protobuf object creation
-
-    // Option 1: Simple stdClass object
-    object_init(php_request);
-
-    /* ORIGINAL CODE - COMMENTED OUT FOR DEBUGGING
     zval buffer_param, callable, retval;
     ZVAL_UNDEF(&retval);
     ZVAL_STRINGL(&buffer_param, (char*) request_bytes, request_len);
@@ -71,9 +64,9 @@ static void build_php_connection_request(uint8_t*                               
     } else {
         zval_ptr_dtor(&retval);
     }
+
     zval_ptr_dtor(&callable);
     zval_ptr_dtor(&buffer_param);
-    */
 
     efree(request_bytes);
     valkey_glide_cleanup_client_config(base_config);
@@ -129,9 +122,8 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     uint8_t* request_bytes = create_connection_request(
         "localhost", 6379, &protobuf_message_len, &client_config, 0, false);
 
-    zval php_request;
-    build_php_connection_request(request_bytes, protobuf_message_len, &client_config, &php_request);
-    RETURN_ZVAL(&php_request, 0, 1);
+    build_php_connection_request(request_bytes, protobuf_message_len, &client_config, return_value);
+    // RETURN_ZVAL(&php_request, 0, 1);
 }
 
 /* Simulates a ValkeyGlideCluster constructor */
@@ -185,8 +177,7 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
                                                        client_config.periodic_checks_status,
                                                        true);
 
-    zval php_request;
+
     build_php_connection_request(
-        request_bytes, protobuf_message_len, &client_config.base, &php_request);
-    RETURN_ZVAL(&php_request, 0, 1);
+        request_bytes, protobuf_message_len, &client_config.base, return_value);
 }
