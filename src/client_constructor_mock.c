@@ -37,14 +37,16 @@ void register_mock_constructor_class(void) {
     mock_constructor_ce = register_class_ClientConstructorMock();
 }
 
-static zval* build_php_connection_request(uint8_t*                                  request_bytes,
-                                          size_t                                    request_len,
-                                          valkey_glide_base_client_configuration_t* base_config) {
+static void build_php_connection_request(uint8_t*                                  request_bytes,
+                                         size_t                                    request_len,
+                                         valkey_glide_base_client_configuration_t* base_config,
+                                         zval*                                     php_request) {
     if (!request_bytes) {
         const char* error_message = "Protobuf memory allocation error.";
         zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
         valkey_glide_cleanup_client_config(base_config);
-        return NULL;
+        ZVAL_NULL(php_request);
+        return;
     }
 
     zval buffer_param, callable, retval;
@@ -57,23 +59,15 @@ static zval* build_php_connection_request(uint8_t*                              
     add_next_index_string(&callable, "ConnectionRequestTest");
     add_next_index_string(&callable, "deserialize");
 
-    zval* result = NULL;
     if (call_user_function(NULL, NULL, &callable, &retval, 1, params) == SUCCESS) {
-        // Allocate return value and transfer ownership without incrementing refcount
-        result = emalloc(sizeof(zval));
-        ZVAL_COPY_VALUE(result, &retval);
-        // Mark retval as undefined to prevent cleanup of the transferred value
-        ZVAL_UNDEF(&retval);
-    } else {
-        zval_ptr_dtor(&retval);
+        ZVAL_COPY(php_request, &retval);
     }
-
+    zval_ptr_dtor(&retval);
     zval_ptr_dtor(&callable);
     zval_ptr_dtor(&buffer_param);
 
     efree(request_bytes);
     valkey_glide_cleanup_client_config(base_config);
-    return result;
 }
 
 /*
@@ -126,9 +120,9 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     uint8_t* request_bytes = create_connection_request(
         "localhost", 6379, &protobuf_message_len, &client_config, 0, false);
 
-    zval* php_request =
-        build_php_connection_request(request_bytes, protobuf_message_len, &client_config);
-    RETURN_ZVAL(php_request, 0, 1);
+    zval php_request;
+    build_php_connection_request(request_bytes, protobuf_message_len, &client_config, &php_request);
+    RETURN_ZVAL(&php_request, 0, 1);
 }
 
 /* Simulates a ValkeyGlideCluster constructor */
@@ -182,7 +176,8 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
                                                        client_config.periodic_checks_status,
                                                        true);
 
-    zval* php_request =
-        build_php_connection_request(request_bytes, protobuf_message_len, &client_config.base);
-    RETURN_ZVAL(php_request, 0, 1);
+    zval php_request;
+    build_php_connection_request(
+        request_bytes, protobuf_message_len, &client_config.base, &php_request);
+    RETURN_ZVAL(&php_request, 0, 1);
 }

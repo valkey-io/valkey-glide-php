@@ -105,7 +105,9 @@
         "valkey_glide_hash_common.h": "c",
         "php_var.h": "c",
         "valkey_glide_z_common.h": "c",
-        "string": "c"
+        "string": "c",
+        "__locale": "c",
+        "ios": "c"
     },
     "php.validate.enable": true,
     "php.validate.executablePath": "/usr/bin/php",
