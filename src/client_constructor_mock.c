@@ -49,8 +49,7 @@ static void build_php_connection_request(uint8_t*                               
         return;
     }
 
-    zval buffer_param, callable, retval;
-    ZVAL_UNDEF(&retval);
+    zval buffer_param, callable;
     ZVAL_STRINGL(&buffer_param, (char*) request_bytes, request_len);
 
     zval params[1];
@@ -59,10 +58,8 @@ static void build_php_connection_request(uint8_t*                               
     add_next_index_string(&callable, "ConnectionRequestTest");
     add_next_index_string(&callable, "deserialize");
 
-    if (call_user_function(NULL, NULL, &callable, &retval, 1, params) == SUCCESS) {
-        ZVAL_COPY_VALUE(php_request, &retval);
-    } else {
-        zval_ptr_dtor(&retval);
+    if (call_user_function(NULL, NULL, &callable, php_request, 1, params) != SUCCESS) {
+        zval_ptr_dtor(php_request);
     }
 
     zval_ptr_dtor(&callable);
