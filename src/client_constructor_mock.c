@@ -59,13 +59,14 @@ static zval* build_php_connection_request(uint8_t*                              
 
     zval* result = NULL;
     if (call_user_function(NULL, NULL, &callable, &retval, 1, params) == SUCCESS) {
-        // Allocate return value
+        // Allocate return value and transfer ownership without incrementing refcount
         result = emalloc(sizeof(zval));
-        ZVAL_COPY(result, &retval);
+        ZVAL_COPY_VALUE(result, &retval);
+    } else {
+        zval_ptr_dtor(&retval);
     }
 
     zval_ptr_dtor(&callable);
-    zval_ptr_dtor(&retval);
     zval_ptr_dtor(&buffer_param);
 
     efree(request_bytes);
@@ -125,7 +126,7 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
 
     zval* php_request =
         build_php_connection_request(request_bytes, protobuf_message_len, &client_config);
-    RETURN_ZVAL(php_request, 1, 1);
+    RETURN_ZVAL(php_request, 0, 1);
 }
 
 /* Simulates a ValkeyGlideCluster constructor */
@@ -181,5 +182,5 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
 
     zval* php_request =
         build_php_connection_request(request_bytes, protobuf_message_len, &client_config.base);
-    RETURN_ZVAL(php_request, 1, 1);
+    RETURN_ZVAL(php_request, 0, 1);
 }
