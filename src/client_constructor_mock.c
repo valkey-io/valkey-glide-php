@@ -62,6 +62,8 @@ static zval* build_php_connection_request(uint8_t*                              
         // Allocate return value and transfer ownership without incrementing refcount
         result = emalloc(sizeof(zval));
         ZVAL_COPY_VALUE(result, &retval);
+        // Mark retval as undefined to prevent cleanup of the transferred value
+        ZVAL_UNDEF(&retval);
     } else {
         zval_ptr_dtor(&retval);
     }
