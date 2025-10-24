@@ -1147,6 +1147,7 @@ int process_info_result(CommandResponse* response, void* output, zval* return_va
             }
         }
         ZEND_HASH_FOREACH_END();
+        zval_ptr_dtor(&temp_result);
         return 1;
     }
     return 0;
@@ -1205,6 +1206,9 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
                                                      process_info_result);
 
         /* Free the argument arrays */
+        for (int i = 0; i < section_count; i++) {
+            efree((char*) (cmd_args[i]));
+        }
 
         if (cmd_args)
             efree(cmd_args);
@@ -1244,6 +1248,10 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
                                                 cmd_args_len,
                                                 &args[0]); /* Route parameter */
 
+        for (int i = 0; i < section_count; i++) {
+            efree((char*) (cmd_args[i]));
+        }
+
         /* Free the argument arrays */
         if (cmd_args)
             efree(cmd_args);
@@ -1263,6 +1271,9 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
         cmd_result = execute_command(
             valkey_glide->glide_client, Info, processed_args, cmd_args, cmd_args_len);
 
+        for (int i = 0; i < args_count; i++) {
+            efree((char*) (cmd_args[i]));
+        }
         /* Free the argument arrays */
         if (cmd_args)
             efree(cmd_args);
@@ -1515,13 +1526,9 @@ int execute_del_array(const void* glide_client,
 
     /* Create temporary zval array from HashTable */
     zval keys_array;
-    array_init(&keys_array);
-
-    zval* key;
-    ZEND_HASH_FOREACH_VAL(keys_hash, key) {
-        add_next_index_zval(&keys_array, key);
-    }
-    ZEND_HASH_FOREACH_END();
+    ZVAL_ARR(&keys_array, keys_hash);
+    /* Bump refcount so it stays alive while you pass it down */
+    GC_TRY_ADDREF(keys_hash);
 
     /* Use core framework with converted array */
     core_command_args_t args = {0};
@@ -1551,6 +1558,7 @@ int execute_del_array(const void* glide_client,
             free_command_result(cmd_result);
         }
     }
+    zval_ptr_dtor(&keys_array);
     free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
     return result;
 }
@@ -1606,13 +1614,8 @@ int execute_unlink_array(const void* glide_client,
 
     /* Create temporary zval array from HashTable */
     zval keys_array;
-    array_init(&keys_array);
-
-    zval* key;
-    ZEND_HASH_FOREACH_VAL(keys_hash, key) {
-        add_next_index_zval(&keys_array, key);
-    }
-    ZEND_HASH_FOREACH_END();
+    ZVAL_ARR(&keys_array, keys_hash);
+    GC_TRY_ADDREF(keys_hash);  // keep alive
 
     /* Use core framework with converted array */
     core_command_args_t args = {0};
@@ -1642,6 +1645,7 @@ int execute_unlink_array(const void* glide_client,
             free_command_result(cmd_result);
         }
     }
+    zval_ptr_dtor(&keys_array);
     free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
     return result;
 }
@@ -1982,8 +1986,8 @@ int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_e
 
     /* Prepare command arguments */
     unsigned long arg_count = 2; /* key1 + key2 */
-    uintptr_t
-        args[7]; /* Maximum 7 arguments: key1, key2, LEN, IDX, MINMATCHLEN, value, WITHMATCHLEN */
+    uintptr_t     args[7];       /* Maximum 7 arguments: key1, key2, LEN, IDX, MINMATCHLEN, value,
+                                    WITHMATCHLEN */
     unsigned long args_len[7];
 
     /* First argument: key1 */
@@ -2056,6 +2060,8 @@ int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_e
         arg_count++;
     }
 
+    char minmatchlen_str[32];
+
     /* Add MINMATCHLEN option if specified */
     if (has_minmatchlen) {
         args[arg_count]     = (uintptr_t) "MINMATCHLEN";
@@ -2064,12 +2070,11 @@ int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_e
 
         /* Add the minmatchlen value */
         size_t minmatchlen_len;
-        char*  minmatchlen_str = long_to_string(minmatchlen_value, &minmatchlen_len);
-        if (!minmatchlen_str) {
-            return 0;
-        }
-        args[arg_count]     = (uintptr_t) minmatchlen_str;
-        args_len[arg_count] = minmatchlen_len;
+        minmatchlen_len =
+            snprintf(minmatchlen_str, sizeof(minmatchlen_str), "%ld", minmatchlen_value);
+        minmatchlen_str[minmatchlen_len] = '\0';
+        args[arg_count]                  = (uintptr_t) minmatchlen_str;
+        args_len[arg_count]              = minmatchlen_len;
         arg_count++;
     }
 

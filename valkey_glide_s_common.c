@@ -528,7 +528,7 @@ int process_s_bool_result_async(CommandResponse* response, void* output, zval* r
  */
 int process_s_set_result_async(CommandResponse* response, void* output, zval* return_value) {
     if (!response) {
-        array_init(return_value);
+        ZVAL_NULL(return_value);
         return 0;
     }
 
@@ -539,8 +539,7 @@ int process_s_set_result_async(CommandResponse* response, void* output, zval* re
         return command_response_to_zval(
             response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
     }
-
-    array_init(return_value);
+    ZVAL_NULL(return_value);
     return 0;
 }
 
@@ -573,7 +572,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
 
     if (!response) {
         if (args->scan_iter) {
-            ZVAL_STRING(args->scan_iter, "0");
+            ZVAL_STRINGL(args->scan_iter, "0", 1);
             efree(args->cursor);
             efree(args);
         } else {
@@ -581,19 +580,19 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
             args->cursor = "0";
         }
 
-        array_init(return_value);
+        ZVAL_NULL(return_value);
         return 0;
     }
 
     if (response->response_type != Array || response->array_value_len < 2) {
         if (args->scan_iter) {
-            ZVAL_STRING(args->scan_iter, "0");
+            ZVAL_STRINGL(args->scan_iter, "0", 1);
             efree(args->cursor);
             efree(args);
         } else {
             args->cursor = "0";
         }
-        array_init(return_value);
+        ZVAL_NULL(return_value);
 
         return 0;
     }
@@ -607,13 +606,13 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
         /* Handle unexpected cursor type */
 
         if (args->scan_iter) {
-            ZVAL_STRING(args->scan_iter, "0");
+            ZVAL_STRINGL(args->scan_iter, "0", 1);
             efree(args->cursor);
             efree(args);
         } else {
             args->cursor = "0";
         }
-        array_init(return_value);
+        ZVAL_NULL(return_value);
         return 0;
     }
 
@@ -622,7 +621,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
     if (elements_resp->response_type != Array) {
         array_init(return_value);
         if (args->scan_iter) {
-            ZVAL_STRING(args->scan_iter, "0");
+            ZVAL_STRINGL(args->scan_iter, "0", 1);
             efree(args->cursor);
             efree(args);
         } else {
@@ -633,14 +632,6 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
     }
     /* Handle scan completion: when server returns cursor="0", scan is complete */
     if (cursor_resp->string_value_len == 1 && cursor_resp->string_value[0] == '0') {
-        /* Free old cursor and keep it as "0" to indicate completion */
-        if (args->cursor) {
-            efree(args->cursor);
-        }
-        args->cursor = emalloc(2);
-        strcpy(args->cursor, "0");
-
-
         /* If there are elements in this final batch, return them using robust conversion */
         if (elements_resp->array_value_len > 0) {
             status = command_response_to_zval(elements_resp,
@@ -650,9 +641,17 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
                                                   : COMMAND_RESPONSE_NOT_ASSOSIATIVE,
                                               false);
             if (args->scan_iter) {
-                ZVAL_STRING(args->scan_iter, args->cursor);
+                zval_ptr_dtor(args->scan_iter);
+                ZVAL_STRINGL(args->scan_iter, "0", 1);
                 efree(args->cursor);
                 efree(args);
+            } else {
+                /* Free old cursor and keep it as "0" to indicate completion */
+                if (args->cursor) {
+                    efree(args->cursor);
+                }
+                args->cursor = emalloc(2);
+                strcpy(args->cursor, "0");
             }
 
             return status;
@@ -661,11 +660,17 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
             /* No elements in final batch - return FALSE to terminate loop */
             array_init(return_value);
             if (args->scan_iter) {
-                ZVAL_STRING(args->scan_iter, "0");
+                zval_ptr_dtor(args->scan_iter);
+                ZVAL_STRINGL(args->scan_iter, "0", 1);
                 efree(args->cursor);
                 efree(args);
             } else {
-                args->cursor = "0";
+                /* Free old cursor and keep it as "0" to indicate completion */
+                if (args->cursor) {
+                    efree(args->cursor);
+                }
+                args->cursor = emalloc(2);
+                strcpy(args->cursor, "0");
             }
 
             return 1;
@@ -673,30 +678,38 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
     }
 
     /* Normal case: cursor != "0", update cursor string and return elements array */
-    if (args->cursor) {
-        efree(args->cursor);
-    }
-
-    /* Use length-controlled string copying to prevent reading beyond string boundary */
-    size_t cursor_len = cursor_resp->string_value_len;
-    args->cursor      = emalloc(cursor_len + 1);
-    memcpy(args->cursor, new_cursor_str, cursor_len);
-    (args->cursor)[cursor_len] = '\0';
-
-
-    /* Use command_response_to_zval for robust element processing */
-    status = command_response_to_zval(elements_resp,
-                                      return_value,
-                                      (args->cmd_type == HScan || args->cmd_type == ZScan)
-                                          ? COMMAND_RESPONSE_SCAN_ASSOSIATIVE_ARRAY
-                                          : COMMAND_RESPONSE_NOT_ASSOSIATIVE,
-                                      false);
     if (args->scan_iter) {
-        ZVAL_STRING(args->scan_iter, args->cursor);
+        /* For scan_iter mode, we'll update the zval directly and free everything */
+        status = command_response_to_zval(elements_resp,
+                                          return_value,
+                                          (args->cmd_type == HScan || args->cmd_type == ZScan)
+                                              ? COMMAND_RESPONSE_SCAN_ASSOSIATIVE_ARRAY
+                                              : COMMAND_RESPONSE_NOT_ASSOSIATIVE,
+                                          false);
+        zval_ptr_dtor(args->scan_iter);
+        ZVAL_STRINGL(args->scan_iter, new_cursor_str, cursor_resp->string_value_len);
         efree(args->cursor);
         efree(args);
-    }
+    } else {
+        /* For non-scan_iter mode, update the cursor pointer */
+        if (args->cursor) {
+            efree(args->cursor);
+        }
 
+        /* Use length-controlled string copying to prevent reading beyond string boundary */
+        size_t cursor_len = cursor_resp->string_value_len;
+        args->cursor      = emalloc(cursor_len + 1);
+        memcpy(args->cursor, new_cursor_str, cursor_len);
+        (args->cursor)[cursor_len] = '\0';
+
+        /* Use command_response_to_zval for robust element processing */
+        status = command_response_to_zval(elements_resp,
+                                          return_value,
+                                          (args->cmd_type == HScan || args->cmd_type == ZScan)
+                                              ? COMMAND_RESPONSE_SCAN_ASSOSIATIVE_ARRAY
+                                              : COMMAND_RESPONSE_NOT_ASSOSIATIVE,
+                                          false);
+    }
 
     return status;
 }

@@ -526,9 +526,6 @@ int execute_mget_command(zval* object, int argc, zval* return_value, zend_class_
         return 0;
     }
 
-    /* Execute the MGET command using the Glide client */
-    array_init(return_value);
-
     core_command_args_t args = {0};
     args.glide_client        = valkey_glide->glide_client;
     args.cmd_type            = MGet;
@@ -548,8 +545,6 @@ int execute_mget_command(zval* object, int argc, zval* return_value, zend_class_
         /* Command succeeded, return_value is already set */
         return 1;
     } else {
-        /* Command failed */
-        zval_dtor(return_value);
         return 0;
     }
 }

@@ -96,8 +96,6 @@ int process_list_string_result_async(CommandResponse* response, void* output, zv
  * Batch-compatible wrapper for array responses
  */
 int process_list_array_result_async(CommandResponse* response, void* output, zval* return_value) {
-    array_init(return_value);
-
     return command_response_to_zval(
         response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
 }

@@ -107,6 +107,7 @@ int execute_core_command(valkey_glide_object* valkey_glide,
             res = processor(result->response, result_ptr, return_value);
         } else {
             VALKEY_LOG_ERROR("execute_core_command", "Command execution returned no response");
+            efree(result_ptr);
             ZVAL_FALSE(return_value);
         }
 
@@ -114,6 +115,7 @@ int execute_core_command(valkey_glide_object* valkey_glide,
         free_command_result(result);
     } else {
         VALKEY_LOG_ERROR("execute_core_command", "Command execution failed - NULL result");
+        efree(result_ptr);
         ZVAL_FALSE(return_value);
     }
 
@@ -1587,6 +1589,7 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
         array_init(&temp_array);
 
         for (int i = 0; i < keys_count; i++) {
+            Z_TRY_ADDREF_P(&keys[i]);
             add_next_index_zval(&temp_array, &keys[i]);
         }
 
@@ -1605,6 +1608,8 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
             ZVAL_COPY(return_value, object); /* return_value should already contain $this */
         }
 
+
+        zval_ptr_dtor(&temp_array);
         return result;
     } else {
         /* Invalid input - neither single string, array, nor multiple strings */

@@ -1809,15 +1809,13 @@ int process_z_array_zrand_result(CommandResponse* response, void* output, zval* 
 
     if (Z_TYPE_P(return_value) == IS_STRING) {
         // Save the string temporarily
-        zval tmp;
-
-        ZVAL_COPY(&tmp, return_value);
+        zend_string* str = Z_STR_P(return_value);
 
         // Convert return_value to an array
         array_init(return_value);
 
         // Add the original string as the first element (index 0)
-        add_next_index_zval(return_value, &tmp);
+        add_next_index_str(return_value, str);
     }
 
     if (array_data->withscores && success && Z_TYPE_P(return_value) == IS_ARRAY) {

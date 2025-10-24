@@ -560,16 +560,13 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
                 }
             }
 
-            enum RequestType* output = emalloc(sizeof(enum RequestType));
-            *output                  = function_command_type;
-
             /* Buffer the command for batch execution */
             int buffer_result = buffer_command_for_batch(valkey_glide,
                                                          function_command_type,
                                                          batch_args,
                                                          arg_lengths,
                                                          final_arg_count,
-                                                         output,
+                                                         NULL,
                                                          process_function_command_reposonse);
 
             /* Free the argument arrays */
@@ -1262,6 +1259,7 @@ static int process_config_command_respose(CommandResponse* response,
             status = 0;
         }
     }
+    efree(output);
     return status;
 }
 
@@ -1451,8 +1449,8 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
         }
 
         if (valkey_glide->is_in_batch_mode) {
-            enum RequestType* output = emalloc(sizeof(enum RequestType));
-            *output                  = command_type;
+            enum RequestType* command_type_ptr = emalloc(sizeof(enum RequestType));
+            *command_type_ptr                  = command_type;
             /* In batch mode, buffer the command and return $this for method chaining */
             if (buffer_command_for_batch(valkey_glide,
                                          command_type,
@@ -1460,7 +1458,7 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
                                          args_len,
                                          arg_count,
 
-                                         output,
+                                         command_type_ptr,
                                          process_config_command_respose)) {
                 /* Return $this */
                 ZVAL_COPY(return_value, object);
@@ -1485,8 +1483,10 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
                 }
 
                 if (result->response) {
-                    status = process_config_command_respose(
-                        result->response, &command_type, return_value);
+                    enum RequestType* command_type_ptr = emalloc(sizeof(enum RequestType));
+                    *command_type_ptr                  = command_type;
+                    status                             = process_config_command_respose(
+                        result->response, command_type_ptr, return_value);
                 }
                 free_command_result(result);
             }

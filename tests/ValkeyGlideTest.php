@@ -966,7 +966,75 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals($now + 20, $this->valkey_glide->expiretime('key3'));
         $this->assertEquals($future_ms, $this->valkey_glide->pexpiretime('key3'));
 
-        $this->valkey_glide->del('key1', 'key2', 'key3');
+        // Test PEXPIRE with options (Redis 7.0+)
+
+        // PEXPIRE NX -- Set expiry only when the key has no expiry
+        $this->assertTrue($this->valkey_glide->set('pexpire_nx_key', 'value'));
+        $this->assertTrue($this->valkey_glide->pexpire('pexpire_nx_key', 10000, 'NX')); // Success - no expiry
+        $this->assertFalse($this->valkey_glide->pexpire('pexpire_nx_key', 15000, 'NX')); // Fail - has expiry
+
+        // PEXPIRE XX -- Set expiry only when the key has an existing expiry
+        $this->assertTrue($this->valkey_glide->set('pexpire_xx_key', 'value'));
+        $this->assertFalse($this->valkey_glide->pexpire('pexpire_xx_key', 10000, 'XX')); // Fail - no expiry
+        $this->assertTrue($this->valkey_glide->pexpire('pexpire_xx_key', 10000)); // Set initial expiry
+        $this->assertTrue($this->valkey_glide->pexpire('pexpire_xx_key', 15000, 'XX')); // Success - has expiry
+
+        // PEXPIRE GT -- Set expiry only when the new expiry is greater than current one
+        $this->assertTrue($this->valkey_glide->set('pexpire_gt_key', 'value'));
+        $this->assertTrue($this->valkey_glide->pexpire('pexpire_gt_key', 10000)); // Set initial expiry
+        $this->assertTrue($this->valkey_glide->pexpire('pexpire_gt_key', 15000, 'GT')); // Success - greater
+        $this->assertFalse($this->valkey_glide->pexpire('pexpire_gt_key', 12000, 'GT')); // Fail - not greater
+
+        // PEXPIRE LT -- Set expiry only when the new expiry is less than current one
+        $this->assertTrue($this->valkey_glide->set('pexpire_lt_key', 'value'));
+        $this->assertTrue($this->valkey_glide->pexpire('pexpire_lt_key', 15000)); // Set initial expiry
+        $this->assertTrue($this->valkey_glide->pexpire('pexpire_lt_key', 10000, 'LT')); // Success - less
+        $this->assertFalse($this->valkey_glide->pexpire('pexpire_lt_key', 12000, 'LT')); // Fail - not less
+
+        // Test PEXPIREAT with options (Redis 7.0+)
+        $now_ms = $now * 1000;
+
+        // PEXPIREAT NX -- Set expiry only when the key has no expiry
+        $this->assertTrue($this->valkey_glide->set('pexpireat_nx_key', 'value'));
+        $this->assertTrue($this->valkey_glide->pexpireat('pexpireat_nx_key', $now_ms + 10000, 'NX')); // Success - no expiry
+        $this->assertFalse($this->valkey_glide->pexpireat('pexpireat_nx_key', $now_ms + 15000, 'NX')); // Fail - has expiry
+
+        // PEXPIREAT XX -- Set expiry only when the key has an existing expiry
+        $this->assertTrue($this->valkey_glide->set('pexpireat_xx_key', 'value'));
+        $this->assertFalse($this->valkey_glide->pexpireat('pexpireat_xx_key', $now_ms + 10000, 'XX')); // Fail - no expiry
+        $this->assertTrue($this->valkey_glide->pexpireat('pexpireat_xx_key', $now_ms + 10000)); // Set initial expiry
+        $this->assertTrue($this->valkey_glide->pexpireat('pexpireat_xx_key', $now_ms + 15000, 'XX')); // Success - has expiry
+
+        // PEXPIREAT GT -- Set expiry only when the new expiry is greater than current one
+        $this->assertTrue($this->valkey_glide->set('pexpireat_gt_key', 'value'));
+        $this->assertTrue($this->valkey_glide->pexpireat('pexpireat_gt_key', $now_ms + 10000)); // Set initial expiry
+        $this->assertTrue($this->valkey_glide->pexpireat('pexpireat_gt_key', $now_ms + 15000, 'GT')); // Success - greater
+        $this->assertFalse($this->valkey_glide->pexpireat('pexpireat_gt_key', $now_ms + 12000, 'GT')); // Fail - not greater
+
+        // PEXPIREAT LT -- Set expiry only when the new expiry is less than current one
+        $this->assertTrue($this->valkey_glide->set('pexpireat_lt_key', 'value'));
+        $this->assertTrue($this->valkey_glide->pexpireat('pexpireat_lt_key', $now_ms + 15000)); // Set initial expiry
+        $this->assertTrue($this->valkey_glide->pexpireat('pexpireat_lt_key', $now_ms + 10000, 'LT')); // Success - less
+        $this->assertFalse($this->valkey_glide->pexpireat('pexpireat_lt_key', $now_ms + 12000, 'LT')); // Fail - not less
+
+        // Verify expiry times are set correctly with options
+        $this->assertBetween($this->valkey_glide->pexpiretime('pexpire_nx_key'), $now_ms + 8000, $now_ms + 12000);
+        $this->assertBetween($this->valkey_glide->pexpiretime('pexpireat_gt_key'), $now_ms + 12000, $now_ms + 16000);
+
+        // Clean up all test keys
+        $this->valkey_glide->del(
+            'key1',
+            'key2',
+            'key3',
+            'pexpire_nx_key',
+            'pexpire_xx_key',
+            'pexpire_gt_key',
+            'pexpire_lt_key',
+            'pexpireat_nx_key',
+            'pexpireat_xx_key',
+            'pexpireat_gt_key',
+            'pexpireat_lt_key'
+        );
     }
 
     public function testGetEx()
@@ -1687,7 +1755,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testMove()
     {
         // Version check if needed (move has been available since early Redis versions)
-
         $key1 = 'move_test_key1';
         $key2 = 'move_test_key2';
         $value1 = 'test_value1';
