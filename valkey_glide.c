@@ -199,6 +199,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
                 /* Invalid address format */
                 const char* error_message =
                     "Invalid address format. Expected array with 'host' and 'port' keys.";
+                VALKEY_LOG_ERROR("php_construct", error_message);
                 zend_throw_exception(valkey_glide_exception_ce, error_message, 0);
                 valkey_glide_cleanup_client_config(config);
                 return;
@@ -470,6 +471,7 @@ PHP_METHOD(ValkeyGlide, __construct) {
     if (!common_params.database_id_is_null) {
         if (common_params.database_id < 0) {
             const char* error_message = "Database ID must be non-negative.";
+            VALKEY_LOG_ERROR("php_construct", error_message);
             zend_throw_exception(valkey_glide_exception_ce, error_message, 0);
             return;
         }
@@ -479,6 +481,7 @@ PHP_METHOD(ValkeyGlide, __construct) {
     if (!common_params.addresses ||
         zend_hash_num_elements(Z_ARRVAL_P(common_params.addresses)) == 0) {
         const char* error_message = "Addresses array cannot be empty";
+        VALKEY_LOG_ERROR("php_construct", error_message);
         zend_throw_exception(valkey_glide_exception_ce, error_message, 0);
         return;
     }

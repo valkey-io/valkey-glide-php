@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "logger.h"
 #include "valkey_glide_z_common.h"
 
 /* ====================================================================
@@ -36,6 +37,7 @@ int execute_core_command(valkey_glide_object* valkey_glide,
                          z_result_processor_t processor,
                          zval*                return_value) {
     if (!valkey_glide || !args || !args->glide_client || !processor) {
+        VALKEY_LOG_ERROR("execute_core_command", "Invalid parameters provided");
         efree(result_ptr);
         return 0;
     }
@@ -55,6 +57,7 @@ int execute_core_command(valkey_glide_object* valkey_glide,
         prepare_core_args(args, &cmd_args, &cmd_args_len, &allocated_strings, &allocated_count);
 
     if (arg_count < 0) {
+        VALKEY_LOG_ERROR("execute_core_command", "Failed to prepare command arguments");
         efree(result_ptr);
         return 0;
     }
@@ -103,12 +106,14 @@ int execute_core_command(valkey_glide_object* valkey_glide,
             /* Non-routed commands use standard processor */
             res = processor(result->response, result_ptr, return_value);
         } else {
+            VALKEY_LOG_ERROR("execute_core_command", "Command execution returned no response");
             ZVAL_FALSE(return_value);
         }
 
         /* Free the result - handle_string_response doesn't free it */
         free_command_result(result);
     } else {
+        VALKEY_LOG_ERROR("execute_core_command", "Command execution failed - NULL result");
         ZVAL_FALSE(return_value);
     }
 

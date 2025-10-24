@@ -18,6 +18,7 @@
 #include "ext/standard/php_var.h"
 #include "include/glide/command_request.pb-c.h"
 #include "include/glide/response.pb-c.h"
+#include "logger.h"
 #include "include/glide_bindings.h"
 #include "valkey_glide_commands_common.h"
 
@@ -313,12 +314,12 @@ CommandResult* execute_command_with_route(const void*          glide_client,
 
     /* Validate result before returning */
     if (!result) {
-        printf("Error: Command execution returned NULL result\n");
+        VALKEY_LOG_ERROR("command_response", "Command execution returned NULL result");
     } else if (result->command_error) {
-        printf("Error: Command execution failed: %s\n",
+        VALKEY_LOG_ERROR("command_response", 
                result->command_error->command_error_message
                    ? result->command_error->command_error_message
-                   : "Unknown error");
+                   : "Unknown command error");
     }
 
     return result;
@@ -359,6 +360,7 @@ int handle_string_response(CommandResult* result, char** output, size_t* output_
 
     /* Check if there was an error */
     if (result->command_error) {
+        VALKEY_LOG_ERROR("command_response", "Command execution failed with error");
         return -1;
     }
 

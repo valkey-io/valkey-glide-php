@@ -7571,4 +7571,111 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals([['library_name' => 'mylib', 'engine' => 'LUA', 'functions' => [['name' => 'myfunc', 'description' => false,'flags' => []]]]], $this->valkey_glide->function('list'));
         $this->assertTrue($this->valkey_glide->function('delete', 'mylib'));
     }
+
+    public function testGetCommandWithLogging()
+    {
+        // Create unique log file for this test
+        $logFile = '/tmp/valkey_get_test_' . uniqid() . '.log';
+        
+        // Initialize logger with debug level for detailed test logging
+        $this->assertTrue(valkey_glide_logger_set_config("debug", $logFile));
+        $this->assertTrue(valkey_glide_logger_is_initialized());
+        
+        valkey_glide_logger_info("get-test", "=== Starting GET command test ===");
+        
+        // Test setup
+        $testKey = 'test-key-' . uniqid();
+        $testValue = 'test-value-' . uniqid();
+        
+        valkey_glide_logger_debug("get-test", "Test key: $testKey");
+        valkey_glide_logger_debug("get-test", "Test value: $testValue");
+        
+        // Set the key
+        valkey_glide_logger_info("get-test", "Setting key via SET command");
+        $setResult = $this->valkey_glide->set($testKey, $testValue);
+        valkey_glide_logger_debug("get-test", "SET result: " . ($setResult ? 'true' : 'false'));
+        $this->assertTrue($setResult);
+        
+        // Get the key
+        valkey_glide_logger_info("get-test", "Retrieving key via GET command");
+        $getValue = $this->valkey_glide->get($testKey);
+        valkey_glide_logger_debug("get-test", "GET result: " . ($getValue ?: 'null'));
+        
+        // Verify result
+        $this->assertEquals($testValue, $getValue);
+        valkey_glide_logger_info("get-test", "✓ GET command test passed - values match");
+        
+        // Test non-existent key
+        valkey_glide_logger_info("get-test", "Testing non-existent key");
+        $nonExistentKey = 'non-existent-key-' . uniqid();
+        valkey_glide_logger_debug("get-test", "Non-existent key: $nonExistentKey");
+        
+        $nonExistentResult = $this->valkey_glide->get($nonExistentKey);
+        valkey_glide_logger_debug("get-test", "Non-existent key result: " . ($nonExistentResult === false ? 'false' : $nonExistentResult));
+        
+        $this->assertFalse($nonExistentResult);
+        valkey_glide_logger_info("get-test", "✓ Non-existent key test passed");
+        
+        // Test with various data types
+        $testCases = [
+            'string' => 'hello world',
+            'number' => '12345',
+            'special' => 'émojis: 🚀 unicode: ñáéíóú'
+        ];
+        
+        foreach ($testCases as $type => $value) {
+            valkey_glide_logger_info("get-test", "Testing $type data type");
+            $key = "test-$type-" . uniqid();
+            
+            valkey_glide_logger_debug("get-test", "Setting $key = $value");
+            $this->assertTrue($this->valkey_glide->set($key, $value));
+            
+            $result = $this->valkey_glide->get($key);
+            valkey_glide_logger_debug("get-test", "Retrieved $key = $result");
+            
+            $this->assertEquals($value, $result);
+            valkey_glide_logger_info("get-test", "✓ $type test passed");
+            
+            // Clean up
+            $this->valkey_glide->del($key);
+        }
+        
+        // Clean up main test key
+        valkey_glide_logger_info("get-test", "Cleaning up test key");
+        $delResult = $this->valkey_glide->del($testKey);
+        valkey_glide_logger_debug("get-test", "DEL result: $delResult");
+        
+        valkey_glide_logger_info("get-test", "=== GET command test completed successfully ===");
+        valkey_glide_logger_info("get-test", "Log file location: $logFile");
+        
+        // Verify logging actually worked
+        sleep(1); // Wait for logs to be written
+        
+        // Check logger is initialized
+        $this->assertTrue(valkey_glide_logger_is_initialized(), "Logger should be initialized");
+        $this->assertEquals(3, valkey_glide_logger_get_level(), "Debug level should be 3");
+        
+        // Verify log file creation
+        $actualLogFiles = glob($logFile . '*');
+        $this->assertTrue(count($actualLogFiles) > 0, "Log file should be created");
+        
+        // Verify log content
+        $actualLogFile = $actualLogFiles[0];
+        $this->assertTrue(file_exists($actualLogFile), "Log file should exist");
+        
+        $logContent = file_get_contents($actualLogFile);
+        $this->assertTrue(!empty($logContent), "Log file should not be empty");
+        
+        // Verify specific log messages exist
+        $this->assertStringContains("=== Starting GET command test ===", $logContent, "Should contain test start message");
+        $this->assertStringContains("Setting key via SET command", $logContent, "Should contain SET operation log");
+        $this->assertStringContains("Retrieving key via GET command", $logContent, "Should contain GET operation log");
+        $this->assertStringContains("✓ GET command test passed - values match", $logContent, "Should contain success message");
+        $this->assertStringContains("get-test", $logContent, "Should contain test identifier");
+        
+        // Output log file location for verification
+        echo "\n=== LOG FILE LOCATION ===\n";
+        echo "Log file: $actualLogFile\n";
+        echo "========================\n";
+    }
 }

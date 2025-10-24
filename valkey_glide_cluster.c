@@ -12,6 +12,7 @@
 
 #include "common.h"
 #include "ext/standard/info.h"
+#include "logger.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_geo_common.h"
 #include "valkey_glide_hash_common.h" /* Include hash command framework */
@@ -60,6 +61,7 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     /* Validate database_id range early */
     if (!common_params.database_id_is_null && common_params.database_id < 0) {
         const char* error_message = "Database ID must be non-negative.";
+        VALKEY_LOG_ERROR("cluster_construct", error_message);
         zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
         return;
     }
@@ -80,9 +82,11 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     const ConnectionResponse* conn_resp = create_glide_cluster_client(&client_config);
 
     if (conn_resp->connection_error_message) {
+        VALKEY_LOG_ERROR("cluster_construct", conn_resp->connection_error_message);
         zend_throw_exception(
             get_valkey_glide_exception_ce(), conn_resp->connection_error_message, 0);
     } else {
+        VALKEY_LOG_INFO("cluster_construct", "ValkeyGlide cluster client created successfully");
         valkey_glide->glide_client = conn_resp->conn_ptr;
     }
 

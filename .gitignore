@@ -18,6 +18,11 @@ Cargo.lock
 *.pdb
 dump.rdb
 .env
+
+# Log files
+logs/
+*.log
+*.log.*
 python/.env*
 benchmarks/results
 
