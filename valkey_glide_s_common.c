@@ -576,7 +576,8 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
             efree(args->cursor);
             efree(args);
         } else {
-            printf("No response received in process_s_scan_result_async\n");
+            VALKEY_LOG_ERROR("scan_processing",
+                             "No response received in process_s_scan_result_async");
             args->cursor = "0";
         }
 

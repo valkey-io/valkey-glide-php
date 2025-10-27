@@ -37,10 +37,24 @@ int execute_core_command(valkey_glide_object* valkey_glide,
                          z_result_processor_t processor,
                          zval*                return_value) {
     if (!valkey_glide || !args || !args->glide_client || !processor) {
-        VALKEY_LOG_ERROR("execute_core_command", "Invalid parameters provided");
+        if (!valkey_glide) {
+            VALKEY_LOG_ERROR("parameter_validation", "ValkeyGlide object is NULL");
+        } else if (!args) {
+            VALKEY_LOG_ERROR("parameter_validation", "Command arguments are NULL");
+        } else if (!args->glide_client) {
+            VALKEY_LOG_ERROR("parameter_validation", "Client connection handle is NULL");
+        } else if (!processor) {
+            VALKEY_LOG_ERROR("parameter_validation", "Result processor is NULL");
+        }
         efree(result_ptr);
         return 0;
     }
+
+    /* Log command execution entry */
+    VALKEY_LOG_DEBUG("command_execution", "Entering command execution");
+    VALKEY_LOG_DEBUG("command_execution", "Command type: %d", args->cmd_type);
+    VALKEY_LOG_DEBUG(
+        "command_execution", "Batch mode: %s", valkey_glide->is_in_batch_mode ? "yes" : "no");
 
     uintptr_t*     cmd_args          = NULL;
     unsigned long* cmd_args_len      = NULL;
@@ -53,6 +67,7 @@ int execute_core_command(valkey_glide_object* valkey_glide,
     debug_print_core_args(args);
 
     /* Prepare command arguments based on command type */
+    VALKEY_LOG_DEBUG("command_execution", "Preparing command arguments");
     arg_count =
         prepare_core_args(args, &cmd_args, &cmd_args_len, &allocated_strings, &allocated_count);
 
@@ -62,10 +77,12 @@ int execute_core_command(valkey_glide_object* valkey_glide,
         return 0;
     }
 
+    VALKEY_LOG_DEBUG("command_execution", "Argument count: %d", arg_count);
+
     /* Check for batch mode */
     if (valkey_glide->is_in_batch_mode) {
         /* Create batch-compatible processor wrapper */
-
+        VALKEY_LOG_DEBUG("command_execution", "Entering batch mode execution");
 
         res = buffer_command_for_batch(valkey_glide,
                                        args->cmd_type,
@@ -78,14 +95,21 @@ int execute_core_command(valkey_glide_object* valkey_glide,
 
         free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
         if (res == 0) {
+            VALKEY_LOG_WARN("batch_execution",
+                            "Failed to buffer command for batch - command type: %d",
+                            args->cmd_type);
             efree(result_ptr);
+        } else {
+            VALKEY_LOG_DEBUG("batch_execution", "Command successfully buffered for batch");
         }
         return res;
     }
 
     /* Execute the command - use routing if cluster mode and route provided */
+    VALKEY_LOG_DEBUG("command_execution", "Executing command via FFI");
     if (args->has_route && args->route_param) {
         /* Cluster mode with routing */
+        VALKEY_LOG_DEBUG("command_execution", "Using cluster routing");
         result = execute_command_with_route(args->glide_client,
                                             args->cmd_type,
                                             arg_count,
@@ -101,6 +125,7 @@ int execute_core_command(valkey_glide_object* valkey_glide,
     debug_print_command_result(result);
 
     /* Process result using appropriate handler */
+    VALKEY_LOG_DEBUG("command_execution", "Processing command result");
     if (result) {
         if (result->response) {
             /* Non-routed commands use standard processor */
@@ -1133,9 +1158,20 @@ int process_core_type_result(CommandResponse* response, void* output, zval* retu
  * Allocate command argument arrays
  */
 int allocate_core_arg_arrays(int count, uintptr_t** args_out, unsigned long** args_len_out) {
-    *args_out     = (uintptr_t*) emalloc(count * sizeof(uintptr_t));
-    *args_len_out = (unsigned long*) emalloc(count * sizeof(unsigned long));
+    *args_out = (uintptr_t*) emalloc(count * sizeof(uintptr_t));
+    if (!*args_out) {
+        VALKEY_LOG_ERROR("memory_allocation",
+                         "Failed to allocate memory for command arguments array");
+        return 0;
+    }
 
+    *args_len_out = (unsigned long*) emalloc(count * sizeof(unsigned long));
+    if (!*args_len_out) {
+        VALKEY_LOG_ERROR("memory_allocation",
+                         "Failed to allocate memory for command arguments length array");
+        efree(*args_out);
+        return 0;
+    }
 
     return 1;
 }
@@ -1145,7 +1181,11 @@ int allocate_core_arg_arrays(int count, uintptr_t** args_out, unsigned long** ar
  * Create string tracker for memory management
  */
 char** create_string_tracker(int max_strings) {
-    return (char**) ecalloc(max_strings, sizeof(char*));
+    char** tracker = (char**) ecalloc(max_strings, sizeof(char*));
+    if (!tracker) {
+        VALKEY_LOG_ERROR("memory_allocation", "Failed to allocate memory for string tracker");
+    }
+    return tracker;
 }
 
 /**
@@ -1492,17 +1532,25 @@ int process_core_string_result(CommandResponse* response, void* output, zval* re
     if (response->response_type == String) {
         if (response->string_value_len == 0) {
             result = emalloc(1);
-            if (result) {
-                (result)[0] = '\0';
+            if (!result) {
+                VALKEY_LOG_ERROR("memory_allocation",
+                                 "Failed to allocate memory for empty string result");
+                ZVAL_NULL(return_value);
+                return 0;
             }
+            result[0]  = '\0';
             result_len = 0;
         } else {
             result = emalloc(response->string_value_len + 1);
-            if (result) {
-                memcpy(result, response->string_value, response->string_value_len);
-                (result)[response->string_value_len] = '\0';
+            if (!result) {
+                VALKEY_LOG_ERROR("memory_allocation",
+                                 "Failed to allocate memory for string result");
+                ZVAL_NULL(return_value);
+                return 0;
             }
-            result_len = response->string_value_len;
+            memcpy(result, response->string_value, response->string_value_len);
+            result[response->string_value_len] = '\0';
+            result_len                         = response->string_value_len;
         }
         if (result) {
             ZVAL_STRINGL(return_value, result, result_len);

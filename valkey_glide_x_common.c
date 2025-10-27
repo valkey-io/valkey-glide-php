@@ -420,7 +420,7 @@ int execute_x_generic_command(valkey_glide_object* valkey_glide,
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         default:
-            printf("Unknown command type: %d\n", cmd_type);
+            VALKEY_LOG_ERROR("command_processing", "Unknown command type: %d", cmd_type);
             return 0;
     }
 

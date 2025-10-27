@@ -163,7 +163,7 @@ uint8_t* create_route_bytes_from_route(cluster_route_t* route, size_t* route_byt
         case ROUTE_TYPE_KEY:
             /* Validate key data */
             if (!route->data.key_route.key || route->data.key_route.key_len == 0) {
-                printf("Error: Invalid key data for route\n");
+                VALKEY_LOG_ERROR("route_processing", "Invalid key data for route");
                 *route_bytes_len = 0;
                 return NULL;
             }
@@ -198,7 +198,7 @@ uint8_t* create_route_bytes_from_route(cluster_route_t* route, size_t* route_byt
 
         default:
             /* Unknown route type */
-            printf("Error: Unknown route type: %d\n", route->type);
+            VALKEY_LOG_ERROR("route_processing", "Unknown route type: %d", route->type);
             *route_bytes_len = 0;
             return NULL;
     }
@@ -206,14 +206,14 @@ uint8_t* create_route_bytes_from_route(cluster_route_t* route, size_t* route_byt
     /* Get serialized size and allocate buffer */
     *route_bytes_len = command_request__routes__get_packed_size(&routes);
     if (*route_bytes_len == 0) {
-        printf("Error: Failed to get packed size for route\n");
+        VALKEY_LOG_ERROR("route_processing", "Failed to get packed size for route");
         return NULL;
     }
 
     route_bytes = (uint8_t*) emalloc(*route_bytes_len);
 
     if (!route_bytes) {
-        printf("Error: Failed to allocate memory for route bytes\n");
+        VALKEY_LOG_ERROR("memory_allocation", "Failed to allocate memory for route bytes");
         *route_bytes_len = 0;
         return NULL;
     }
@@ -221,8 +221,10 @@ uint8_t* create_route_bytes_from_route(cluster_route_t* route, size_t* route_byt
     /* Serialize the routes */
     size_t packed_size = command_request__routes__pack(&routes, route_bytes);
     if (packed_size != *route_bytes_len) {
-        printf(
-            "Error: Packed size mismatch: expected %zu, got %zu\n", *route_bytes_len, packed_size);
+        VALKEY_LOG_ERROR("route_processing",
+                         "Packed size mismatch: expected %zu, got %zu",
+                         *route_bytes_len,
+                         packed_size);
         efree(route_bytes);
         *route_bytes_len = 0;
         return NULL;
@@ -241,7 +243,7 @@ CommandResult* execute_command_with_route(const void*          glide_client,
                                           zval*                arg_route) {
     /* Validate route parameter */
     if (!arg_route) {
-        printf("Error: arg_route is NULL\n");
+        VALKEY_LOG_ERROR("route_processing", "arg_route is NULL");
         return NULL;
     }
 
@@ -250,7 +252,7 @@ CommandResult* execute_command_with_route(const void*          glide_client,
     memset(&route, 0, sizeof(cluster_route_t));
     if (!parse_cluster_route(arg_route, &route)) {
         /* Failed to parse the route */
-        printf("Error: Failed to parse cluster route\n");
+        VALKEY_LOG_ERROR("route_processing", "Failed to parse cluster route");
         return NULL;
     }
 
@@ -258,7 +260,7 @@ CommandResult* execute_command_with_route(const void*          glide_client,
     size_t   route_bytes_len = 0;
     uint8_t* route_bytes     = create_route_bytes_from_route(&route, &route_bytes_len);
     if (!route_bytes) {
-        printf("Error: Failed to create route bytes\n");
+        VALKEY_LOG_ERROR("route_processing", "Failed to create route bytes");
         /* Free dynamically allocated key if needed before returning */
         if (route.type == ROUTE_TYPE_KEY && route.data.key_route.key_allocated) {
             efree(route.data.key_route.key);
@@ -268,24 +270,28 @@ CommandResult* execute_command_with_route(const void*          glide_client,
 
     /* Validate all parameters before FFI call */
     if (!glide_client) {
-        printf("ERROR: glide_client is NULL\n");
+        VALKEY_LOG_ERROR("parameter_validation", "glide_client is NULL");
         return NULL;
     }
 
     if (arg_count > 0) {
         if (!args) {
-            printf("ERROR: args is NULL but arg_count is %lu\n", arg_count);
+            VALKEY_LOG_ERROR(
+                "parameter_validation", "args is NULL but arg_count is %lu", arg_count);
             return NULL;
         }
         if (!args_len) {
-            printf("ERROR: args_len is NULL but arg_count is %lu\n", arg_count);
+            VALKEY_LOG_ERROR(
+                "parameter_validation", "args_len is NULL but arg_count is %lu", arg_count);
             return NULL;
         }
     }
 
     if (route_bytes_len > 0) {
         if (!route_bytes) {
-            printf("ERROR: route_bytes is NULL but route_bytes_len is %zu\n", route_bytes_len);
+            VALKEY_LOG_ERROR("parameter_validation",
+                             "route_bytes is NULL but route_bytes_len is %zu",
+                             route_bytes_len);
             return NULL;
         }
     }
@@ -434,7 +440,7 @@ int command_response_to_zval(CommandResponse* response,
     switch (response->response_type) {
         case Null:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-            printf("%s:%d - CommandResponse is NULL\n", __FILE__, __LINE__);
+            VALKEY_LOG_DEBUG("response_processing", "CommandResponse is NULL");
 #endif
             if (use_false_if_null) {
                 // printf("%s:%d - CommandResponse is converted to false\n", __FILE__, __LINE__);
@@ -446,52 +452,43 @@ int command_response_to_zval(CommandResponse* response,
             return 0;
         case Int:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-
-            printf(
-                "%s:%d - CommandResponse is Int: %ld\n", __FILE__, __LINE__, response->int_value);
+            VALKEY_LOG_DEBUG(
+                "response_processing", "CommandResponse is Int: %ld", response->int_value);
 #endif
             ZVAL_LONG(output, response->int_value);
             return 1;
         case Float:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
 
-            printf("%s:%d - CommandResponse is Float: %f\n",
-                   __FILE__,
-                   __LINE__,
-                   response->float_value);
+            VALKEY_LOG_DEBUG(
+                "response_processing", "CommandResponse is Float: %f", response->float_value);
 #endif
             ZVAL_DOUBLE(output, response->float_value);
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-
-            printf("%s:%d - Converted CommandResponse to double: %f\n",
-                   __FILE__,
-                   __LINE__,
-                   Z_DVAL_P(output));
+            VALKEY_LOG_DEBUG(
+                "response_processing", "Converted CommandResponse to double: %f", Z_DVAL_P(output));
 #endif
             return 1;
         case Bool:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-
-            printf(
-                "%s:%d - CommandResponse is Bool: %d\n", __FILE__, __LINE__, response->bool_value);
+            VALKEY_LOG_DEBUG(
+                "response_processing", "CommandResponse is Bool: %d", response->bool_value);
 #endif
             ZVAL_BOOL(output, response->bool_value);
             return 1;
         case String:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-
-            printf("%s:%d - CommandResponse is String with length: %ld\n",
-                   __FILE__,
-                   __LINE__,
-                   response->string_value_len);
+            VALKEY_LOG_DEBUG("response_processing",
+                             "CommandResponse is String with length: %ld",
+                             response->string_value_len);
 #endif
             ZVAL_STRINGL(output, response->string_value, response->string_value_len);
             return 1;
         case Array:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-
-            printf(
-                "%s:%d - CommandResponse is Array with length: %ld, use_associative_array = %d\n ",
+            VALKEY_LOG_DEBUG(
+                "response_processing",
+                "CommandResponse is Array with length: %ld, use_associative_array = %d",
                 __FILE__,
                 __LINE__,
                 response->array_value_len,
@@ -522,10 +519,9 @@ int command_response_to_zval(CommandResponse* response,
                 }
             } else if (use_associative_array == COMMAND_RESPONSE_ARRAY_ASSOCIATIVE) {
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-                printf("%s:%d - response->array_value[0]->command_response_type = %d\n ",
-                       __FILE__,
-                       __LINE__,
-                       response->array_value[0].response_type);
+                VALKEY_LOG_DEBUG("response_processing",
+                                 "response->array_value[0]->command_response_type = %d",
+                                 response->array_value[0].response_type);
 #endif
                 array_init(output);
                 for (int64_t i = 0; i < response->array_value_len; ++i) {
