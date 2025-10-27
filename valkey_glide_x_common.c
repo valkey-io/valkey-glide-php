@@ -419,9 +419,12 @@ int execute_x_generic_command(valkey_glide_object* valkey_glide,
             arg_count = prepare_x_info_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
-        default:
-            VALKEY_LOG_ERROR("command_processing", "Unknown command type: %d", cmd_type);
+        default: {
+            char error_msg[64];
+            snprintf(error_msg, sizeof(error_msg), "Unknown command type: %d", cmd_type);
+            VALKEY_LOG_ERROR("command_processing", error_msg);
             return 0;
+        }
     }
 
     /* Check if argument preparation was successful */

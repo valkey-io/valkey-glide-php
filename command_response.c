@@ -196,11 +196,14 @@ uint8_t* create_route_bytes_from_route(cluster_route_t* route, size_t* route_byt
             routes.simple_routes = simple_route;
             break;
 
-        default:
+        default: {
             /* Unknown route type */
-            VALKEY_LOG_ERROR("route_processing", "Unknown route type: %d", route->type);
+            char error_msg[64];
+            snprintf(error_msg, sizeof(error_msg), "Unknown route type: %d", route->type);
+            VALKEY_LOG_ERROR("route_processing", error_msg);
             *route_bytes_len = 0;
             return NULL;
+        }
     }
 
     /* Get serialized size and allocate buffer */
