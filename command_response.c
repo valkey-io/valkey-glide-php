@@ -18,8 +18,8 @@
 #include "ext/standard/php_var.h"
 #include "include/glide/command_request.pb-c.h"
 #include "include/glide/response.pb-c.h"
-#include "logger.h"
 #include "include/glide_bindings.h"
+#include "logger.h"
 #include "valkey_glide_commands_common.h"
 
 #define DEBUG_COMMAND_RESPONSE_TO_ZVAL 0
@@ -316,10 +316,10 @@ CommandResult* execute_command_with_route(const void*          glide_client,
     if (!result) {
         VALKEY_LOG_ERROR("command_response", "Command execution returned NULL result");
     } else if (result->command_error) {
-        VALKEY_LOG_ERROR("command_response", 
-               result->command_error->command_error_message
-                   ? result->command_error->command_error_message
-                   : "Unknown command error");
+        VALKEY_LOG_ERROR("command_response",
+                         result->command_error->command_error_message
+                             ? result->command_error->command_error_message
+                             : "Unknown command error");
     }
 
     return result;
