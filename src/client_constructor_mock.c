@@ -15,6 +15,7 @@
 
 #include "common.h"
 #include "ext/standard/info.h"
+#include "logger.h"
 #include "php.h"
 #include "zend_exceptions.h"
 
@@ -42,6 +43,7 @@ static zval* build_php_connection_request(uint8_t*                              
                                           valkey_glide_base_client_configuration_t* base_config) {
     if (!request_bytes) {
         const char* error_message = "Protobuf memory allocation error.";
+        VALKEY_LOG_ERROR("mock_construct", error_message);
         zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
         valkey_glide_cleanup_client_config(base_config);
         return NULL;
@@ -100,6 +102,7 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     if (!common_params.addresses ||
         zend_hash_num_elements(Z_ARRVAL_P(common_params.addresses)) == 0) {
         const char* error_message = "Addresses array cannot be empty";
+        VALKEY_LOG_ERROR("mock_construct", error_message);
         zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
         return;
     }
@@ -107,6 +110,7 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     /* Validate database_id range before setting */
     if (!common_params.database_id_is_null && common_params.database_id < 0) {
         const char* error_message = "Database ID must be non-negative.";
+        VALKEY_LOG_ERROR("mock_construct", error_message);
         zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
         return;
     }
@@ -154,6 +158,7 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
     /* Validate database_id range before setting */
     if (!common_params.database_id_is_null && common_params.database_id < 0) {
         const char* error_message = "Database ID must be non-negative.";
+        VALKEY_LOG_ERROR("mock_construct", error_message);
         zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
         return;
     }

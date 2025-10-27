@@ -19,6 +19,7 @@
 
 #include "command_response.h"
 #include "include/glide_bindings.h"
+#include "logger.h"
 #include "php.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
@@ -610,6 +611,7 @@ int execute_copy_command(zval* object, int argc, zval* return_value, zend_class_
                 if (Z_TYPE_P(val) == IS_LONG) {
                     zend_long db_id = Z_LVAL_P(val);
                     if (db_id < 0) {
+                        VALKEY_LOG_ERROR("command_validation", "Database ID must be non-negative");
                         zend_throw_exception(
                             get_valkey_glide_exception_ce(), "Database ID must be non-negative", 0);
                         return 0;
