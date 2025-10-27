@@ -16,6 +16,7 @@
 
 #include "valkey_glide_x_common.h"
 
+#include "logger.h"
 #include "valkey_glide_z_common.h"
 
 /* ====================================================================

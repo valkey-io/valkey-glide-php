@@ -334,10 +334,14 @@ CommandResult* execute_command_with_route(const void*          glide_client,
     if (!result) {
         VALKEY_LOG_ERROR("command_response", "Command execution returned NULL result");
     } else if (result->command_error) {
-        VALKEY_LOG_ERROR("command_response",
-                         result->command_error->command_error_message
-                             ? result->command_error->command_error_message
-                             : "Unknown command error");
+        char error_msg[256];
+        snprintf(error_msg,
+                 sizeof(error_msg),
+                 "Command execution failed: %s",
+                 result->command_error->command_error_message
+                     ? result->command_error->command_error_message
+                     : "Unknown command error");
+        VALKEY_LOG_ERROR("command_response", error_msg);
     }
 
     return result;
