@@ -18,6 +18,7 @@
 #include "cluster_scan_cursor.h"
 #include "command_response.h"
 #include "common.h"
+#include "logger.h"
 #include "valkey_glide_z_common.h"
 
 /* Import the string conversion functions from command_response.c */

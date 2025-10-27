@@ -224,10 +224,13 @@ uint8_t* create_route_bytes_from_route(cluster_route_t* route, size_t* route_byt
     /* Serialize the routes */
     size_t packed_size = command_request__routes__pack(&routes, route_bytes);
     if (packed_size != *route_bytes_len) {
-        VALKEY_LOG_ERROR("route_processing",
-                         "Packed size mismatch: expected %zu, got %zu",
-                         *route_bytes_len,
-                         packed_size);
+        char error_msg[128];
+        snprintf(error_msg,
+                 sizeof(error_msg),
+                 "Packed size mismatch: expected %zu, got %zu",
+                 *route_bytes_len,
+                 packed_size);
+        VALKEY_LOG_ERROR("route_processing", error_msg);
         efree(route_bytes);
         *route_bytes_len = 0;
         return NULL;
@@ -279,22 +282,28 @@ CommandResult* execute_command_with_route(const void*          glide_client,
 
     if (arg_count > 0) {
         if (!args) {
-            VALKEY_LOG_ERROR(
-                "parameter_validation", "args is NULL but arg_count is %lu", arg_count);
+            char error_msg[128];
+            snprintf(error_msg, sizeof(error_msg), "args is NULL but arg_count is %lu", arg_count);
+            VALKEY_LOG_ERROR("parameter_validation", error_msg);
             return NULL;
         }
         if (!args_len) {
-            VALKEY_LOG_ERROR(
-                "parameter_validation", "args_len is NULL but arg_count is %lu", arg_count);
+            char error_msg[128];
+            snprintf(
+                error_msg, sizeof(error_msg), "args_len is NULL but arg_count is %lu", arg_count);
+            VALKEY_LOG_ERROR("parameter_validation", error_msg);
             return NULL;
         }
     }
 
     if (route_bytes_len > 0) {
         if (!route_bytes) {
-            VALKEY_LOG_ERROR("parameter_validation",
-                             "route_bytes is NULL but route_bytes_len is %zu",
-                             route_bytes_len);
+            char error_msg[128];
+            snprintf(error_msg,
+                     sizeof(error_msg),
+                     "route_bytes is NULL but route_bytes_len is %zu",
+                     route_bytes_len);
+            VALKEY_LOG_ERROR("parameter_validation", error_msg);
             return NULL;
         }
     }

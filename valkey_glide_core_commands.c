@@ -24,6 +24,8 @@
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
 
+#include "logger.h"
+
 #include "command_response.h"
 #include "include/glide_bindings.h"
 #include "valkey_glide_commands_common.h"
