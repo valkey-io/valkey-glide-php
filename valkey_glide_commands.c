@@ -834,7 +834,6 @@ int execute_select_command(zval* object, int argc, zval* return_value, zend_clas
     /* SELECT cannot be used in batch mode */
     if (valkey_glide->is_in_batch_mode) {
         VALKEY_LOG_ERROR("batch_validation", "SELECT command cannot be used in batch mode");
-        printf("Error: SELECT command cannot be used in batch mode\n");
         return 0;
     }
 

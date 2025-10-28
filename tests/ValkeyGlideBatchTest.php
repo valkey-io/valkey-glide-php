@@ -3891,6 +3891,15 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testSelectFailsInBatchMode()
     {
         $key1 = 'batch_select_test_' . uniqid();
+        $logFile = '/tmp/valkey_select_batch_test.log';
+        
+        // Clean up any existing log file
+        if (file_exists($logFile)) {
+            unlink($logFile);
+        }
+        
+        // Configure logging to our test file
+        ValkeyGlide::setLoggerConfig(ValkeyGlide::LEVEL_ERROR, $logFile);
         
         // Verify SELECT works in normal mode
         $result = $this->valkey_glide->select(0);
@@ -3900,17 +3909,23 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->multi();
         $this->valkey_glide->set($key1, 'test_value');
         
-        // Capture output to check for error message
-        ob_start();
         $selectResult = $this->valkey_glide->select(1);
-        $output = ob_get_clean();
         
         $this->assertFalse($selectResult, 'SELECT should return false in batch mode');
-        $this->assertStringContains('Error: SELECT command cannot be used in batch mode', $output);
+        
+        // Check that error was logged
+        $this->assertTrue(file_exists($logFile), 'Log file should exist');
+        $logContent = file_get_contents($logFile);
+        $this->assertStringContains('SELECT command cannot be used in batch mode', $logContent);
         
         // Cancel the batch and cleanup
         $this->valkey_glide->discard();
         $this->valkey_glide->del($key1);
+        
+        // Clean up log file
+        if (file_exists($logFile)) {
+            unlink($logFile);
+        }
     }
 
     // ===================================================================
