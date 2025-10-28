@@ -3899,7 +3899,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         }
         
         // Configure logging to our test file
-        ValkeyGlide::setLoggerConfig(ValkeyGlide::LEVEL_ERROR, $logFile);
+        valkey_glide_logger_set_config('error', $logFile);
         
         // Verify SELECT works in normal mode
         $result = $this->valkey_glide->select(0);
