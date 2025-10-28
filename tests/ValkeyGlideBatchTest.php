@@ -3898,8 +3898,10 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
             unlink($logFile);
         }
         
-        // Configure logging to our test file
+        // Initialize and configure logging to our test file
+        $this->assertTrue(valkey_glide_logger_init(), 'Logger initialization should succeed');
         $this->assertTrue(valkey_glide_logger_set_config('error', $logFile), 'Logger configuration should succeed');
+        $this->assertTrue(valkey_glide_logger_is_initialized(), 'Logger should be initialized');
         
         // Verify SELECT works in normal mode
         $result = $this->valkey_glide->select(0);
