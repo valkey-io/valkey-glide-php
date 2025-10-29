@@ -69,16 +69,16 @@ typedef enum {
 } valkey_glide_service_type_t;
 
 typedef struct {
-    char*                         cluster_name;
-    char*                         region;
-    valkey_glide_service_type_t   service_type;
-    int                           refresh_interval_seconds; /* 0 means use default (300s) */
+    char*                       cluster_name;
+    char*                       region;
+    valkey_glide_service_type_t service_type;
+    int                         refresh_interval_seconds; /* 0 means use default (300s) */
 } valkey_glide_iam_config_t;
 
 typedef struct {
-    char*                       password;
-    char*                       username; /* Optional for password auth, REQUIRED for IAM */
-    valkey_glide_iam_config_t*  iam_config; /* NULL if using password auth */
+    char*                      password;
+    char*                      username;   /* Optional for password auth, REQUIRED for IAM */
+    valkey_glide_iam_config_t* iam_config; /* NULL if using password auth */
 } valkey_glide_server_credentials_t;
 
 /* Default values for connection configuration options. */
