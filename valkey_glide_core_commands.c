@@ -89,9 +89,26 @@ uint8_t* create_connection_request(const char*                               hos
 
     /* Set up authentication if provided */
     ConnectionRequest__AuthenticationInfo auth_info = CONNECTION_REQUEST__AUTHENTICATION_INFO__INIT;
+    ConnectionRequest__IamCredentials iam_creds = CONNECTION_REQUEST__IAM_CREDENTIALS__INIT;
+    
     if (config->credentials) {
-        auth_info.username           = (char*) config->credentials->username;
-        auth_info.password           = (char*) config->credentials->password;
+        auth_info.username = (char*) config->credentials->username;
+        auth_info.password = (char*) config->credentials->password;
+        
+        /* Set up IAM credentials if provided */
+        if (config->credentials->iam_config) {
+            iam_creds.cluster_name = (char*) config->credentials->iam_config->cluster_name;
+            iam_creds.region = (char*) config->credentials->iam_config->region;
+            iam_creds.service_type = (config->credentials->iam_config->service_type == VALKEY_GLIDE_SERVICE_TYPE_MEMORYDB)
+                ? CONNECTION_REQUEST__SERVICE_TYPE__MEMORYDB
+                : CONNECTION_REQUEST__SERVICE_TYPE__ELASTICACHE;
+            iam_creds.refresh_interval_seconds = config->credentials->iam_config->refresh_interval_seconds;
+            
+            auth_info.iam_credentials = &iam_creds;
+            /* Clear password when using IAM */
+            auth_info.password = (char*) protobuf_c_empty_string;
+        }
+        
         conn_req.authentication_info = &auth_info;
     }
 

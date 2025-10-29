@@ -130,7 +130,15 @@ class ValkeyGlideCluster
      *
      * @param array $addresses                  Array of server addresses [['host' => '127.0.0.1', 'port' => 7001], ...].
      * @param bool $use_tls                     Whether to use TLS encryption.
-     * @param array|null $credentials           Authentication credentials ['password' => 'xxx', 'username' => 'yyy'].
+     * @param array|null $credentials           Authentication credentials. Can be either:
+     *                                          - Password auth: ['password' => 'xxx', 'username' => 'yyy']
+     *                                          - IAM auth: ['username' => 'yyy', 'iamConfig' => [
+     *                                              'clusterName' => 'my-cluster',
+     *                                              'region' => 'us-east-1',
+     *                                              'service' => 'Elasticache', // or 'MemoryDB'
+     *                                              'refreshIntervalSeconds' => 300 // optional, defaults to 300
+     *                                            ]]
+     *                                          Note: username is REQUIRED for IAM authentication.
      * @param int $read_from                    Read strategy for the client.
      * @param int|null $request_timeout         Request timeout in milliseconds.
      * @param array|null $reconnect_strategy    Reconnection strategy ['num_of_retries' => 3, 'factor' => 2,
