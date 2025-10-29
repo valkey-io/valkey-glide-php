@@ -218,7 +218,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         HashTable* cred_ht = Z_ARRVAL_P(params->credentials);
 
         /* Allocate credentials structure */
-        config->credentials = ecalloc(1, sizeof(valkey_glide_server_credentials_t));
+        config->credentials             = ecalloc(1, sizeof(valkey_glide_server_credentials_t));
         config->credentials->iam_config = NULL;
 
         /* Check for username */
@@ -241,10 +241,10 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         zval* iam_config_val = zend_hash_str_find(cred_ht, "iamConfig", 9);
         if (iam_config_val && Z_TYPE_P(iam_config_val) == IS_ARRAY) {
             HashTable* iam_ht = Z_ARRVAL_P(iam_config_val);
-            
+
             /* Allocate IAM config structure */
             config->credentials->iam_config = ecalloc(1, sizeof(valkey_glide_iam_config_t));
-            
+
             /* Parse cluster_name (required) */
             zval* cluster_name_val = zend_hash_str_find(iam_ht, "clusterName", 11);
             if (cluster_name_val && Z_TYPE_P(cluster_name_val) == IS_STRING) {
@@ -252,7 +252,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             } else {
                 config->credentials->iam_config->cluster_name = NULL;
             }
-            
+
             /* Parse region (required) */
             zval* region_val = zend_hash_str_find(iam_ht, "region", 6);
             if (region_val && Z_TYPE_P(region_val) == IS_STRING) {
@@ -260,35 +260,39 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             } else {
                 config->credentials->iam_config->region = NULL;
             }
-            
+
             /* Parse service type (required) */
             zval* service_val = zend_hash_str_find(iam_ht, "service", 7);
             if (service_val && Z_TYPE_P(service_val) == IS_STRING) {
                 const char* service_str = Z_STRVAL_P(service_val);
                 if (strcasecmp(service_str, "MemoryDB") == 0) {
-                    config->credentials->iam_config->service_type = VALKEY_GLIDE_SERVICE_TYPE_MEMORYDB;
+                    config->credentials->iam_config->service_type =
+                        VALKEY_GLIDE_SERVICE_TYPE_MEMORYDB;
                 } else {
-                    config->credentials->iam_config->service_type = VALKEY_GLIDE_SERVICE_TYPE_ELASTICACHE;
+                    config->credentials->iam_config->service_type =
+                        VALKEY_GLIDE_SERVICE_TYPE_ELASTICACHE;
                 }
             } else {
-                config->credentials->iam_config->service_type = VALKEY_GLIDE_SERVICE_TYPE_ELASTICACHE;
+                config->credentials->iam_config->service_type =
+                    VALKEY_GLIDE_SERVICE_TYPE_ELASTICACHE;
             }
-            
+
             /* Parse refresh interval (optional, defaults to 300 seconds) */
             zval* refresh_val = zend_hash_str_find(iam_ht, "refreshIntervalSeconds", 22);
             if (refresh_val && Z_TYPE_P(refresh_val) == IS_LONG) {
                 config->credentials->iam_config->refresh_interval_seconds = Z_LVAL_P(refresh_val);
             } else {
-                config->credentials->iam_config->refresh_interval_seconds = 0; /* 0 means use default */
+                config->credentials->iam_config->refresh_interval_seconds =
+                    0; /* 0 means use default */
             }
-            
+
             /* Clear password when using IAM */
             config->credentials->password = NULL;
-            
+
             /* Validate that username is provided for IAM */
             if (!config->credentials->username) {
-                zend_throw_exception(get_valkey_glide_exception_ce(),
-                                   "IAM authentication requires a username", 0);
+                zend_throw_exception(
+                    get_valkey_glide_exception_ce(), "IAM authentication requires a username", 0);
             }
         }
     } else {
