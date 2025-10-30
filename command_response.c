@@ -382,7 +382,14 @@ int handle_string_response(CommandResult* result, char** output, size_t* output_
 
     /* Check if there was an error */
     if (result->command_error) {
-        VALKEY_LOG_ERROR("command_response", "Command execution failed with error");
+        char error_msg[256];
+        snprintf(error_msg,
+                 sizeof(error_msg),
+                 "Command execution failed with error: %s",
+                 result->command_error->command_error_message
+                     ? result->command_error->command_error_message
+                     : "Unknown error");
+        VALKEY_LOG_ERROR("command_response", error_msg);
         return -1;
     }
 
@@ -468,47 +475,60 @@ int command_response_to_zval(CommandResponse* response,
             return 0;
         case Int:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-            VALKEY_LOG_DEBUG(
-                "response_processing", "CommandResponse is Int: %ld", response->int_value);
+            char debug_msg[128];
+            snprintf(
+                debug_msg, sizeof(debug_msg), "CommandResponse is Int: %ld", response->int_value);
+            VALKEY_LOG_DEBUG("response_processing", debug_msg);
 #endif
             ZVAL_LONG(output, response->int_value);
             return 1;
         case Float:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-
-            VALKEY_LOG_DEBUG(
-                "response_processing", "CommandResponse is Float: %f", response->float_value);
+            char debug_msg[128];
+            snprintf(debug_msg,
+                     sizeof(debug_msg),
+                     "CommandResponse is Float: %f",
+                     response->float_value);
+            VALKEY_LOG_DEBUG("response_processing", debug_msg);
 #endif
             ZVAL_DOUBLE(output, response->float_value);
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-            VALKEY_LOG_DEBUG(
-                "response_processing", "Converted CommandResponse to double: %f", Z_DVAL_P(output));
+            snprintf(debug_msg,
+                     sizeof(debug_msg),
+                     "Converted CommandResponse to double: %f",
+                     Z_DVAL_P(output));
+            VALKEY_LOG_DEBUG("response_processing", debug_msg);
 #endif
             return 1;
         case Bool:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-            VALKEY_LOG_DEBUG(
-                "response_processing", "CommandResponse is Bool: %d", response->bool_value);
+            char debug_msg[128];
+            snprintf(
+                debug_msg, sizeof(debug_msg), "CommandResponse is Bool: %d", response->bool_value);
+            VALKEY_LOG_DEBUG("response_processing", debug_msg);
 #endif
             ZVAL_BOOL(output, response->bool_value);
             return 1;
         case String:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-            VALKEY_LOG_DEBUG("response_processing",
-                             "CommandResponse is String with length: %ld",
-                             response->string_value_len);
+            char debug_msg[128];
+            snprintf(debug_msg,
+                     sizeof(debug_msg),
+                     "CommandResponse is String with length: %ld",
+                     response->string_value_len);
+            VALKEY_LOG_DEBUG("response_processing", debug_msg);
 #endif
             ZVAL_STRINGL(output, response->string_value, response->string_value_len);
             return 1;
         case Array:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-            VALKEY_LOG_DEBUG(
-                "response_processing",
-                "CommandResponse is Array with length: %ld, use_associative_array = %d",
-                __FILE__,
-                __LINE__,
-                response->array_value_len,
-                use_associative_array);
+            char debug_msg[256];
+            snprintf(debug_msg,
+                     sizeof(debug_msg),
+                     "CommandResponse is Array with length: %ld, use_associative_array = %d",
+                     response->array_value_len,
+                     use_associative_array);
+            VALKEY_LOG_DEBUG("response_processing", debug_msg);
 #endif
 
             if (use_associative_array == COMMAND_RESPONSE_SCAN_ASSOSIATIVE_ARRAY) {
@@ -535,9 +555,12 @@ int command_response_to_zval(CommandResponse* response,
                 }
             } else if (use_associative_array == COMMAND_RESPONSE_ARRAY_ASSOCIATIVE) {
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-                VALKEY_LOG_DEBUG("response_processing",
-                                 "response->array_value[0]->command_response_type = %d",
-                                 response->array_value[0].response_type);
+                char debug_msg[128];
+                snprintf(debug_msg,
+                         sizeof(debug_msg),
+                         "response->array_value[0]->command_response_type = %d",
+                         response->array_value[0].response_type);
+                VALKEY_LOG_DEBUG("response_processing", debug_msg);
 #endif
                 array_init(output);
                 for (int64_t i = 0; i < response->array_value_len; ++i) {
