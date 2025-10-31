@@ -51,10 +51,10 @@ int execute_core_command(valkey_glide_object* valkey_glide,
     }
 
     /* Log command execution entry */
-    VALKEY_LOG_DEBUG("command_execution", "Entering command execution");
-    VALKEY_LOG_DEBUG_FMT("command_execution", "Command type: %d", args->cmd_type);
-    VALKEY_LOG_DEBUG_FMT(
-        "command_execution", "Batch mode: %s", valkey_glide->is_in_batch_mode ? "yes" : "no");
+    VALKEY_LOG_DEBUG_FMT("command_execution",
+                         "Entering command execution - Command type: %d, Batch mode: %s",
+                         args->cmd_type,
+                         valkey_glide->is_in_batch_mode ? "yes" : "no");
 
     uintptr_t*     cmd_args          = NULL;
     unsigned long* cmd_args_len      = NULL;
