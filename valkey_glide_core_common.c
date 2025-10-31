@@ -1693,26 +1693,30 @@ void debug_print_core_args(core_command_args_t* args) {
 
     VALKEY_LOG_DEBUG("debug_core_args", "Core Command Args:");
     VALKEY_LOG_DEBUG_FMT("debug_core_args", "  cmd_type: %d", args->cmd_type);
-    VALKEY_LOG_DEBUG_FMT("debug_core_args", "  key: %.*s (len: %zu)",
-           (int) args->key_len,
-           args->key ? args->key : "NULL",
-           args->key_len);
+    VALKEY_LOG_DEBUG_FMT("debug_core_args",
+                         "  key: %.*s (len: %zu)",
+                         (int) args->key_len,
+                         args->key ? args->key : "NULL",
+                         args->key_len);
     VALKEY_LOG_DEBUG_FMT("debug_core_args", "  arg_count: %d", args->arg_count);
 
     for (int i = 0; i < args->arg_count; i++) {
         VALKEY_LOG_DEBUG_FMT("debug_core_args", "  arg[%d]: type=%d", i, args->args[i].type);
         switch (args->args[i].type) {
             case CORE_ARG_TYPE_STRING:
-                VALKEY_LOG_DEBUG_FMT("debug_core_args", "    string: %.*s (len: %zu)",
-                       (int) args->args[i].data.string_arg.len,
-                       args->args[i].data.string_arg.value,
-                       args->args[i].data.string_arg.len);
+                VALKEY_LOG_DEBUG_FMT("debug_core_args",
+                                     "    string: %.*s (len: %zu)",
+                                     (int) args->args[i].data.string_arg.len,
+                                     args->args[i].data.string_arg.value,
+                                     args->args[i].data.string_arg.len);
                 break;
             case CORE_ARG_TYPE_LONG:
-                VALKEY_LOG_DEBUG_FMT("debug_core_args", "    long: %ld", args->args[i].data.long_arg.value);
+                VALKEY_LOG_DEBUG_FMT(
+                    "debug_core_args", "    long: %ld", args->args[i].data.long_arg.value);
                 break;
             case CORE_ARG_TYPE_DOUBLE:
-                VALKEY_LOG_DEBUG_FMT("debug_core_args", "    double: %f", args->args[i].data.double_arg.value);
+                VALKEY_LOG_DEBUG_FMT(
+                    "debug_core_args", "    double: %f", args->args[i].data.double_arg.value);
                 break;
             default:
                 VALKEY_LOG_DEBUG("debug_core_args", "    (other type)");
@@ -1720,10 +1724,11 @@ void debug_print_core_args(core_command_args_t* args) {
         }
     }
 
-    VALKEY_LOG_DEBUG_FMT("debug_core_args", "  options: has_expire=%d, nx=%d, xx=%d",
-           args->options.has_expire,
-           args->options.nx,
-           args->options.xx);
+    VALKEY_LOG_DEBUG_FMT("debug_core_args",
+                         "  options: has_expire=%d, nx=%d, xx=%d",
+                         args->options.has_expire,
+                         args->options.nx,
+                         args->options.xx);
 }
 
 void debug_print_command_result(CommandResult* result) {
@@ -1733,31 +1738,39 @@ void debug_print_command_result(CommandResult* result) {
     }
 
     VALKEY_LOG_DEBUG("debug_command_result", "CommandResult:");
-    VALKEY_LOG_DEBUG_FMT("debug_command_result", "  command_error: %s", result->command_error ? "YES" : "NO");
+    VALKEY_LOG_DEBUG_FMT(
+        "debug_command_result", "  command_error: %s", result->command_error ? "YES" : "NO");
     if (result->command_error) {
-        VALKEY_LOG_ERROR_FMT("debug_command_result", "  error_message: %s",
-               result->command_error->command_error_message
-                   ? result->command_error->command_error_message
-                   : "NULL");
+        VALKEY_LOG_ERROR_FMT("debug_command_result",
+                             "  error_message: %s",
+                             result->command_error->command_error_message
+                                 ? result->command_error->command_error_message
+                                 : "NULL");
     }
 
     if (result->response) {
-        VALKEY_LOG_DEBUG_FMT("debug_command_result", "  response_type: %d", result->response->response_type);
+        VALKEY_LOG_DEBUG_FMT(
+            "debug_command_result", "  response_type: %d", result->response->response_type);
         switch (result->response->response_type) {
             case Int:
-                VALKEY_LOG_DEBUG_FMT("debug_command_result", "  int_value: %ld", result->response->int_value);
+                VALKEY_LOG_DEBUG_FMT(
+                    "debug_command_result", "  int_value: %ld", result->response->int_value);
                 break;
             case String:
-                VALKEY_LOG_DEBUG_FMT("debug_command_result", "  string_value: %.*s (len: %ld)",
-                       (int) result->response->string_value_len,
-                       result->response->string_value,
-                       result->response->string_value_len);
+                VALKEY_LOG_DEBUG_FMT("debug_command_result",
+                                     "  string_value: %.*s (len: %ld)",
+                                     (int) result->response->string_value_len,
+                                     result->response->string_value,
+                                     result->response->string_value_len);
                 break;
             case Bool:
-                VALKEY_LOG_DEBUG_FMT("debug_command_result", "  bool_value: %s", result->response->bool_value ? "true" : "false");
+                VALKEY_LOG_DEBUG_FMT("debug_command_result",
+                                     "  bool_value: %s",
+                                     result->response->bool_value ? "true" : "false");
                 break;
             case Float:
-                VALKEY_LOG_DEBUG_FMT("debug_command_result", "  float_value: %f", result->response->float_value);
+                VALKEY_LOG_DEBUG_FMT(
+                    "debug_command_result", "  float_value: %f", result->response->float_value);
                 break;
             default:
                 VALKEY_LOG_DEBUG("debug_command_result", "  (other response type)");
