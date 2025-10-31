@@ -89,6 +89,14 @@ typedef struct {
 
 #define VALKEY_GLIDE_DEFAULT_CONNECTION_TIMEOUT 250
 
+/* IAM Authentication Constants */
+#define VALKEY_GLIDE_IAM_SERVICE_ELASTICACHE "Elasticache"
+#define VALKEY_GLIDE_IAM_SERVICE_MEMORYDB "MemoryDB"
+#define VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME "clusterName"
+#define VALKEY_GLIDE_IAM_CONFIG_REGION "region"
+#define VALKEY_GLIDE_IAM_CONFIG_SERVICE "service"
+#define VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL "refreshIntervalSeconds"
+
 
 typedef struct {
     int num_of_retries;

@@ -250,7 +250,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             config->credentials->iam_config = ecalloc(1, sizeof(valkey_glide_iam_config_t));
 
             /* Parse cluster_name (required) */
-            zval* cluster_name_val = zend_hash_str_find(iam_ht, "clusterName", 11);
+            zval* cluster_name_val = zend_hash_str_find(iam_ht, VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME, strlen(VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME));
             if (cluster_name_val && Z_TYPE_P(cluster_name_val) == IS_STRING) {
                 config->credentials->iam_config->cluster_name = Z_STRVAL_P(cluster_name_val);
             } else {
@@ -258,7 +258,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             }
 
             /* Parse region (required) */
-            zval* region_val = zend_hash_str_find(iam_ht, "region", 6);
+            zval* region_val = zend_hash_str_find(iam_ht, VALKEY_GLIDE_IAM_CONFIG_REGION, strlen(VALKEY_GLIDE_IAM_CONFIG_REGION));
             if (region_val && Z_TYPE_P(region_val) == IS_STRING) {
                 config->credentials->iam_config->region = Z_STRVAL_P(region_val);
             } else {
@@ -266,10 +266,10 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             }
 
             /* Parse service type (required) */
-            zval* service_val = zend_hash_str_find(iam_ht, "service", 7);
+            zval* service_val = zend_hash_str_find(iam_ht, VALKEY_GLIDE_IAM_CONFIG_SERVICE, strlen(VALKEY_GLIDE_IAM_CONFIG_SERVICE));
             if (service_val && Z_TYPE_P(service_val) == IS_STRING) {
                 const char* service_str = Z_STRVAL_P(service_val);
-                if (strcasecmp(service_str, "MemoryDB") == 0) {
+                if (strcasecmp(service_str, VALKEY_GLIDE_IAM_SERVICE_MEMORYDB) == 0) {
                     config->credentials->iam_config->service_type =
                         VALKEY_GLIDE_SERVICE_TYPE_MEMORYDB;
                 } else {
@@ -282,7 +282,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             }
 
             /* Parse refresh interval (optional, defaults to 300 seconds) */
-            zval* refresh_val = zend_hash_str_find(iam_ht, "refreshIntervalSeconds", 22);
+            zval* refresh_val = zend_hash_str_find(iam_ht, VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL, strlen(VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL));
             if (refresh_val && Z_TYPE_P(refresh_val) == IS_LONG) {
                 config->credentials->iam_config->refresh_interval_seconds = Z_LVAL_P(refresh_val);
             } else {
