@@ -1687,40 +1687,40 @@ int execute_multi_key_command(valkey_glide_object* valkey_glide,
 #ifdef DEBUG_VALKEY_GLIDE_PHP
 void debug_print_core_args(core_command_args_t* args) {
     if (!args) {
-        printf("DEBUG: core_args is NULL\n");
+        VALKEY_LOG_ERROR("debug_core_args", "core_args is NULL");
         return;
     }
 
-    printf("DEBUG: Core Command Args:\n");
-    printf("  cmd_type: %d\n", args->cmd_type);
-    printf("  key: %.*s (len: %zu)\n",
+    VALKEY_LOG_DEBUG("debug_core_args", "Core Command Args:");
+    VALKEY_LOG_DEBUG_FMT("debug_core_args", "  cmd_type: %d", args->cmd_type);
+    VALKEY_LOG_DEBUG_FMT("debug_core_args", "  key: %.*s (len: %zu)",
            (int) args->key_len,
            args->key ? args->key : "NULL",
            args->key_len);
-    printf("  arg_count: %d\n", args->arg_count);
+    VALKEY_LOG_DEBUG_FMT("debug_core_args", "  arg_count: %d", args->arg_count);
 
     for (int i = 0; i < args->arg_count; i++) {
-        printf("  arg[%d]: type=%d\n", i, args->args[i].type);
+        VALKEY_LOG_DEBUG_FMT("debug_core_args", "  arg[%d]: type=%d", i, args->args[i].type);
         switch (args->args[i].type) {
             case CORE_ARG_TYPE_STRING:
-                printf("    string: %.*s (len: %zu)\n",
+                VALKEY_LOG_DEBUG_FMT("debug_core_args", "    string: %.*s (len: %zu)",
                        (int) args->args[i].data.string_arg.len,
                        args->args[i].data.string_arg.value,
                        args->args[i].data.string_arg.len);
                 break;
             case CORE_ARG_TYPE_LONG:
-                printf("    long: %ld\n", args->args[i].data.long_arg.value);
+                VALKEY_LOG_DEBUG_FMT("debug_core_args", "    long: %ld", args->args[i].data.long_arg.value);
                 break;
             case CORE_ARG_TYPE_DOUBLE:
-                printf("    double: %f\n", args->args[i].data.double_arg.value);
+                VALKEY_LOG_DEBUG_FMT("debug_core_args", "    double: %f", args->args[i].data.double_arg.value);
                 break;
             default:
-                printf("    (other type)\n");
+                VALKEY_LOG_DEBUG("debug_core_args", "    (other type)");
                 break;
         }
     }
 
-    printf("  options: has_expire=%d, nx=%d, xx=%d\n",
+    VALKEY_LOG_DEBUG_FMT("debug_core_args", "  options: has_expire=%d, nx=%d, xx=%d",
            args->options.has_expire,
            args->options.nx,
            args->options.xx);
@@ -1728,43 +1728,43 @@ void debug_print_core_args(core_command_args_t* args) {
 
 void debug_print_command_result(CommandResult* result) {
     if (!result) {
-        printf("DEBUG: CommandResult is NULL\n");
+        VALKEY_LOG_ERROR("debug_command_result", "CommandResult is NULL");
         return;
     }
 
-    printf("DEBUG: CommandResult:\n");
-    printf("  command_error: %s\n", result->command_error ? "YES" : "NO");
+    VALKEY_LOG_DEBUG("debug_command_result", "CommandResult:");
+    VALKEY_LOG_DEBUG_FMT("debug_command_result", "  command_error: %s", result->command_error ? "YES" : "NO");
     if (result->command_error) {
-        printf("  error_message: %s\n",
+        VALKEY_LOG_ERROR_FMT("debug_command_result", "  error_message: %s",
                result->command_error->command_error_message
                    ? result->command_error->command_error_message
                    : "NULL");
     }
 
     if (result->response) {
-        printf("  response_type: %d\n", result->response->response_type);
+        VALKEY_LOG_DEBUG_FMT("debug_command_result", "  response_type: %d", result->response->response_type);
         switch (result->response->response_type) {
             case Int:
-                printf("  int_value: %ld\n", result->response->int_value);
+                VALKEY_LOG_DEBUG_FMT("debug_command_result", "  int_value: %ld", result->response->int_value);
                 break;
             case String:
-                printf("  string_value: %.*s (len: %ld)\n",
+                VALKEY_LOG_DEBUG_FMT("debug_command_result", "  string_value: %.*s (len: %ld)",
                        (int) result->response->string_value_len,
                        result->response->string_value,
                        result->response->string_value_len);
                 break;
             case Bool:
-                printf("  bool_value: %s\n", result->response->bool_value ? "true" : "false");
+                VALKEY_LOG_DEBUG_FMT("debug_command_result", "  bool_value: %s", result->response->bool_value ? "true" : "false");
                 break;
             case Float:
-                printf("  float_value: %f\n", result->response->float_value);
+                VALKEY_LOG_DEBUG_FMT("debug_command_result", "  float_value: %f", result->response->float_value);
                 break;
             default:
-                printf("  (other response type)\n");
+                VALKEY_LOG_DEBUG("debug_command_result", "  (other response type)");
                 break;
         }
     } else {
-        printf("  response: NULL\n");
+        VALKEY_LOG_DEBUG("debug_command_result", "  response: NULL");
     }
 }
 #endif
