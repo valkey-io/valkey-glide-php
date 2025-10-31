@@ -113,6 +113,46 @@ class ValkeyGlideCluster
      */
     public const TIME_UNIT_TIMESTAMP_MILLISECONDS = "PXAT"; // Expire at timestamp (milliseconds)
 
+    /**
+     * IAM Authentication Constants
+     */
+    
+    /**
+     * @var string
+     * IAM service type for AWS ElastiCache
+     */
+    public const IAM_SERVICE_ELASTICACHE = 'Elasticache';
+
+    /**
+     * @var string
+     * IAM service type for AWS MemoryDB
+     */
+    public const IAM_SERVICE_MEMORYDB = 'MemoryDB';
+
+    /**
+     * @var string
+     * IAM config key for cluster name
+     */
+    public const IAM_CONFIG_CLUSTER_NAME = 'clusterName';
+
+    /**
+     * @var string
+     * IAM config key for AWS region
+     */
+    public const IAM_CONFIG_REGION = 'region';
+
+    /**
+     * @var string
+     * IAM config key for service type
+     */
+    public const IAM_CONFIG_SERVICE = 'service';
+
+    /**
+     * @var string
+     * IAM config key for token refresh interval in seconds
+     */
+    public const IAM_CONFIG_REFRESH_INTERVAL = 'refreshIntervalSeconds';
+
                     /**
                    *  @var int
          * Enables the periodic checks with the default configurations.
@@ -130,7 +170,15 @@ class ValkeyGlideCluster
      *
      * @param array $addresses                  Array of server addresses [['host' => '127.0.0.1', 'port' => 7001], ...].
      * @param bool $use_tls                     Whether to use TLS encryption.
-     * @param array|null $credentials           Authentication credentials ['password' => 'xxx', 'username' => 'yyy'].
+     * @param array|null $credentials           Authentication credentials. Can be either:
+     *                                          - Password auth: ['password' => 'xxx', 'username' => 'yyy']
+     *                                          - IAM auth: ['username' => 'yyy', 'iamConfig' => [
+     *                                              ValkeyGlide::IAM_CONFIG_CLUSTER_NAME => 'my-cluster',
+     *                                              ValkeyGlide::IAM_CONFIG_REGION => 'us-east-1',
+     *                                              ValkeyGlide::IAM_CONFIG_SERVICE => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
+     *                                              ValkeyGlide::IAM_CONFIG_REFRESH_INTERVAL => 300 // optional, defaults to 300
+     *                                            ]]
+     *                                          Note: username is REQUIRED for IAM authentication.
      * @param int $read_from                    Read strategy for the client.
      * @param int|null $request_timeout         Request timeout in milliseconds.
      * @param array|null $reconnect_strategy    Reconnection strategy ['num_of_retries' => 3, 'factor' => 2,

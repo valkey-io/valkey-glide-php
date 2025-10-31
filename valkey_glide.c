@@ -40,6 +40,7 @@ zend_class_entry* valkey_glide_ce;
 zend_class_entry* valkey_glide_exception_ce;
 
 zend_class_entry* valkey_glide_cluster_ce;
+zend_class_entry* valkey_glide_cluster_exception_ce;
 
 /* Handlers for ValkeyGlideCluster */
 zend_object_handlers valkey_glide_cluster_object_handlers;
@@ -55,6 +56,10 @@ zend_class_entry* get_valkey_glide_exception_ce(void) {
 
 zend_class_entry* get_valkey_glide_cluster_ce(void) {
     return valkey_glide_cluster_ce;
+}
+
+zend_class_entry* get_valkey_glide_cluster_exception_ce(void) {
+    return valkey_glide_cluster_exception_ce;
 }
 void free_valkey_glide_object(zend_object* object);
 void free_valkey_glide_cluster_object(zend_object* object);
@@ -200,7 +205,8 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
                 const char* error_message =
                     "Invalid address format. Expected array with 'host' and 'port' keys.";
                 VALKEY_LOG_ERROR("php_construct", error_message);
-                zend_throw_exception(valkey_glide_exception_ce, error_message, 0);
+                zend_throw_exception(
+                    get_exception_ce_for_client_type(is_cluster), error_message, 0);
                 valkey_glide_cleanup_client_config(config);
                 return;
             }
@@ -219,7 +225,8 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         HashTable* cred_ht = Z_ARRVAL_P(params->credentials);
 
         /* Allocate credentials structure */
-        config->credentials = ecalloc(1, sizeof(valkey_glide_server_credentials_t));
+        config->credentials             = ecalloc(1, sizeof(valkey_glide_server_credentials_t));
+        config->credentials->iam_config = NULL;
 
         /* Check for username */
         zval* username_val = zend_hash_str_find(cred_ht, "username", 8);
@@ -235,6 +242,74 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             config->credentials->password = Z_STRVAL_P(password_val);
         } else {
             config->credentials->password = NULL;
+        }
+
+        /* Check for IAM config (mutually exclusive with password) */
+        zval* iam_config_val = zend_hash_str_find(cred_ht, "iamConfig", 9);
+        if (iam_config_val && Z_TYPE_P(iam_config_val) == IS_ARRAY) {
+            HashTable* iam_ht = Z_ARRVAL_P(iam_config_val);
+
+            /* Allocate IAM config structure */
+            config->credentials->iam_config = ecalloc(1, sizeof(valkey_glide_iam_config_t));
+
+            /* Parse cluster_name (required) */
+            zval* cluster_name_val =
+                zend_hash_str_find(iam_ht,
+                                   VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME,
+                                   strlen(VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME));
+            if (cluster_name_val && Z_TYPE_P(cluster_name_val) == IS_STRING) {
+                config->credentials->iam_config->cluster_name = Z_STRVAL_P(cluster_name_val);
+            } else {
+                config->credentials->iam_config->cluster_name = NULL;
+            }
+
+            /* Parse region (required) */
+            zval* region_val = zend_hash_str_find(
+                iam_ht, VALKEY_GLIDE_IAM_CONFIG_REGION, strlen(VALKEY_GLIDE_IAM_CONFIG_REGION));
+            if (region_val && Z_TYPE_P(region_val) == IS_STRING) {
+                config->credentials->iam_config->region = Z_STRVAL_P(region_val);
+            } else {
+                config->credentials->iam_config->region = NULL;
+            }
+
+            /* Parse service type (required) */
+            zval* service_val = zend_hash_str_find(
+                iam_ht, VALKEY_GLIDE_IAM_CONFIG_SERVICE, strlen(VALKEY_GLIDE_IAM_CONFIG_SERVICE));
+            if (service_val && Z_TYPE_P(service_val) == IS_STRING) {
+                const char* service_str = Z_STRVAL_P(service_val);
+                if (strcasecmp(service_str, VALKEY_GLIDE_IAM_SERVICE_MEMORYDB) == 0) {
+                    config->credentials->iam_config->service_type =
+                        VALKEY_GLIDE_SERVICE_TYPE_MEMORYDB;
+                } else {
+                    config->credentials->iam_config->service_type =
+                        VALKEY_GLIDE_SERVICE_TYPE_ELASTICACHE;
+                }
+            } else {
+                config->credentials->iam_config->service_type =
+                    VALKEY_GLIDE_SERVICE_TYPE_ELASTICACHE;
+            }
+
+            /* Parse refresh interval (optional, defaults to 300 seconds) */
+            zval* refresh_val =
+                zend_hash_str_find(iam_ht,
+                                   VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL,
+                                   strlen(VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL));
+            if (refresh_val && Z_TYPE_P(refresh_val) == IS_LONG) {
+                config->credentials->iam_config->refresh_interval_seconds = Z_LVAL_P(refresh_val);
+            } else {
+                config->credentials->iam_config->refresh_interval_seconds =
+                    0; /* 0 means use default */
+            }
+
+            /* Clear password when using IAM */
+            config->credentials->password = NULL;
+
+            /* Validate that username is provided for IAM */
+            if (!config->credentials->username) {
+                zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                                     "IAM authentication requires a username",
+                                     0);
+            }
         }
     } else {
         config->credentials = NULL;
@@ -359,6 +434,14 @@ PHP_MINIT_FUNCTION(valkey_glide) {
         return FAILURE;
     }
 
+    /* ValkeyGlideClusterException class */
+    valkey_glide_cluster_exception_ce =
+        register_class_ValkeyGlideClusterException(spl_ce_RuntimeException);
+    if (!valkey_glide_cluster_exception_ce) {
+        php_error_docref(NULL, E_ERROR, "Failed to register ValkeyGlideClusterException class");
+        return FAILURE;
+    }
+
     /* Set object creation handlers */
     if (valkey_glide_ce) {
         valkey_glide_ce->create_object = create_valkey_glide_object;
@@ -409,6 +492,10 @@ void valkey_glide_cleanup_client_config(valkey_glide_base_client_configuration_t
     }
 
     if (config->credentials) {
+        if (config->credentials->iam_config) {
+            efree(config->credentials->iam_config);
+            config->credentials->iam_config = NULL;
+        }
         efree(config->credentials);
         config->credentials = NULL;
     }

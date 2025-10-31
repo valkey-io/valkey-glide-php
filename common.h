@@ -63,9 +63,22 @@ typedef struct {
     int   port;
 } valkey_glide_node_address_t;
 
+typedef enum {
+    VALKEY_GLIDE_SERVICE_TYPE_ELASTICACHE = 0,
+    VALKEY_GLIDE_SERVICE_TYPE_MEMORYDB    = 1
+} valkey_glide_service_type_t;
+
 typedef struct {
-    char* password;
-    char* username; /* Optional */
+    char*                       cluster_name;
+    char*                       region;
+    valkey_glide_service_type_t service_type;
+    int                         refresh_interval_seconds; /* 0 means use default (300s) */
+} valkey_glide_iam_config_t;
+
+typedef struct {
+    char*                      password;
+    char*                      username;   /* Optional for password auth, REQUIRED for IAM */
+    valkey_glide_iam_config_t* iam_config; /* NULL if using password auth */
 } valkey_glide_server_credentials_t;
 
 /* Default values for connection configuration options. */
@@ -75,6 +88,14 @@ typedef struct {
 #define VALKEY_GLIDE_DEFAULT_JITTER_PERCENTAGE 20
 
 #define VALKEY_GLIDE_DEFAULT_CONNECTION_TIMEOUT 250
+
+/* IAM Authentication Constants */
+#define VALKEY_GLIDE_IAM_SERVICE_ELASTICACHE "Elasticache"
+#define VALKEY_GLIDE_IAM_SERVICE_MEMORYDB "MemoryDB"
+#define VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME "clusterName"
+#define VALKEY_GLIDE_IAM_CONFIG_REGION "region"
+#define VALKEY_GLIDE_IAM_CONFIG_SERVICE "service"
+#define VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL "refreshIntervalSeconds"
 
 
 typedef struct {
@@ -218,5 +239,10 @@ zend_class_entry* get_valkey_glide_exception_ce(void);
 
 zend_class_entry* get_valkey_glide_cluster_ce(void);
 zend_class_entry* get_valkey_glide_cluster_exception_ce(void);
+
+/* Helper function to get the appropriate exception class based on client type */
+static inline zend_class_entry* get_exception_ce_for_client_type(bool is_cluster) {
+    return is_cluster ? get_valkey_glide_cluster_exception_ce() : get_valkey_glide_exception_ce();
+}
 
 #endif  // VALKEY_GLIDE
