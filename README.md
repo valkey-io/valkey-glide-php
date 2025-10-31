@@ -255,6 +255,41 @@ try {
 ?>
 ```
 
+### AWS ElastiCache/MemoryDB with IAM Authentication:
+
+```php
+<?php
+try {
+    // Create client with IAM authentication for AWS ElastiCache
+    $client = new ValkeyGlide(
+        addresses: [
+            ['host' => 'my-cluster.xxxxx.use1.cache.amazonaws.com', 'port' => 6379]
+        ],
+        use_tls: true,  // REQUIRED for IAM authentication
+        credentials: [
+            'username' => 'my-iam-user',  // REQUIRED for IAM
+            'iamConfig' => [
+                ValkeyGlide::IAM_CONFIG_CLUSTER_NAME => 'my-cluster',
+                ValkeyGlide::IAM_CONFIG_REGION => 'us-east-1',
+                ValkeyGlide::IAM_CONFIG_SERVICE => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
+                ValkeyGlide::IAM_CONFIG_REFRESH_INTERVAL => 300  // Optional, defaults to 300 seconds
+            ]
+        ]
+    );
+    
+    // Use the client normally - IAM tokens are managed automatically
+    $client->set('key', 'value');
+    $value = $client->get('key');
+    echo "Value: " . $value . "\n";
+    
+    $client->close();
+    
+} catch (Exception $e) {
+    echo "Error: " . $e->getMessage() . "\n";
+}
+?>
+```
+
 ### Cluster Valkey:
 
 ```php

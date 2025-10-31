@@ -56,6 +56,10 @@ zend_class_entry* get_valkey_glide_exception_ce(void) {
 zend_class_entry* get_valkey_glide_cluster_ce(void) {
     return valkey_glide_cluster_ce;
 }
+
+zend_class_entry* get_valkey_glide_cluster_exception_ce(void) {
+    return valkey_glide_cluster_exception_ce;
+}
 void free_valkey_glide_object(zend_object* object);
 void free_valkey_glide_cluster_object(zend_object* object);
 PHP_METHOD(ValkeyGlide, __construct);
@@ -199,7 +203,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
                 /* Invalid address format */
                 const char* error_message =
                     "Invalid address format. Expected array with 'host' and 'port' keys.";
-                zend_throw_exception(valkey_glide_exception_ce, error_message, 0);
+                zend_throw_exception(get_exception_ce_for_client_type(is_cluster), error_message, 0);
                 valkey_glide_cleanup_client_config(config);
                 return;
             }
@@ -292,7 +296,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             /* Validate that username is provided for IAM */
             if (!config->credentials->username) {
                 zend_throw_exception(
-                    get_valkey_glide_exception_ce(), "IAM authentication requires a username", 0);
+                    get_exception_ce_for_client_type(is_cluster), "IAM authentication requires a username", 0);
             }
         }
     } else {

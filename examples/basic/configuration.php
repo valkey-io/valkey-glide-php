@@ -193,6 +193,71 @@ try {
 echo "\n";
 
 // =============================================================================
+// IAM AUTHENTICATION (AWS ElastiCache/MemoryDB)
+// =============================================================================
+echo "☁️  IAM Authentication Configuration (AWS):\n";
+echo "-------------------------------------------\n";
+
+// IAM authentication for AWS ElastiCache
+echo "Creating client with IAM authentication for ElastiCache...\n";
+try {
+    $iamClient = new ValkeyGlide(
+        [['host' => 'my-cluster.xxxxx.use1.cache.amazonaws.com', 'port' => 6379]],
+        true,                     // use_tls (REQUIRED for IAM)
+        [                         // credentials
+            'username' => 'my-iam-user',  // REQUIRED for IAM
+            'iamConfig' => [
+                ValkeyGlide::IAM_CONFIG_CLUSTER_NAME => 'my-cluster',
+                ValkeyGlide::IAM_CONFIG_REGION => 'us-east-1',
+                ValkeyGlide::IAM_CONFIG_SERVICE => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
+                ValkeyGlide::IAM_CONFIG_REFRESH_INTERVAL => 300  // Optional
+            ]
+        ],
+        0,                        // read_from
+        5000                      // request_timeout
+    );
+
+    echo "✅ IAM ElastiCache client created\n";
+    $iamClient->ping();
+    $iamClient->close();
+} catch (Exception $e) {
+    echo "❌ IAM ElastiCache authentication failed (expected if not on AWS): " . $e->getMessage() . "\n";
+}
+
+// IAM authentication for AWS MemoryDB
+echo "Creating client with IAM authentication for MemoryDB...\n";
+try {
+    $memorydbClient = new ValkeyGlide(
+        [['host' => 'clustercfg.my-memorydb.xxxxx.memorydb.us-east-1.amazonaws.com', 'port' => 6379]],
+        true,                     // use_tls (REQUIRED for IAM)
+        [                         // credentials
+            'username' => 'my-iam-user',
+            'iamConfig' => [
+                ValkeyGlide::IAM_CONFIG_CLUSTER_NAME => 'my-memorydb',
+                ValkeyGlide::IAM_CONFIG_REGION => 'us-east-1',
+                ValkeyGlide::IAM_CONFIG_SERVICE => ValkeyGlide::IAM_SERVICE_MEMORYDB,
+                ValkeyGlide::IAM_CONFIG_REFRESH_INTERVAL => 120  // Refresh every 2 minutes
+            ]
+        ]
+    );
+
+    echo "✅ IAM MemoryDB client created\n";
+    $memorydbClient->ping();
+    $memorydbClient->close();
+} catch (Exception $e) {
+    echo "❌ IAM MemoryDB authentication failed (expected if not on AWS): " . $e->getMessage() . "\n";
+}
+
+echo "\nℹ️  IAM Authentication Notes:\n";
+echo "  - Requires TLS to be enabled (use_tls: true)\n";
+echo "  - Username is REQUIRED for IAM authentication\n";
+echo "  - AWS credentials must be configured (IAM role, env vars, or credentials file)\n";
+echo "  - Tokens are automatically refreshed in the background\n";
+echo "  - Default refresh interval is 300 seconds (5 minutes)\n";
+echo "  - IAM permissions required: elasticache:Connect or memorydb:Connect\n";
+echo "\n";
+
+// =============================================================================
 // TLS CONFIGURATION
 // =============================================================================
 echo "🔒 TLS Configuration:\n";
@@ -393,9 +458,10 @@ echo "1. Use environment variables for deployment flexibility\n";
 echo "2. Set appropriate timeouts based on your network latency\n";
 echo "3. Configure reconnection strategy based on your availability needs\n";
 echo "4. Use TLS in production environments\n";
-echo "5. Set client names for easier debugging and monitoring\n";
-echo "6. Consider read preferences when using replicas\n";
-echo "7. Limit in-flight requests to prevent memory issues\n";
-echo "8. Use lazy connection for applications with conditional Redis usage\n";
+echo "5. Use IAM authentication for AWS ElastiCache/MemoryDB (more secure than passwords)\n";
+echo "6. Set client names for easier debugging and monitoring\n";
+echo "7. Consider read preferences when using replicas\n";
+echo "8. Limit in-flight requests to prevent memory issues\n";
+echo "9. Use lazy connection for applications with conditional Redis usage\n";
 
 echo "\n✅ Configuration examples completed!\n";
