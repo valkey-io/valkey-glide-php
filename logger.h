@@ -185,6 +185,8 @@ void valkey_glide_c_log_trace(const char* identifier, const char* message);
             snprintf(error_msg, needed_size, format, __VA_ARGS__);      \
             VALKEY_LOG_ERROR(category, error_msg);                      \
             efree(error_msg);                                           \
+        } else {                                                        \
+            VALKEY_LOG_ERROR(category, "Failed to allocate memory for error message"); \
         }                                                               \
     } while (0)
 
@@ -200,6 +202,8 @@ void valkey_glide_c_log_trace(const char* identifier, const char* message);
             snprintf(warn_msg, needed_size, format, __VA_ARGS__);       \
             VALKEY_LOG_WARN(category, warn_msg);                        \
             efree(warn_msg);                                            \
+        } else {                                                        \
+            VALKEY_LOG_ERROR(category, "Failed to allocate memory for warning message"); \
         }                                                               \
     } while (0)
 
