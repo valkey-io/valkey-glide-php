@@ -3927,17 +3927,20 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         
         // Verify log content
         $actualLogFile = $actualLogFiles[0];
-        $this->assertTrue(file_exists($actualLogFile), 'Log file should exist');
         
-        $logContent = file_get_contents($actualLogFile);
-        $this->assertTrue(!empty($logContent), 'Log file should not be empty');
-        
-        // Verify the error message exists in the log
-        $this->assertStringContains('SELECT command cannot be used in batch mode', $logContent, 'Should contain SELECT batch mode error message');
-        
-        // Clean up log file
-        if (file_exists($actualLogFile)) {
-            unlink($actualLogFile);
+        try {
+            $this->assertTrue(file_exists($actualLogFile), 'Log file should exist');
+            
+            $logContent = file_get_contents($actualLogFile);
+            $this->assertTrue(!empty($logContent), 'Log file should not be empty');
+            
+            // Verify the error message exists in the log
+            $this->assertStringContains('SELECT command cannot be used in batch mode', $logContent, 'Should contain SELECT batch mode error message');
+        } finally {
+            // Clean up log file
+            if (file_exists($actualLogFile)) {
+                unlink($actualLogFile);
+            }
         }
     }
 
