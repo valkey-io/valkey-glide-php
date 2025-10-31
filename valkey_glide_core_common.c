@@ -109,12 +109,9 @@ int execute_core_command(valkey_glide_object* valkey_glide,
 
         free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
         if (res == 0) {
-            char batch_error_msg[128];
-            snprintf(batch_error_msg,
-                     sizeof(batch_error_msg),
-                     "Failed to buffer command for batch - command type: %d",
-                     args->cmd_type);
-            VALKEY_LOG_WARN("batch_execution", batch_error_msg);
+            VALKEY_LOG_WARN_FMT("batch_execution",
+                                "Failed to buffer command for batch - command type: %d",
+                                args->cmd_type);
             efree(result_ptr);
         } else {
             VALKEY_LOG_DEBUG("batch_execution", "Command successfully buffered for batch");

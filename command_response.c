@@ -198,9 +198,7 @@ uint8_t* create_route_bytes_from_route(cluster_route_t* route, size_t* route_byt
 
         default: {
             /* Unknown route type */
-            char error_msg[64];
-            snprintf(error_msg, sizeof(error_msg), "Unknown route type: %d", route->type);
-            VALKEY_LOG_ERROR("route_processing", error_msg);
+            VALKEY_LOG_ERROR_FMT("route_processing", "Unknown route type: %d", route->type);
             *route_bytes_len = 0;
             return NULL;
         }
@@ -224,13 +222,10 @@ uint8_t* create_route_bytes_from_route(cluster_route_t* route, size_t* route_byt
     /* Serialize the routes */
     size_t packed_size = command_request__routes__pack(&routes, route_bytes);
     if (packed_size != *route_bytes_len) {
-        char error_msg[128];
-        snprintf(error_msg,
-                 sizeof(error_msg),
-                 "Packed size mismatch: expected %zu, got %zu",
-                 *route_bytes_len,
-                 packed_size);
-        VALKEY_LOG_ERROR("route_processing", error_msg);
+        VALKEY_LOG_ERROR_FMT("route_processing",
+                             "Packed size mismatch: expected %zu, got %zu",
+                             *route_bytes_len,
+                             packed_size);
         efree(route_bytes);
         *route_bytes_len = 0;
         return NULL;
@@ -282,28 +277,22 @@ CommandResult* execute_command_with_route(const void*          glide_client,
 
     if (arg_count > 0) {
         if (!args) {
-            char error_msg[128];
-            snprintf(error_msg, sizeof(error_msg), "args is NULL but arg_count is %lu", arg_count);
-            VALKEY_LOG_ERROR("parameter_validation", error_msg);
+            VALKEY_LOG_ERROR_FMT(
+                "parameter_validation", "args is NULL but arg_count is %lu", arg_count);
             return NULL;
         }
         if (!args_len) {
-            char error_msg[128];
-            snprintf(
-                error_msg, sizeof(error_msg), "args_len is NULL but arg_count is %lu", arg_count);
-            VALKEY_LOG_ERROR("parameter_validation", error_msg);
+            VALKEY_LOG_ERROR_FMT(
+                "parameter_validation", "args_len is NULL but arg_count is %lu", arg_count);
             return NULL;
         }
     }
 
     if (route_bytes_len > 0) {
         if (!route_bytes) {
-            char error_msg[128];
-            snprintf(error_msg,
-                     sizeof(error_msg),
-                     "route_bytes is NULL but route_bytes_len is %zu",
-                     route_bytes_len);
-            VALKEY_LOG_ERROR("parameter_validation", error_msg);
+            VALKEY_LOG_ERROR_FMT("parameter_validation",
+                                 "route_bytes is NULL but route_bytes_len is %zu",
+                                 route_bytes_len);
             return NULL;
         }
     }
@@ -334,14 +323,11 @@ CommandResult* execute_command_with_route(const void*          glide_client,
     if (!result) {
         VALKEY_LOG_ERROR("command_response", "Command execution returned NULL result");
     } else if (result->command_error) {
-        char error_msg[256];
-        snprintf(error_msg,
-                 sizeof(error_msg),
-                 "Command execution failed: %s",
-                 result->command_error->command_error_message
-                     ? result->command_error->command_error_message
-                     : "Unknown command error");
-        VALKEY_LOG_ERROR("command_response", error_msg);
+        VALKEY_LOG_ERROR_FMT("command_response",
+                             "Command execution failed: %s",
+                             result->command_error->command_error_message
+                                 ? result->command_error->command_error_message
+                                 : "Unknown command error");
     }
 
     return result;
@@ -382,14 +368,11 @@ int handle_string_response(CommandResult* result, char** output, size_t* output_
 
     /* Check if there was an error */
     if (result->command_error) {
-        char error_msg[256];
-        snprintf(error_msg,
-                 sizeof(error_msg),
-                 "Command execution failed with error: %s",
-                 result->command_error->command_error_message
-                     ? result->command_error->command_error_message
-                     : "Unknown error");
-        VALKEY_LOG_ERROR("command_response", error_msg);
+        VALKEY_LOG_ERROR_FMT("command_response",
+                             "Command execution failed with error: %s",
+                             result->command_error->command_error_message
+                                 ? result->command_error->command_error_message
+                                 : "Unknown error");
         return -1;
     }
 
@@ -475,60 +458,44 @@ int command_response_to_zval(CommandResponse* response,
             return 0;
         case Int:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-            char debug_msg[128];
-            snprintf(
-                debug_msg, sizeof(debug_msg), "CommandResponse is Int: %ld", response->int_value);
-            VALKEY_LOG_DEBUG("response_processing", debug_msg);
+            VALKEY_LOG_DEBUG_FMT(
+                "response_processing", "CommandResponse is Int: %ld", response->int_value);
 #endif
             ZVAL_LONG(output, response->int_value);
             return 1;
         case Float:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-            char debug_msg[128];
-            snprintf(debug_msg,
-                     sizeof(debug_msg),
-                     "CommandResponse is Float: %f",
-                     response->float_value);
-            VALKEY_LOG_DEBUG("response_processing", debug_msg);
+            VALKEY_LOG_DEBUG_FMT(
+                "response_processing", "CommandResponse is Float: %f", response->float_value);
 #endif
             ZVAL_DOUBLE(output, response->float_value);
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-            snprintf(debug_msg,
-                     sizeof(debug_msg),
-                     "Converted CommandResponse to double: %f",
-                     Z_DVAL_P(output));
-            VALKEY_LOG_DEBUG("response_processing", debug_msg);
+            VALKEY_LOG_DEBUG_FMT(
+                "response_processing", "Converted CommandResponse to double: %f", Z_DVAL_P(output));
 #endif
             return 1;
         case Bool:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-            char debug_msg[128];
-            snprintf(
-                debug_msg, sizeof(debug_msg), "CommandResponse is Bool: %d", response->bool_value);
-            VALKEY_LOG_DEBUG("response_processing", debug_msg);
+            VALKEY_LOG_DEBUG_FMT(
+                "response_processing", "CommandResponse is Bool: %d", response->bool_value);
 #endif
             ZVAL_BOOL(output, response->bool_value);
             return 1;
         case String:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-            char debug_msg[128];
-            snprintf(debug_msg,
-                     sizeof(debug_msg),
-                     "CommandResponse is String with length: %ld",
-                     response->string_value_len);
-            VALKEY_LOG_DEBUG("response_processing", debug_msg);
+            VALKEY_LOG_DEBUG_FMT("response_processing",
+                                 "CommandResponse is String with length: %ld",
+                                 response->string_value_len);
 #endif
             ZVAL_STRINGL(output, response->string_value, response->string_value_len);
             return 1;
         case Array:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-            char debug_msg[256];
-            snprintf(debug_msg,
-                     sizeof(debug_msg),
-                     "CommandResponse is Array with length: %ld, use_associative_array = %d",
-                     response->array_value_len,
-                     use_associative_array);
-            VALKEY_LOG_DEBUG("response_processing", debug_msg);
+            VALKEY_LOG_DEBUG_FMT(
+                "response_processing",
+                "CommandResponse is Array with length: %ld, use_associative_array = %d",
+                response->array_value_len,
+                use_associative_array);
 #endif
 
             if (use_associative_array == COMMAND_RESPONSE_SCAN_ASSOSIATIVE_ARRAY) {
@@ -555,12 +522,9 @@ int command_response_to_zval(CommandResponse* response,
                 }
             } else if (use_associative_array == COMMAND_RESPONSE_ARRAY_ASSOCIATIVE) {
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-                char debug_msg[128];
-                snprintf(debug_msg,
-                         sizeof(debug_msg),
-                         "response->array_value[0]->command_response_type = %d",
-                         response->array_value[0].response_type);
-                VALKEY_LOG_DEBUG("response_processing", debug_msg);
+                VALKEY_LOG_DEBUG_FMT("response_processing",
+                                     "response->array_value[0]->command_response_type = %d",
+                                     response->array_value[0].response_type);
 #endif
                 array_init(output);
                 for (int64_t i = 0; i < response->array_value_len; ++i) {

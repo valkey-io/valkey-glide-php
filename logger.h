@@ -156,6 +156,44 @@ void valkey_glide_c_log_trace(const char* identifier, const char* message);
 #define VALKEY_LOG_DEBUG(identifier, message) valkey_glide_c_log_debug(identifier, message)
 #define VALKEY_LOG_TRACE(identifier, message) valkey_glide_c_log_trace(identifier, message)
 
+/* Dynamic allocation macro for formatted debug logging */
+#define VALKEY_LOG_DEBUG_FMT(category, format, ...)                                    \
+    do {                                                                               \
+        int   needed_size = snprintf(NULL, 0, format, __VA_ARGS__) + 1;                \
+        char* debug_msg   = malloc(needed_size);                                       \
+        if (debug_msg) {                                                               \
+            snprintf(debug_msg, needed_size, format, __VA_ARGS__);                     \
+            VALKEY_LOG_DEBUG(category, debug_msg);                                     \
+            free(debug_msg);                                                           \
+        } else {                                                                       \
+            VALKEY_LOG_ERROR(category, "Failed to allocate memory for debug message"); \
+        }                                                                              \
+    } while (0)
+
+/* Dynamic allocation macro for formatted error logging */
+#define VALKEY_LOG_ERROR_FMT(category, format, ...)                     \
+    do {                                                                \
+        int   needed_size = snprintf(NULL, 0, format, __VA_ARGS__) + 1; \
+        char* error_msg   = malloc(needed_size);                        \
+        if (error_msg) {                                                \
+            snprintf(error_msg, needed_size, format, __VA_ARGS__);      \
+            VALKEY_LOG_ERROR(category, error_msg);                      \
+            free(error_msg);                                            \
+        }                                                               \
+    } while (0)
+
+/* Dynamic allocation macro for formatted warning logging */
+#define VALKEY_LOG_WARN_FMT(category, format, ...)                      \
+    do {                                                                \
+        int   needed_size = snprintf(NULL, 0, format, __VA_ARGS__) + 1; \
+        char* warn_msg    = malloc(needed_size);                        \
+        if (warn_msg) {                                                 \
+            snprintf(warn_msg, needed_size, format, __VA_ARGS__);       \
+            VALKEY_LOG_WARN(category, warn_msg);                        \
+            free(warn_msg);                                             \
+        }                                                               \
+    } while (0)
+
 /* ============================================================================
  * Utility Functions
  * ============================================================================ */

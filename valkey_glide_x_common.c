@@ -421,9 +421,7 @@ int execute_x_generic_command(valkey_glide_object* valkey_glide,
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         default: {
-            char error_msg[64];
-            snprintf(error_msg, sizeof(error_msg), "Unknown command type: %d", cmd_type);
-            VALKEY_LOG_ERROR("command_processing", error_msg);
+            VALKEY_LOG_ERROR_FMT("command_processing", "Unknown command type: %d", cmd_type);
             return 0;
         }
     }
