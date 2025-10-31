@@ -163,11 +163,11 @@ void valkey_glide_c_log_trace(const char* identifier, const char* message);
             VALKEY_LOG_LEVEL_DEBUG > valkey_glide_logger_get_level())                  \
             break;                                                                     \
         int   needed_size = snprintf(NULL, 0, format, __VA_ARGS__) + 1;                \
-        char* debug_msg   = malloc(needed_size);                                       \
+        char* debug_msg   = emalloc(needed_size);                                      \
         if (debug_msg) {                                                               \
             snprintf(debug_msg, needed_size, format, __VA_ARGS__);                     \
             VALKEY_LOG_DEBUG(category, debug_msg);                                     \
-            free(debug_msg);                                                           \
+            efree(debug_msg);                                                          \
         } else {                                                                       \
             VALKEY_LOG_ERROR(category, "Failed to allocate memory for debug message"); \
         }                                                                              \
@@ -180,11 +180,11 @@ void valkey_glide_c_log_trace(const char* identifier, const char* message);
             VALKEY_LOG_LEVEL_ERROR > valkey_glide_logger_get_level())   \
             break;                                                      \
         int   needed_size = snprintf(NULL, 0, format, __VA_ARGS__) + 1; \
-        char* error_msg   = malloc(needed_size);                        \
+        char* error_msg   = emalloc(needed_size);                       \
         if (error_msg) {                                                \
             snprintf(error_msg, needed_size, format, __VA_ARGS__);      \
             VALKEY_LOG_ERROR(category, error_msg);                      \
-            free(error_msg);                                            \
+            efree(error_msg);                                           \
         }                                                               \
     } while (0)
 
@@ -195,11 +195,11 @@ void valkey_glide_c_log_trace(const char* identifier, const char* message);
             VALKEY_LOG_LEVEL_WARN > valkey_glide_logger_get_level())    \
             break;                                                      \
         int   needed_size = snprintf(NULL, 0, format, __VA_ARGS__) + 1; \
-        char* warn_msg    = malloc(needed_size);                        \
+        char* warn_msg    = emalloc(needed_size);                       \
         if (warn_msg) {                                                 \
             snprintf(warn_msg, needed_size, format, __VA_ARGS__);       \
             VALKEY_LOG_WARN(category, warn_msg);                        \
-            free(warn_msg);                                             \
+            efree(warn_msg);                                            \
         }                                                               \
     } while (0)
 
