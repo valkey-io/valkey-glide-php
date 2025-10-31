@@ -159,7 +159,9 @@ void valkey_glide_c_log_trace(const char* identifier, const char* message);
 /* Dynamic allocation macro for formatted debug logging */
 #define VALKEY_LOG_DEBUG_FMT(category, format, ...)                                    \
     do {                                                                               \
-        if (valkey_glide_logger_get_level() == VALKEY_LOG_LEVEL_OFF || VALKEY_LOG_LEVEL_DEBUG > valkey_glide_logger_get_level()) break; \
+        if (valkey_glide_logger_get_level() == VALKEY_LOG_LEVEL_OFF ||                 \
+            VALKEY_LOG_LEVEL_DEBUG > valkey_glide_logger_get_level())                  \
+            break;                                                                     \
         int   needed_size = snprintf(NULL, 0, format, __VA_ARGS__) + 1;                \
         char* debug_msg   = malloc(needed_size);                                       \
         if (debug_msg) {                                                               \
@@ -174,27 +176,31 @@ void valkey_glide_c_log_trace(const char* identifier, const char* message);
 /* Dynamic allocation macro for formatted error logging */
 #define VALKEY_LOG_ERROR_FMT(category, format, ...)                     \
     do {                                                                \
-        if (valkey_glide_logger_get_level() == VALKEY_LOG_LEVEL_OFF || VALKEY_LOG_LEVEL_ERROR > valkey_glide_logger_get_level()) break; \
-            int   needed_size = snprintf(NULL, 0, format, __VA_ARGS__) + 1; \
-            char* error_msg   = malloc(needed_size);                        \
-            if (error_msg) {                                                \
-                snprintf(error_msg, needed_size, format, __VA_ARGS__);      \
-                VALKEY_LOG_ERROR(category, error_msg);                      \
-                free(error_msg);                                            \
-            }                                                               \
+        if (valkey_glide_logger_get_level() == VALKEY_LOG_LEVEL_OFF ||  \
+            VALKEY_LOG_LEVEL_ERROR > valkey_glide_logger_get_level())   \
+            break;                                                      \
+        int   needed_size = snprintf(NULL, 0, format, __VA_ARGS__) + 1; \
+        char* error_msg   = malloc(needed_size);                        \
+        if (error_msg) {                                                \
+            snprintf(error_msg, needed_size, format, __VA_ARGS__);      \
+            VALKEY_LOG_ERROR(category, error_msg);                      \
+            free(error_msg);                                            \
+        }                                                               \
     } while (0)
 
 /* Dynamic allocation macro for formatted warning logging */
 #define VALKEY_LOG_WARN_FMT(category, format, ...)                      \
     do {                                                                \
-        if (valkey_glide_logger_get_level() == VALKEY_LOG_LEVEL_OFF || VALKEY_LOG_LEVEL_WARN > valkey_glide_logger_get_level()) break; \
-            int   needed_size = snprintf(NULL, 0, format, __VA_ARGS__) + 1; \
-            char* warn_msg    = malloc(needed_size);                        \
-            if (warn_msg) {                                                 \
-                snprintf(warn_msg, needed_size, format, __VA_ARGS__);       \
-                VALKEY_LOG_WARN(category, warn_msg);                        \
-                free(warn_msg);                                             \
-            }                                                               \
+        if (valkey_glide_logger_get_level() == VALKEY_LOG_LEVEL_OFF ||  \
+            VALKEY_LOG_LEVEL_WARN > valkey_glide_logger_get_level())    \
+            break;                                                      \
+        int   needed_size = snprintf(NULL, 0, format, __VA_ARGS__) + 1; \
+        char* warn_msg    = malloc(needed_size);                        \
+        if (warn_msg) {                                                 \
+            snprintf(warn_msg, needed_size, format, __VA_ARGS__);       \
+            VALKEY_LOG_WARN(category, warn_msg);                        \
+            free(warn_msg);                                             \
+        }                                                               \
     } while (0)
 
 /* ============================================================================
