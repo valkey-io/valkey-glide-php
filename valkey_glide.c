@@ -40,6 +40,7 @@ zend_class_entry* valkey_glide_ce;
 zend_class_entry* valkey_glide_exception_ce;
 
 zend_class_entry* valkey_glide_cluster_ce;
+zend_class_entry* valkey_glide_cluster_exception_ce;
 
 /* Handlers for ValkeyGlideCluster */
 zend_object_handlers valkey_glide_cluster_object_handlers;
@@ -203,7 +204,8 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
                 /* Invalid address format */
                 const char* error_message =
                     "Invalid address format. Expected array with 'host' and 'port' keys.";
-                zend_throw_exception(get_exception_ce_for_client_type(is_cluster), error_message, 0);
+                zend_throw_exception(
+                    get_exception_ce_for_client_type(is_cluster), error_message, 0);
                 valkey_glide_cleanup_client_config(config);
                 return;
             }
@@ -250,7 +252,10 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             config->credentials->iam_config = ecalloc(1, sizeof(valkey_glide_iam_config_t));
 
             /* Parse cluster_name (required) */
-            zval* cluster_name_val = zend_hash_str_find(iam_ht, VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME, strlen(VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME));
+            zval* cluster_name_val =
+                zend_hash_str_find(iam_ht,
+                                   VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME,
+                                   strlen(VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME));
             if (cluster_name_val && Z_TYPE_P(cluster_name_val) == IS_STRING) {
                 config->credentials->iam_config->cluster_name = Z_STRVAL_P(cluster_name_val);
             } else {
@@ -258,7 +263,8 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             }
 
             /* Parse region (required) */
-            zval* region_val = zend_hash_str_find(iam_ht, VALKEY_GLIDE_IAM_CONFIG_REGION, strlen(VALKEY_GLIDE_IAM_CONFIG_REGION));
+            zval* region_val = zend_hash_str_find(
+                iam_ht, VALKEY_GLIDE_IAM_CONFIG_REGION, strlen(VALKEY_GLIDE_IAM_CONFIG_REGION));
             if (region_val && Z_TYPE_P(region_val) == IS_STRING) {
                 config->credentials->iam_config->region = Z_STRVAL_P(region_val);
             } else {
@@ -266,7 +272,8 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             }
 
             /* Parse service type (required) */
-            zval* service_val = zend_hash_str_find(iam_ht, VALKEY_GLIDE_IAM_CONFIG_SERVICE, strlen(VALKEY_GLIDE_IAM_CONFIG_SERVICE));
+            zval* service_val = zend_hash_str_find(
+                iam_ht, VALKEY_GLIDE_IAM_CONFIG_SERVICE, strlen(VALKEY_GLIDE_IAM_CONFIG_SERVICE));
             if (service_val && Z_TYPE_P(service_val) == IS_STRING) {
                 const char* service_str = Z_STRVAL_P(service_val);
                 if (strcasecmp(service_str, VALKEY_GLIDE_IAM_SERVICE_MEMORYDB) == 0) {
@@ -282,7 +289,10 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             }
 
             /* Parse refresh interval (optional, defaults to 300 seconds) */
-            zval* refresh_val = zend_hash_str_find(iam_ht, VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL, strlen(VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL));
+            zval* refresh_val =
+                zend_hash_str_find(iam_ht,
+                                   VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL,
+                                   strlen(VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL));
             if (refresh_val && Z_TYPE_P(refresh_val) == IS_LONG) {
                 config->credentials->iam_config->refresh_interval_seconds = Z_LVAL_P(refresh_val);
             } else {
@@ -295,8 +305,9 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
 
             /* Validate that username is provided for IAM */
             if (!config->credentials->username) {
-                zend_throw_exception(
-                    get_exception_ce_for_client_type(is_cluster), "IAM authentication requires a username", 0);
+                zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                                     "IAM authentication requires a username",
+                                     0);
             }
         }
     } else {
@@ -419,6 +430,14 @@ PHP_MINIT_FUNCTION(valkey_glide) {
     valkey_glide_exception_ce = register_class_ValkeyGlideException(spl_ce_RuntimeException);
     if (!valkey_glide_exception_ce) {
         php_error_docref(NULL, E_ERROR, "Failed to register ValkeyGlideException class");
+        return FAILURE;
+    }
+
+    /* ValkeyGlideClusterException class */
+    valkey_glide_cluster_exception_ce =
+        register_class_ValkeyGlideClusterException(spl_ce_RuntimeException);
+    if (!valkey_glide_cluster_exception_ce) {
+        php_error_docref(NULL, E_ERROR, "Failed to register ValkeyGlideClusterException class");
         return FAILURE;
     }
 
