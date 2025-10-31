@@ -52,19 +52,9 @@ int execute_core_command(valkey_glide_object* valkey_glide,
 
     /* Log command execution entry */
     VALKEY_LOG_DEBUG("command_execution", "Entering command execution");
-    {
-        char cmd_type_msg[64];
-        snprintf(cmd_type_msg, sizeof(cmd_type_msg), "Command type: %d", args->cmd_type);
-        VALKEY_LOG_DEBUG("command_execution", cmd_type_msg);
-    }
-    {
-        char batch_msg[32];
-        snprintf(batch_msg,
-                 sizeof(batch_msg),
-                 "Batch mode: %s",
-                 valkey_glide->is_in_batch_mode ? "yes" : "no");
-        VALKEY_LOG_DEBUG("command_execution", batch_msg);
-    }
+    VALKEY_LOG_DEBUG_FMT("command_execution", "Command type: %d", args->cmd_type);
+    VALKEY_LOG_DEBUG_FMT(
+        "command_execution", "Batch mode: %s", valkey_glide->is_in_batch_mode ? "yes" : "no");
 
     uintptr_t*     cmd_args          = NULL;
     unsigned long* cmd_args_len      = NULL;
@@ -87,11 +77,7 @@ int execute_core_command(valkey_glide_object* valkey_glide,
         return 0;
     }
 
-    {
-        char arg_count_msg[64];
-        snprintf(arg_count_msg, sizeof(arg_count_msg), "Argument count: %d", arg_count);
-        VALKEY_LOG_DEBUG("command_execution", arg_count_msg);
-    }
+    VALKEY_LOG_DEBUG_FMT("command_execution", "Argument count: %d", arg_count);
 
     /* Check for batch mode */
     if (valkey_glide->is_in_batch_mode) {
