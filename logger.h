@@ -156,56 +156,49 @@ void valkey_glide_c_log_trace(const char* identifier, const char* message);
 #define VALKEY_LOG_DEBUG(identifier, message) valkey_glide_c_log_debug(identifier, message)
 #define VALKEY_LOG_TRACE(identifier, message) valkey_glide_c_log_trace(identifier, message)
 
-/* Dynamic allocation macro for formatted debug logging */
-#define VALKEY_LOG_DEBUG_FMT(category, format, ...)                                    \
-    do {                                                                               \
-        if (valkey_glide_logger_get_level() == VALKEY_LOG_LEVEL_OFF ||                 \
-            VALKEY_LOG_LEVEL_DEBUG > valkey_glide_logger_get_level())                  \
-            break;                                                                     \
-        int   needed_size = snprintf(NULL, 0, format, __VA_ARGS__) + 1;                \
-        char* debug_msg   = emalloc(needed_size);                                      \
-        if (debug_msg) {                                                               \
-            snprintf(debug_msg, needed_size, format, __VA_ARGS__);                     \
-            VALKEY_LOG_DEBUG(category, debug_msg);                                     \
-            efree(debug_msg);                                                          \
-        } else {                                                                       \
-            VALKEY_LOG_ERROR(category, "Failed to allocate memory for debug message"); \
-        }                                                                              \
+/* Base macro for formatted logging with dynamic allocation */
+#define VALKEY_LOG_FMT_BASE(level_constant, level_function, level_name, category, format, ...)  \
+    do {                                                                                        \
+        if (valkey_glide_logger_get_level() == VALKEY_LOG_LEVEL_OFF ||                          \
+            level_constant > valkey_glide_logger_get_level())                                   \
+            break;                                                                              \
+        int   needed_size = snprintf(NULL, 0, format, __VA_ARGS__) + 1;                         \
+        char* log_msg     = emalloc(needed_size);                                               \
+        if (log_msg) {                                                                          \
+            snprintf(log_msg, needed_size, format, __VA_ARGS__);                                \
+            level_function(category, log_msg);                                                  \
+            efree(log_msg);                                                                     \
+        } else {                                                                                \
+            VALKEY_LOG_ERROR(category, "Failed to allocate memory for " level_name " message"); \
+        }                                                                                       \
     } while (0)
+
+/* Dynamic allocation macro for formatted debug logging */
+#define VALKEY_LOG_DEBUG_FMT(category, format, ...) \
+    VALKEY_LOG_FMT_BASE(VALKEY_LOG_LEVEL_DEBUG,     \
+                        VALKEY_LOG_DEBUG,           \
+                        VALKEY_LOG_LEVEL_DEBUG_STR, \
+                        category,                   \
+                        format,                     \
+                        __VA_ARGS__)
 
 /* Dynamic allocation macro for formatted error logging */
-#define VALKEY_LOG_ERROR_FMT(category, format, ...)                     \
-    do {                                                                \
-        if (valkey_glide_logger_get_level() == VALKEY_LOG_LEVEL_OFF ||  \
-            VALKEY_LOG_LEVEL_ERROR > valkey_glide_logger_get_level())   \
-            break;                                                      \
-        int   needed_size = snprintf(NULL, 0, format, __VA_ARGS__) + 1; \
-        char* error_msg   = emalloc(needed_size);                       \
-        if (error_msg) {                                                \
-            snprintf(error_msg, needed_size, format, __VA_ARGS__);      \
-            VALKEY_LOG_ERROR(category, error_msg);                      \
-            efree(error_msg);                                           \
-        } else {                                                        \
-            VALKEY_LOG_ERROR(category, "Failed to allocate memory for error message"); \
-        }                                                               \
-    } while (0)
+#define VALKEY_LOG_ERROR_FMT(category, format, ...) \
+    VALKEY_LOG_FMT_BASE(VALKEY_LOG_LEVEL_ERROR,     \
+                        VALKEY_LOG_ERROR,           \
+                        VALKEY_LOG_LEVEL_ERROR_STR, \
+                        category,                   \
+                        format,                     \
+                        __VA_ARGS__)
 
 /* Dynamic allocation macro for formatted warning logging */
-#define VALKEY_LOG_WARN_FMT(category, format, ...)                      \
-    do {                                                                \
-        if (valkey_glide_logger_get_level() == VALKEY_LOG_LEVEL_OFF ||  \
-            VALKEY_LOG_LEVEL_WARN > valkey_glide_logger_get_level())    \
-            break;                                                      \
-        int   needed_size = snprintf(NULL, 0, format, __VA_ARGS__) + 1; \
-        char* warn_msg    = emalloc(needed_size);                       \
-        if (warn_msg) {                                                 \
-            snprintf(warn_msg, needed_size, format, __VA_ARGS__);       \
-            VALKEY_LOG_WARN(category, warn_msg);                        \
-            efree(warn_msg);                                            \
-        } else {                                                        \
-            VALKEY_LOG_ERROR(category, "Failed to allocate memory for warning message"); \
-        }                                                               \
-    } while (0)
+#define VALKEY_LOG_WARN_FMT(category, format, ...) \
+    VALKEY_LOG_FMT_BASE(VALKEY_LOG_LEVEL_WARN,     \
+                        VALKEY_LOG_WARN,           \
+                        VALKEY_LOG_LEVEL_WARN_STR, \
+                        category,                  \
+                        format,                    \
+                        __VA_ARGS__)
 
 /* ============================================================================
  * Utility Functions
