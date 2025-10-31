@@ -79,7 +79,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 {
     /**
      * Generate a random string of specified length
-     * 
+     *
      * @param int $length Length of the random string
      * @return string Random string
      */
@@ -90,7 +90,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     /**
      * Compare major version number against a minimum required version
-     * 
+     *
      * @param int $minMajorVersion Minimum required major version
      * @return bool True if current version's major number >= minMajorVersion
      */
@@ -102,7 +102,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     /**
      * Helper function to check hash field TTL within expected range
-     * 
+     *
      * @param string $key Hash key
      * @param string $field Hash field
      * @param int $originalTtlMs Original TTL set in milliseconds
@@ -115,26 +115,32 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         $currentTime = microtime(true) * 1000; // Current time in milliseconds
         $ttl_result = $this->valkey_glide->hPTtl($key, $field);
-        
+
         // Extract TTL value from array result
         $ttl = is_array($ttl_result) ? $ttl_result[0] : $ttl_result;
-        
+
         // Auto-calculate range based on elapsed time since expiration was set
         if ($minTtl === null) {
             $elapsedMs = $currentTime - ($setTime * 1000);
             $minTtl = max(0, $originalTtlMs - $elapsedMs - 200); // 200ms buffer for execution time
         }
-        
+
         if ($maxTtl === null) {
             $maxTtl = $originalTtlMs;
         }
-        
-        $this->assertGTE($minTtl, $ttl, 
-            $message ?: "Field TTL ($ttl ms) should be >= $minTtl ms (original: $originalTtlMs ms)");
-        
-        $this->assertLTE($maxTtl, $ttl, 
-            $message ?: "Field TTL ($ttl ms) should be <= $maxTtl ms (original: $originalTtlMs ms)");
-        
+
+        $this->assertGTE(
+            $minTtl,
+            $ttl,
+            $message ?: "Field TTL ($ttl ms) should be >= $minTtl ms (original: $originalTtlMs ms)"
+        );
+
+        $this->assertLTE(
+            $maxTtl,
+            $ttl,
+            $message ?: "Field TTL ($ttl ms) should be <= $maxTtl ms (original: $originalTtlMs ms)"
+        );
+
         return $ttl;
     }
 
@@ -3879,26 +3885,26 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $key = $this->createRandomString(10);
-        
+
         // Test HSETEX
         $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 60, null, 'field1', 'value1'));
         $this->assertEquals('value1', $this->valkey_glide->hGet($key, 'field1'));
-        
+
         // Test multiple fields with HSETEX
         $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 60, null, 'field2', 'value2', 'field3', 'value3'));
-        
+
         // Test HEXPIRE with unified API
         $this->valkey_glide->hSet($key, 'field4', 'value4');
         $result = $this->valkey_glide->hExpire($key, 60, null, 'field4');
         $this->assertNotEquals(false, $result, 'hExpire should not return false');
         $this->assertEquals([1], $result);
-        
+
         // Test HEXPIRE on multiple fields
         $this->valkey_glide->hSet($key, 'field5', 'value5', 'field6', 'value6');
         $result = $this->valkey_glide->hExpire($key, 60, null, 'field5', 'field6');
         $this->assertNotEquals(false, $result, 'hExpire should not return false');
         $this->assertEquals([1, 1], $result);
-        
+
         // Test HTTL with unified API
         $setTime1 = microtime(true);
         $ttl = $this->valkey_glide->hTtl($key, 'field1', 'field4');
@@ -3906,61 +3912,61 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertCount(2, $ttl);
         $this->assertFieldTtlInRange($key, 'field1', 60000, $setTime1);
         $this->assertFieldTtlInRange($key, 'field4', 60000, $setTime1);
-        
+
         // Test HPERSIST
         $result = $this->valkey_glide->hPersist($key, 'field1');
         $this->assertNotEquals(false, $result, 'hPersist should not return false');
         $this->assertEquals([1], $result);
-        
+
         // Verify field no longer has expiration
         $ttl = $this->valkey_glide->hTtl($key, 'field1');
         $this->assertNotEquals(false, $ttl, 'hTtl should not return false');
         $this->assertEquals([-1], $ttl);
-        
+
         // Test millisecond variants
         $pexpireTime = microtime(true);
         $result = $this->valkey_glide->hPExpire($key, 60000, null, 'field4');
         $this->assertNotEquals(false, $result, 'hPExpire should not return false');
         $this->assertEquals([1], $result);
         $this->assertFieldTtlInRange($key, 'field4', 60000, $pexpireTime);
-        
+
         // Test timestamp variants
         $futureTimestamp = time() + 3600;
-        
+
         $futureTimestampMs = $futureTimestamp * 1000;
         $result = $this->valkey_glide->hPExpireAt($key, $futureTimestampMs, null, 'field4');
         // $this->assertNotEquals(false, $result, "hPExpireAt should not return false"); // Disabled due to command formatting issue
         $this->assertEquals([1], $result);
-        
+
         // Test expire time commands
         $expireTime = $this->valkey_glide->hExpireTime($key, 'field4');
         $this->assertNotEquals(false, $expireTime, 'hExpireTime should not return false');
         $this->assertGTE($futureTimestamp - 1, $expireTime[0]);
-        
+
         $pexpireTime = $this->valkey_glide->hPExpireTime($key, 'field4');
         $this->assertNotEquals(false, $pexpireTime, 'hPExpireTime should not return false');
         $this->assertGTE($futureTimestampMs - 1000, $pexpireTime[0]);
-        
+
         // Test error conditions
         $result = $this->valkey_glide->hExpire($key, 60, null, 'nonexistent');
         $this->assertEquals([-2], $result); // -2 = field doesn't exist
-        
+
         $result = $this->valkey_glide->hTtl($key, 'nonexistent');
         $this->assertEquals([-2], $result);
-        
+
         $result = $this->valkey_glide->hPersist($key, 'nonexistent');
         $this->assertEquals([-2], $result);
-        
+
         // Test on non-existent key
         $nonexistentKey = $this->createRandomString(10);
         $result = $this->valkey_glide->hExpire($nonexistentKey, 60, null, 'field1');
         $this->assertEquals([-2], $result);
-        
+
         // Test persist on field without expiration
         $this->valkey_glide->hSet($key, 'no_expire', 'value');
         $result = $this->valkey_glide->hPersist($key, 'no_expire');
         $this->assertEquals([-1], $result); // -1 = field has no expiration
-        
+
         // Test edge case: zero expiration
         // Test with 1 second expiry instead of 0 (0 is invalid and rejected by server)
         $result = $this->valkey_glide->hSetEx($key, 1, null, 'expire_now', 'value');
@@ -3976,10 +3982,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $key = $this->createRandomString(10);
-        
+
         // Test hSetEx NX/XX variants
         $this->assertHSetExNxXxBehavior($key);
-        
+
         // Test timestamp and millisecond variants
         $this->assertHSetExTimestampVariants($key);
     }
@@ -3991,10 +3997,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $key = $this->createRandomString(10);
-        
+
         // Test hExpire NX/XX variants
         $this->assertHExpireNxXxBehavior($key);
-        
+
         // Test timestamp and millisecond variants
         $this->assertHExpireTimestampVariants($key);
     }
@@ -4006,53 +4012,53 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $key = $this->createRandomString(10);
-        
+
         // Test hSetEx with multiple field-value pairs - verify values AND expiration
         $setTime = microtime(true);
         $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 2, null, 'field1', 'value1', 'field2', 'value2'));
         $this->assertEquals('value1', $this->valkey_glide->hGet($key, 'field1'));
         $this->assertEquals('value2', $this->valkey_glide->hGet($key, 'field2'));
-        
+
         // Verify expiration is actually set using helper
         $this->assertFieldTtlInRange($key, 'field1', 2000, $setTime);
         $this->assertFieldTtlInRange($key, 'field2', 2000, $setTime);
-        
+
         // Test hSetEx with NX condition - should fail because field1 exists
         $this->assertEquals(0, $this->valkey_glide->hSetEx($key, 10, ValkeyGlide::CONDITION_NX, 'field1', 'new1', 'field3', 'value3')); // field1 exists, so entire operation fails
         $this->assertEquals('value1', $this->valkey_glide->hGet($key, 'field1')); // unchanged
         $this->assertFalse($this->valkey_glide->hGet($key, 'field3')); // field3 not set because operation failed
-        
+
         // Set field3 separately for further testing
         $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 10, null, 'field3', 'value3')); // Set without condition
         $setTime3 = microtime(true);
         $this->assertFieldTtlInRange($key, 'field3', 10000, $setTime3, 8000); // Min 8 seconds
-        
+
         // Test hExpire with multiple fields - verify expiration times are applied
         $this->valkey_glide->hSet($key, 'field4', 'value4', 'field5', 'value5');
         $expireTime = microtime(true);
         $result = $this->valkey_glide->hExpire($key, 5, null, 'field4', 'field5');
         $this->assertEquals([1, 1], $result); // both fields got expiration
-        
+
         // Verify both fields have the correct expiration time using helper
         $this->assertFieldTtlInRange($key, 'field4', 5000, $expireTime, 3000);
         $this->assertFieldTtlInRange($key, 'field5', 5000, $expireTime, 3000);
-        
+
         // Test timestamp variants with verification
         $future_timestamp = time() + 30;
         $this->valkey_glide->hSet($key, 'field7', 'value7', 'field8', 'value8');
         $result = $this->valkey_glide->hExpireAt($key, $future_timestamp, null, 'field7', 'field8');
         $this->assertEquals([1, 1], $result);
-        
+
         // Verify expiration times are set to the future timestamp
         $expire_time = $this->valkey_glide->hExpireTime($key, 'field7');
         $this->assertGT(time() + 25, $expire_time[0]); // should be close to future_timestamp
         $this->assertLTE($future_timestamp, $expire_time[0]);
-        
+
         // Test millisecond precision
         $pexpireTime = microtime(true);
         $result = $this->valkey_glide->hPExpire($key, 8000, null, 'field7'); // 8 seconds in milliseconds
         $this->assertEquals([1], $result);
-        
+
         $this->assertFieldTtlInRange($key, 'field7', 8000, $pexpireTime, 6000); // Min 6 seconds
     }
 
@@ -4063,41 +4069,41 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $key = $this->createRandomString(10);
-        
+
         // Test that parameter order is: key, expiry_time, field, value, field, value...
         // If order is wrong, we'd get incorrect field-value pairs or wrong expiration times
-        
+
         // Set a field with a very specific expiration time and value
         $setTime1 = microtime(true);
         $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 3, null, 'test_field', 'test_value'));
-        
+
         // Verify the field has the correct value (not the expiration time)
         $this->assertEquals('test_value', $this->valkey_glide->hGet($key, 'test_field'));
-        
+
         // Verify the field has the correct expiration time - auto-calculated range
         $this->assertFieldTtlInRange($key, 'test_field', 3000, $setTime1);
-        
+
         // Test with multiple fields to ensure field-value pairing is correct
         $setTime2 = microtime(true);
         $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 4, null, 'field_a', 'value_a', 'field_b', 'value_b'));
-        
+
         // Verify each field has its correct value (not swapped)
         $this->assertEquals('value_a', $this->valkey_glide->hGet($key, 'field_a'));
         $this->assertEquals('value_b', $this->valkey_glide->hGet($key, 'field_b'));
-        
+
         // Verify both fields have the same expiration time - auto-calculated range
         $this->assertFieldTtlInRange($key, 'field_a', 4000, $setTime2);
         $this->assertFieldTtlInRange($key, 'field_b', 4000, $setTime2);
-        
+
         // Verify TTL values are reasonable
         $ttl_b = $this->valkey_glide->hTtl($key, 'field_b');
         $this->assertLTE(4, $ttl_b[0]);
-        
+
         // Test hExpire parameter order: key, time_value, time_unit, fields
         $this->valkey_glide->hSet($key, 'expire_test1', 'val1', 'expire_test2', 'val2');
         $result = $this->valkey_glide->hExpire($key, 6, null, 'expire_test1', 'expire_test2');
         $this->assertEquals([1, 1], $result);
-        
+
         // Verify both fields have the correct expiration time (6 seconds)
         $ttl1 = $this->valkey_glide->hTtl($key, 'expire_test1');
         $ttl2 = $this->valkey_glide->hTtl($key, 'expire_test2');
@@ -4114,62 +4120,62 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $key = $this->createRandomString(10);
-        
+
         // Test HSETEX format: key [FNX|FXX] [EX seconds|PX milliseconds|EXAT unix-time-seconds|PXAT unix-time-milliseconds|KEEPTTL] FIELDS numfields field value [field value ...]
-        
+
         // Basic HSETEX - should generate: HSETEX key EX 60 FIELDS 1 field1 value1
         $result = $this->valkey_glide->hSetEx($key, 60, null, 'field1', 'value1');
         $this->assertEquals(1, $result);
         $this->assertEquals('value1', $this->valkey_glide->hGet($key, 'field1'));
-        
+
         // HSETEX with condition - should generate: HSETEX key FNX EX 60 FIELDS 1 field2 value2
         $result = $this->valkey_glide->hSetEx($key, 60, ValkeyGlide::CONDITION_NX, 'field2', 'value2');
         $this->assertEquals(1, $result);
         $this->assertEquals('value2', $this->valkey_glide->hGet($key, 'field2'));
-        
+
         // HSETEX with timestamp - should generate: HSETEX key EXAT timestamp FIELDS 1 field3 value3
         $future_timestamp = time() + 3600;
         $result = $this->valkey_glide->hSetEx($key, $future_timestamp, null, 'field3', 'value3');
         $this->assertEquals(1, $result);
         $this->assertEquals('value3', $this->valkey_glide->hGet($key, 'field3'));
-        
+
         // Test HEXPIRE format: key seconds [NX|XX|GT|LT] FIELDS numfields field [field ...]
-        
+
         // Basic HEXPIRE - should generate: HEXPIRE key 120 FIELDS 2 field1 field2
         $result = $this->valkey_glide->hExpire($key, 120, null, 'field1', 'field2');
         $this->assertEquals([1, 1], $result); // Both fields should get expiration
-        
+
         // HEXPIRE with condition - should generate: HEXPIRE key 180 NX FIELDS 1 field4
         $this->valkey_glide->hSet($key, 'field4', 'value4');
         $result = $this->valkey_glide->hExpire($key, 180, null, 'field4');
         $this->assertEquals([1], $result); // Field should get expiration
-        
+
         // HEXPIRE with XX condition - should generate: HEXPIRE key 240 XX FIELDS 1 field4
         $this->assertEquals([1], $result); // Field should update expiration
-        
+
         // Test HEXPIREAT format: key unix-timestamp [NX|XX|GT|LT] FIELDS numfields field [field ...]
         $future_timestamp = time() + 7200;
         $this->assertEquals([1], $result);
-        
+
         // Test HPERSIST format: key FIELDS numfields field [field ...]
         $result = $this->valkey_glide->hPersist($key, 'field1');
         $this->assertEquals([1], $result); // Should remove expiration
-        
+
         // Test HTTL format: key FIELDS numfields field [field ...]
         $ttl_result = $this->valkey_glide->hTtl($key, 'field2');
         $this->assertNotEquals(false, $ttl_result);
         $this->assertGT(0, $ttl_result[0]); // Should have TTL
-        
+
         // Test HEXPIRETIME format: key FIELDS numfields field [field ...]
         $expire_time = $this->valkey_glide->hExpireTime($key, 'field2');
         $this->assertNotEquals(false, $expire_time);
         $this->assertGT(time(), $expire_time[0]); // Should be future timestamp
-        
+
         // Test HGETEX format: key [EX seconds|PX milliseconds|EXAT unix-time-seconds|PXAT unix-time-milliseconds|PERSIST] FIELDS numfields field [field ...]
         $this->valkey_glide->hSet($key, 'getex_field', 'getex_value');
         $result = $this->valkey_glide->hGetEx($key, ['getex_field'], ['EX' => 300]);
         $this->assertEquals(['getex_field' => 'getex_value'], $result); // Should return field-value map
-        
+
         // Verify HGETEX set expiration
         $ttl_getex = $this->valkey_glide->hTtl($key, 'getex_field');
         $this->assertGT(250, $ttl_getex[0]); // Should be close to 300
@@ -4183,17 +4189,17 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $key = $this->createRandomString(10);
-        
+
         // Test that HSETEX requires field-value pairs (even number of arguments)
         $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 60, null, 'f1', 'v1', 'f2', 'v2'));
         $this->assertEquals('v1', $this->valkey_glide->hGet($key, 'f1'));
         $this->assertEquals('v2', $this->valkey_glide->hGet($key, 'f2'));
-        
+
         // Test HPSETEX with milliseconds
         $this->assertEquals(1, $this->valkey_glide->hPSetEx($key, 60000, null, 'f3', 'v3', 'f4', 'v4'));
         $this->assertEquals('v3', $this->valkey_glide->hGet($key, 'f3'));
         $this->assertEquals('v4', $this->valkey_glide->hGet($key, 'f4'));
-        
+
         // Verify HPSETEX set expiration in milliseconds
         $ttl3 = $this->valkey_glide->hPTtl($key, 'f3');
         $ttl4 = $this->valkey_glide->hPTtl($key, 'f4');
@@ -4201,11 +4207,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertLTE(60000, $ttl3[0]);
         $this->assertGT(50000, $ttl4[0]);
         $this->assertLTE(60000, $ttl4[0]);
-        
+
         // Test that HEXPIRE works with field names only
         $result = $this->valkey_glide->hExpire($key, 120, null, 'f1', 'f2');
         $this->assertEquals([1, 1], $result);
-        
+
         // Verify expiration was actually set with correct times
         $ttl1 = $this->valkey_glide->hTtl($key, 'f1');
         $ttl2 = $this->valkey_glide->hTtl($key, 'f2');
@@ -4213,15 +4219,15 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertLTE(120, $ttl1[0]);
         $this->assertGT(100, $ttl2[0]);
         $this->assertLTE(120, $ttl2[0]);
-        
+
         // Test condition behavior - NX should fail on existing expiration
         $result_nx = $this->valkey_glide->hExpire($key, 120, ValkeyGlide::CONDITION_NX, 'f1');
         $this->assertEquals([0], $result_nx); // Should fail because f1 already has expiration
-        
+
         // Test condition behavior - XX should succeed on existing expiration
         $result_xx = $this->valkey_glide->hExpire($key, 120, ValkeyGlide::CONDITION_XX, 'f1');
         $this->assertEquals([1], $result_xx); // Should succeed because f1 has expiration
-        
+
         // Test that field values are preserved during expiration operations
         $this->assertEquals('v1', $this->valkey_glide->hGet($key, 'f1'));
         $this->assertEquals('v2', $this->valkey_glide->hGet($key, 'f2'));
@@ -4234,84 +4240,84 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $key = $this->createRandomString(10);
-        
+
         // Test HSETEX format validation by checking behavior differences
         // HSETEX should work with field-value pairs and set both field and expiration
         $result = $this->valkey_glide->hSetEx($key, 5, null, 'test_field', 'test_value');
         $this->assertEquals(1, $result);
         $this->assertEquals('test_value', $this->valkey_glide->hGet($key, 'test_field'));
-        
+
         // Verify expiration was set (HSETEX format includes expiry in command)
         $ttl = $this->valkey_glide->hTtl($key, 'test_field');
         $this->assertGT(0, $ttl[0]);
         $this->assertLTE(5, $ttl[0]);
-        
+
         // Test HEXPIRE format validation - should only set expiration, not modify field value
         $this->valkey_glide->hSet($key, 'expire_field', 'original_value');
         $result = $this->valkey_glide->hExpire($key, 10, null, 'expire_field');
         $this->assertEquals([1], $result);
-        
+
         // Field value should be unchanged (HEXPIRE format doesn't include values)
         $this->assertEquals('original_value', $this->valkey_glide->hGet($key, 'expire_field'));
-        
+
         // But expiration should be set
         $ttl = $this->valkey_glide->hTtl($key, 'expire_field');
         $this->assertGT(8, $ttl[0]);
         $this->assertLTE(10, $ttl[0]);
-        
+
         // Test different time units
         $this->valkey_glide->hSet($key, 'ms_field', 'ms_value');
         $result = $this->valkey_glide->hPExpire($key, 5000, null, 'ms_field'); // 5000 milliseconds
         $this->assertEquals([1], $result);
-        
+
         $ttl_ms = $this->valkey_glide->hPTtl($key, 'ms_field');
         $this->assertGT(4000, $ttl_ms[0]); // Should be > 4 seconds in milliseconds
-        
+
         // Test timestamp expiration
         $future_timestamp = time() + 3600; // 1 hour from now
         $this->valkey_glide->hSet($key, 'timestamp_field', 'timestamp_value');
         $result = $this->valkey_glide->hExpire($key, $future_timestamp, null, 'timestamp_field');
         $this->assertEquals([1], $result);
-        
+
         // Test case-insensitive time units
         $this->valkey_glide->hSet($key, 'case_test1', 'value1', 'case_test2', 'value2');
         $result1 = $this->valkey_glide->hExpire($key, 30, null, 'case_test1');
         $result2 = $this->valkey_glide->hPExpire($key, 30000, null, 'case_test2');
         $this->assertEquals([1], $result1);
         $this->assertEquals([1], $result2);
-        
+
         // Verify TTL works with case-insensitive units too
         $ttl1 = $this->valkey_glide->hTtl($key, 'case_test1'); // mixed case
         $ttl2 = $this->valkey_glide->hTtl($key, 'case_test2'); // lowercase
         $this->assertGT(0, $ttl1[0]);
         $this->assertGT(0, $ttl2[0]);
-        
+
         // Test field-only command format validation (HTTL, HPERSIST)
         $ttl_result = $this->valkey_glide->hTtl($key, 'expire_field');
         $this->assertIsArray($ttl_result);
         $this->assertGT(0, $ttl_result[0]);
-        
+
         // HPERSIST should remove expiration
         $persist_result = $this->valkey_glide->hPersist($key, 'expire_field');
         $this->assertEquals([1], $persist_result);
-        
+
         // Field should no longer have expiration
         $ttl_after_persist = $this->valkey_glide->hTtl($key, 'expire_field');
         $this->assertEquals([-1], $ttl_after_persist); // -1 means no expiration
-        
+
         // But field value should still be intact
         $this->assertEquals('original_value', $this->valkey_glide->hGet($key, 'expire_field'));
-        
+
         // Test HGETEX format validation - should get field values AND set expiration
         $this->valkey_glide->hSet($key, 'getex_test', 'getex_original');
         $result = $this->valkey_glide->hGetEx($key, ['getex_test'], ['EX' => 15]);
         $this->assertEquals(['getex_test' => 'getex_original'], $result); // Should return field-value map
-        
+
         // HGETEX should have set expiration
         $ttl_getex = $this->valkey_glide->hTtl($key, 'getex_test');
         $this->assertGT(10, $ttl_getex[0]);
         $this->assertLTE(15, $ttl_getex[0]);
-        
+
         // Field value should be unchanged
         $this->assertEquals('getex_original', $this->valkey_glide->hGet($key, 'getex_test'));
     }
@@ -4323,45 +4329,45 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $key = $this->createRandomString(10);
-        
+
         // Test that HSETEX conditions (FNX/FXX) work correctly
         // FNX should only set if field doesn't exist
         $result = $this->valkey_glide->hSetEx($key, 60, ValkeyGlide::CONDITION_NX, 'fnx_field', 'value1');
         $this->assertEquals(1, $result); // Should succeed - field doesn't exist
         $this->assertEquals('value1', $this->valkey_glide->hGet($key, 'fnx_field'));
-        
+
         // Second FNX should fail - field now exists
         $result = $this->valkey_glide->hSetEx($key, 60, ValkeyGlide::CONDITION_NX, 'fnx_field', 'value2');
         $this->assertEquals(0, $result); // Should fail - field exists
         $this->assertEquals('value1', $this->valkey_glide->hGet($key, 'fnx_field')); // Unchanged
-        
+
         // FXX should only set if field exists
         $result = $this->valkey_glide->hSetEx($key, 60, ValkeyGlide::CONDITION_XX, 'nonexistent', 'value');
         $this->assertEquals(0, $result); // Should fail - field doesn't exist
-        
+
         $result = $this->valkey_glide->hSetEx($key, 60, ValkeyGlide::CONDITION_XX, 'fnx_field', 'updated_value');
         $this->assertEquals(1, $result); // Should succeed - field exists
         $this->assertEquals('updated_value', $this->valkey_glide->hGet($key, 'fnx_field'));
-        
+
         // Test that HEXPIRE conditions (NX/XX) work correctly
         $this->valkey_glide->hSet($key, 'nx_field', 'test_value');
-        
+
         // NX should only set expiration if field has no expiration
         $result_nx = $this->valkey_glide->hExpire($key, 60, ValkeyGlide::CONDITION_NX, 'nx_field');
         $this->assertEquals([1], $result_nx); // Should succeed - no expiration
-        
+
         // Second NX should fail - field now has expiration
         $result_nx2 = $this->valkey_glide->hExpire($key, 60, ValkeyGlide::CONDITION_NX, 'nx_field');
         $this->assertEquals([0], $result_nx2); // Should fail - has expiration
-        
+
         // XX should only set expiration if field has expiration
         $this->valkey_glide->hSet($key, 'xx_field', 'test_value2');
         $result_xx_fail = $this->valkey_glide->hExpire($key, 60, ValkeyGlide::CONDITION_XX, 'xx_field');
         $this->assertEquals([0], $result_xx_fail); // Should fail - no expiration
-        
+
         $result_xx_success = $this->valkey_glide->hExpire($key, 60, ValkeyGlide::CONDITION_XX, 'nx_field');
         $this->assertEquals([1], $result_xx_success); // Should succeed - has expiration
-        
+
         // Verify field values weren't corrupted by condition logic
         $this->assertEquals('test_value', $this->valkey_glide->hGet($key, 'nx_field'));
         $this->assertEquals('test_value2', $this->valkey_glide->hGet($key, 'xx_field'));
@@ -4374,42 +4380,42 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $key = $this->createRandomString(10);
-        
+
         // These tests would have failed with the original incorrect format implementation
-        
+
         // Test 1: HEXPIRE with multiple fields should work (would fail if using HSETEX format)
         $this->valkey_glide->hSet($key, 'field1', 'value1', 'field2', 'value2', 'field3', 'value3');
         $result = $this->valkey_glide->hExpire($key, 30, null, 'field1', 'field2', 'field3');
         $this->assertEquals([1, 1, 1], $result); // All fields should get expiration
-        
+
         // Verify all fields have expiration but values are unchanged
         $this->assertEquals('value1', $this->valkey_glide->hGet($key, 'field1'));
         $this->assertEquals('value2', $this->valkey_glide->hGet($key, 'field2'));
         $this->assertEquals('value3', $this->valkey_glide->hGet($key, 'field3'));
-        
+
         $ttl1 = $this->valkey_glide->hTtl($key, 'field1');
         $ttl2 = $this->valkey_glide->hTtl($key, 'field2');
         $ttl3 = $this->valkey_glide->hTtl($key, 'field3');
         $this->assertGT(25, $ttl1[0]);
         $this->assertGT(25, $ttl2[0]);
         $this->assertGT(25, $ttl3[0]);
-        
+
         // Test 2: HTTL with multiple fields should work (would fail if using HSETEX format)
         $ttl_results = $this->valkey_glide->hTtl($key, 'field1', 'field2', 'field3');
         $this->assertCount(3, $ttl_results);
         $this->assertGT(0, $ttl_results[0]);
         $this->assertGT(0, $ttl_results[1]);
         $this->assertGT(0, $ttl_results[2]);
-        
+
         // Test 3: HPERSIST with multiple fields should work
         $persist_results = $this->valkey_glide->hPersist($key, 'field1', 'field2');
         $this->assertEquals([1, 1], $persist_results);
-        
+
         // Verify persistence worked
         $ttl_after_persist = $this->valkey_glide->hTtl($key, 'field1', 'field2', 'field3');
         $this->assertEquals([-1, -1], array_slice($ttl_after_persist, 0, 2)); // First two should have no expiration
         $this->assertGT(0, $ttl_after_persist[2]); // Third should still have expiration
-        
+
         // Test 4: HSETEX with odd number of arguments should fail gracefully
         // (This would expose format issues if field-value pairing is wrong)
         try {
@@ -4420,32 +4426,32 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         } catch (Exception $e) {
             $this->fail('HSETEX with proper field-value pairs should not fail: ' . $e->getMessage());
         }
-        
+
         // Test 5: Verify expiration units are handled correctly
         // HSETEX should handle different time units, HEXPIRE should use raw seconds
         $future_timestamp = time() + 3600;
-        
+
         // HSETEX with timestamp should work
         $result = $this->valkey_glide->hSetEx($key, $future_timestamp, null, 'timestamp_field', 'timestamp_value');
         $this->assertEquals(1, $result);
         $this->assertEquals('timestamp_value', $this->valkey_glide->hGet($key, 'timestamp_field'));
-        
+
         // HEXPIREAT with timestamp should work
         $this->valkey_glide->hSet($key, 'expire_at_field', 'expire_at_value');
         $result = $this->valkey_glide->hExpireAt($key, $future_timestamp, null, 'expire_at_field');
         $this->assertEquals([1], $result);
         $this->assertEquals('expire_at_value', $this->valkey_glide->hGet($key, 'expire_at_field'));
-        
+
         // Both should have similar expiration times
         $expire_time1 = $this->valkey_glide->hExpireTime($key, 'timestamp_field');
         $expire_time2 = $this->valkey_glide->hExpireTime($key, 'expire_at_field');
         $this->assertLT(abs($expire_time1[0] - $expire_time2[0]), 5); // Should be within 5 seconds
-        
+
         // Test 6: HGETEX format validation - should work with multiple fields and return values
         $this->valkey_glide->hSet($key, 'getex1', 'value1', 'getex2', 'value2', 'getex3', 'value3');
         $result = $this->valkey_glide->hGetEx($key, ['getex1', 'getex2'], ['EX' => 45]);
         $this->assertEquals(['getex1' => 'value1', 'getex2' => 'value2'], $result);
-        
+
         // Verify HGETEX set expiration on requested fields only
         $ttl_getex1 = $this->valkey_glide->hTtl($key, 'getex1');
         $ttl_getex2 = $this->valkey_glide->hTtl($key, 'getex2');
@@ -4453,12 +4459,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertGT(40, $ttl_getex1[0]); // Should have expiration
         $this->assertGT(40, $ttl_getex2[0]); // Should have expiration
         $this->assertEquals([-1], $ttl_getex3); // Should NOT have expiration
-        
+
         // Test HGETEX with PERSIST option
         $this->valkey_glide->hExpire($key, 60, null, 'getex1'); // Set expiration first
         $result = $this->valkey_glide->hGetEx($key, ['getex1'], ['PERSIST' => true]); // Remove expiration
         $this->assertEquals(['getex1' => 'value1'], $result);
-        
+
         $ttl_after_persist = $this->valkey_glide->hTtl($key, 'getex1');
         $this->assertEquals([-1], $ttl_after_persist); // Should have no expiration
     }
@@ -4470,33 +4476,33 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $key = $this->createRandomString(10);
-        
+
         // Test hExpire with mode parameter
         $this->valkey_glide->hSet($key, 'field1', 'value1');
-        
+
         // NX should succeed - no expiration set
         $result = $this->valkey_glide->hExpire($key, 60, 'NX', 'field1');
         $this->assertEquals([1], $result);
-        
+
         // NX should fail - expiration already set
         $result = $this->valkey_glide->hExpire($key, 60, 'NX', 'field1');
         $this->assertEquals([0], $result);
-        
+
         // XX should succeed - expiration exists
         $result = $this->valkey_glide->hExpire($key, 120, 'XX', 'field1');
         $this->assertEquals([1], $result);
-        
+
         // Test hPExpire with mode parameter
         $this->valkey_glide->hSet($key, 'field2', 'value2');
         $result = $this->valkey_glide->hPExpire($key, 60000, 'NX', 'field2');
         $this->assertEquals([1], $result);
-        
+
         // Test hExpireAt with mode parameter
         $this->valkey_glide->hSet($key, 'field3', 'value3');
         $future_timestamp = time() + 3600;
         $result = $this->valkey_glide->hExpireAt($key, $future_timestamp, 'NX', 'field3');
         $this->assertEquals([1], $result);
-        
+
         // Test hPExpireAt with mode parameter
         $this->valkey_glide->hSet($key, 'field4', 'value4');
         $future_timestamp_ms = (time() + 3600) * 1000;
@@ -4508,14 +4514,14 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         // Set up fields with expiration
         $this->valkey_glide->hSetEx($key, 60, null, 'field1', 'value1', 'field2', 'value2', 'field3', 'value3');
-        
+
         // Test variadic syntax: hTtl($key, 'field1', 'field2', 'field3')
         $ttl_variadic = $this->valkey_glide->hTtl($key, 'field1', 'field2', 'field3');
         $this->assertCount(3, $ttl_variadic);
         $this->assertGT(50, $ttl_variadic[0]);
         $this->assertGT(50, $ttl_variadic[1]);
         $this->assertGT(50, $ttl_variadic[2]);
-        
+
         // Test single field
         $ttl_single = $this->valkey_glide->hTtl($key, 'field1');
         $this->assertCount(1, $ttl_single);
@@ -4529,77 +4535,77 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $key = $this->createRandomString(10);
-        
+
         // Test all HSETEX variants (HSETEX format with field-value pairs)
-        
+
         // HPSETEX - milliseconds
         $result = $this->valkey_glide->hPSetEx($key, 5000, null, 'psetex_field', 'psetex_value');
         $this->assertEquals(1, $result);
         $this->assertEquals('psetex_value', $this->valkey_glide->hGet($key, 'psetex_field'));
         $pttl = $this->valkey_glide->hPTtl($key, 'psetex_field');
         $this->assertGT(4000, $pttl[0]);
-        
+
         // HSETEXAT - timestamp
         $future_timestamp = time() + 1800;
         $result = $this->valkey_glide->hSetEx($key, $future_timestamp, null, 'setat_field', 'setat_value');
         $this->assertEquals(1, $result);
         $this->assertEquals('setat_value', $this->valkey_glide->hGet($key, 'setat_field'));
-        
+
         // HPSETEXAT - timestamp in milliseconds
         $future_timestamp_ms = (time() + 1800) * 1000;
         $result = $this->valkey_glide->hPSetEx($key, $future_timestamp_ms, null, 'psetat_field', 'psetat_value');
         $this->assertEquals(1, $result);
         $this->assertEquals('psetat_value', $this->valkey_glide->hGet($key, 'psetat_field'));
-        
+
         // HSETEX condition variants
         $result = $this->valkey_glide->hSetEx($key, 60, ValkeyGlide::CONDITION_NX, 'new_field', 'new_value');
         $this->assertEquals(1, $result); // Should succeed - field doesn't exist
-        
+
         $result = $this->valkey_glide->hSetEx($key, 60, ValkeyGlide::CONDITION_XX, 'new_field', 'updated_value');
         $this->assertEquals(1, $result); // Should succeed - field exists
         $this->assertEquals('updated_value', $this->valkey_glide->hGet($key, 'new_field'));
-        
+
         // HPSETEX condition variants
         $result = $this->valkey_glide->hPSetEx($key, 60000, ValkeyGlide::CONDITION_NX, 'pnx_field', 'pnx_value');
         $this->assertEquals(1, $result); // Should succeed - field doesn't exist
-        
+
         $result = $this->valkey_glide->hPSetEx($key, 60000, ValkeyGlide::CONDITION_XX, 'pnx_field', 'pxx_value');
         $this->assertEquals(1, $result); // Should succeed - field exists
         $this->assertEquals('pxx_value', $this->valkey_glide->hGet($key, 'pnx_field'));
-        
+
         // Test all HEXPIRE variants (HEXPIRE format with fields only)
-        
+
         // HPEXPIRE - milliseconds
         $this->valkey_glide->hSet($key, 'pexpire_field', 'pexpire_value');
         $result = $this->valkey_glide->hPExpire($key, 8000, null, 'pexpire_field');
         $this->assertEquals([1], $result);
         $this->assertEquals('pexpire_value', $this->valkey_glide->hGet($key, 'pexpire_field')); // Value unchanged
-        
+
         // HPEXPIREAT - timestamp in milliseconds
         $this->valkey_glide->hSet($key, 'pexpireat_field', 'pexpireat_value');
         $result = $this->valkey_glide->hPExpireAt($key, $future_timestamp_ms, null, 'pexpireat_field');
         $this->assertEquals([1], $result);
         $this->assertEquals('pexpireat_value', $this->valkey_glide->hGet($key, 'pexpireat_field')); // Value unchanged
-        
+
         // HEXPIRE condition variants
         $this->valkey_glide->hSet($key, 'expire_cond_field', 'expire_cond_value');
         $this->assertEquals([1], $result); // Should succeed - no expiration
-        
+
         $this->assertEquals([1], $result); // Should succeed - has expiration
         $this->assertEquals('expire_cond_value', $this->valkey_glide->hGet($key, 'expire_cond_field')); // Value unchanged
-        
+
         // Test field-only commands (no expiry parameters)
-        
+
         // HPTTL - milliseconds TTL
         $pttl_result = $this->valkey_glide->hPTtl($key, 'pnx_field');
         $this->assertNotEquals(false, $pttl_result);
         $this->assertGT(0, $pttl_result[0]); // Should have TTL in milliseconds
-        
+
         // HPEXPIRETIME - milliseconds timestamp
         $pexpire_time = $this->valkey_glide->hPExpireTime($key, 'pexpireat_field');
         $this->assertNotEquals(false, $pexpire_time);
         $this->assertGT(time() * 1000, $pexpire_time[0]); // Should be future timestamp in ms
-        
+
         // Verify all field values are preserved
         $this->assertEquals('psetex_value', $this->valkey_glide->hGet($key, 'psetex_field'));
         $this->assertEquals('setat_value', $this->valkey_glide->hGet($key, 'setat_field'));
@@ -4613,15 +4619,15 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         $future_timestamp = time() + 3600;
         $future_timestamp_ms = $future_timestamp * 1000;
-        
+
         // Test timestamp variants - set the values first
         $this->assertEquals(1, $this->valkey_glide->hSetEx($key, $future_timestamp, null, 'field2', 'updated_value2'));
         $this->assertEquals('updated_value2', $this->valkey_glide->hGet($key, 'field2'));
-        
+
         // Test millisecond variants
         $this->assertEquals(1, $this->valkey_glide->hPSetEx($key, $future_timestamp_ms, null, 'field3', 'updated_value3'));
         $this->assertEquals('updated_value3', $this->valkey_glide->hGet($key, 'field3'));
-        
+
         // Test millisecond timestamp variants
         $this->assertEquals(1, $this->valkey_glide->hPSetEx($key, $future_timestamp_ms, null, 'field4', 'updated_value4'));
         $this->assertEquals('updated_value4', $this->valkey_glide->hGet($key, 'field4'));
@@ -4631,19 +4637,19 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         // Set up fields without expiration
         $this->valkey_glide->hSet($key, 'field1', 'value1', 'field2', 'value2');
-        
+
         // Test hExpireNx - only if field has no expiration
         $result = $this->valkey_glide->hExpire($key, 60, null, 'field1');
         $this->assertEquals([1], $result); // 1 = expiration set
-        
+
         // Should succeed - hExpire can update existing expiration
         $result = $this->valkey_glide->hExpire($key, 60, null, 'field1');
         $this->assertEquals([1], $result); // 1 = expiration updated
-        
+
         // Test hExpire on same field again
         $result = $this->valkey_glide->hExpire($key, 60, null, 'field1');
         $this->assertEquals([1], $result); // 1 = expiration updated again
-        
+
         $result = $this->valkey_glide->hExpire($key, 60, null, 'field1');
         $this->assertEquals([1], $result); // 1 = expiration updated
     }
@@ -4652,30 +4658,30 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         $future_timestamp = time() + 3600;
         $future_timestamp_ms = $future_timestamp * 1000;
-        
+
         // Test timestamp variants
         $this->valkey_glide->hSet($key, 'field3', 'value3');
         $result = $this->valkey_glide->hExpireAt($key, $future_timestamp, null, 'field3');
         $this->assertEquals([1], $result);
-        
+
         $result = $this->valkey_glide->hExpireAt($key, $future_timestamp, null, 'field3');
         $this->assertEquals([1], $result); // can update existing expiration
-        
+
         $result = $this->valkey_glide->hExpireAt($key, $future_timestamp, null, 'field3');
         $this->assertEquals([1], $result); // updated expiration again
-        
+
         // Test millisecond variants
         $this->valkey_glide->hSet($key, 'field4', 'value4', 'field5', 'value5');
-        
+
         $result = $this->valkey_glide->hPExpireAt($key, $future_timestamp_ms, null, 'field4');
         $this->assertEquals([1], $result);
-        
+
         $result = $this->valkey_glide->hPExpireAt($key, $future_timestamp_ms, null, 'field4');
         $this->assertEquals([1], $result);
-        
+
         $result = $this->valkey_glide->hPExpireAt($key, $future_timestamp_ms, null, 'field5');
         $this->assertEquals([1], $result);
-        
+
         $result = $this->valkey_glide->hPExpireAt($key, $future_timestamp_ms, null, 'field4');
         $this->assertEquals([1], $result);
     }
@@ -7580,30 +7586,30 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->select(0);
 
         $this->valkey_glide->set('{key}src', 'test_value');
-        
+
         // Test with string key - may fail if multi-database not supported
         $result1 = $this->valkey_glide->copy('{key}src', '{key}dst', ['DB' => 1]);
         $this->assertIsBool($result1);
-        
+
         if ($result1) {
             // Verify key exists in database 1
             $this->valkey_glide->select(1);
             $this->assertKeyEquals('test_value', '{key}dst');
             $this->valkey_glide->select(0);
         }
-        
+
         // Test with constant
         $this->valkey_glide->set('{key}src2', 'constant_test');
         $result2 = $this->valkey_glide->copy('{key}src2', '{key}dst2', [ValkeyGlide::COPY_DB => 1]);
         $this->assertIsBool($result2);
-        
+
         if ($result2) {
             // Verify with constant
             $this->valkey_glide->select(1);
             $this->assertKeyEquals('constant_test', '{key}dst2');
             $this->valkey_glide->select(0);
         }
-        
+
         // Test combined options
         if ($result1) {
             $result3 = $this->valkey_glide->copy('{key}src', '{key}dst', [
@@ -7612,7 +7618,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             ]);
             $this->assertIsBool($result3);
         }
-        
+
         // Clean up
         $this->valkey_glide->del('{key}src', '{key}src2');
         $this->valkey_glide->select(1);
@@ -7643,106 +7649,184 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         // Create unique log file for this test
         $logFile = '/tmp/valkey_get_test_' . uniqid() . '.log';
-        
+
         // Initialize logger with debug level for detailed test logging
         $this->assertTrue(valkey_glide_logger_set_config("debug", $logFile));
         $this->assertTrue(valkey_glide_logger_is_initialized());
-        
+
         valkey_glide_logger_info("get-test", "=== Starting GET command test ===");
-        
+
         // Test setup
         $testKey = 'test-key-' . uniqid();
         $testValue = 'test-value-' . uniqid();
-        
+
         valkey_glide_logger_debug("get-test", "Test key: $testKey");
         valkey_glide_logger_debug("get-test", "Test value: $testValue");
-        
+
         // Set the key
         valkey_glide_logger_info("get-test", "Setting key via SET command");
         $setResult = $this->valkey_glide->set($testKey, $testValue);
         valkey_glide_logger_debug("get-test", "SET result: " . ($setResult ? 'true' : 'false'));
         $this->assertTrue($setResult);
-        
+
         // Get the key
         valkey_glide_logger_info("get-test", "Retrieving key via GET command");
         $getValue = $this->valkey_glide->get($testKey);
         valkey_glide_logger_debug("get-test", "GET result: " . ($getValue ?: 'null'));
-        
+
         // Verify result
         $this->assertEquals($testValue, $getValue);
         valkey_glide_logger_info("get-test", "✓ GET command test passed - values match");
-        
+
         // Test non-existent key
         valkey_glide_logger_info("get-test", "Testing non-existent key");
         $nonExistentKey = 'non-existent-key-' . uniqid();
         valkey_glide_logger_debug("get-test", "Non-existent key: $nonExistentKey");
-        
+
         $nonExistentResult = $this->valkey_glide->get($nonExistentKey);
         valkey_glide_logger_debug("get-test", "Non-existent key result: " . ($nonExistentResult === false ? 'false' : $nonExistentResult));
-        
+
         $this->assertFalse($nonExistentResult);
         valkey_glide_logger_info("get-test", "✓ Non-existent key test passed");
-        
+
         // Test with various data types
         $testCases = [
             'string' => 'hello world',
             'number' => '12345',
             'special' => 'émojis: 🚀 unicode: ñáéíóú'
         ];
-        
+
         foreach ($testCases as $type => $value) {
             valkey_glide_logger_info("get-test", "Testing $type data type");
             $key = "test-$type-" . uniqid();
-            
+
             valkey_glide_logger_debug("get-test", "Setting $key = $value");
             $this->assertTrue($this->valkey_glide->set($key, $value));
-            
+
             $result = $this->valkey_glide->get($key);
             valkey_glide_logger_debug("get-test", "Retrieved $key = $result");
-            
+
             $this->assertEquals($value, $result);
             valkey_glide_logger_info("get-test", "✓ $type test passed");
-            
+
             // Clean up
             $this->valkey_glide->del($key);
         }
-        
+
         // Clean up main test key
         valkey_glide_logger_info("get-test", "Cleaning up test key");
         $delResult = $this->valkey_glide->del($testKey);
         valkey_glide_logger_debug("get-test", "DEL result: $delResult");
-        
+
         valkey_glide_logger_info("get-test", "=== GET command test completed successfully ===");
         valkey_glide_logger_info("get-test", "Log file location: $logFile");
-        
+
         // Verify logging actually worked
         sleep(1); // Wait for logs to be written
-        
+
         // Check logger is initialized
         $this->assertTrue(valkey_glide_logger_is_initialized(), "Logger should be initialized");
         $this->assertEquals(3, valkey_glide_logger_get_level(), "Debug level should be 3");
-        
+
         // Verify log file creation
         $actualLogFiles = glob($logFile . '*');
         $this->assertTrue(count($actualLogFiles) > 0, "Log file should be created");
-        
+
         // Verify log content
         $actualLogFile = $actualLogFiles[0];
         $this->assertTrue(file_exists($actualLogFile), "Log file should exist");
-        
+
         $logContent = file_get_contents($actualLogFile);
         $this->assertTrue(!empty($logContent), "Log file should not be empty");
-        
+
         // Verify specific log messages exist
         $this->assertStringContains("=== Starting GET command test ===", $logContent, "Should contain test start message");
         $this->assertStringContains("Setting key via SET command", $logContent, "Should contain SET operation log");
         $this->assertStringContains("Retrieving key via GET command", $logContent, "Should contain GET operation log");
         $this->assertStringContains("✓ GET command test passed - values match", $logContent, "Should contain success message");
         $this->assertStringContains("get-test", $logContent, "Should contain test identifier");
-        
+
         // Output log file location for verification
         echo "\n=== LOG FILE LOCATION ===\n";
         echo "Log file: $actualLogFile\n";
         echo "========================\n";
+    }
+
+    public function testGetCommandWithConsoleLogging()
+    {
+        // Initialize logger with null filename to test console output
+        $this->assertTrue(valkey_glide_logger_set_config("debug", null));
+        $this->assertTrue(valkey_glide_logger_is_initialized());
+
+        // Capture output using ob_start
+        ob_start();
+        
+        try {
+            // Test setup
+            $testKey = 'console-test-key-' . uniqid();
+            $testValue = 'console-test-value-' . uniqid();
+
+            valkey_glide_logger_info("console-test", "=== Starting console logging test ===");
+            valkey_glide_logger_debug("console-test", "Test key: $testKey");
+
+            // Set and get the key
+            $setResult = $this->valkey_glide->set($testKey, $testValue);
+            valkey_glide_logger_info("console-test", "SET operation completed");
+            $this->assertTrue($setResult);
+
+            $getValue = $this->valkey_glide->get($testKey);
+            valkey_glide_logger_info("console-test", "GET operation completed");
+            $this->assertEquals($testValue, $getValue);
+
+            valkey_glide_logger_info("console-test", "=== Console logging test completed ===");
+
+            // Clean up
+            $this->valkey_glide->del($testKey);
+        } finally {
+            // Capture any output that went to stdout/stderr
+            $output = ob_get_contents();
+            ob_end_clean();
+        }
+
+        // Check if any output was captured
+        if (!empty($output)) {
+            echo "\n=== CONSOLE OUTPUT CAPTURED ===\n";
+            echo $output;
+            echo "===============================\n";
+            $this->assertStringContains("console-test", $output, "Should contain console logging output");
+        } else {
+            echo "\n=== NO STDOUT CAPTURED VIA ob_start() - CHECKING STDOUT REDIRECTION ===\n";
+            
+            // Since ob_start() doesn't capture C-level stdout, we need to test stdout redirection
+            // Create a temporary script to capture stdout
+            $tempScript = tempnam(sys_get_temp_dir(), 'stdout_test_');
+            $stdoutFile = tempnam(sys_get_temp_dir(), 'stdout_output_');
+            
+            file_put_contents($tempScript, '<?php
+if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_glide.so")) {
+    valkey_glide_logger_set_config("debug", null);
+    valkey_glide_logger_info("stdout-test", "Testing stdout capture");
+}
+?>');
+            
+            // Execute script and redirect stdout to file
+            exec("php $tempScript 1>$stdoutFile 2>/dev/null");
+            
+            $stdoutContent = file_get_contents($stdoutFile);
+            
+            if (!empty($stdoutContent)) {
+                echo "STDOUT content captured:\n";
+                echo $stdoutContent . "\n";
+                $this->assertStringContains("stdout-test", $stdoutContent, "Should contain stdout logging output");
+                echo "✓ Logger with null filename writes to stdout (bypasses ob_start)\n";
+            } else {
+                echo "No stdout output captured\n";
+            }
+            
+            // Cleanup
+            unlink($tempScript);
+            unlink($stdoutFile);
+            echo "=======================================================\n";
+        }
     }
 }
