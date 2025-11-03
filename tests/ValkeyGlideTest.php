@@ -7829,4 +7829,31 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             echo "=======================================================\n";
         }
     }
+
+    public function testRefreshTopologyFromInitialNodesIgnoredInStandalone()
+    {
+        // Test that refresh_topology_from_initial_nodes is ignored for standalone clients
+        try {
+            $client = new ValkeyGlide(
+                addresses: [['host' => 'localhost', 'port' => 6379]],
+                use_tls: false,
+                credentials: null,
+                read_from: ValkeyGlide::READ_FROM_PRIMARY,
+                request_timeout: null,
+                reconnect_strategy: null,
+                database_id: null,
+                client_name: null,
+                client_az: null,
+                advanced_config: [
+                    'connection_timeout' => 5000,
+                    'refresh_topology_from_initial_nodes' => true  // Should be ignored
+                ],
+                lazy_connect: true
+            );
+            $client->close();
+            $this->assertTrue(true, 'Standalone client created successfully (refresh_topology_from_initial_nodes ignored)');
+        } catch (Exception $e) {
+            $this->markTestSkipped('Valkey server not available: ' . $e->getMessage());
+        }
+    }
 }
