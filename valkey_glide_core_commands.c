@@ -133,6 +133,12 @@ uint8_t* create_connection_request(const char*                               hos
         conn_req.connection_timeout = config->advanced_config->connection_timeout;
     }
 
+    /* Set refresh topology from initial nodes for cluster mode */
+    if (is_cluster && config->advanced_config) {
+        conn_req.refresh_topology_from_initial_nodes =
+            config->advanced_config->refresh_topology_from_initial_nodes;
+    }
+
     conn_req.lazy_connect = config->lazy_connect;
     /* Map read_from configuration */
     if (config->read_from == VALKEY_GLIDE_READ_FROM_PREFER_REPLICA) {

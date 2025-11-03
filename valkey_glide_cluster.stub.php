@@ -187,7 +187,8 @@ class ValkeyGlideCluster
      * @param int|null $periodic_checks         Periodic checks configuration.
      * @param string|null $client_az            Client availability zone.
      * @param array|null $advanced_config       Advanced configuration ['connection_timeout' => 5000,
-     *                                          'tls_config' => ['use_insecure_tls' => false]].
+     *                                          'tls_config' => ['use_insecure_tls' => false],
+     *                                          'refresh_topology_from_initial_nodes' => false].
      *                                           connection_timeout is in milliseconds.
      * @param bool|null $lazy_connect           Whether to use lazy connection.
      * @param int|null $database_id             Index of the logical database to connect to. Must be non-negative 

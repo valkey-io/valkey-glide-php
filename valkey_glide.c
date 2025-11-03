@@ -389,6 +389,19 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         } else {
             config->advanced_config->tls_config = NULL;
         }
+
+        /* Check for refresh_topology_from_initial_nodes (cluster only) */
+        if (is_cluster) {
+            zval* refresh_topology_val =
+                zend_hash_str_find(advanced_ht, "refresh_topology_from_initial_nodes", 35);
+            if (refresh_topology_val && Z_TYPE_P(refresh_topology_val) == IS_TRUE) {
+                config->advanced_config->refresh_topology_from_initial_nodes = true;
+            } else {
+                config->advanced_config->refresh_topology_from_initial_nodes = false;
+            }
+        } else {
+            config->advanced_config->refresh_topology_from_initial_nodes = false;
+        }
     } else {
         config->advanced_config = NULL;
     }

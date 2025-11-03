@@ -112,6 +112,7 @@ typedef struct {
 typedef struct {
     int                                        connection_timeout; /* In milliseconds. */
     valkey_glide_tls_advanced_configuration_t* tls_config;         /* NULL if not set */
+    bool refresh_topology_from_initial_nodes;                      /* false if not set */
 } valkey_glide_advanced_base_client_configuration_t;
 
 typedef struct {
