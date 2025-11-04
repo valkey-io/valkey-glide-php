@@ -79,7 +79,7 @@ runs:
       run: |
         # Find the actual .so file location
         SO_FILE=""
-        
+
         # Check common locations
         if [[ -f "$EXTENSION_PATH" ]]; then
           SO_FILE="$EXTENSION_PATH"
