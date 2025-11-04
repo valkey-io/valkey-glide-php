@@ -25,7 +25,7 @@ runs:
       with:
         php-version: ${{ inputs.php-version }}
         extensions: tokenizer, json, ctype, iconv, mbstring
-        tools: none
+        tools: composer
       env:
         runner: self-hosted
 
