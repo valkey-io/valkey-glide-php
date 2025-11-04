@@ -125,7 +125,7 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     /* Build the connection request. */
     size_t   protobuf_message_len;
     uint8_t* request_bytes = create_connection_request(
-        "localhost", 6379, &protobuf_message_len, &client_config, 0, false);
+        "localhost", 6379, &protobuf_message_len, &client_config, 0, false, false);
 
     zval* php_request =
         build_php_connection_request(request_bytes, protobuf_message_len, &client_config);
@@ -182,7 +182,8 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
                                                        &protobuf_message_len,
                                                        &client_config.base,
                                                        client_config.periodic_checks_status,
-                                                       true);
+                                                       true,
+                                                       client_config.refresh_topology_from_initial_nodes);
 
     zval* php_request =
         build_php_connection_request(request_bytes, protobuf_message_len, &client_config.base);
