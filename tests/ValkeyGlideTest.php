@@ -7846,12 +7846,12 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
                 client_az: null,
                 advanced_config: [
                     'connection_timeout' => 5000,
-                    'refresh_topology_from_initial_nodes' => true  // Should be ignored
+                    'refresh_topology_from_initial_nodes' => true  // Should be completely ignored
                 ],
                 lazy_connect: true
             );
             $client->close();
-            $this->assertTrue(true, 'Standalone client created successfully (refresh_topology_from_initial_nodes ignored)');
+            $this->assertTrue(true, 'Standalone client ignores cluster-only option completely');
         } catch (Exception $e) {
             $this->markTestSkipped('Valkey server not available: ' . $e->getMessage());
         }

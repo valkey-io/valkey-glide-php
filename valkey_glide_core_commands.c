@@ -46,7 +46,8 @@ uint8_t* create_connection_request(const char*                               hos
                                    size_t*                                   len,
                                    valkey_glide_base_client_configuration_t* config,
                                    valkey_glide_periodic_checks_status_t     periodic_checks,
-                                   bool                                      is_cluster) {
+                                   bool                                      is_cluster,
+                                   bool refresh_topology_from_initial_nodes) {
     /* Create a connection request */
     ConnectionRequest__ConnectionRequest conn_req = CONNECTION_REQUEST__CONNECTION_REQUEST__INIT;
 
@@ -134,9 +135,8 @@ uint8_t* create_connection_request(const char*                               hos
     }
 
     /* Set refresh topology from initial nodes for cluster mode */
-    if (is_cluster && config->advanced_config) {
-        conn_req.refresh_topology_from_initial_nodes =
-            config->advanced_config->refresh_topology_from_initial_nodes;
+    if (is_cluster) {
+        conn_req.refresh_topology_from_initial_nodes = refresh_topology_from_initial_nodes;
     }
 
     conn_req.lazy_connect = config->lazy_connect;
@@ -214,14 +214,20 @@ uint8_t* create_connection_request(const char*                               hos
 static const ConnectionResponse* create_base_glide_client(
     valkey_glide_base_client_configuration_t* config,
     valkey_glide_periodic_checks_status_t     periodic_checks,
-    bool                                      is_cluster) {
+    bool                                      is_cluster,
+    bool                                      refresh_topology_from_initial_nodes) {
     /* Create a connection request using first address or default */
     size_t      len;
     const char* default_host = "localhost";
     int         default_port = 6379;
 
-    uint8_t* request_bytes = create_connection_request(
-        default_host, default_port, &len, config, periodic_checks, is_cluster);
+    uint8_t* request_bytes = create_connection_request(default_host,
+                                                       default_port,
+                                                       &len,
+                                                       config,
+                                                       periodic_checks,
+                                                       is_cluster,
+                                                       refresh_topology_from_initial_nodes);
 
     if (!request_bytes) {
         return NULL;
@@ -249,12 +255,15 @@ static const ConnectionResponse* create_base_glide_client(
 
 /* Create a Valkey Glide client */
 const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config) {
-    return create_base_glide_client(config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false);
+    return create_base_glide_client(config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false);
 }
 
 const ConnectionResponse* create_glide_cluster_client(
     valkey_glide_cluster_client_configuration_t* config) {
-    return create_base_glide_client(&config->base, config->periodic_checks_status, true);
+    return create_base_glide_client(&config->base,
+                                    config->periodic_checks_status,
+                                    true,
+                                    config->refresh_topology_from_initial_nodes);
 }
 
 /* Custom result processor for SET commands with GET option support */

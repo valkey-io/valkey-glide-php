@@ -70,7 +70,8 @@ uint8_t* create_connection_request(const char*                               hos
                                    size_t*                                   len,
                                    valkey_glide_base_client_configuration_t* config,
                                    valkey_glide_periodic_checks_status_t     periodic_checks,
-                                   bool                                      is_cluster);
+                                   bool                                      is_cluster,
+                                   bool refresh_topology_from_initial_nodes);
 
 /* Bit operations - UNIFIED SIGNATURES */
 int execute_bitcount_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);

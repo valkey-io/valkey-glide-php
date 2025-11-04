@@ -78,6 +78,17 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     /* Populate configuration parameters shared between client and cluster connections. */
     valkey_glide_build_client_config_base(&common_params, &client_config.base, true);
 
+    /* Parse cluster-specific advanced config options */
+    client_config.refresh_topology_from_initial_nodes = false; /* Default value */
+    if (common_params.advanced_config && Z_TYPE_P(common_params.advanced_config) == IS_ARRAY) {
+        HashTable* advanced_ht = Z_ARRVAL_P(common_params.advanced_config);
+        zval*      refresh_topology_val =
+            zend_hash_str_find(advanced_ht, "refresh_topology_from_initial_nodes", 35);
+        if (refresh_topology_val && Z_TYPE_P(refresh_topology_val) == IS_TRUE) {
+            client_config.refresh_topology_from_initial_nodes = true;
+        }
+    }
+
     /* Issue the connection request. */
     const ConnectionResponse* conn_resp = create_glide_cluster_client(&client_config);
 
