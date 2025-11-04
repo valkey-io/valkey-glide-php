@@ -244,6 +244,14 @@ jobs:
             fi
           fi
 
+          # If extension was built but not installed, install it manually
+          PIE_SO=$(find "$HOME/.config/pie" -name "valkey_glide.so" -type f 2>/dev/null | head -1)
+          if [ -n "$PIE_SO" ] && [ ! -f "$(php-config --extension-dir)/valkey_glide.so" ]; then
+            echo "Installing extension from: $PIE_SO"
+            sudo cp "$PIE_SO" "$(php-config --extension-dir)/valkey_glide.so"
+            echo "Extension installed to: $(php-config --extension-dir)/valkey_glide.so"
+          fi
+
           echo "=== Looking for built extension in PIE working directory ==="
           PIE_WORK_DIR=$(find "$HOME/.config/pie" -name "valkey-glide-php" -type d | head -1)
           if [ -n "$PIE_WORK_DIR" ]; then
