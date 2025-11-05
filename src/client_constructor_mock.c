@@ -179,8 +179,9 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
     client_config.refresh_topology_from_initial_nodes = false; /* Default value */
     if (common_params.advanced_config && Z_TYPE_P(common_params.advanced_config) == IS_ARRAY) {
         HashTable* advanced_ht = Z_ARRVAL_P(common_params.advanced_config);
+        const char key_name[]  = "refresh_topology_from_initial_nodes";
         zval*      refresh_topology_val =
-            zend_hash_str_find(advanced_ht, "refresh_topology_from_initial_nodes", 35);
+            zend_hash_str_find(advanced_ht, key_name, sizeof(key_name) - 1);
         if (refresh_topology_val && Z_TYPE_P(refresh_topology_val) == IS_TRUE) {
             client_config.refresh_topology_from_initial_nodes = true;
         }
