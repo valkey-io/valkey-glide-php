@@ -137,6 +137,8 @@ uint8_t* create_connection_request(const char*                               hos
     /* Set refresh topology from initial nodes for cluster mode */
     if (is_cluster) {
         conn_req.refresh_topology_from_initial_nodes = refresh_topology_from_initial_nodes;
+    } else {
+        conn_req.refresh_topology_from_initial_nodes = false;
     }
 
     conn_req.lazy_connect = config->lazy_connect;
