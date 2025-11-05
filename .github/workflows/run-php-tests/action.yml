@@ -77,43 +77,40 @@ runs:
       env:
         EXTENSION_PATH: ${{ inputs.extension-path }}
       run: |
-        # Debug: Check if extension is loaded and classes exist
-        echo "=== Extension Debug Info ==="
-        echo "Extension path: $EXTENSION_PATH"
+        # Find the actual .so file location
+        SO_FILE=""
 
-        # Check if this is a file path or extension name
+        # Check common locations
         if [[ -f "$EXTENSION_PATH" ]]; then
-          echo "Loading extension from file: $EXTENSION_PATH"
-          EXTENSION_ARG="extension=$EXTENSION_PATH"
+          SO_FILE="$EXTENSION_PATH"
+        elif [[ -f "$(php-config --extension-dir)/${EXTENSION_PATH}.so" ]]; then
+          SO_FILE="$(php-config --extension-dir)/${EXTENSION_PATH}.so"
         else
-          echo "Loading extension by name: $EXTENSION_PATH"
-          EXTENSION_ARG="extension=$EXTENSION_PATH"
+          # Search for the extension in common PHP directories
+          for dir in /opt/homebrew/lib/php/pecl /opt/homebrew/Cellar/php*/*/pecl /usr/lib/php; do
+            FOUND=$(find "$dir" -name "${EXTENSION_PATH}.so" 2>/dev/null | head -1)
+            if [[ -n "$FOUND" ]]; then
+              SO_FILE="$FOUND"
+              break
+            fi
+          done
         fi
 
-        php -n -d "$EXTENSION_ARG" -r "
+        if [[ -z "$SO_FILE" ]]; then
+          echo "ERROR: Extension .so file not found"
+          exit 1
+        fi
+
+        echo "=== Extension Debug Info ==="
+        echo "Found extension at: $SO_FILE"
+
+        php -n -d "extension=$SO_FILE" -r "
           echo 'Extension loaded: ' . (extension_loaded('valkey_glide') ? 'YES' : 'NO') . PHP_EOL;
-          echo 'Extension version: ' . phpversion('valkey_glide') . PHP_EOL;
-          echo 'Extension functions: ' . PHP_EOL;
-          foreach (get_extension_funcs('valkey_glide') as \$func) {
-            echo '  - ' . \$func . PHP_EOL;
-          }
-          echo 'All declared classes: ' . PHP_EOL;
-          foreach (get_declared_classes() as \$class) {
-            if (strpos(\$class, 'Valkey') !== false || strpos(\$class, 'Client') !== false || strpos(\$class, 'Mock') !== false) {
-              echo '  - ' . \$class . PHP_EOL;
-            }
-          }
           echo 'ClientConstructorMock exists: ' . (class_exists('ClientConstructorMock') ? 'YES' : 'NO') . PHP_EOL;
-          if (class_exists('ClientConstructorMock')) {
-            echo 'ClientConstructorMock methods: ' . PHP_EOL;
-            foreach (get_class_methods('ClientConstructorMock') as \$method) {
-              echo '  - ' . \$method . PHP_EOL;
-            }
-          }
         "
 
-        # Run tests using extension loading
-        php -n -d "$EXTENSION_ARG" tests/TestValkeyGlide.php
+        # Run tests
+        php -n -d "extension=$SO_FILE" tests/TestValkeyGlide.php
 
     - name: Run integration tests
       shell: bash

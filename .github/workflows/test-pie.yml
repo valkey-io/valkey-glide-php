@@ -58,6 +58,8 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           install-composer-deps: "true"
+          target: ${{ matrix.host.TARGET }}
+          os: ${{ matrix.host.OS }}
 
       - name: Create manual Composer repository
         run: |
@@ -97,7 +99,20 @@ jobs:
           # Start HTTP server
           cd web && python3 -m http.server 8000 &
           echo $! > ../server.pid
-          sleep 3
+
+          # Wait for server to be ready with proper health check
+          echo "Waiting for HTTP server to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8000/packages.json >/dev/null 2>&1; then
+              echo "HTTP server is ready"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "HTTP server failed to start after 30 seconds"
+              exit 1
+            fi
+            sleep 1
+          done
 
       - name: Test PIE with manual repository
         run: |
@@ -107,7 +122,10 @@ jobs:
 
           # Initialize composer config directories and fix permissions
           mkdir -p "$HOME/.config/composer"
-          sudo mkdir -p /root/.config/composer
+          # Skip root directory creation on macOS due to SIP
+          if [[ "${{ matrix.host.OS }}" != "macos" ]]; then
+            sudo mkdir -p /root/.config/composer
+          fi
 
           # Make sure root can read the user's composer config
           sudo chmod -R 755 "$HOME/.config/composer"
@@ -116,6 +134,17 @@ jobs:
           else
             sudo chown -R root:root "$HOME/.config/composer" || true
           fi
+
+          # Verify HTTP server is accessible before proceeding
+          echo "=== Verifying HTTP server accessibility ==="
+          curl -v http://localhost:8000/packages.json || {
+            echo "ERROR: Cannot access local HTTP server"
+            echo "Server process status:"
+            ps aux | grep "python.*http.server" || echo "No HTTP server process found"
+            echo "Port 8000 status:"
+            lsof -i :8000 || echo "Port 8000 not in use"
+            exit 1
+          }
 
           # Add local repository
           pie repository:add composer http://localhost:8000
@@ -200,6 +229,28 @@ jobs:
           echo "=== Checking PHP extension directory ==="
           php-config --extension-dir
           ls -la $(php-config --extension-dir) | grep valkey || echo "valkey_glide.so not found in extension directory"
+
+          # Check if PIE installed to a different location (macOS Homebrew specific)
+          if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
+            echo "=== Checking alternative extension locations ==="
+            find /opt/homebrew/lib/php -name "valkey_glide.so" 2>/dev/null || echo "No valkey_glide.so found in /opt/homebrew/lib/php"
+            
+            # If found in alternative location, create symlink
+            ALT_SO=$(find /opt/homebrew/lib/php -name "valkey_glide.so" 2>/dev/null | head -1)
+            if [ -n "$ALT_SO" ] && [ ! -f "$(php-config --extension-dir)/valkey_glide.so" ]; then
+              echo "Found extension at: $ALT_SO"
+              echo "Creating symlink to: $(php-config --extension-dir)/valkey_glide.so"
+              sudo ln -sf "$ALT_SO" "$(php-config --extension-dir)/valkey_glide.so"
+            fi
+          fi
+
+          # If extension was built but not installed, install it manually
+          PIE_SO=$(find "$HOME/.config/pie" -name "valkey_glide.so" -type f 2>/dev/null | head -1)
+          if [ -n "$PIE_SO" ] && [ ! -f "$(php-config --extension-dir)/valkey_glide.so" ]; then
+            echo "Installing extension from: $PIE_SO"
+            sudo cp "$PIE_SO" "$(php-config --extension-dir)/valkey_glide.so"
+            echo "Extension installed to: $(php-config --extension-dir)/valkey_glide.so"
+          fi
 
           echo "=== Looking for built extension in PIE working directory ==="
           PIE_WORK_DIR=$(find "$HOME/.config/pie" -name "valkey-glide-php" -type d | head -1)

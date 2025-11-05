@@ -219,7 +219,8 @@ jobs:
       - name: Install shared dependencies
         uses: ./.github/workflows/install-shared-dependencies
         with:
-          target: x86_64-apple-darwin
+          # "macos-latest" is actually an ARM runner, hence using the ARM target for mac here
+          target: aarch64-apple-darwin
           github-token: ${{ secrets.GITHUB_TOKEN }}
           engine-version: ${{ matrix.engine.version }}
 
