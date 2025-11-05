@@ -26,8 +26,6 @@
     "ARCH": "arm64",
     "TARGET": "aarch64-apple-darwin",
     "PACKAGE_MANAGERS": ["pypi", "npm", "maven", "pkg_go_dev"],
-    "comment": "Making mac always run for in-PR testing, to be removed",
-    "run": "always",
     "languages": ["python", "node", "java", "go", "dotnet", "php"]
   },
   {
