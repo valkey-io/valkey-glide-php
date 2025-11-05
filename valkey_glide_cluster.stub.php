@@ -153,6 +153,12 @@ class ValkeyGlideCluster
      */
     public const IAM_CONFIG_REFRESH_INTERVAL = 'refreshIntervalSeconds';
 
+    /**
+     * @var string
+     * Advanced config key for refresh topology from initial nodes option
+     */
+    public const ADVANCED_CONFIG_REFRESH_TOPOLOGY_FROM_INITIAL_NODES = 'refresh_topology_from_initial_nodes';
+
                     /**
                    *  @var int
          * Enables the periodic checks with the default configurations.
@@ -186,10 +192,11 @@ class ValkeyGlideCluster
      * @param string|null $client_name          Client name identifier.
      * @param int|null $periodic_checks         Periodic checks configuration.
      * @param string|null $client_az            Client availability zone.
-     * @param array|null $advanced_config       Advanced configuration ['connection_timeout' => 5000,
-     *                                          'tls_config' => ['use_insecure_tls' => false],
-     *                                          'refresh_topology_from_initial_nodes' => false].
-     *                                           connection_timeout is in milliseconds.
+     * @param array|null $advanced_config       Advanced configuration options:
+     *                                          - 'connection_timeout' => 5000 (milliseconds)
+     *                                          - 'tls_config' => ['use_insecure_tls' => false]
+     *                                          - 'refresh_topology_from_initial_nodes' => false (default: false)
+     *                                            When true, topology updates use only initial nodes instead of internal cluster view.
      * @param bool|null $lazy_connect           Whether to use lazy connection.
      * @param int|null $database_id             Index of the logical database to connect to. Must be non-negative 
      *                                          and within the range supported by the server configuration. 

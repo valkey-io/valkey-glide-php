@@ -460,4 +460,48 @@ class ConnectionRequestTest extends \TestSuite
         $this->assertFalse($request->hasPeriodicChecksDisabled());
         $this->assertTrue($request->hasPeriodicChecksManualInterval());
     }
+
+    public function testClusterRefreshTopologyFromInitialNodesDefault()
+    {
+        // Test that refresh_topology_from_initial_nodes defaults to false when not specified
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            addresses: [['host' => 'localhost', 'port' => 8080]]
+        );
+        
+        $this->assertFalse($request->getRefreshTopologyFromInitialNodes());
+    }
+
+    public function testClusterRefreshTopologyFromInitialNodesEnabled()
+    {
+        // Test that refresh_topology_from_initial_nodes can be set to true
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            addresses: [['host' => 'localhost', 'port' => 8080]],
+            advanced_config: ['refresh_topology_from_initial_nodes' => true]
+        );
+        
+        $this->assertTrue($request->getRefreshTopologyFromInitialNodes());
+    }
+
+    public function testClusterRefreshTopologyFromInitialNodesDisabled()
+    {
+        // Test that refresh_topology_from_initial_nodes can be explicitly set to false
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            addresses: [['host' => 'localhost', 'port' => 8080]],
+            advanced_config: ['refresh_topology_from_initial_nodes' => false]
+        );
+        
+        $this->assertFalse($request->getRefreshTopologyFromInitialNodes());
+    }
+
+    public function testStandaloneRefreshTopologyFromInitialNodesIgnored()
+    {
+        // Test that refresh_topology_from_initial_nodes is ignored for standalone clients
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            addresses: [['host' => 'localhost', 'port' => 8080]],
+            advanced_config: ['refresh_topology_from_initial_nodes' => true]
+        );
+        
+        // Standalone clients should always have this as false (ignored)
+        $this->assertFalse($request->getRefreshTopologyFromInitialNodes());
+    }
 }
