@@ -1081,7 +1081,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         
         // Perform basic operation to verify client works
         $result = $client->ping(['type' => 'primarySlotKey', 'key' => 'test']);
-        $this->assertEquals('PONG', $result);
+        $this->assertTrue($result);
         
         $client->close();
     }
@@ -1107,7 +1107,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         
         // Perform basic operation to verify client works
         $result = $client->ping(['type' => 'primarySlotKey', 'key' => 'test']);
-        $this->assertEquals('PONG', $result);
+        $this->assertTrue($result);
         
         $client->close();
     }
@@ -1133,7 +1133,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         
         // Perform basic operation to verify client works
         $result = $client->ping(['type' => 'primarySlotKey', 'key' => 'test']);
-        $this->assertEquals('PONG', $result);
+        $this->assertTrue($result);
         
         $client->close();
     }
