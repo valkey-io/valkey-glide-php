@@ -7851,7 +7851,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         
         // Perform basic operation to verify client works
         $result = $client->ping();
-        $this->assertEquals('PONG', $result);
+        $this->assertTrue($result);
         
         $client->close();
     }
