@@ -1316,6 +1316,80 @@ class ValkeyGlideCluster
      * @see https://valkey.io/commands/zdiff
      */
     public function zdiff(array $keys, ?array $options = null): ValkeyGlideCluster|array|false;
+
+    /**
+     * Initialize OpenTelemetry with the provided configuration.
+     * This method should be called before any Valkey GLIDE client operations to enable 
+     * OpenTelemetry tracing and metrics collection.
+     * 
+     * ⚠️ OpenTelemetry can only be initialized once per process. Subsequent calls will be ignored.
+     *
+     * @param array $config OpenTelemetry configuration array with the following structure:
+     *   - 'traces' (optional): array
+     *     - 'endpoint': string - The collector endpoint for traces
+     *     - 'sample_percentage': int - Percentage of requests to sample (0-100, defaults to 1)
+     *   - 'metrics' (optional): array  
+     *     - 'endpoint': string - The collector endpoint for metrics
+     *   - 'flush_interval_ms': int - Interval in milliseconds for flushing data (defaults to 5000)
+     *
+     * @return bool True if initialization was successful, false if already initialized
+     * @throws ValkeyGlideClusterException If configuration is invalid
+     *
+     * @example
+     * ValkeyGlideCluster::initOpenTelemetry([
+     *     'traces' => [
+     *         'endpoint' => 'http://localhost:4318/v1/traces',
+     *         'sample_percentage' => 10
+     *     ],
+     *     'metrics' => [
+     *         'endpoint' => 'http://localhost:4318/v1/metrics'
+     *     ],
+     *     'flush_interval_ms' => 5000
+     * ]);
+     */
+    public static function initOpenTelemetry(array $config): bool;
+
+    /**
+     * Check if OpenTelemetry is initialized.
+     *
+     * @return bool True if OpenTelemetry is initialized, false otherwise
+     */
+    public static function isOpenTelemetryInitialized(): bool;
+
+    /**
+     * Get the current sample percentage for traces.
+     *
+     * @return int|null The sample percentage (0-100) if traces are configured, null otherwise
+     */
+    public static function getOpenTelemetrySamplePercentage(): ?int;
+
+    /**
+     * Set the percentage of requests to be sampled and traced at runtime.
+     * This allows dynamic adjustment of sampling without reinitializing OpenTelemetry.
+     *
+     * @param int $percentage The sample percentage (0-100)
+     * @return bool True if the percentage was set successfully
+     * @throws ValkeyGlideClusterException If OpenTelemetry is not initialized or percentage is invalid
+     */
+    public static function setOpenTelemetrySamplePercentage(int $percentage): bool;
+
+    /**
+     * Create a named OpenTelemetry span for custom tracing.
+     * The span must be manually ended using endOpenTelemetrySpan().
+     *
+     * @param string $name The name of the span
+     * @return int|null Span pointer on success, null if OpenTelemetry is not initialized or span creation failed
+     * @throws ValkeyGlideClusterException If span name is invalid
+     */
+    public static function createOpenTelemetrySpan(string $name): ?int;
+
+    /**
+     * End and drop an OpenTelemetry span created with createOpenTelemetrySpan().
+     *
+     * @param int $spanPtr The span pointer returned by createOpenTelemetrySpan()
+     * @return bool True if the span was ended successfully
+     */
+    public static function endOpenTelemetrySpan(int $spanPtr): bool;
 }
 
 class ValkeyGlideClusterException extends RuntimeException
