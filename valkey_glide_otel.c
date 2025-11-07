@@ -5,8 +5,8 @@
 #include "logger.h"
 
 /* Global OTEL configuration */
-valkey_glide_otel_config_t g_otel_config      = {0};
-static bool                g_otel_initialized = false;
+static valkey_glide_otel_config_t g_otel_config      = {0};
+static bool                       g_otel_initialized = false;
 
 /**
  * Initialize OpenTelemetry with the given configuration

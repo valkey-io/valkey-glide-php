@@ -755,4 +755,42 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             echo "WARNING: Significant memory growth detected: " . round($memoryGrowth / 1024 / 1024, 2) . " MB\n";
         }
     }
+
+    public function testOtelClusterConfiguration()
+    {
+        $otelConfig = [
+            'traces' => [
+                'endpoint' => 'file:///tmp/valkey-cluster-traces.json',
+                'sample_percentage' => 1
+            ]
+        ];
+
+        try {
+            $client = new ValkeyGlideCluster(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                use_tls: $this->getTLS(),
+                credentials: $this->getAuth() ? ['password' => $this->getAuth()] : null,
+                read_from: ValkeyGlide::READ_FROM_PRIMARY,
+                request_timeout: null,
+                reconnect_strategy: null,
+                client_name: 'otel-cluster-test',
+                periodic_checks: ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS,
+                client_az: null,
+                advanced_config: [
+                    'otel' => $otelConfig
+                ]
+            );
+
+            // Perform cluster operations to generate traces
+            $client->set('otel:cluster:test', 'value');
+            $value = $client->get('otel:cluster:test');
+            $this->assertEquals('value', $value);
+            $client->del('otel:cluster:test');
+
+            $client->close();
+            $this->assertTrue(true);
+        } catch (Exception $e) {
+            $this->fail("Cluster OTEL config failed: " . $e->getMessage());
+        }
+    }
 }

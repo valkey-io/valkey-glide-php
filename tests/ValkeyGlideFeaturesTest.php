@@ -895,4 +895,72 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             echo "WARNING: Significant memory growth detected: " . round($memoryGrowth / 1024 / 1024, 2) . " MB\n";
         }
     }
+
+    public function testOtelConfiguration()
+    {
+        // Test that OTEL configuration is accepted without errors
+        $otelConfig = [
+            'traces' => [
+                'endpoint' => 'file:///tmp/valkey-traces.json',
+                'sample_percentage' => 1
+            ]
+        ];
+
+        try {
+            $client = new ValkeyGlide(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                use_tls: $this->getTLS(),
+                credentials: $this->getAuth() ? ['password' => $this->getAuth()] : null,
+                read_from: ValkeyGlide::READ_FROM_PRIMARY,
+                request_timeout: null,
+                reconnect_strategy: null,
+                database_id: 0,
+                client_name: 'otel-test-client',
+                client_az: null,
+                advanced_config: [
+                    'otel' => $otelConfig
+                ]
+            );
+
+            // If we get here, OTEL config was accepted
+            $this->assertTrue(true);
+            $client->close();
+        } catch (Exception $e) {
+            // OTEL config should not cause construction to fail
+            $this->fail("OTEL configuration caused client construction to fail: " . $e->getMessage());
+        }
+    }
+
+    public function testOtelWithoutConfiguration()
+    {
+        // Test that client works normally without OTEL config
+        try {
+            $client = new ValkeyGlide(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                use_tls: $this->getTLS(),
+                credentials: $this->getAuth() ? ['password' => $this->getAuth()] : null,
+                read_from: ValkeyGlide::READ_FROM_PRIMARY,
+                request_timeout: null,
+                reconnect_strategy: null,
+                database_id: 0,
+                client_name: 'no-otel-test',
+                client_az: null,
+                advanced_config: [
+                    'connection_timeout' => 5000
+                    // No OTEL config
+                ]
+            );
+
+            // Operations should work normally
+            $client->set('no:otel:test', 'value');
+            $value = $client->get('no:otel:test');
+            $this->assertEquals('value', $value);
+            $client->del('no:otel:test');
+
+            $client->close();
+            $this->assertTrue(true);
+        } catch (Exception $e) {
+            $this->fail("Client without OTEL should work normally: " . $e->getMessage());
+        }
+    }
 }
