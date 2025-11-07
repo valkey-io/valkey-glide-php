@@ -55,12 +55,11 @@ int execute_core_command(valkey_glide_object* valkey_glide,
     uint64_t span_ptr = valkey_glide_create_span(args->cmd_type);
 
     /* Log command execution entry */
-    VALKEY_LOG_DEBUG_FMT(
-        "command_execution",
-        "Entering command execution - Command type: %d, Batch mode: %s, Span: %llu",
-        args->cmd_type,
-        valkey_glide->is_in_batch_mode ? "yes" : "no",
-        span_ptr);
+    VALKEY_LOG_DEBUG_FMT("command_execution",
+                         "Entering command execution - Command type: %d, Batch mode: %s, Span: %lu",
+                         args->cmd_type,
+                         valkey_glide->is_in_batch_mode ? "yes" : "no",
+                         (unsigned long) span_ptr);
 
     uintptr_t*     cmd_args          = NULL;
     unsigned long* cmd_args_len      = NULL;
