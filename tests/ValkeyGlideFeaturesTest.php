@@ -922,8 +922,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
                 ]
             );
 
-            // If we get here, OTEL config was accepted
-            $this->assertTrue(true);
+            // Verify client works with OTEL config
+            $this->assertTrue($client->ping());
             $client->close();
         } catch (Exception $e) {
             // OTEL config should not cause construction to fail
@@ -955,10 +955,11 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $client->set('no:otel:test', 'value');
             $value = $client->get('no:otel:test');
             $this->assertEquals('value', $value);
-            $client->del('no:otel:test');
+            
+            $deleteResult = $client->del('no:otel:test');
+            $this->assertEquals(1, $deleteResult);
 
             $client->close();
-            $this->assertTrue(true);
         } catch (Exception $e) {
             $this->fail("Client without OTEL should work normally: " . $e->getMessage());
         }
