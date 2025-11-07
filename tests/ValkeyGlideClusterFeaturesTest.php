@@ -785,10 +785,11 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $client->set('otel:cluster:test', 'value');
             $value = $client->get('otel:cluster:test');
             $this->assertEquals('value', $value);
-            $client->del('otel:cluster:test');
+            
+            $deleteResult = $client->del('otel:cluster:test');
+            $this->assertEquals(1, $deleteResult);
 
             $client->close();
-            $this->assertTrue(true);
         } catch (Exception $e) {
             $this->fail("Cluster OTEL config failed: " . $e->getMessage());
         }
