@@ -316,7 +316,10 @@ class ValkeyGlide
      * @param string|null $client_name          Client name identifier.
      * @param string|null $client_az            Client availability zone.
      * @param array|null $advanced_config       Advanced configuration ['connection_timeout' => 5000,
-     *                                          'tls_config' => ['use_insecure_tls' => false]].
+     *                                          'tls_config' => ['use_insecure_tls' => false],
+     *                                          'otel' => ['traces' => ['endpoint' => 'grpc://localhost:4317', 'sample_percentage' => 1],
+     *                                                     'metrics' => ['endpoint' => 'grpc://localhost:4317'],
+     *                                                     'flush_interval_ms' => 5000]].
      *                                          connection_timeout is in milliseconds.
      * @param bool|null $lazy_connect           Whether to use lazy connection.
      */

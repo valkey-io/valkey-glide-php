@@ -14,6 +14,7 @@
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_hash_common.h"
+#include "valkey_glide_otel.h"             // Include OTEL support
 
 /* Enum support includes - must be BEFORE arginfo includes */
 #if PHP_VERSION_ID >= 80100
@@ -388,6 +389,15 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             }
         } else {
             config->advanced_config->tls_config = NULL;
+        }
+        
+        /* Check for OTEL config */
+        zval* otel_config_val = zend_hash_str_find(advanced_ht, "otel", sizeof("otel") - 1);
+        if (otel_config_val && Z_TYPE_P(otel_config_val) == IS_ARRAY) {
+            VALKEY_LOG_DEBUG("otel_config", "Processing OTEL configuration from advanced_config");
+            if (!valkey_glide_otel_init(otel_config_val)) {
+                VALKEY_LOG_WARN("otel_config", "Failed to initialize OTEL, continuing without tracing");
+            }
         }
     } else {
         config->advanced_config = NULL;
