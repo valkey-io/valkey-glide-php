@@ -21,8 +21,8 @@
 #include <string.h>
 
 #include "logger.h"
-#include "valkey_glide_z_common.h"
 #include "valkey_glide_otel.h"
+#include "valkey_glide_z_common.h"
 
 /* ====================================================================
  * CORE FRAMEWORK IMPLEMENTATION
@@ -55,11 +55,12 @@ int execute_core_command(valkey_glide_object* valkey_glide,
     uint64_t span_ptr = valkey_glide_create_span(args->cmd_type);
 
     /* Log command execution entry */
-    VALKEY_LOG_DEBUG_FMT("command_execution",
-                         "Entering command execution - Command type: %d, Batch mode: %s, Span: %llu",
-                         args->cmd_type,
-                         valkey_glide->is_in_batch_mode ? "yes" : "no",
-                         span_ptr);
+    VALKEY_LOG_DEBUG_FMT(
+        "command_execution",
+        "Entering command execution - Command type: %d, Batch mode: %s, Span: %llu",
+        args->cmd_type,
+        valkey_glide->is_in_batch_mode ? "yes" : "no",
+        span_ptr);
 
     uintptr_t*     cmd_args          = NULL;
     unsigned long* cmd_args_len      = NULL;
@@ -126,12 +127,8 @@ int execute_core_command(valkey_glide_object* valkey_glide,
                                                      span_ptr);
     } else {
         /* Non-cluster mode or no routing */
-        result = execute_command_with_span(args->glide_client, 
-                                          args->cmd_type, 
-                                          arg_count, 
-                                          cmd_args, 
-                                          cmd_args_len,
-                                          span_ptr);
+        result = execute_command_with_span(
+            args->glide_client, args->cmd_type, arg_count, cmd_args, cmd_args_len, span_ptr);
     }
 
     debug_print_command_result(result);

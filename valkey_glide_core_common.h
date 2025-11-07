@@ -18,8 +18,8 @@
 #define VALKEY_GLIDE_CORE_COMMON_H
 
 #include "command_response.h"
-#include "valkey_glide_otel_commands.h"
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_otel_commands.h"
 
 /* ====================================================================
  * CORE COMMAND ARGUMENT STRUCTURES

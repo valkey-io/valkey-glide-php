@@ -1,22 +1,22 @@
 #include "valkey_glide_otel_commands.h"
+
 #include "command_response.h"
 #include "logger.h"
 
 /**
  * Execute command with OTEL span support
  */
-CommandResult* execute_command_with_span(void*            client_adapter_ptr,
-                                        enum RequestType command_type,
-                                        unsigned long    arg_count,
-                                        const uintptr_t* args,
-                                        const unsigned long* args_len,
-                                        uint64_t         span_ptr) {
-    
+CommandResult* execute_command_with_span(void*                client_adapter_ptr,
+                                         enum RequestType     command_type,
+                                         unsigned long        arg_count,
+                                         const uintptr_t*     args,
+                                         const unsigned long* args_len,
+                                         uint64_t             span_ptr) {
     VALKEY_LOG_DEBUG_FMT("otel_command", "Executing command with span: %llu", span_ptr);
-    
+
     /* Use the FFI command function with span support */
     return command(client_adapter_ptr,
-                   (uintptr_t)client_adapter_ptr, /* request_id */
+                   (uintptr_t) client_adapter_ptr, /* request_id */
                    command_type,
                    arg_count,
                    args,
@@ -29,39 +29,17 @@ CommandResult* execute_command_with_span(void*            client_adapter_ptr,
 /**
  * Execute command with routing and OTEL span support
  */
-CommandResult* execute_command_with_route_and_span(void*            client_adapter_ptr,
-                                                  enum RequestType command_type,
-                                                  unsigned long    arg_count,
-                                                  const uintptr_t* args,
-                                                  const unsigned long* args_len,
-                                                  route_t*         route,
-                                                  uint64_t         span_ptr) {
-    
+CommandResult* execute_command_with_route_and_span(void*                client_adapter_ptr,
+                                                   enum RequestType     command_type,
+                                                   unsigned long        arg_count,
+                                                   const uintptr_t*     args,
+                                                   const unsigned long* args_len,
+                                                   zval*                route,
+                                                   uint64_t             span_ptr) {
     VALKEY_LOG_DEBUG_FMT("otel_command", "Executing routed command with span: %llu", span_ptr);
-    
-    /* Serialize route to protobuf bytes */
-    uint8_t* route_bytes = NULL;
-    size_t   route_bytes_len = 0;
-    
-    if (route) {
-        route_bytes = serialize_route_to_protobuf(route, &route_bytes_len);
-    }
-    
-    /* Use the FFI command function with span and routing support */
-    CommandResult* result = command(client_adapter_ptr,
-                                   (uintptr_t)client_adapter_ptr, /* request_id */
-                                   command_type,
-                                   arg_count,
-                                   args,
-                                   args_len,
-                                   route_bytes,
-                                   route_bytes_len,
-                                   span_ptr);
-    
-    /* Cleanup route bytes */
-    if (route_bytes) {
-        efree(route_bytes);
-    }
-    
-    return result;
+
+    /* For now, use the existing execute_command_with_route function */
+    /* TODO: Add proper route serialization and span support */
+    return execute_command_with_route(
+        client_adapter_ptr, command_type, arg_count, args, args_len, route);
 }
