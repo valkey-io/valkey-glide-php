@@ -766,6 +766,23 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         ];
 
         try {
+            // Initialize OpenTelemetry using new public API (Java pattern)
+            $initResult = ValkeyGlideCluster::initOpenTelemetry($otelConfig);
+            $this->assertTrue($initResult, "OpenTelemetry initialization should succeed");
+            
+            // Verify initialization
+            $this->assertTrue(ValkeyGlideCluster::isOpenTelemetryInitialized(), "OpenTelemetry should be initialized");
+            
+            // Test sample percentage methods
+            $currentPercentage = ValkeyGlideCluster::getOpenTelemetrySamplePercentage();
+            $this->assertEquals(1, $currentPercentage, "Sample percentage should be 1");
+            
+            // Update sample percentage
+            $updateResult = ValkeyGlideCluster::setOpenTelemetrySamplePercentage(50);
+            $this->assertTrue($updateResult, "Sample percentage update should succeed");
+            $this->assertEquals(50, ValkeyGlideCluster::getOpenTelemetrySamplePercentage());
+
+            // Create client without OTEL config (OTEL already initialized globally)
             $client = new ValkeyGlideCluster(
                 addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
                 use_tls: $this->getTLS(),
@@ -774,13 +791,13 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 request_timeout: null,
                 reconnect_strategy: null,
                 client_name: 'otel-cluster-test',
-                periodic_checks: ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS,
-                client_az: null,
-                advanced_config: [
-                    'otel' => $otelConfig
-                ]
+                periodic_checks: ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS
             );
 
+            // Test custom span creation
+            $spanPtr = ValkeyGlideCluster::createOpenTelemetrySpan('test-cluster-operation');
+            $this->assertNotNull($spanPtr, "Span creation should return a valid pointer");
+            
             // Perform cluster operations to generate traces
             $client->set('otel:cluster:test', 'value');
             $value = $client->get('otel:cluster:test');
@@ -788,6 +805,10 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             
             $deleteResult = $client->del('otel:cluster:test');
             $this->assertEquals(1, $deleteResult);
+            
+            // End custom span
+            $endResult = ValkeyGlideCluster::endOpenTelemetrySpan($spanPtr);
+            $this->assertTrue($endResult, "Span should end successfully");
 
             $client->close();
         } catch (Exception $e) {

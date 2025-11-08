@@ -898,7 +898,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testOtelConfiguration()
     {
-        // Test that OTEL configuration is accepted without errors
+        // Test that OTEL configuration works with new public API
         $otelConfig = [
             'traces' => [
                 'endpoint' => 'file:///tmp/valkey-traces.json',
@@ -907,6 +907,18 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         ];
 
         try {
+            // Initialize OpenTelemetry using new public API (Java pattern)
+            $initResult = ValkeyGlide::initOpenTelemetry($otelConfig);
+            $this->assertTrue($initResult, "OpenTelemetry initialization should succeed");
+            
+            // Verify initialization
+            $this->assertTrue(ValkeyGlide::isOpenTelemetryInitialized(), "OpenTelemetry should be initialized");
+            
+            // Test sample percentage methods
+            $currentPercentage = ValkeyGlide::getOpenTelemetrySamplePercentage();
+            $this->assertEquals(1, $currentPercentage, "Sample percentage should be 1");
+
+            // Create client without OTEL config (OTEL already initialized globally)
             $client = new ValkeyGlide(
                 addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
                 use_tls: $this->getTLS(),
@@ -915,15 +927,20 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
                 request_timeout: null,
                 reconnect_strategy: null,
                 database_id: 0,
-                client_name: 'otel-test-client',
-                client_az: null,
-                advanced_config: [
-                    'otel' => $otelConfig
-                ]
+                client_name: 'otel-test-client'
             );
 
-            // Verify client works with OTEL config
+            // Test custom span creation
+            $spanPtr = ValkeyGlide::createOpenTelemetrySpan('test-standalone-operation');
+            $this->assertNotNull($spanPtr, "Span creation should return a valid pointer");
+
+            // Verify client works with OTEL initialized
             $this->assertTrue($client->ping());
+            
+            // End custom span
+            $endResult = ValkeyGlide::endOpenTelemetrySpan($spanPtr);
+            $this->assertTrue($endResult, "Span should end successfully");
+            
             $client->close();
         } catch (Exception $e) {
             // OTEL config should not cause construction to fail
@@ -943,13 +960,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
                 request_timeout: null,
                 reconnect_strategy: null,
                 database_id: 0,
-                client_name: 'no-otel-test',
-                client_az: null,
-                advanced_config: [
-                    'connection_timeout' => 5000
-                    // No OTEL config
-                ]
+                client_name: 'no-otel-test'
             );
+
+            // Verify OTEL is not initialized initially
+            $this->assertFalse(ValkeyGlide::isOpenTelemetryInitialized(), "OpenTelemetry should not be initialized initially");
+            $this->assertNull(ValkeyGlide::getOpenTelemetrySamplePercentage(), "Sample percentage should be null when not initialized");
 
             // Operations should work normally
             $client->set('no:otel:test', 'value');
