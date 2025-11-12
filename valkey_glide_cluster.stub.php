@@ -1374,6 +1374,14 @@ class ValkeyGlideCluster
     public static function setOpenTelemetrySamplePercentage(int $percentage): bool;
 
     /**
+     * Determine if the current request should be sampled for OpenTelemetry tracing.
+     * Uses the configured sample percentage to randomly decide whether to create a span.
+     *
+     * @return bool True if the request should be sampled, false otherwise
+     */
+    public static function shouldSample(): bool;
+
+    /**
      * Create a named OpenTelemetry span for custom tracing.
      * The span must be manually ended using endOpenTelemetrySpan().
      *

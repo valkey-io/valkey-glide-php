@@ -219,6 +219,24 @@ bool valkey_glide_otel_set_sample_percentage(int32_t percentage) {
     return true;
 }
 
+bool valkey_glide_otel_should_sample(void) {
+    int32_t percentage = valkey_glide_otel_get_sample_percentage();
+    if (percentage < 0) {
+        return false;  // Not initialized or no traces config
+    }
+
+    if (percentage == 0) {
+        return false;  // 0% sampling
+    }
+
+    if (percentage == 100) {
+        return true;   // 100% sampling
+    }
+
+    // Random sampling based on percentage
+    return (rand() % 100) < percentage;
+}
+
 uint64_t valkey_glide_otel_create_named_span(const char* name) {
     if (!g_otel_config.enabled || !name || strlen(name) == 0) {
         return 0;  // Not initialized or invalid name

@@ -70,6 +70,13 @@ PHP_METHOD(ValkeyGlide, setOpenTelemetrySamplePercentage) {
     RETURN_BOOL(true);
 }
 
+/* ValkeyGlide::shouldSample */
+PHP_METHOD(ValkeyGlide, shouldSample) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    RETURN_BOOL(valkey_glide_otel_should_sample());
+}
+
 /* ValkeyGlide::createOpenTelemetrySpan */
 PHP_METHOD(ValkeyGlide, createOpenTelemetrySpan) {
     zend_string* name;
@@ -176,6 +183,13 @@ PHP_METHOD(ValkeyGlideCluster, setOpenTelemetrySamplePercentage) {
     }
 
     RETURN_BOOL(true);
+}
+
+/* ValkeyGlideCluster::shouldSample */
+PHP_METHOD(ValkeyGlideCluster, shouldSample) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    RETURN_BOOL(valkey_glide_otel_should_sample());
 }
 
 /* ValkeyGlideCluster::createOpenTelemetrySpan */
