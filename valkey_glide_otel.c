@@ -230,7 +230,7 @@ bool valkey_glide_otel_should_sample(void) {
     }
 
     if (percentage == 100) {
-        return true;   // 100% sampling
+        return true;  // 100% sampling
     }
 
     // Random sampling based on percentage
