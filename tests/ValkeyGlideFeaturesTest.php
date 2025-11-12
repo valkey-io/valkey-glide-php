@@ -920,7 +920,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             
             // Test shouldSample method
             $shouldSample = ValkeyGlide::shouldSample();
-            $this->assertIsBool($shouldSample, "shouldSample should return a boolean");
+            $this->assertTrue(is_bool($shouldSample), "shouldSample should return a boolean");
             // With 1% sampling, it might return true or false randomly
 
             // Create client without OTEL config (OTEL already initialized globally)
@@ -975,13 +975,13 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             if ($isInitialized) {
                 // If already initialized, verify we can still get sample percentage
                 $percentage = ValkeyGlide::getOpenTelemetrySamplePercentage();
-                $this->assertIsInt($percentage, "Sample percentage should be an integer when initialized");
-                $this->assertGreaterThanOrEqual(0, $percentage, "Sample percentage should be >= 0");
-                $this->assertLessThanOrEqual(100, $percentage, "Sample percentage should be <= 100");
+                $this->assertTrue(is_int($percentage), "Sample percentage should be an integer when initialized");
+                $this->assertTrue($percentage >= 0, "Sample percentage should be >= 0");
+                $this->assertTrue($percentage <= 100, "Sample percentage should be <= 100");
                 
                 // Test shouldSample method
                 $shouldSample = ValkeyGlide::shouldSample();
-                $this->assertIsBool($shouldSample, "shouldSample should return a boolean");
+                $this->assertTrue(is_bool($shouldSample), "shouldSample should return a boolean");
             } else {
                 // If not initialized, these should return null/false
                 $this->assertNull(ValkeyGlide::getOpenTelemetrySamplePercentage(), "Sample percentage should be null when not initialized");
