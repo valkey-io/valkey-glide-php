@@ -767,20 +767,26 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             // Initialize OpenTelemetry using new public API (Java pattern)
+            // Note: May already be initialized from previous tests (once per process)
             $initResult = ValkeyGlideCluster::initOpenTelemetry($otelConfig);
-            $this->assertTrue($initResult, "OpenTelemetry initialization should succeed");
             
-            // Verify initialization
+            // Verify initialization (should be true regardless of initResult)
             $this->assertTrue(ValkeyGlideCluster::isOpenTelemetryInitialized(), "OpenTelemetry should be initialized");
             
             // Test sample percentage methods
             $currentPercentage = ValkeyGlideCluster::getOpenTelemetrySamplePercentage();
-            $this->assertEquals(1, $currentPercentage, "Sample percentage should be 1");
+            $this->assertTrue(is_int($currentPercentage), "Sample percentage should be an integer");
+            $this->assertTrue($currentPercentage >= 0 && $currentPercentage <= 100, "Sample percentage should be 0-100");
+            
+            // Test shouldSample method
+            $shouldSample = ValkeyGlideCluster::shouldSample();
+            $this->assertTrue(is_bool($shouldSample), "shouldSample should return a boolean");
             
             // Update sample percentage
             $updateResult = ValkeyGlideCluster::setOpenTelemetrySamplePercentage(50);
             $this->assertTrue($updateResult, "Sample percentage update should succeed");
-            $this->assertEquals(50, ValkeyGlideCluster::getOpenTelemetrySamplePercentage());
+            $newPercentage = ValkeyGlideCluster::getOpenTelemetrySamplePercentage();
+            $this->assertEquals(50, $newPercentage, "Sample percentage should be updated to 50");
 
             // Create client without OTEL config (OTEL already initialized globally)
             $client = new ValkeyGlideCluster(
