@@ -326,6 +326,30 @@
    fun:*aws_lc_rs*rand*fill*
 }
 
+# OpenTelemetry SDK resource detector allocations
+{
+   opentelemetry_resource_from_detectors
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:*hashbrown*raw*RawTableInner*fallible_with_capacity*
+   fun:*hashbrown*raw*RawTable*reserve_rehash*
+   fun:*hashbrown*map*HashMap*insert*
+   fun:*opentelemetry_sdk*resource*Resource*from_detectors*
+}
+
+# Thread-local storage for OpenTelemetry threads
+{
+   opentelemetry_thread_local_storage
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+}
+
 # Rust raw_vec finish_grow with corrupted stack
 {
    rust_raw_vec_finish_grow_corrupted
