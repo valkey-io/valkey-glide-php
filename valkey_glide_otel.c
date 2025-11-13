@@ -27,6 +27,7 @@ int valkey_glide_otel_init(zval* config_array) {
     /* Parse configuration */
     if (!parse_otel_config_array(config_array, &g_otel_config)) {
         VALKEY_LOG_ERROR("otel_init", "Failed to parse OTEL configuration");
+        cleanup_otel_config(&g_otel_config);
         return 0;
     }
 
