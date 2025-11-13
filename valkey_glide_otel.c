@@ -52,7 +52,8 @@ void valkey_glide_otel_shutdown(void) {
     if (g_otel_config.enabled) {
         cleanup_otel_config(&g_otel_config);
         memset(&g_otel_config, 0, sizeof(g_otel_config));
-        g_otel_initialized = false;
+        g_otel_config.enabled = false;
+        g_otel_initialized    = false;
         VALKEY_LOG_INFO("otel_shutdown", "OpenTelemetry shutdown complete");
     }
 }
@@ -172,6 +173,7 @@ void cleanup_otel_config(valkey_glide_otel_config_t* otel_config) {
     if (otel_config->traces_config) {
         if (otel_config->traces_config->endpoint) {
             efree((void*) otel_config->traces_config->endpoint);
+            otel_config->traces_config->endpoint = NULL;
         }
         efree(otel_config->traces_config);
         otel_config->traces_config = NULL;
@@ -180,17 +182,22 @@ void cleanup_otel_config(valkey_glide_otel_config_t* otel_config) {
     if (otel_config->metrics_config) {
         if (otel_config->metrics_config->endpoint) {
             efree((void*) otel_config->metrics_config->endpoint);
+            otel_config->metrics_config->endpoint = NULL;
         }
         efree(otel_config->metrics_config);
         otel_config->metrics_config = NULL;
     }
 
     if (otel_config->config) {
+        /* Reset pointers to avoid double-free */
+        otel_config->config->traces  = NULL;
+        otel_config->config->metrics = NULL;
         efree(otel_config->config);
         otel_config->config = NULL;
     }
 
-    otel_config->enabled = false;
+    otel_config->enabled                   = false;
+    otel_config->current_sample_percentage = 0;
 }
 
 /* Public API function implementations */

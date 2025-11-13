@@ -464,12 +464,16 @@ PHP_MINIT_FUNCTION(valkey_glide) {
     return SUCCESS;
 }
 
+PHP_MSHUTDOWN_FUNCTION(valkey_glide) {
+    valkey_glide_otel_shutdown();
+    return SUCCESS;
+}
 
 zend_module_entry valkey_glide_module_entry = {STANDARD_MODULE_HEADER,
                                                "valkey_glide",
                                                ext_functions,
                                                PHP_MINIT(valkey_glide),
-                                               NULL,
+                                               PHP_MSHUTDOWN(valkey_glide),
                                                NULL,
                                                NULL,
                                                NULL,
