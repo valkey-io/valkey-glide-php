@@ -50,8 +50,6 @@ int valkey_glide_otel_init(zval* config_array) {
  */
 void valkey_glide_otel_shutdown(void) {
     if (g_otel_config.enabled) {
-        cleanup_otel_config(&g_otel_config);
-        memset(&g_otel_config, 0, sizeof(g_otel_config));
         g_otel_config.enabled = false;
         g_otel_initialized    = false;
         VALKEY_LOG_INFO("otel_shutdown", "OpenTelemetry shutdown complete");
