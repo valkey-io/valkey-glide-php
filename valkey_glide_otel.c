@@ -1,3 +1,18 @@
+/*
+  +----------------------------------------------------------------------+
+  +----------------------------------------------------------------------+
+  | Copyright (c) 2023-2025 The PHP Group                                |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 3.01 of the PHP license,      |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.php.net/license/3_01.txt                                  |
+  | If you did not receive a copy of the PHP license and are unable to   |
+  | obtain it through the world-wide-web, please send a note to          |
+  | license@php.net so we can mail you a copy immediately.               |
+  +----------------------------------------------------------------------+
+*/
+
 #include "valkey_glide_otel.h"
 
 #include <string.h>
@@ -78,7 +93,6 @@ void valkey_glide_drop_span(uint64_t span_ptr) {
 
 /**
  * Parse OTEL configuration from PHP array
- * Following Java/Go validation patterns
  */
 int parse_otel_config_array(zval* config_array, valkey_glide_otel_config_t* otel_config) {
     HashTable* ht = Z_ARRVAL_P(config_array);
@@ -86,7 +100,7 @@ int parse_otel_config_array(zval* config_array, valkey_glide_otel_config_t* otel
     /* Allocate main config */
     otel_config->config = ecalloc(1, sizeof(struct OpenTelemetryConfig));
 
-    /* Set default flush interval (5000ms like Java/Go) */
+    /* Set default flush interval */
     otel_config->config->has_flush_interval_ms = true;
     otel_config->config->flush_interval_ms     = 5000;
 
@@ -106,7 +120,7 @@ int parse_otel_config_array(zval* config_array, valkey_glide_otel_config_t* otel
             return 0;
         }
 
-        /* Parse sample_percentage with default of 1% (like Java/Go) */
+        /* Parse sample_percentage with default of 1% */
         zval* sample_val =
             zend_hash_str_find(traces_ht, "sample_percentage", sizeof("sample_percentage") - 1);
         if (sample_val && Z_TYPE_P(sample_val) == IS_LONG) {
@@ -156,7 +170,7 @@ int parse_otel_config_array(zval* config_array, valkey_glide_otel_config_t* otel
         otel_config->config->flush_interval_ms = (uint32_t) flush_ms;
     }
 
-    /* Validate at least one of traces or metrics is configured (like Java/Go) */
+    /* Validate at least one of traces or metrics is configured  */
     if (!otel_config->config->traces && !otel_config->config->metrics) {
         VALKEY_LOG_ERROR("otel_config", "At least one of traces or metrics must be configured");
         return 0;
