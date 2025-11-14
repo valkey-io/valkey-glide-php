@@ -3,7 +3,7 @@
 /**
  * Comprehensive OpenTelemetry Public API Example for Valkey GLIDE PHP
  * 
- * This example demonstrates the Java-inspired public OTEL APIs:
+ * This example demonstrates the public OTEL APIs:
  * - Static initialization and configuration
  * - Runtime sample percentage control
  * - Manual span creation and management
