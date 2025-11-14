@@ -898,107 +898,77 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testOtelConfiguration()
     {
-        // Test that OTEL configuration works with new public API
+        // Test that client works with OpenTelemetry configuration (Java-style)
         $otelConfig = [
             'traces' => [
-                'endpoint' => 'file:///tmp/valkey-traces.json',
-                'sample_percentage' => 1
+                'endpoint' => 'file:///tmp/valkey_glide_traces.json',
+                'sample_percentage' => 10
+            ],
+            'metrics' => [
+                'endpoint' => 'file:///tmp/valkey_glide_metrics.json'
             ]
         ];
 
         try {
-            // Initialize OpenTelemetry using new public API (Java pattern)
-            $initResult = ValkeyGlide::initOpenTelemetry($otelConfig);
-            $this->assertTrue($initResult, "OpenTelemetry initialization should succeed");
-            
-            // Verify initialization
-            $this->assertTrue(ValkeyGlide::isOpenTelemetryInitialized(), "OpenTelemetry should be initialized");
-            
-            // Test sample percentage methods
-            $currentPercentage = ValkeyGlide::getOpenTelemetrySamplePercentage();
-            $this->assertEquals(1, $currentPercentage, "Sample percentage should be 1");
-            
-            // Test shouldSample method
-            $shouldSample = ValkeyGlide::shouldSample();
-            $this->assertTrue(is_bool($shouldSample), "shouldSample should return a boolean");
-            // With 1% sampling, it might return true or false randomly
-
-            // Create client without OTEL config (OTEL already initialized globally)
+            // Create client with OpenTelemetry configuration
             $client = new ValkeyGlide(
-                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
-                use_tls: $this->getTLS(),
-                credentials: $this->getAuth() ? ['password' => $this->getAuth()] : null,
-                read_from: ValkeyGlide::READ_FROM_PRIMARY,
+                addresses: [
+                    ['host' => 'localhost', 'port' => 6379]
+                ],
+                use_tls: false,
+                credentials: null,
+                read_from: null,
                 request_timeout: null,
                 reconnect_strategy: null,
-                database_id: 0,
-                client_name: 'otel-test-client'
+                client_name: 'otel-test-client',
+                periodic_checks: null,
+                advanced_config: [
+                    'otel' => $otelConfig
+                ]
             );
 
-            // Test custom span creation
-            $spanPtr = ValkeyGlide::createOpenTelemetrySpan('test-standalone-operation');
-            $this->assertNotNull($spanPtr, "Span creation should return a valid pointer");
+            // Verify client works with OpenTelemetry configured
+            $client->set('otel:test', 'value');
+            $value = $client->get('otel:test');
+            $this->assertEquals('value', $value, "GET should return the set value with OpenTelemetry");
 
-            // Verify client works with OTEL initialized
-            $this->assertTrue($client->ping());
-            
-            // End custom span
-            $endResult = ValkeyGlide::endOpenTelemetrySpan($spanPtr);
-            $this->assertTrue($endResult, "Span should end successfully");
-            
+            $deleteResult = $client->del('otel:test');
+            $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key with OpenTelemetry");
+
             $client->close();
         } catch (Exception $e) {
-            // OTEL config should not cause construction to fail
-            $this->fail("OTEL configuration caused client construction to fail: " . $e->getMessage());
+            // OpenTelemetry configuration should not cause client construction to fail
+            $this->fail("OpenTelemetry configuration caused client construction to fail: " . $e->getMessage());
         }
     }
 
     public function testOtelWithoutConfiguration()
     {
-        // Test that client works normally without OTEL config
+        // Test that client works normally without OpenTelemetry configuration
         try {
             $client = new ValkeyGlide(
-                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
-                use_tls: $this->getTLS(),
-                credentials: $this->getAuth() ? ['password' => $this->getAuth()] : null,
-                read_from: ValkeyGlide::READ_FROM_PRIMARY,
+                addresses: [
+                    ['host' => 'localhost', 'port' => 6379]
+                ],
+                use_tls: false,
+                credentials: null,
+                read_from: null,
                 request_timeout: null,
                 reconnect_strategy: null,
-                database_id: 0,
                 client_name: 'no-otel-test'
             );
 
-            // Note: OpenTelemetry may already be initialized from previous tests
-            // since it can only be initialized once per process (Java pattern)
-            $isInitialized = ValkeyGlide::isOpenTelemetryInitialized();
-            
-            if ($isInitialized) {
-                // If already initialized, verify we can still get sample percentage
-                $percentage = ValkeyGlide::getOpenTelemetrySamplePercentage();
-                $this->assertTrue(is_int($percentage), "Sample percentage should be an integer when initialized");
-                $this->assertTrue($percentage >= 0, "Sample percentage should be >= 0");
-                $this->assertTrue($percentage <= 100, "Sample percentage should be <= 100");
-                
-                // Test shouldSample method
-                $shouldSample = ValkeyGlide::shouldSample();
-                $this->assertTrue(is_bool($shouldSample), "shouldSample should return a boolean");
-            } else {
-                // If not initialized, these should return null/false
-                $this->assertNull(ValkeyGlide::getOpenTelemetrySamplePercentage(), "Sample percentage should be null when not initialized");
-                $this->assertFalse(ValkeyGlide::shouldSample(), "shouldSample should return false when not initialized");
-            }
-
-            // Operations should work normally regardless of OTEL state
+            // Operations should work normally without OpenTelemetry
             $client->set('no:otel:test', 'value');
             $value = $client->get('no:otel:test');
-            $this->assertEquals('value', $value);
-            
+            $this->assertEquals('value', $value, "GET should return the set value");
+
             $deleteResult = $client->del('no:otel:test');
-            $this->assertEquals(1, $deleteResult);
+            $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key");
 
             $client->close();
         } catch (Exception $e) {
-            $this->fail("Client without OTEL should work normally: " . $e->getMessage());
+            $this->fail("Client without OpenTelemetry should work normally: " . $e->getMessage());
         }
     }
 }

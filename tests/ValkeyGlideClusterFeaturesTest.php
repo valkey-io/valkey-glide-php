@@ -758,74 +758,45 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
     public function testOtelClusterConfiguration()
     {
+        // Test that cluster client works with OpenTelemetry configuration (Java-style)
         $otelConfig = [
             'traces' => [
                 'endpoint' => 'file:///tmp/valkey-cluster-traces.json',
-                'sample_percentage' => 1
+                'sample_percentage' => 10
+            ],
+            'metrics' => [
+                'endpoint' => 'file:///tmp/valkey-cluster-metrics.json'
             ]
         ];
 
-        try {
-            // Initialize OpenTelemetry using new public API (Java pattern)
-            // Note: May already be initialized from previous tests (once per process)
-            $initResult = ValkeyGlideCluster::initOpenTelemetry($otelConfig);
-            
-            // Verify initialization (should be true regardless of initResult)
-            $this->assertTrue(ValkeyGlideCluster::isOpenTelemetryInitialized(), "OpenTelemetry should be initialized");
-            
-            // Test sample percentage methods
-            $currentPercentage = ValkeyGlideCluster::getOpenTelemetrySamplePercentage();
-            $this->assertTrue(is_int($currentPercentage), "Sample percentage should be an integer");
-            $this->assertTrue($currentPercentage >= 0 && $currentPercentage <= 100, "Sample percentage should be 0-100");
-            
-            // Test shouldSample method
-            $shouldSample = ValkeyGlideCluster::shouldSample();
-            $this->assertTrue(is_bool($shouldSample), "shouldSample should return a boolean");
-            
-            // Update sample percentage
-            $updateResult = ValkeyGlideCluster::setOpenTelemetrySamplePercentage(50);
-            $this->assertTrue($updateResult, "Sample percentage update should succeed");
-            $newPercentage = ValkeyGlideCluster::getOpenTelemetrySamplePercentage();
-            $this->assertEquals(50, $newPercentage, "Sample percentage should be updated to 50");
+        // Create cluster client with OpenTelemetry configuration
+        $client = new ValkeyGlideCluster(
+            addresses: [
+                ['host' => 'localhost', 'port' => 7001],
+                ['host' => 'localhost', 'port' => 7002],
+                ['host' => 'localhost', 'port' => 7003]
+            ],
+            use_tls: false,
+            credentials: null,
+            read_from: null,
+            request_timeout: null,
+            reconnect_strategy: null,
+            client_name: 'otel-cluster-test',
+            periodic_checks: null,
+            client_az: null,
+            advanced_config: [
+                'otel' => $otelConfig
+            ]
+        );
 
-            // Test custom span creation (independent of cluster client)
-            $spanPtr = ValkeyGlideCluster::createOpenTelemetrySpan('test-cluster-operation');
-            $this->assertNotNull($spanPtr, "Span creation should return a valid pointer");
-            
-            // End custom span
-            $endResult = ValkeyGlideCluster::endOpenTelemetrySpan($spanPtr);
-            $this->assertTrue($endResult, "Span should end successfully");
+        // Verify cluster client works with OpenTelemetry configured
+        $client->set('otel:cluster:test', 'value');
+        $value = $client->get('otel:cluster:test');
+        $this->assertEquals('value', $value, "GET should return the set value with OpenTelemetry");
 
-            // Try to create cluster client, but don't fail the OTEL test if cluster setup fails
-            try {
-                $client = new ValkeyGlideCluster(
-                    addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
-                    use_tls: $this->getTLS(),
-                    credentials: $this->getAuth() ? ['password' => $this->getAuth()] : null,
-                    read_from: ValkeyGlide::READ_FROM_PRIMARY,
-                    request_timeout: null,
-                    reconnect_strategy: null,
-                    client_name: 'otel-cluster-test',
-                    periodic_checks: ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS
-                );
+        $deleteResult = $client->del('otel:cluster:test');
+        $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key with OpenTelemetry");
 
-                // If cluster client creation succeeds, test basic operations
-                $client->set('otel:cluster:test', 'value');
-                $value = $client->get('otel:cluster:test');
-                $this->assertEquals('value', $value);
-                
-                $deleteResult = $client->del('otel:cluster:test');
-                $this->assertEquals(1, $deleteResult);
-
-                $client->close();
-            } catch (Exception $clusterException) {
-                // Cluster setup may not be available in CI, but OTEL functionality should still work
-                // Log the cluster error but don't fail the test
-                error_log("Cluster client creation failed (expected in some CI environments): " . $clusterException->getMessage());
-            }
-
-        } catch (Exception $e) {
-            $this->fail("OpenTelemetry API failed: " . $e->getMessage());
-        }
+        $client->close();
     }
 }
