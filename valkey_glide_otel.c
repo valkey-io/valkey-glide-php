@@ -25,7 +25,7 @@ static bool                g_otel_initialized = false;
 
 /**
  * Initialize OpenTelemetry with the given configuration
- * Following Java/Go pattern: can only be initialized once per process
+ * Can only be initialized once per process
  */
 int valkey_glide_otel_init(zval* config_array) {
     if (g_otel_initialized) {
@@ -132,7 +132,7 @@ int parse_otel_config_array(zval* config_array, valkey_glide_otel_config_t* otel
             otel_config->traces_config->has_sample_percentage = true;
             otel_config->traces_config->sample_percentage     = (uint32_t) sample_pct;
         } else {
-            /* Default to 1% like Java/Go */
+            /* Default to 1% */
             otel_config->traces_config->has_sample_percentage = true;
             otel_config->traces_config->sample_percentage     = 1;
         }
