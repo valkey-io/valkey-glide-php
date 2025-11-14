@@ -4129,7 +4129,7 @@ class ValkeyGlide
      * This method should be called before any Valkey GLIDE client operations to enable 
      * OpenTelemetry tracing and metrics collection.
      * 
-     * ⚠️ OpenTelemetry can only be initialized once per process. Subsequent calls will be ignored.
+     * OpenTelemetry can only be initialized once per process. Subsequent calls will be ignored.
      *
      * @param array $config OpenTelemetry configuration array with the following structure:
      *   - 'traces' (optional): array
