@@ -1,14 +1,12 @@
 <?php
 /**
  * Example demonstrating OpenTelemetry integration with Valkey GLIDE PHP
- * Following Java/Go patterns with proper defaults
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
 try {
     // OTEL configuration for traces and metrics
-    // Following Java/Go defaults: sample_percentage=1%, flush_interval_ms=5000
     $otelConfig = [
         'traces' => [
             'endpoint' => 'grpc://localhost:4317',  // OTEL collector endpoint
@@ -73,6 +71,6 @@ try {
 
 echo "\nOpenTelemetry example completed successfully!\n";
 echo "Check your OTEL collector for traces and metrics.\n";
-echo "\nNote: OTEL can only be initialized once per process (like Java/Go).\n";
+echo "\nNote: OTEL can only be initialized once per process.\n";
 echo "If you need to change configuration, restart the process.\n";
 ?>
