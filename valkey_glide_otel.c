@@ -16,6 +16,7 @@
 #include "valkey_glide_otel.h"
 
 #include <string.h>
+#include <zend_exceptions.h>
 
 #include "logger.h"
 
@@ -117,6 +118,9 @@ int parse_otel_config_array(zval* config_array, valkey_glide_otel_config_t* otel
         } else {
             VALKEY_LOG_ERROR("otel_config",
                              "Traces endpoint is required when traces config is provided");
+            zend_throw_exception(get_valkey_glide_exception_ce(),
+                                 "Traces endpoint is required when traces config is provided",
+                                 0);
             return 0;
         }
 
@@ -127,6 +131,9 @@ int parse_otel_config_array(zval* config_array, valkey_glide_otel_config_t* otel
             long sample_pct = Z_LVAL_P(sample_val);
             if (sample_pct < 0 || sample_pct > 100) {
                 VALKEY_LOG_ERROR("otel_config", "Sample percentage must be between 0 and 100");
+                zend_throw_exception(get_valkey_glide_exception_ce(),
+                                     "Sample percentage must be between 0 and 100",
+                                     0);
                 return 0;
             }
             otel_config->traces_config->has_sample_percentage = true;
@@ -153,6 +160,9 @@ int parse_otel_config_array(zval* config_array, valkey_glide_otel_config_t* otel
         } else {
             VALKEY_LOG_ERROR("otel_config",
                              "Metrics endpoint is required when metrics config is provided");
+            zend_throw_exception(get_valkey_glide_exception_ce(),
+                                 "Metrics endpoint is required when metrics config is provided",
+                                 0);
             return 0;
         }
 
@@ -165,6 +175,8 @@ int parse_otel_config_array(zval* config_array, valkey_glide_otel_config_t* otel
         long flush_ms = Z_LVAL_P(flush_val);
         if (flush_ms <= 0) {
             VALKEY_LOG_ERROR("otel_config", "Flush interval must be a positive integer");
+            zend_throw_exception(
+                get_valkey_glide_exception_ce(), "Flush interval must be a positive integer", 0);
             return 0;
         }
         otel_config->config->flush_interval_ms = (uint32_t) flush_ms;
@@ -173,6 +185,9 @@ int parse_otel_config_array(zval* config_array, valkey_glide_otel_config_t* otel
     /* Validate at least one of traces or metrics is configured  */
     if (!otel_config->config->traces && !otel_config->config->metrics) {
         VALKEY_LOG_ERROR("otel_config", "At least one of traces or metrics must be configured");
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "At least one of traces or metrics must be configured",
+                             0);
         return 0;
     }
 

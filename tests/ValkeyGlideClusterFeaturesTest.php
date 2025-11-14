@@ -758,7 +758,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
     public function testOtelClusterConfiguration()
     {
-        // Test that cluster client works with OpenTelemetry configuration (Java-style)
+        // Test that cluster client works with OpenTelemetry configuration
         $otelConfig = [
             'traces' => [
                 'endpoint' => 'file:///tmp/valkey-cluster-traces.json',

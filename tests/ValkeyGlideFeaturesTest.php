@@ -898,7 +898,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testOtelConfiguration()
     {
-        // Test that client works with OpenTelemetry configuration (Java-style)
+        // Test that client works with OpenTelemetry configuration
         $otelConfig = [
             'traces' => [
                 'endpoint' => 'file:///tmp/valkey_glide_traces.json',
