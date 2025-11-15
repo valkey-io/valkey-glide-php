@@ -21,6 +21,7 @@
 #include "include/glide_bindings.h"
 #include "logger.h"
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_otel.h"
 
 #define DEBUG_COMMAND_RESPONSE_TO_ZVAL 0
 
@@ -297,6 +298,9 @@ CommandResult* execute_command_with_route(const void*          glide_client,
         }
     }
 
+    /* Create OTEL span for tracing */
+    uint64_t span_ptr = valkey_glide_create_span(command_type);
+
     /* Execute the command */
     CommandResult* result = command(glide_client,
                                     0,               /* channel */
@@ -306,8 +310,11 @@ CommandResult* execute_command_with_route(const void*          glide_client,
                                     args_len,        /* argument lengths */
                                     route_bytes,     /* route bytes */
                                     route_bytes_len, /* route bytes length */
-                                    0                /* span pointer */
+                                    span_ptr         /* span pointer */
     );
+
+    /* Cleanup span */
+    valkey_glide_drop_span(span_ptr);
 
     /* Free route bytes */
     if (route_bytes) {
@@ -344,7 +351,10 @@ CommandResult* execute_command(const void*          glide_client,
         return NULL;
     }
 
-    /* Execute the command */
+    /* Create OTEL span for tracing */
+    uint64_t span_ptr = valkey_glide_create_span(command_type);
+
+    /* Execute the command with span support */
     CommandResult* result = command(glide_client,
                                     0,            /* channel */
                                     command_type, /* command type */
@@ -353,8 +363,11 @@ CommandResult* execute_command(const void*          glide_client,
                                     args_len,     /* argument lengths */
                                     NULL,         /* route bytes */
                                     0,            /* route bytes length */
-                                    0             /* span pointer */
+                                    span_ptr      /* span pointer */
     );
+
+    /* Cleanup span */
+    valkey_glide_drop_span(span_ptr);
 
     return result;
 }

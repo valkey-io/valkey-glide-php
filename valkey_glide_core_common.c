@@ -51,15 +51,11 @@ int execute_core_command(valkey_glide_object* valkey_glide,
         return 0;
     }
 
-    /* Create OTEL span for tracing */
-    uint64_t span_ptr = valkey_glide_create_span(args->cmd_type);
-
     /* Log command execution entry */
     VALKEY_LOG_DEBUG_FMT("command_execution",
-                         "Entering command execution - Command type: %d, Batch mode: %s, Span: %lu",
+                         "Entering command execution - Command type: %d, Batch mode: %s",
                          args->cmd_type,
-                         valkey_glide->is_in_batch_mode ? "yes" : "no",
-                         (unsigned long) span_ptr);
+                         valkey_glide->is_in_batch_mode ? "yes" : "no");
 
     uintptr_t*     cmd_args          = NULL;
     unsigned long* cmd_args_len      = NULL;
@@ -78,7 +74,6 @@ int execute_core_command(valkey_glide_object* valkey_glide,
 
     if (arg_count < 0) {
         VALKEY_LOG_ERROR("execute_core_command", "Failed to prepare command arguments");
-        valkey_glide_drop_span(span_ptr);
         efree(result_ptr);
         return 0;
     }
@@ -100,7 +95,6 @@ int execute_core_command(valkey_glide_object* valkey_glide,
                                        processor);
 
         free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
-        valkey_glide_drop_span(span_ptr);
         if (res == 0) {
             VALKEY_LOG_WARN_FMT("batch_execution",
                                 "Failed to buffer command for batch - command type: %d",
@@ -117,17 +111,16 @@ int execute_core_command(valkey_glide_object* valkey_glide,
     if (args->has_route && args->route_param) {
         /* Cluster mode with routing */
         VALKEY_LOG_DEBUG("command_execution", "Using cluster routing");
-        result = execute_command_with_route_and_span(args->glide_client,
-                                                     args->cmd_type,
-                                                     arg_count,
-                                                     cmd_args,
-                                                     cmd_args_len,
-                                                     args->route_param,
-                                                     span_ptr);
+        result = execute_command_with_route(args->glide_client,
+                                            args->cmd_type,
+                                            arg_count,
+                                            cmd_args,
+                                            cmd_args_len,
+                                            args->route_param);
     } else {
         /* Non-cluster mode or no routing */
-        result = execute_command_with_span(
-            args->glide_client, args->cmd_type, arg_count, cmd_args, cmd_args_len, span_ptr);
+        result =
+            execute_command(args->glide_client, args->cmd_type, arg_count, cmd_args, cmd_args_len);
     }
 
     debug_print_command_result(result);
@@ -154,7 +147,6 @@ int execute_core_command(valkey_glide_object* valkey_glide,
 
     /* Cleanup */
     free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
-    valkey_glide_drop_span(span_ptr);
 
     return res;
 }
