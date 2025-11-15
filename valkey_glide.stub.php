@@ -317,9 +317,16 @@ class ValkeyGlide
      * @param string|null $client_az            Client availability zone.
      * @param array|null $advanced_config       Advanced configuration ['connection_timeout' => 5000,
      *                                          'tls_config' => ['use_insecure_tls' => false],
-     *                                          'otel' => ['traces' => ['endpoint' => 'grpc://localhost:4317', 'sample_percentage' => 1],
-     *                                                     'metrics' => ['endpoint' => 'grpc://localhost:4317'],
-     *                                                     'flush_interval_ms' => 5000]].
+     *                                          'otel' => OpenTelemetryConfig::builder()
+     *                                                      ->traces(TracesConfig::builder()
+     *                                                        ->endpoint('grpc://localhost:4317')
+     *                                                        ->samplePercentage(1)
+     *                                                        ->build())
+     *                                                      ->metrics(MetricsConfig::builder()
+     *                                                        ->endpoint('grpc://localhost:4317')
+     *                                                        ->build())
+     *                                                      ->flushIntervalMs(5000)
+     *                                                      ->build()].
      *                                          connection_timeout is in milliseconds.
      * @param bool|null $lazy_connect           Whether to use lazy connection.
      */

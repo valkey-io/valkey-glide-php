@@ -197,9 +197,16 @@ class ValkeyGlideCluster
      *                                          - 'tls_config' => ['use_insecure_tls' => false]
      *                                          - 'refresh_topology_from_initial_nodes' => false (default: false)
      *                                            When true, topology updates use only initial nodes instead of internal cluster view.
-     *                                          - 'otel' => ['traces' => ['endpoint' => 'grpc://localhost:4317', 'sample_percentage' => 1],
-     *                                                       'metrics' => ['endpoint' => 'grpc://localhost:4317'],
-     *                                                       'flush_interval_ms' => 5000]
+     *                                          - 'otel' => OpenTelemetryConfig::builder()
+     *                                                        ->traces(TracesConfig::builder()
+     *                                                          ->endpoint('grpc://localhost:4317')
+     *                                                          ->samplePercentage(1)
+     *                                                          ->build())
+     *                                                        ->metrics(MetricsConfig::builder()
+     *                                                          ->endpoint('grpc://localhost:4317')
+     *                                                          ->build())
+     *                                                        ->flushIntervalMs(5000)
+     *                                                        ->build()
      * @param bool|null $lazy_connect           Whether to use lazy connection.
      * @param int|null $database_id             Index of the logical database to connect to. Must be non-negative 
      *                                          and within the range supported by the server configuration. 
