@@ -3,6 +3,12 @@
 defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
 
 require_once __DIR__ . "/ValkeyGlideClusterBaseTest.php";
+require_once __DIR__ . "/../OpenTelemetryConfig.php";
+require_once __DIR__ . "/../OpenTelemetryConfigBuilder.php";
+require_once __DIR__ . "/../TracesConfig.php";
+require_once __DIR__ . "/../TracesConfigBuilder.php";
+require_once __DIR__ . "/../MetricsConfig.php";
+require_once __DIR__ . "/../MetricsConfigBuilder.php";
 
 /**
  * ValkeyGlide Cluster Features Test
@@ -759,15 +765,15 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     public function testOtelClusterConfiguration()
     {
         // Test that cluster client works with OpenTelemetry configuration
-        $otelConfig = [
-            'traces' => [
-                'endpoint' => 'file:///tmp/valkey-cluster-traces.json',
-                'sample_percentage' => 10
-            ],
-            'metrics' => [
-                'endpoint' => 'file:///tmp/valkey-cluster-metrics.json'
-            ]
-        ];
+        $otelConfig = OpenTelemetryConfig::builder()
+            ->traces(TracesConfig::builder()
+                ->endpoint('file:///tmp/valkey-cluster-traces.json')
+                ->samplePercentage(10)
+                ->build())
+            ->metrics(MetricsConfig::builder()
+                ->endpoint('file:///tmp/valkey-cluster-metrics.json')
+                ->build())
+            ->build();
 
         // Create cluster client with OpenTelemetry configuration
         $client = new ValkeyGlideCluster(
@@ -798,5 +804,46 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key with OpenTelemetry");
 
         $client->close();
+    }
+
+    public function testOtelClusterArrayConfigurationRejected()
+    {
+        // Test that array-based OpenTelemetry configuration is rejected for cluster
+        $arrayConfig = [
+            'traces' => [
+                'endpoint' => 'file:///tmp/valkey-cluster-traces.json',
+                'sample_percentage' => 10
+            ],
+            'metrics' => [
+                'endpoint' => 'file:///tmp/valkey-cluster-metrics.json'
+            ]
+        ];
+
+        try {
+            $client = new ValkeyGlideCluster(
+                addresses: [
+                    ['host' => 'localhost', 'port' => 7001],
+                    ['host' => 'localhost', 'port' => 7002],
+                    ['host' => 'localhost', 'port' => 7003]
+                ],
+                use_tls: false,
+                credentials: null,
+                read_from: null,
+                request_timeout: null,
+                reconnect_strategy: null,
+                client_name: 'array-otel-cluster-test',
+                periodic_checks: null,
+                client_az: null,
+                advanced_config: [
+                    'otel' => $arrayConfig
+                ]
+            );
+            
+            $this->fail("Array-based OpenTelemetry configuration should be rejected for cluster");
+        } catch (Exception $e) {
+            // Verify the error message indicates object is required
+            $this->assertStringContainsString("OpenTelemetryConfig object", $e->getMessage(),
+                "Error should indicate OpenTelemetryConfig object is required");
+        }
     }
 }

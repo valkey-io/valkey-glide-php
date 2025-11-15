@@ -16,8 +16,10 @@
 #include "valkey_glide_otel.h"
 
 #include <string.h>
+#include <zend_API.h>
 #include <zend_exceptions.h>
 
+#include "common.h"
 #include "logger.h"
 
 /* Global OTEL configuration */
@@ -35,7 +37,7 @@ int valkey_glide_otel_init(zval* config_array) {
         return 1; /* Success - already initialized */
     }
 
-    if (!config_array || Z_TYPE_P(config_array) != IS_ARRAY) {
+    if (!config_array || Z_TYPE_P(config_array) != IS_OBJECT) {
         VALKEY_LOG_DEBUG("otel_init", "No OTEL configuration provided");
         return 1; /* Success - OTEL is optional */
     }
@@ -93,110 +95,50 @@ void valkey_glide_drop_span(uint64_t span_ptr) {
 }
 
 /**
- * Parse OTEL configuration from PHP array
+ * Parse OTEL configuration from OpenTelemetryConfig object
  */
-int parse_otel_config_array(zval* config_array, valkey_glide_otel_config_t* otel_config) {
-    HashTable* ht = Z_ARRVAL_P(config_array);
-
-    /* Allocate main config */
-    otel_config->config = ecalloc(1, sizeof(struct OpenTelemetryConfig));
-
-    /* Set default flush interval */
-    otel_config->config->has_flush_interval_ms = true;
-    otel_config->config->flush_interval_ms     = 5000;
-
-    /* Parse traces configuration */
-    zval* traces_val = zend_hash_str_find(ht, "traces", sizeof("traces") - 1);
-    if (traces_val && Z_TYPE_P(traces_val) == IS_ARRAY) {
-        otel_config->traces_config = ecalloc(1, sizeof(struct OpenTelemetryTracesConfig));
-        HashTable* traces_ht       = Z_ARRVAL_P(traces_val);
-
-        /* Parse endpoint */
-        zval* endpoint_val = zend_hash_str_find(traces_ht, "endpoint", sizeof("endpoint") - 1);
-        if (endpoint_val && Z_TYPE_P(endpoint_val) == IS_STRING) {
-            otel_config->traces_config->endpoint = estrdup(Z_STRVAL_P(endpoint_val));
-        } else {
-            VALKEY_LOG_ERROR("otel_config",
-                             "Traces endpoint is required when traces config is provided");
-            cleanup_otel_config(otel_config);
-            zend_throw_exception(get_valkey_glide_exception_ce(),
-                                 "Traces endpoint is required when traces config is provided",
-                                 0);
-            return 0;
-        }
-
-        /* Parse sample_percentage with default of 1% */
-        zval* sample_val =
-            zend_hash_str_find(traces_ht, "sample_percentage", sizeof("sample_percentage") - 1);
-        if (sample_val && Z_TYPE_P(sample_val) == IS_LONG) {
-            long sample_pct = Z_LVAL_P(sample_val);
-            if (sample_pct < 0 || sample_pct > 100) {
-                VALKEY_LOG_ERROR("otel_config", "Sample percentage must be between 0 and 100");
-                cleanup_otel_config(otel_config);
-                zend_throw_exception(get_valkey_glide_exception_ce(),
-                                     "Sample percentage must be between 0 and 100",
-                                     0);
-                return 0;
-            }
-            otel_config->traces_config->has_sample_percentage = true;
-            otel_config->traces_config->sample_percentage     = (uint32_t) sample_pct;
-        } else {
-            /* Default to 1% */
-            otel_config->traces_config->has_sample_percentage = true;
-            otel_config->traces_config->sample_percentage     = 1;
-        }
-
-        otel_config->config->traces = otel_config->traces_config;
-    }
-
-    /* Parse metrics configuration */
-    zval* metrics_val = zend_hash_str_find(ht, "metrics", sizeof("metrics") - 1);
-    if (metrics_val && Z_TYPE_P(metrics_val) == IS_ARRAY) {
-        otel_config->metrics_config = ecalloc(1, sizeof(struct OpenTelemetryMetricsConfig));
-        HashTable* metrics_ht       = Z_ARRVAL_P(metrics_val);
-
-        /* Parse endpoint */
-        zval* endpoint_val = zend_hash_str_find(metrics_ht, "endpoint", sizeof("endpoint") - 1);
-        if (endpoint_val && Z_TYPE_P(endpoint_val) == IS_STRING) {
-            otel_config->metrics_config->endpoint = estrdup(Z_STRVAL_P(endpoint_val));
-        } else {
-            VALKEY_LOG_ERROR("otel_config",
-                             "Metrics endpoint is required when metrics config is provided");
-            cleanup_otel_config(otel_config);
-            zend_throw_exception(get_valkey_glide_exception_ce(),
-                                 "Metrics endpoint is required when metrics config is provided",
-                                 0);
-            return 0;
-        }
-
-        otel_config->config->metrics = otel_config->metrics_config;
-    }
-
-    /* Parse flush_interval_ms (override default if provided) */
-    zval* flush_val = zend_hash_str_find(ht, "flush_interval_ms", sizeof("flush_interval_ms") - 1);
-    if (flush_val && Z_TYPE_P(flush_val) == IS_LONG) {
-        long flush_ms = Z_LVAL_P(flush_val);
-        if (flush_ms <= 0) {
-            VALKEY_LOG_ERROR("otel_config", "Flush interval must be a positive integer");
-            cleanup_otel_config(otel_config);
-            zend_throw_exception(
-                get_valkey_glide_exception_ce(), "Flush interval must be a positive integer", 0);
-            return 0;
-        }
-        otel_config->config->flush_interval_ms = (uint32_t) flush_ms;
-    }
-
-    /* Validate at least one of traces or metrics is configured  */
-    if (!otel_config->config->traces && !otel_config->config->metrics) {
-        VALKEY_LOG_ERROR("otel_config", "At least one of traces or metrics must be configured");
-        cleanup_otel_config(otel_config);
+int parse_otel_config_array(zval* config_obj, valkey_glide_otel_config_t* otel_config) {
+    if (Z_TYPE_P(config_obj) != IS_OBJECT) {
+        VALKEY_LOG_ERROR("otel_config",
+                         "OpenTelemetry configuration must be an OpenTelemetryConfig object");
         zend_throw_exception(get_valkey_glide_exception_ce(),
-                             "At least one of traces or metrics must be configured",
+                             "OpenTelemetry configuration must be an OpenTelemetryConfig object",
                              0);
         return 0;
     }
 
-    return 1;
+    return parse_otel_config_object(config_obj, otel_config);
+}
+
+/**
+ * Parse OTEL configuration from OpenTelemetryConfig object
+ */
+int parse_otel_config_object(zval* config_obj, valkey_glide_otel_config_t* otel_config) {
+    /* For now, just return an error since we're removing array support */
+    /* TODO: Implement proper object method calling */
+    VALKEY_LOG_ERROR("otel_config", "OpenTelemetry object configuration not yet implemented");
+    zend_throw_exception(get_valkey_glide_exception_ce(),
+                         "OpenTelemetry object configuration not yet implemented",
+                         0);
+    return 0;
+}
+
+/**
+ * Parse traces configuration from TracesConfig object
+ */
+int parse_traces_config_object(zval* traces_obj, valkey_glide_otel_config_t* otel_config) {
+    /* TODO: Implement proper object method calling */
+    VALKEY_LOG_ERROR("otel_config", "Traces object configuration not yet implemented");
+    return 0;
+}
+
+/**
+ * Parse metrics configuration from MetricsConfig object
+ */
+int parse_metrics_config_object(zval* metrics_obj, valkey_glide_otel_config_t* otel_config) {
+    /* TODO: Implement proper object method calling */
+    VALKEY_LOG_ERROR("otel_config", "Metrics object configuration not yet implemented");
+    return 0;
 }
 
 /**

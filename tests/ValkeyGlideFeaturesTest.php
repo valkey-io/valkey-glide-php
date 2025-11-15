@@ -3,6 +3,12 @@
 defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
 
 require_once __DIR__ . "/ValkeyGlideBaseTest.php";
+require_once __DIR__ . "/../OpenTelemetryConfig.php";
+require_once __DIR__ . "/../OpenTelemetryConfigBuilder.php";
+require_once __DIR__ . "/../TracesConfig.php";
+require_once __DIR__ . "/../TracesConfigBuilder.php";
+require_once __DIR__ . "/../MetricsConfig.php";
+require_once __DIR__ . "/../MetricsConfigBuilder.php";
 
 /**
  * ValkeyGlide Features Test
@@ -899,15 +905,15 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     public function testOtelConfiguration()
     {
         // Test that client works with OpenTelemetry configuration
-        $otelConfig = [
-            'traces' => [
-                'endpoint' => 'file:///tmp/valkey_glide_traces.json',
-                'sample_percentage' => 10
-            ],
-            'metrics' => [
-                'endpoint' => 'file:///tmp/valkey_glide_metrics.json'
-            ]
-        ];
+        $otelConfig = OpenTelemetryConfig::builder()
+            ->traces(TracesConfig::builder()
+                ->endpoint('file:///tmp/valkey_glide_traces.json')
+                ->samplePercentage(10)
+                ->build())
+            ->metrics(MetricsConfig::builder()
+                ->endpoint('file:///tmp/valkey_glide_metrics.json')
+                ->build())
+            ->build();
 
         try {
             // Create client with OpenTelemetry configuration
@@ -939,6 +945,44 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         } catch (Exception $e) {
             // OpenTelemetry configuration should not cause client construction to fail
             $this->fail("OpenTelemetry configuration caused client construction to fail: " . $e->getMessage());
+        }
+    }
+
+    public function testOtelArrayConfigurationRejected()
+    {
+        // Test that array-based OpenTelemetry configuration is rejected
+        $arrayConfig = [
+            'traces' => [
+                'endpoint' => 'file:///tmp/valkey_glide_traces.json',
+                'sample_percentage' => 10
+            ],
+            'metrics' => [
+                'endpoint' => 'file:///tmp/valkey_glide_metrics.json'
+            ]
+        ];
+
+        try {
+            $client = new ValkeyGlide(
+                addresses: [
+                    ['host' => 'localhost', 'port' => 6379]
+                ],
+                use_tls: false,
+                credentials: null,
+                read_from: null,
+                request_timeout: null,
+                reconnect_strategy: null,
+                client_name: 'array-otel-test',
+                periodic_checks: null,
+                advanced_config: [
+                    'otel' => $arrayConfig
+                ]
+            );
+            
+            $this->fail("Array-based OpenTelemetry configuration should be rejected");
+        } catch (Exception $e) {
+            // Verify the error message indicates object is required
+            $this->assertStringContainsString("OpenTelemetryConfig object", $e->getMessage(),
+                "Error should indicate OpenTelemetryConfig object is required");
         }
     }
 
