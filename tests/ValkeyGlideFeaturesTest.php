@@ -915,37 +915,32 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
                 ->build())
             ->build();
 
-        try {
-            // Create client with OpenTelemetry configuration
-            $client = new ValkeyGlide(
-                addresses: [
-                    ['host' => 'localhost', 'port' => 6379]
-                ],
-                use_tls: false,
-                credentials: null,
-                read_from: null,
-                request_timeout: null,
-                reconnect_strategy: null,
-                client_name: 'otel-test-client',
-                periodic_checks: null,
-                advanced_config: [
-                    'otel' => $otelConfig
-                ]
-            );
+        // Create client with OpenTelemetry configuration
+        $client = new ValkeyGlide(
+            addresses: [
+                ['host' => 'localhost', 'port' => 6379]
+            ],
+            use_tls: false,
+            credentials: null,
+            read_from: null,
+            request_timeout: null,
+            reconnect_strategy: null,
+            client_name: 'otel-test-client',
+            periodic_checks: null,
+            advanced_config: [
+                'otel' => $otelConfig
+            ]
+        );
 
-            // Verify client works with OpenTelemetry configured
-            $client->set('otel:test', 'value');
-            $value = $client->get('otel:test');
-            $this->assertEquals('value', $value, "GET should return the set value with OpenTelemetry");
+        // Verify client works with OpenTelemetry configured
+        $client->set('otel:test', 'value');
+        $value = $client->get('otel:test');
+        $this->assertEquals('value', $value, "GET should return the set value with OpenTelemetry");
 
-            $deleteResult = $client->del('otel:test');
-            $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key with OpenTelemetry");
+        $deleteResult = $client->del('otel:test');
+        $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key with OpenTelemetry");
 
-            $client->close();
-        } catch (Exception $e) {
-            // OpenTelemetry configuration should not cause client construction to fail
-            $this->fail("OpenTelemetry configuration caused client construction to fail: " . $e->getMessage());
-        }
+        $client->close();
     }
 
     public function testOtelArrayConfigurationRejected()
