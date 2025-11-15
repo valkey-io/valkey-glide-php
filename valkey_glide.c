@@ -393,11 +393,13 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
 
         /* Check for OTEL config */
         zval* otel_config_val = zend_hash_str_find(advanced_ht, "otel", sizeof("otel") - 1);
-        if (otel_config_val && Z_TYPE_P(otel_config_val) == IS_ARRAY) {
+        if (otel_config_val && Z_TYPE_P(otel_config_val) == IS_OBJECT) {
             VALKEY_LOG_DEBUG("otel_config", "Processing OTEL configuration from advanced_config");
             if (!valkey_glide_otel_init(otel_config_val)) {
-                VALKEY_LOG_WARN("otel_config",
-                                "Failed to initialize OTEL, continuing without tracing");
+                VALKEY_LOG_ERROR("otel_config", "Failed to initialize OTEL");
+                zend_throw_exception(
+                    get_valkey_glide_exception_ce(), "Failed to initialize OpenTelemetry", 0);
+                return;
             }
         }
     } else {

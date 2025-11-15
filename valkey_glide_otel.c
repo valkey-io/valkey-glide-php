@@ -43,7 +43,7 @@ int valkey_glide_otel_init(zval* config_array) {
     }
 
     /* Parse configuration */
-    if (!parse_otel_config_array(config_array, &g_otel_config)) {
+    if (!parse_otel_config(config_array, &g_otel_config)) {
         VALKEY_LOG_ERROR("otel_init", "Failed to parse OTEL configuration");
         cleanup_otel_config(&g_otel_config);
         return 0;
@@ -97,7 +97,7 @@ void valkey_glide_drop_span(uint64_t span_ptr) {
 /**
  * Parse OTEL configuration from OpenTelemetryConfig object
  */
-int parse_otel_config_array(zval* config_obj, valkey_glide_otel_config_t* otel_config) {
+int parse_otel_config(zval* config_obj, valkey_glide_otel_config_t* otel_config) {
     if (Z_TYPE_P(config_obj) != IS_OBJECT) {
         VALKEY_LOG_ERROR("otel_config",
                          "OpenTelemetry configuration must be an OpenTelemetryConfig object");

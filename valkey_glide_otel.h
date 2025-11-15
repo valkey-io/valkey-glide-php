@@ -45,7 +45,7 @@ uint64_t valkey_glide_otel_create_named_span(const char* name);
 bool     valkey_glide_otel_end_span(uint64_t span_ptr);
 
 /* Helper functions */
-int  parse_otel_config_array(zval* config_array, valkey_glide_otel_config_t* otel_config);
+int  parse_otel_config(zval* config_obj, valkey_glide_otel_config_t* otel_config);
 int  parse_otel_config_object(zval* config_obj, valkey_glide_otel_config_t* otel_config);
 int  parse_traces_config_object(zval* traces_obj, valkey_glide_otel_config_t* otel_config);
 int  parse_metrics_config_object(zval* metrics_obj, valkey_glide_otel_config_t* otel_config);
