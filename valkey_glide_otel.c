@@ -113,32 +113,151 @@ int parse_otel_config(zval* config_obj, valkey_glide_otel_config_t* otel_config)
 /**
  * Parse OTEL configuration from OpenTelemetryConfig object
  */
-int parse_otel_config_object(zval* config_obj, valkey_glide_otel_config_t* otel_config) {
-    /* For now, just return an error since we're removing array support */
-    /* TODO: Implement proper object method calling */
-    VALKEY_LOG_ERROR("otel_config", "OpenTelemetry object configuration not yet implemented");
-    zend_throw_exception(get_valkey_glide_exception_ce(),
-                         "OpenTelemetry object configuration not yet implemented",
-                         0);
-    return 0;
+static int parse_otel_config_object(zval* config_obj, valkey_glide_otel_config_t* otel_config) {
+    zval    method_name, retval, *traces_obj, *metrics_obj;
+    int64_t flush_interval_ms  = 5000;  // Default value
+    bool    has_flush_interval = false;
+
+    // Get traces configuration
+    ZVAL_STRING(&method_name, "getTraces");
+    if (call_user_function(NULL, config_obj, &method_name, &retval, 0, NULL) == SUCCESS) {
+        if (Z_TYPE(retval) == IS_OBJECT) {
+            traces_obj = &retval;
+            if (!parse_traces_config_object(traces_obj, otel_config)) {
+                zval_dtor(&method_name);
+                zval_dtor(&retval);
+                return 0;
+            }
+        }
+        zval_dtor(&retval);
+    }
+    zval_dtor(&method_name);
+
+    // Get metrics configuration
+    ZVAL_STRING(&method_name, "getMetrics");
+    if (call_user_function(NULL, config_obj, &method_name, &retval, 0, NULL) == SUCCESS) {
+        if (Z_TYPE(retval) == IS_OBJECT) {
+            metrics_obj = &retval;
+            if (!parse_metrics_config_object(metrics_obj, otel_config)) {
+                zval_dtor(&method_name);
+                zval_dtor(&retval);
+                return 0;
+            }
+        }
+        zval_dtor(&retval);
+    }
+    zval_dtor(&method_name);
+
+    // Get flush interval
+    ZVAL_STRING(&method_name, "getFlushIntervalMs");
+    if (call_user_function(NULL, config_obj, &method_name, &retval, 0, NULL) == SUCCESS) {
+        if (Z_TYPE(retval) == IS_LONG) {
+            flush_interval_ms  = Z_LVAL(retval);
+            has_flush_interval = true;
+        }
+        zval_dtor(&retval);
+    }
+    zval_dtor(&method_name);
+
+    // Validate at least one config is provided
+    if (!otel_config->traces_config && !otel_config->metrics_config) {
+        VALKEY_LOG_ERROR("otel_config", "At least one of traces or metrics must be provided");
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "At least one of traces or metrics must be provided",
+                             0);
+        return 0;
+    }
+
+    // Create main FFI config struct
+    struct OpenTelemetryConfig* main_config = emalloc(sizeof(struct OpenTelemetryConfig));
+    main_config->traces                     = otel_config->traces_config;
+    main_config->metrics                    = otel_config->metrics_config;
+    main_config->has_flush_interval_ms      = has_flush_interval;
+    main_config->flush_interval_ms          = flush_interval_ms;
+
+    otel_config->config = main_config;
+
+    return 1;
 }
 
 /**
  * Parse traces configuration from TracesConfig object
  */
-int parse_traces_config_object(zval* traces_obj, valkey_glide_otel_config_t* otel_config) {
-    /* TODO: Implement proper object method calling */
-    VALKEY_LOG_ERROR("otel_config", "Traces object configuration not yet implemented");
-    return 0;
+static int parse_traces_config_object(zval* traces_obj, valkey_glide_otel_config_t* otel_config) {
+    zval  method_name, retval;
+    char* endpoint              = NULL;
+    int   sample_percentage     = 1;  // Default value
+    bool  has_sample_percentage = false;
+
+    // Get endpoint
+    ZVAL_STRING(&method_name, "getEndpoint");
+    if (call_user_function(NULL, traces_obj, &method_name, &retval, 0, NULL) == SUCCESS) {
+        if (Z_TYPE(retval) == IS_STRING) {
+            endpoint = estrdup(Z_STRVAL(retval));
+        }
+        zval_dtor(&retval);
+    }
+    zval_dtor(&method_name);
+
+    // Get sample percentage
+    ZVAL_STRING(&method_name, "getSamplePercentage");
+    if (call_user_function(NULL, traces_obj, &method_name, &retval, 0, NULL) == SUCCESS) {
+        if (Z_TYPE(retval) == IS_LONG) {
+            sample_percentage     = (int) Z_LVAL(retval);
+            has_sample_percentage = true;
+        }
+        zval_dtor(&retval);
+    }
+    zval_dtor(&method_name);
+
+    if (!endpoint) {
+        VALKEY_LOG_ERROR("otel_config", "Traces endpoint is required");
+        return 0;
+    }
+
+    // Allocate and populate FFI traces config struct
+    struct OpenTelemetryTracesConfig* traces_config =
+        emalloc(sizeof(struct OpenTelemetryTracesConfig));
+    traces_config->endpoint              = endpoint;  // Transfer ownership
+    traces_config->has_sample_percentage = has_sample_percentage;
+    traces_config->sample_percentage     = (uint32_t) sample_percentage;
+
+    otel_config->traces_config             = traces_config;
+    otel_config->current_sample_percentage = sample_percentage;
+
+    return 1;
 }
 
 /**
  * Parse metrics configuration from MetricsConfig object
  */
-int parse_metrics_config_object(zval* metrics_obj, valkey_glide_otel_config_t* otel_config) {
-    /* TODO: Implement proper object method calling */
-    VALKEY_LOG_ERROR("otel_config", "Metrics object configuration not yet implemented");
-    return 0;
+static int parse_metrics_config_object(zval* metrics_obj, valkey_glide_otel_config_t* otel_config) {
+    zval  method_name, retval;
+    char* endpoint = NULL;
+
+    // Get endpoint
+    ZVAL_STRING(&method_name, "getEndpoint");
+    if (call_user_function(NULL, metrics_obj, &method_name, &retval, 0, NULL) == SUCCESS) {
+        if (Z_TYPE(retval) == IS_STRING) {
+            endpoint = estrdup(Z_STRVAL(retval));
+        }
+        zval_dtor(&retval);
+    }
+    zval_dtor(&method_name);
+
+    if (!endpoint) {
+        VALKEY_LOG_ERROR("otel_config", "Metrics endpoint is required");
+        return 0;
+    }
+
+    // Allocate and populate FFI metrics config struct
+    struct OpenTelemetryMetricsConfig* metrics_config =
+        emalloc(sizeof(struct OpenTelemetryMetricsConfig));
+    metrics_config->endpoint = endpoint;  // Transfer ownership
+
+    otel_config->metrics_config = metrics_config;
+
+    return 1;
 }
 
 /**
