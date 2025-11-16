@@ -27,20 +27,25 @@ then
 
         AC_MSG_RESULT([== = VALKEY GLIDE CONFIG START == = ])
 
-            dnl If-- enable
-    - debug is used,
-    set valkey - glide - debug to yes if test "$PHP_DEBUG" = "yes";
-then PHP_VALKEY_GLIDE_DEBUG                                = "yes" fi
+    dnl If --enable-debug is used, set valkey-glide-debug to yes
+    if test "$PHP_DEBUG" = "yes"; then
+        PHP_VALKEY_GLIDE_DEBUG="yes"
+    fi
 
-    dnl Check if ASAN is enabled if test "$PHP_VALKEY_GLIDE_ASAN" = "yes"; then
-    AC_MSG_CHECKING([for AddressSanitizer support])
-    
-    dnl Detect platform to skip -fsanitize=address on macOS
-    UNAME_S=`uname -s`
-    if test "$UNAME_S" = "Darwin";
-then AC_MSG_RESULT([ detected macOS, skipping - fsanitize = address ])
-    ASAN_CFLAGS = "-fno-omit-frame-pointer -g -O1" ASAN_LDFLAGS          = "" else ASAN_CFLAGS =
-        "-fsanitize=address -fno-omit-frame-pointer -g -O1" ASAN_LDFLAGS = "-fsanitize=address" fi
+    dnl Check if ASAN is enabled
+    if test "$PHP_VALKEY_GLIDE_ASAN" = "yes"; then
+        AC_MSG_CHECKING([for AddressSanitizer support])
+        
+        dnl Detect platform to skip -fsanitize=address on macOS
+        UNAME_S=`uname -s`
+        if test "$UNAME_S" = "Darwin"; then
+            AC_MSG_RESULT([detected macOS, skipping -fsanitize=address])
+            ASAN_CFLAGS="-fno-omit-frame-pointer -g -O1"
+            ASAN_LDFLAGS=""
+        else
+            ASAN_CFLAGS="-fsanitize=address -fno-omit-frame-pointer -g -O1"
+            ASAN_LDFLAGS="-fsanitize=address"
+        fi
 
     dnl Test if compiler supports the flags old_CFLAGS = "$CFLAGS" old_LDFLAGS = "$LDFLAGS" CFLAGS =
         "$CFLAGS $ASAN_CFLAGS" LDFLAGS = "$LDFLAGS $ASAN_LDFLAGS"
