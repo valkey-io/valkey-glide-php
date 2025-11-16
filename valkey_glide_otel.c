@@ -30,20 +30,20 @@ static bool                g_otel_initialized = false;
  * Initialize OpenTelemetry with the given configuration
  * Can only be initialized once per process
  */
-int valkey_glide_otel_init(zval* config_array) {
+int valkey_glide_otel_init(zval* config_obj) {
     if (g_otel_initialized) {
         VALKEY_LOG_WARN("otel_init",
                         "OpenTelemetry already initialized, ignoring subsequent calls");
         return 1; /* Success - already initialized */
     }
 
-    if (!config_array || Z_TYPE_P(config_array) != IS_OBJECT) {
+    if (!config_obj || Z_TYPE_P(config_obj) != IS_OBJECT) {
         VALKEY_LOG_DEBUG("otel_init", "No OTEL configuration provided");
         return 1; /* Success - OTEL is optional */
     }
 
     /* Parse configuration */
-    if (!parse_otel_config(config_array, &g_otel_config)) {
+    if (!parse_otel_config(config_obj, &g_otel_config)) {
         VALKEY_LOG_ERROR("otel_init", "Failed to parse OTEL configuration");
         cleanup_otel_config(&g_otel_config);
         return 0;

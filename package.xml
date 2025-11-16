@@ -87,8 +87,6 @@ Requirements:
    <file name="valkey_z_php_methods.c" role="src" />
    <file name="valkey_glide_otel.h" role="src" />
    <file name="valkey_glide_otel.c" role="src" />
-   <file name="valkey_glide_otel_commands.h" role="src" />
-   <file name="valkey_glide_otel_commands.c" role="src" />
    <dir name="src">
     <file name="client_constructor_mock.c" role="src" />
     <file name="client_constructor_mock.stub.php" role="src" />

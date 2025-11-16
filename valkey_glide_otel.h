@@ -31,7 +31,7 @@ typedef struct {
 extern valkey_glide_otel_config_t g_otel_config;
 
 /* Function declarations */
-int      valkey_glide_otel_init(zval* config_array);
+int      valkey_glide_otel_init(zval* config_obj);
 void     valkey_glide_otel_shutdown(void);
 uint64_t valkey_glide_create_span(enum RequestType request_type);
 void     valkey_glide_drop_span(uint64_t span_ptr);
