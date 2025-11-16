@@ -3,6 +3,11 @@
     "description": "General Language Independent Driver for the Enterprise (GLIDE) for Valkey",
     "type": "php-ext",
     "license": "Apache-2.0",
+    "config": {
+        "audit": {
+            "ignore": ["PKSA-wws7-mr54-jsny"]
+        }
+    },
     "provide": {
         "ext-valkey_glide": "*"
     },
