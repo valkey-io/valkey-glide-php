@@ -47,24 +47,34 @@ then
             ASAN_LDFLAGS="-fsanitize=address"
         fi
 
-    dnl Test if compiler supports the flags old_CFLAGS = "$CFLAGS" old_LDFLAGS = "$LDFLAGS" CFLAGS =
-        "$CFLAGS $ASAN_CFLAGS" LDFLAGS = "$LDFLAGS $ASAN_LDFLAGS"
+        dnl Test if compiler supports the flags
+        old_CFLAGS="$CFLAGS"
+        old_LDFLAGS="$LDFLAGS"
+        CFLAGS="$CFLAGS $ASAN_CFLAGS"
+        LDFLAGS="$LDFLAGS $ASAN_LDFLAGS"
 
-    AC_TRY_COMPILE(
-        [],
-        [return 0;],
-        [AC_MSG_RESULT([yes]) PHP_VALKEY_GLIDE_CFLAGS = "$ASAN_CFLAGS" PHP_VALKEY_GLIDE_LDFLAGS =
-                "$ASAN_LDFLAGS" AC_DEFINE(
-                    [VALKEY_GLIDE_ASAN_ENABLED], [1], [Define if AddressSanitizer is enabled])],
-        [AC_MSG_RESULT([no])
-                AC_MSG_ERROR([AddressSanitizer requested but compiler does not support it])])
+        AC_TRY_COMPILE(
+            [],
+            [return 0;],
+            [AC_MSG_RESULT([yes])
+             PHP_VALKEY_GLIDE_CFLAGS="$ASAN_CFLAGS"
+             PHP_VALKEY_GLIDE_LDFLAGS="$ASAN_LDFLAGS"
+             AC_DEFINE([VALKEY_GLIDE_ASAN_ENABLED], [1], [Define if AddressSanitizer is enabled])],
+            [AC_MSG_RESULT([no])
+             AC_MSG_ERROR([AddressSanitizer requested but compiler does not support it])])
 
-        CFLAGS = "$old_CFLAGS" LDFLAGS  = "$old_LDFLAGS" else PHP_VALKEY_GLIDE_CFLAGS =
-            "" PHP_VALKEY_GLIDE_LDFLAGS = "" fi
+        CFLAGS="$old_CFLAGS"
+        LDFLAGS="$old_LDFLAGS"
+    else
+        PHP_VALKEY_GLIDE_CFLAGS=""
+        PHP_VALKEY_GLIDE_LDFLAGS=""
+    fi
 
-                                          dnl Apply the flags to the extension if test
-                                          - n "$PHP_VALKEY_GLIDE_CFLAGS";
-then CFLAGS = "$CFLAGS $PHP_VALKEY_GLIDE_CFLAGS" fi if test - n "$PHP_VALKEY_GLIDE_LDFLAGS"; then
+    dnl Apply the flags to the extension
+    if test -n "$PHP_VALKEY_GLIDE_CFLAGS"; then
+        CFLAGS="$CFLAGS $PHP_VALKEY_GLIDE_CFLAGS"
+    fi
+    if test -n "$PHP_VALKEY_GLIDE_LDFLAGS"; then
     LDFLAGS="$LDFLAGS $PHP_VALKEY_GLIDE_LDFLAGS"
   fi
   
