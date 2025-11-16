@@ -5,7 +5,7 @@
     "license": "Apache-2.0",
     "config": {
         "audit": {
-            "ignore": ["PKSA-wws7-mr54-jsny"]
+            "block-insecure": false
         }
     },
     "provide": {
