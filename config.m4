@@ -438,8 +438,6 @@ then
     fi
     
     AC_MSG_RESULT([header generation complete])
-    AC_MSG_RESULT([Debug: generated files=$(ls -la include/ src/ 2>/dev/null || echo "none")])
-    AC_MSG_RESULT([Debug: current directory after generation: $(pwd)])
     
     dnl Copy generated files back to build directory for PECL make
     if test "$BUILD_DIR" != "$PECL_SOURCE_DIR"; then
