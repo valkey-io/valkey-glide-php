@@ -26,6 +26,9 @@
 valkey_glide_otel_config_t g_otel_config      = {0};
 static bool                g_otel_initialized = false;
 
+/* Sentinel value for invalid/uninitialized sample percentage */
+#define OTEL_SAMPLE_PERCENTAGE_INVALID -1
+
 /**
  * Initialize OpenTelemetry with the given configuration
  * Can only be initialized once per process
@@ -302,7 +305,7 @@ static bool valkey_glide_otel_is_initialized(void) {
 
 static int32_t valkey_glide_otel_get_sample_percentage(void) {
     if (!g_otel_config.enabled || !g_otel_config.traces_config) {
-        return -1;  // Not initialized or no traces config
+        return OTEL_SAMPLE_PERCENTAGE_INVALID;
     }
     return (int32_t) g_otel_config.traces_config->sample_percentage;
 }
@@ -318,7 +321,8 @@ static bool valkey_glide_otel_set_sample_percentage(uint32_t percentage) {
 
 static bool valkey_glide_otel_should_sample(void) {
     int32_t percentage = valkey_glide_otel_get_sample_percentage();
-    return percentage > 0 && (percentage == 100 || (rand() % 100) < percentage);
+    return percentage != OTEL_SAMPLE_PERCENTAGE_INVALID && percentage > 0 &&
+           (percentage == 100 || (rand() % 100) < percentage);
 }
 
 static uint64_t valkey_glide_otel_create_named_span(const char* name) {
