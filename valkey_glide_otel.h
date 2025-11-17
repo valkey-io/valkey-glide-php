@@ -42,7 +42,7 @@ int32_t  valkey_glide_otel_get_sample_percentage(void);
 bool     valkey_glide_otel_set_sample_percentage(uint32_t percentage);
 bool     valkey_glide_otel_should_sample(void);
 uint64_t valkey_glide_otel_create_named_span(const char* name);
-bool     valkey_glide_otel_end_span(uint64_t span_ptr);
+void     valkey_glide_otel_end_span(uint64_t span_ptr);
 
 /* Helper functions */
 int  parse_otel_config(zval* config_obj, valkey_glide_otel_config_t* otel_config);

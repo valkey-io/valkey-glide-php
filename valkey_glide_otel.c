@@ -329,11 +329,10 @@ uint64_t valkey_glide_otel_create_named_span(const char* name) {
     return create_named_otel_span(name);
 }
 
-bool valkey_glide_otel_end_span(uint64_t span_ptr) {
+void valkey_glide_otel_end_span(uint64_t span_ptr) {
     if (span_ptr == 0) {
-        return true;  // Safe no-op for zero pointer
+        return;  // Safe no-op for zero pointer
     }
 
     drop_otel_span(span_ptr);
-    return true;
 }
