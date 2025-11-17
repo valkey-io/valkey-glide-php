@@ -67,7 +67,7 @@ int valkey_glide_otel_init(zval* config_obj) {
 /**
  * Shutdown OpenTelemetry
  */
-void valkey_glide_otel_shutdown(void) {
+static void valkey_glide_otel_shutdown(void) {
     if (g_otel_config.enabled) {
         g_otel_config.enabled = false;
         g_otel_initialized    = false;
@@ -97,7 +97,7 @@ void valkey_glide_drop_span(uint64_t span_ptr) {
 /**
  * Parse OTEL configuration from OpenTelemetryConfig object
  */
-int parse_otel_config(zval* config_obj, valkey_glide_otel_config_t* otel_config) {
+static int parse_otel_config(zval* config_obj, valkey_glide_otel_config_t* otel_config) {
     if (Z_TYPE_P(config_obj) != IS_OBJECT) {
         VALKEY_LOG_ERROR("otel_config",
                          "OpenTelemetry configuration must be an OpenTelemetryConfig object");
@@ -263,7 +263,7 @@ static int parse_metrics_config_object(zval* metrics_obj, valkey_glide_otel_conf
 /**
  * Cleanup OTEL configuration
  */
-void cleanup_otel_config(valkey_glide_otel_config_t* otel_config) {
+static void cleanup_otel_config(valkey_glide_otel_config_t* otel_config) {
     if (otel_config->traces_config) {
         if (otel_config->traces_config->endpoint) {
             efree((void*) otel_config->traces_config->endpoint);
@@ -296,18 +296,18 @@ void cleanup_otel_config(valkey_glide_otel_config_t* otel_config) {
 
 /* Public API function implementations */
 
-bool valkey_glide_otel_is_initialized(void) {
+static bool valkey_glide_otel_is_initialized(void) {
     return g_otel_config.enabled;
 }
 
-int32_t valkey_glide_otel_get_sample_percentage(void) {
+static int32_t valkey_glide_otel_get_sample_percentage(void) {
     if (!g_otel_config.enabled || !g_otel_config.traces_config) {
         return -1;  // Not initialized or no traces config
     }
     return (int32_t) g_otel_config.traces_config->sample_percentage;
 }
 
-bool valkey_glide_otel_set_sample_percentage(uint32_t percentage) {
+static bool valkey_glide_otel_set_sample_percentage(uint32_t percentage) {
     if (!g_otel_config.enabled || !g_otel_config.traces_config) {
         return false;  // Not initialized or no traces config
     }
@@ -316,12 +316,12 @@ bool valkey_glide_otel_set_sample_percentage(uint32_t percentage) {
     return true;
 }
 
-bool valkey_glide_otel_should_sample(void) {
+static bool valkey_glide_otel_should_sample(void) {
     int32_t percentage = valkey_glide_otel_get_sample_percentage();
     return percentage > 0 && (percentage == 100 || (rand() % 100) < percentage);
 }
 
-uint64_t valkey_glide_otel_create_named_span(const char* name) {
+static uint64_t valkey_glide_otel_create_named_span(const char* name) {
     if (!g_otel_config.enabled || !name || strlen(name) == 0) {
         return 0;  // Not initialized or invalid name
     }
@@ -329,7 +329,7 @@ uint64_t valkey_glide_otel_create_named_span(const char* name) {
     return create_named_otel_span(name);
 }
 
-void valkey_glide_otel_end_span(uint64_t span_ptr) {
+static void valkey_glide_otel_end_span(uint64_t span_ptr) {
     if (span_ptr == 0) {
         return;  // Safe no-op for zero pointer
     }
