@@ -39,7 +39,7 @@ void     valkey_glide_drop_span(uint64_t span_ptr);
 /* Public API functions */
 bool     valkey_glide_otel_is_initialized(void);
 int32_t  valkey_glide_otel_get_sample_percentage(void);
-bool     valkey_glide_otel_set_sample_percentage(int32_t percentage);
+bool     valkey_glide_otel_set_sample_percentage(uint32_t percentage);
 bool     valkey_glide_otel_should_sample(void);
 uint64_t valkey_glide_otel_create_named_span(const char* name);
 bool     valkey_glide_otel_end_span(uint64_t span_ptr);

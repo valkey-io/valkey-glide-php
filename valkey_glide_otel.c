@@ -307,16 +307,12 @@ int32_t valkey_glide_otel_get_sample_percentage(void) {
     return (int32_t) g_otel_config.traces_config->sample_percentage;
 }
 
-bool valkey_glide_otel_set_sample_percentage(int32_t percentage) {
+bool valkey_glide_otel_set_sample_percentage(uint32_t percentage) {
     if (!g_otel_config.enabled || !g_otel_config.traces_config) {
         return false;  // Not initialized or no traces config
     }
 
-    if (percentage < 0 || percentage > 100) {
-        return false;  // Invalid percentage
-    }
-
-    g_otel_config.traces_config->sample_percentage = (uint32_t) percentage;
+    g_otel_config.traces_config->sample_percentage = percentage;
     return true;
 }
 
@@ -328,10 +324,6 @@ bool valkey_glide_otel_should_sample(void) {
 uint64_t valkey_glide_otel_create_named_span(const char* name) {
     if (!g_otel_config.enabled || !name || strlen(name) == 0) {
         return 0;  // Not initialized or invalid name
-    }
-
-    if (strlen(name) > 256) {
-        return 0;  // Name too long
     }
 
     return create_named_otel_span(name);
