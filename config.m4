@@ -1,80 +1,70 @@
-PHP_ARG_ENABLE(valkey_glide,
-               whether to enable Valkey Glide support,
-               [--enable - valkey - glide Enable Valkey Glide support])
+PHP_ARG_ENABLE(valkey_glide, whether to enable Valkey Glide support,
+[  --enable-valkey-glide   Enable Valkey Glide support])
 
 PHP_ARG_ENABLE(valkey_glide_asan, whether to enable AddressSanitizer for Valkey Glide,
 [  --enable-valkey-glide-asan   Enable AddressSanitizer for debugging (requires clang/gcc with ASAN support)], no, no)
 
-PHP_ARG_ENABLE(valkey_glide_debug,
-               whether to enable debug mode,
-               [--enable - valkey - glide - debug Enable debug mode],
-               no,
-               no)
+PHP_ARG_ENABLE(valkey_glide_debug, whether to enable debug mode,
+[  --enable-valkey-glide-debug   Enable debug mode], no, no)
 
 PHP_ARG_ENABLE(debug, whether to enable debug mode (alias for valkey-glide-debug),
 [  --enable-debug   Enable debug mode (alias for valkey-glide-debug)], no, no)
 
-PHP_ARG_ENABLE(header_generation,
-               whether to enable header generation during configure,
-               [--disable - header - generation Skip header and
-                   protobuf generation during configure],
-               yes,
-               no)
+PHP_ARG_ENABLE(header_generation, whether to enable header generation during configure,
+[  --disable-header-generation   Skip header and protobuf generation during configure], yes, no)
 
-if test
-    "$PHP_VALKEY_GLIDE" != "no";
-then
+if test "$PHP_VALKEY_GLIDE" != "no"; then
 
-        AC_MSG_RESULT([== = VALKEY GLIDE CONFIG START == = ])
+  AC_MSG_RESULT([=== VALKEY GLIDE CONFIG START ===])
 
-    dnl If --enable-debug is used, set valkey-glide-debug to yes
-    if test "$PHP_DEBUG" = "yes"; then
-        PHP_VALKEY_GLIDE_DEBUG="yes"
-    fi
+  dnl If --enable-debug is used, set valkey-glide-debug to yes
+  if test "$PHP_DEBUG" = "yes"; then
+    PHP_VALKEY_GLIDE_DEBUG="yes"
+  fi
 
-    dnl Check if ASAN is enabled
-    if test "$PHP_VALKEY_GLIDE_ASAN" = "yes"; then
-        AC_MSG_CHECKING([for AddressSanitizer support])
-        
-        dnl Detect platform to skip -fsanitize=address on macOS
-        UNAME_S=`uname -s`
-        if test "$UNAME_S" = "Darwin"; then
-            AC_MSG_RESULT([detected macOS, skipping -fsanitize=address])
-            ASAN_CFLAGS="-fno-omit-frame-pointer -g -O1"
-            ASAN_LDFLAGS=""
-        else
-            ASAN_CFLAGS="-fsanitize=address -fno-omit-frame-pointer -g -O1"
-            ASAN_LDFLAGS="-fsanitize=address"
-        fi
-
-        dnl Test if compiler supports the flags
-        old_CFLAGS="$CFLAGS"
-        old_LDFLAGS="$LDFLAGS"
-        CFLAGS="$CFLAGS $ASAN_CFLAGS"
-        LDFLAGS="$LDFLAGS $ASAN_LDFLAGS"
-
-        AC_TRY_COMPILE(
-            [],
-            [return 0;],
-            [AC_MSG_RESULT([yes])
-             PHP_VALKEY_GLIDE_CFLAGS="$ASAN_CFLAGS"
-             PHP_VALKEY_GLIDE_LDFLAGS="$ASAN_LDFLAGS"
-             AC_DEFINE([VALKEY_GLIDE_ASAN_ENABLED], [1], [Define if AddressSanitizer is enabled])],
-            [AC_MSG_RESULT([no])
-             AC_MSG_ERROR([AddressSanitizer requested but compiler does not support it])])
-
-        CFLAGS="$old_CFLAGS"
-        LDFLAGS="$old_LDFLAGS"
+  dnl Check if ASAN is enabled
+  if test "$PHP_VALKEY_GLIDE_ASAN" = "yes"; then
+    AC_MSG_CHECKING([for AddressSanitizer support])
+    
+    dnl Detect platform to skip -fsanitize=address on macOS
+    UNAME_S=`uname -s`
+    if test "$UNAME_S" = "Darwin"; then
+      AC_MSG_RESULT([detected macOS, skipping -fsanitize=address])
+      ASAN_CFLAGS="-fno-omit-frame-pointer -g -O1"
+      ASAN_LDFLAGS=""
     else
-        PHP_VALKEY_GLIDE_CFLAGS=""
-        PHP_VALKEY_GLIDE_LDFLAGS=""
+      ASAN_CFLAGS="-fsanitize=address -fno-omit-frame-pointer -g -O1"
+      ASAN_LDFLAGS="-fsanitize=address"
     fi
 
-    dnl Apply the flags to the extension
-    if test -n "$PHP_VALKEY_GLIDE_CFLAGS"; then
-        CFLAGS="$CFLAGS $PHP_VALKEY_GLIDE_CFLAGS"
-    fi
-    if test -n "$PHP_VALKEY_GLIDE_LDFLAGS"; then
+    dnl Test if compiler supports the flags
+    old_CFLAGS="$CFLAGS"
+    old_LDFLAGS="$LDFLAGS"
+    CFLAGS="$CFLAGS $ASAN_CFLAGS"
+    LDFLAGS="$LDFLAGS $ASAN_LDFLAGS"
+    
+    AC_TRY_COMPILE([], [return 0;], [
+      AC_MSG_RESULT([yes])
+      PHP_VALKEY_GLIDE_CFLAGS="$ASAN_CFLAGS"
+      PHP_VALKEY_GLIDE_LDFLAGS="$ASAN_LDFLAGS"
+      AC_DEFINE([VALKEY_GLIDE_ASAN_ENABLED], [1], [Define if AddressSanitizer is enabled])
+    ], [
+      AC_MSG_RESULT([no])
+      AC_MSG_ERROR([AddressSanitizer requested but compiler does not support it])
+    ])
+    
+    CFLAGS="$old_CFLAGS"
+    LDFLAGS="$old_LDFLAGS"
+  else
+    PHP_VALKEY_GLIDE_CFLAGS=""
+    PHP_VALKEY_GLIDE_LDFLAGS=""
+  fi
+
+  dnl Apply the flags to the extension
+  if test -n "$PHP_VALKEY_GLIDE_CFLAGS"; then
+    CFLAGS="$CFLAGS $PHP_VALKEY_GLIDE_CFLAGS"
+  fi
+  if test -n "$PHP_VALKEY_GLIDE_LDFLAGS"; then
     LDFLAGS="$LDFLAGS $PHP_VALKEY_GLIDE_LDFLAGS"
   fi
   
@@ -96,7 +86,7 @@ then
   esac
   
   PHP_NEW_EXTENSION(valkey_glide,
-    valkey_glide.c valkey_glide_cluster.c cluster_scan_cursor.c command_response.c logger.c valkey_glide_commands.c valkey_glide_commands_2.c valkey_glide_commands_3.c valkey_glide_core_commands.c valkey_glide_core_common.c valkey_glide_expire_commands.c valkey_glide_geo_commands.c valkey_glide_geo_common.c valkey_glide_hash_common.c valkey_glide_list_common.c valkey_glide_s_common.c valkey_glide_str_commands.c valkey_glide_x_commands.c valkey_glide_x_common.c valkey_glide_z.c valkey_glide_z_common.c valkey_z_php_methods.c valkey_glide_otel.c src/command_request.pb-c.c src/connection_request.pb-c.c src/response.pb-c.c src/client_constructor_mock.c,
+    valkey_glide.c valkey_glide_cluster.c cluster_scan_cursor.c command_response.c logger.c valkey_glide_otel.c valkey_glide_commands.c valkey_glide_commands_2.c valkey_glide_commands_3.c valkey_glide_core_commands.c valkey_glide_core_common.c valkey_glide_expire_commands.c valkey_glide_geo_commands.c valkey_glide_geo_common.c valkey_glide_hash_common.c valkey_glide_list_common.c valkey_glide_s_common.c valkey_glide_str_commands.c valkey_glide_x_commands.c valkey_glide_x_common.c valkey_glide_z.c valkey_glide_z_common.c valkey_z_php_methods.c src/command_request.pb-c.c src/connection_request.pb-c.c src/response.pb-c.c src/client_constructor_mock.c,
     $ext_shared,, $VALKEY_GLIDE_SHARED_LIBADD)
 
   dnl Add FFI library only for macOS (keep Mac working as before)
@@ -438,6 +428,8 @@ then
     fi
     
     AC_MSG_RESULT([header generation complete])
+    AC_MSG_RESULT([Debug: generated files=$(ls -la include/ src/ 2>/dev/null || echo "none")])
+    AC_MSG_RESULT([Debug: current directory after generation: $(pwd)])
     
     dnl Copy generated files back to build directory for PECL make
     if test "$BUILD_DIR" != "$PECL_SOURCE_DIR"; then
