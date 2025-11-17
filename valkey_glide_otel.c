@@ -118,7 +118,7 @@ static int parse_otel_config(zval* config_obj, valkey_glide_otel_config_t* otel_
  */
 static int parse_otel_config_object(zval* config_obj, valkey_glide_otel_config_t* otel_config) {
     zval    method_name, retval, *traces_obj, *metrics_obj;
-    int64_t flush_interval_ms  = 5000;  // Default value
+    int64_t flush_interval_ms  = 0;
     bool    has_flush_interval = false;
 
     // Get traces configuration
@@ -189,7 +189,7 @@ static int parse_otel_config_object(zval* config_obj, valkey_glide_otel_config_t
 static int parse_traces_config_object(zval* traces_obj, valkey_glide_otel_config_t* otel_config) {
     zval  method_name, retval;
     char* endpoint              = NULL;
-    int   sample_percentage     = 1;  // Default value
+    int   sample_percentage     = 0;
     bool  has_sample_percentage = false;
 
     // Get endpoint
