@@ -20,7 +20,6 @@
 #include "command_response.h"
 #include "valkey_glide_commands_common.h"
 
-
 /* ====================================================================
  * CORE COMMAND ARGUMENT STRUCTURES
  * ==================================================================== */

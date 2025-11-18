@@ -904,15 +904,20 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testOtelConfiguration()
     {
-        // Test that client works with OpenTelemetry configuration
+        $tracesFile = sys_get_temp_dir() . '/valkey_glide_traces_test.json';
+        
+        // Clean up any existing trace file
+        if (file_exists($tracesFile)) {
+            unlink($tracesFile);
+        }
+
+        // Test with 100% sampling to ensure spans are exported
         $otelConfig = OpenTelemetryConfig::builder()
             ->traces(TracesConfig::builder()
-                ->endpoint('file:///tmp/valkey_glide_traces.json')
-                ->samplePercentage(10)
+                ->endpoint('file://' . $tracesFile)
+                ->samplePercentage(100)
                 ->build())
-            ->metrics(MetricsConfig::builder()
-                ->endpoint('file:///tmp/valkey_glide_metrics.json')
-                ->build())
+            ->flushIntervalMs(100)
             ->build();
 
         // Create client with OpenTelemetry configuration
@@ -932,7 +937,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             ]
         );
 
-        // Verify client works with OpenTelemetry configured
+        // Execute commands that should generate spans
         $client->set('otel:test', 'value');
         $value = $client->get('otel:test');
         $this->assertEquals('value', $value, "GET should return the set value with OpenTelemetry");
@@ -941,6 +946,90 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key with OpenTelemetry");
 
         $client->close();
+
+        // Wait for spans to be flushed
+        usleep(500000); // 500ms
+
+        // Verify spans were exported
+        $this->assertTrue(file_exists($tracesFile), "Traces file should exist");
+        $this->assertGreaterThan(0, filesize($tracesFile), "Traces file should not be empty");
+
+        // Read and parse the traces file
+        $tracesContent = file_get_contents($tracesFile);
+        $this->assertNotEmpty($tracesContent, "Traces file should have content");
+
+        // Parse JSON lines (each line is a separate JSON object)
+        $lines = explode("\n", trim($tracesContent));
+        $spanNames = [];
+        
+        foreach ($lines as $line) {
+            if (empty($line)) continue;
+            
+            $span = json_decode($line, true);
+            if ($span && isset($span['name'])) {
+                $spanNames[] = $span['name'];
+            }
+        }
+
+        // Verify expected span names are present
+        $this->assertContains('SET', $spanNames, "Should have SET span");
+        $this->assertContains('GET', $spanNames, "Should have GET span");
+        $this->assertContains('DEL', $spanNames, "Should have DEL span");
+
+        // Clean up
+        if (file_exists($tracesFile)) {
+            unlink($tracesFile);
+        }
+    }
+
+    public function testOtelSamplingPercentage()
+    {
+        $tracesFile = sys_get_temp_dir() . '/valkey_glide_traces_sampling_test.json';
+        
+        // Clean up any existing trace file
+        if (file_exists($tracesFile)) {
+            unlink($tracesFile);
+        }
+
+        // Test with 0% sampling - no spans should be exported
+        $otelConfig = OpenTelemetryConfig::builder()
+            ->traces(TracesConfig::builder()
+                ->endpoint('file://' . $tracesFile)
+                ->samplePercentage(0)
+                ->build())
+            ->flushIntervalMs(100)
+            ->build();
+
+        $client = new ValkeyGlide(
+            addresses: [
+                ['host' => 'localhost', 'port' => 6379]
+            ],
+            use_tls: false,
+            credentials: null,
+            read_from: null,
+            request_timeout: null,
+            reconnect_strategy: null,
+            client_name: 'otel-sampling-test',
+            periodic_checks: null,
+            advanced_config: [
+                'otel' => $otelConfig
+            ]
+        );
+
+        // Execute commands
+        $client->set('otel:sampling:test', 'value');
+        $client->get('otel:sampling:test');
+        $client->del('otel:sampling:test');
+        $client->close();
+
+        // Wait for potential flush
+        usleep(500000); // 500ms
+
+        // Verify no spans were exported (file should not exist or be empty)
+        if (file_exists($tracesFile)) {
+            $this->assertEquals(0, filesize($tracesFile), "Traces file should be empty with 0% sampling");
+            unlink($tracesFile);
+        }
     }
 
     public function testOtelArrayConfigurationRejected()
