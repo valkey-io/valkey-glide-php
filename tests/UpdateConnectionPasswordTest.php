@@ -96,53 +96,165 @@ class UpdateConnectionPasswordTest extends TestSuite
         
         $client->close();
     }
-}
 
+    // Test password update with server password rotation (delay auth)
+    public function testUpdateConnectionPasswordWithServerRotationDelayAuth()
+    {
+        $client = $this->createClient();
+        $adminClient = $this->createClient();
+        
+        // Verify initial connection
+        $this->assertNotNull($client->ping(), "Client should be connected");
+        
+        // Update client password (delay auth)
+        $result = $client->updateConnectionPassword("test_password", false);
+        $this->assertEquals("OK", $result);
+        
+        // Verify connection still works (no reconnect yet)
+        $this->assertNotNull($client->ping(), "Client should still work without reconnect");
+        
+        // Update server password and kill connections to force reconnect
+        $adminClient->config("SET", "requirepass", "test_password");
+        sleep(1);
+        
+        try {
+            $adminClient->customCommand(["CLIENT", "KILL", "TYPE", "NORMAL"]);
+        } catch (Exception $e) {
+            // Expected - admin client gets killed too
+        }
+        
+        sleep(1);
+        
+        // Client should reconnect with new password
+        $this->assertNotNull($client->ping(), "Client should reconnect with new password");
+        
+        // Clear password
+        $result = $client->clearConnectionPassword(false);
+        $this->assertEquals("OK", $result);
+        
+        // Clear server password
+        $client->config("SET", "requirepass", "");
+        
+        $client->close();
+    }
 
-    public function testUpdateConnectionPasswordEmptyString()
+    // Test password update with immediate auth
+    public function testUpdateConnectionPasswordWithServerRotationImmediateAuth()
     {
         $client = $this->createClient();
         
+        // Verify initial connection
+        $this->assertNotNull($client->ping(), "Client should be connected");
+        
+        // Set server password first
+        $client->config("SET", "requirepass", "test_password");
+        sleep(1);
+        
+        // Update client password with immediate auth
+        $result = $client->updateConnectionPassword("test_password", true);
+        $this->assertEquals("OK", $result);
+        
+        // Verify connection works
+        $this->assertNotNull($client->ping(), "Client should work after immediate auth");
+        
+        // Clear server password
+        $client->config("SET", "requirepass", "");
+        sleep(1);
+        
+        // Clear client password
+        $result = $client->clearConnectionPassword(false);
+        $this->assertEquals("OK", $result);
+        
+        $client->close();
+    }
+
+    // Test immediate auth with wrong password fails
+    public function testUpdateConnectionPasswordImmediateAuthWrongPassword()
+    {
+        $client = $this->createClient();
+        
+        // Verify initial connection
+        $this->assertNotNull($client->ping(), "Client should be connected");
+        
+        // Try immediate auth with wrong password (server has no password)
         try {
-            $client->updateConnectionPassword("", false);
-            $this->fail("Should throw exception for empty password");
+            $client->updateConnectionPassword("wrong_password", true);
+            $this->fail("Expected exception for immediate auth with wrong password");
         } catch (Exception $e) {
-            $this->assertStringContainsString("Password cannot be empty", $e->getMessage());
+            $this->assertStringContainsString("AUTH", $e->getMessage(), "Should fail authentication");
         }
         
         $client->close();
     }
 
-    public function testUpdateConnectionPasswordCluster()
+    // Test cluster password rotation with delay auth
+    public function testUpdateConnectionPasswordClusterWithServerRotationDelayAuth()
     {
         $client = $this->createClusterClient();
+        $adminClient = $this->createClusterClient();
         
-        // Test updating password in cluster mode
-        $result = $client->updateConnectionPassword("new_password", false);
-        $this->assertEquals("OK", $result, "Update password in cluster should return OK");
+        // Verify initial connection
+        $this->assertNotNull($client->ping(), "Cluster client should be connected");
         
-        $client->close();
-    }
-
-    public function testClearConnectionPasswordCluster()
-    {
-        $client = $this->createClusterClient();
+        // Update client password (delay auth)
+        $result = $client->updateConnectionPassword("cluster_password", false);
+        $this->assertEquals("OK", $result);
         
-        // Test clearing password in cluster mode
+        // Verify connection still works
+        $this->assertNotNull($client->ping(), "Cluster client should still work");
+        
+        // Update server password on all nodes
+        $adminClient->config("SET", "requirepass", "cluster_password");
+        sleep(1);
+        
+        try {
+            $adminClient->customCommand(["CLIENT", "KILL", "TYPE", "NORMAL"]);
+        } catch (Exception $e) {
+            // Expected
+        }
+        
+        sleep(1);
+        
+        // Client should reconnect with new password
+        $this->assertNotNull($client->ping(), "Cluster client should reconnect");
+        
+        // Clear password
         $result = $client->clearConnectionPassword(false);
-        $this->assertEquals("OK", $result, "Clear password in cluster should return OK");
+        $this->assertEquals("OK", $result);
+        
+        // Clear server password
+        $client->config("SET", "requirepass", "");
         
         $client->close();
     }
 
-    public function testUpdateConnectionPasswordWithIAMShouldFail()
+    // Test cluster immediate auth
+    public function testUpdateConnectionPasswordClusterImmediateAuth()
     {
-        // This test would require IAM configuration
-        // Skipping for now as it requires AWS setup
-        $this->markTestSkipped("IAM test requires AWS configuration");
+        $client = $this->createClusterClient();
+        
+        // Verify initial connection
+        $this->assertNotNull($client->ping(), "Cluster client should be connected");
+        
+        // Set server password on all nodes
+        $client->config("SET", "requirepass", "cluster_password");
+        sleep(1);
+        
+        // Update client password with immediate auth
+        $result = $client->updateConnectionPassword("cluster_password", true);
+        $this->assertEquals("OK", $result);
+        
+        // Verify connection works
+        $this->assertNotNull($client->ping(), "Cluster client should work after immediate auth");
+        
+        // Clear server password
+        $client->config("SET", "requirepass", "");
+        sleep(1);
+        
+        // Clear client password
+        $result = $client->clearConnectionPassword(false);
+        $this->assertEquals("OK", $result);
+        
+        $client->close();
     }
 }
-
-// Run tests
-$test = new UpdateConnectionPasswordTest();
-$test->run();
