@@ -315,6 +315,15 @@ class ValkeyGlideCluster
      */
     public function close(): bool;
 
+    /**
+     * @see ValkeyGlide::updateConnectionPassword
+     */
+    public function updateConnectionPassword(string $password, bool $immediateAuth = false): string;
+
+    /**
+     * @see ValkeyGlide::clearConnectionPassword
+     */
+    public function clearConnectionPassword(bool $immediateAuth = false): string;
 
     /**
      * @see ValkeyGlide::config()

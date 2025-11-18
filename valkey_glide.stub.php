@@ -528,6 +528,24 @@ class ValkeyGlide
 
     public function close(): bool;
 
+    /**
+     * Update the connection password.
+     *
+     * @param string $password The new password to set
+     * @param bool $immediateAuth If true, re-authenticate immediately after updating password
+     * @return string Returns "OK" on success
+     * @throws Exception if the operation fails or IAM authentication is enabled
+     */
+    public function updateConnectionPassword(string $password, bool $immediateAuth = false): string;
+
+    /**
+     * Clear the connection password.
+     *
+     * @param bool $immediateAuth If true, re-authenticate immediately after clearing password
+     * @return string Returns "OK" on success
+     * @throws Exception if the operation fails or IAM authentication is enabled
+     */
+    public function clearConnectionPassword(bool $immediateAuth = false): string;
 
     /**
      *  Execute the ValkeyGlide CONFIG command in a variety of ways.
