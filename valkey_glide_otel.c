@@ -70,10 +70,14 @@ int valkey_glide_otel_init(zval* config_obj) {
 /**
  * Shutdown OpenTelemetry
  */
+/**
+ * Shutdown OpenTelemetry and cleanup configuration.
+ * For testing purposes only - allows resetting OTEL state between tests.
+ */
 static void valkey_glide_otel_shutdown(void) {
     if (g_otel_config.enabled) {
-        g_otel_config.enabled = false;
-        g_otel_initialized    = false;
+        cleanup_otel_config(&g_otel_config);
+        g_otel_initialized = false;
         VALKEY_LOG_INFO("otel_shutdown", "OpenTelemetry shutdown complete");
     }
 }
@@ -228,8 +232,7 @@ static int parse_traces_config_object(zval* traces_obj, valkey_glide_otel_config
     traces_config->has_sample_percentage = has_sample_percentage;
     traces_config->sample_percentage     = (uint32_t) sample_percentage;
 
-    otel_config->traces_config             = traces_config;
-    otel_config->current_sample_percentage = sample_percentage;
+    otel_config->traces_config = traces_config;
 
     return 1;
 }
@@ -296,8 +299,7 @@ static void cleanup_otel_config(valkey_glide_otel_config_t* otel_config) {
         otel_config->config = NULL;
     }
 
-    otel_config->enabled                   = false;
-    otel_config->current_sample_percentage = 0;
+    otel_config->enabled = false;
 }
 
 static bool valkey_glide_otel_is_initialized(void) {

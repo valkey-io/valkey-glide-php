@@ -24,7 +24,6 @@ typedef struct {
     struct OpenTelemetryConfig*        config;
     struct OpenTelemetryTracesConfig*  traces_config;
     struct OpenTelemetryMetricsConfig* metrics_config;
-    int32_t                            current_sample_percentage;
 } valkey_glide_otel_config_t;
 
 /* Global OTEL configuration */
