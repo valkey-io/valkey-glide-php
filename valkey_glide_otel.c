@@ -85,6 +85,9 @@ uint64_t valkey_glide_create_span(enum RequestType request_type) {
     if (!g_otel_config.enabled) {
         return 0;
     }
+    if (!valkey_glide_otel_should_sample()) {
+        return 0;
+    }
     return create_otel_span(request_type);
 }
 
