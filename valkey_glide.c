@@ -616,27 +616,30 @@ PHP_METHOD(ValkeyGlide, close) {
 }
 /* }}} */
 
-/* {{{ proto string ValkeyGlide::updateConnectionPassword(string $password, bool $immediateAuth = false)
+/* {{{ proto string ValkeyGlide::updateConnectionPassword(string $password, bool $immediateAuth =
+ * false)
  */
 PHP_METHOD(ValkeyGlide, updateConnectionPassword) {
-    char*     password        = NULL;
-    size_t    password_len    = 0;
-    zend_bool immediate_auth  = 0;
-    zval*     object          = ZEND_THIS;
+    char*     password       = NULL;
+    size_t    password_len   = 0;
+    zend_bool immediate_auth = 0;
+    zval*     object         = ZEND_THIS;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|b", &password, &password_len, &immediate_auth) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|b", &password, &password_len, &immediate_auth) ==
+        FAILURE) {
         RETURN_FALSE;
     }
 
-    execute_update_connection_password(object, password, password_len, immediate_auth, return_value, ce);
+    execute_update_connection_password(
+        object, password, password_len, immediate_auth, return_value, ce);
 }
 /* }}} */
 
 /* {{{ proto string ValkeyGlide::clearConnectionPassword(bool $immediateAuth = false)
  */
 PHP_METHOD(ValkeyGlide, clearConnectionPassword) {
-    zend_bool immediate_auth  = 0;
-    zval*     object          = ZEND_THIS;
+    zend_bool immediate_auth = 0;
+    zval*     object         = ZEND_THIS;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &immediate_auth) == FAILURE) {
         RETURN_FALSE;

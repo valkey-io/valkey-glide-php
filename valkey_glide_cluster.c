@@ -907,27 +907,30 @@ MOVE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 
-/* {{{ proto string ValkeyGlideCluster::updateConnectionPassword(string $password, bool $immediateAuth = false)
+/* {{{ proto string ValkeyGlideCluster::updateConnectionPassword(string $password, bool
+ * $immediateAuth = false)
  */
 PHP_METHOD(ValkeyGlideCluster, updateConnectionPassword) {
-    char*     password        = NULL;
-    size_t    password_len    = 0;
-    zend_bool immediate_auth  = 0;
-    zval*     object          = ZEND_THIS;
+    char*     password       = NULL;
+    size_t    password_len   = 0;
+    zend_bool immediate_auth = 0;
+    zval*     object         = ZEND_THIS;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|b", &password, &password_len, &immediate_auth) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|b", &password, &password_len, &immediate_auth) ==
+        FAILURE) {
         RETURN_FALSE;
     }
 
-    execute_update_connection_password(object, password, password_len, immediate_auth, return_value, ce);
+    execute_update_connection_password(
+        object, password, password_len, immediate_auth, return_value, ce);
 }
 /* }}} */
 
 /* {{{ proto string ValkeyGlideCluster::clearConnectionPassword(bool $immediateAuth = false)
  */
 PHP_METHOD(ValkeyGlideCluster, clearConnectionPassword) {
-    zend_bool immediate_auth  = 0;
-    zval*     object          = ZEND_THIS;
+    zend_bool immediate_auth = 0;
+    zval*     object         = ZEND_THIS;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &immediate_auth) == FAILURE) {
         RETURN_FALSE;

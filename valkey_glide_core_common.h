@@ -321,11 +321,11 @@ void add_string_arg(char*           str,
 /**
  * Execute update_connection_password command
  */
-int execute_update_connection_password(zval*              object,
-                                       const char*        password,
-                                       size_t             password_len,
-                                       bool               immediate_auth,
-                                       zval*              return_value,
-                                       zend_class_entry*  ce);
+int execute_update_connection_password(zval*             object,
+                                       const char*       password,
+                                       size_t            password_len,
+                                       bool              immediate_auth,
+                                       zval*             return_value,
+                                       zend_class_entry* ce);
 
 #endif /* VALKEY_GLIDE_CORE_COMMON_H */

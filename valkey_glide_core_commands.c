@@ -2177,12 +2177,12 @@ int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_e
  * @param ce The class entry
  * @return int 1 on success, 0 on failure
  */
-int execute_update_connection_password(zval*              object,
-                                       const char*        password,
-                                       size_t             password_len,
-                                       bool               immediate_auth,
-                                       zval*              return_value,
-                                       zend_class_entry*  ce) {
+int execute_update_connection_password(zval*             object,
+                                       const char*       password,
+                                       size_t            password_len,
+                                       bool              immediate_auth,
+                                       zval*             return_value,
+                                       zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
 
     /* Get ValkeyGlide object */
@@ -2193,41 +2193,40 @@ int execute_update_connection_password(zval*              object,
 
     /* Check if IAM authentication is enabled */
     if (valkey_glide->iam_config_set) {
-        zend_throw_exception(get_valkey_glide_exception_ce(),
-                            "updateConnectionPassword is not supported when IAM authentication is enabled",
-                            0);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(),
+            "updateConnectionPassword is not supported when IAM authentication is enabled",
+            0);
         return 0;
     }
 
     /* Validate empty password when setting (not clearing) */
     if (password != NULL && password_len == 0) {
-        zend_throw_exception(get_valkey_glide_exception_ce(),
-                            "Password cannot be empty. Use clearConnectionPassword() to remove password.",
-                            0);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(),
+            "Password cannot be empty. Use clearConnectionPassword() to remove password.",
+            0);
         return 0;
     }
 
     /* Call FFI function */
-    CommandResult* result = update_connection_password(
-        valkey_glide->glide_client,
-        0,  /* request_id - using 0 for synchronous call */
-        password,
-        immediate_auth
-    );
+    CommandResult* result =
+        update_connection_password(valkey_glide->glide_client,
+                                   0, /* request_id - using 0 for synchronous call */
+                                   password,
+                                   immediate_auth);
 
     /* Check result */
     if (!result) {
-        zend_throw_exception(get_valkey_glide_exception_ce(),
-                            "Failed to update connection password",
-                            0);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "Failed to update connection password", 0);
         return 0;
     }
 
     if (!result->response) {
         free_command_result(result);
-        zend_throw_exception(get_valkey_glide_exception_ce(),
-                            "No response received from server",
-                            0);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "No response received from server", 0);
         return 0;
     }
 
@@ -2238,13 +2237,10 @@ int execute_update_connection_password(zval*              object,
         ZVAL_STRING(return_value, "OK");
         ret_val = 1;
     } else if (result->response->value_case == RESPONSE__RESPONSE__VALUE_REQUEST_ERROR) {
-        zend_throw_exception(get_valkey_glide_exception_ce(),
-                            result->response->request_error->message,
-                            0);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), result->response->request_error->message, 0);
     } else {
-        zend_throw_exception(get_valkey_glide_exception_ce(),
-                            "Unexpected response from server",
-                            0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Unexpected response from server", 0);
     }
 
     free_command_result(result);
