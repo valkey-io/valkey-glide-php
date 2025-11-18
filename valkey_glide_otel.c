@@ -297,8 +297,6 @@ static void cleanup_otel_config(valkey_glide_otel_config_t* otel_config) {
     otel_config->current_sample_percentage = 0;
 }
 
-/* Public API function implementations */
-
 static bool valkey_glide_otel_is_initialized(void) {
     return g_otel_config.enabled;
 }
@@ -323,14 +321,6 @@ static bool valkey_glide_otel_should_sample(void) {
     int32_t percentage = valkey_glide_otel_get_sample_percentage();
     return percentage != OTEL_SAMPLE_PERCENTAGE_INVALID && percentage > 0 &&
            (percentage == 100 || (rand() % 100) < percentage);
-}
-
-static uint64_t valkey_glide_otel_create_named_span(const char* name) {
-    if (!g_otel_config.enabled || !name || strlen(name) == 0) {
-        return 0;  // Not initialized or invalid name
-    }
-
-    return create_named_otel_span(name);
 }
 
 static void valkey_glide_otel_end_span(uint64_t span_ptr) {
