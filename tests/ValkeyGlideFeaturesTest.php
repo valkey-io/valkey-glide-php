@@ -3,12 +3,15 @@
 defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
 
 require_once __DIR__ . "/ValkeyGlideBaseTest.php";
-require_once __DIR__ . "/../OpenTelemetryConfig.php";
-require_once __DIR__ . "/../OpenTelemetryConfigBuilder.php";
-require_once __DIR__ . "/../TracesConfig.php";
-require_once __DIR__ . "/../TracesConfigBuilder.php";
-require_once __DIR__ . "/../MetricsConfig.php";
-require_once __DIR__ . "/../MetricsConfigBuilder.php";
+require_once __DIR__ . "/../src/OpenTelemetry/OpenTelemetryConfig.php";
+require_once __DIR__ . "/../src/OpenTelemetry/OpenTelemetryConfigBuilder.php";
+require_once __DIR__ . "/../src/OpenTelemetry/TracesConfig.php";
+require_once __DIR__ . "/../src/OpenTelemetry/TracesConfigBuilder.php";
+require_once __DIR__ . "/../src/OpenTelemetry/MetricsConfig.php";
+require_once __DIR__ . "/../src/OpenTelemetry/MetricsConfigBuilder.php";
+
+use ValkeyGlide\OpenTelemetry\OpenTelemetryConfig;
+use ValkeyGlide\OpenTelemetry\TracesConfig;
 
 /**
  * ValkeyGlide Features Test
