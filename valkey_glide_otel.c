@@ -325,11 +325,3 @@ static bool valkey_glide_otel_should_sample(void) {
     return percentage != OTEL_SAMPLE_PERCENTAGE_INVALID && percentage > 0 &&
            (percentage == 100 || (rand() % 100) < percentage);
 }
-
-static void valkey_glide_otel_end_span(uint64_t span_ptr) {
-    if (span_ptr == 0) {
-        return;  // Safe no-op for zero pointer
-    }
-
-    drop_otel_span(span_ptr);
-}
