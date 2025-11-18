@@ -25,6 +25,10 @@
 /* Forward declarations for static functions */
 static void cleanup_otel_config(valkey_glide_otel_config_t* config);
 static bool valkey_glide_otel_should_sample(void);
+static int  parse_otel_config(zval* config_obj, valkey_glide_otel_config_t* otel_config);
+static int  parse_otel_config_object(zval* config_obj, valkey_glide_otel_config_t* otel_config);
+static int  parse_traces_config_object(zval* traces_obj, valkey_glide_otel_config_t* otel_config);
+static int  parse_metrics_config_object(zval* metrics_obj, valkey_glide_otel_config_t* otel_config);
 
 /* Global OTEL configuration */
 valkey_glide_otel_config_t g_otel_config      = {0};
