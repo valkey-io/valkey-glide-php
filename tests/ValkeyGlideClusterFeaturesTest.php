@@ -938,4 +938,36 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 "Error should indicate OpenTelemetryConfig object is required");
         }
     }
+
+    public function testOtelClusterWithoutConfiguration()
+    {
+        // Test that cluster client works normally without OpenTelemetry configuration
+        try {
+            $client = new ValkeyGlideCluster(
+                addresses: [
+                    ['host' => 'localhost', 'port' => 7001],
+                    ['host' => 'localhost', 'port' => 7002],
+                    ['host' => 'localhost', 'port' => 7003]
+                ],
+                use_tls: false,
+                credentials: null,
+                read_from: null,
+                request_timeout: null,
+                reconnect_strategy: null,
+                client_name: 'no-otel-cluster-test'
+            );
+
+            // Operations should work normally without OpenTelemetry
+            $client->set('no:otel:cluster:test', 'value');
+            $value = $client->get('no:otel:cluster:test');
+            $this->assertEquals('value', $value, "GET should return the set value");
+
+            $deleteResult = $client->del('no:otel:cluster:test');
+            $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key");
+
+            $client->close();
+        } catch (Exception $e) {
+            $this->fail("Cluster client without OpenTelemetry should work normally: " . $e->getMessage());
+        }
+    }
 }
