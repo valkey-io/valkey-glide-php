@@ -22,6 +22,10 @@
 #include "common.h"
 #include "logger.h"
 
+/* Forward declarations for static functions */
+static void cleanup_otel_config(valkey_glide_otel_config_t* config);
+static bool valkey_glide_otel_should_sample(void);
+
 /* Global OTEL configuration */
 valkey_glide_otel_config_t g_otel_config      = {0};
 static bool                g_otel_initialized = false;
