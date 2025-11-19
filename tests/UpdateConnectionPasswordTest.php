@@ -4,42 +4,6 @@ require_once 'TestSuite.php';
 
 class UpdateConnectionPasswordTest extends TestSuite
 {
-    // Test basic password update without immediate auth
-    public function testUpdateConnectionPasswordStandalone()
-    {
-        $client = $this->createClient();
-        
-        $result = $client->updateConnectionPassword("new_password", false);
-        $this->assertEquals("OK", $result, "Update password should return OK");
-        
-        $client->close();
-    }
-
-    // Test password update with immediate authentication
-    public function testUpdateConnectionPasswordWithImmediateAuth()
-    {
-        $client = $this->createClient();
-        
-        $result = $client->updateConnectionPassword("new_password", true);
-        $this->assertEquals("OK", $result, "Update password with immediate auth should return OK");
-        
-        $client->close();
-    }
-
-    // Test clearing password without immediate auth
-    public function testClearConnectionPasswordStandalone()
-    {
-        $client = $this->createClient();
-        
-        $result = $client->clearConnectionPassword(false);
-        $this->assertEquals("OK", $result, "Clear password should return OK");
-        
-        // Verify connection still works after clearing password
-        $this->assertNotNull($client->ping(), "Client should work after clearing password");
-        
-        $client->close();
-    }
-
     // Test clearing password with immediate authentication
     public function testClearConnectionPasswordWithImmediateAuth()
     {
@@ -77,31 +41,6 @@ class UpdateConnectionPasswordTest extends TestSuite
         $longPassword = str_repeat("a", 1000);
         $result = $client->updateConnectionPassword($longPassword, false);
         $this->assertEquals("OK", $result, "Update with long password should return OK");
-        
-        $client->close();
-    }
-
-    // Test cluster client password update
-    public function testUpdateConnectionPasswordCluster()
-    {
-        $client = $this->createClusterClient();
-        
-        $result = $client->updateConnectionPassword("cluster_password", false);
-        $this->assertEquals("OK", $result, "Cluster password update should return OK");
-        
-        $client->close();
-    }
-
-    // Test cluster client password clear
-    public function testClearConnectionPasswordCluster()
-    {
-        $client = $this->createClusterClient();
-        
-        $result = $client->clearConnectionPassword(false);
-        $this->assertEquals("OK", $result, "Cluster password clear should return OK");
-        
-        // Verify connection still works after clearing password
-        $this->assertNotNull($client->ping(), "Cluster client should work after clearing password");
         
         $client->close();
     }

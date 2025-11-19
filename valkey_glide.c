@@ -628,7 +628,8 @@ PHP_METHOD(ValkeyGlide, updateConnectionPassword) {
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|b", &password, &password_len, &immediate_auth) ==
         FAILURE) {
-        RETURN_FALSE;
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Invalid parameters", 0);
+        return;
     }
 
     execute_update_connection_password(
@@ -643,7 +644,8 @@ PHP_METHOD(ValkeyGlide, clearConnectionPassword) {
     zval*     object         = ZEND_THIS;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &immediate_auth) == FAILURE) {
-        RETURN_FALSE;
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Invalid parameters", 0);
+        return;
     }
 
     execute_update_connection_password(
