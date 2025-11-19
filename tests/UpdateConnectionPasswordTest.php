@@ -9,6 +9,42 @@ class UpdateConnectionPasswordTest extends TestSuite
         // No-op.
     }
 
+    protected function createClient()
+    {
+        try {
+            return new ValkeyGlide([[
+                'host' => '127.0.0.1',
+                'port' => 6379,
+            ]]);
+        } catch (Exception $ex) {
+            TestSuite::errorMessage("Fatal error creating standalone client: %s\n", $ex->getMessage());
+            exit(1);
+        }
+    }
+
+    protected function createClusterClient()
+    {
+        try {
+            return new ValkeyGlideCluster(
+                [['host' => '127.0.0.1', 'port' => 7001]], // addresses array format
+                false, // use_tls
+                null, // credentials
+                ValkeyGlide::READ_FROM_PRIMARY, // read_from
+                null, // request_timeout
+                null, // reconnect_strategy
+                null, // client_name
+                null, // periodic_checks
+                null, // client_az
+                null, // advanced_config
+                null, // lazy_connect
+                0     // database_id - enable multi-database support
+            );
+        } catch (Exception $ex) {
+            TestSuite::errorMessage("Fatal error creating cluster client: %s\n", $ex->getMessage());
+            exit(1);
+        }
+    }
+
     // Test clearing password with immediate authentication
     public function testClearConnectionPasswordWithImmediateAuth()
     {
