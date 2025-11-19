@@ -25,6 +25,7 @@
 #include <ext/standard/info.h>
 
 #include "command_response.h"
+#include "common.h"
 #include "include/glide_bindings.h"
 #include "logger.h"
 #include "valkey_glide_commands_common.h"
