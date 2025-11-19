@@ -79,33 +79,43 @@ class UpdateConnectionPasswordTest extends TestSuite
         $client->close();
     }
 
-    // Test null password throws TypeError
+    // Test null password throws TypeError or triggers deprecation
     public function testUpdateConnectionPasswordNull()
     {
         $client = $this->createClient();
         
         try {
-            $client->updateConnectionPassword(null, false);
-            $this->fail("Expected TypeError for null password");
+            // Suppress deprecation warning in PHP 8.1+
+            @$client->updateConnectionPassword(null, false);
+            // If we get here, null was converted to empty string, which should fail
+            $this->fail("Expected TypeError or exception for null password");
         } catch (TypeError $e) {
-            // Expected - PHP type system rejects null for string parameter
+            // Expected in strict mode - PHP type system rejects null for string parameter
             $this->assertStringContains("must be of type string", $e->getMessage());
+        } catch (Exception $e) {
+            // Expected if null is converted to empty string
+            $this->assertStringContains("Password cannot be empty", $e->getMessage());
         }
         
         $client->close();
     }
 
-    // Test cluster null password throws TypeError
+    // Test cluster null password throws TypeError or triggers deprecation
     public function testUpdateConnectionPasswordNullCluster()
     {
         $client = $this->createClusterClient();
         
         try {
-            $client->updateConnectionPassword(null, false);
-            $this->fail("Expected TypeError for null password");
+            // Suppress deprecation warning in PHP 8.1+
+            @$client->updateConnectionPassword(null, false);
+            // If we get here, null was converted to empty string, which should fail
+            $this->fail("Expected TypeError or exception for null password");
         } catch (TypeError $e) {
-            // Expected - PHP type system rejects null for string parameter
+            // Expected in strict mode - PHP type system rejects null for string parameter
             $this->assertStringContains("must be of type string", $e->getMessage());
+        } catch (Exception $e) {
+            // Expected if null is converted to empty string
+            $this->assertStringContains("Password cannot be empty", $e->getMessage());
         }
         
         $client->close();
