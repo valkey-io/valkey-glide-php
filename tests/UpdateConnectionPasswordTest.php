@@ -54,7 +54,7 @@ class UpdateConnectionPasswordTest extends TestSuite
             $client->updateConnectionPassword("", false);
             $this->fail("Expected exception for empty password");
         } catch (Exception $e) {
-            $this->assertStringContainsString("Password cannot be empty", $e->getMessage());
+            $this->assertStringContains("Password cannot be empty", $e->getMessage());
         }
         
         $client->close();
@@ -125,6 +125,19 @@ class UpdateConnectionPasswordTest extends TestSuite
         // Clear server password
         $result = $client->config("SET", "requirepass", "");
         $this->assertEquals("OK", $result, "Server password should be cleared");
+        sleep(1);
+        
+        // Kill connections to force reconnect with cleared password
+        try {
+            $adminClient->customCommand(["CLIENT", "KILL", "TYPE", "NORMAL"]);
+        } catch (Exception $e) {
+            // Expected - admin client gets killed too
+        }
+        
+        sleep(1);
+        
+        // Client should reconnect with cleared password
+        $this->assertNotNull($client->ping(), "Client should reconnect with cleared password");
         
         $client->close();
     }
@@ -163,8 +176,8 @@ class UpdateConnectionPasswordTest extends TestSuite
         $client->close();
     }
 
-    // Test immediate auth with wrong password fails
-    public function testUpdateConnectionPasswordImmediateAuthWrongPassword()
+    // Test immediate auth with invalid password fails
+    public function testUpdateConnectionPasswordImmediateAuthInvalidPassword()
     {
         $client = $this->createClient();
         
@@ -176,7 +189,7 @@ class UpdateConnectionPasswordTest extends TestSuite
             $client->updateConnectionPassword("wrong_password", true);
             $this->fail("Expected exception for immediate auth with wrong password");
         } catch (Exception $e) {
-            $this->assertStringContainsString("AUTH", $e->getMessage(), "Should fail authentication");
+            $this->assertStringContains("AUTH", $e->getMessage(), "Should fail authentication");
         }
         
         $client->close();
@@ -271,7 +284,7 @@ class UpdateConnectionPasswordTest extends TestSuite
             $this->fail("Expected TypeError for null password");
         } catch (TypeError $e) {
             // Expected - PHP type system rejects null for string parameter
-            $this->assertStringContainsString("must be of type string", $e->getMessage());
+            $this->assertStringContains("must be of type string", $e->getMessage());
         }
         
         $client->close();
@@ -287,7 +300,7 @@ class UpdateConnectionPasswordTest extends TestSuite
             $this->fail("Expected exception for immediate auth with wrong password");
         } catch (Exception $e) {
             // Server has no password, so immediate auth with any password should fail
-            $this->assertStringContainsString("AUTH", $e->getMessage());
+            $this->assertStringContains("AUTH", $e->getMessage());
         }
         
         $client->close();
@@ -303,7 +316,7 @@ class UpdateConnectionPasswordTest extends TestSuite
             $this->fail("Expected TypeError for null password");
         } catch (TypeError $e) {
             // Expected - PHP type system rejects null for string parameter
-            $this->assertStringContainsString("must be of type string", $e->getMessage());
+            $this->assertStringContains("must be of type string", $e->getMessage());
         }
         
         $client->close();
