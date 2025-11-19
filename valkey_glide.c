@@ -13,6 +13,7 @@
 #include "valkey_glide_arginfo.h"          // Include generated arginfo header
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_core_common.h"
 #include "valkey_glide_hash_common.h"
 
 /* Enum support includes - must be BEFORE arginfo includes */

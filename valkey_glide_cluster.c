@@ -14,6 +14,7 @@
 #include "ext/standard/info.h"
 #include "logger.h"
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_core_common.h"
 #include "valkey_glide_geo_common.h"
 #include "valkey_glide_hash_common.h" /* Include hash command framework */
 #include "valkey_glide_list_common.h"
