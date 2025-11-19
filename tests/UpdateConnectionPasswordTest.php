@@ -64,6 +64,21 @@ class UpdateConnectionPasswordTest extends TestSuite
         $client->close();
     }
 
+    // Test that empty password throws exception (cluster)
+    public function testUpdateConnectionPasswordEmptyStringCluster()
+    {
+        $client = $this->createClusterClient();
+        
+        try {
+            $client->updateConnectionPassword("", false);
+            $this->fail("Expected exception for empty password");
+        } catch (Exception $e) {
+            $this->assertStringContains("Password cannot be empty", $e->getMessage());
+        }
+        
+        $client->close();
+    }
+
     // Test null password throws TypeError
     public function testUpdateConnectionPasswordNull()
     {
