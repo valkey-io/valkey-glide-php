@@ -2191,15 +2191,6 @@ int execute_update_connection_password(zval*             object,
         return 0;
     }
 
-    /* Check if IAM authentication is enabled */
-    if (valkey_glide->iam_config_set) {
-        zend_throw_exception(
-            get_valkey_glide_exception_ce(),
-            "updateConnectionPassword is not supported when IAM authentication is enabled",
-            0);
-        return 0;
-    }
-
     /* Validate empty password when setting (not clearing) */
     if (password != NULL && password_len == 0) {
         zend_throw_exception(
@@ -2223,6 +2214,14 @@ int execute_update_connection_password(zval*             object,
         return 0;
     }
 
+    /* Check for command error */
+    if (result->command_error) {
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
+        free_command_result(result);
+        return 0;
+    }
+
     if (!result->response) {
         free_command_result(result);
         zend_throw_exception(
@@ -2232,13 +2231,14 @@ int execute_update_connection_password(zval*             object,
 
     /* Process response */
     int ret_val = 0;
-    if (result->response->value_case == RESPONSE__RESPONSE__VALUE_CONSTANT_RESPONSE &&
-        result->response->constant_response == RESPONSE__CONSTANT_RESPONSE__OK) {
+    if (result->response->response_type == Ok) {
         ZVAL_STRING(return_value, "OK");
         ret_val = 1;
-    } else if (result->response->value_case == RESPONSE__RESPONSE__VALUE_REQUEST_ERROR) {
+    } else if (result->response->response_type == Error) {
         zend_throw_exception(
-            get_valkey_glide_exception_ce(), result->response->request_error->message, 0);
+            get_valkey_glide_exception_ce(),
+            result->response->string_value ? result->response->string_value : "Unknown error",
+            0);
     } else {
         zend_throw_exception(get_valkey_glide_exception_ce(), "Unexpected response from server", 0);
     }

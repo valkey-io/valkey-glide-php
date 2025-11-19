@@ -133,7 +133,8 @@ class UpdateConnectionPasswordTest extends TestSuite
         $this->assertEquals("OK", $result);
         
         // Clear server password
-        $client->config("SET", "requirepass", "");
+        $result = $client->config("SET", "requirepass", "");
+        $this->assertEquals("OK", $result, "Server password should be cleared");
         
         $client->close();
     }
@@ -158,7 +159,8 @@ class UpdateConnectionPasswordTest extends TestSuite
         $this->assertNotNull($client->ping(), "Client should work after immediate auth");
         
         // Clear server password
-        $client->config("SET", "requirepass", "");
+        $result = $client->config("SET", "requirepass", "");
+        $this->assertEquals("OK", $result, "Server password should be cleared");
         sleep(1);
         
         // Clear client password
@@ -210,7 +212,7 @@ class UpdateConnectionPasswordTest extends TestSuite
         try {
             $adminClient->customCommand(["CLIENT", "KILL", "TYPE", "NORMAL"]);
         } catch (Exception $e) {
-            // Expected
+            // Expected - admin client gets killed too
         }
         
         sleep(1);
@@ -223,7 +225,8 @@ class UpdateConnectionPasswordTest extends TestSuite
         $this->assertEquals("OK", $result);
         
         // Clear server password
-        $client->config("SET", "requirepass", "");
+        $result = $client->config("SET", "requirepass", "");
+        $this->assertEquals("OK", $result, "Server password should be cleared");
         
         $client->close();
     }
@@ -248,7 +251,8 @@ class UpdateConnectionPasswordTest extends TestSuite
         $this->assertNotNull($client->ping(), "Cluster client should work after immediate auth");
         
         // Clear server password
-        $client->config("SET", "requirepass", "");
+        $result = $client->config("SET", "requirepass", "");
+        $this->assertEquals("OK", $result, "Server password should be cleared");
         sleep(1);
         
         // Clear client password
@@ -268,7 +272,7 @@ class UpdateConnectionPasswordTest extends TestSuite
             $this->fail("Expected TypeError for null password");
         } catch (TypeError $e) {
             // Expected - PHP type system rejects null for string parameter
-            $this->assertTrue(true);
+            $this->assertStringContainsString("must be of type string", $e->getMessage());
         }
         
         $client->close();
