@@ -4,6 +4,11 @@ require_once 'TestSuite.php';
 
 class UpdateConnectionPasswordTest extends TestSuite
 {
+    public function setUp()
+    {
+        // No-op.
+    }
+
     // Test clearing password with immediate authentication
     public function testClearConnectionPasswordWithImmediateAuth()
     {
