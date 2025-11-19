@@ -257,4 +257,52 @@ class UpdateConnectionPasswordTest extends TestSuite
         
         $client->close();
     }
+
+    // Test null password throws TypeError
+    public function testUpdateConnectionPasswordNull()
+    {
+        $client = $this->createClient();
+        
+        try {
+            $client->updateConnectionPassword(null, false);
+            $this->fail("Expected TypeError for null password");
+        } catch (TypeError $e) {
+            // Expected - PHP type system rejects null for string parameter
+            $this->assertTrue(true);
+        }
+        
+        $client->close();
+    }
+
+    // Test immediate auth with invalid password fails (server has no password)
+    public function testUpdateConnectionPasswordStandaloneInvalidPassword()
+    {
+        $client = $this->createClient();
+        
+        try {
+            $client->updateConnectionPassword("invalid_password", true);
+            $this->fail("Expected exception for immediate auth with wrong password");
+        } catch (Exception $e) {
+            // Server has no password, so immediate auth with any password should fail
+            $this->assertStringContainsString("AUTH", $e->getMessage());
+        }
+        
+        $client->close();
+    }
+
+    // Test cluster immediate auth with invalid password fails (server has no password)
+    public function testUpdateConnectionPasswordClusterInvalidPassword()
+    {
+        $client = $this->createClusterClient();
+        
+        try {
+            $client->updateConnectionPassword("invalid_password", true);
+            $this->fail("Expected exception for immediate auth with wrong password");
+        } catch (Exception $e) {
+            // Server has no password, so immediate auth with any password should fail
+            $this->assertStringContainsString("AUTH", $e->getMessage());
+        }
+        
+        $client->close();
+    }
 }
