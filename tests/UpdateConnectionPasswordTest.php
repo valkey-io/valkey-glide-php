@@ -188,7 +188,7 @@ class UpdateConnectionPasswordTest extends TestSuite
         sleep(1);
         
         try {
-            $adminClient->customCommand(["CLIENT", "KILL", "TYPE", "NORMAL"]);
+            $adminClient->client("KILL", "TYPE", "NORMAL");
         } catch (Exception $e) {
             // Expected - admin client gets killed too
         }
@@ -212,7 +212,7 @@ class UpdateConnectionPasswordTest extends TestSuite
         
         // Kill connections to force reconnect with cleared password
         try {
-            $adminClient->customCommand(["CLIENT", "KILL", "TYPE", "NORMAL"]);
+            $adminClient->client("KILL", "TYPE", "NORMAL");
         } catch (Exception $e) {
             // Expected - admin client gets killed too
         }
@@ -246,7 +246,7 @@ class UpdateConnectionPasswordTest extends TestSuite
         sleep(1);
         
         try {
-            $adminClient->customCommand(["CLIENT", "KILL", "TYPE", "NORMAL"]);
+            $adminClient->client("KILL", "TYPE", "NORMAL");
         } catch (Exception $e) {
             // Expected - admin client gets killed too
         }
