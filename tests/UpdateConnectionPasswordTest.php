@@ -45,6 +45,10 @@ class UpdateConnectionPasswordTest extends TestSuite
         }
     }
 
+    // ========================================
+    // 1. VALIDATION TESTS (Edge Cases)
+    // ========================================
+
     // Test that empty password throws exception
     public function testUpdateConnectionPasswordEmptyString()
     {
@@ -59,6 +63,42 @@ class UpdateConnectionPasswordTest extends TestSuite
         
         $client->close();
     }
+
+    // Test null password throws TypeError
+    public function testUpdateConnectionPasswordNull()
+    {
+        $client = $this->createClient();
+        
+        try {
+            $client->updateConnectionPassword(null, false);
+            $this->fail("Expected TypeError for null password");
+        } catch (TypeError $e) {
+            // Expected - PHP type system rejects null for string parameter
+            $this->assertStringContains("must be of type string", $e->getMessage());
+        }
+        
+        $client->close();
+    }
+
+    // Test cluster null password throws TypeError
+    public function testUpdateConnectionPasswordNullCluster()
+    {
+        $client = $this->createClusterClient();
+        
+        try {
+            $client->updateConnectionPassword(null, false);
+            $this->fail("Expected TypeError for null password");
+        } catch (TypeError $e) {
+            // Expected - PHP type system rejects null for string parameter
+            $this->assertStringContains("must be of type string", $e->getMessage());
+        }
+        
+        $client->close();
+    }
+
+    // ========================================
+    // 2. LONG PASSWORD TESTS
+    // ========================================
 
     // Test long password (1000+ characters)
     public function testUpdateConnectionPasswordLongString()
@@ -83,6 +123,49 @@ class UpdateConnectionPasswordTest extends TestSuite
         
         $client->close();
     }
+
+    // ========================================
+    // 3. INVALID PASSWORD TESTS (Auth Failures)
+    // ========================================
+
+    // Test immediate auth with invalid password fails
+    public function testUpdateConnectionPasswordImmediateAuthInvalidPassword()
+    {
+        $client = $this->createClient();
+        
+        // Verify initial connection
+        $this->assertNotNull($client->ping(), "Client should be connected");
+        
+        // Try immediate auth with wrong password (server has no password)
+        try {
+            $client->updateConnectionPassword("wrong_password", true);
+            $this->fail("Expected exception for immediate auth with wrong password");
+        } catch (Exception $e) {
+            $this->assertStringContains("AUTH", $e->getMessage(), "Should fail authentication");
+        }
+        
+        $client->close();
+    }
+
+    // Test cluster immediate auth with invalid password fails (server has no password)
+    public function testUpdateConnectionPasswordClusterInvalidPassword()
+    {
+        $client = $this->createClusterClient();
+        
+        try {
+            $client->updateConnectionPassword("invalid_password", true);
+            $this->fail("Expected exception for immediate auth with wrong password");
+        } catch (Exception $e) {
+            // Server has no password, so immediate auth with any password should fail
+            $this->assertStringContains("AUTH", $e->getMessage());
+        }
+        
+        $client->close();
+    }
+
+    // ========================================
+    // 4. SERVER ROTATION - DELAY AUTH
+    // ========================================
 
     // Test password update with server password rotation (delay auth)
     public function testUpdateConnectionPasswordWithServerRotationDelayAuth()
@@ -142,59 +225,6 @@ class UpdateConnectionPasswordTest extends TestSuite
         $client->close();
     }
 
-    // Test password update with immediate auth
-    public function testUpdateConnectionPasswordWithServerRotationImmediateAuth()
-    {
-        $client = $this->createClient();
-        
-        // Verify initial connection
-        $this->assertNotNull($client->ping(), "Client should be connected");
-        
-        // Set server password first
-        $client->config("SET", "requirepass", "test_password");
-        sleep(1);
-        
-        // Update client password with immediate auth
-        $result = $client->updateConnectionPassword("test_password", true);
-        $this->assertEquals("OK", $result);
-        
-        // Verify connection works
-        $this->assertNotNull($client->ping(), "Client should work after immediate auth");
-        
-        // Clear server password
-        $result = $client->config("SET", "requirepass", "");
-        $this->assertEquals("OK", $result, "Server password should be cleared");
-        sleep(1);
-        
-        // Clear client password with immediate auth
-        $result = $client->clearConnectionPassword(true);
-        $this->assertEquals("OK", $result);
-        
-        // Verify connection still works after clearing password
-        $this->assertNotNull($client->ping(), "Client should work after clearing password");
-        
-        $client->close();
-    }
-
-    // Test immediate auth with invalid password fails
-    public function testUpdateConnectionPasswordImmediateAuthInvalidPassword()
-    {
-        $client = $this->createClient();
-        
-        // Verify initial connection
-        $this->assertNotNull($client->ping(), "Client should be connected");
-        
-        // Try immediate auth with wrong password (server has no password)
-        try {
-            $client->updateConnectionPassword("wrong_password", true);
-            $this->fail("Expected exception for immediate auth with wrong password");
-        } catch (Exception $e) {
-            $this->assertStringContains("AUTH", $e->getMessage(), "Should fail authentication");
-        }
-        
-        $client->close();
-    }
-
     // Test cluster password rotation with delay auth
     public function testUpdateConnectionPasswordClusterWithServerRotationDelayAuth()
     {
@@ -240,6 +270,44 @@ class UpdateConnectionPasswordTest extends TestSuite
         $client->close();
     }
 
+    // ========================================
+    // 5. SERVER ROTATION - IMMEDIATE AUTH
+    // ========================================
+
+    // Test password update with immediate auth
+    public function testUpdateConnectionPasswordWithServerRotationImmediateAuth()
+    {
+        $client = $this->createClient();
+        
+        // Verify initial connection
+        $this->assertNotNull($client->ping(), "Client should be connected");
+        
+        // Set server password first
+        $client->config("SET", "requirepass", "test_password");
+        sleep(1);
+        
+        // Update client password with immediate auth
+        $result = $client->updateConnectionPassword("test_password", true);
+        $this->assertEquals("OK", $result);
+        
+        // Verify connection works
+        $this->assertNotNull($client->ping(), "Client should work after immediate auth");
+        
+        // Clear server password
+        $result = $client->config("SET", "requirepass", "");
+        $this->assertEquals("OK", $result, "Server password should be cleared");
+        sleep(1);
+        
+        // Clear client password with immediate auth
+        $result = $client->clearConnectionPassword(true);
+        $this->assertEquals("OK", $result);
+        
+        // Verify connection still works after clearing password
+        $this->assertNotNull($client->ping(), "Client should work after clearing password");
+        
+        $client->close();
+    }
+
     // Test cluster immediate auth
     public function testUpdateConnectionPasswordClusterImmediateAuth()
     {
@@ -270,54 +338,6 @@ class UpdateConnectionPasswordTest extends TestSuite
         
         // Verify connection still works after clearing password
         $this->assertNotNull($client->ping(), "Cluster client should work after clearing password");
-        
-        $client->close();
-    }
-
-    // Test null password throws TypeError
-    public function testUpdateConnectionPasswordNull()
-    {
-        $client = $this->createClient();
-        
-        try {
-            $client->updateConnectionPassword(null, false);
-            $this->fail("Expected TypeError for null password");
-        } catch (TypeError $e) {
-            // Expected - PHP type system rejects null for string parameter
-            $this->assertStringContains("must be of type string", $e->getMessage());
-        }
-        
-        $client->close();
-    }
-
-    // Test cluster immediate auth with invalid password fails (server has no password)
-    public function testUpdateConnectionPasswordClusterInvalidPassword()
-    {
-        $client = $this->createClusterClient();
-        
-        try {
-            $client->updateConnectionPassword("invalid_password", true);
-            $this->fail("Expected exception for immediate auth with wrong password");
-        } catch (Exception $e) {
-            // Server has no password, so immediate auth with any password should fail
-            $this->assertStringContains("AUTH", $e->getMessage());
-        }
-        
-        $client->close();
-    }
-
-    // Test cluster null password throws TypeError
-    public function testUpdateConnectionPasswordNullCluster()
-    {
-        $client = $this->createClusterClient();
-        
-        try {
-            $client->updateConnectionPassword(null, false);
-            $this->fail("Expected TypeError for null password");
-        } catch (TypeError $e) {
-            // Expected - PHP type system rejects null for string parameter
-            $this->assertStringContains("must be of type string", $e->getMessage());
-        }
         
         $client->close();
     }
