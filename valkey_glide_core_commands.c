@@ -2185,7 +2185,7 @@ int execute_update_connection_password(zval*             object,
                                        zval*             return_value,
                                        zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
-    zend_bool            is_cluster = (ce == get_valkey_glide_cluster_ce());
+    zend_bool            is_cluster = (ce != NULL && ce == get_valkey_glide_cluster_ce());
 
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
