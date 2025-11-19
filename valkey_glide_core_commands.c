@@ -2184,6 +2184,7 @@ int execute_update_connection_password(zval*             object,
                                        zval*             return_value,
                                        zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
+    zend_bool            is_cluster = (ce == get_valkey_glide_cluster_ce());
 
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
@@ -2194,7 +2195,7 @@ int execute_update_connection_password(zval*             object,
     /* Validate empty password when setting (not clearing) */
     if (password != NULL && password_len == 0) {
         zend_throw_exception(
-            get_valkey_glide_exception_ce(),
+            get_exception_ce_for_client_type(is_cluster),
             "Password cannot be empty. Use clearConnectionPassword() to remove password.",
             0);
         return 0;
@@ -2209,15 +2210,17 @@ int execute_update_connection_password(zval*             object,
 
     /* Check result */
     if (!result) {
-        zend_throw_exception(
-            get_valkey_glide_exception_ce(), "Failed to update connection password", 0);
+        zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                             "Failed to update connection password",
+                             0);
         return 0;
     }
 
     /* Check for command error */
     if (result->command_error) {
-        zend_throw_exception(
-            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
+        zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                             result->command_error->command_error_message,
+                             0);
         free_command_result(result);
         return 0;
     }
@@ -2225,7 +2228,7 @@ int execute_update_connection_password(zval*             object,
     if (!result->response) {
         free_command_result(result);
         zend_throw_exception(
-            get_valkey_glide_exception_ce(), "No response received from server", 0);
+            get_exception_ce_for_client_type(is_cluster), "No response received from server", 0);
         return 0;
     }
 
@@ -2236,11 +2239,12 @@ int execute_update_connection_password(zval*             object,
         ret_val = 1;
     } else if (result->response->response_type == Error) {
         zend_throw_exception(
-            get_valkey_glide_exception_ce(),
+            get_exception_ce_for_client_type(is_cluster),
             result->response->string_value ? result->response->string_value : "Unknown error",
             0);
     } else {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "Unexpected response from server", 0);
+        zend_throw_exception(
+            get_exception_ce_for_client_type(is_cluster), "Unexpected response from server", 0);
     }
 
     free_command_result(result);

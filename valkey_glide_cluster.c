@@ -919,7 +919,7 @@ PHP_METHOD(ValkeyGlideCluster, updateConnectionPassword) {
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|b", &password, &password_len, &immediate_auth) ==
         FAILURE) {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "Invalid parameters", 0);
+        zend_throw_exception(get_valkey_glide_cluster_exception_ce(), "Invalid parameters", 0);
         return;
     }
 
@@ -935,7 +935,7 @@ PHP_METHOD(ValkeyGlideCluster, clearConnectionPassword) {
     zval*     object         = ZEND_THIS;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &immediate_auth) == FAILURE) {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "Invalid parameters", 0);
+        zend_throw_exception(get_valkey_glide_cluster_exception_ce(), "Invalid parameters", 0);
         return;
     }
 
