@@ -45,20 +45,6 @@ class UpdateConnectionPasswordTest extends TestSuite
         }
     }
 
-    // Test clearing password with immediate authentication
-    public function testClearConnectionPasswordWithImmediateAuth()
-    {
-        $client = $this->createClient();
-        
-        $result = $client->clearConnectionPassword(true);
-        $this->assertEquals("OK", $result, "Clear password with immediate auth should return OK");
-        
-        // Verify connection still works after clearing password
-        $this->assertNotNull($client->ping(), "Client should work after clearing password");
-        
-        $client->close();
-    }
-
     // Test that empty password throws exception
     public function testUpdateConnectionPasswordEmptyString()
     {
@@ -167,8 +153,8 @@ class UpdateConnectionPasswordTest extends TestSuite
         $this->assertEquals("OK", $result, "Server password should be cleared");
         sleep(1);
         
-        // Clear client password
-        $result = $client->clearConnectionPassword(false);
+        // Clear client password with immediate auth
+        $result = $client->clearConnectionPassword(true);
         $this->assertEquals("OK", $result);
         
         // Verify connection still works after clearing password
