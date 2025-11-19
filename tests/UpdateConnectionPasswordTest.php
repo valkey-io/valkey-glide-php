@@ -34,6 +34,9 @@ class UpdateConnectionPasswordTest extends TestSuite
         $result = $client->clearConnectionPassword(false);
         $this->assertEquals("OK", $result, "Clear password should return OK");
         
+        // Verify connection still works after clearing password
+        $this->assertNotNull($client->ping(), "Client should work after clearing password");
+        
         $client->close();
     }
 
@@ -44,6 +47,9 @@ class UpdateConnectionPasswordTest extends TestSuite
         
         $result = $client->clearConnectionPassword(true);
         $this->assertEquals("OK", $result, "Clear password with immediate auth should return OK");
+        
+        // Verify connection still works after clearing password
+        $this->assertNotNull($client->ping(), "Client should work after clearing password");
         
         $client->close();
     }
@@ -93,6 +99,21 @@ class UpdateConnectionPasswordTest extends TestSuite
         
         $result = $client->clearConnectionPassword(false);
         $this->assertEquals("OK", $result, "Cluster password clear should return OK");
+        
+        // Verify connection still works after clearing password
+        $this->assertNotNull($client->ping(), "Cluster client should work after clearing password");
+        
+        $client->close();
+    }
+
+    // Test cluster client with long password string
+    public function testUpdateConnectionPasswordLongStringCluster()
+    {
+        $client = $this->createClusterClient();
+        
+        $longPassword = str_repeat("a", 1000);
+        $result = $client->updateConnectionPassword($longPassword, false);
+        $this->assertEquals("OK", $result, "Cluster update with long password should return OK");
         
         $client->close();
     }
