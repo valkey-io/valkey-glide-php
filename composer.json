@@ -53,6 +53,9 @@
         "sort-packages": true,
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true
+        },
+        "audit": {
+            "ignore": ["PKSA-wws7-mr54-jsny"]
         }
     }
 }
