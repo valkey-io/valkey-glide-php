@@ -222,12 +222,12 @@ class UpdateConnectionPasswordTest extends TestSuite
         $adminClient->close();
         $adminClient = $this->createClient("test_password");
         
-        echo "Step 10: Admin client - CONFIG SET requirepass (empty)\n";
-        $adminClient->config("SET", "requirepass", "");
-        
-        echo "Step 11: Clear client connection password\n";
+        echo "Step 10: Clear client connection password\n";
         $result = $client->clearConnectionPassword(false);
         $this->assertEquals("OK", $result);
+        
+        echo "Step 11: Admin client - CONFIG SET requirepass (empty)\n";
+        $adminClient->config("SET", "requirepass", "");
         
         echo "Step 12: Admin client - CLIENT KILL\n";
         $adminClient->client("KILL", "TYPE", "NORMAL");
