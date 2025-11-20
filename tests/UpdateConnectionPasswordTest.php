@@ -248,8 +248,8 @@ class UpdateConnectionPasswordTest extends TestSuite
         
         $this->assertNotNull($client->ping(), "Client should still work without reconnect");
         
-        // Update server password using admin client
-        $adminClient->config("SET", "requirepass", "cluster_password");
+        // Update server password using admin client (all nodes)
+        $adminClient->configSet(["requirepass" => "cluster_password"]);
         
         // Get client ID and kill only the test client
         $clientId = $client->client("ID");
@@ -264,8 +264,8 @@ class UpdateConnectionPasswordTest extends TestSuite
         
         $this->assertNotNull($client->ping(), "Client should still work without reconnect");
         
-        // Clear server password using admin client
-        $adminClient->config("SET", "requirepass", "");
+        // Clear server password using admin client (all nodes)
+        $adminClient->configSet(["requirepass" => ""]);
         
         // Kill test client again
         $clientId = $client->client("ID");
@@ -320,7 +320,7 @@ class UpdateConnectionPasswordTest extends TestSuite
         $this->assertNotNull($client->ping(), "Cluster client should be connected");
         
         // Update server password on all nodes
-        $client->config("SET", "requirepass", "cluster_password");
+        $client->configSet(["requirepass" => "cluster_password"]);
         sleep(1);
         
         // Update client connection password with immediate auth
@@ -330,7 +330,7 @@ class UpdateConnectionPasswordTest extends TestSuite
         $this->assertNotNull($client->ping(), "Cluster client should work after immediate auth");
         
         // Clear server password
-        $client->config("SET", "requirepass", "");
+        $client->configSet(["requirepass" => ""]);
         sleep(1);
         
         // Clear client connection password
