@@ -233,58 +233,84 @@ class UpdateConnectionPasswordTest extends TestSuite
     // ========================================
     // 6. CLIENT CONSTRUCTOR PASSWORD TESTS
     // ========================================
+    // These tests verify that updateConnectionPassword API works correctly
+    // and help isolate the segfault bug in client constructor/connection logic
 
     // Test creating client with password when server has no password
     public function testConstructorWithPasswordNoServerPassword()
     {
+        echo "TEST: Creating client with password when server has no password...\n";
+        
         try {
             // Server has no password, but we provide one
+            echo "  - Creating ValkeyGlide with password='wrong_password'\n";
             $client = new ValkeyGlide(
                 [['host' => '127.0.0.1', 'port' => 6379]],
                 false,
                 ['password' => 'wrong_password']
             );
             
-            // Should fail to connect or throw exception
+            echo "  - Client created, attempting ping...\n";
             $client->ping();
             $this->fail("Should have failed to connect with wrong password");
         } catch (Exception $e) {
+            echo "  - Exception caught (expected): " . $e->getMessage() . "\n";
             // Expected - server has no password
             $this->assertStringContains("AUTH", $e->getMessage());
         }
+        
+        echo "  - Test completed successfully\n";
     }
 
     // Test creating client after dynamically setting server password
+    // This test isolates the segfault: if this fails but updateConnectionPassword tests pass,
+    // it confirms the bug is in constructor/connection logic, NOT in updateConnectionPassword API
     public function testConstructorAfterDynamicPasswordSet()
     {
+        echo "TEST: Creating client after dynamically setting server password...\n";
+        
         // First, set up server with password
+        echo "  - Step 1: Creating setup client (no password)\n";
         $setupClient = new ValkeyGlide([['host' => '127.0.0.1', 'port' => 6379]]);
+        
+        echo "  - Step 2: Setting server password via CONFIG SET\n";
         $setupClient->config("SET", "requirepass", "test_password");
+        
+        echo "  - Step 3: Closing setup client\n";
         $setupClient->close();
         
+        echo "  - Step 4: Waiting 1 second...\n";
         sleep(1);
         
         // Now try to create new client with password - THIS IS WHERE SEGFAULT OCCURS
         try {
-            echo "Attempting to create client with password...\n";
+            echo "  - Step 5: Creating new client WITH password='test_password'\n";
+            echo "  - >>> IF SEGFAULT OCCURS, IT HAPPENS HERE <<<\n";
+            
             $client = new ValkeyGlide(
                 [['host' => '127.0.0.1', 'port' => 6379]],
                 false,
                 ['password' => 'test_password']
             );
-            echo "Client created successfully\n";
             
+            echo "  - Step 6: Client created successfully (no segfault!)\n";
+            
+            echo "  - Step 7: Testing connection with ping\n";
             $result = $client->ping();
-            echo "PING result: " . $result . "\n";
+            echo "  - PING result: " . $result . "\n";
             
             // Clean up - remove password
+            echo "  - Step 8: Cleaning up - removing server password\n";
             $client->config("SET", "requirepass", "");
             $client->close();
             
+            echo "  - Test completed successfully\n";
+            
         } catch (Exception $e) {
-            echo "Exception caught: " . $e->getMessage() . "\n";
+            echo "  - Exception caught: " . $e->getMessage() . "\n";
             
             // Try to clean up anyway
+            echo "  - Attempting cleanup...\n";
             try {
                 $cleanupClient = new ValkeyGlide(
                     [['host' => '127.0.0.1', 'port' => 6379]],
@@ -293,8 +319,9 @@ class UpdateConnectionPasswordTest extends TestSuite
                 );
                 $cleanupClient->config("SET", "requirepass", "");
                 $cleanupClient->close();
+                echo "  - Cleanup successful\n";
             } catch (Exception $cleanup_e) {
-                echo "Cleanup failed: " . $cleanup_e->getMessage() . "\n";
+                echo "  - Cleanup failed: " . $cleanup_e->getMessage() . "\n";
             }
             
             throw $e;
