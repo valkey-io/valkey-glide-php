@@ -218,6 +218,14 @@ class UpdateConnectionPasswordTest extends TestSuite
             // Expected - admin client gets killed too
         }
         
+        // Close and cleanup admin client after it's been killed
+        try {
+            $adminClient->close();
+        } catch (Exception $e) {
+            // Ignore - connection already dead
+        }
+        unset($adminClient);
+        
         sleep(1);
         
         // Client should reconnect with new password
@@ -235,12 +243,21 @@ class UpdateConnectionPasswordTest extends TestSuite
         $this->assertEquals("OK", $result, "Server password should be cleared");
         sleep(1);
         
-        // Kill connections to force reconnect with cleared password
+        // Create new admin client to kill connections
+        $adminClient2 = $this->createClient();
         try {
-            $adminClient->client("KILL", "TYPE", "NORMAL");
+            $adminClient2->client("KILL", "TYPE", "NORMAL");
         } catch (Exception $e) {
             // Expected - admin client gets killed too
         }
+        
+        // Cleanup
+        try {
+            $adminClient2->close();
+        } catch (Exception $e) {
+            // Ignore
+        }
+        unset($adminClient2);
         
         sleep(1);
         
@@ -275,6 +292,14 @@ class UpdateConnectionPasswordTest extends TestSuite
         } catch (Exception $e) {
             // Expected - admin client gets killed too
         }
+        
+        // Close and cleanup admin client after it's been killed
+        try {
+            $adminClient->close();
+        } catch (Exception $e) {
+            // Ignore - connection already dead
+        }
+        unset($adminClient);
         
         sleep(1);
         
