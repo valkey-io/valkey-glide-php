@@ -2195,15 +2195,6 @@ int execute_update_connection_password(zval*             object,
         return 0;
     }
 
-    /* Validate empty password when setting (not clearing) */
-    if (password != NULL && password_len == 0) {
-        zend_throw_exception(
-            get_exception_ce_for_client_type(is_cluster),
-            "Password cannot be empty. Use clearConnectionPassword() to remove password.",
-            0);
-        return 0;
-    }
-
     /* Call FFI function */
     CommandResult* result =
         update_connection_password(valkey_glide->glide_client,
