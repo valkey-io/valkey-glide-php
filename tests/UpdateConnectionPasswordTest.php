@@ -19,8 +19,7 @@ class UpdateConnectionPasswordTest extends TestSuite
                 $credentials
             );
         } catch (Exception $ex) {
-            TestSuite::errorMessage("Fatal error creating standalone client: %s\n", $ex->getMessage());
-            exit(1);
+            $this->fail("Fatal error creating standalone client: " . $ex->getMessage());
         }
     }
 
@@ -36,8 +35,7 @@ class UpdateConnectionPasswordTest extends TestSuite
                 null, null, null, null, null, null, null, 0
             );
         } catch (Exception $ex) {
-            TestSuite::errorMessage("Fatal error creating cluster client: %s\n", $ex->getMessage());
-            exit(1);
+            $this->fail("Fatal error creating cluster client: " . $ex->getMessage());
         }
     }
 
