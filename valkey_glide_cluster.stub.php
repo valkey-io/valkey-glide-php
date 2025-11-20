@@ -318,12 +318,12 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::updateConnectionPassword
      */
-    public function updateConnectionPassword(string $password, bool $immediateAuth = false): string;
+    public function updateConnectionPassword(string $password, bool $immediateAuth = false): string|false;
 
     /**
      * @see ValkeyGlide::clearConnectionPassword
      */
-    public function clearConnectionPassword(bool $immediateAuth = false): string;
+    public function clearConnectionPassword(bool $immediateAuth = false): string|false;
 
     /**
      * @see ValkeyGlide::config()

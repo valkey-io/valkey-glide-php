@@ -536,7 +536,7 @@ class ValkeyGlide
      * @return string Returns "OK" on success
      * @throws Exception if the operation fails or IAM authentication is enabled
      */
-    public function updateConnectionPassword(string $password, bool $immediateAuth = false): string;
+    public function updateConnectionPassword(string $password, bool $immediateAuth = false): string|false;
 
     /**
      * Clear the connection password.
@@ -545,7 +545,7 @@ class ValkeyGlide
      * @return string Returns "OK" on success
      * @throws Exception if the operation fails or IAM authentication is enabled
      */
-    public function clearConnectionPassword(bool $immediateAuth = false): string;
+    public function clearConnectionPassword(bool $immediateAuth = false): string|false;
 
     /**
      *  Execute the ValkeyGlide CONFIG command in a variety of ways.
