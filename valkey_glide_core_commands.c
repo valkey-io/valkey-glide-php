@@ -2191,6 +2191,9 @@ void execute_update_connection_password(zval*             object,
     if (!valkey_glide || !valkey_glide->glide_client) {
         VALKEY_LOG_ERROR("update_connection_password",
                          "Invalid client object or client connection handle is NULL");
+        zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                             "Invalid client object or client connection handle is NULL",
+                             0);
         return;
     }
 
