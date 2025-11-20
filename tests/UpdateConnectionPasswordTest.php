@@ -230,6 +230,7 @@ class UpdateConnectionPasswordTest extends TestSuite
         // TODO: Re-enable once ValkeyGlideCluster::config() is implemented
         // SKIP: Cluster config() method is not yet implemented (marked as TODO in stub)
         // Cannot set server password on cluster nodes without config() method
+        // Github issue: https://github.com/valkey-io/valkey-glide-php/issues/77
         $this->markTestSkipped("Skipped: ValkeyGlideCluster::config() not yet implemented");
     }
 
@@ -286,6 +287,7 @@ class UpdateConnectionPasswordTest extends TestSuite
         // TODO: Re-enable once ValkeyGlideCluster::config() is implemented
         // SKIP: Cluster config() method is not yet implemented (marked as TODO in stub)
         // Cannot set server password on cluster nodes without config() method
+        // Gtihub issue: https://github.com/valkey-io/valkey-glide-php/issues/77
         $this->markTestSkipped("Skipped: ValkeyGlideCluster::config() not yet implemented");
     }
 }
