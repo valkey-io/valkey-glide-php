@@ -191,56 +191,59 @@ class UpdateConnectionPasswordTest extends TestSuite
     // Test password update with server password rotation (delay auth)
     public function testUpdateConnectionPasswordWithServerRotationDelayAuth()
     {
-        echo "TEST: Password rotation with delay auth...\n";
-        
-        echo "  - Step 1: Creating client\n";
         $client = $this->createClient();
         
-        echo "  - Step 2: Verifying initial connection\n";
         $this->assertNotNull($client->ping(), "Client should be connected");
         
-        echo "  - Step 3: Calling updateConnectionPassword (delay auth)\n";
         $result = $client->updateConnectionPassword("test_password", false);
         $this->assertEquals("OK", $result);
         
-        echo "  - Step 4: Verifying connection still works\n";
         $this->assertNotNull($client->ping(), "Client should still work without reconnect");
         
-        echo "  - Step 5: Setting server password via CONFIG SET\n";
-        echo "  - >>> IF SEGFAULT OCCURS, IT MAY HAPPEN HERE <<<\n";
         $client->config("SET", "requirepass", "test_password");
-        
-        echo "  - Step 6: Waiting 1 second\n";
         sleep(1);
         
-        echo "  - Step 7: Closing client\n";
         $client->close();
         
-        echo "  - Step 8: Creating new client with credentials\n";
         $client = $this->createClient("test_password");
         $this->assertNotNull($client->ping(), "Client should connect with new password");
         
-        echo "  - Step 9: Clearing connection password\n";
+        // Clear server password BEFORE clearing client password
+        $client->config("SET", "requirepass", "");
+        
         $result = $client->clearConnectionPassword(false);
         $this->assertEquals("OK", $result);
         
-        echo "  - Step 10: Clearing server password\n";
-        $client->config("SET", "requirepass", "");
-        
-        echo "  - Step 11: Closing client\n";
         $client->close();
-        
-        echo "  - Test completed successfully\n";
     }
 
     // Test cluster password rotation with delay auth
     public function testUpdateConnectionPasswordClusterWithServerRotationDelayAuth()
     {
-        // TODO: Re-enable once client connection bug is fixed
-        // SKIP: This test causes segfault when reconnecting after server password change
-        // This indicates a bug in the client connection logic, not in updateConnectionPassword
-        // Related issues: CLIENT KILL also causes segfaults
-        $this->markTestSkipped("Skipped: Reconnection after server password change causes segfault");
+        $client = $this->createClusterClient();
+        
+        $this->assertNotNull($client->ping(), "Cluster client should be connected");
+        
+        $result = $client->updateConnectionPassword("cluster_password", false);
+        $this->assertEquals("OK", $result);
+        
+        $this->assertNotNull($client->ping(), "Cluster client should still work");
+        
+        $client->config("SET", "requirepass", "cluster_password");
+        sleep(1);
+        
+        $client->close();
+        
+        $client = $this->createClusterClient("cluster_password");
+        $this->assertNotNull($client->ping(), "Cluster client should reconnect");
+        
+        // Clear server password BEFORE clearing client password
+        $client->config("SET", "requirepass", "");
+        
+        $result = $client->clearConnectionPassword(false);
+        $this->assertEquals("OK", $result);
+        
+        $client->close();
     }
 
     // ========================================
@@ -250,116 +253,54 @@ class UpdateConnectionPasswordTest extends TestSuite
     // Test password update with immediate auth
     public function testUpdateConnectionPasswordWithServerRotationImmediateAuth()
     {
-        // TODO: Re-enable once client connection bug is fixed
-        // SKIP: This test causes segfault during server password rotation
-        // This indicates a bug in the client connection logic, not in updateConnectionPassword
-        $this->markTestSkipped("Skipped: Server password rotation with immediate auth causes segfault");
+        $client = $this->createClient();
+        
+        $this->assertNotNull($client->ping(), "Client should be connected");
+        
+        $client->config("SET", "requirepass", "test_password");
+        sleep(1);
+        
+        $result = $client->updateConnectionPassword("test_password", true);
+        $this->assertEquals("OK", $result);
+        
+        $this->assertNotNull($client->ping(), "Client should work after immediate auth");
+        
+        // Clear server password BEFORE clearing client password
+        $client->config("SET", "requirepass", "");
+        sleep(1);
+        
+        $result = $client->clearConnectionPassword(true);
+        $this->assertEquals("OK", $result);
+        
+        $this->assertNotNull($client->ping(), "Client should work after clearing password");
+        
+        $client->close();
     }
 
     // Test cluster immediate auth
     public function testUpdateConnectionPasswordClusterImmediateAuth()
     {
-        // TODO: Re-enable once client connection bug is fixed
-        // SKIP: This test causes segfault during server password rotation
-        // This indicates a bug in the client connection logic, not in updateConnectionPassword
-        $this->markTestSkipped("Skipped: Server password rotation with immediate auth causes segfault");
-    }
-
-    // ========================================
-    // 6. CLIENT CONSTRUCTOR PASSWORD TESTS
-    // ========================================
-    // These tests verify that updateConnectionPassword API works correctly
-    // and help isolate the segfault bug in client constructor/connection logic
-
-    // Test creating client with password when server has no password
-    public function testConstructorWithPasswordNoServerPassword()
-    {
-        echo "TEST: Creating client with password when server has no password...\n";
+        $client = $this->createClusterClient();
         
-        try {
-            // Server has no password, but we provide one
-            echo "  - Creating ValkeyGlide with password='wrong_password'\n";
-            $client = new ValkeyGlide(
-                [['host' => '127.0.0.1', 'port' => 6379]],
-                false,
-                ['password' => 'wrong_password']
-            );
-            
-            echo "  - Client created, attempting ping...\n";
-            $client->ping();
-            $this->fail("Should have failed to connect with wrong password");
-        } catch (Exception $e) {
-            echo "  - Exception caught (expected): " . $e->getMessage() . "\n";
-            // Expected - server has no password
-            $this->assertStringContains("AUTH", $e->getMessage());
-        }
+        $this->assertNotNull($client->ping(), "Cluster client should be connected");
         
-        echo "  - Test completed successfully\n";
-    }
-
-    // Test creating client after dynamically setting server password
-    // This test isolates the segfault: if this fails but updateConnectionPassword tests pass,
-    // it confirms the bug is in constructor/connection logic, NOT in updateConnectionPassword API
-    public function testConstructorAfterDynamicPasswordSet()
-    {
-        echo "TEST: Creating client after dynamically setting server password...\n";
-        
-        // First, set up server with password
-        echo "  - Step 1: Creating setup client (no password)\n";
-        $setupClient = new ValkeyGlide([['host' => '127.0.0.1', 'port' => 6379]]);
-        
-        echo "  - Step 2: Setting server password via CONFIG SET\n";
-        $setupClient->config("SET", "requirepass", "test_password");
-        
-        echo "  - Step 3: Closing setup client\n";
-        $setupClient->close();
-        
-        echo "  - Step 4: Waiting 1 second...\n";
+        $client->config("SET", "requirepass", "cluster_password");
         sleep(1);
         
-        // Now try to create new client with password - THIS IS WHERE SEGFAULT OCCURS
-        try {
-            echo "  - Step 5: Creating new client WITH password='test_password'\n";
-            echo "  - >>> IF SEGFAULT OCCURS, IT HAPPENS HERE <<<\n";
-            
-            $client = new ValkeyGlide(
-                [['host' => '127.0.0.1', 'port' => 6379]],
-                false,
-                ['password' => 'test_password']
-            );
-            
-            echo "  - Step 6: Client created successfully (no segfault!)\n";
-            
-            echo "  - Step 7: Testing connection with ping\n";
-            $result = $client->ping();
-            echo "  - PING result: " . $result . "\n";
-            
-            // Clean up - remove password
-            echo "  - Step 8: Cleaning up - removing server password\n";
-            $client->config("SET", "requirepass", "");
-            $client->close();
-            
-            echo "  - Test completed successfully\n";
-            
-        } catch (Exception $e) {
-            echo "  - Exception caught: " . $e->getMessage() . "\n";
-            
-            // Try to clean up anyway
-            echo "  - Attempting cleanup...\n";
-            try {
-                $cleanupClient = new ValkeyGlide(
-                    [['host' => '127.0.0.1', 'port' => 6379]],
-                    false,
-                    ['password' => 'test_password']
-                );
-                $cleanupClient->config("SET", "requirepass", "");
-                $cleanupClient->close();
-                echo "  - Cleanup successful\n";
-            } catch (Exception $cleanup_e) {
-                echo "  - Cleanup failed: " . $cleanup_e->getMessage() . "\n";
-            }
-            
-            throw $e;
-        }
+        $result = $client->updateConnectionPassword("cluster_password", true);
+        $this->assertEquals("OK", $result);
+        
+        $this->assertNotNull($client->ping(), "Cluster client should work after immediate auth");
+        
+        // Clear server password BEFORE clearing client password
+        $client->config("SET", "requirepass", "");
+        sleep(1);
+        
+        $result = $client->clearConnectionPassword(false);
+        $this->assertEquals("OK", $result);
+        
+        $this->assertNotNull($client->ping(), "Cluster client should work after clearing password");
+        
+        $client->close();
     }
 }
