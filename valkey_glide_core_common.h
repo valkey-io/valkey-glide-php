@@ -328,4 +328,57 @@ int execute_update_connection_password(zval*             object,
                                        zval*             return_value,
                                        zend_class_entry* ce);
 
+/* Macro for updateConnectionPassword method implementation */
+#define UPDATE_CONNECTION_PASSWORD_METHOD_IMPL(class_name)                                       \
+    PHP_METHOD(class_name, updateConnectionPassword) {                                           \
+        char*     password       = NULL;                                                         \
+        size_t    password_len   = 0;                                                            \
+        zend_bool immediate_auth = 0;                                                            \
+        zval*     object         = ZEND_THIS;                                                    \
+                                                                                                 \
+        if (zend_parse_parameters(                                                               \
+                ZEND_NUM_ARGS(), "s|b", &password, &password_len, &immediate_auth) == FAILURE) { \
+            zend_throw_exception(strcmp(#class_name, "ValkeyGlideCluster") == 0                  \
+                                     ? get_valkey_glide_cluster_exception_ce()                   \
+                                     : get_valkey_glide_exception_ce(),                          \
+                                 "Invalid parameters",                                           \
+                                 0);                                                             \
+            return;                                                                              \
+        }                                                                                        \
+                                                                                                 \
+        if (execute_update_connection_password(object,                                           \
+                                               password,                                         \
+                                               password_len,                                     \
+                                               immediate_auth,                                   \
+                                               return_value,                                     \
+                                               Z_OBJCE_P(object))) {                             \
+            return;                                                                              \
+        }                                                                                        \
+        zval_dtor(return_value);                                                                 \
+        RETURN_FALSE;                                                                            \
+    }
+
+/* Macro for clearConnectionPassword method implementation */
+#define CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(class_name)                               \
+    PHP_METHOD(class_name, clearConnectionPassword) {                                   \
+        zend_bool immediate_auth = 0;                                                   \
+        zval*     object         = ZEND_THIS;                                           \
+                                                                                        \
+        if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &immediate_auth) == FAILURE) { \
+            zend_throw_exception(strcmp(#class_name, "ValkeyGlideCluster") == 0         \
+                                     ? get_valkey_glide_cluster_exception_ce()          \
+                                     : get_valkey_glide_exception_ce(),                 \
+                                 "Invalid parameters",                                  \
+                                 0);                                                    \
+            return;                                                                     \
+        }                                                                               \
+                                                                                        \
+        if (execute_update_connection_password(                                         \
+                object, "", 0, immediate_auth, return_value, Z_OBJCE_P(object))) {      \
+            return;                                                                     \
+        }                                                                               \
+        zval_dtor(return_value);                                                        \
+        RETURN_FALSE;                                                                   \
+    }
+
 #endif /* VALKEY_GLIDE_CORE_COMMON_H */
