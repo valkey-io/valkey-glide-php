@@ -11,32 +11,24 @@ class UpdateConnectionPasswordTest extends TestSuite
 
     private function createClient($password = null)
     {
-        try {
-            $credentials = $password ? ['password' => $password] : null;
-            return new ValkeyGlide(
-                [['host' => '127.0.0.1', 'port' => 6379]],
-                false,
-                $credentials
-            );
-        } catch (Exception $ex) {
-            $this->fail("Fatal error creating standalone client: " . $ex->getMessage());
-        }
+        $credentials = $password ? ['password' => $password] : null;
+        return new ValkeyGlide(
+            [['host' => '127.0.0.1', 'port' => 6379]],
+            false,
+            $credentials
+        );
     }
 
     private function createClusterClient($password = null)
     {
-        try {
-            $credentials = $password ? ['password' => $password] : null;
-            return new ValkeyGlideCluster(
-                [['host' => '127.0.0.1', 'port' => 7001]],
-                false, // use_tls
-                $credentials,
-                ValkeyGlide::READ_FROM_PRIMARY,
-                null, null, null, null, null, null, null, 0
-            );
-        } catch (Exception $ex) {
-            $this->fail("Fatal error creating cluster client: " . $ex->getMessage());
-        }
+        $credentials = $password ? ['password' => $password] : null;
+        return new ValkeyGlideCluster(
+            [['host' => '127.0.0.1', 'port' => 7001]],
+            false,
+            $credentials,
+            ValkeyGlide::READ_FROM_PRIMARY,
+            null, null, null, null, null, null, null, 0
+        );
     }
 
     // ========================================
