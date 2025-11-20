@@ -620,37 +620,12 @@ PHP_METHOD(ValkeyGlide, close) {
 /* {{{ proto string ValkeyGlide::updateConnectionPassword(string $password, bool $immediateAuth =
  * false)
  */
-PHP_METHOD(ValkeyGlide, updateConnectionPassword) {
-    char*     password       = NULL;
-    size_t    password_len   = 0;
-    zend_bool immediate_auth = 0;
-    zval*     object         = ZEND_THIS;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|b", &password, &password_len, &immediate_auth) ==
-        FAILURE) {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "Invalid parameters", 0);
-        return;
-    }
-
-    execute_update_connection_password(
-        object, password, password_len, immediate_auth, return_value, Z_OBJCE_P(object));
-}
+UPDATE_CONNECTION_PASSWORD_METHOD_IMPL(valkey_glide)
 /* }}} */
 
 /* {{{ proto string ValkeyGlide::clearConnectionPassword(bool $immediateAuth = false)
  */
-PHP_METHOD(ValkeyGlide, clearConnectionPassword) {
-    zend_bool immediate_auth = 0;
-    zval*     object         = ZEND_THIS;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &immediate_auth) == FAILURE) {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "Invalid parameters", 0);
-        return;
-    }
-
-    execute_update_connection_password(
-        object, "", 0, immediate_auth, return_value, Z_OBJCE_P(object));
-}
+CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(valkey_glide)
 /* }}} */
 
 /* Basic method stubs - these need to be implemented with ValkeyGlide */

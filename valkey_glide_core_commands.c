@@ -2258,3 +2258,38 @@ int execute_update_connection_password(zval*             object,
     free_command_result(result);
     return ret_val;
 }
+
+/* Macro for updateConnectionPassword method implementation */
+#define UPDATE_CONNECTION_PASSWORD_METHOD_IMPL(class_name)                                         \
+    PHP_METHOD(class_name, updateConnectionPassword)                                               \
+    {                                                                                              \
+        char*     password       = NULL;                                                           \
+        size_t    password_len   = 0;                                                              \
+        zend_bool immediate_auth = 0;                                                              \
+        zval*     object         = ZEND_THIS;                                                      \
+                                                                                                   \
+        if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|b", &password, &password_len,               \
+                                  &immediate_auth) == FAILURE) {                                   \
+            zend_throw_exception(get_##class_name##_exception_ce(), "Invalid parameters", 0);     \
+            return;                                                                                \
+        }                                                                                          \
+                                                                                                   \
+        execute_update_connection_password(object, password, password_len, immediate_auth,        \
+                                            return_value, Z_OBJCE_P(object));                      \
+    }
+
+/* Macro for clearConnectionPassword method implementation */
+#define CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(class_name)                                          \
+    PHP_METHOD(class_name, clearConnectionPassword)                                                \
+    {                                                                                              \
+        zend_bool immediate_auth = 0;                                                              \
+        zval*     object         = ZEND_THIS;                                                      \
+                                                                                                   \
+        if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &immediate_auth) == FAILURE) {           \
+            zend_throw_exception(get_##class_name##_exception_ce(), "Invalid parameters", 0);     \
+            return;                                                                                \
+        }                                                                                          \
+                                                                                                   \
+        execute_update_connection_password(object, "", 0, immediate_auth, return_value,           \
+                                            Z_OBJCE_P(object));                                    \
+    }
