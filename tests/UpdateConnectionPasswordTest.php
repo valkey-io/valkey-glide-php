@@ -35,52 +35,66 @@ class UpdateConnectionPasswordTest extends TestSuite
     // 1. VALIDATION TESTS (Edge Cases)
     // ========================================
 
-    // Test that empty password clears the password (same as clearConnectionPassword)
+    // Test that empty password throws exception
     public function testUpdateConnectionPasswordEmptyString()
     {
         $client = $this->createClient();
         
-        // Empty string should clear the password
-        $result = $client->updateConnectionPassword("", false);
-        $this->assertEquals("OK", $result, "Empty password should clear password");
+        try {
+            $client->updateConnectionPassword("", false);
+            $this->fail("Expected exception for empty password");
+        } catch (Exception $e) {
+            $this->assertStringContains("Password cannot be empty", $e->getMessage());
+        }
         
         $client->close();
     }
 
-    // Test that empty password clears the password (cluster)
+    // Test that empty password throws exception (cluster)
     public function testUpdateConnectionPasswordEmptyStringCluster()
     {
         $client = $this->createClusterClient();
         
-        // Empty string should clear the password
-        $result = $client->updateConnectionPassword("", false);
-        $this->assertEquals("OK", $result, "Empty password should clear password");
+        try {
+            $client->updateConnectionPassword("", false);
+            $this->fail("Expected exception for empty password");
+        } catch (Exception $e) {
+            $this->assertStringContains("Password cannot be empty", $e->getMessage());
+        }
         
         $client->close();
     }
 
-    // Test null password - PHP converts to empty string which clears password
+    // Test null password - PHP converts to empty string which throws exception
     public function testUpdateConnectionPasswordNull()
     {
         $client = $this->createClient();
         
-        // Suppress deprecation warning - null is converted to empty string
-        // Empty string clears the password (same as clearConnectionPassword)
-        $result = @$client->updateConnectionPassword(null, false);
-        $this->assertEquals("OK", $result, "Null (converted to empty) should clear password");
+        try {
+            // Suppress deprecation warning - null is converted to empty string
+            @$client->updateConnectionPassword(null, false);
+            $this->fail("Expected exception for null/empty password");
+        } catch (Exception $e) {
+            // Should throw exception for empty password
+            $this->assertStringContains("Password cannot be empty", $e->getMessage());
+        }
         
         $client->close();
     }
 
-    // Test cluster null password - PHP converts to empty string which clears password
+    // Test cluster null password - PHP converts to empty string which throws exception
     public function testUpdateConnectionPasswordNullCluster()
     {
         $client = $this->createClusterClient();
         
-        // Suppress deprecation warning - null is converted to empty string
-        // Empty string clears the password (same as clearConnectionPassword)
-        $result = @$client->updateConnectionPassword(null, false);
-        $this->assertEquals("OK", $result, "Null (converted to empty) should clear password");
+        try {
+            // Suppress deprecation warning - null is converted to empty string
+            @$client->updateConnectionPassword(null, false);
+            $this->fail("Expected exception for null/empty password");
+        } catch (Exception $e) {
+            // Should throw exception for empty password
+            $this->assertStringContains("Password cannot be empty", $e->getMessage());
+        }
         
         $client->close();
     }

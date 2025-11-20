@@ -346,6 +346,16 @@ void execute_update_connection_password(zval*             object,
             return;                                                                              \
         }                                                                                        \
                                                                                                  \
+        if (password_len == 0) {                                                                 \
+            zend_throw_exception(strcmp(#class_name, "ValkeyGlideCluster") == 0                  \
+                                     ? get_valkey_glide_cluster_exception_ce()                   \
+                                     : get_valkey_glide_exception_ce(),                          \
+                                 "Password cannot be empty. Use clearConnectionPassword() to "   \
+                                 "remove password.",                                             \
+                                 0);                                                             \
+            return;                                                                              \
+        }                                                                                        \
+                                                                                                 \
         execute_update_connection_password(                                                      \
             object, password, password_len, immediate_auth, return_value, Z_OBJCE_P(object));    \
     }
