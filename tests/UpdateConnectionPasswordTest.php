@@ -9,35 +9,31 @@ class UpdateConnectionPasswordTest extends TestSuite
         // No-op.
     }
 
-    protected function createClient()
+    protected function createClient($password = null)
     {
         try {
-            return new ValkeyGlide([[
-                'host' => '127.0.0.1',
-                'port' => 6379,
-            ]]);
+            $credentials = $password ? ['password' => $password] : null;
+            return new ValkeyGlide(
+                [['host' => '127.0.0.1', 'port' => 6379]],
+                false,
+                $credentials
+            );
         } catch (Exception $ex) {
             TestSuite::errorMessage("Fatal error creating standalone client: %s\n", $ex->getMessage());
             exit(1);
         }
     }
 
-    protected function createClusterClient()
+    protected function createClusterClient($password = null)
     {
         try {
+            $credentials = $password ? ['password' => $password] : null;
             return new ValkeyGlideCluster(
-                [['host' => '127.0.0.1', 'port' => 7001]], // addresses array format
+                [['host' => '127.0.0.1', 'port' => 7001]],
                 false, // use_tls
-                null, // credentials
-                ValkeyGlide::READ_FROM_PRIMARY, // read_from
-                null, // request_timeout
-                null, // reconnect_strategy
-                null, // client_name
-                null, // periodic_checks
-                null, // client_az
-                null, // advanced_config
-                null, // lazy_connect
-                0     // database_id - enable multi-database support
+                $credentials,
+                ValkeyGlide::READ_FROM_PRIMARY,
+                null, null, null, null, null, null, null, 0
             );
         } catch (Exception $ex) {
             TestSuite::errorMessage("Fatal error creating cluster client: %s\n", $ex->getMessage());
@@ -211,12 +207,12 @@ class UpdateConnectionPasswordTest extends TestSuite
         $client->config("SET", "requirepass", "test_password");
         sleep(1);
         
-        // Close and reconnect to verify new password works
+        // Close client
         $client->close();
         
-        // Create new client - should connect with the updated password
-        $client = $this->createClient();
-        $this->assertNotNull($client->ping(), "Client should reconnect with new password");
+        // Create new client with credentials
+        $client = $this->createClient("test_password");
+        $this->assertNotNull($client->ping(), "Client should connect with new password");
         
         // Clear password
         $result = $client->clearConnectionPassword(false);
@@ -251,8 +247,8 @@ class UpdateConnectionPasswordTest extends TestSuite
         // Close and reconnect to verify new password works
         $client->close();
         
-        // Create new client - should connect with the updated password
-        $client = $this->createClusterClient();
+        // Create new client with credentials
+        $client = $this->createClusterClient("cluster_password");
         $this->assertNotNull($client->ping(), "Cluster client should reconnect");
         
         // Clear password
