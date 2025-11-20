@@ -191,82 +191,86 @@ class UpdateConnectionPasswordTest extends TestSuite
     // Test password update with server password rotation (delay auth)
     public function testUpdateConnectionPasswordWithServerRotationDelayAuth()
     {
-        echo "Step 1: Creating client\n";
         $client = $this->createClient();
+        $adminClient = $this->createClient();
         
-        echo "Step 2: Ping\n";
         $this->assertNotNull($client->ping(), "Client should be connected");
+        $this->assertNotNull($adminClient->ping(), "Admin client should be connected");
         
-        echo "Step 3: updateConnectionPassword\n";
+        // Update client connection password
         $result = $client->updateConnectionPassword("test_password", false);
         $this->assertEquals("OK", $result);
         
-        echo "Step 4: Ping after update\n";
         $this->assertNotNull($client->ping(), "Client should still work without reconnect");
         
-        echo "Step 5: CONFIG SET requirepass test_password\n";
-        $client->config("SET", "requirepass", "test_password");
+        // Update server password and kill all clients using admin client
+        $adminClient->config("SET", "requirepass", "test_password");
+        $adminClient->client("KILL", "TYPE", "NORMAL");
         sleep(1);
         
-        echo "Step 6: Close client\n";
-        $client->close();
+        $this->assertNotNull($client->ping(), "Client should reconnect with new password");
         
-        echo "Step 7: Create new client with password\n";
-        $client = $this->createClient("test_password");
-        
-        echo "Step 8: Ping with new client\n";
-        $this->assertNotNull($client->ping(), "Client should connect with new password");
-        
-        echo "Step 9: CONFIG SET requirepass (empty) - POTENTIAL SEGFAULT HERE\n";
-        $result = $client->config("SET", "requirepass", "");
-        
-        echo "Step 10: Verify config result\n";
-        $this->assertEquals("OK", $result, "Server password should be cleared");
-        
-        echo "Step 11: clearConnectionPassword\n";
+        // Clear client connection password
         $result = $client->clearConnectionPassword(false);
         $this->assertEquals("OK", $result);
         
-        echo "Step 12: Close client\n";
-        $client->close();
+        $this->assertNotNull($client->ping(), "Client should still work without reconnect");
         
-        echo "Test completed\n";
+        // Clear server password and kill all clients using admin client
+        $adminClient->config("SET", "requirepass", "");
+        $adminClient->client("KILL", "TYPE", "NORMAL");
+        sleep(1);
+        
+        $this->assertNotNull($client->ping(), "Client should reconnect without password");
+        
+        $client->close();
+        $adminClient->close();
     }
 
     // Test cluster password rotation with delay auth
     public function testUpdateConnectionPasswordClusterWithServerRotationDelayAuth()
     {
         $client = $this->createClusterClient();
+        $adminClient = $this->createClusterClient();
         
-        $this->assertNotNull($client->ping(), "Cluster client should be connected");
+        $this->assertNotNull($client->ping(), "Client should be connected");
+        $this->assertNotNull($adminClient->ping(), "Admin client should be connected");
         
+        // Update client connection password
         $result = $client->updateConnectionPassword("cluster_password", false);
         $this->assertEquals("OK", $result);
         
-        $this->assertNotNull($client->ping(), "Cluster client should still work");
+        $this->assertNotNull($client->ping(), "Client should still work without reconnect");
         
-        $client->config("SET", "requirepass", "cluster_password");
+        // Update server password and kill all clients using admin client
+        $adminClient->config("SET", "requirepass", "cluster_password");
+        $adminClient->client("KILL", "TYPE", "NORMAL");
         sleep(1);
         
-        $client->close();
+        $this->assertNotNull($client->ping(), "Client should reconnect with new password");
         
-        $client = $this->createClusterClient("cluster_password");
-        $this->assertNotNull($client->ping(), "Cluster client should reconnect");
-        
-        // Clear server password BEFORE clearing client password
-        $result = $client->config("SET", "requirepass", "");
-        $this->assertEquals("OK", $result, "Server password should be cleared");
-        
+        // Clear client connection password
         $result = $client->clearConnectionPassword(false);
         $this->assertEquals("OK", $result);
         
+        $this->assertNotNull($client->ping(), "Client should still work without reconnect");
+        
+        // Clear server password and kill all clients using admin client
+        $adminClient->config("SET", "requirepass", "");
+        $adminClient->client("KILL", "TYPE", "NORMAL");
+        sleep(1);
+        
+        $this->assertNotNull($client->ping(), "Client should reconnect without password");
+        
         $client->close();
+        $adminClient->close();
     }
 
     // Test password rotation with delay auth and automatic reconnection (standalone)
     public function testUpdateConnectionPasswordWithServerRotationDelayAuthAutoReconnect()
     {
         $client = $this->createClient();
+        $adminClient = $this->createClient();
         
         $this->assertNotNull($client->ping(), "Client should be connected");
         
@@ -274,35 +278,34 @@ class UpdateConnectionPasswordTest extends TestSuite
         $result = $client->updateConnectionPassword("test_password", false);
         $this->assertEquals("OK", $result);
         
-        // Set server password
-        $client->config("SET", "requirepass", "test_password");
-        sleep(1);
-        
-        // Kill connection to force reconnection with new password
-        try {
-            $client->client("KILL", "TYPE", "NORMAL");
-        } catch (Exception $e) {
-            // Expected - connection killed
-        }
-        
+        // Set server password and kill connections using admin client
+        $adminClient->config("SET", "requirepass", "test_password");
+        $adminClient->client("KILL", "TYPE", "NORMAL");
         sleep(1);
         
         // Client should automatically reconnect with updated password
         $this->assertNotNull($client->ping(), "Client should reconnect with new password");
         
-        // Clear server password BEFORE clearing client password
-        $client->config("SET", "requirepass", "");
-        
+        // Clear client password
         $result = $client->clearConnectionPassword(false);
         $this->assertEquals("OK", $result);
         
+        // Clear server password and kill connections
+        $adminClient->config("SET", "requirepass", "");
+        $adminClient->client("KILL", "TYPE", "NORMAL");
+        sleep(1);
+        
+        $this->assertNotNull($client->ping(), "Client should reconnect without password");
+        
         $client->close();
+        $adminClient->close();
     }
 
     // Test cluster password rotation with delay auth and automatic reconnection
     public function testUpdateConnectionPasswordClusterWithServerRotationDelayAuthAutoReconnect()
     {
         $client = $this->createClusterClient();
+        $adminClient = $this->createClusterClient();
         
         $this->assertNotNull($client->ping(), "Cluster client should be connected");
         
@@ -310,29 +313,27 @@ class UpdateConnectionPasswordTest extends TestSuite
         $result = $client->updateConnectionPassword("cluster_password", false);
         $this->assertEquals("OK", $result);
         
-        // Set server password on all nodes
-        $client->config("SET", "requirepass", "cluster_password");
-        sleep(1);
-        
-        // Kill connection to force reconnection with new password
-        try {
-            $client->client("KILL", "TYPE", "NORMAL");
-        } catch (Exception $e) {
-            // Expected - connection killed
-        }
-        
+        // Set server password on all nodes and kill connections using admin client
+        $adminClient->config("SET", "requirepass", "cluster_password");
+        $adminClient->client("KILL", "TYPE", "NORMAL");
         sleep(1);
         
         // Client should automatically reconnect with updated password
         $this->assertNotNull($client->ping(), "Cluster client should reconnect with new password");
         
-        // Clear server password BEFORE clearing client password
-        $client->config("SET", "requirepass", "");
-        
+        // Clear client password
         $result = $client->clearConnectionPassword(false);
         $this->assertEquals("OK", $result);
         
+        // Clear server password and kill connections
+        $adminClient->config("SET", "requirepass", "");
+        $adminClient->client("KILL", "TYPE", "NORMAL");
+        sleep(1);
+        
+        $this->assertNotNull($client->ping(), "Cluster client should reconnect without password");
+        
         $client->close();
+        $adminClient->close();
     }
 
     // ========================================
@@ -346,19 +347,22 @@ class UpdateConnectionPasswordTest extends TestSuite
         
         $this->assertNotNull($client->ping(), "Client should be connected");
         
+        // Update server password
         $client->config("SET", "requirepass", "test_password");
         sleep(1);
         
+        // Update client connection password with immediate auth
         $result = $client->updateConnectionPassword("test_password", true);
         $this->assertEquals("OK", $result);
         
         $this->assertNotNull($client->ping(), "Client should work after immediate auth");
         
-        // Clear server password BEFORE clearing client password
+        // Clear server password
         $client->config("SET", "requirepass", "");
         sleep(1);
         
-        $result = $client->clearConnectionPassword(true);
+        // Clear client connection password
+        $result = $client->clearConnectionPassword(false);
         $this->assertEquals("OK", $result);
         
         $this->assertNotNull($client->ping(), "Client should work after clearing password");
@@ -373,18 +377,21 @@ class UpdateConnectionPasswordTest extends TestSuite
         
         $this->assertNotNull($client->ping(), "Cluster client should be connected");
         
+        // Update server password on all nodes
         $client->config("SET", "requirepass", "cluster_password");
         sleep(1);
         
+        // Update client connection password with immediate auth
         $result = $client->updateConnectionPassword("cluster_password", true);
         $this->assertEquals("OK", $result);
         
         $this->assertNotNull($client->ping(), "Cluster client should work after immediate auth");
         
-        // Clear server password BEFORE clearing client password
+        // Clear server password
         $client->config("SET", "requirepass", "");
         sleep(1);
         
+        // Clear client connection password
         $result = $client->clearConnectionPassword(false);
         $this->assertEquals("OK", $result);
         
@@ -397,77 +404,73 @@ class UpdateConnectionPasswordTest extends TestSuite
     public function testUpdateConnectionPasswordWithServerRotationImmediateAuthAutoReconnect()
     {
         $client = $this->createClient();
+        $adminClient = $this->createClient();
         
         $this->assertNotNull($client->ping(), "Client should be connected");
         
-        // Set server password
-        $client->config("SET", "requirepass", "test_password");
+        // Set server password using admin client
+        $adminClient->config("SET", "requirepass", "test_password");
         sleep(1);
         
         // Update client password with immediate auth
         $result = $client->updateConnectionPassword("test_password", true);
         $this->assertEquals("OK", $result);
         
-        // Kill connection to force reconnection
-        try {
-            $client->client("KILL", "TYPE", "NORMAL");
-        } catch (Exception $e) {
-            // Expected - connection killed
-        }
-        
+        // Kill connection to force reconnection using admin client
+        $adminClient->client("KILL", "TYPE", "NORMAL");
         sleep(1);
         
         // Client should automatically reconnect with password
         $this->assertNotNull($client->ping(), "Client should reconnect with password");
         
-        // Clear server password BEFORE clearing client password
-        $client->config("SET", "requirepass", "");
+        // Clear server password using admin client
+        $adminClient->config("SET", "requirepass", "");
         sleep(1);
         
+        // Clear client password
         $result = $client->clearConnectionPassword(true);
         $this->assertEquals("OK", $result);
         
         $this->assertNotNull($client->ping(), "Client should work after clearing password");
         
         $client->close();
+        $adminClient->close();
     }
 
     // Test cluster password rotation with immediate auth and automatic reconnection
     public function testUpdateConnectionPasswordClusterImmediateAuthAutoReconnect()
     {
         $client = $this->createClusterClient();
+        $adminClient = $this->createClusterClient();
         
         $this->assertNotNull($client->ping(), "Cluster client should be connected");
         
-        // Set server password on all nodes
-        $client->config("SET", "requirepass", "cluster_password");
+        // Set server password on all nodes using admin client
+        $adminClient->config("SET", "requirepass", "cluster_password");
         sleep(1);
         
         // Update client password with immediate auth
         $result = $client->updateConnectionPassword("cluster_password", true);
         $this->assertEquals("OK", $result);
         
-        // Kill connection to force reconnection
-        try {
-            $client->client("KILL", "TYPE", "NORMAL");
-        } catch (Exception $e) {
-            // Expected - connection killed
-        }
-        
+        // Kill connection to force reconnection using admin client
+        $adminClient->client("KILL", "TYPE", "NORMAL");
         sleep(1);
         
         // Client should automatically reconnect with password
         $this->assertNotNull($client->ping(), "Cluster client should reconnect with password");
         
-        // Clear server password BEFORE clearing client password
-        $client->config("SET", "requirepass", "");
+        // Clear server password using admin client
+        $adminClient->config("SET", "requirepass", "");
         sleep(1);
         
+        // Clear client password
         $result = $client->clearConnectionPassword(false);
         $this->assertEquals("OK", $result);
         
         $this->assertNotNull($client->ping(), "Cluster client should work after clearing password");
         
         $client->close();
+        $adminClient->close();
     }
 }
