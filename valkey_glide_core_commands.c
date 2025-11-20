@@ -2270,12 +2270,19 @@ int execute_update_connection_password(zval*             object,
                                                                                                    \
         if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|b", &password, &password_len,               \
                                   &immediate_auth) == FAILURE) {                                   \
-            zend_throw_exception(get_##class_name##_exception_ce(), "Invalid parameters", 0);     \
+            zend_throw_exception(strcmp(#class_name, "ValkeyGlideCluster") == 0                   \
+                                     ? get_valkey_glide_cluster_exception_ce()                     \
+                                     : get_valkey_glide_exception_ce(),                            \
+                                 "Invalid parameters", 0);                                         \
             return;                                                                                \
         }                                                                                          \
                                                                                                    \
-        execute_update_connection_password(object, password, password_len, immediate_auth,        \
-                                            return_value, Z_OBJCE_P(object));                      \
+        if (execute_update_connection_password(object, password, password_len, immediate_auth,    \
+                                                return_value, Z_OBJCE_P(object))) {                \
+            return;                                                                                \
+        }                                                                                          \
+        zval_dtor(return_value);                                                                   \
+        RETURN_FALSE;                                                                              \
     }
 
 /* Macro for clearConnectionPassword method implementation */
@@ -2286,10 +2293,17 @@ int execute_update_connection_password(zval*             object,
         zval*     object         = ZEND_THIS;                                                      \
                                                                                                    \
         if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &immediate_auth) == FAILURE) {           \
-            zend_throw_exception(get_##class_name##_exception_ce(), "Invalid parameters", 0);     \
+            zend_throw_exception(strcmp(#class_name, "ValkeyGlideCluster") == 0                   \
+                                     ? get_valkey_glide_cluster_exception_ce()                     \
+                                     : get_valkey_glide_exception_ce(),                            \
+                                 "Invalid parameters", 0);                                         \
             return;                                                                                \
         }                                                                                          \
                                                                                                    \
-        execute_update_connection_password(object, "", 0, immediate_auth, return_value,           \
-                                            Z_OBJCE_P(object));                                    \
+        if (execute_update_connection_password(object, "", 0, immediate_auth, return_value,       \
+                                                Z_OBJCE_P(object))) {                              \
+            return;                                                                                \
+        }                                                                                          \
+        zval_dtor(return_value);                                                                   \
+        RETURN_FALSE;                                                                              \
     }

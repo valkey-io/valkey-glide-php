@@ -911,12 +911,12 @@ MOVE_METHOD_IMPL(ValkeyGlideCluster)
 /* {{{ proto string ValkeyGlideCluster::updateConnectionPassword(string $password, bool
  * $immediateAuth = false)
  */
-UPDATE_CONNECTION_PASSWORD_METHOD_IMPL(valkey_glide_cluster)
+UPDATE_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto string ValkeyGlideCluster::clearConnectionPassword(bool $immediateAuth = false)
  */
-CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(valkey_glide_cluster)
+CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 COPY_METHOD_IMPL(ValkeyGlideCluster)

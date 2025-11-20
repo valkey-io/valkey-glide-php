@@ -620,12 +620,12 @@ PHP_METHOD(ValkeyGlide, close) {
 /* {{{ proto string ValkeyGlide::updateConnectionPassword(string $password, bool $immediateAuth =
  * false)
  */
-UPDATE_CONNECTION_PASSWORD_METHOD_IMPL(valkey_glide)
+UPDATE_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
 /* {{{ proto string ValkeyGlide::clearConnectionPassword(bool $immediateAuth = false)
  */
-CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(valkey_glide)
+CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
 /* Basic method stubs - these need to be implemented with ValkeyGlide */
