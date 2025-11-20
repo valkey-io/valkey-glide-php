@@ -346,16 +346,12 @@ int execute_update_connection_password(zval*             object,
             return;                                                                              \
         }                                                                                        \
                                                                                                  \
-        if (execute_update_connection_password(object,                                           \
-                                               password,                                         \
-                                               password_len,                                     \
-                                               immediate_auth,                                   \
-                                               return_value,                                     \
-                                               Z_OBJCE_P(object))) {                             \
-            return;                                                                              \
-        }                                                                                        \
-        zval_dtor(return_value);                                                                 \
-        RETURN_FALSE;                                                                            \
+        execute_update_connection_password(object,                                               \
+                                           password,                                             \
+                                           password_len,                                         \
+                                           immediate_auth,                                       \
+                                           return_value,                                         \
+                                           Z_OBJCE_P(object));                                   \
     }
 
 /* Macro for clearConnectionPassword method implementation */
@@ -373,12 +369,8 @@ int execute_update_connection_password(zval*             object,
             return;                                                                     \
         }                                                                               \
                                                                                         \
-        if (execute_update_connection_password(                                         \
-                object, "", 0, immediate_auth, return_value, Z_OBJCE_P(object))) {      \
-            return;                                                                     \
-        }                                                                               \
-        zval_dtor(return_value);                                                        \
-        RETURN_FALSE;                                                                   \
+        execute_update_connection_password(                                             \
+            object, "", 0, immediate_auth, return_value, Z_OBJCE_P(object));            \
     }
 
 #endif /* VALKEY_GLIDE_CORE_COMMON_H */
