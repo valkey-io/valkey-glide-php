@@ -191,11 +191,46 @@ class UpdateConnectionPasswordTest extends TestSuite
     // Test password update with server password rotation (delay auth)
     public function testUpdateConnectionPasswordWithServerRotationDelayAuth()
     {
-        // TODO: Re-enable once client connection bug is fixed
-        // SKIP: This test causes segfault when reconnecting after server password change
-        // This indicates a bug in the client connection logic, not in updateConnectionPassword
-        // Related issues: CLIENT KILL also causes segfaults
-        $this->markTestSkipped("Skipped: Reconnection after server password change causes segfault");
+        echo "TEST: Password rotation with delay auth...\n";
+        
+        echo "  - Step 1: Creating client\n";
+        $client = $this->createClient();
+        
+        echo "  - Step 2: Verifying initial connection\n";
+        $this->assertNotNull($client->ping(), "Client should be connected");
+        
+        echo "  - Step 3: Calling updateConnectionPassword (delay auth)\n";
+        $result = $client->updateConnectionPassword("test_password", false);
+        $this->assertEquals("OK", $result);
+        
+        echo "  - Step 4: Verifying connection still works\n";
+        $this->assertNotNull($client->ping(), "Client should still work without reconnect");
+        
+        echo "  - Step 5: Setting server password via CONFIG SET\n";
+        echo "  - >>> IF SEGFAULT OCCURS, IT MAY HAPPEN HERE <<<\n";
+        $client->config("SET", "requirepass", "test_password");
+        
+        echo "  - Step 6: Waiting 1 second\n";
+        sleep(1);
+        
+        echo "  - Step 7: Closing client\n";
+        $client->close();
+        
+        echo "  - Step 8: Creating new client with credentials\n";
+        $client = $this->createClient("test_password");
+        $this->assertNotNull($client->ping(), "Client should connect with new password");
+        
+        echo "  - Step 9: Clearing connection password\n";
+        $result = $client->clearConnectionPassword(false);
+        $this->assertEquals("OK", $result);
+        
+        echo "  - Step 10: Clearing server password\n";
+        $client->config("SET", "requirepass", "");
+        
+        echo "  - Step 11: Closing client\n";
+        $client->close();
+        
+        echo "  - Test completed successfully\n";
     }
 
     // Test cluster password rotation with delay auth
