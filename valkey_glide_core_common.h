@@ -321,12 +321,12 @@ void add_string_arg(char*           str,
 /**
  * Execute update_connection_password command
  */
-int execute_update_connection_password(zval*             object,
-                                       const char*       password,
-                                       size_t            password_len,
-                                       bool              immediate_auth,
-                                       zval*             return_value,
-                                       zend_class_entry* ce);
+void execute_update_connection_password(zval*             object,
+                                        const char*       password,
+                                        size_t            password_len,
+                                        bool              immediate_auth,
+                                        zval*             return_value,
+                                        zend_class_entry* ce);
 
 /* Macro for updateConnectionPassword method implementation */
 #define UPDATE_CONNECTION_PASSWORD_METHOD_IMPL(class_name)                                       \

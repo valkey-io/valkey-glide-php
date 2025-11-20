@@ -2176,14 +2176,13 @@ int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_e
  * @param immediate_auth Whether to re-authenticate immediately
  * @param return_value The return value zval
  * @param ce The class entry
- * @return int 1 on success, 0 on failure
  */
-int execute_update_connection_password(zval*             object,
-                                       const char*       password,
-                                       size_t            password_len,
-                                       bool              immediate_auth,
-                                       zval*             return_value,
-                                       zend_class_entry* ce) {
+void execute_update_connection_password(zval*             object,
+                                        const char*       password,
+                                        size_t            password_len,
+                                        bool              immediate_auth,
+                                        zval*             return_value,
+                                        zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zend_bool            is_cluster = (ce != NULL && ce == get_valkey_glide_cluster_ce());
 
@@ -2192,7 +2191,7 @@ int execute_update_connection_password(zval*             object,
     if (!valkey_glide || !valkey_glide->glide_client) {
         VALKEY_LOG_ERROR("update_connection_password",
                          "Invalid client object or client connection handle is NULL");
-        return 0;
+        return;
     }
 
     /* Call FFI function */
@@ -2208,7 +2207,7 @@ int execute_update_connection_password(zval*             object,
         zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
                              "Failed to update connection password",
                              0);
-        return 0;
+        return;
     }
 
     /* Check for command error */
@@ -2222,7 +2221,7 @@ int execute_update_connection_password(zval*             object,
                              result->command_error->command_error_message,
                              0);
         free_command_result(result);
-        return 0;
+        return;
     }
 
     if (!result->response) {
@@ -2230,14 +2229,12 @@ int execute_update_connection_password(zval*             object,
         free_command_result(result);
         zend_throw_exception(
             get_exception_ce_for_client_type(is_cluster), "No response received from server", 0);
-        return 0;
+        return;
     }
 
     /* Process response */
-    int ret_val = 0;
     if (result->response->response_type == Ok) {
         ZVAL_STRING(return_value, "OK");
-        ret_val = 1;
     } else if (result->response->response_type == Error) {
         VALKEY_LOG_ERROR_FMT(
             "update_connection_password",
@@ -2256,5 +2253,4 @@ int execute_update_connection_password(zval*             object,
     }
 
     free_command_result(result);
-    return ret_val;
 }
