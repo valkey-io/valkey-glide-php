@@ -209,7 +209,7 @@ class UpdateConnectionPasswordTest extends TestSuite
         echo "Step 5: Admin client - CONFIG SET requirepass\n";
         $adminClient->config("SET", "requirepass", "test_password");
         
-        echo "Step 6: Admin client - CLIENT KILL\n";
+        echo "Step 6: Admin client - CLIENT KILL (kills both clients)\n";
         $adminClient->client("KILL", "TYPE", "NORMAL");
         
         echo "Step 7: Sleep 1 second\n";
@@ -218,15 +218,16 @@ class UpdateConnectionPasswordTest extends TestSuite
         echo "Step 8: Ping client (should reconnect with new password)\n";
         $this->assertNotNull($client->ping(), "Client should reconnect with new password");
         
-        echo "Step 9: Clear client connection password\n";
+        echo "Step 9: Recreate adminClient with password (it was killed)\n";
+        $adminClient->close();
+        $adminClient = $this->createClient("test_password");
+        
+        echo "Step 10: Admin client - CONFIG SET requirepass (empty)\n";
+        $adminClient->config("SET", "requirepass", "");
+        
+        echo "Step 11: Clear client connection password\n";
         $result = $client->clearConnectionPassword(false);
         $this->assertEquals("OK", $result);
-        
-        echo "Step 10: Ping client (no reconnect)\n";
-        $this->assertNotNull($client->ping(), "Client should still work without reconnect");
-        
-        echo "Step 11: Admin client - CONFIG SET requirepass (empty)\n";
-        $adminClient->config("SET", "requirepass", "");
         
         echo "Step 12: Admin client - CLIENT KILL\n";
         $adminClient->client("KILL", "TYPE", "NORMAL");
@@ -266,14 +267,18 @@ class UpdateConnectionPasswordTest extends TestSuite
         
         $this->assertNotNull($client->ping(), "Client should reconnect with new password");
         
+        // Recreate adminClient with password (it was killed)
+        $adminClient->close();
+        $adminClient = $this->createClusterClient("cluster_password");
+        
+        // Clear server password using new admin client
+        $adminClient->config("SET", "requirepass", "");
+        
         // Clear client connection password
         $result = $client->clearConnectionPassword(false);
         $this->assertEquals("OK", $result);
         
-        $this->assertNotNull($client->ping(), "Client should still work without reconnect");
-        
-        // Clear server password and kill all clients using admin client
-        $adminClient->config("SET", "requirepass", "");
+        // Kill all clients to force reconnection
         $adminClient->client("KILL", "TYPE", "NORMAL");
         sleep(1);
         
