@@ -940,7 +940,7 @@ PHP_METHOD(ValkeyGlideCluster, clearConnectionPassword) {
     }
 
     execute_update_connection_password(
-        object, NULL, 0, immediate_auth, return_value, Z_OBJCE_P(object));
+        object, "", 0, immediate_auth, return_value, Z_OBJCE_P(object));
 }
 /* }}} */
 
