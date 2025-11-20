@@ -73,43 +73,33 @@ class UpdateConnectionPasswordTest extends TestSuite
         $client->close();
     }
 
-    // Test null password throws TypeError or triggers deprecation
+    // Test null password throws TypeError
     public function testUpdateConnectionPasswordNull()
     {
         $client = $this->createClient();
         
         try {
-            // Suppress deprecation warning in PHP 8.1+
-            @$client->updateConnectionPassword(null, false);
-            // If we get here, null was converted to empty string, which should fail
-            $this->fail("Expected TypeError or exception for null password");
+            $client->updateConnectionPassword(null, false);
+            $this->fail("Expected TypeError for null password");
         } catch (TypeError $e) {
-            // Expected in strict mode - PHP type system rejects null for string parameter
+            // Expected - PHP type system rejects null for string parameter
             $this->assertStringContains("must be of type string", $e->getMessage());
-        } catch (Exception $e) {
-            // Expected if null is converted to empty string
-            $this->assertStringContains("Password cannot be empty", $e->getMessage());
         }
         
         $client->close();
     }
 
-    // Test cluster null password throws TypeError or triggers deprecation
+    // Test cluster null password throws TypeError
     public function testUpdateConnectionPasswordNullCluster()
     {
         $client = $this->createClusterClient();
         
         try {
-            // Suppress deprecation warning in PHP 8.1+
-            @$client->updateConnectionPassword(null, false);
-            // If we get here, null was converted to empty string, which should fail
-            $this->fail("Expected TypeError or exception for null password");
+            $client->updateConnectionPassword(null, false);
+            $this->fail("Expected TypeError for null password");
         } catch (TypeError $e) {
-            // Expected in strict mode - PHP type system rejects null for string parameter
+            // Expected - PHP type system rejects null for string parameter
             $this->assertStringContains("must be of type string", $e->getMessage());
-        } catch (Exception $e) {
-            // Expected if null is converted to empty string
-            $this->assertStringContains("Password cannot be empty", $e->getMessage());
         }
         
         $client->close();
@@ -192,43 +182,58 @@ class UpdateConnectionPasswordTest extends TestSuite
         $client = $this->createClient();
         $adminClient = $this->createClient();
         
-        $this->assertNotNull($client->ping(), "Client should be connected");
-        $this->assertNotNull($adminClient->ping(), "Admin client should be connected");
-        
-        // Update client connection password
-        $result = $client->updateConnectionPassword("test_password", false);
-        $this->assertEquals("OK", $result);
-        
-        $this->assertNotNull($client->ping(), "Client should still work without reconnect");
-        
-        // Update server password using admin client
-        $adminClient->config("SET", "requirepass", "test_password");
-        
-        // Get client ID and kill only the test client
-        $clientId = $client->client("ID");
-        $adminClient->client("KILL", "ID", $clientId);
-        sleep(1);
-        
-        $this->assertNotNull($client->ping(), "Client should reconnect with new password");
-        
-        // Clear client connection password
-        $result = $client->clearConnectionPassword(false);
-        $this->assertEquals("OK", $result);
-        
-        $this->assertNotNull($client->ping(), "Client should still work without reconnect");
-        
-        // Clear server password using admin client
-        $adminClient->config("SET", "requirepass", "");
-        
-        // Kill test client again
-        $clientId = $client->client("ID");
-        $adminClient->client("KILL", "ID", $clientId);
-        sleep(1);
-        
-        $this->assertNotNull($client->ping(), "Client should reconnect without password");
-        
-        $client->close();
-        $adminClient->close();
+        try {
+            $this->assertNotNull($client->ping(), "Client should be connected");
+            $this->assertNotNull($adminClient->ping(), "Admin client should be connected");
+            
+            // Update client connection password
+            $result = $client->updateConnectionPassword("test_password", false);
+            $this->assertEquals("OK", $result);
+            
+            $this->assertNotNull($client->ping(), "Client should still work without reconnect");
+            
+            // Update server password using admin client
+            $adminClient->config("SET", "requirepass", "test_password");
+            
+            // Get client ID and kill only the test client
+            $clientId = $client->client("ID");
+            $adminClient->client("KILL", "ID", $clientId);
+            sleep(1);
+            
+            $this->assertNotNull($client->ping(), "Client should reconnect with new password");
+            
+            // Clear client connection password
+            $result = $client->clearConnectionPassword(false);
+            $this->assertEquals("OK", $result);
+            
+            $this->assertNotNull($client->ping(), "Client should still work without reconnect");
+            
+            // Clear server password using admin client
+            $adminClient->config("SET", "requirepass", "");
+            
+            // Kill test client again
+            $clientId = $client->client("ID");
+            $adminClient->client("KILL", "ID", $clientId);
+            sleep(1);
+            
+            $this->assertNotNull($client->ping(), "Client should reconnect without password");
+        } finally {
+            // Ensure server password is cleared even if test fails
+            try {
+                if (isset($adminClient)) {
+                    $adminClient->config("SET", "requirepass", "");
+                }
+            } catch (Exception $e) {
+                // Ignore cleanup errors
+            }
+            
+            if (isset($client)) {
+                $client->close();
+            }
+            if (isset($adminClient)) {
+                $adminClient->close();
+            }
+        }
     }
 
     // Test cluster password rotation with delay auth
@@ -249,29 +254,42 @@ class UpdateConnectionPasswordTest extends TestSuite
     {
         $client = $this->createClient();
         
-        $this->assertNotNull($client->ping(), "Client should be connected");
-        
-        // Update server password
-        $client->config("SET", "requirepass", "test_password");
-        sleep(1);
-        
-        // Update client connection password with immediate auth
-        $result = $client->updateConnectionPassword("test_password", true);
-        $this->assertEquals("OK", $result);
-        
-        $this->assertNotNull($client->ping(), "Client should work after immediate auth");
-        
-        // Clear server password
-        $client->config("SET", "requirepass", "");
-        sleep(1);
-        
-        // Clear client connection password
-        $result = $client->clearConnectionPassword(false);
-        $this->assertEquals("OK", $result);
-        
-        $this->assertNotNull($client->ping(), "Client should work after clearing password");
-        
-        $client->close();
+        try {
+            $this->assertNotNull($client->ping(), "Client should be connected");
+            
+            // Update server password
+            $client->config("SET", "requirepass", "test_password");
+            sleep(1);
+            
+            // Update client connection password with immediate auth
+            $result = $client->updateConnectionPassword("test_password", true);
+            $this->assertEquals("OK", $result);
+            
+            $this->assertNotNull($client->ping(), "Client should work after immediate auth");
+            
+            // Clear server password
+            $client->config("SET", "requirepass", "");
+            sleep(1);
+            
+            // Clear client connection password
+            $result = $client->clearConnectionPassword(false);
+            $this->assertEquals("OK", $result);
+            
+            $this->assertNotNull($client->ping(), "Client should work after clearing password");
+        } finally {
+            // Ensure server password is cleared even if test fails
+            try {
+                if (isset($client)) {
+                    $client->config("SET", "requirepass", "");
+                }
+            } catch (Exception $e) {
+                // Ignore cleanup errors
+            }
+            
+            if (isset($client)) {
+                $client->close();
+            }
+        }
     }
 
     // Test cluster immediate auth
