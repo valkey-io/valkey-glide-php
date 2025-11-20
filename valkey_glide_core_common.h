@@ -346,12 +346,8 @@ int execute_update_connection_password(zval*             object,
             return;                                                                              \
         }                                                                                        \
                                                                                                  \
-        execute_update_connection_password(object,                                               \
-                                           password,                                             \
-                                           password_len,                                         \
-                                           immediate_auth,                                       \
-                                           return_value,                                         \
-                                           Z_OBJCE_P(object));                                   \
+        execute_update_connection_password(                                                      \
+            object, password, password_len, immediate_auth, return_value, Z_OBJCE_P(object));    \
     }
 
 /* Macro for clearConnectionPassword method implementation */
