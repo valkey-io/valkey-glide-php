@@ -145,7 +145,7 @@ class UpdateConnectionPasswordTest extends TestSuite
     }
 
     // Test cluster immediate auth with invalid password fails (server has no password)
-    public function testUpdateConnectionPasswordClusterInvalidPassword()
+    public function testUpdateConnectionPasswordClusterImmediateAuthInvalidPassword()
     {
         $client = $this->createClusterClient();
         
