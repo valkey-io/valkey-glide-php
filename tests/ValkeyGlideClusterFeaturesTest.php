@@ -13,6 +13,13 @@ use ValkeyGlide\OpenTelemetry\TracesConfig;
  */
 class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 {
+    public function __construct($host, $port, $auth, $tls)
+    {
+        parent::__construct($host, $port, $auth, $tls);
+        // Clear OTEL config from standalone tests before running cluster tests
+        ValkeyGlide::clearOpenTelemetry();
+    }
+
     public function testBasicClusterConstructor()
     {
         // Test creating ValkeyGlideCluster with basic configuration
@@ -761,8 +768,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
     public function testOtelClusterConfiguration()
     {
-        // Use same file as standalone test since OTEL is initialized once per process
-        $tracesFile = sys_get_temp_dir() . '/valkey_glide_traces_test.json';
+        $tracesFile = sys_get_temp_dir() . '/valkey_cluster_traces_test.json';
         
         // Clean up any existing trace file
         if (file_exists($tracesFile)) {
@@ -845,8 +851,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
     public function testOtelClusterSamplingPercentage()
     {
-        // Use same file as standalone test since OTEL is initialized once per process
-        $tracesFile = sys_get_temp_dir() . '/valkey_glide_traces_sampling_test.json';
+        $tracesFile = sys_get_temp_dir() . '/valkey_cluster_traces_sampling_test.json';
         
         // Clean up any existing trace file
         if (file_exists($tracesFile)) {

@@ -33,6 +33,14 @@ static struct OpenTelemetryMetricsConfig* parse_metrics_config_object(zval* metr
 struct OpenTelemetryConfig* g_otel_config = NULL;
 
 /**
+ * Clear OpenTelemetry configuration
+ * For testing purposes only - allows re-initialization
+ */
+void valkey_glide_otel_clear(void) {
+    cleanup_otel_config();
+}
+
+/**
  * Initialize OpenTelemetry with the given configuration
  * Can only be initialized once per process
  */

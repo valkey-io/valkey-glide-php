@@ -538,6 +538,12 @@ class ValkeyGlide
 
     public function close(): bool;
 
+    /**
+     * Clear OpenTelemetry configuration (for testing purposes)
+     * Allows re-initialization of OpenTelemetry with different settings
+     */
+    public static function clearOpenTelemetry(): void;
+
 
     /**
      *  Execute the ValkeyGlide CONFIG command in a variety of ways.

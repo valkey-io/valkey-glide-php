@@ -642,6 +642,11 @@ PHP_METHOD(ValkeyGlide, close) {
     /* TODO: Implement ValkeyGlide close */
     RETURN_TRUE;
 }
+
+PHP_METHOD(ValkeyGlide, clearOpenTelemetry) {
+    valkey_glide_otel_clear();
+    RETURN_NULL();
+}
 /* }}} */
 
 /* Basic method stubs - these need to be implemented with ValkeyGlide */
