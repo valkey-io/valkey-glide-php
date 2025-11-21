@@ -394,6 +394,18 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         /* Check for OTEL config */
         zval* otel_config_val = zend_hash_str_find(advanced_ht, "otel", sizeof("otel") - 1);
         if (otel_config_val) {
+            /* Validate that OTEL config is an object, not an array or other type */
+            if (Z_TYPE_P(otel_config_val) != IS_NULL && Z_TYPE_P(otel_config_val) != IS_OBJECT) {
+                VALKEY_LOG_ERROR(
+                    "otel_config",
+                    "OpenTelemetry configuration must be an OpenTelemetryConfig object");
+                zend_throw_exception(
+                    get_exception_ce_for_client_type(is_cluster),
+                    "OpenTelemetry configuration must be an OpenTelemetryConfig object",
+                    0);
+                return;
+            }
+
             VALKEY_LOG_DEBUG("otel_config", "Processing OTEL configuration from advanced_config");
             if (!valkey_glide_otel_init(otel_config_val)) {
                 VALKEY_LOG_ERROR("otel_config", "Failed to initialize OTEL");
@@ -404,6 +416,10 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
                                          0);
                 }
                 return;
+            }
+        } else {
+            if (!config_obj || Z_TYPE_P(config_obj) == IS_NULL) {
+                VALKEY_LOG_DEBUG("otel_init", "No OTEL configuration provided");
             }
         }
     } else {
