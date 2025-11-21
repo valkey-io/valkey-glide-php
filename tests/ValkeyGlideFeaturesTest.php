@@ -968,15 +968,15 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             }
         }
 
+        // Clean up before assertions
+        if (file_exists($tracesFile)) {
+            unlink($tracesFile);
+        }
+
         // Verify expected span names are present
         $this->assertContains('SET', $spanNames, "Should have SET span");
         $this->assertContains('GET', $spanNames, "Should have GET span");
         $this->assertContains('DEL', $spanNames, "Should have DEL span");
-
-        // Clean up
-        if (file_exists($tracesFile)) {
-            unlink($tracesFile);
-        }
     }
 
     public function testOtelSamplingPercentage()
@@ -1024,8 +1024,9 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         // Verify no spans were exported (file should not exist or be empty)
         if (file_exists($tracesFile)) {
-            $this->assertEquals(0, filesize($tracesFile), "Traces file should be empty with 0% sampling");
+            $fileSize = filesize($tracesFile);
             unlink($tracesFile);
+            $this->assertEquals(0, $fileSize, "Traces file should be empty with 0% sampling");
         }
     }
 
@@ -1070,30 +1071,26 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     public function testOtelWithoutConfiguration()
     {
         // Test that client works normally without OpenTelemetry configuration
-        try {
-            $client = new ValkeyGlide(
-                addresses: [
-                    ['host' => 'localhost', 'port' => 6379]
-                ],
-                use_tls: false,
-                credentials: null,
-                read_from: null,
-                request_timeout: null,
-                reconnect_strategy: null,
-                client_name: 'no-otel-test'
-            );
+        $client = new ValkeyGlide(
+            addresses: [
+                ['host' => 'localhost', 'port' => 6379]
+            ],
+            use_tls: false,
+            credentials: null,
+            read_from: null,
+            request_timeout: null,
+            reconnect_strategy: null,
+            client_name: 'no-otel-test'
+        );
 
-            // Operations should work normally without OpenTelemetry
-            $client->set('no:otel:test', 'value');
-            $value = $client->get('no:otel:test');
-            $this->assertEquals('value', $value, "GET should return the set value");
+        // Operations should work normally without OpenTelemetry
+        $client->set('no:otel:test', 'value');
+        $value = $client->get('no:otel:test');
+        $this->assertEquals('value', $value, "GET should return the set value");
 
-            $deleteResult = $client->del('no:otel:test');
-            $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key");
+        $deleteResult = $client->del('no:otel:test');
+        $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key");
 
-            $client->close();
-        } catch (Exception $e) {
-            $this->fail("Client without OpenTelemetry should work normally: " . $e->getMessage());
-        }
+        $client->close();
     }
 }

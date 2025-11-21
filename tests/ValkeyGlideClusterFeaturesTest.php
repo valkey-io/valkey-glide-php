@@ -831,15 +831,15 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             }
         }
 
+        // Clean up before assertions
+        if (file_exists($tracesFile)) {
+            unlink($tracesFile);
+        }
+
         // Verify expected span names are present
         $this->assertContains('SET', $spanNames, "Should have SET span");
         $this->assertContains('GET', $spanNames, "Should have GET span");
         $this->assertContains('DEL', $spanNames, "Should have DEL span");
-
-        // Clean up
-        if (file_exists($tracesFile)) {
-            unlink($tracesFile);
-        }
     }
 
     public function testOtelClusterSamplingPercentage()
@@ -890,8 +890,9 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         // Verify no spans were exported (file should not exist or be empty)
         if (file_exists($tracesFile)) {
-            $this->assertEquals(0, filesize($tracesFile), "Traces file should be empty with 0% sampling");
+            $fileSize = filesize($tracesFile);
             unlink($tracesFile);
+            $this->assertEquals(0, $fileSize, "Traces file should be empty with 0% sampling");
         }
     }
 
@@ -939,32 +940,28 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     public function testOtelClusterWithoutConfiguration()
     {
         // Test that cluster client works normally without OpenTelemetry configuration
-        try {
-            $client = new ValkeyGlideCluster(
-                addresses: [
-                    ['host' => 'localhost', 'port' => 7001],
-                    ['host' => 'localhost', 'port' => 7002],
-                    ['host' => 'localhost', 'port' => 7003]
-                ],
-                use_tls: false,
-                credentials: null,
-                read_from: null,
-                request_timeout: null,
-                reconnect_strategy: null,
-                client_name: 'no-otel-cluster-test'
-            );
+        $client = new ValkeyGlideCluster(
+            addresses: [
+                ['host' => 'localhost', 'port' => 7001],
+                ['host' => 'localhost', 'port' => 7002],
+                ['host' => 'localhost', 'port' => 7003]
+            ],
+            use_tls: false,
+            credentials: null,
+            read_from: null,
+            request_timeout: null,
+            reconnect_strategy: null,
+            client_name: 'no-otel-cluster-test'
+        );
 
-            // Operations should work normally without OpenTelemetry
-            $client->set('no:otel:cluster:test', 'value');
-            $value = $client->get('no:otel:cluster:test');
-            $this->assertEquals('value', $value, "GET should return the set value");
+        // Operations should work normally without OpenTelemetry
+        $client->set('no:otel:cluster:test', 'value');
+        $value = $client->get('no:otel:cluster:test');
+        $this->assertEquals('value', $value, "GET should return the set value");
 
-            $deleteResult = $client->del('no:otel:cluster:test');
-            $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key");
+        $deleteResult = $client->del('no:otel:cluster:test');
+        $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key");
 
-            $client->close();
-        } catch (Exception $e) {
-            $this->fail("Cluster client without OpenTelemetry should work normally: " . $e->getMessage());
-        }
+        $client->close();
     }
 }
