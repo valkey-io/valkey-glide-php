@@ -786,7 +786,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             ],
             use_tls: false,
             credentials: null,
-            read_from: null,
+            read_from: ValkeyGlideCluster::READ_FROM_PRIMARY,
             request_timeout: null,
             reconnect_strategy: null,
             client_name: 'otel-cluster-test',
@@ -803,7 +803,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $this->assertEquals('value', $value, "GET should return the set value with OpenTelemetry");
 
         $deleteResult = $client->del('otel:cluster:test');
-        $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key with OpenTelemetry");
+        $this->assertGT(0, $deleteResult, "DEL should delete the key with OpenTelemetry");
 
         $client->close();
 
@@ -812,7 +812,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         // Verify spans were exported
         $this->assertTrue(file_exists($tracesFile), "Traces file should exist");
-        $this->assertGreaterThan(0, filesize($tracesFile), "Traces file should not be empty");
+        $this->assertGT(0, filesize($tracesFile), "Traces file should not be empty");
 
         // Read and parse the traces file
         $tracesContent = file_get_contents($tracesFile);
@@ -868,7 +868,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             ],
             use_tls: false,
             credentials: null,
-            read_from: null,
+            read_from: ValkeyGlideCluster::READ_FROM_PRIMARY,
             request_timeout: null,
             reconnect_strategy: null,
             client_name: 'otel-cluster-sampling-test',
@@ -918,7 +918,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 ],
                 use_tls: false,
                 credentials: null,
-                read_from: null,
+                read_from: ValkeyGlideCluster::READ_FROM_PRIMARY,
                 request_timeout: null,
                 reconnect_strategy: null,
                 client_name: 'array-otel-cluster-test',
@@ -948,7 +948,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             ],
             use_tls: false,
             credentials: null,
-            read_from: null,
+            read_from: ValkeyGlideCluster::READ_FROM_PRIMARY,
             request_timeout: null,
             reconnect_strategy: null,
             client_name: 'no-otel-cluster-test'
@@ -960,7 +960,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $this->assertEquals('value', $value, "GET should return the set value");
 
         $deleteResult = $client->del('no:otel:cluster:test');
-        $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key");
+        $this->assertGT(0, $deleteResult, "DEL should delete the key");
 
         $client->close();
     }

@@ -924,7 +924,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             ],
             use_tls: false,
             credentials: null,
-            read_from: null,
+            read_from: ValkeyGlide::READ_FROM_PRIMARY,
             request_timeout: null,
             reconnect_strategy: null,
             client_name: 'otel-test-client',
@@ -939,7 +939,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         $this->assertEquals('value', $value, "GET should return the set value with OpenTelemetry");
 
         $deleteResult = $client->del('otel:test');
-        $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key with OpenTelemetry");
+        $this->assertGT(0, $deleteResult, "DEL should delete the key with OpenTelemetry");
 
         $client->close();
 
@@ -948,7 +948,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         // Verify spans were exported
         $this->assertTrue(file_exists($tracesFile), "Traces file should exist");
-        $this->assertGreaterThan(0, filesize($tracesFile), "Traces file should not be empty");
+        $this->assertGT(0, filesize($tracesFile), "Traces file should not be empty");
 
         // Read and parse the traces file
         $tracesContent = file_get_contents($tracesFile);
@@ -1002,7 +1002,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             ],
             use_tls: false,
             credentials: null,
-            read_from: null,
+            read_from: ValkeyGlide::READ_FROM_PRIMARY,
             request_timeout: null,
             reconnect_strategy: null,
             client_name: 'otel-sampling-test',
@@ -1048,7 +1048,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
                 ],
                 use_tls: false,
                 credentials: null,
-                read_from: null,
+                read_from: ValkeyGlide::READ_FROM_PRIMARY,
                 request_timeout: null,
                 reconnect_strategy: null,
                 client_name: 'array-otel-test',
@@ -1074,7 +1074,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             ],
             use_tls: false,
             credentials: null,
-            read_from: null,
+            read_from: ValkeyGlide::READ_FROM_PRIMARY,
             request_timeout: null,
             reconnect_strategy: null,
             client_name: 'no-otel-test'
@@ -1086,7 +1086,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         $this->assertEquals('value', $value, "GET should return the set value");
 
         $deleteResult = $client->del('no:otel:test');
-        $this->assertGreaterThan(0, $deleteResult, "DEL should delete the key");
+        $this->assertGT(0, $deleteResult, "DEL should delete the key");
 
         $client->close();
     }
