@@ -397,9 +397,12 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             VALKEY_LOG_DEBUG("otel_config", "Processing OTEL configuration from advanced_config");
             if (!valkey_glide_otel_init(otel_config_val)) {
                 VALKEY_LOG_ERROR("otel_config", "Failed to initialize OTEL");
-                zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
-                                     "Failed to initialize OpenTelemetry",
-                                     0);
+                /* Exception already thrown by valkey_glide_otel_init if validation failed */
+                if (!EG(exception)) {
+                    zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                                         "Failed to initialize OpenTelemetry",
+                                         0);
+                }
                 return;
             }
         }
