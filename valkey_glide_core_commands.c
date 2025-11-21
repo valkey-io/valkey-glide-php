@@ -25,6 +25,7 @@
 #include <ext/standard/info.h>
 
 #include "command_response.h"
+#include "common.h"
 #include "include/glide_bindings.h"
 #include "logger.h"
 #include "valkey_glide_commands_common.h"
@@ -2159,4 +2160,100 @@ int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_e
     free_command_result(cmd_result);
 
     return ret_val;
+}
+
+
+/* ============================================================================
+ * Password Update Functions
+ * ========================================================================= */
+
+/**
+ * Execute update_connection_password command
+ *
+ * @param object The ValkeyGlide or ValkeyGlideCluster object
+ * @param password The new password (NULL to clear)
+ * @param password_len Length of password
+ * @param immediate_auth Whether to re-authenticate immediately
+ * @param return_value The return value zval
+ * @param ce The class entry
+ */
+void execute_update_connection_password(zval*             object,
+                                        const char*       password,
+                                        size_t            password_len,
+                                        bool              immediate_auth,
+                                        zval*             return_value,
+                                        zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    zend_bool            is_cluster = (ce != NULL && ce == get_valkey_glide_cluster_ce());
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        VALKEY_LOG_ERROR("update_connection_password",
+                         "Invalid client object or client connection handle is NULL");
+        zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                             "Invalid client object or client connection handle is NULL",
+                             0);
+        return;
+    }
+
+    /* Call FFI function */
+    CommandResult* result =
+        update_connection_password(valkey_glide->glide_client,
+                                   0, /* request_id - using 0 for synchronous call */
+                                   password,
+                                   immediate_auth);
+
+    /* Check result */
+    if (!result) {
+        VALKEY_LOG_ERROR("update_connection_password", "FFI call returned NULL result");
+        zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                             "Failed to update connection password",
+                             0);
+        return;
+    }
+
+    /* Check for command error */
+    if (result->command_error) {
+        VALKEY_LOG_ERROR_FMT("update_connection_password",
+                             "Command execution failed with error: %s",
+                             result->command_error->command_error_message
+                                 ? result->command_error->command_error_message
+                                 : "Unknown error");
+        zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                             result->command_error->command_error_message,
+                             0);
+        free_command_result(result);
+        return;
+    }
+
+    if (!result->response) {
+        VALKEY_LOG_ERROR("update_connection_password", "No response received from server");
+        free_command_result(result);
+        zend_throw_exception(
+            get_exception_ce_for_client_type(is_cluster), "No response received from server", 0);
+        return;
+    }
+
+    /* Process response */
+    if (result->response->response_type == Ok) {
+        ZVAL_STRING(return_value, "OK");
+    } else if (result->response->response_type == Error) {
+        VALKEY_LOG_ERROR_FMT(
+            "update_connection_password",
+            "Server returned error: %s",
+            result->response->string_value ? result->response->string_value : "Unknown error");
+        zend_throw_exception(
+            get_exception_ce_for_client_type(is_cluster),
+            result->response->string_value ? result->response->string_value : "Unknown error",
+            0);
+    } else {
+        VALKEY_LOG_ERROR_FMT("update_connection_password",
+                             "Unexpected response type: %d",
+                             result->response->response_type);
+        zend_throw_exception(
+            get_exception_ce_for_client_type(is_cluster), "Unexpected response from server", 0);
+    }
+
+    free_command_result(result);
 }

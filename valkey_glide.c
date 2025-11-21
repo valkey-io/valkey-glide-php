@@ -13,6 +13,7 @@
 #include "valkey_glide_arginfo.h"          // Include generated arginfo header
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_core_common.h"
 #include "valkey_glide_hash_common.h"
 #include "valkey_glide_otel.h"  // Include OTEL support
 
@@ -647,6 +648,17 @@ PHP_METHOD(ValkeyGlide, clearOpenTelemetry) {
     valkey_glide_otel_clear();
     RETURN_NULL();
 }
+/* }}} */
+
+/* {{{ proto string ValkeyGlide::updateConnectionPassword(string $password, bool $immediateAuth =
+ * false)
+ */
+UPDATE_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string ValkeyGlide::clearConnectionPassword(bool $immediateAuth = false)
+ */
+CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
 /* Basic method stubs - these need to be implemented with ValkeyGlide */

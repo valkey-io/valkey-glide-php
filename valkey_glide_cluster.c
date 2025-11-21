@@ -14,6 +14,7 @@
 #include "ext/standard/info.h"
 #include "logger.h"
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_core_common.h"
 #include "valkey_glide_geo_common.h"
 #include "valkey_glide_hash_common.h" /* Include hash command framework */
 #include "valkey_glide_list_common.h"
@@ -904,6 +905,18 @@ SELECT_METHOD_IMPL(ValkeyGlideCluster)
 
 /* {{{ proto boolean ValkeyGlideCluster::move(string key, int dbindex) */
 MOVE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+
+/* {{{ proto string ValkeyGlideCluster::updateConnectionPassword(string $password, bool
+ * $immediateAuth = false)
+ */
+UPDATE_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string ValkeyGlideCluster::clearConnectionPassword(bool $immediateAuth = false)
+ */
+CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 COPY_METHOD_IMPL(ValkeyGlideCluster)
