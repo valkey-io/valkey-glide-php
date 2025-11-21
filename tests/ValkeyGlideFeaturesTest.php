@@ -952,7 +952,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         // Read and parse the traces file
         $tracesContent = file_get_contents($tracesFile);
-        $this->assertNotEmpty($tracesContent, "Traces file should have content");
+        $this->assertGT(0, strlen($tracesContent), "Traces file should have content");
 
         // Parse JSON lines (each line is a separate JSON object)
         $lines = explode("\n", trim($tracesContent));
