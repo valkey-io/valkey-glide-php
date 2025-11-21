@@ -761,7 +761,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
     public function testOtelClusterConfiguration()
     {
-        $tracesFile = sys_get_temp_dir() . '/valkey_cluster_traces_test.json';
+        // Use same file as standalone test since OTEL is initialized once per process
+        $tracesFile = sys_get_temp_dir() . '/valkey_glide_traces_test.json';
         
         // Clean up any existing trace file
         if (file_exists($tracesFile)) {
@@ -844,7 +845,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
     public function testOtelClusterSamplingPercentage()
     {
-        $tracesFile = sys_get_temp_dir() . '/valkey_cluster_traces_sampling_test.json';
+        // Use same file as standalone test since OTEL is initialized once per process
+        $tracesFile = sys_get_temp_dir() . '/valkey_glide_traces_sampling_test.json';
         
         // Clean up any existing trace file
         if (file_exists($tracesFile)) {
