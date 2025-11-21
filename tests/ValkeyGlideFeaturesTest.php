@@ -1060,7 +1060,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->fail("Array-based OpenTelemetry configuration should be rejected");
         } catch (Exception $e) {
             // Verify the error message indicates object is required
-            $this->assertStringContainsString("OpenTelemetryConfig object", $e->getMessage(),
+            $this->assertStringContains("OpenTelemetryConfig object", $e->getMessage(),
                 "Error should indicate OpenTelemetryConfig object is required");
         }
     }
