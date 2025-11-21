@@ -32,9 +32,6 @@ static struct OpenTelemetryMetricsConfig* parse_metrics_config_object(zval* metr
 /* Global OTEL configuration */
 struct OpenTelemetryConfig* g_otel_config = NULL;
 
-/* Sentinel value for invalid/uninitialized sample percentage */
-#define OTEL_SAMPLE_PERCENTAGE_INVALID -1
-
 /**
  * Initialize OpenTelemetry with the given configuration
  * Can only be initialized once per process
@@ -292,29 +289,10 @@ static void cleanup_otel_config(void) {
     g_otel_config = NULL;
 }
 
-static bool valkey_glide_otel_is_initialized(void) {
-    return g_otel_config != NULL;
-}
-
-static int32_t valkey_glide_otel_get_sample_percentage(void) {
-    if (!g_otel_config || !g_otel_config->traces) {
-        return OTEL_SAMPLE_PERCENTAGE_INVALID;
-    }
-    return (int32_t) g_otel_config->traces->sample_percentage;
-}
-
-static bool valkey_glide_otel_set_sample_percentage(uint32_t percentage) {
-    if (!g_otel_config || !g_otel_config->traces) {
-        return false;  // Not initialized or no traces config
-    }
-
-    // Cast away const to modify - we own this memory
-    ((struct OpenTelemetryTracesConfig*) g_otel_config->traces)->sample_percentage = percentage;
-    return true;
-}
-
 static bool valkey_glide_otel_should_sample(void) {
-    int32_t percentage = valkey_glide_otel_get_sample_percentage();
-    return percentage != OTEL_SAMPLE_PERCENTAGE_INVALID && percentage > 0 &&
-           (percentage == 100 || (rand() % 100) < percentage);
+    if (!g_otel_config || !g_otel_config->traces) {
+        return false;
+    }
+    uint32_t percentage = g_otel_config->traces->sample_percentage;
+    return percentage > 0 && (percentage == 100 || (rand() % 100) < percentage);
 }
