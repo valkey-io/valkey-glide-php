@@ -928,7 +928,6 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             request_timeout: null,
             reconnect_strategy: null,
             client_name: 'otel-test-client',
-            periodic_checks: null,
             advanced_config: [
                 'otel' => $otelConfig
             ]
@@ -1007,7 +1006,6 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             request_timeout: null,
             reconnect_strategy: null,
             client_name: 'otel-sampling-test',
-            periodic_checks: null,
             advanced_config: [
                 'otel' => $otelConfig
             ]
@@ -1054,7 +1052,6 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
                 request_timeout: null,
                 reconnect_strategy: null,
                 client_name: 'array-otel-test',
-                periodic_checks: null,
                 advanced_config: [
                     'otel' => $arrayConfig
                 ]
