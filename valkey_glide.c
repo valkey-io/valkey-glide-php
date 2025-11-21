@@ -417,10 +417,6 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
                 }
                 return;
             }
-        } else {
-            if (!config_obj || Z_TYPE_P(config_obj) == IS_NULL) {
-                VALKEY_LOG_DEBUG("otel_init", "No OTEL configuration provided");
-            }
         }
     } else {
         config->advanced_config = NULL;
