@@ -74,12 +74,12 @@ define('VALKEY_GLIDE_PHP_TESTRUN', true);
 
 require_once __DIR__ . "/TestSuite.php";
 require_once __DIR__ . "/ConnectionRequestTest.php";
-require_once __DIR__ . "/../OpenTelemetry/OpenTelemetryConfig.php";
-require_once __DIR__ . "/../OpenTelemetry/OpenTelemetryConfigBuilder.php";
-require_once __DIR__ . "/../OpenTelemetry/TracesConfig.php";
-require_once __DIR__ . "/../OpenTelemetry/TracesConfigBuilder.php";
-require_once __DIR__ . "/../OpenTelemetry/MetricsConfig.php";
-require_once __DIR__ . "/../OpenTelemetry/MetricsConfigBuilder.php";
+require_once __DIR__ . "/../OpenTelemetryConfig.php";
+require_once __DIR__ . "/../OpenTelemetryConfigBuilder.php";
+require_once __DIR__ . "/../TracesConfig.php";
+require_once __DIR__ . "/../TracesConfigBuilder.php";
+require_once __DIR__ . "/../MetricsConfig.php";
+require_once __DIR__ . "/../MetricsConfigBuilder.php";
 require_once __DIR__ . "/ValkeyGlideBaseTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterBaseTest.php";
 require_once __DIR__ . "/ValkeyGlideTest.php";
