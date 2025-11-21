@@ -28,7 +28,8 @@
     },
     "autoload": {
         "psr-4": {
-            "ValkeyGlide\\": "src/"
+            "ValkeyGlide\\": "src/",
+            "ValkeyGlide\\OpenTelemetry\\": "OpenTelemetry/"
         }
     },
     "scripts": {
