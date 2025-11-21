@@ -18,16 +18,8 @@
 #include "include/glide_bindings.h"
 #include "php.h"
 
-/* OTEL configuration structure for PHP */
-typedef struct {
-    bool                               enabled;
-    struct OpenTelemetryConfig*        config;
-    struct OpenTelemetryTracesConfig*  traces_config;
-    struct OpenTelemetryMetricsConfig* metrics_config;
-} valkey_glide_otel_config_t;
-
 /* Global OTEL configuration */
-extern valkey_glide_otel_config_t g_otel_config;
+extern struct OpenTelemetryConfig* g_otel_config;
 
 /* Function declarations */
 int      valkey_glide_otel_init(zval* config_obj);

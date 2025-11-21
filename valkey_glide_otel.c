@@ -23,16 +23,14 @@
 #include "logger.h"
 
 /* Forward declarations for static functions */
-static void cleanup_otel_config(valkey_glide_otel_config_t* config);
-static bool valkey_glide_otel_should_sample(void);
-static int  parse_otel_config(zval* config_obj, valkey_glide_otel_config_t* otel_config);
-static int  parse_otel_config_object(zval* config_obj, valkey_glide_otel_config_t* otel_config);
-static int  parse_traces_config_object(zval* traces_obj, valkey_glide_otel_config_t* otel_config);
-static int  parse_metrics_config_object(zval* metrics_obj, valkey_glide_otel_config_t* otel_config);
+static void                               cleanup_otel_config(void);
+static bool                               valkey_glide_otel_should_sample(void);
+static struct OpenTelemetryConfig*        parse_otel_config(zval* config_obj);
+static struct OpenTelemetryTracesConfig*  parse_traces_config_object(zval* traces_obj);
+static struct OpenTelemetryMetricsConfig* parse_metrics_config_object(zval* metrics_obj);
 
 /* Global OTEL configuration */
-valkey_glide_otel_config_t g_otel_config      = {0};
-static bool                g_otel_initialized = false;
+struct OpenTelemetryConfig* g_otel_config = NULL;
 
 /* Sentinel value for invalid/uninitialized sample percentage */
 #define OTEL_SAMPLE_PERCENTAGE_INVALID -1
@@ -42,7 +40,7 @@ static bool                g_otel_initialized = false;
  * Can only be initialized once per process
  */
 int valkey_glide_otel_init(zval* config_obj) {
-    if (g_otel_initialized) {
+    if (g_otel_config) {
         VALKEY_LOG_WARN("otel_init",
                         "OpenTelemetry already initialized, ignoring subsequent calls");
         return 1; /* Success - already initialized */
@@ -54,38 +52,32 @@ int valkey_glide_otel_init(zval* config_obj) {
     }
 
     /* Parse configuration */
-    if (!parse_otel_config(config_obj, &g_otel_config)) {
+    g_otel_config = parse_otel_config(config_obj);
+    if (!g_otel_config) {
         VALKEY_LOG_ERROR("otel_init", "Failed to parse OTEL configuration");
-        cleanup_otel_config(&g_otel_config);
         return 0;
     }
 
     /* Initialize OTEL with Rust FFI */
-    const char* error = init_open_telemetry(g_otel_config.config);
+    const char* error = init_open_telemetry(g_otel_config);
     if (error) {
         VALKEY_LOG_ERROR_FMT("otel_init", "Failed to initialize OTEL: %s", error);
         free_c_string((char*) error);
-        cleanup_otel_config(&g_otel_config);
+        cleanup_otel_config();
         return 0;
     }
 
-    g_otel_config.enabled = true;
-    g_otel_initialized    = true;
     VALKEY_LOG_INFO("otel_init", "OpenTelemetry initialized successfully");
     return 1;
 }
 
 /**
- * Shutdown OpenTelemetry
- */
-/**
  * Shutdown OpenTelemetry and cleanup configuration.
  * For testing purposes only - allows resetting OTEL state between tests.
  */
 static void valkey_glide_otel_shutdown(void) {
-    if (g_otel_config.enabled) {
-        cleanup_otel_config(&g_otel_config);
-        g_otel_initialized = false;
+    if (g_otel_config) {
+        cleanup_otel_config();
         VALKEY_LOG_INFO("otel_shutdown", "OpenTelemetry shutdown complete");
     }
 }
@@ -94,7 +86,7 @@ static void valkey_glide_otel_shutdown(void) {
  * Create a span for command tracing
  */
 uint64_t valkey_glide_create_span(enum RequestType request_type) {
-    if (!g_otel_config.enabled) {
+    if (!g_otel_config) {
         return 0;
     }
     if (!valkey_glide_otel_should_sample()) {
@@ -115,36 +107,32 @@ void valkey_glide_drop_span(uint64_t span_ptr) {
 /**
  * Parse OTEL configuration from OpenTelemetryConfig object
  */
-static int parse_otel_config(zval* config_obj, valkey_glide_otel_config_t* otel_config) {
+static struct OpenTelemetryConfig* parse_otel_config(zval* config_obj) {
     if (Z_TYPE_P(config_obj) != IS_OBJECT) {
         VALKEY_LOG_ERROR("otel_config",
                          "OpenTelemetry configuration must be an OpenTelemetryConfig object");
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "OpenTelemetry configuration must be an OpenTelemetryConfig object",
                              0);
-        return 0;
+        return NULL;
     }
 
-    return parse_otel_config_object(config_obj, otel_config);
-}
-
-/**
- * Parse OTEL configuration from OpenTelemetryConfig object
- */
-static int parse_otel_config_object(zval* config_obj, valkey_glide_otel_config_t* otel_config) {
-    zval    method_name, retval, *traces_obj, *metrics_obj;
-    int64_t flush_interval_ms  = 0;
-    bool    has_flush_interval = false;
+    zval                               method_name, retval, *traces_obj, *metrics_obj;
+    int64_t                            flush_interval_ms  = 0;
+    bool                               has_flush_interval = false;
+    struct OpenTelemetryTracesConfig*  traces_config      = NULL;
+    struct OpenTelemetryMetricsConfig* metrics_config     = NULL;
 
     // Get traces configuration
     ZVAL_STRING(&method_name, "getTraces");
     if (call_user_function(NULL, config_obj, &method_name, &retval, 0, NULL) == SUCCESS) {
         if (Z_TYPE(retval) == IS_OBJECT) {
-            traces_obj = &retval;
-            if (!parse_traces_config_object(traces_obj, otel_config)) {
+            traces_obj    = &retval;
+            traces_config = parse_traces_config_object(traces_obj);
+            if (!traces_config) {
                 zval_dtor(&method_name);
                 zval_dtor(&retval);
-                return 0;
+                return NULL;
             }
         }
         zval_dtor(&retval);
@@ -155,11 +143,18 @@ static int parse_otel_config_object(zval* config_obj, valkey_glide_otel_config_t
     ZVAL_STRING(&method_name, "getMetrics");
     if (call_user_function(NULL, config_obj, &method_name, &retval, 0, NULL) == SUCCESS) {
         if (Z_TYPE(retval) == IS_OBJECT) {
-            metrics_obj = &retval;
-            if (!parse_metrics_config_object(metrics_obj, otel_config)) {
+            metrics_obj    = &retval;
+            metrics_config = parse_metrics_config_object(metrics_obj);
+            if (!metrics_config) {
+                if (traces_config) {
+                    if (traces_config->endpoint) {
+                        efree((void*) traces_config->endpoint);
+                    }
+                    efree(traces_config);
+                }
                 zval_dtor(&method_name);
                 zval_dtor(&retval);
-                return 0;
+                return NULL;
             }
         }
         zval_dtor(&retval);
@@ -178,30 +173,28 @@ static int parse_otel_config_object(zval* config_obj, valkey_glide_otel_config_t
     zval_dtor(&method_name);
 
     // Validate at least one config is provided
-    if (!otel_config->traces_config && !otel_config->metrics_config) {
+    if (!traces_config && !metrics_config) {
         VALKEY_LOG_ERROR("otel_config", "At least one of traces or metrics must be provided");
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "At least one of traces or metrics must be provided",
                              0);
-        return 0;
+        return NULL;
     }
 
     // Create main FFI config struct
     struct OpenTelemetryConfig* main_config = emalloc(sizeof(struct OpenTelemetryConfig));
-    main_config->traces                     = otel_config->traces_config;
-    main_config->metrics                    = otel_config->metrics_config;
+    main_config->traces                     = traces_config;
+    main_config->metrics                    = metrics_config;
     main_config->has_flush_interval_ms      = has_flush_interval;
     main_config->flush_interval_ms          = flush_interval_ms;
 
-    otel_config->config = main_config;
-
-    return 1;
+    return main_config;
 }
 
 /**
  * Parse traces configuration from TracesConfig object
  */
-static int parse_traces_config_object(zval* traces_obj, valkey_glide_otel_config_t* otel_config) {
+static struct OpenTelemetryTracesConfig* parse_traces_config_object(zval* traces_obj) {
     zval  method_name, retval;
     char* endpoint              = NULL;
     int   sample_percentage     = 0;
@@ -230,7 +223,7 @@ static int parse_traces_config_object(zval* traces_obj, valkey_glide_otel_config
 
     if (!endpoint) {
         VALKEY_LOG_ERROR("otel_config", "Traces endpoint is required");
-        return 0;
+        return NULL;
     }
 
     // Allocate and populate FFI traces config struct
@@ -240,15 +233,13 @@ static int parse_traces_config_object(zval* traces_obj, valkey_glide_otel_config
     traces_config->has_sample_percentage = has_sample_percentage;
     traces_config->sample_percentage     = (uint32_t) sample_percentage;
 
-    otel_config->traces_config = traces_config;
-
-    return 1;
+    return traces_config;
 }
 
 /**
  * Parse metrics configuration from MetricsConfig object
  */
-static int parse_metrics_config_object(zval* metrics_obj, valkey_glide_otel_config_t* otel_config) {
+static struct OpenTelemetryMetricsConfig* parse_metrics_config_object(zval* metrics_obj) {
     zval  method_name, retval;
     char* endpoint = NULL;
 
@@ -264,7 +255,7 @@ static int parse_metrics_config_object(zval* metrics_obj, valkey_glide_otel_conf
 
     if (!endpoint) {
         VALKEY_LOG_ERROR("otel_config", "Metrics endpoint is required");
-        return 0;
+        return NULL;
     }
 
     // Allocate and populate FFI metrics config struct
@@ -272,61 +263,53 @@ static int parse_metrics_config_object(zval* metrics_obj, valkey_glide_otel_conf
         emalloc(sizeof(struct OpenTelemetryMetricsConfig));
     metrics_config->endpoint = endpoint;  // Transfer ownership
 
-    otel_config->metrics_config = metrics_config;
-
-    return 1;
+    return metrics_config;
 }
 
 /**
  * Cleanup OTEL configuration
  */
-static void cleanup_otel_config(valkey_glide_otel_config_t* otel_config) {
-    if (otel_config->traces_config) {
-        if (otel_config->traces_config->endpoint) {
-            efree((void*) otel_config->traces_config->endpoint);
-            otel_config->traces_config->endpoint = NULL;
+static void cleanup_otel_config(void) {
+    if (!g_otel_config) {
+        return;
+    }
+
+    if (g_otel_config->traces) {
+        if (g_otel_config->traces->endpoint) {
+            efree((void*) g_otel_config->traces->endpoint);
         }
-        efree(otel_config->traces_config);
-        otel_config->traces_config = NULL;
+        efree((void*) g_otel_config->traces);
     }
 
-    if (otel_config->metrics_config) {
-        if (otel_config->metrics_config->endpoint) {
-            efree((void*) otel_config->metrics_config->endpoint);
-            otel_config->metrics_config->endpoint = NULL;
+    if (g_otel_config->metrics) {
+        if (g_otel_config->metrics->endpoint) {
+            efree((void*) g_otel_config->metrics->endpoint);
         }
-        efree(otel_config->metrics_config);
-        otel_config->metrics_config = NULL;
+        efree((void*) g_otel_config->metrics);
     }
 
-    if (otel_config->config) {
-        /* Reset pointers to avoid double-free */
-        otel_config->config->traces  = NULL;
-        otel_config->config->metrics = NULL;
-        efree(otel_config->config);
-        otel_config->config = NULL;
-    }
-
-    otel_config->enabled = false;
+    efree(g_otel_config);
+    g_otel_config = NULL;
 }
 
 static bool valkey_glide_otel_is_initialized(void) {
-    return g_otel_config.enabled;
+    return g_otel_config != NULL;
 }
 
 static int32_t valkey_glide_otel_get_sample_percentage(void) {
-    if (!g_otel_config.enabled || !g_otel_config.traces_config) {
+    if (!g_otel_config || !g_otel_config->traces) {
         return OTEL_SAMPLE_PERCENTAGE_INVALID;
     }
-    return (int32_t) g_otel_config.traces_config->sample_percentage;
+    return (int32_t) g_otel_config->traces->sample_percentage;
 }
 
 static bool valkey_glide_otel_set_sample_percentage(uint32_t percentage) {
-    if (!g_otel_config.enabled || !g_otel_config.traces_config) {
+    if (!g_otel_config || !g_otel_config->traces) {
         return false;  // Not initialized or no traces config
     }
 
-    g_otel_config.traces_config->sample_percentage = percentage;
+    // Cast away const to modify - we own this memory
+    ((struct OpenTelemetryTracesConfig*) g_otel_config->traces)->sample_percentage = percentage;
     return true;
 }
 
