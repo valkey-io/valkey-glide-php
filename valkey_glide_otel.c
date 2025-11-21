@@ -43,9 +43,18 @@ int valkey_glide_otel_init(zval* config_obj) {
         return 1; /* Success - already initialized */
     }
 
-    if (!config_obj || Z_TYPE_P(config_obj) != IS_OBJECT) {
+    if (!config_obj || Z_TYPE_P(config_obj) == IS_NULL) {
         VALKEY_LOG_DEBUG("otel_init", "No OTEL configuration provided");
         return 1; /* Success - OTEL is optional */
+    }
+
+    if (Z_TYPE_P(config_obj) != IS_OBJECT) {
+        VALKEY_LOG_ERROR("otel_init",
+                         "OpenTelemetry configuration must be an OpenTelemetryConfig object");
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "OpenTelemetry configuration must be an OpenTelemetryConfig object",
+                             0);
+        return 0;
     }
 
     /* Parse configuration */
