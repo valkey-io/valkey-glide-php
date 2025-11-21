@@ -102,6 +102,18 @@ void valkey_glide_drop_span(uint64_t span_ptr) {
 }
 
 /**
+ * Helper function to call a method on an object and return the result
+ * Caller is responsible for cleaning up retval if function returns true
+ */
+static bool call_method(zval* obj, const char* method_name, zval* retval) {
+    zval method_name_zval;
+    ZVAL_STRING(&method_name_zval, method_name);
+    bool success = call_user_function(NULL, obj, &method_name_zval, retval, 0, NULL) == SUCCESS;
+    zval_dtor(&method_name_zval);
+    return success;
+}
+
+/**
  * Parse OTEL configuration from OpenTelemetryConfig object
  */
 static struct OpenTelemetryConfig* parse_otel_config(zval* config_obj) {
@@ -114,31 +126,27 @@ static struct OpenTelemetryConfig* parse_otel_config(zval* config_obj) {
         return NULL;
     }
 
-    zval                               method_name, retval, *traces_obj, *metrics_obj;
+    zval                               retval, *traces_obj, *metrics_obj;
     int64_t                            flush_interval_ms  = 0;
     bool                               has_flush_interval = false;
     struct OpenTelemetryTracesConfig*  traces_config      = NULL;
     struct OpenTelemetryMetricsConfig* metrics_config     = NULL;
 
     // Get traces configuration
-    ZVAL_STRING(&method_name, "getTraces");
-    if (call_user_function(NULL, config_obj, &method_name, &retval, 0, NULL) == SUCCESS) {
+    if (call_method(config_obj, "getTraces", &retval)) {
         if (Z_TYPE(retval) == IS_OBJECT) {
             traces_obj    = &retval;
             traces_config = parse_traces_config_object(traces_obj);
             if (!traces_config) {
-                zval_dtor(&method_name);
                 zval_dtor(&retval);
                 return NULL;
             }
         }
         zval_dtor(&retval);
     }
-    zval_dtor(&method_name);
 
     // Get metrics configuration
-    ZVAL_STRING(&method_name, "getMetrics");
-    if (call_user_function(NULL, config_obj, &method_name, &retval, 0, NULL) == SUCCESS) {
+    if (call_method(config_obj, "getMetrics", &retval)) {
         if (Z_TYPE(retval) == IS_OBJECT) {
             metrics_obj    = &retval;
             metrics_config = parse_metrics_config_object(metrics_obj);
@@ -149,25 +157,21 @@ static struct OpenTelemetryConfig* parse_otel_config(zval* config_obj) {
                     }
                     efree(traces_config);
                 }
-                zval_dtor(&method_name);
                 zval_dtor(&retval);
                 return NULL;
             }
         }
         zval_dtor(&retval);
     }
-    zval_dtor(&method_name);
 
     // Get flush interval
-    ZVAL_STRING(&method_name, "getFlushIntervalMs");
-    if (call_user_function(NULL, config_obj, &method_name, &retval, 0, NULL) == SUCCESS) {
+    if (call_method(config_obj, "getFlushIntervalMs", &retval)) {
         if (Z_TYPE(retval) == IS_LONG) {
             flush_interval_ms  = Z_LVAL(retval);
             has_flush_interval = true;
         }
         zval_dtor(&retval);
     }
-    zval_dtor(&method_name);
 
     // Validate at least one config is provided
     if (!traces_config && !metrics_config) {
@@ -192,31 +196,27 @@ static struct OpenTelemetryConfig* parse_otel_config(zval* config_obj) {
  * Parse traces configuration from TracesConfig object
  */
 static struct OpenTelemetryTracesConfig* parse_traces_config_object(zval* traces_obj) {
-    zval  method_name, retval;
+    zval  retval;
     char* endpoint              = NULL;
     int   sample_percentage     = 0;
     bool  has_sample_percentage = false;
 
     // Get endpoint
-    ZVAL_STRING(&method_name, "getEndpoint");
-    if (call_user_function(NULL, traces_obj, &method_name, &retval, 0, NULL) == SUCCESS) {
+    if (call_method(traces_obj, "getEndpoint", &retval)) {
         if (Z_TYPE(retval) == IS_STRING) {
             endpoint = estrdup(Z_STRVAL(retval));
         }
         zval_dtor(&retval);
     }
-    zval_dtor(&method_name);
 
     // Get sample percentage
-    ZVAL_STRING(&method_name, "getSamplePercentage");
-    if (call_user_function(NULL, traces_obj, &method_name, &retval, 0, NULL) == SUCCESS) {
+    if (call_method(traces_obj, "getSamplePercentage", &retval)) {
         if (Z_TYPE(retval) == IS_LONG) {
             sample_percentage     = (int) Z_LVAL(retval);
             has_sample_percentage = true;
         }
         zval_dtor(&retval);
     }
-    zval_dtor(&method_name);
 
     if (!endpoint) {
         VALKEY_LOG_ERROR("otel_config", "Traces endpoint is required");
@@ -237,18 +237,16 @@ static struct OpenTelemetryTracesConfig* parse_traces_config_object(zval* traces
  * Parse metrics configuration from MetricsConfig object
  */
 static struct OpenTelemetryMetricsConfig* parse_metrics_config_object(zval* metrics_obj) {
-    zval  method_name, retval;
+    zval  retval;
     char* endpoint = NULL;
 
     // Get endpoint
-    ZVAL_STRING(&method_name, "getEndpoint");
-    if (call_user_function(NULL, metrics_obj, &method_name, &retval, 0, NULL) == SUCCESS) {
+    if (call_method(metrics_obj, "getEndpoint", &retval)) {
         if (Z_TYPE(retval) == IS_STRING) {
             endpoint = estrdup(Z_STRVAL(retval));
         }
         zval_dtor(&retval);
     }
-    zval_dtor(&method_name);
 
     if (!endpoint) {
         VALKEY_LOG_ERROR("otel_config", "Metrics endpoint is required");
