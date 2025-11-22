@@ -1090,4 +1090,16 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         $client->close();
     }
+
+    public function testOtelDefaultSamplePercentage()
+    {
+        // Test that sample percentage defaults to 1 in PHP builder (matching C# and Java)
+        $tracesConfig = TracesConfig::builder()
+            ->endpoint('file:///tmp/test_traces.json')
+            ->build();
+
+        // Verify default sample percentage is 1
+        $this->assertEquals(1, $tracesConfig->getSamplePercentage(), 
+            "Sample percentage should default to 1 when not specified");
+    }
 }

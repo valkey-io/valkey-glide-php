@@ -644,12 +644,6 @@ PHP_METHOD(ValkeyGlide, close) {
     RETURN_TRUE;
 }
 
-PHP_METHOD(ValkeyGlide, clearOpenTelemetry) {
-    valkey_glide_otel_clear();
-    RETURN_NULL();
-}
-/* }}} */
-
 /* {{{ proto string ValkeyGlide::updateConnectionPassword(string $password, bool $immediateAuth =
  * false)
  */

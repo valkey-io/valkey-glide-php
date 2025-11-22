@@ -539,12 +539,6 @@ class ValkeyGlide
     public function close(): bool;
 
     /**
-     * Clear OpenTelemetry configuration (for testing purposes)
-     * Allows re-initialization of OpenTelemetry with different settings
-     */
-    public static function clearOpenTelemetry(): void;
-  
-    /**
      * Update the connection password.
      *
      * @param string $password The new password to set
