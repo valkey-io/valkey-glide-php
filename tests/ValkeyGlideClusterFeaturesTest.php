@@ -981,14 +981,16 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
     public function testOtelClusterSetSamplePercentage()
     {
-        $tracesFile = sys_get_temp_dir() . '/valkey_glide_cluster_set_sample_test.json';
+        // Use the same trace file as other OTEL tests since OTEL can only be initialized once per process
+        $tracesFile = sys_get_temp_dir() . '/valkey_glide_traces_test.json';
         
         // Clean up any existing trace file
         if (file_exists($tracesFile)) {
             unlink($tracesFile);
         }
 
-        // Initialize with 100% sampling
+        // Note: If OTEL was already initialized by a previous test, this config will be ignored
+        // but we still need to pass it for the client constructor
         $otelConfig = OpenTelemetryConfig::builder()
             ->traces(
                 TracesConfig::builder()
@@ -1015,6 +1017,9 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 'otel' => $otelConfig
             ]
         );
+
+        // Set to 100% sampling
+        ValkeyGlide::setOtelSamplePercentage(100);
 
         // Execute a command with 100% sampling
         $client->set('otel:cluster:sample:test1', 'value1');
