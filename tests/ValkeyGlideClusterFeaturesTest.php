@@ -801,12 +801,6 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             ]
         );
 
-        // Disable RDB persistence to prevent MISCONF errors in CI
-        try {
-            $client->configSet(['stop-writes-on-bgsave-error' => 'no'], 'allNodes');
-        } catch (Exception $e) {
-            // Ignore if CONFIG command fails (might not have permission)
-        }
 
         // Execute commands that should generate spans
         $client->set('otel:cluster:test', 'value');
