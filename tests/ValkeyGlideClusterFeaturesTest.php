@@ -761,6 +761,9 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
     public function testOtelClusterConfiguration()
     {
+        // Wait for any pending flushes from previous tests to complete
+        usleep(300000); // 300ms
+
         // Use same file as standalone since OTEL can only be initialized once per process
         $tracesFile = sys_get_temp_dir() . '/valkey_glide_traces_test.json';
         
@@ -814,6 +817,9 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         // Verify spans were exported
         $this->assertTrue(file_exists($tracesFile), "Traces file should exist");
         $this->assertGT(0, filesize($tracesFile), "Traces file should not be empty");
+
+        // Additional delay to ensure all spans are fully written
+        usleep(200000); // 200ms
 
         // Read and parse the traces file
         $tracesContent = file_get_contents($tracesFile);
