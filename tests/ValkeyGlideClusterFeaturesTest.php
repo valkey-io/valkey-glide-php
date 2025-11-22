@@ -772,6 +772,9 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             unlink($tracesFile);
         }
 
+        // Ensure 100% sampling (OTEL may already be initialized from previous tests)
+        ValkeyGlide::setOtelSamplePercentage(100);
+
         // Test with 100% sampling to ensure spans are exported
         $otelConfig = OpenTelemetryConfig::builder()
             ->traces(TracesConfig::builder()
