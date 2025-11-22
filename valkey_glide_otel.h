@@ -23,6 +23,7 @@ extern struct OpenTelemetryConfig* g_otel_config;
 
 /* Function declarations */
 int      valkey_glide_otel_init(zval* config_obj);
+void     valkey_glide_otel_set_sample_percentage(uint32_t percentage);
 uint64_t valkey_glide_create_span(enum RequestType request_type);
 void     valkey_glide_drop_span(uint64_t span_ptr);
 

@@ -64,6 +64,36 @@ int valkey_glide_otel_init(zval* config_obj) {
 }
 
 /**
+ * Set the OpenTelemetry sample percentage at runtime
+ * Updates the PHP/C side configuration
+ */
+void valkey_glide_otel_set_sample_percentage(uint32_t percentage) {
+    if (!g_otel_config || !g_otel_config->traces) {
+        VALKEY_LOG_ERROR("otel_set_sample",
+                         "OpenTelemetry not initialized or traces not configured");
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "OpenTelemetry not initialized or traces not configured",
+                             0);
+        return;
+    }
+
+    if (percentage > 100) {
+        VALKEY_LOG_ERROR_FMT(
+            "otel_set_sample", "Sample percentage must be 0-100, got %u", percentage);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "Sample percentage must be between 0 and 100", 0);
+        return;
+    }
+
+    /* Cast away const to modify the sample_percentage field */
+    struct OpenTelemetryTracesConfig* mutable_traces =
+        (struct OpenTelemetryTracesConfig*) g_otel_config->traces;
+    mutable_traces->sample_percentage = percentage;
+
+    VALKEY_LOG_DEBUG_FMT("otel_set_sample", "Sample percentage updated to %u", percentage);
+}
+
+/**
  * Shutdown OpenTelemetry and cleanup configuration.
  * For testing purposes only - allows resetting OTEL state between tests.
  */

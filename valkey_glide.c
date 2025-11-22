@@ -644,6 +644,17 @@ PHP_METHOD(ValkeyGlide, close) {
     RETURN_TRUE;
 }
 
+PHP_METHOD(ValkeyGlide, setOtelSamplePercentage) {
+    zend_long percentage;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(percentage)
+    ZEND_PARSE_PARAMETERS_END();
+
+    valkey_glide_otel_set_sample_percentage((uint32_t) percentage);
+}
+/* }}} */
+
 /* {{{ proto string ValkeyGlide::updateConnectionPassword(string $password, bool $immediateAuth =
  * false)
  */

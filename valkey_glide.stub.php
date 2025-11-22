@@ -539,6 +539,14 @@ class ValkeyGlide
     public function close(): bool;
 
     /**
+     * Set the OpenTelemetry sample percentage at runtime.
+     * 
+     * @param int $percentage The sample percentage (0-100)
+     * @throws Exception if OpenTelemetry is not initialized or percentage is invalid
+     */
+    public static function setOtelSamplePercentage(int $percentage): void;
+
+    /**
      * Update the connection password.
      *
      * @param string $password The new password to set
