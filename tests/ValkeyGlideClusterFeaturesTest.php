@@ -801,6 +801,13 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             ]
         );
 
+        // Disable RDB persistence to prevent MISCONF errors in CI
+        try {
+            $client->configSet(['stop-writes-on-bgsave-error' => 'no'], 'allNodes');
+        } catch (Exception $e) {
+            // Ignore if CONFIG command fails (might not have permission)
+        }
+
         // Execute commands that should generate spans
         $client->set('otel:cluster:test', 'value');
         $value = $client->get('otel:cluster:test');
@@ -838,15 +845,15 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             }
         }
 
-        // Clean up before assertions
-        if (file_exists($tracesFile)) {
-            unlink($tracesFile);
-        }
-
         // Verify expected span names are present
         $this->assertContains('SET', $spanNames, "Should have SET span");
         $this->assertContains('GET', $spanNames, "Should have GET span");
         $this->assertContains('DEL', $spanNames, "Should have DEL span");
+
+        // Clean up after assertions
+        if (file_exists($tracesFile)) {
+            unlink($tracesFile);
+        }
     }
 
     public function testOtelClusterSamplingPercentage()
