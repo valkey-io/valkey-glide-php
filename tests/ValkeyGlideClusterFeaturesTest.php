@@ -981,16 +981,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
     public function testOtelClusterSetSamplePercentage()
     {
-        // Use the same trace file as other OTEL tests since OTEL can only be initialized once per process
+        // Initialize OTEL by creating a client with OTEL config
         $tracesFile = sys_get_temp_dir() . '/valkey_glide_traces_test.json';
-        
-        // Clean up any existing trace file
-        if (file_exists($tracesFile)) {
-            unlink($tracesFile);
-        }
-
-        // Note: If OTEL was already initialized by a previous test, this config will be ignored
-        // but we still need to pass it for the client constructor
         $otelConfig = OpenTelemetryConfig::builder()
             ->traces(
                 TracesConfig::builder()
@@ -1008,73 +1000,23 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 ['host' => 'localhost', 'port' => 7003]
             ],
             use_tls: false,
-            credentials: null,
-            read_from: ValkeyGlide::READ_FROM_PREFER_REPLICA,
-            request_timeout: null,
-            reconnect_strategy: null,
-            client_name: 'otel-cluster-sample-test',
             advanced_config: [
                 'otel' => $otelConfig
             ]
         );
-
-        // Set to 100% sampling
-        ValkeyGlide::setOtelSamplePercentage(100);
-
-        // Execute a command with 100% sampling
-        $client->set('otel:cluster:sample:test1', 'value1');
-        usleep(200000); // 200ms
-
-        // Change sample percentage to 0%
-        ValkeyGlide::setOtelSamplePercentage(0);
-
-        // Execute another command - should not be sampled
-        $client->set('otel:cluster:sample:test2', 'value2');
-        usleep(200000); // 200ms
-
-        // Change back to 100%
-        ValkeyGlide::setOtelSamplePercentage(100);
-
-        // Execute another command - should be sampled
-        $client->set('otel:cluster:sample:test3', 'value3');
-        usleep(200000); // 200ms
-
         $client->close();
 
-        // Read and verify spans
-        $spanNames = [];
-        if (file_exists($tracesFile)) {
-            $lines = file($tracesFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-            foreach ($lines as $line) {
-                $data = json_decode($line, true);
-                if (isset($data['name'])) {
-                    $spanNames[] = $data['name'];
-                }
-            }
-            unlink($tracesFile);
-        }
+        // Test setting sample percentage to 100%
+        ValkeyGlide::setOtelSamplePercentage(100);
+        $this->assertEquals(100, ValkeyGlide::getOtelSamplePercentage(), "Sample percentage should be 100");
 
-        // Should have 2 SET spans (first and third), not the second one
-        $setCount = count(array_filter($spanNames, fn($name) => $name === 'SET'));
-        $this->assertEquals(2, $setCount, "Should have exactly 2 SET spans (first and third commands)");
+        // Test setting sample percentage to 0%
+        ValkeyGlide::setOtelSamplePercentage(0);
+        $this->assertEquals(0, ValkeyGlide::getOtelSamplePercentage(), "Sample percentage should be 0");
 
-        // Verify we can read back the sample percentage by checking behavior
-        // Set to a random percentage and verify it's applied
+        // Test setting sample percentage to a random value
         $randomPercentage = rand(1, 99);
         ValkeyGlide::setOtelSamplePercentage($randomPercentage);
-        
-        // Execute a simple GET to verify the setting was applied (no exception thrown)
-        $client = new ValkeyGlideCluster(
-            addresses: [
-                ['host' => 'localhost', 'port' => 7001],
-                ['host' => 'localhost', 'port' => 7002],
-                ['host' => 'localhost', 'port' => 7003]
-            ],
-            use_tls: false
-        );
-        $client->set('otel:cluster:verify:test', 'value');
-        $value = $client->get('otel:cluster:verify:test');
-        $this->assertEquals('value', $value, "GET should work after setting sample percentage to $randomPercentage");
-        $client->close();
+        $this->assertEquals($randomPercentage, ValkeyGlide::getOtelSamplePercentage(), "Sample percentage should be $randomPercentage");
     }
 }

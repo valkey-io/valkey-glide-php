@@ -94,6 +94,18 @@ void valkey_glide_otel_set_sample_percentage(uint32_t percentage) {
 }
 
 /**
+ * Get the OpenTelemetry sample percentage
+ * Returns 1 if successful, 0 if not initialized
+ */
+int valkey_glide_otel_get_sample_percentage(uint32_t* percentage) {
+    if (!g_otel_config || !g_otel_config->traces) {
+        return 0;
+    }
+    *percentage = g_otel_config->traces->sample_percentage;
+    return 1;
+}
+
+/**
  * Shutdown OpenTelemetry and cleanup configuration.
  * For testing purposes only - allows resetting OTEL state between tests.
  */

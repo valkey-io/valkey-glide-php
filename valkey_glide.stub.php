@@ -547,6 +547,13 @@ class ValkeyGlide
     public static function setOtelSamplePercentage(int $percentage): void;
 
     /**
+     * Get the current OpenTelemetry sample percentage.
+     * 
+     * @return int|null The sample percentage (0-100), or null if not initialized
+     */
+    public static function getOtelSamplePercentage(): ?int;
+
+    /**
      * Update the connection password.
      *
      * @param string $password The new password to set
