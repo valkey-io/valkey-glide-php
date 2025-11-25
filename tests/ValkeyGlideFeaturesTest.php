@@ -912,10 +912,10 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         $otelConfig = OpenTelemetryConfig::builder()
             ->traces(TracesConfig::builder()
                 ->endpoint('file://' . $tracesFile)
-                ->samplePercentage(100)
                 ->build())
             ->flushIntervalMs(100)
             ->build();
+
 
         // Create client with OpenTelemetry configuration
         $client = new ValkeyGlide(
@@ -932,6 +932,11 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
                 'otel' => $otelConfig
             ]
         );
+
+        // Test that default percentage is set to 1.
+        $this->assertEquals(1, ValkeyGlide::getOtelSamplePercentage(), "Default sample percentage should be 1");
+
+        ValkeyGlide::setOtelSamplePercentage(100);
 
         // Execute commands that should generate spans
         $client->set('otel:test', 'value');
