@@ -24,6 +24,17 @@ class MetricsConfigBuilder
     }
 
     /**
+     * Gets the endpoint.
+     */
+    public function getEndpoint(): string
+    {
+        if ($this->endpoint === null) {
+            throw new ValkeyGlideException("Metrics endpoint is required when metrics config is provided");
+        }
+        return $this->endpoint;
+    }
+
+    /**
      * Builds the MetricsConfig.
      */
     public function build(): MetricsConfig
@@ -32,9 +43,6 @@ class MetricsConfigBuilder
             throw new ValkeyGlideException("Metrics endpoint is required when metrics config is provided");
         }
 
-        $config = new MetricsConfig();
-        $config->setEndpoint($this->endpoint);
-        
-        return $config;
+        return new MetricsConfig($this);
     }
 }

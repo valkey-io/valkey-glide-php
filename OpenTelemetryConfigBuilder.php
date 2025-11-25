@@ -44,6 +44,30 @@ class OpenTelemetryConfigBuilder
     }
 
     /**
+     * Gets the traces configuration.
+     */
+    public function getTraces(): ?TracesConfig
+    {
+        return $this->traces;
+    }
+
+    /**
+     * Gets the metrics configuration.
+     */
+    public function getMetrics(): ?MetricsConfig
+    {
+        return $this->metrics;
+    }
+
+    /**
+     * Gets the flush interval in milliseconds.
+     */
+    public function getFlushIntervalMs(): int
+    {
+        return $this->flushIntervalMs;
+    }
+
+    /**
      * Builds the OpenTelemetryConfig.
      */
     public function build(): OpenTelemetryConfig
@@ -52,11 +76,6 @@ class OpenTelemetryConfigBuilder
             throw new ValkeyGlideException("At least one of traces or metrics must be configured");
         }
 
-        $config = new OpenTelemetryConfig();
-        $config->setTraces($this->traces);
-        $config->setMetrics($this->metrics);
-        $config->setFlushIntervalMs($this->flushIntervalMs);
-        
-        return $config;
+        return new OpenTelemetryConfig($this);
     }
 }

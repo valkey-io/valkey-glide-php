@@ -10,6 +10,14 @@ class MetricsConfig
     private string $endpoint;
 
     /**
+     * Creates a new MetricsConfig from a builder.
+     */
+    public function __construct(MetricsConfigBuilder $builder)
+    {
+        $this->endpoint = $builder->getEndpoint();
+    }
+
+    /**
      * Creates a new MetricsConfig builder.
      */
     public static function builder(): MetricsConfigBuilder
@@ -23,13 +31,5 @@ class MetricsConfig
     public function getEndpoint(): string
     {
         return $this->endpoint;
-    }
-
-    /**
-     * Internal method to set endpoint.
-     */
-    public function setEndpoint(string $endpoint): void
-    {
-        $this->endpoint = $endpoint;
     }
 }
