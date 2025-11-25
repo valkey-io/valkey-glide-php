@@ -37,6 +37,25 @@ class TracesConfigBuilder
     }
 
     /**
+     * Gets the endpoint.
+     */
+    public function getEndpoint(): string
+    {
+        if ($this->endpoint === null) {
+            throw new ValkeyGlideException("Traces endpoint is required when traces config is provided");
+        }
+        return $this->endpoint;
+    }
+
+    /**
+     * Gets the sample percentage.
+     */
+    public function getSamplePercentage(): int
+    {
+        return $this->samplePercentage;
+    }
+
+    /**
      * Builds the TracesConfig.
      */
     public function build(): TracesConfig
@@ -45,10 +64,6 @@ class TracesConfigBuilder
             throw new ValkeyGlideException("Traces endpoint is required when traces config is provided");
         }
 
-        $config = new TracesConfig();
-        $config->setEndpoint($this->endpoint);
-        $config->setSamplePercentage($this->samplePercentage);
-        
-        return $config;
+        return new TracesConfig($this);
     }
 }

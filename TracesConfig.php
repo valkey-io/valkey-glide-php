@@ -11,6 +11,15 @@ class TracesConfig
     private int $samplePercentage;
 
     /**
+     * Creates a new TracesConfig from a builder.
+     */
+    public function __construct(TracesConfigBuilder $builder)
+    {
+        $this->endpoint = $builder->getEndpoint();
+        $this->samplePercentage = $builder->getSamplePercentage();
+    }
+
+    /**
      * Creates a new TracesConfig builder.
      */
     public static function builder(): TracesConfigBuilder
@@ -32,21 +41,5 @@ class TracesConfig
     public function getSamplePercentage(): int
     {
         return $this->samplePercentage;
-    }
-
-    /**
-     * Internal method to set endpoint.
-     */
-    public function setEndpoint(string $endpoint): void
-    {
-        $this->endpoint = $endpoint;
-    }
-
-    /**
-     * Internal method to set sample percentage.
-     */
-    public function setSamplePercentage(int $samplePercentage): void
-    {
-        $this->samplePercentage = $samplePercentage;
     }
 }
