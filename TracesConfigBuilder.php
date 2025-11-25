@@ -14,6 +14,9 @@ class TracesConfigBuilder
 
     /**
      * Sets the endpoint.
+     *
+     * @param string $endpoint The traces endpoint URL.
+     * @return self This builder instance for method chaining.
      */
     public function endpoint(string $endpoint): self
     {
@@ -26,6 +29,9 @@ class TracesConfigBuilder
 
     /**
      * Sets the sample percentage.
+     *
+     * @param int $samplePercentage The sample percentage (0-100).
+     * @return self This builder instance for method chaining.
      */
     public function samplePercentage(int $samplePercentage): self
     {
@@ -38,6 +44,8 @@ class TracesConfigBuilder
 
     /**
      * Gets the endpoint.
+     *
+     * @return string The traces endpoint URL.
      */
     public function getEndpoint(): string
     {
@@ -49,6 +57,8 @@ class TracesConfigBuilder
 
     /**
      * Gets the sample percentage.
+     *
+     * @return int The sample percentage (0-100).
      */
     public function getSamplePercentage(): int
     {
@@ -57,6 +67,8 @@ class TracesConfigBuilder
 
     /**
      * Builds the TracesConfig.
+     *
+     * @return TracesConfig The immutable traces configuration.
      */
     public function build(): TracesConfig
     {

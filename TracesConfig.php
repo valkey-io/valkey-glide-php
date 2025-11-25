@@ -12,6 +12,8 @@ class TracesConfig
 
     /**
      * Creates a new TracesConfig from a builder.
+     *
+     * @param TracesConfigBuilder $builder The builder containing configuration values.
      */
     public function __construct(TracesConfigBuilder $builder)
     {
@@ -21,6 +23,8 @@ class TracesConfig
 
     /**
      * Creates a new TracesConfig builder.
+     *
+     * @return TracesConfigBuilder A new builder instance.
      */
     public static function builder(): TracesConfigBuilder
     {
@@ -29,6 +33,8 @@ class TracesConfig
 
     /**
      * Gets the endpoint.
+     *
+     * @return string The traces endpoint URL.
      */
     public function getEndpoint(): string
     {
@@ -37,6 +43,8 @@ class TracesConfig
 
     /**
      * Gets the sample percentage.
+     *
+     * @return int The sample percentage (0-100).
      */
     public function getSamplePercentage(): int
     {

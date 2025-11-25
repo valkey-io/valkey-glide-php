@@ -13,6 +13,8 @@ class OpenTelemetryConfig
 
     /**
      * Creates a new OpenTelemetryConfig from a builder.
+     *
+     * @param OpenTelemetryConfigBuilder $builder The builder containing configuration values.
      */
     public function __construct(OpenTelemetryConfigBuilder $builder)
     {
@@ -23,6 +25,8 @@ class OpenTelemetryConfig
 
     /**
      * Creates a new OpenTelemetryConfig builder.
+     *
+     * @return OpenTelemetryConfigBuilder A new builder instance.
      */
     public static function builder(): OpenTelemetryConfigBuilder
     {
@@ -31,6 +35,8 @@ class OpenTelemetryConfig
 
     /**
      * Gets the traces configuration.
+     *
+     * @return TracesConfig|null The traces configuration, or null if not configured.
      */
     public function getTraces(): ?TracesConfig
     {
@@ -39,6 +45,8 @@ class OpenTelemetryConfig
 
     /**
      * Gets the metrics configuration.
+     *
+     * @return MetricsConfig|null The metrics configuration, or null if not configured.
      */
     public function getMetrics(): ?MetricsConfig
     {
@@ -47,6 +55,8 @@ class OpenTelemetryConfig
 
     /**
      * Gets the flush interval in milliseconds.
+     *
+     * @return int|null The flush interval in milliseconds.
      */
     public function getFlushIntervalMs(): ?int
     {

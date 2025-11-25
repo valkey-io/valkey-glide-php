@@ -13,6 +13,9 @@ class MetricsConfigBuilder
 
     /**
      * Sets the endpoint.
+     *
+     * @param string $endpoint The metrics endpoint URL.
+     * @return self This builder instance for method chaining.
      */
     public function endpoint(string $endpoint): self
     {
@@ -25,6 +28,8 @@ class MetricsConfigBuilder
 
     /**
      * Gets the endpoint.
+     *
+     * @return string The metrics endpoint URL.
      */
     public function getEndpoint(): string
     {
@@ -36,6 +41,8 @@ class MetricsConfigBuilder
 
     /**
      * Builds the MetricsConfig.
+     *
+     * @return MetricsConfig The immutable metrics configuration.
      */
     public function build(): MetricsConfig
     {

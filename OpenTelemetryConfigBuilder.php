@@ -15,6 +15,9 @@ class OpenTelemetryConfigBuilder
 
     /**
      * Sets the traces configuration.
+     *
+     * @param TracesConfig|null $traces The traces configuration, or null to disable traces.
+     * @return self This builder instance for method chaining.
      */
     public function traces(?TracesConfig $traces): self
     {
@@ -24,6 +27,9 @@ class OpenTelemetryConfigBuilder
 
     /**
      * Sets the metrics configuration.
+     *
+     * @param MetricsConfig|null $metrics The metrics configuration, or null to disable metrics.
+     * @return self This builder instance for method chaining.
      */
     public function metrics(?MetricsConfig $metrics): self
     {
@@ -33,6 +39,9 @@ class OpenTelemetryConfigBuilder
 
     /**
      * Sets the flush interval in milliseconds.
+     *
+     * @param int $flushIntervalMs The flush interval in milliseconds (must be positive).
+     * @return self This builder instance for method chaining.
      */
     public function flushIntervalMs(int $flushIntervalMs): self
     {
@@ -45,6 +54,8 @@ class OpenTelemetryConfigBuilder
 
     /**
      * Gets the traces configuration.
+     *
+     * @return TracesConfig|null The traces configuration, or null if not configured.
      */
     public function getTraces(): ?TracesConfig
     {
@@ -53,6 +64,8 @@ class OpenTelemetryConfigBuilder
 
     /**
      * Gets the metrics configuration.
+     *
+     * @return MetricsConfig|null The metrics configuration, or null if not configured.
      */
     public function getMetrics(): ?MetricsConfig
     {
@@ -61,6 +74,8 @@ class OpenTelemetryConfigBuilder
 
     /**
      * Gets the flush interval in milliseconds.
+     *
+     * @return int The flush interval in milliseconds.
      */
     public function getFlushIntervalMs(): int
     {
@@ -69,6 +84,8 @@ class OpenTelemetryConfigBuilder
 
     /**
      * Builds the OpenTelemetryConfig.
+     *
+     * @return OpenTelemetryConfig The immutable OpenTelemetry configuration.
      */
     public function build(): OpenTelemetryConfig
     {

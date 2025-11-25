@@ -11,6 +11,8 @@ class MetricsConfig
 
     /**
      * Creates a new MetricsConfig from a builder.
+     *
+     * @param MetricsConfigBuilder $builder The builder containing configuration values.
      */
     public function __construct(MetricsConfigBuilder $builder)
     {
@@ -19,6 +21,8 @@ class MetricsConfig
 
     /**
      * Creates a new MetricsConfig builder.
+     *
+     * @return MetricsConfigBuilder A new builder instance.
      */
     public static function builder(): MetricsConfigBuilder
     {
@@ -27,6 +31,8 @@ class MetricsConfig
 
     /**
      * Gets the endpoint.
+     *
+     * @return string The metrics endpoint URL.
      */
     public function getEndpoint(): string
     {
