@@ -89,8 +89,8 @@ ensure-submodules:
 				echo "ERROR: Git is required to build this extension"; \
 				exit 1; \
 			fi; \
-			grep -E "^\s*path\s*=" .gitmodules | sed 's/.*=\s*//' | while read path; do \
-				url=$$(grep -A1 "path = $$path" .gitmodules | grep url | sed 's/.*=\s*//'); \
+			grep -E "^\s*path\s*=" .gitmodules | sed 's/.*=[ \t]*//' | while read path; do \
+				url=$$(grep -A1 "path = $$path" .gitmodules | grep url | sed 's/^[^=]*=[ \t]*//'); \
 				if [ ! -d "$$path/.git" ]; then \
 					echo "Cloning $$url into $$path"; \
 					rm -rf "$$path"; \
