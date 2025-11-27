@@ -12,7 +12,7 @@
 #include "include/glide_bindings.h"
 
 /* ValkeyGlidePHP version */
-#define VALKEY_GLIDE_PHP_VERSION "0.1"
+#define VALKEY_GLIDE_PHP_VERSION "0.10.0"
 
 #define VALKEY_GLIDE_PHP_GET_OBJECT(class_entry, o) \
     (class_entry*) ((char*) o - XtOffsetOf(class_entry, std))
