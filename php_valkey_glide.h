@@ -6,6 +6,6 @@
 extern zend_module_entry valkey_glide_module_entry;
 #define phpext_valkey_glide_ptr &valkey_glide_module_entry
 
-#define PHP_VALKEY_GLIDE_VERSION "1.0.0"
+#define PHP_VALKEY_GLIDE_VERSION "0.10.0"
 
 #endif /* PHP_VALKEY_GLIDE_H */
