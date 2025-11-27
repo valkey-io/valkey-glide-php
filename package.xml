@@ -12,11 +12,11 @@ Note: After installation, add "extension=valkey_glide" to your php.ini file.</de
   <email>noreply@valkey.io</email>
   <active>yes</active>
  </lead>
- <date>2025-09-18</date>
+ <date>2025-11-27</date>
  <time>18:25:00</time>
  <version>
-  <release>0.9.0</release>
-  <api>0.9.0</api>
+  <release>0.10.0</release>
+  <api>0.10.0</api>
  </version>
  <stability>
   <release>beta</release>
@@ -24,15 +24,15 @@ Note: After installation, add "extension=valkey_glide" to your php.ini file.</de
  </stability>
  <license uri="https://www.apache.org/licenses/LICENSE-2.0">Apache-2.0</license>
  <notes>
-Initial PECL release of Valkey GLIDE PHP extension.
+Release 0.10.0 of Valkey GLIDE PHP extension.
 
-Features:
-- High-performance Rust-based core with PHP FFI bindings
-- Support for both standalone and cluster Redis/Valkey deployments
-- Comprehensive command support for strings, hashes, lists, sets, and sorted sets
-- Type-safe PHP API with proper error handling
-- Cross-platform compatibility (Linux, macOS, Windows)
-- Automatic connection pooling and management
+New Features:
+- OpenTelemetry support for observability
+- Logging capabilities
+- IAM authentication support for ElastiCache and MemoryDB
+- Refresh topology configuration
+- Multi-Database Support for Cluster Mode (Valkey 9.0+)
+- Password API updates
 
 Requirements:
 - PHP 8.1 or higher
@@ -116,6 +116,28 @@ Requirements:
   <configureoption default="no" name="enable-valkey-glide-debug" prompt="Enable debug support?" />
  </extsrcrelease>
  <changelog>
+  <release>
+   <date>2025-11-27</date>
+   <time>18:25:00</time>
+   <version>
+    <release>0.10.0</release>
+    <api>0.10.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <license uri="https://www.apache.org/licenses/LICENSE-2.0">Apache-2.0</license>
+   <notes>
+Release 0.10.0 with new features:
+- OpenTelemetry support for observability
+- Logging capabilities
+- IAM authentication support for ElastiCache and MemoryDB
+- Refresh topology configuration
+- Multi-Database Support for Cluster Mode (Valkey 9.0+)
+- Password API updates
+   </notes>
+  </release>
   <release>
    <date>2025-09-18</date>
    <time>18:25:00</time>
