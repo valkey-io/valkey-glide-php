@@ -117,8 +117,20 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     AC_MSG_CHECKING([for protobuf file generation])
     
     dnl Ensure submodules are available
-    if test -f ".gitmodules" && test -d ".git"; then
-      git submodule update --init --recursive >/dev/null 2>&1 || true
+    if test -f ".gitmodules"; then
+      if test -d ".git"; then
+        dnl Git repository - use submodules
+        git submodule update --init --recursive >/dev/null 2>&1 || true
+      else
+        dnl build - clone submodules manually during configure
+        if test ! -d "valkey-glide/.git"; then
+          AC_MSG_RESULT([cloning submodules for build])
+          url=$(grep -A1 "path = valkey-glide" .gitmodules | grep url | sed 's/^[[^=]]*=[[[:space:]]]*//')
+          if test -n "$url"; then
+            git clone "$url" valkey-glide >/dev/null 2>&1 || true
+          fi
+        fi
+      fi
     fi
     
     dnl Generate protobuf files if they don't exist and we have the source
