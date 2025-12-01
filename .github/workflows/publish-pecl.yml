@@ -163,6 +163,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y php-dev php-cli build-essential git
 
+          # Install cbindgen (required for build)
+          echo "=== Installing cbindgen ==="
+          cargo install cbindgen
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.cargo/bin:$PATH"
+
           # Test build process
           phpize
           ./configure --enable-valkey-glide
