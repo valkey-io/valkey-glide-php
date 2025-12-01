@@ -159,9 +159,19 @@ jobs:
           tar xzf "$PACKAGE_DIR.tgz"
           cd "$PACKAGE_DIR"
 
-          # Install PHP and build tools
+          # Install PHP and build tools (matching test-pecl.yml dependencies)
           sudo apt-get update
-          sudo apt-get install -y php-dev php-cli build-essential git
+          sudo apt-get install -y \
+            php-dev \
+            php-cli \
+            build-essential \
+            git \
+            protobuf-compiler \
+            protobuf-c-compiler \
+            libprotobuf-c-dev \
+            libprotobuf-c1 \
+            pkg-config \
+            libssl-dev
 
           # Test build process
           phpize
