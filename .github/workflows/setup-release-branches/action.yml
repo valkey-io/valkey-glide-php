@@ -1,0 +1,73 @@
+name: 'Setup Release Branches'
+description: 'Setup target and temporary branches for release'
+inputs:
+  release-branch:
+    description: 'Target release branch name (e.g., release-0.10)'
+    required: true
+  dry-run:
+    description: 'Dry run mode - show what would be done without making changes'
+    required: false
+    default: 'false'
+
+outputs:
+  target-branch:
+    description: 'Target release branch name'
+    value: ${{ steps.setup.outputs.target-branch }}
+  temp-branch:
+    description: 'Temporary branch name for version changes'
+    value: ${{ steps.setup.outputs.temp-branch }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup branches
+      id: setup
+      shell: bash
+      run: |
+        TARGET_BRANCH="${{ inputs.release-branch }}"
+        TEMP_BRANCH="${TARGET_BRANCH}-version-bump"
+        DRY_RUN="${{ inputs.dry-run }}"
+        
+        echo "Target release branch: $TARGET_BRANCH"
+        echo "Temporary work branch: $TEMP_BRANCH"
+        echo "Dry run: $DRY_RUN"
+        
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        if [ "$DRY_RUN" = "true" ]; then
+          echo "DRY RUN: Would setup branches"
+          echo "Would check if target branch '$TARGET_BRANCH' exists remotely"
+          
+          # Check if branch exists (read-only operation)
+          if git ls-remote --heads origin "$TARGET_BRANCH" | grep -q "$TARGET_BRANCH"; then
+            echo "Target branch exists - would fetch and checkout"
+          else
+            echo "Target branch doesn't exist - would create from main"
+          fi
+          
+          echo "Would create temporary branch: $TEMP_BRANCH"
+          
+          # Create a local test branch for dry run
+          git checkout -b "dry-run-test-$(date +%s)" || true
+        else
+          # Check if target release branch exists remotely
+          if git ls-remote --heads origin "$TARGET_BRANCH" | grep -q "$TARGET_BRANCH"; then
+            echo "Target branch exists, fetching..."
+            git fetch origin "$TARGET_BRANCH"
+            git checkout "$TARGET_BRANCH"
+          else
+            echo "Target branch doesn't exist, creating from main"
+            git checkout main
+            git checkout -b "$TARGET_BRANCH"
+            git push origin "$TARGET_BRANCH"
+            echo "Created and pushed target branch: $TARGET_BRANCH"
+          fi
+          
+          # Create temporary branch for version changes
+          echo "Creating temporary branch: $TEMP_BRANCH"
+          git checkout -b "$TEMP_BRANCH"
+        fi
+        
+        echo "target-branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
+        echo "temp-branch=$TEMP_BRANCH" >> $GITHUB_OUTPUT

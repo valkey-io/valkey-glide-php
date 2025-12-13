@@ -1,0 +1,103 @@
+name: Validate Version Consistency
+
+description: "Validates that version constants in code match the expected version from tags or releases"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Extract version from GitHub context
+      id: extract-version
+      shell: bash
+      run: |
+        if [ "$GITHUB_EVENT_NAME" = "release" ]; then
+          # Extract from release
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
+          VERSION=${RELEASE_TAG#v}  # Remove 'v' prefix if present
+          SOURCE="release"
+          echo "Extracted from release: $VERSION (tag: $RELEASE_TAG)"
+        elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          # Extract from tag
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG_NAME#v}  # Remove 'v' prefix if present
+          SOURCE="tag"
+          echo "Extracted from tag: $VERSION (tag: $TAG_NAME)"
+        else
+          echo "ERROR: No version provided and cannot extract from GitHub context"
+          echo "Either provide expected-version input or run on tag/release events"
+          exit 1
+        fi
+        
+        echo "expected-version=$VERSION" >> $GITHUB_OUTPUT
+        echo "version-source=$SOURCE" >> $GITHUB_OUTPUT
+
+    - name: Validate version in common.h
+      shell: bash
+      env:
+        EXPECTED_VERSION: ${{ steps.extract-version.outputs.expected-version }}
+        VERSION_SOURCE: ${{ steps.extract-version.outputs.version-source }}
+      run: |
+        echo "=== Validating Version Consistency ==="
+        echo "Expected version: $EXPECTED_VERSION"
+        echo "Version source: $VERSION_SOURCE"
+        echo ""
+        
+        # Extract version from common.h
+        CODE_VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' common.h | sed 's/#define VALKEY_GLIDE_PHP_VERSION "\([^"]*\)"/\1/')
+        echo "Version in common.h: $CODE_VERSION"
+        
+        if [ "$CODE_VERSION" != "$EXPECTED_VERSION" ]; then
+          echo "ERROR: Version mismatch in common.h!"
+          echo "  Expected: $EXPECTED_VERSION"
+          echo "  Found: $CODE_VERSION"
+          echo ""
+          echo "Please update the version in common.h:"
+          echo "File: common.h"
+          echo "Line: #define VALKEY_GLIDE_PHP_VERSION \"$EXPECTED_VERSION\""
+          exit 1
+        fi
+        
+        echo "SUCCESS: Version in common.h matches expected version ($CODE_VERSION)"
+
+    - name: Validate version in package.xml
+      shell: bash
+      env:
+        EXPECTED_VERSION: ${{ steps.extract-version.outputs.expected-version }}
+      run: |
+        echo ""
+        echo "=== Validating package.xml versions ==="
+        
+        # Extract release version from package.xml (first occurrence only - main version, not changelog)
+        RELEASE_VERSION=$(grep -o '<release>[^<]*</release>' package.xml | head -1 | sed 's/<[^>]*>//g')
+        echo "Release version in package.xml: $RELEASE_VERSION"
+        
+        # Extract API version from package.xml (first occurrence only - main version, not changelog)
+        API_VERSION=$(grep -o '<api>[^<]*</api>' package.xml | head -1 | sed 's/<[^>]*>//g')
+        echo "API version in package.xml: $API_VERSION"
+        
+        MISMATCH=false
+        
+        if [ "$RELEASE_VERSION" != "$EXPECTED_VERSION" ]; then
+          echo "ERROR: Release version mismatch in package.xml!"
+          echo "  Expected: $EXPECTED_VERSION"
+          echo "  Found: $RELEASE_VERSION"
+          MISMATCH=true
+        fi
+        
+        if [ "$API_VERSION" != "$EXPECTED_VERSION" ]; then
+          echo "ERROR: API version mismatch in package.xml!"
+          echo "  Expected: $EXPECTED_VERSION"
+          echo "  Found: $API_VERSION"
+          MISMATCH=true
+        fi
+        
+        if [ "$MISMATCH" = true ]; then
+          echo ""
+          echo "Please update the versions in package.xml:"
+          echo "File: package.xml"
+          echo "Lines to update:"
+          echo "  <release>$EXPECTED_VERSION</release>"
+          echo "  <api>$EXPECTED_VERSION</api>"
+          exit 1
+        fi
+        
+        echo "SUCCESS: Versions in package.xml match expected version ($RELEASE_VERSION)"

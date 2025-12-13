@@ -1,0 +1,79 @@
+name: 'Update Version Files'
+description: 'Update version in common.h and package.xml files'
+inputs:
+  version:
+    description: 'Version to set (e.g., 0.9.0)'
+    required: true
+  dry-run:
+    description: 'Dry run mode - show what would be changed without making changes'
+    required: false
+    default: 'false'
+
+outputs:
+  common-version:
+    description: 'Version found in common.h after update'
+    value: ${{ steps.update.outputs.common-version }}
+  package-version:
+    description: 'Version found in package.xml after update'
+    value: ${{ steps.update.outputs.package-version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Update version files
+      id: update
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        DRY_RUN="${{ inputs.dry-run }}"
+        
+        echo "Version: $VERSION"
+        echo "Dry run: $DRY_RUN"
+        
+        if [ "$DRY_RUN" = "true" ]; then
+          echo "DRY RUN: Would update version files to $VERSION"
+          
+          # Show current versions
+          CURRENT_COMMON=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' common.h)
+          CURRENT_RELEASE=$(grep -o '<release>[^<]*</release>' package.xml | head -1)
+          echo "Current common.h: $CURRENT_COMMON"
+          echo "Current package.xml: $CURRENT_RELEASE"
+          
+          # Show what would be changed
+          echo "Would change common.h to: #define VALKEY_GLIDE_PHP_VERSION \"$VERSION\""
+          echo "Would change package.xml release to: <release>$VERSION</release>"
+          echo "Would update package.xml date and time"
+          
+          # For dry run, output the target version
+          echo "common-version=$VERSION" >> $GITHUB_OUTPUT
+          echo "package-version=$VERSION" >> $GITHUB_OUTPUT
+        else
+          echo "Updating files with version: $VERSION"
+          
+          # Update common.h
+          sed -i "s/#define VALKEY_GLIDE_PHP_VERSION \"[^\"]*\"/#define VALKEY_GLIDE_PHP_VERSION \"$VERSION\"/" common.h
+          
+          # Update package.xml (first occurrence only)
+          DATE=$(date +%Y-%m-%d)
+          TIME=$(date +%H:%M:%S)
+          
+          sed -i "0,/<release>[^<]*<\/release>/s/<release>[^<]*<\/release>/<release>$VERSION<\/release>/" package.xml
+          sed -i "0,/<api>[^<]*<\/api>/s/<api>[^<]*<\/api>/<api>$VERSION<\/api>/" package.xml
+          sed -i "0,/<date>[^<]*<\/date>/s/<date>[^<]*<\/date>/<date>$DATE<\/date>/" package.xml
+          sed -i "0,/<time>[^<]*<\/time>/s/<time>[^<]*<\/time>/<time>$TIME<\/time>/" package.xml
+          
+          # Verify changes
+          COMMON_VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' common.h | sed 's/#define VALKEY_GLIDE_PHP_VERSION "\([^"]*\)"/\1/')
+          RELEASE_VERSION=$(grep -o '<release>[^<]*</release>' package.xml | head -1 | sed 's/<[^>]*>//g')
+          
+          echo "Updated common.h: $COMMON_VERSION"
+          echo "Updated package.xml: $RELEASE_VERSION"
+          
+          if [ "$COMMON_VERSION" != "$VERSION" ] || [ "$RELEASE_VERSION" != "$VERSION" ]; then
+            echo "ERROR: Version update failed"
+            exit 1
+          fi
+          
+          echo "common-version=$COMMON_VERSION" >> $GITHUB_OUTPUT
+          echo "package-version=$RELEASE_VERSION" >> $GITHUB_OUTPUT
+        fi

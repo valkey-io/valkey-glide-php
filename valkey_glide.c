@@ -489,7 +489,7 @@ zend_module_entry valkey_glide_module_entry = {STANDARD_MODULE_HEADER,
                                                NULL,
                                                NULL,
                                                NULL,
-                                               PHP_VALKEY_GLIDE_VERSION,
+                                               VALKEY_GLIDE_PHP_VERSION,
                                                STANDARD_MODULE_PROPERTIES};
 
 #ifdef COMPILE_DL_VALKEY_GLIDE

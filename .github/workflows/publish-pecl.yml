@@ -6,25 +6,204 @@ permissions:
 on:
   release:
     types: [published]
+  pull_request:
+    paths:
+      - 'common.h'
+      - 'package.xml'
+      - '.github/workflows/publish-pecl.yml'
+      - '.github/workflows/update-version-files/**'
+      - '.github/workflows/setup-release-branches/**'
+      - '.github/workflows/commit-version-changes/**'
+      - '.github/workflows/create-version-pr/**'
+      - '.github/workflows/validate-version/**'
+      - '.github/workflows/test-pecl-package/**'
   workflow_dispatch:
     inputs:
       version:
         description: "Version to publish (e.g., 0.9.0)"
         required: true
         type: string
+      release-branch:
+        description: "Release branch name (e.g., release-0.10)"
+        required: true
+        type: string
       create-release:
         description: "Create GitHub release"
         type: boolean
         default: false
+      dry-run:
+        description: "Dry run mode (test workflow without creating branches/PRs/tags)"
+        type: boolean
+        default: false
 
 jobs:
+  prepare-version-bump:
+    name: Prepare Version Bump${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry-run == 'true')) && ' (DRY RUN)' || '' }}
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
+    outputs:
+      branch-name: ${{ steps.setup-branch.outputs.branch-name }}
+      pr-number: ${{ steps.create-pr.outputs.pull-request-number }}
+      dry-run: ${{ github.event_name == 'pull_request' || github.event.inputs.dry-run }}
+      version: ${{ steps.determine-version.outputs.version }}
+      release-branch: ${{ steps.determine-version.outputs.release-branch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine version and release branch
+        id: determine-version
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # For PR events, extract current version and create test values
+            CURRENT_VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' common.h | sed 's/#define VALKEY_GLIDE_PHP_VERSION "\([^"]*\)"/\1/')
+            echo "Current version from common.h: $CURRENT_VERSION"
+            
+            # Create test version by appending -pr-test
+            TEST_VERSION="${CURRENT_VERSION}-pr-test"
+            TEST_RELEASE_BRANCH="release-$(echo $CURRENT_VERSION | cut -d. -f1-2)"
+            
+            echo "version=$TEST_VERSION" >> $GITHUB_OUTPUT
+            echo "release-branch=$TEST_RELEASE_BRANCH" >> $GITHUB_OUTPUT
+            
+            echo "PR Mode: Using test version $TEST_VERSION and release branch $TEST_RELEASE_BRANCH"
+          else
+            # For workflow_dispatch, use provided inputs
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "release-branch=${{ github.event.inputs.release-branch }}" >> $GITHUB_OUTPUT
+            
+            echo "Manual Mode: Using version ${{ github.event.inputs.version }} and release branch ${{ github.event.inputs.release-branch }}"
+          fi
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ steps.determine-version.outputs.version }}"
+          echo "Validating version format: $VERSION"
+          
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "PR Mode: Skipping strict version format validation for test version"
+            echo "Test version: $VERSION"
+          else
+            if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$ ]]; then
+              echo "ERROR: Invalid version format: $VERSION"
+              echo "Expected format: X.Y.Z or X.Y.Z-rcN (e.g., 1.0.0, 1.0.0-rc1)"
+              exit 1
+            fi
+            
+            echo "Version format is valid: $VERSION"
+          fi
+
+      - name: Setup branches
+        id: setup-branch
+        uses: ./.github/workflows/setup-release-branches
+        with:
+          release-branch: ${{ steps.determine-version.outputs.release-branch }}
+          dry-run: ${{ github.event_name == 'pull_request' || github.event.inputs.dry-run }}
+
+      - name: Update version files
+        uses: ./.github/workflows/update-version-files
+        with:
+          version: ${{ steps.determine-version.outputs.version }}
+          dry-run: ${{ github.event_name == 'pull_request' || github.event.inputs.dry-run }}
+
+      - name: Validate version consistency
+        uses: ./.github/workflows/validate-version
+        with:
+          expected-version: ${{ steps.determine-version.outputs.version }}
+          source: ${{ github.event_name == 'pull_request' && 'pr-test' || 'manual' }}
+
+      - name: Commit and push changes
+        uses: ./.github/workflows/commit-version-changes
+        with:
+          version: ${{ steps.determine-version.outputs.version }}
+          temp-branch: ${{ steps.setup-branch.outputs.temp-branch }}
+          dry-run: ${{ github.event_name == 'pull_request' || github.event.inputs.dry-run }}
+
+      - name: Create Pull Request
+        id: create-pr
+        uses: ./.github/workflows/create-version-pr
+        with:
+          version: ${{ steps.determine-version.outputs.version }}
+          temp-branch: ${{ steps.setup-branch.outputs.temp-branch }}
+          target-branch: ${{ steps.setup-branch.outputs.target-branch }}
+          dry-run: ${{ github.event_name == 'pull_request' || github.event.inputs.dry-run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  wait-for-merge-and-tag:
+    name: Create Release Tag
+    runs-on: ubuntu-latest
+    needs: prepare-version-bump
+    if: github.event_name == 'workflow_dispatch' && needs.prepare-version-bump.outputs.dry-run != 'true'
+    environment: release-approval  # This requires manual approval
+    steps:
+      - name: Check if PR is merged
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ needs.prepare-version-bump.outputs.pr-number }};
+            
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            
+            if (!pr.merged) {
+              throw new Error(`PR #${prNumber} must be merged before creating the tag. Current state: ${pr.state}`);
+            }
+            
+            console.log(`PR #${prNumber} has been merged to ${pr.base.ref}! Proceeding with tag creation.`);
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-version-bump.outputs.release-branch }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push tag
+        run: |
+          VERSION="${{ needs.prepare-version-bump.outputs.version }}"
+          TAG_NAME="v$VERSION"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git tag -a "$TAG_NAME" -m "Release $TAG_NAME
+
+          This tag was created after PR #${{ needs.prepare-version-bump.outputs.pr-number }} was merged.
+          
+          Version: $VERSION
+          Release Date: $(date -u +%Y-%m-%d)
+          
+          Signed-off-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+          
+          git push origin "$TAG_NAME"
+          
+          echo "Tag $TAG_NAME created and pushed successfully!"
+
+  validate-version:
+    name: Validate Version
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate version consistency
+        uses: ./.github/workflows/validate-version
+        with:
+          expected-version: ${{ github.event.release.tag_name }}
+          source: "release"
+
   build-packages:
     runs-on: ubuntu-latest
+    needs: [validate-version, wait-for-merge-and-tag]
+    if: always() && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped') && (needs.wait-for-merge-and-tag.result == 'success' || needs.wait-for-merge-and-tag.result == 'skipped')
     outputs:
       package-version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release-branch || github.ref }}
           submodules: recursive
 
       - name: Install Rust and protoc
@@ -54,11 +233,8 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Publishing version: $VERSION"
 
-      - name: Update package.xml version
+      - name: Generate submodule commit info
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          DATE=$(date +%Y-%m-%d)
-
           # Generate submodule commit info for PECL packages
           echo "=== Generating submodule commit info ==="
           git submodule status | while read commit path extra; do
@@ -67,17 +243,15 @@ jobs:
             echo "$path=$clean_commit" >> .submodule-commits
           done
           cat .submodule-commits
-
-          echo "=== Updating package.xml version ==="
-          TIME=$(date +%H:%M:%S)
-
-          # Update version and date in package.xml
-          sed -i "s/<release>0\.9\.0<\/release>/<release>$VERSION<\/release>/" package.xml
-          sed -i "s/<api>0\.9\.0<\/api>/<api>$VERSION<\/api>/" package.xml
-          sed -i "s/<date>2025-09-18<\/date>/<date>$DATE<\/date>/" package.xml
-          sed -i "s/<time>18:25:00<\/time>/<time>$TIME<\/time>/" package.xml
-
-          echo "Updated package.xml with version $VERSION"
+          
+          echo "=== Version files are already updated from previous steps ==="
+          VERSION="${{ steps.version.outputs.version }}"
+          COMMON_VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' common.h | sed 's/#define VALKEY_GLIDE_PHP_VERSION "\([^"]*\)"/\1/')
+          RELEASE_VERSION=$(grep -o '<release>[^<]*</release>' package.xml | head -1 | sed 's/<[^>]*>//g')
+          
+          echo "Current common.h version: $COMMON_VERSION"
+          echo "Current package.xml version: $RELEASE_VERSION"
+          echo "Expected version: $VERSION"
 
       - name: Create PECL package
         run: |
@@ -149,42 +323,11 @@ jobs:
           tar tzf "$PACKAGE_DIR.tgz" | head -20
 
       - name: Test package installation
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          PACKAGE_DIR="valkey_glide-$VERSION"
-
-          echo "=== Testing package installation ==="
-
-          # Extract and test build
-          tar xzf "$PACKAGE_DIR.tgz"
-          cd "$PACKAGE_DIR"
-
-          # Install PHP and build tools (matching test-pecl.yml dependencies)
-          sudo apt-get update
-          sudo apt-get install -y \
-            php-dev \
-            php-cli \
-            build-essential \
-            git \
-            protobuf-compiler \
-            protobuf-c-compiler \
-            libprotobuf-c-dev \
-            libprotobuf-c1 \
-            pkg-config \
-            libssl-dev
-
-          # Install cbindgen (required for build)
-          echo "=== Installing cbindgen ==="
-          cargo install cbindgen
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          export PATH="$HOME/.cargo/bin:$PATH"
-
-          # Test build process
-          phpize
-          ./configure --enable-valkey-glide
-          make -j$(nproc)
-
-          echo "=== Package builds successfully ==="
+        uses: ./.github/workflows/test-pecl-package
+        with:
+          php-version: '8.2'  # Use a stable PHP version for testing
+          package-path: valkey_glide-${{ steps.version.outputs.version }}.tgz
+          skip-package-creation: 'true'
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
