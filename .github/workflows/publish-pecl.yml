@@ -196,14 +196,14 @@ jobs:
 
   build-packages:
     runs-on: ubuntu-latest
-    needs: [validate-version, wait-for-merge-and-tag]
-    if: always() && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped') && (needs.wait-for-merge-and-tag.result == 'success' || needs.wait-for-merge-and-tag.result == 'skipped')
+    needs: [validate-version, wait-for-merge-and-tag, prepare-version-bump]
+    if: always() && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped') && (needs.wait-for-merge-and-tag.result == 'success' || needs.wait-for-merge-and-tag.result == 'skipped' || github.event_name == 'pull_request')
     outputs:
       package-version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release-branch || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && needs.prepare-version-bump.outputs.release-branch || github.ref }}
           submodules: recursive
 
       - name: Install Rust and protoc
@@ -222,12 +222,17 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
           INPUT_VERSION: ${{ github.event.inputs.version }}
+          PREPARE_VERSION: ${{ needs.prepare-version-bump.outputs.version }}
         run: |
           if [ "$EVENT_NAME" = "release" ]; then
             VERSION="$RELEASE_TAG"
             # Remove 'v' prefix if present
             VERSION=${VERSION#v}
+          elif [ -n "$PREPARE_VERSION" ]; then
+            # Use version from prepare-version-bump job (for PR and workflow_dispatch)
+            VERSION="$PREPARE_VERSION"
           else
+            # Fallback to input version
             VERSION="$INPUT_VERSION"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT

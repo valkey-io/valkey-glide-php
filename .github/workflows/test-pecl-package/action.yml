@@ -15,6 +15,9 @@ inputs:
     description: 'Skip package creation step (use existing package)'
     required: false
     default: 'false'
+  github-token:
+    description: 'GitHub token for API access (optional, uses github.token if not provided)'
+    required: false
 
 runs:
   using: 'composite'
@@ -156,6 +159,51 @@ runs:
         echo "Using package: $PACKAGE_FILE"
         echo "Package directory: $PACKAGE_DIR"
         echo "Version: $VERSION"
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ inputs.php-version }}
+        extensions: tokenizer, json, ctype, iconv, mbstring
+        tools: none
+
+    - name: Install system dependencies
+      shell: bash
+      env:
+        PHP_VER: ${{ inputs.php-version }}
+      run: |
+        echo "=== Installing system dependencies for PECL testing ==="
+        sudo apt-get update
+        sudo apt-get install -y \
+            php$PHP_VER-dev \
+            php$PHP_VER-cli \
+            build-essential \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            libssl-dev \
+            protobuf-c-compiler \
+            libprotobuf-c-dev \
+            libprotobuf-c1
+
+    - name: Install shared dependencies
+      uses: ./.github/workflows/install-shared-dependencies
+      with:
+        os: ubuntu
+        target: x86_64-unknown-linux-gnu
+        engine-version: ${{ inputs.engine-version }}
+        github-token: ${{ inputs.github-token || github.token }}
+
+    - name: Install cbindgen
+      shell: bash
+      run: |
+        if [ -f "$HOME/.cargo/bin/cbindgen" ]; then
+          echo "cbindgen already installed (cached)"
+        else
+          cargo install cbindgen
+        fi
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
     - name: Setup sccache for cross-user Rust caching
       shell: bash
