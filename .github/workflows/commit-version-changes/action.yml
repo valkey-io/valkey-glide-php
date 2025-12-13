@@ -17,10 +17,11 @@ runs:
   steps:
     - name: Commit and push changes
       shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        TEMP_BRANCH: ${{ inputs.temp-branch }}
+        DRY_RUN: ${{ inputs.dry-run }}
       run: |
-        VERSION="${{ inputs.version }}"
-        TEMP_BRANCH="${{ inputs.temp-branch }}"
-        DRY_RUN="${{ inputs.dry-run }}"
         
         git add common.h package.xml
         

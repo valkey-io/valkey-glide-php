@@ -23,10 +23,11 @@ runs:
     - name: Setup branches
       id: setup
       shell: bash
+      env:
+        TARGET_BRANCH: ${{ inputs.release-branch }}
+        DRY_RUN: ${{ inputs.dry-run }}
       run: |
-        TARGET_BRANCH="${{ inputs.release-branch }}"
         TEMP_BRANCH="${TARGET_BRANCH}-version-bump"
-        DRY_RUN="${{ inputs.dry-run }}"
         
         echo "Target release branch: $TARGET_BRANCH"
         echo "Temporary work branch: $TEMP_BRANCH"

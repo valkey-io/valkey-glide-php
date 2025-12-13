@@ -54,8 +54,12 @@ jobs:
 
       - name: Determine version and release branch
         id: determine-version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          INPUT_RELEASE_BRANCH: ${{ github.event.inputs.release-branch }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
+          if [ "$EVENT_NAME" = "pull_request" ]; then
             # For PR events, extract current version and create test values
             CURRENT_VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' common.h | sed 's/#define VALKEY_GLIDE_PHP_VERSION "\([^"]*\)"/\1/')
             echo "Current version from common.h: $CURRENT_VERSION"
@@ -67,21 +71,23 @@ jobs:
             echo "version=$TEST_VERSION" >> $GITHUB_OUTPUT
             echo "release-branch=$TEST_RELEASE_BRANCH" >> $GITHUB_OUTPUT
             
-            echo "PR Mode: Using test version $TEST_VERSION and release branch $TEST_RELEASE_BRANCH"
+            echo "🧪 PR Mode: Using test version $TEST_VERSION and release branch $TEST_RELEASE_BRANCH"
           else
             # For workflow_dispatch, use provided inputs
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-            echo "release-branch=${{ github.event.inputs.release-branch }}" >> $GITHUB_OUTPUT
+            echo "version=$INPUT_VERSION" >> $GITHUB_OUTPUT
+            echo "release-branch=$INPUT_RELEASE_BRANCH" >> $GITHUB_OUTPUT
             
-            echo "Manual Mode: Using version ${{ github.event.inputs.version }} and release branch ${{ github.event.inputs.release-branch }}"
+            echo "Manual Mode: Using version $INPUT_VERSION and release branch $INPUT_RELEASE_BRANCH"
           fi
 
       - name: Validate version format
+        env:
+          VERSION: ${{ steps.determine-version.outputs.version }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          VERSION="${{ steps.determine-version.outputs.version }}"
           echo "Validating version format: $VERSION"
           
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
+          if [ "$EVENT_NAME" = "pull_request" ]; then
             echo "PR Mode: Skipping strict version format validation for test version"
             echo "Test version: $VERSION"
           else
@@ -108,10 +114,11 @@ jobs:
           dry-run: ${{ github.event_name == 'pull_request' || github.event.inputs.dry-run }}
 
       - name: Validate version consistency
+        if: github.event_name != 'pull_request'
         uses: ./.github/workflows/validate-version
         with:
           expected-version: ${{ steps.determine-version.outputs.version }}
-          source: ${{ github.event_name == 'pull_request' && 'pr-test' || 'manual' }}
+          source: manual
 
       - name: Commit and push changes
         uses: ./.github/workflows/commit-version-changes

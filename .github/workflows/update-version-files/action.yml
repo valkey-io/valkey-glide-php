@@ -23,9 +23,10 @@ runs:
     - name: Update version files
       id: update
       shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        DRY_RUN: ${{ inputs.dry-run }}
       run: |
-        VERSION="${{ inputs.version }}"
-        DRY_RUN="${{ inputs.dry-run }}"
         
         echo "Version: $VERSION"
         echo "Dry run: $DRY_RUN"

@@ -17,15 +17,18 @@ runs:
     - name: Determine version to validate
       id: extract-version
       shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.expected-version }}
+        INPUT_SOURCE: ${{ inputs.source }}
+        RELEASE_TAG: ${{ github.event.release.tag_name }}
       run: |
         # Check if version was provided as input
-        if [ -n "${{ inputs.expected-version }}" ]; then
-          VERSION="${{ inputs.expected-version }}"
-          SOURCE="${{ inputs.source }}"
+        if [ -n "$INPUT_VERSION" ]; then
+          VERSION="$INPUT_VERSION"
+          SOURCE="$INPUT_SOURCE"
           echo "Using provided version: $VERSION (source: $SOURCE)"
         elif [ "$GITHUB_EVENT_NAME" = "release" ]; then
           # Extract from release
-          RELEASE_TAG="${{ github.event.release.tag_name }}"
           VERSION=${RELEASE_TAG#v}  # Remove 'v' prefix if present
           SOURCE="release"
           echo "Extracted from release: $VERSION (tag: $RELEASE_TAG)"

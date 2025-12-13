@@ -139,10 +139,13 @@ runs:
 
     - name: Determine package info
       shell: bash
+      env:
+        SKIP_CREATION: ${{ inputs.skip-package-creation }}
+        PACKAGE_PATH: ${{ inputs.package-path }}
       run: |
-        if [ "${{ inputs.skip-package-creation }}" = "true" ] && [ -n "${{ inputs.package-path }}" ]; then
+        if [ "$SKIP_CREATION" = "true" ] && [ -n "$PACKAGE_PATH" ]; then
           # Use provided package
-          PACKAGE_FILE="${{ inputs.package-path }}"
+          PACKAGE_FILE="$PACKAGE_PATH"
           PACKAGE_DIR=$(basename "$PACKAGE_FILE" .tgz)
           VERSION=$(echo "$PACKAGE_DIR" | sed 's/valkey_glide-//')
         else
