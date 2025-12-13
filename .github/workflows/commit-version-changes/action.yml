@@ -1,19 +1,19 @@
-name: 'Commit Version Changes'
-description: 'Commit and push version changes to branch'
+name: "Commit Version Changes"
+description: "Commit and push version changes to branch"
 inputs:
   version:
-    description: 'Version being updated'
+    description: "Version being updated"
     required: true
   temp-branch:
-    description: 'Temporary branch to push to'
+    description: "Temporary branch to push to"
     required: true
   dry-run:
-    description: 'Dry run mode - show what would be committed without pushing'
+    description: "Dry run mode - show what would be committed without pushing"
     required: false
-    default: 'false'
+    default: "false"
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Commit and push changes
       shell: bash
@@ -22,17 +22,17 @@ runs:
         TEMP_BRANCH: ${{ inputs.temp-branch }}
         DRY_RUN: ${{ inputs.dry-run }}
       run: |
-        
+
         git add common.h package.xml
-        
+
         COMMIT_MSG="chore: bump version to $VERSION
 
         - Update VALKEY_GLIDE_PHP_VERSION in common.h
         - Update release and API versions in package.xml
         - Update date and time in package.xml
-        
+
         Signed-off-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
-        
+
         if [ "$DRY_RUN" = "true" ]; then
           echo "DRY RUN: Would commit and push version changes"
           echo "Branch: $TEMP_BRANCH"

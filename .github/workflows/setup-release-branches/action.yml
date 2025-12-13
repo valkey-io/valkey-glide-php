@@ -1,24 +1,24 @@
-name: 'Setup Release Branches'
-description: 'Setup target and temporary branches for release'
+name: "Setup Release Branches"
+description: "Setup target and temporary branches for release"
 inputs:
   release-branch:
-    description: 'Target release branch name (e.g., release-0.10)'
+    description: "Target release branch name (e.g., release-0.10)"
     required: true
   dry-run:
-    description: 'Dry run mode - show what would be done without making changes'
+    description: "Dry run mode - show what would be done without making changes"
     required: false
-    default: 'false'
+    default: "false"
 
 outputs:
   target-branch:
-    description: 'Target release branch name'
+    description: "Target release branch name"
     value: ${{ steps.setup.outputs.target-branch }}
   temp-branch:
-    description: 'Temporary branch name for version changes'
+    description: "Temporary branch name for version changes"
     value: ${{ steps.setup.outputs.temp-branch }}
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Setup branches
       id: setup
@@ -28,14 +28,14 @@ runs:
         DRY_RUN: ${{ inputs.dry-run }}
       run: |
         TEMP_BRANCH="${TARGET_BRANCH}-version-bump"
-        
+
         echo "Target release branch: $TARGET_BRANCH"
         echo "Temporary work branch: $TEMP_BRANCH"
         echo "Dry run: $DRY_RUN"
-        
+
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
-        
+
         if [ "$DRY_RUN" = "true" ]; then
           echo "DRY RUN: Would setup branches"
           echo "Would check if target branch '$TARGET_BRANCH' exists remotely"
@@ -69,6 +69,6 @@ runs:
           echo "Creating temporary branch: $TEMP_BRANCH"
           git checkout -b "$TEMP_BRANCH"
         fi
-        
+
         echo "target-branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
         echo "temp-branch=$TEMP_BRANCH" >> $GITHUB_OUTPUT

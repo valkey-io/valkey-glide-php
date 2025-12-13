@@ -45,7 +45,7 @@ runs:
           echo "Current ref: $GITHUB_REF"
           exit 1
         fi
-        
+
         echo "expected-version=$VERSION" >> $GITHUB_OUTPUT
         echo "version-source=$SOURCE" >> $GITHUB_OUTPUT
 
@@ -59,11 +59,11 @@ runs:
         echo "Expected version: $EXPECTED_VERSION"
         echo "Version source: $VERSION_SOURCE"
         echo ""
-        
+
         # Extract version from common.h
         CODE_VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' common.h | sed 's/#define VALKEY_GLIDE_PHP_VERSION "\([^"]*\)"/\1/')
         echo "Version in common.h: $CODE_VERSION"
-        
+
         if [ "$CODE_VERSION" != "$EXPECTED_VERSION" ]; then
           echo "ERROR: Version mismatch in common.h!"
           echo "  Expected: $EXPECTED_VERSION"
@@ -74,7 +74,7 @@ runs:
           echo "Line: #define VALKEY_GLIDE_PHP_VERSION \"$EXPECTED_VERSION\""
           exit 1
         fi
-        
+
         echo "SUCCESS: Version in common.h matches expected version ($CODE_VERSION)"
 
     - name: Validate version in package.xml
@@ -84,31 +84,31 @@ runs:
       run: |
         echo ""
         echo "=== Validating package.xml versions ==="
-        
+
         # Extract release version from package.xml (first occurrence only - main version, not changelog)
         RELEASE_VERSION=$(grep -o '<release>[^<]*</release>' package.xml | head -1 | sed 's/<[^>]*>//g')
         echo "Release version in package.xml: $RELEASE_VERSION"
-        
+
         # Extract API version from package.xml (first occurrence only - main version, not changelog)
         API_VERSION=$(grep -o '<api>[^<]*</api>' package.xml | head -1 | sed 's/<[^>]*>//g')
         echo "API version in package.xml: $API_VERSION"
-        
+
         MISMATCH=false
-        
+
         if [ "$RELEASE_VERSION" != "$EXPECTED_VERSION" ]; then
           echo "ERROR: Release version mismatch in package.xml!"
           echo "  Expected: $EXPECTED_VERSION"
           echo "  Found: $RELEASE_VERSION"
           MISMATCH=true
         fi
-        
+
         if [ "$API_VERSION" != "$EXPECTED_VERSION" ]; then
           echo "ERROR: API version mismatch in package.xml!"
           echo "  Expected: $EXPECTED_VERSION"
           echo "  Found: $API_VERSION"
           MISMATCH=true
         fi
-        
+
         if [ "$MISMATCH" = true ]; then
           echo ""
           echo "Please update the versions in package.xml:"
@@ -118,5 +118,5 @@ runs:
           echo "  <api>$EXPECTED_VERSION</api>"
           exit 1
         fi
-        
+
         echo "SUCCESS: Versions in package.xml match expected version ($RELEASE_VERSION)"

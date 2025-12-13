@@ -1,24 +1,24 @@
-name: 'Update Version Files'
-description: 'Update version in common.h and package.xml files'
+name: "Update Version Files"
+description: "Update version in common.h and package.xml files"
 inputs:
   version:
-    description: 'Version to set (e.g., 0.9.0)'
+    description: "Version to set (e.g., 0.9.0)"
     required: true
   dry-run:
-    description: 'Dry run mode - show what would be changed without making changes'
+    description: "Dry run mode - show what would be changed without making changes"
     required: false
-    default: 'false'
+    default: "false"
 
 outputs:
   common-version:
-    description: 'Version found in common.h after update'
+    description: "Version found in common.h after update"
     value: ${{ steps.update.outputs.common-version }}
   package-version:
-    description: 'Version found in package.xml after update'
+    description: "Version found in package.xml after update"
     value: ${{ steps.update.outputs.package-version }}
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Update version files
       id: update
@@ -27,10 +27,10 @@ runs:
         VERSION: ${{ inputs.version }}
         DRY_RUN: ${{ inputs.dry-run }}
       run: |
-        
+
         echo "Version: $VERSION"
         echo "Dry run: $DRY_RUN"
-        
+
         if [ "$DRY_RUN" = "true" ]; then
           echo "DRY RUN: Would update version files to $VERSION"
           

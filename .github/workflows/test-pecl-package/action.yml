@@ -1,26 +1,26 @@
-name: 'Test PECL Package Installation'
-description: 'Test PECL package creation and installation'
+name: "Test PECL Package Installation"
+description: "Test PECL package creation and installation"
 inputs:
   php-version:
-    description: 'PHP version to test with'
+    description: "PHP version to test with"
     required: true
   engine-version:
-    description: 'Engine version for testing'
+    description: "Engine version for testing"
     required: false
-    default: '7.2.5'
+    default: "7.2.5"
   package-path:
-    description: 'Path to the PECL package tarball (optional, will create if not provided)'
+    description: "Path to the PECL package tarball (optional, will create if not provided)"
     required: false
   skip-package-creation:
-    description: 'Skip package creation step (use existing package)'
+    description: "Skip package creation step (use existing package)"
     required: false
-    default: 'false'
+    default: "false"
   github-token:
-    description: 'GitHub token for API access (optional, uses github.token if not provided)'
+    description: "GitHub token for API access (optional, uses github.token if not provided)"
     required: false
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Setup ValkeyGlide with Caching
       if: inputs.skip-package-creation != 'true'
@@ -154,11 +154,11 @@ runs:
           PACKAGE_DIR="valkey_glide-$VERSION"
           PACKAGE_FILE="$PACKAGE_DIR.tgz"
         fi
-        
+
         echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
         echo "PACKAGE_DIR=$PACKAGE_DIR" >> $GITHUB_ENV
         echo "PACKAGE_FILE=$PACKAGE_FILE" >> $GITHUB_ENV
-        
+
         echo "Using package: $PACKAGE_FILE"
         echo "Package directory: $PACKAGE_DIR"
         echo "Version: $VERSION"

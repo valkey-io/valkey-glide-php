@@ -8,15 +8,15 @@ on:
     types: [published]
   pull_request:
     paths:
-      - 'common.h'
-      - 'package.xml'
-      - '.github/workflows/publish-pecl.yml'
-      - '.github/workflows/update-version-files/**'
-      - '.github/workflows/setup-release-branches/**'
-      - '.github/workflows/commit-version-changes/**'
-      - '.github/workflows/create-version-pr/**'
-      - '.github/workflows/validate-version/**'
-      - '.github/workflows/test-pecl-package/**'
+      - "common.h"
+      - "package.xml"
+      - ".github/workflows/publish-pecl.yml"
+      - ".github/workflows/update-version-files/**"
+      - ".github/workflows/setup-release-branches/**"
+      - ".github/workflows/commit-version-changes/**"
+      - ".github/workflows/create-version-pr/**"
+      - ".github/workflows/validate-version/**"
+      - ".github/workflows/test-pecl-package/**"
   workflow_dispatch:
     inputs:
       version:
@@ -86,7 +86,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
         run: |
           echo "Validating version format: $VERSION"
-          
+
           if [ "$EVENT_NAME" = "pull_request" ]; then
             echo "PR Mode: Skipping strict version format validation for test version"
             echo "Test version: $VERSION"
@@ -142,24 +142,24 @@ jobs:
     runs-on: ubuntu-latest
     needs: prepare-version-bump
     if: github.event_name == 'workflow_dispatch' && needs.prepare-version-bump.outputs.dry-run != 'true'
-    environment: release-approval  # This requires manual approval
+    environment: release-approval # This requires manual approval
     steps:
       - name: Check if PR is merged
         uses: actions/github-script@v7
         with:
           script: |
             const prNumber = ${{ needs.prepare-version-bump.outputs.pr-number }};
-            
+
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: prNumber
             });
-            
+
             if (!pr.merged) {
               throw new Error(`PR #${prNumber} must be merged before creating the tag. Current state: ${pr.state}`);
             }
-            
+
             console.log(`PR #${prNumber} has been merged to ${pr.base.ref}! Proceeding with tag creation.`);
 
       - uses: actions/checkout@v4
@@ -171,21 +171,21 @@ jobs:
         run: |
           VERSION="${{ needs.prepare-version-bump.outputs.version }}"
           TAG_NAME="v$VERSION"
-          
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
+
           git tag -a "$TAG_NAME" -m "Release $TAG_NAME
 
           This tag was created after PR #${{ needs.prepare-version-bump.outputs.pr-number }} was merged.
-          
+
           Version: $VERSION
           Release Date: $(date -u +%Y-%m-%d)
-          
+
           Signed-off-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
-          
+
           git push origin "$TAG_NAME"
-          
+
           echo "Tag $TAG_NAME created and pushed successfully!"
 
   validate-version:
@@ -194,7 +194,7 @@ jobs:
     if: github.event_name == 'release'
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Validate version consistency
         uses: ./.github/workflows/validate-version
         with:
@@ -255,12 +255,12 @@ jobs:
             echo "$path=$clean_commit" >> .submodule-commits
           done
           cat .submodule-commits
-          
+
           echo "=== Version files are already updated from previous steps ==="
           VERSION="${{ steps.version.outputs.version }}"
           COMMON_VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' common.h | sed 's/#define VALKEY_GLIDE_PHP_VERSION "\([^"]*\)"/\1/')
           RELEASE_VERSION=$(grep -o '<release>[^<]*</release>' package.xml | head -1 | sed 's/<[^>]*>//g')
-          
+
           echo "Current common.h version: $COMMON_VERSION"
           echo "Current package.xml version: $RELEASE_VERSION"
           echo "Expected version: $VERSION"
@@ -337,9 +337,9 @@ jobs:
       - name: Test package installation
         uses: ./.github/workflows/test-pecl-package
         with:
-          php-version: '8.2'  # Use a stable PHP version for testing
+          php-version: "8.2" # Use a stable PHP version for testing
           package-path: valkey_glide-${{ steps.version.outputs.version }}.tgz
-          skip-package-creation: 'true'
+          skip-package-creation: "true"
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
