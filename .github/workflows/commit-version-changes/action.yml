@@ -22,9 +22,6 @@ runs:
         TEMP_BRANCH: ${{ inputs.temp-branch }}
         DRY_RUN: ${{ inputs.dry-run }}
       run: |
-
-        git add common.h package.xml
-
         COMMIT_MSG="chore: bump version to $VERSION
 
         - Update VALKEY_GLIDE_PHP_VERSION in common.h
@@ -33,20 +30,33 @@ runs:
 
         Signed-off-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
 
+        # Add files to staging
+        git add common.h package.xml
+
+        # Check if there are changes to commit
+        if git diff --cached --quiet; then
+          echo "No changes to commit"
+          exit 0
+        fi
+
+        # Show what files will be committed
+        echo "Files to be committed:"
+        git diff --cached --name-only
+
         if [ "$DRY_RUN" = "true" ]; then
-          echo "DRY RUN: Would commit and push version changes"
+          echo "DRY RUN: Committing locally but not pushing"
           echo "Branch: $TEMP_BRANCH"
           echo "Commit message:"
           echo "$COMMIT_MSG"
-          echo "Would push to origin/$TEMP_BRANCH"
           
-          # Show what files would be committed
-          echo "Files that would be committed:"
-          git diff --cached --name-only
-          
-          # Create local commit for testing but don't push
-          git commit -m "$COMMIT_MSG (DRY RUN - NOT PUSHED)"
+          # Commit locally but don't push
+          git commit -m "$COMMIT_MSG"
+          echo "✅ Local commit created successfully (not pushed in dry-run mode)"
         else
+          echo "Committing and pushing version changes"
+          echo "Branch: $TEMP_BRANCH"
+          
           git commit -m "$COMMIT_MSG"
           git push origin "$TEMP_BRANCH"
+          echo "✅ Changes committed and pushed successfully"
         fi
