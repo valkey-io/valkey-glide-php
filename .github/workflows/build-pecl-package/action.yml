@@ -1,0 +1,180 @@
+name: 'Build PECL Package'
+description: 'Create PECL package tarball from source files'
+inputs:
+  version:
+    description: 'Package version (optional, will extract from package.xml if not provided)'
+    required: false
+
+outputs:
+  package-file:
+    description: 'Path to the created PECL package file'
+    value: ${{ steps.create-package.outputs.package-file }}
+  package-version:
+    description: 'Version of the created package'
+    value: ${{ steps.create-package.outputs.package-version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Generate submodule commit info
+      shell: bash
+      run: |
+        echo "=== Generating submodule commit info ==="
+        git submodule status | while read commit path extra; do
+          # Remove leading - or + from commit hash
+          clean_commit=$(echo "$commit" | sed 's/^[-+]//')
+          echo "$path=$clean_commit" >> .submodule-commits
+        done
+        cat .submodule-commits
+
+    - name: Create PECL package
+      id: create-package
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+      run: |
+        # Determine version
+        if [ -n "$INPUT_VERSION" ]; then
+          VERSION="$INPUT_VERSION"
+          echo "Using provided version: $VERSION"
+        else
+          VERSION=$(grep -o '<release>[^<]*</release>' package.xml | sed 's/<[^>]*>//g' | head -1)
+          echo "Extracted version from package.xml: $VERSION"
+        fi
+        
+        PACKAGE_DIR="valkey_glide-$VERSION"
+        PACKAGE_FILE="$PACKAGE_DIR.tgz"
+
+        echo "=== Creating PECL package for version $VERSION ==="
+
+        # Debug: Show Makefile.frag contents
+        echo "=== DEBUG: Contents of Makefile.frag ==="
+        cat Makefile.frag | head -50
+        echo "=== END Makefile.frag (first 50 lines) ==="
+
+        # Create clean package directory
+        mkdir -p "$PACKAGE_DIR"
+
+        # Copy files as specified in package.xml
+        echo "=== Copying files according to package.xml ==="
+        
+        # Root files
+        cp config.m4 "$PACKAGE_DIR/"
+        cp Makefile.frag "$PACKAGE_DIR/"
+        cp .gitmodules "$PACKAGE_DIR/"
+        cp .submodule-commits "$PACKAGE_DIR/"
+        cp package.xml "$PACKAGE_DIR/"
+
+        # Copy all .c and .h files (exclude temp files with ~)
+        echo "=== Copying .c and .h files ==="
+        for file in *.c *.h; do
+          if [[ -f "$file" && "$file" != *~ ]]; then
+            echo "Copying $file"
+            cp "$file" "$PACKAGE_DIR/"
+          fi
+        done
+
+        # Copy stub files (exclude temp files with ~)
+        echo "=== Copying .stub.php files ==="
+        for file in *.stub.php; do
+          if [[ -f "$file" && "$file" != *~ ]]; then
+            echo "Copying $file"
+            cp "$file" "$PACKAGE_DIR/"
+          fi
+        done
+
+        # Copy src directory
+        echo "=== Copying src directory ==="
+        mkdir -p "$PACKAGE_DIR/src"
+        if [ -f "src/client_constructor_mock.c" ]; then
+          cp src/client_constructor_mock.c "$PACKAGE_DIR/src/"
+          echo "Copied src/client_constructor_mock.c"
+        else
+          echo "ERROR: src/client_constructor_mock.c not found!"
+          ls -la src/
+          exit 1
+        fi
+        
+        if [ -f "src/client_constructor_mock.stub.php" ]; then
+          cp src/client_constructor_mock.stub.php "$PACKAGE_DIR/src/"
+          echo "Copied src/client_constructor_mock.stub.php"
+        else
+          echo "ERROR: src/client_constructor_mock.stub.php not found!"
+          ls -la src/
+          exit 1
+        fi
+
+        # Copy utils directory
+        echo "=== Copying utils directory ==="
+        mkdir -p "$PACKAGE_DIR/utils"
+        if [ -f "utils/remove_optional_from_proto.py" ]; then
+          cp utils/remove_optional_from_proto.py "$PACKAGE_DIR/utils/"
+          echo "Copied utils/remove_optional_from_proto.py"
+        else
+          echo "WARNING: utils/remove_optional_from_proto.py not found"
+        fi
+
+        # Copy documentation files
+        echo "=== Copying documentation files ==="
+        cp README.md "$PACKAGE_DIR/"
+        cp LICENSE "$PACKAGE_DIR/"
+
+        # Create empty valkey-glide directory with .gitkeep
+        echo "=== Creating valkey-glide directory ==="
+        mkdir -p "$PACKAGE_DIR/valkey-glide"
+        touch "$PACKAGE_DIR/valkey-glide/.gitkeep"
+
+        # Validate package.xml
+        echo "=== Validating package.xml ==="
+        if ! command -v xmllint >/dev/null 2>&1; then
+          echo "Installing xmllint..."
+          sudo apt-get update && sudo apt-get install -y libxml2-utils
+        fi
+        xmllint --noout package.xml || exit 1
+
+        # Verify all required files are present
+        echo "=== Verifying package contents ==="
+        echo "Checking for required files in package:"
+        
+        REQUIRED_FILES=(
+          "config.m4"
+          "Makefile.frag"
+          "package.xml"
+          "src/client_constructor_mock.c"
+          "src/client_constructor_mock.stub.php"
+        )
+        
+        for file in "${REQUIRED_FILES[@]}"; do
+          if [ -f "$PACKAGE_DIR/$file" ]; then
+            echo "✅ $file"
+          else
+            echo "❌ $file - MISSING!"
+            exit 1
+          fi
+        done
+
+        # Create tarball
+        echo "=== Creating tarball ==="
+        tar czf "$PACKAGE_FILE" "$PACKAGE_DIR"
+
+        echo "=== PECL package created successfully ==="
+        ls -la "$PACKAGE_FILE"
+
+        # Show package contents for verification
+        echo "=== Package contents (first 30 files) ==="
+        tar tzf "$PACKAGE_FILE" | head -30
+
+        # Verify the problematic file is in the tarball
+        echo "=== Verifying src/client_constructor_mock.c is in tarball ==="
+        if tar tzf "$PACKAGE_FILE" | grep -q "src/client_constructor_mock.c"; then
+          echo "✅ src/client_constructor_mock.c found in tarball"
+        else
+          echo "❌ src/client_constructor_mock.c NOT found in tarball!"
+          echo "Full tarball contents:"
+          tar tzf "$PACKAGE_FILE"
+          exit 1
+        fi
+
+        # Set outputs
+        echo "package-file=$PACKAGE_FILE" >> $GITHUB_OUTPUT
+        echo "package-version=$VERSION" >> $GITHUB_OUTPUT

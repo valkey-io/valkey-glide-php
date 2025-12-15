@@ -266,87 +266,25 @@ jobs:
           echo "Expected version: $VERSION"
 
       - name: Create PECL package
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          PACKAGE_DIR="valkey_glide-$VERSION"
-
-          echo "=== Creating PECL package for version $VERSION ==="
-
-          # Debug: Show Makefile.frag contents
-          echo "=== DEBUG: Contents of Makefile.frag ==="
-          cat Makefile.frag | head -50
-          echo "=== END Makefile.frag (first 50 lines) ==="
-
-          # Create clean package directory
-          mkdir -p "$PACKAGE_DIR"
-
-          # Copy only source files listed in package.xml (exclude temp files with ~)
-          cp config.m4 "$PACKAGE_DIR/"
-          cp Makefile.frag "$PACKAGE_DIR/"
-          cp .gitmodules "$PACKAGE_DIR/"
-          cp .submodule-commits "$PACKAGE_DIR/"
-          cp package.xml "$PACKAGE_DIR/"
-
-          # Copy specific source files (exclude temp files)
-          for file in *.c *.h; do
-            if [[ -f "$file" && "$file" != *~ ]]; then
-              cp "$file" "$PACKAGE_DIR/"
-            fi
-          done
-
-          # Copy stub files (exclude temp files)
-          for file in *.stub.php; do
-            if [[ -f "$file" && "$file" != *~ ]]; then
-              cp "$file" "$PACKAGE_DIR/"
-            fi
-          done
-
-          # Copy src directory
-          mkdir -p "$PACKAGE_DIR/src"
-          cp src/client_constructor_mock.c "$PACKAGE_DIR/src/"
-          cp src/client_constructor_mock.stub.php "$PACKAGE_DIR/src/"
-
-          # Copy utils directory
-          mkdir -p "$PACKAGE_DIR/utils"
-          cp utils/remove_optional_from_proto.py "$PACKAGE_DIR/utils/"
-
-          # Copy documentation files
-          cp README.md "$PACKAGE_DIR/"
-          cp LICENSE "$PACKAGE_DIR/"
-
-          # Create empty valkey-glide directory with .gitkeep
-          mkdir -p "$PACKAGE_DIR/valkey-glide"
-          touch "$PACKAGE_DIR/valkey-glide/.gitkeep"
-
-          # Validate package.xml
-          if ! command -v xmllint >/dev/null 2>&1; then
-            sudo apt-get update && sudo apt-get install -y libxml2-utils
-          fi
-          xmllint --noout package.xml || exit 1
-
-          # Create tarball
-          tar czf "$PACKAGE_DIR.tgz" "$PACKAGE_DIR"
-
-          echo "=== PECL package created ==="
-          ls -la "$PACKAGE_DIR.tgz"
-
-          # Show package contents
-          echo "=== Package contents ==="
-          tar tzf "$PACKAGE_DIR.tgz" | head -20
+        id: build-package
+        uses: ./.github/workflows/build-pecl-package
+        with:
+          version: ${{ steps.version.outputs.version }}
 
       - name: Test package installation
         uses: ./.github/workflows/test-pecl-package
         with:
           php-version: "8.2" # Use a stable PHP version for testing
-          package-path: valkey_glide-${{ steps.version.outputs.version }}.tgz
+          engine-version: "7.2.5"
+          package-path: ${{ steps.build-package.outputs.package-file }}
           skip-package-creation: "true"
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: valkey-glide-php-${{ steps.version.outputs.version }}
+          name: valkey-glide-php-${{ steps.build-package.outputs.package-version }}
           path: |
-            valkey_glide-${{ steps.version.outputs.version }}.tgz
+            ${{ steps.build-package.outputs.package-file }}
           retention-days: 90
 
       - name: Create GitHub release
@@ -356,10 +294,10 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         uses: actions/create-release@v1
         with:
-          tag_name: v${{ steps.version.outputs.version }}
-          release_name: Valkey GLIDE PHP v${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.build-package.outputs.package-version }}
+          release_name: Valkey GLIDE PHP v${{ steps.build-package.outputs.package-version }}
           body: |
-            ## Valkey GLIDE PHP Extension v${{ steps.version.outputs.version }}
+            ## Valkey GLIDE PHP Extension v${{ steps.build-package.outputs.package-version }}
 
             High-performance PHP client for Valkey and Redis with Rust-based core.
 
@@ -372,7 +310,7 @@ jobs:
 
             **PECL-style:**
             ```bash
-            pecl install https://github.com/valkey-io/valkey-glide-php/releases/download/v${{ steps.version.outputs.version }}/valkey_glide-${{ steps.version.outputs.version }}.tgz
+            pecl install https://github.com/valkey-io/valkey-glide-php/releases/download/v${{ steps.build-package.outputs.package-version }}/${{ steps.build-package.outputs.package-file }}
             ```
 
             **Manual:**
@@ -393,6 +331,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url || steps.create-release.outputs.upload_url }}
-          asset_path: valkey_glide-${{ steps.version.outputs.version }}.tgz
-          asset_name: valkey_glide-${{ steps.version.outputs.version }}.tgz
+          asset_path: ${{ steps.build-package.outputs.package-file }}
+          asset_name: ${{ steps.build-package.outputs.package-file }}
           asset_content_type: application/gzip
