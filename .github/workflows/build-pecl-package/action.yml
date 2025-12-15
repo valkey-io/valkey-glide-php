@@ -1,20 +1,20 @@
-name: 'Build PECL Package'
-description: 'Create PECL package tarball from source files'
+name: "Build PECL Package"
+description: "Create PECL package tarball from source files"
 inputs:
   version:
-    description: 'Package version (optional, will extract from package.xml if not provided)'
+    description: "Package version (optional, will extract from package.xml if not provided)"
     required: false
 
 outputs:
   package-file:
-    description: 'Path to the created PECL package file'
+    description: "Path to the created PECL package file"
     value: ${{ steps.create-package.outputs.package-file }}
   package-version:
-    description: 'Version of the created package'
+    description: "Version of the created package"
     value: ${{ steps.create-package.outputs.package-version }}
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Generate submodule commit info
       shell: bash
@@ -41,7 +41,7 @@ runs:
           VERSION=$(grep -o '<release>[^<]*</release>' package.xml | sed 's/<[^>]*>//g' | head -1)
           echo "Extracted version from package.xml: $VERSION"
         fi
-        
+
         PACKAGE_DIR="valkey_glide-$VERSION"
         PACKAGE_FILE="$PACKAGE_DIR.tgz"
 
@@ -57,7 +57,7 @@ runs:
 
         # Copy files as specified in package.xml
         echo "=== Copying files according to package.xml ==="
-        
+
         # Root files
         cp config.m4 "$PACKAGE_DIR/"
         cp Makefile.frag "$PACKAGE_DIR/"
@@ -94,7 +94,7 @@ runs:
           ls -la src/
           exit 1
         fi
-        
+
         if [ -f "src/client_constructor_mock.stub.php" ]; then
           cp src/client_constructor_mock.stub.php "$PACKAGE_DIR/src/"
           echo "Copied src/client_constructor_mock.stub.php"
@@ -135,7 +135,7 @@ runs:
         # Verify all required files are present
         echo "=== Verifying package contents ==="
         echo "Checking for required files in package:"
-        
+
         REQUIRED_FILES=(
           "config.m4"
           "Makefile.frag"
@@ -143,12 +143,12 @@ runs:
           "src/client_constructor_mock.c"
           "src/client_constructor_mock.stub.php"
         )
-        
+
         for file in "${REQUIRED_FILES[@]}"; do
           if [ -f "$PACKAGE_DIR/$file" ]; then
-            echo "✅ $file"
+            echo "$file"
           else
-            echo "❌ $file - MISSING!"
+            echo "$file - MISSING!"
             exit 1
           fi
         done
@@ -162,14 +162,14 @@ runs:
 
         # Show package contents for verification
         echo "=== Package contents (first 30 files) ==="
-        tar tzf "$PACKAGE_FILE" | head -30
+        tar tzf "$PACKAGE_FILE" 2>/dev/null | head -30 || echo "Package contents listed successfully"
 
         # Verify the problematic file is in the tarball
         echo "=== Verifying src/client_constructor_mock.c is in tarball ==="
         if tar tzf "$PACKAGE_FILE" | grep -q "src/client_constructor_mock.c"; then
-          echo "✅ src/client_constructor_mock.c found in tarball"
+          echo "src/client_constructor_mock.c found in tarball"
         else
-          echo "❌ src/client_constructor_mock.c NOT found in tarball!"
+          echo "src/client_constructor_mock.c NOT found in tarball!"
           echo "Full tarball contents:"
           tar tzf "$PACKAGE_FILE"
           exit 1

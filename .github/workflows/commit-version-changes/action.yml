@@ -51,12 +51,12 @@ runs:
           
           # Commit locally but don't push
           git commit -m "$COMMIT_MSG"
-          echo "✅ Local commit created successfully (not pushed in dry-run mode)"
+          echo "Local commit created successfully (not pushed in dry-run mode)"
         else
           echo "Committing and pushing version changes"
           echo "Branch: $TEMP_BRANCH"
           
           git commit -m "$COMMIT_MSG"
           git push origin "$TEMP_BRANCH"
-          echo "✅ Changes committed and pushed successfully"
+          echo "Changes committed and pushed successfully"
         fi
