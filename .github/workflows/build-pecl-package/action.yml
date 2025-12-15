@@ -37,6 +37,18 @@ runs:
         if [ -n "$INPUT_VERSION" ]; then
           VERSION="$INPUT_VERSION"
           echo "Using provided version: $VERSION"
+          
+          # Update package.xml to use the provided version
+          echo "=== Updating package.xml with provided version ==="
+          DATE=$(date +%Y-%m-%d)
+          TIME=$(date +%H:%M:%S)
+          
+          sed -i "0,/<release>[^<]*<\/release>/s/<release>[^<]*<\/release>/<release>$VERSION<\/release>/" package.xml
+          sed -i "0,/<api>[^<]*<\/api>/s/<api>[^<]*<\/api>/<api>$VERSION<\/api>/" package.xml
+          sed -i "0,/<date>[^<]*<\/date>/s/<date>[^<]*<\/date>/<date>$DATE<\/date>/" package.xml
+          sed -i "0,/<time>[^<]*<\/time>/s/<time>[^<]*<\/time>/<time>$TIME<\/time>/" package.xml
+          
+          echo "Updated package.xml version to: $VERSION"
         else
           VERSION=$(grep -o '<release>[^<]*</release>' package.xml | sed 's/<[^>]*>//g' | head -1)
           echo "Extracted version from package.xml: $VERSION"
