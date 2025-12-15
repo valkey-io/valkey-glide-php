@@ -38,8 +38,8 @@ runs:
           VERSION="$INPUT_VERSION"
           echo "Using provided version: $VERSION"
           
-          # Update package.xml to use the provided version
-          echo "=== Updating package.xml with provided version ==="
+          # Update package.xml with the provided version
+          echo "=== Updating package.xml with version ==="
           DATE=$(date +%Y-%m-%d)
           TIME=$(date +%H:%M:%S)
           

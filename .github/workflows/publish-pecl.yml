@@ -64,14 +64,14 @@ jobs:
             CURRENT_VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' common.h | sed 's/#define VALKEY_GLIDE_PHP_VERSION "\([^"]*\)"/\1/')
             echo "Current version from common.h: $CURRENT_VERSION"
             
-            # Create test version by appending -pr-test
-            TEST_VERSION="${CURRENT_VERSION}-pr-test"
+            # Create PECL-compatible test version by appending RC
+            TEST_VERSION="${CURRENT_VERSION}RC"
             TEST_RELEASE_BRANCH="release-$(echo $CURRENT_VERSION | cut -d. -f1-2)"
             
             echo "version=$TEST_VERSION" >> $GITHUB_OUTPUT
             echo "release-branch=$TEST_RELEASE_BRANCH" >> $GITHUB_OUTPUT
             
-            echo "🧪 PR Mode: Using test version $TEST_VERSION and release branch $TEST_RELEASE_BRANCH"
+            echo "🧪 PR Mode: Using PECL-compatible test version $TEST_VERSION (release candidate format) and release branch $TEST_RELEASE_BRANCH"
           else
             # For workflow_dispatch, use provided inputs
             echo "version=$INPUT_VERSION" >> $GITHUB_OUTPUT
