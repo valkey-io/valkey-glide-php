@@ -119,6 +119,7 @@ runs:
             libtool \
             pkg-config \
             libssl-dev \
+            protobuf-compiler \
             protobuf-c-compiler \
             libprotobuf-c-dev \
             libprotobuf-c1
