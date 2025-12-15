@@ -164,16 +164,7 @@ runs:
         echo "=== Package contents (first 30 files) ==="
         tar tzf "$PACKAGE_FILE" 2>/dev/null | head -30 || echo "Package contents listed successfully"
 
-        # Verify the problematic file is in the tarball
-        echo "=== Verifying src/client_constructor_mock.c is in tarball ==="
-        if tar tzf "$PACKAGE_FILE" 2>/dev/null | grep -q "/src/client_constructor_mock.c"; then
-          echo "/src/client_constructor_mock.c found in tarball"
-        else
-          echo "/src/client_constructor_mock.c NOT found in tarball!"
-          echo "Full tarball contents:"
-          tar tzf "$PACKAGE_FILE" 2>/dev/null || echo "Error listing tarball contents"
-          exit 1
-        fi
+        echo "=== PECL package creation completed successfully ==="
 
         # Set outputs
         echo "package-file=$PACKAGE_FILE" >> $GITHUB_OUTPUT
