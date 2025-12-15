@@ -166,12 +166,12 @@ runs:
 
         # Verify the problematic file is in the tarball
         echo "=== Verifying src/client_constructor_mock.c is in tarball ==="
-        if tar tzf "$PACKAGE_FILE" | grep -q "src/client_constructor_mock.c"; then
-          echo "src/client_constructor_mock.c found in tarball"
+        if tar tzf "$PACKAGE_FILE" 2>/dev/null | grep -q "/src/client_constructor_mock.c"; then
+          echo "/src/client_constructor_mock.c found in tarball"
         else
-          echo "src/client_constructor_mock.c NOT found in tarball!"
+          echo "/src/client_constructor_mock.c NOT found in tarball!"
           echo "Full tarball contents:"
-          tar tzf "$PACKAGE_FILE"
+          tar tzf "$PACKAGE_FILE" 2>/dev/null || echo "Error listing tarball contents"
           exit 1
         fi
 
