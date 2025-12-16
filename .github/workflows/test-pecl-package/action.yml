@@ -31,7 +31,6 @@ runs:
         github-token: ${{ github.token }}
 
     - name: Generate PHP protobuf classes for testing
-      if: inputs.skip-package-creation != 'true'
       shell: bash
       run: |
         echo "=== Generating PHP protobuf classes for testing ==="
