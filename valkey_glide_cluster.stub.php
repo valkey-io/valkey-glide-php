@@ -1321,6 +1321,56 @@ class ValkeyGlideCluster
      * @see https://valkey.io/commands/zdiff
      */
     public function zdiff(array $keys, ?array $options = null): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::eval
+     */
+    public function eval(string $script, array $args = [], int $num_keys = 0): mixed;
+
+    /**
+     * @see ValkeyGlide::eval_ro
+     */
+    public function eval_ro(string $script, array $args = [], int $num_keys = 0): mixed;
+
+    /**
+     * @see ValkeyGlide::evalsha
+     */
+    public function evalsha(string $sha1, array $args = [], int $num_keys = 0): mixed;
+
+    /**
+     * @see ValkeyGlide::evalsha_ro
+     */
+    public function evalsha_ro(string $sha1, array $args = [], int $num_keys = 0): mixed;
+
+    /**
+     * @see ValkeyGlide::fcall
+     */
+    public function fcall(string $fn, array $keys = [], array $args = []): mixed;
+
+    /**
+     * @see ValkeyGlide::fcall_ro
+     */
+    public function fcall_ro(string $fn, array $keys = [], array $args = []): mixed;
+
+    /**
+     * @see ValkeyGlide::scriptExists
+     */
+    public function scriptExists(array $sha1s): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::scriptFlush
+     */
+    public function scriptFlush(?string $mode = null): ValkeyGlideCluster|string|false;
+
+    /**
+     * @see ValkeyGlide::scriptKill
+     */
+    public function scriptKill(): ValkeyGlideCluster|string|false;
+
+    /**
+     * @see ValkeyGlide::scriptShow
+     */
+    public function scriptShow(string $sha1): ValkeyGlideCluster|string|false;
 }
 
 class ValkeyGlideClusterException extends RuntimeException

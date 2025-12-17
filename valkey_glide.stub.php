@@ -756,15 +756,15 @@ class ValkeyGlide
      * @return mixed LUA scripts may return arbitrary data so this method can return
      *               strings, arrays, nested arrays, etc.
      */
-   /*TODO  public function eval(string $script, array $args = [], int $num_keys = 0): mixed;*/
+    public function eval(string $script, array $args = [], int $num_keys = 0): mixed;
 
     /**
      * This is simply the read-only variant of eval, meaning the underlying script
      * may not modify data in valkey.
      *
-     * @see ValkeyGlide::eval_ro()
+     * @see ValkeyGlide::eval()
      */
-    /* TODO public function eval_ro(string $script_sha, array $args = [], int $num_keys = 0): mixed; */
+    public function eval_ro(string $script, array $args = [], int $num_keys = 0): mixed;
 
     /**
      * Execute a LUA script on the server but instead of sending the script, send
@@ -783,7 +783,7 @@ class ValkeyGlide
      * @see ValkeyGlide::eval();
      *
      */
-   /* TODO public function evalsha(string $sha1, array $args = [], int $num_keys = 0): mixed; */
+    public function evalsha(string $sha1, array $args = [], int $num_keys = 0): mixed;
 
     /**
      * This is simply the read-only variant of evalsha, meaning the underlying script
@@ -791,7 +791,7 @@ class ValkeyGlide
      *
      * @see ValkeyGlide::evalsha()
      */
-    /* TODO public function evalsha_ro(string $sha1, array $args = [], int $num_keys = 0): mixed; */
+    public function evalsha_ro(string $sha1, array $args = [], int $num_keys = 0): mixed;
 
     /**
      * Execute either a MULTI or PIPELINE block and return the array of replies.
@@ -2624,19 +2624,131 @@ class ValkeyGlide
     public function scard(string $key): ValkeyGlide|int|false;
 
     /**
-     * An administrative command used to interact with LUA scripts stored on the server.
+     * Check if scripts exist in the script cache by their SHA1 digests.
      *
-     * @see https://valkey.io/commands/script
+     * @see https://valkey.io/commands/script-exists
      *
-     * @param string $command The script suboperation to execute.
-     * @param mixed  $args    One or more additional argument
+     * @param array $sha1s Array of SHA1 digests to check
      *
-     * @return mixed This command returns various things depending on the specific operation executed.
-     *
-     * @example $valkey_glide->script('load', 'return 1');
-     * @example $valkey_glide->script('exists', sha1('return 1'));
+     * @return ValkeyGlide|array|false Array of booleans indicating existence
      */
-    /* TODO public function script(string $command, mixed ...$args): mixed; */
+    public function scriptExists(array $sha1s): ValkeyGlide|array|false;
+
+    /**
+     * Flush the Lua scripts cache.
+     *
+     * @see https://valkey.io/commands/script-flush
+     *
+     * @param string|null $mode Optional flush mode: "SYNC" or "ASYNC"
+     *
+     * @return ValkeyGlide|string|false "OK" on success
+     */
+    public function scriptFlush(?string $mode = null): ValkeyGlide|string|false;
+
+    /**
+     * Kill the currently executing Lua script.
+     *
+     * @see https://valkey.io/commands/script-kill
+     *
+     * @return ValkeyGlide|string|false "OK" on success
+     */
+    public function scriptKill(): ValkeyGlide|string|false;
+
+    /**
+     * Show the source code of a script by its SHA1 digest.
+     *
+     * @see https://valkey.io/commands/script-show
+     *
+     * @param string $sha1 The SHA1 digest of the script
+     *
+     * @return ValkeyGlide|string|false The script source code
+     */
+    public function scriptShow(string $sha1): ValkeyGlide|string|false;
+
+    /**
+     * Load a function library to Valkey.
+     *
+     * @see https://valkey.io/commands/function-load
+     *
+     * @param string $libraryCode The source code implementing the library
+     * @param bool $replace Whether to overwrite existing library with same name
+     *
+     * @return ValkeyGlide|string|false The library name that was loaded
+     */
+    public function functionLoad(string $libraryCode, bool $replace = false): ValkeyGlide|string|false;
+
+    /**
+     * List function libraries.
+     *
+     * @see https://valkey.io/commands/function-list
+     *
+     * @param string|null $libNamePattern Optional wildcard pattern for library names
+     * @param bool $withCode Whether to include library code in response
+     *
+     * @return ValkeyGlide|array|false Array of library information
+     */
+    public function functionList(?string $libNamePattern = null, bool $withCode = false): ValkeyGlide|array|false;
+
+    /**
+     * Delete all function libraries.
+     *
+     * @see https://valkey.io/commands/function-flush
+     *
+     * @param string|null $mode Optional flush mode: "SYNC" or "ASYNC"
+     *
+     * @return ValkeyGlide|string|false "OK" on success
+     */
+    public function functionFlush(?string $mode = null): ValkeyGlide|string|false;
+
+    /**
+     * Delete a function library.
+     *
+     * @see https://valkey.io/commands/function-delete
+     *
+     * @param string $libName The library name to delete
+     *
+     * @return ValkeyGlide|string|false "OK" on success
+     */
+    public function functionDelete(string $libName): ValkeyGlide|string|false;
+
+    /**
+     * Return serialized payload of all loaded libraries.
+     *
+     * @see https://valkey.io/commands/function-dump
+     *
+     * @return ValkeyGlide|string|false The serialized payload
+     */
+    public function functionDump(): ValkeyGlide|string|false;
+
+    /**
+     * Restore libraries from serialized payload.
+     *
+     * @see https://valkey.io/commands/function-restore
+     *
+     * @param string $payload The serialized data from functionDump
+     * @param string|null $policy Optional restore policy: "APPEND", "FLUSH", or "REPLACE"
+     *
+     * @return ValkeyGlide|string|false "OK" on success
+     */
+    public function functionRestore(string $payload, ?string $policy = null): ValkeyGlide|string|false;
+
+    /**
+     * Kill currently executing function.
+     *
+     * @see https://valkey.io/commands/function-kill
+     *
+     * @return ValkeyGlide|string|false "OK" on success
+     */
+    public function functionKill(): ValkeyGlide|string|false;
+
+    /**
+     * Get information about currently running function and available engines.
+     *
+     * @see https://valkey.io/commands/function-stats
+     *
+     * @return ValkeyGlide|array|false Function execution statistics
+     */
+    public function functionStats(): ValkeyGlide|array|false;
 
     /**
      * Select a specific ValkeyGlide database.

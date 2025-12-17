@@ -183,6 +183,34 @@ int execute_discard_command(zval* object, int argc, zval* return_value, zend_cla
 int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_fcall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_fcall_ro_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_eval_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_eval_ro_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_evalsha_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_evalsha_ro_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_script_exists_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_script_flush_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_script_kill_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_script_show_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_function_load_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_function_list_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_function_flush_command(zval*             object,
+                                   int               argc,
+                                   zval*             return_value,
+                                   zend_class_entry* ce);
+int execute_function_delete_command(zval*             object,
+                                    int               argc,
+                                    zval*             return_value,
+                                    zend_class_entry* ce);
+int execute_function_dump_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_function_restore_command(zval*             object,
+                                     int               argc,
+                                     zval*             return_value,
+                                     zend_class_entry* ce);
+int execute_function_kill_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_function_stats_command(zval*             object,
+                                   int               argc,
+                                   zval*             return_value,
+                                   zend_class_entry* ce);
 int execute_dump_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_restore_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_expire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);

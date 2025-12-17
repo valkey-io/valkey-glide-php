@@ -697,15 +697,69 @@ PHP_METHOD(ValkeyGlide, sunsubscribe) { /* TODO: Implement */
 
 PHP_METHOD(ValkeyGlide, pubsub) { /* TODO: Implement */
 }
-PHP_METHOD(ValkeyGlide, eval) { /* TODO: Implement */
+
+PHP_METHOD(ValkeyGlide, eval) {
+    execute_eval_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
-PHP_METHOD(ValkeyGlide, eval_ro) { /* TODO: Implement */
+
+PHP_METHOD(ValkeyGlide, eval_ro) {
+    execute_eval_ro_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
-PHP_METHOD(ValkeyGlide, evalsha) { /* TODO: Implement */
+
+PHP_METHOD(ValkeyGlide, evalsha) {
+    execute_evalsha_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
-PHP_METHOD(ValkeyGlide, evalsha_ro) { /* TODO: Implement */
+
+PHP_METHOD(ValkeyGlide, evalsha_ro) {
+    execute_evalsha_ro_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
-PHP_METHOD(ValkeyGlide, script) { /* TODO: Implement */
+
+PHP_METHOD(ValkeyGlide, scriptExists) {
+    execute_script_exists_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
+}
+
+PHP_METHOD(ValkeyGlide, scriptFlush) {
+    execute_script_flush_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
+}
+
+PHP_METHOD(ValkeyGlide, scriptKill) {
+    execute_script_kill_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
+}
+
+PHP_METHOD(ValkeyGlide, scriptShow) {
+    execute_script_show_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
+}
+
+PHP_METHOD(ValkeyGlide, functionLoad) {
+    execute_function_load_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
+}
+
+PHP_METHOD(ValkeyGlide, functionList) {
+    execute_function_list_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
+}
+
+PHP_METHOD(ValkeyGlide, functionFlush) {
+    execute_function_flush_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
+}
+
+PHP_METHOD(ValkeyGlide, functionDelete) {
+    execute_function_delete_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
+}
+
+PHP_METHOD(ValkeyGlide, functionDump) {
+    execute_function_dump_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
+}
+
+PHP_METHOD(ValkeyGlide, functionRestore) {
+    execute_function_restore_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
+}
+
+PHP_METHOD(ValkeyGlide, functionKill) {
+    execute_function_kill_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
+}
+
+PHP_METHOD(ValkeyGlide, functionStats) {
+    execute_function_stats_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
 
 /* ============================================================================
