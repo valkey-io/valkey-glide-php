@@ -81,7 +81,7 @@ rustc --version
 To install protobuf for MacOS, run:
 
 ```bash
-brew install protobuf@3
+brew install protobuf
 # Verify the Protobuf compiler installation
 protoc --version
 
