@@ -69,7 +69,7 @@ Continue with **Install protobuf compiler** and **Install `ziglang` and `zigbuil
 
 ```bash
 brew update
-brew install php@8.3 git gcc make autoconf automake libtool pkgconfig protobuf@3 openssl protobuf-c composer
+brew install php@8.3 git gcc make autoconf automake libtool pkgconfig protobuf openssl protobuf-c composer
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
 # Check that the Rust compiler is installed
@@ -212,7 +212,7 @@ Before starting this step, make sure you've installed all software requirements.
 
     ```bash
     # Pre-build step to prepare modules
-    make -j4 build-modules-pre
+    make build-modules-pre
     
     # Build the extension
     make
