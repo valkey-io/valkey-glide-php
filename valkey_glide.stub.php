@@ -329,6 +329,15 @@ class ValkeyGlide
      *                                                      ->build()].
      *                                          connection_timeout is in milliseconds.
      * @param bool|null $lazy_connect           Whether to use lazy connection.
+     * @param array|null $context               Optional stream context to use when connecting.
+     *                                          Supports the following options:
+     *                                          [
+     *                                              'stream' => [
+     *                                                  'verify_peer' => true,                 // Whether to validate server certificate (default: true)
+     *                                                  'cafile' => '/etc/ssl/redis-ca.pem',   // CA certificate file path
+     *                                              ]
+     *                                          ]
+     *                                          See https://www.php.net/manual/en/context.ssl.php for more details.
      */
     public function __construct(
         array $addresses,
@@ -341,7 +350,8 @@ class ValkeyGlide
         ?string $client_name = null,
         ?string $client_az = null,
         ?array $advanced_config = null,
-        ?bool $lazy_connect = null
+        ?bool $lazy_connect = null,
+        ?array $context = null
     );
 
     public function __destruct();

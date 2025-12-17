@@ -212,6 +212,15 @@ class ValkeyGlideCluster
      *                                          and within the range supported by the server configuration. 
      *                                          For cluster mode, requires Valkey 9.0+ with cluster-databases > 1.
      *                                          If not specified, defaults to database 0.
+     * @param array|null $context               Optional stream context to use when connecting.
+     *                                          Supports the following options:
+     *                                          [
+     *                                              'stream' => [
+     *                                                  'verify_peer' => true,                 // Whether to validate server certificate (default: true)
+     *                                                  'cafile' => '/etc/ssl/redis-ca.pem',   // CA certificate file path
+     *                                              ]
+     *                                          ]
+     *                                          See https://www.php.net/manual/en/context.ssl.php for more details.
      */
     public function __construct(
         array $addresses,
@@ -225,7 +234,8 @@ class ValkeyGlideCluster
         ?string $client_az = null,
         ?array $advanced_config = null,
         ?bool $lazy_connect = null,
-        ?int $database_id = null
+        ?int $database_id = null,
+        ?array $context = null
     ) {}
 
 
