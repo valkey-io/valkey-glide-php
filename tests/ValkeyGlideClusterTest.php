@@ -1180,4 +1180,59 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $this->assertConnected($client);
     }
+    
+    public function testScriptExists() {
+        $client = $this->createClient();
+        
+        $script = 'return 1';
+        $sha1 = sha1($script);
+        
+        // Script doesn't exist yet
+        $result = $client->scriptExists([$sha1]);
+        $this->assertIsArray($result);
+        $this->assertFalse($result[0]);
+        
+        // Load script
+        $client->eval($script, [], 0);
+        
+        // Now it exists
+        $result = $client->scriptExists([$sha1]);
+        $this->assertTrue($result[0]);
+        
+        $client->close();
+    }
+    
+    public function testScriptFlush() {
+        $client = $this->createClient();
+        
+        // Load a script
+        $script = 'return 1';
+        $client->eval($script, [], 0);
+        
+        // Flush scripts
+        $result = $client->scriptFlush();
+        $this->assertEquals('OK', $result);
+        
+        // Verify script is gone
+        $sha1 = sha1($script);
+        $exists = $client->scriptExists([$sha1]);
+        $this->assertFalse($exists[0]);
+        
+        $client->close();
+    }
+    
+    public function testFcall() {
+        $client = $this->createClient();
+        
+        try {
+            // Test fcall (function commands work in cluster mode)
+            $result = $client->fcall('testfunc', [], []);
+            // This will likely fail since function doesn't exist, but tests the method exists
+        } catch (Exception $e) {
+            // Expected - function doesn't exist
+            $this->assertStringContainsString('unknown function', $e->getMessage());
+        }
+        
+        $client->close();
+    }
 }
