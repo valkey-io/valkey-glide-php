@@ -106,7 +106,9 @@ typedef struct {
 } valkey_glide_backoff_strategy_t;
 
 typedef struct {
-    bool use_insecure_tls; /* false if not set */
+    bool     use_insecure_tls; /* Whether to use insecure TLS */
+    uint8_t* root_certs;       /* Certificate data bytes */
+    size_t   root_certs_len;   /* Length of certificate data */
 } valkey_glide_tls_advanced_configuration_t;
 
 typedef struct {
@@ -168,6 +170,7 @@ typedef struct {
     zend_bool lazy_connect_is_null;
     zend_long database_id;
     zend_bool database_id_is_null;
+    zval*     context; /* Stream context for TLS */
 } valkey_glide_php_common_constructor_params_t;
 
 void valkey_glide_init_common_constructor_params(
