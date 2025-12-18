@@ -1,9 +1,36 @@
 /* Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0 */
 
 #include "command_response.h"
+#include "common.h"
+#include "include/glide_bindings.h"
 #include "php.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
+
+/* Helper function to process array arguments */
+static void process_array_to_args(zval*          array,
+                                  uintptr_t*     cmd_args,
+                                  unsigned long* args_len,
+                                  unsigned long* arg_index) {
+    if (array && Z_TYPE_P(array) == IS_ARRAY) {
+        zval* val;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(array), val) {
+            if (Z_TYPE_P(val) != IS_STRING) {
+                zval temp;
+                ZVAL_COPY(&temp, val);
+                convert_to_string(&temp);
+                cmd_args[*arg_index] = (uintptr_t) Z_STRVAL(temp);
+                args_len[*arg_index] = Z_STRLEN(temp);
+                zval_dtor(&temp);
+            } else {
+                cmd_args[*arg_index] = (uintptr_t) Z_STRVAL_P(val);
+                args_len[*arg_index] = Z_STRLEN_P(val);
+            }
+            (*arg_index)++;
+        }
+        ZEND_HASH_FOREACH_END();
+    }
+}
 
 /* Execute EVAL command */
 int execute_eval_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
@@ -25,7 +52,7 @@ int execute_eval_command(zval* object, int argc, zval* return_value, zend_class_
     }
 
     char numkeys_str[32];
-    snprintf(numkeys_str, sizeof(numkeys_str), "%ld", num_keys);
+    snprintf(numkeys_str, sizeof(numkeys_str), ZEND_LONG_FMT, num_keys);
 
     unsigned long  args_count = args_array && Z_TYPE_P(args_array) == IS_ARRAY
                                     ? zend_hash_num_elements(Z_ARRVAL_P(args_array))
@@ -42,31 +69,13 @@ int execute_eval_command(zval* object, int argc, zval* return_value, zend_class_
     unsigned long arg_index = 2;
     process_array_to_args(args_array, cmd_args, args_len, &arg_index);
 
-    CommandResult* result = NULL;
-    if (valkey_glide->is_in_batch_mode) {
-        buffer_command_for_batch(valkey_glide,
-                                 COMMAND_REQUEST__REQUEST_TYPE__Eval,
-                                 cmd_args,
-                                 args_len,
-                                 arg_count,
-                                 NULL,
-                                 process_generic_response);
-        efree(cmd_args);
-        efree(args_len);
-        ZVAL_COPY(return_value, object);
-        return 1;
-    }
-
-    result = execute_command(valkey_glide->glide_client,
-                             COMMAND_REQUEST__REQUEST_TYPE__Eval,
-                             arg_count,
-                             cmd_args,
-                             args_len);
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, Eval, arg_count, cmd_args, args_len);
     efree(cmd_args);
     efree(args_len);
 
     if (result && !result->command_error && result->response) {
-        int status = process_generic_response(result->response, NULL, return_value);
+        int status = command_response_to_zval(result->response, return_value, 0, false);
         free_command_result(result);
         return status;
     }
@@ -74,7 +83,6 @@ int execute_eval_command(zval* object, int argc, zval* return_value, zend_class_
         free_command_result(result);
     return 0;
 }
-
 /* Execute EVAL_RO command */
 int execute_eval_ro_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -95,7 +103,7 @@ int execute_eval_ro_command(zval* object, int argc, zval* return_value, zend_cla
     }
 
     char numkeys_str[32];
-    snprintf(numkeys_str, sizeof(numkeys_str), "%ld", num_keys);
+    snprintf(numkeys_str, sizeof(numkeys_str), ZEND_LONG_FMT, num_keys);
 
     unsigned long  args_count = args_array && Z_TYPE_P(args_array) == IS_ARRAY
                                     ? zend_hash_num_elements(Z_ARRVAL_P(args_array))
@@ -112,31 +120,13 @@ int execute_eval_ro_command(zval* object, int argc, zval* return_value, zend_cla
     unsigned long arg_index = 2;
     process_array_to_args(args_array, cmd_args, args_len, &arg_index);
 
-    CommandResult* result = NULL;
-    if (valkey_glide->is_in_batch_mode) {
-        buffer_command_for_batch(valkey_glide,
-                                 COMMAND_REQUEST__REQUEST_TYPE__EvalReadOnly,
-                                 cmd_args,
-                                 args_len,
-                                 arg_count,
-                                 NULL,
-                                 process_generic_response);
-        efree(cmd_args);
-        efree(args_len);
-        ZVAL_COPY(return_value, object);
-        return 1;
-    }
-
-    result = execute_command(valkey_glide->glide_client,
-                             COMMAND_REQUEST__REQUEST_TYPE__EvalReadOnly,
-                             arg_count,
-                             cmd_args,
-                             args_len);
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, EvalReadOnly, arg_count, cmd_args, args_len);
     efree(cmd_args);
     efree(args_len);
 
     if (result && !result->command_error && result->response) {
-        int status = process_generic_response(result->response, NULL, return_value);
+        int status = command_response_to_zval(result->response, return_value, 0, false);
         free_command_result(result);
         return status;
     }
@@ -165,7 +155,7 @@ int execute_evalsha_command(zval* object, int argc, zval* return_value, zend_cla
     }
 
     char numkeys_str[32];
-    snprintf(numkeys_str, sizeof(numkeys_str), "%ld", num_keys);
+    snprintf(numkeys_str, sizeof(numkeys_str), ZEND_LONG_FMT, num_keys);
 
     unsigned long  args_count = args_array && Z_TYPE_P(args_array) == IS_ARRAY
                                     ? zend_hash_num_elements(Z_ARRVAL_P(args_array))
@@ -182,31 +172,13 @@ int execute_evalsha_command(zval* object, int argc, zval* return_value, zend_cla
     unsigned long arg_index = 2;
     process_array_to_args(args_array, cmd_args, args_len, &arg_index);
 
-    CommandResult* result = NULL;
-    if (valkey_glide->is_in_batch_mode) {
-        buffer_command_for_batch(valkey_glide,
-                                 COMMAND_REQUEST__REQUEST_TYPE__EvalSha,
-                                 cmd_args,
-                                 args_len,
-                                 arg_count,
-                                 NULL,
-                                 process_generic_response);
-        efree(cmd_args);
-        efree(args_len);
-        ZVAL_COPY(return_value, object);
-        return 1;
-    }
-
-    result = execute_command(valkey_glide->glide_client,
-                             COMMAND_REQUEST__REQUEST_TYPE__EvalSha,
-                             arg_count,
-                             cmd_args,
-                             args_len);
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, EvalSha, arg_count, cmd_args, args_len);
     efree(cmd_args);
     efree(args_len);
 
     if (result && !result->command_error && result->response) {
-        int status = process_generic_response(result->response, NULL, return_value);
+        int status = command_response_to_zval(result->response, return_value, 0, false);
         free_command_result(result);
         return status;
     }
@@ -235,7 +207,7 @@ int execute_evalsha_ro_command(zval* object, int argc, zval* return_value, zend_
     }
 
     char numkeys_str[32];
-    snprintf(numkeys_str, sizeof(numkeys_str), "%ld", num_keys);
+    snprintf(numkeys_str, sizeof(numkeys_str), ZEND_LONG_FMT, num_keys);
 
     unsigned long  args_count = args_array && Z_TYPE_P(args_array) == IS_ARRAY
                                     ? zend_hash_num_elements(Z_ARRVAL_P(args_array))
@@ -252,31 +224,13 @@ int execute_evalsha_ro_command(zval* object, int argc, zval* return_value, zend_
     unsigned long arg_index = 2;
     process_array_to_args(args_array, cmd_args, args_len, &arg_index);
 
-    CommandResult* result = NULL;
-    if (valkey_glide->is_in_batch_mode) {
-        buffer_command_for_batch(valkey_glide,
-                                 COMMAND_REQUEST__REQUEST_TYPE__EvalShaReadOnly,
-                                 cmd_args,
-                                 args_len,
-                                 arg_count,
-                                 NULL,
-                                 process_generic_response);
-        efree(cmd_args);
-        efree(args_len);
-        ZVAL_COPY(return_value, object);
-        return 1;
-    }
-
-    result = execute_command(valkey_glide->glide_client,
-                             COMMAND_REQUEST__REQUEST_TYPE__EvalShaReadOnly,
-                             arg_count,
-                             cmd_args,
-                             args_len);
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, EvalShaReadOnly, arg_count, cmd_args, args_len);
     efree(cmd_args);
     efree(args_len);
 
     if (result && !result->command_error && result->response) {
-        int status = process_generic_response(result->response, NULL, return_value);
+        int status = command_response_to_zval(result->response, return_value, 0, false);
         free_command_result(result);
         return status;
     }
@@ -309,31 +263,13 @@ int execute_script_exists_command(zval*             object,
     unsigned long arg_index = 0;
     process_array_to_args(sha1s_array, cmd_args, args_len, &arg_index);
 
-    CommandResult* result = NULL;
-    if (valkey_glide->is_in_batch_mode) {
-        buffer_command_for_batch(valkey_glide,
-                                 COMMAND_REQUEST__REQUEST_TYPE__ScriptExists,
-                                 cmd_args,
-                                 args_len,
-                                 args_count,
-                                 NULL,
-                                 process_generic_response);
-        efree(cmd_args);
-        efree(args_len);
-        ZVAL_COPY(return_value, object);
-        return 1;
-    }
-
-    result = execute_command(valkey_glide->glide_client,
-                             COMMAND_REQUEST__REQUEST_TYPE__ScriptExists,
-                             args_count,
-                             cmd_args,
-                             args_len);
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, ScriptExists, args_count, cmd_args, args_len);
     efree(cmd_args);
     efree(args_len);
 
     if (result && !result->command_error && result->response) {
-        int status = process_generic_response(result->response, NULL, return_value);
+        int status = command_response_to_zval(result->response, return_value, 0, false);
         free_command_result(result);
         return status;
     }
@@ -367,35 +303,15 @@ int execute_script_flush_command(zval* object, int argc, zval* return_value, zen
         args_len[0] = mode_len;
     }
 
-    CommandResult* result = NULL;
-    if (valkey_glide->is_in_batch_mode) {
-        buffer_command_for_batch(valkey_glide,
-                                 COMMAND_REQUEST__REQUEST_TYPE__ScriptFlush,
-                                 cmd_args,
-                                 args_len,
-                                 arg_count,
-                                 NULL,
-                                 process_string_response);
-        if (cmd_args)
-            efree(cmd_args);
-        if (args_len)
-            efree(args_len);
-        ZVAL_COPY(return_value, object);
-        return 1;
-    }
-
-    result = execute_command(valkey_glide->glide_client,
-                             COMMAND_REQUEST__REQUEST_TYPE__ScriptFlush,
-                             arg_count,
-                             cmd_args,
-                             args_len);
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, ScriptFlush, arg_count, cmd_args, args_len);
     if (cmd_args)
         efree(cmd_args);
     if (args_len)
         efree(args_len);
 
     if (result && !result->command_error && result->response) {
-        int status = process_string_response(result->response, NULL, return_value);
+        int status = command_response_to_zval(result->response, return_value, 0, false);
         free_command_result(result);
         return status;
     }
@@ -417,24 +333,10 @@ int execute_script_kill_command(zval* object, int argc, zval* return_value, zend
         return 0;
     }
 
-    CommandResult* result = NULL;
-    if (valkey_glide->is_in_batch_mode) {
-        buffer_command_for_batch(valkey_glide,
-                                 COMMAND_REQUEST__REQUEST_TYPE__ScriptKill,
-                                 NULL,
-                                 NULL,
-                                 0,
-                                 NULL,
-                                 process_string_response);
-        ZVAL_COPY(return_value, object);
-        return 1;
-    }
-
-    result = execute_command(
-        valkey_glide->glide_client, COMMAND_REQUEST__REQUEST_TYPE__ScriptKill, 0, NULL, NULL);
+    CommandResult* result = execute_command(valkey_glide->glide_client, ScriptKill, 0, NULL, NULL);
 
     if (result && !result->command_error && result->response) {
-        int status = process_string_response(result->response, NULL, return_value);
+        int status = command_response_to_zval(result->response, return_value, 0, false);
         free_command_result(result);
         return status;
     }
@@ -462,27 +364,11 @@ int execute_script_show_command(zval* object, int argc, zval* return_value, zend
     uintptr_t     cmd_args[1] = {(uintptr_t) sha1};
     unsigned long args_len[1] = {sha1_len};
 
-    CommandResult* result = NULL;
-    if (valkey_glide->is_in_batch_mode) {
-        buffer_command_for_batch(valkey_glide,
-                                 COMMAND_REQUEST__REQUEST_TYPE__ScriptShow,
-                                 cmd_args,
-                                 args_len,
-                                 1,
-                                 NULL,
-                                 process_string_response);
-        ZVAL_COPY(return_value, object);
-        return 1;
-    }
-
-    result = execute_command(valkey_glide->glide_client,
-                             COMMAND_REQUEST__REQUEST_TYPE__ScriptShow,
-                             1,
-                             cmd_args,
-                             args_len);
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, ScriptShow, 1, cmd_args, args_len);
 
     if (result && !result->command_error && result->response) {
-        int status = process_string_response(result->response, NULL, return_value);
+        int status = command_response_to_zval(result->response, return_value, 0, false);
         free_command_result(result);
         return status;
     }
