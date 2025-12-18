@@ -50,30 +50,19 @@ uint8_t* create_connection_request(size_t*                                   len
     // Set up addresses
     // ----------------
 
-    bool   has_addresses   = config->addresses && config->addresses_count > 0;
-    size_t addresses_count = has_addresses ? config->addresses_count : 1;
+    // Addresses are guaranteed to be non-empty.
+    // See 'valkey_glide_build_client_config_base'.
+    size_t addresses_count = config->addresses_count;
 
     ConnectionRequest__NodeAddress  request_addresses[addresses_count];
     ConnectionRequest__NodeAddress* request_addresses_list[addresses_count];
 
-    /* Add addresses from configuration.*/
-    if (has_addresses) {
-        for (size_t i = 0; i < addresses_count; ++i) {
-            request_addresses[i] =
-                (ConnectionRequest__NodeAddress) CONNECTION_REQUEST__NODE_ADDRESS__INIT;
-            request_addresses[i].host = (char*) config->addresses[i].host;
-            request_addresses[i].port = config->addresses[i].port;
-            request_addresses_list[i] = &request_addresses[i];
-        }
-    }
-
-    /* Fallback to default address. */
-    else {
-        request_addresses[0] =
+    for (size_t i = 0; i < addresses_count; ++i) {
+        request_addresses[i] =
             (ConnectionRequest__NodeAddress) CONNECTION_REQUEST__NODE_ADDRESS__INIT;
-        request_addresses[0].host = (char*) "localhost";
-        request_addresses[0].port = 6379;
-        request_addresses_list[0] = &request_addresses[0];
+        request_addresses[i].host = (char*) config->addresses[i].host;
+        request_addresses[i].port = config->addresses[i].port;
+        request_addresses_list[i] = &request_addresses[i];
     }
 
     conn_req.n_addresses = addresses_count;
@@ -108,8 +97,11 @@ uint8_t* create_connection_request(size_t*                                   len
         conn_req.authentication_info = &auth_info;
     }
 
-    /* Set values from configuration */
+    // Set up TLS
+    // ----------
+
     conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__NoTls;
+
     if (config->use_tls) {
         if (config->advanced_config && config->advanced_config->tls_config &&
             config->advanced_config->tls_config->use_insecure_tls) {
@@ -118,6 +110,7 @@ uint8_t* create_connection_request(size_t*                                   len
             conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__SecureTls;
         }
     }
+
     conn_req.cluster_mode_enabled = is_cluster;
     conn_req.request_timeout =
         config->request_timeout > 0 ? config->request_timeout : 5000; /* Default 5 seconds */
