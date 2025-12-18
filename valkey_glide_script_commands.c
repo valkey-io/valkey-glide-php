@@ -30,29 +30,32 @@ static char** process_array_to_args(zval* array, int* count) {
 }
 
 // Helper function to process array arguments with lengths for FFI
-static void process_array_to_uintptr_args(zval* array, int* count, uintptr_t** args, unsigned long** args_len) {
+static void process_array_to_uintptr_args(zval*           array,
+                                          int*            count,
+                                          uintptr_t**     args,
+                                          unsigned long** args_len) {
     if (Z_TYPE_P(array) != IS_ARRAY) {
-        *count = 0;
-        *args = NULL;
+        *count    = 0;
+        *args     = NULL;
         *args_len = NULL;
         return;
     }
 
     *count = zend_hash_num_elements(Z_ARRVAL_P(array));
     if (*count == 0) {
-        *args = NULL;
+        *args     = NULL;
         *args_len = NULL;
         return;
     }
 
-    *args = emalloc(sizeof(uintptr_t) * (*count));
+    *args     = emalloc(sizeof(uintptr_t) * (*count));
     *args_len = emalloc(sizeof(unsigned long) * (*count));
     zval* entry;
-    int i = 0;
+    int   i = 0;
 
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(array), entry) {
         convert_to_string(entry);
-        (*args)[i] = (uintptr_t)Z_STRVAL_P(entry);
+        (*args)[i]     = (uintptr_t) Z_STRVAL_P(entry);
         (*args_len)[i] = Z_STRLEN_P(entry);
         i++;
     }
@@ -155,8 +158,6 @@ static char* store_script_and_get_hash(const char* script) {
 // Script management commands using RequestType (like Go's executeCommand)
 
 
-
-
 // PHP method implementations following Go pattern
 PHP_METHOD(ValkeyGlide, invokeScript) {
     char*  script;
@@ -170,7 +171,8 @@ PHP_METHOD(ValkeyGlide, invokeScript) {
     Z_PARAM_ARRAY(args)
     ZEND_PARSE_PARAMETERS_END();
 
-    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
 
     // Store script and get hash (like Go's NewScript)
     char* script_hash = store_script_and_get_hash(script);
@@ -209,7 +211,8 @@ PHP_METHOD(ValkeyGlide, eval) {
     Z_PARAM_LONG(num_keys)
     ZEND_PARSE_PARAMETERS_END();
 
-    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
 
     // Store script and get hash
     char* script_hash = store_script_and_get_hash(script);
@@ -236,7 +239,8 @@ PHP_METHOD(ValkeyGlide, eval) {
         ZEND_HASH_FOREACH_END();
     }
 
-    execute_invoke_script_command(valkey_glide, script_hash, &keys_array, &args_array, return_value);
+    execute_invoke_script_command(
+        valkey_glide, script_hash, &keys_array, &args_array, return_value);
 
     efree(script_hash);
     zval_dtor(&keys_array);
@@ -256,7 +260,8 @@ PHP_METHOD(ValkeyGlide, evalsha) {
     Z_PARAM_LONG(num_keys)
     ZEND_PARSE_PARAMETERS_END();
 
-    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
 
     // Split args into keys and args based on num_keys (PHPRedis style)
     zval keys_array, args_array;
@@ -285,20 +290,22 @@ PHP_METHOD(ValkeyGlide, evalsha) {
 
 PHP_METHOD(ValkeyGlide, scriptExists) {
     zval* sha1s;
-    
+
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_ARRAY(sha1s)
+    Z_PARAM_ARRAY(sha1s)
     ZEND_PARSE_PARAMETERS_END();
-    
-    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
-    
-    int count;
-    uintptr_t* args;
+
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+
+    int            count;
+    uintptr_t*     args;
     unsigned long* args_len;
     process_array_to_uintptr_args(sha1s, &count, &args, &args_len);
-    
-    CommandResult* result = execute_command(valkey_glide->glide_client, ScriptExists, count, args, args_len);
-    
+
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, ScriptExists, count, args, args_len);
+
     // Free allocated memory
     if (args) {
         efree(args);
@@ -306,37 +313,41 @@ PHP_METHOD(ValkeyGlide, scriptExists) {
     if (args_len) {
         efree(args_len);
     }
-    
+
     command_response_to_zval(result->response, return_value, 0, false);
     free_command_result(result);
 }
 
 PHP_METHOD(ValkeyGlide, scriptFlush) {
-    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     CommandResult* result = execute_command(valkey_glide->glide_client, ScriptFlush, 0, NULL, NULL);
     command_response_to_zval(result->response, return_value, 0, false);
     free_command_result(result);
 }
 
 PHP_METHOD(ValkeyGlide, scriptKill) {
-    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     CommandResult* result = execute_command(valkey_glide->glide_client, ScriptKill, 0, NULL, NULL);
     command_response_to_zval(result->response, return_value, 0, false);
     free_command_result(result);
 }
 
 PHP_METHOD(ValkeyGlide, scriptShow) {
-    char* sha1;
+    char*  sha1;
     size_t sha1_len;
-    
+
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_STRING(sha1, sha1_len)
+    Z_PARAM_STRING(sha1, sha1_len)
     ZEND_PARSE_PARAMETERS_END();
-    
-    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
-    uintptr_t args[] = {(uintptr_t)sha1};
-    unsigned long args_len[] = {sha1_len};
-    CommandResult* result = execute_command(valkey_glide->glide_client, ScriptShow, 1, args, args_len);
+
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    uintptr_t      args[]     = {(uintptr_t) sha1};
+    unsigned long  args_len[] = {sha1_len};
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, ScriptShow, 1, args, args_len);
     command_response_to_zval(result->response, return_value, 0, false);
     free_command_result(result);
 }
