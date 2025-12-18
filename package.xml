@@ -85,6 +85,8 @@ Requirements:
    <file name="valkey_glide_z_common.c" role="src" />
    <file name="valkey_glide_z_common.h" role="src" />
    <file name="valkey_z_php_methods.c" role="src" />
+   <file name="valkey_glide_script_commands.c" role="src" />
+   <file name="valkey_glide_function_commands.c" role="src" />
    <file name="valkey_glide_otel.h" role="src" />
    <file name="valkey_glide_otel.c" role="src" />
    <dir name="src">
