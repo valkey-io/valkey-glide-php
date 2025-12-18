@@ -408,19 +408,9 @@ class ValkeyGlideCluster
    /* TODO public function eval(string $script, array $args = [], int $num_keys = 0): mixed; */
 
     /**
-     * @see ValkeyGlide::eval_ro
-     */
-    /* TODOpublic function eval_ro(string $script, array $args = [], int $num_keys = 0): mixed; */
-
-    /**
      * @see ValkeyGlide::evalsha
      */
    /* TODO public function evalsha(string $script_sha, array $args = [], int $num_keys = 0): mixed;*/
-
-    /**
-     * @see ValkeyGlide::evalsha_ro
-     */
-    /* TODOpublic function evalsha_ro(string $script_sha, array $args = [], int $num_keys = 0): mixed;*/
 
     /**
      * @see ValkeyGlide::exec()

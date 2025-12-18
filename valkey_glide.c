@@ -698,8 +698,6 @@ PHP_METHOD(ValkeyGlide, sunsubscribe) { /* TODO: Implement */
 PHP_METHOD(ValkeyGlide, pubsub) { /* TODO: Implement */
 }
 
-// Script methods are now implemented in valkey_glide_script_commands.c
-
 PHP_METHOD(ValkeyGlide, functionLoad) {
     execute_function_load_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }

@@ -715,30 +715,15 @@ PHP_METHOD(ValkeyGlideCluster, punsubscribe) {
 /* }}} */
 
 /* {{{ proto mixed ValkeyGlideCluster::eval(string script, [array args, int numkeys) */
-PHP_METHOD(ValkeyGlideCluster, eval) {
-    execute_eval_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
-}
 /* }}} */
 
 /* {{{ proto mixed ValkeyGlideCluster::eval_ro(string script, [array args, int numkeys) */
-PHP_METHOD(ValkeyGlideCluster, eval_ro) {
-    execute_eval_ro_command(
-        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
-}
 /* }}} */
 
 /* {{{ proto mixed ValkeyGlideCluster::evalsha(string sha, [array args, int numkeys]) */
-PHP_METHOD(ValkeyGlideCluster, evalsha) {
-    execute_evalsha_command(
-        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
-}
 /* }}} */
 
 /* {{{ proto mixed ValkeyGlideCluster::evalsha_ro(string sha, [array args, int numkeys]) */
-PHP_METHOD(ValkeyGlideCluster, evalsha_ro) {
-    execute_evalsha_ro_command(
-        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
-}
 /* }}} */
 
 /* {{{ proto mixed ValkeyGlideCluster::fcall(string fn, [array keys, array args]) */
@@ -751,29 +736,72 @@ FCALL_RO_METHOD_IMPL(ValkeyGlideCluster)
 
 /* {{{ proto array ValkeyGlideCluster::scriptExists(array sha1s) */
 PHP_METHOD(ValkeyGlideCluster, scriptExists) {
-    execute_script_exists_command(
-        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+    zval* sha1s;
+    
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY(sha1s)
+    ZEND_PARSE_PARAMETERS_END();
+    
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    
+    // Process array arguments
+    int count = zend_hash_num_elements(Z_ARRVAL_P(sha1s));
+    uintptr_t* args = emalloc(sizeof(uintptr_t) * count);
+    unsigned long* args_len = emalloc(sizeof(unsigned long) * count);
+    zval* entry;
+    int i = 0;
+    
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(sha1s), entry) {
+        convert_to_string(entry);
+        args[i] = (uintptr_t)Z_STRVAL_P(entry);
+        args_len[i] = Z_STRLEN_P(entry);
+        i++;
+    } ZEND_HASH_FOREACH_END();
+    
+    CommandResult* result = execute_command(valkey_glide->glide_client, ScriptExists, count, args, args_len);
+    
+    // Free allocated memory
+    efree(args);
+    efree(args_len);
+    
+    command_response_to_zval(result->response, return_value, 0, false);
+    free_command_result(result);
 }
 /* }}} */
 
 /* {{{ proto string ValkeyGlideCluster::scriptFlush([string mode]) */
 PHP_METHOD(ValkeyGlideCluster, scriptFlush) {
-    execute_script_flush_command(
-        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    CommandResult* result = execute_command(valkey_glide->glide_client, ScriptFlush, 0, NULL, NULL);
+    command_response_to_zval(result->response, return_value, 0, false);
+    free_command_result(result);
 }
 /* }}} */
 
 /* {{{ proto string ValkeyGlideCluster::scriptKill() */
 PHP_METHOD(ValkeyGlideCluster, scriptKill) {
-    execute_script_kill_command(
-        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    CommandResult* result = execute_command(valkey_glide->glide_client, ScriptKill, 0, NULL, NULL);
+    command_response_to_zval(result->response, return_value, 0, false);
+    free_command_result(result);
 }
 /* }}} */
 
 /* {{{ proto string ValkeyGlideCluster::scriptShow(string sha1) */
 PHP_METHOD(ValkeyGlideCluster, scriptShow) {
-    execute_script_show_command(
-        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+    char*  sha1;
+    size_t sha1_len;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STRING(sha1, sha1_len)
+    ZEND_PARSE_PARAMETERS_END();
+
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    uintptr_t args[] = {(uintptr_t)sha1};
+    unsigned long args_len[] = {sha1_len};
+    CommandResult* result = execute_command(valkey_glide->glide_client, ScriptShow, 1, args, args_len);
+    command_response_to_zval(result->response, return_value, 0, false);
+    free_command_result(result);
 }
 
 /* }}} */
