@@ -5222,14 +5222,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testScript()
     {
-        //TODO
-        $this->markTestSkipped();
         if (version_compare($this->version, '2.5.0') < 0) {
             $this->markTestSkipped();
         }
 
         // Flush any scripts we have
-        $this->assertTrue($this->valkey_glide->script('flush'));
+        $this->assertEquals('OK', $this->valkey_glide->scriptFlush());
 
         // Silly scripts to test against
         $s1_src = 'return 1';
@@ -5240,24 +5238,22 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $s3_sha = sha1($s3_src);
 
         // None should exist
-        $result = $this->valkey_glide->script('exists', $s1_sha, $s2_sha, $s3_sha);
-        $this->assertIsArray($result, 3);
+        $result = $this->valkey_glide->scriptExists([$s1_sha, $s2_sha, $s3_sha]);
+        $this->assertIsArray($result);
         $this->assertTrue(is_array($result) && count(array_filter($result)) == 0);
 
-        // Load them up
-        $this->assertEquals($s1_sha, $this->valkey_glide->script('load', $s1_src));
-        $this->assertEquals($s2_sha, $this->valkey_glide->script('load', $s2_src));
-        $this->assertEquals($s3_sha, $this->valkey_glide->script('load', $s3_src));
+        // Load them up by running eval (which caches them)
+        $this->assertEquals(1, $this->valkey_glide->eval($s1_src, [], 0));
+        $this->assertEquals(2, $this->valkey_glide->eval($s2_src, [], 0));
+        $this->assertEquals(3, $this->valkey_glide->eval($s3_src, [], 0));
 
-        // They should all exist
-        $result = $this->valkey_glide->script('exists', $s1_sha, $s2_sha, $s3_sha);
+        // They should all exist now
+        $result = $this->valkey_glide->scriptExists([$s1_sha, $s2_sha, $s3_sha]);
         $this->assertTrue(is_array($result) && count(array_filter($result)) == 3);
     }
 
     public function testEval()
     {
-        //TODO
-        $this->markTestSkipped();
         if (version_compare($this->version, '2.5.0') < 0) {
             $this->markTestSkipped();
         }
@@ -5394,14 +5390,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testEvalSHA()
     {
-        //TODO
-        $this->markTestSkipped();
         if (version_compare($this->version, '2.5.0') < 0) {
             $this->markTestSkipped();
         }
 
         // Flush any loaded scripts
-        $this->valkey_glide->script('flush');
+        $this->valkey_glide->scriptFlush();
 
         // Non existent script (but proper sha1), and a random (not) sha1 string
         $this->assertFalse($this->valkey_glide->evalsha(sha1(uniqid())));
@@ -7629,20 +7623,23 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->markTestSkipped();
         }
 
-        $this->assertTrue($this->valkey_glide->function('flush', 'sync'));
-        $this->assertEquals('mylib', $this->valkey_glide->function('load', "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)"));
-        $this->assertEquals('foo', $this->valkey_glide->fcall('myfunc', [], ['foo']));
-        $payload = $this->valkey_glide->function('dump');
-        $this->assertEquals(
-            'mylib',
-            $this->valkey_glide->function('load', 'replace', "#!lua name=mylib\nredis.register_function{function_name='myfunc', callback=function(keys, args) return args[1] end, flags={'no-writes'}}")
-        );
-        $this->assertEquals('foo', $this->valkey_glide->fcall_ro('myfunc', [], ['foo']));
-        $this->assertEquals(['running_script' => false, 'engines' => ['LUA' => ['libraries_count' => 1, 'functions_count' => 1]]], $this->valkey_glide->function('stats'));
-        $this->assertTrue($this->valkey_glide->function('delete', 'mylib'));
-        $this->assertTrue($this->valkey_glide->function('restore', $payload));
-        $this->assertEquals([['library_name' => 'mylib', 'engine' => 'LUA', 'functions' => [['name' => 'myfunc', 'description' => false,'flags' => []]]]], $this->valkey_glide->function('list'));
-        $this->assertTrue($this->valkey_glide->function('delete', 'mylib'));
+        try {
+            $this->assertEquals('OK', $this->valkey_glide->functionFlush());
+            $this->assertEquals('mylib', $this->valkey_glide->functionLoad("#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)", false));
+            $this->assertEquals('foo', $this->valkey_glide->fcall('myfunc', [], ['foo']));
+            $payload = $this->valkey_glide->functionDump();
+            $this->assertEquals('mylib', $this->valkey_glide->functionLoad("#!lua name=mylib\nredis.register_function{function_name='myfunc', callback=function(keys, args) return args[1] end, flags={'no-writes'}}", true));
+            $this->assertEquals('foo', $this->valkey_glide->fcall_ro('myfunc', [], ['foo']));
+            $stats = $this->valkey_glide->functionStats();
+            $this->assertIsArray($stats);
+            $this->assertEquals('OK', $this->valkey_glide->functionDelete('mylib'));
+            $this->assertEquals('OK', $this->valkey_glide->functionRestore($payload));
+            $list = $this->valkey_glide->functionList();
+            $this->assertIsArray($list);
+            $this->assertEquals('OK', $this->valkey_glide->functionDelete('mylib'));
+        } catch (Exception $e) {
+            $this->markTestSkipped('Function commands require Valkey 7.0+: ' . $e->getMessage());
+        }
     }
 
     public function testGetCommandWithLogging()

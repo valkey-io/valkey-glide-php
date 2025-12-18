@@ -158,7 +158,13 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testFunction()
     {
-        $this->markTestSkipped();
+        try {
+            // Test fcall (function commands work in cluster mode)
+            $result = $this->valkey_glide->fcall('nonexistent', [], []);
+        } catch (Exception $e) {
+            // Expected - function doesn't exist
+            $this->assertStringContainsString('unknown function', $e->getMessage());
+        }
     }
 
 
@@ -626,11 +632,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
      * we can direct it to a given node */
     public function testScript()
     {
-        $this->markTestSkipped();
         $key = uniqid() . '-' . rand(1, 1000);
 
         // Flush any scripts we have
-        $this->assertTrue($this->valkey_glide->script($key, 'flush'));
+        $this->assertEquals('OK', $this->valkey_glide->scriptFlush());
 
         // Silly scripts to test against
         $s1_src = 'return 1';
@@ -641,17 +646,17 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $s3_sha = sha1($s3_src);
 
         // None should exist
-        $result = $this->valkey_glide->script($key, 'exists', $s1_sha, $s2_sha, $s3_sha);
-        $this->assertIsArray($result, 3);
+        $result = $this->valkey_glide->scriptExists([$s1_sha, $s2_sha, $s3_sha]);
+        $this->assertIsArray($result);
         $this->assertTrue(is_array($result) && count(array_filter($result)) == 0);
 
-        // Load them up
-        $this->assertEquals($s1_sha, $this->valkey_glide->script($key, 'load', $s1_src));
-        $this->assertEquals($s2_sha, $this->valkey_glide->script($key, 'load', $s2_src));
-        $this->assertEquals($s3_sha, $this->valkey_glide->script($key, 'load', $s3_src));
+        // Load them up by running eval (which caches them)
+        $this->assertEquals(1, $this->valkey_glide->eval($s1_src, [$key], 1));
+        $this->assertEquals(2, $this->valkey_glide->eval($s2_src, [$key], 1));
+        $this->assertEquals(3, $this->valkey_glide->eval($s3_src, [$key], 1));
 
-        // They should all exist
-        $result = $this->valkey_glide->script($key, 'exists', $s1_sha, $s2_sha, $s3_sha);
+        // They should all exist now
+        $result = $this->valkey_glide->scriptExists([$s1_sha, $s2_sha, $s3_sha]);
         $this->assertTrue(is_array($result) && count(array_filter($result)) == 3);
     }
 
@@ -659,15 +664,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
      * direct the command at */
     public function testEvalSHA()
     {
-        $this->markTestSkipped();
         $key = uniqid() . '-' . rand(1, 1000);
 
         // Flush any loaded scripts
-        $this->valkey_glide->script($key, 'flush');
+        $this->valkey_glide->scriptFlush();
 
         // Non existent script (but proper sha1), and a random (not) sha1 string
         $this->assertFalse($this->valkey_glide->evalsha(sha1(uniqid()), [$key], 1));
-        $this->assertFalse($this->valkey_glide->evalsha('some-random-data'), [$key], 1);
+        $this->assertFalse($this->valkey_glide->evalsha('some-random-data', [$key], 1));
 
         // Load a script
         $cb  = uniqid(); // To ensure the script is new
@@ -682,12 +686,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testEvalBulkResponse()
     {
-        $this->markTestSkipped();
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
         $key2 = uniqid() . '-' . rand(1, 1000) . '{hash}';
 
-        $this->valkey_glide->script($key1, 'flush');
-        $this->valkey_glide->script($key2, 'flush');
+        $this->valkey_glide->scriptFlush();
+        $this->valkey_glide->scriptFlush();
 
         $scr = "return {KEYS[1],KEYS[2]}";
 
@@ -699,12 +702,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testEvalBulkResponseMulti()
     {
-        $this->markTestSkipped();
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
         $key2 = uniqid() . '-' . rand(1, 1000) . '{hash}';
 
-        $this->valkey_glide->script($key1, 'flush');
-        $this->valkey_glide->script($key2, 'flush');
+        $this->valkey_glide->scriptFlush();
+        $this->valkey_glide->scriptFlush();
 
         $scr = "return {KEYS[1],KEYS[2]}";
 
@@ -719,12 +721,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testEvalBulkEmptyResponse()
     {
-        $this->markTestSkipped();
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
         $key2 = uniqid() . '-' . rand(1, 1000) . '{hash}';
 
-        $this->valkey_glide->script($key1, 'flush');
-        $this->valkey_glide->script($key2, 'flush');
+        $this->valkey_glide->scriptFlush();
+        $this->valkey_glide->scriptFlush();
 
         $scr = "for _,key in ipairs(KEYS) do redis.call('SET', key, 'value') end";
 
@@ -735,12 +736,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testEvalBulkEmptyResponseMulti()
     {
-        $this->markTestSkipped();
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
         $key2 = uniqid() . '-' . rand(1, 1000) . '{hash}';
 
-        $this->valkey_glide->script($key1, 'flush');
-        $this->valkey_glide->script($key2, 'flush');
+        $this->valkey_glide->scriptFlush();
+        $this->valkey_glide->scriptFlush();
 
         $scr = "for _,key in ipairs(KEYS) do redis.call('SET', key, 'value') end";
 
