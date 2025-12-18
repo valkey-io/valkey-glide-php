@@ -51,7 +51,7 @@ uint8_t* create_connection_request(size_t*                                   len
     // ----------------
 
     // Addresses are guaranteed to be non-empty.
-    // See 'valkey_glide_build_client_config_base'.
+    // See 'ValkeyGlide::__construct'.
     size_t addresses_count = config->addresses_count;
 
     ConnectionRequest__NodeAddress  request_addresses[addresses_count];

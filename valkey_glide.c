@@ -49,7 +49,6 @@ static const char* const SSL_PREFIX     = "ssl://";
 static const size_t      TLS_PREFIX_LEN = strlen(TLS_PREFIX);
 static const size_t      SSL_PREFIX_LEN = strlen(SSL_PREFIX);
 
-
 zend_class_entry* valkey_glide_ce;
 zend_class_entry* valkey_glide_exception_ce;
 
@@ -138,6 +137,7 @@ void valkey_glide_init_common_constructor_params(
     params->lazy_connect_is_null    = 1;
     params->database_id             = 0;
     params->database_id_is_null     = 1;
+    params->context                 = NULL;
 }
 
 /**
@@ -184,18 +184,10 @@ static void _populate_config_tls(valkey_glide_php_common_constructor_params_t* p
 static void _populate_config_addresses(valkey_glide_php_common_constructor_params_t* params,
                                        valkey_glide_base_client_configuration_t*     config,
                                        bool                                          is_cluster) {
+    // Addresses are guaranteed to be non-empty.
+    // See 'ValkeyGlide::__construct'.
     HashTable* addresses_ht  = Z_ARRVAL_P(params->addresses);
     zend_ulong num_addresses = zend_hash_num_elements(addresses_ht);
-    int        default_port  = is_cluster ? DEFAULT_PORT_CLUSTER : DEFAULT_PORT_STANDALONE;
-
-    /* No addresses provided - use default */
-    if (num_addresses == 0) {
-        config->addresses         = ecalloc(1, sizeof(valkey_glide_node_address_t));
-        config->addresses_count   = 1;
-        config->addresses[0].host = (char*) DEFAULT_HOST;
-        config->addresses[0].port = default_port;
-        return;
-    }
 
     config->addresses       = ecalloc(num_addresses, sizeof(valkey_glide_node_address_t));
     config->addresses_count = num_addresses;
@@ -225,7 +217,7 @@ static void _populate_config_addresses(valkey_glide_php_common_constructor_param
             }
 
             /* Extract port */
-            config->addresses[i].port = default_port;
+            config->addresses[i].port = is_cluster ? DEFAULT_PORT_CLUSTER : DEFAULT_PORT_STANDALONE;
 
             zval* port_val = zend_hash_str_find(addr_ht, "port", 4);
             if (port_val && Z_TYPE_P(port_val) == IS_LONG) {
@@ -625,13 +617,13 @@ PHP_MINFO_FUNCTION(redis)
 /* {{{ proto ValkeyGlide ValkeyGlide::__construct(array $addresses, bool $use_tls, ?array
    $credentials, ValkeyGlideReadFrom $read_from, ?int $request_timeout, ?array $reconnect_strategy,
    ?int $database_id, ?string $client_name, ?int $inflight_requests_limit, ?string $client_az,
-   ?array $advanced_config, ?bool $lazy_connect) Public constructor */
+   ?array $advanced_config, ?bool $lazy_connect, ?array $context) Public constructor */
 PHP_METHOD(ValkeyGlide, __construct) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
     valkey_glide_object* valkey_glide;
 
-    ZEND_PARSE_PARAMETERS_START(1, 11)
+    ZEND_PARSE_PARAMETERS_START(1, 12)
     Z_PARAM_ARRAY(common_params.addresses)
     Z_PARAM_OPTIONAL
     Z_PARAM_BOOL(common_params.use_tls)
@@ -644,6 +636,7 @@ PHP_METHOD(ValkeyGlide, __construct) {
     Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
     Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
     Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
+    Z_PARAM_ARRAY_OR_NULL(common_params.context)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
