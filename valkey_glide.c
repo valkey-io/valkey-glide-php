@@ -1,6 +1,7 @@
 /* -*- Mode: C; tab-width: 4 -*- */
 /** Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0 */
 
+#include <string.h>
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -37,6 +38,17 @@ extern void free_valkey_glide_client_configuration(
     valkey_glide_base_client_configuration_t* config);
 
 void register_mock_constructor_class(void);
+
+/* Default values for addresses */
+static const char* DEFAULT_HOST            = "localhost";
+static const int   DEFAULT_PORT_STANDALONE = 6379;
+static const int   DEFAULT_PORT_CLUSTER    = 7001;
+
+static const char* const TLS_PREFIX     = "tls://";
+static const char* const SSL_PREFIX     = "ssl://";
+static const size_t      TLS_PREFIX_LEN = strlen(TLS_PREFIX);
+static const size_t      SSL_PREFIX_LEN = strlen(SSL_PREFIX);
+
 
 zend_class_entry* valkey_glide_ce;
 zend_class_entry* valkey_glide_exception_ce;
@@ -128,11 +140,116 @@ void valkey_glide_init_common_constructor_params(
     params->database_id_is_null     = 1;
 }
 
+/**
+ * Populates the TLS settings for the client configuration from the given parameters.
+ *
+ * @param params    Constructor parameters from PHP
+ * @param config    Client configuration to populate
+ */
+static void _populate_config_tls(valkey_glide_php_common_constructor_params_t* params,
+                                 valkey_glide_base_client_configuration_t*     config) {
+    /* TLS can be enabled in two ways:
+     *   1. Explicitly via the use_tls parameter
+     *   2. Implicitly via tls:// or ssl:// prefix in any address */
+    config->use_tls = params->use_tls;
+
+    HashTable* addresses_ht = Z_ARRVAL_P(params->addresses);
+    zval*      addr_val;
+
+    ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
+        if (Z_TYPE_P(addr_val) == IS_ARRAY) {
+            HashTable* addr_ht  = Z_ARRVAL_P(addr_val);
+            zval*      host_val = zend_hash_str_find(addr_ht, "host", 4);
+
+            if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
+                const char* host = Z_STRVAL_P(host_val);
+                if (strncmp(host, TLS_PREFIX, TLS_PREFIX_LEN) == 0 ||
+                    strncmp(host, SSL_PREFIX, SSL_PREFIX_LEN) == 0) {
+                    config->use_tls = true;
+                    break;
+                }
+            }
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+}
+
+/**
+ * Populates the addresses for the client configuration from the given parameters.
+ *
+ * @param params    Constructor parameters from PHP
+ * @param config    Client configuration to populate
+ * @param is_cluster Whether this is a cluster client
+ */
+static void _populate_config_addresses(valkey_glide_php_common_constructor_params_t* params,
+                                       valkey_glide_base_client_configuration_t*     config,
+                                       bool                                          is_cluster) {
+    HashTable* addresses_ht  = Z_ARRVAL_P(params->addresses);
+    zend_ulong num_addresses = zend_hash_num_elements(addresses_ht);
+    int        default_port  = is_cluster ? DEFAULT_PORT_CLUSTER : DEFAULT_PORT_STANDALONE;
+
+    /* No addresses provided - use default */
+    if (num_addresses == 0) {
+        config->addresses         = ecalloc(1, sizeof(valkey_glide_node_address_t));
+        config->addresses_count   = 1;
+        config->addresses[0].host = (char*) DEFAULT_HOST;
+        config->addresses[0].port = default_port;
+        return;
+    }
+
+    config->addresses       = ecalloc(num_addresses, sizeof(valkey_glide_node_address_t));
+    config->addresses_count = num_addresses;
+
+    zend_ulong i = 0;
+    zval*      addr_val;
+
+    ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
+        if (Z_TYPE_P(addr_val) == IS_ARRAY) {
+            HashTable* addr_ht = Z_ARRVAL_P(addr_val);
+
+            /* Extract host */
+            config->addresses[i].host = (char*) DEFAULT_HOST;
+
+            zval* host_val = zend_hash_str_find(addr_ht, "host", 4);
+            if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
+                const char* host = Z_STRVAL_P(host_val);
+
+                /* Strip TLS PREFIX prefix if present */
+                if (strncmp(host, TLS_PREFIX, TLS_PREFIX_LEN) == 0) {
+                    host += TLS_PREFIX_LEN;
+                } else if (strncmp(host, SSL_PREFIX, SSL_PREFIX_LEN) == 0) {
+                    host += SSL_PREFIX_LEN;
+                }
+
+                config->addresses[i].host = (char*) host;
+            }
+
+            /* Extract port */
+            config->addresses[i].port = default_port;
+
+            zval* port_val = zend_hash_str_find(addr_ht, "port", 4);
+            if (port_val && Z_TYPE_P(port_val) == IS_LONG) {
+                config->addresses[i].port = Z_LVAL_P(port_val);
+            }
+
+            i++;
+        } else {
+            /* Invalid address format */
+            const char* error_message =
+                "Invalid address format. Expected array with 'host' and 'port' keys.";
+            VALKEY_LOG_ERROR("php_construct", error_message);
+            zend_throw_exception(get_exception_ce_for_client_type(is_cluster), error_message, 0);
+            valkey_glide_cleanup_client_config(config);
+            return;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+}
+
 void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
                                            valkey_glide_base_client_configuration_t*     config,
                                            bool is_cluster) {
     /* Basic configuration */
-    config->use_tls = params->use_tls;
     config->request_timeout =
         params->request_timeout_is_null ? -1 : params->request_timeout; /* -1 means not set */
     config->client_name = params->client_name ? params->client_name : NULL;
@@ -168,59 +285,11 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             break;
     }
 
-    /* Process addresses array - handle multiple addresses */
-    HashTable* addresses_ht  = Z_ARRVAL_P(params->addresses);
-    zend_ulong num_addresses = zend_hash_num_elements(addresses_ht);
+    /* Set TLS */
+    _populate_config_tls(params, config);
 
-    int default_port = is_cluster ? 7001 : 6379;
-    if (num_addresses > 0) {
-        /* Allocate addresses array */
-        config->addresses       = ecalloc(num_addresses, sizeof(valkey_glide_node_address_t));
-        config->addresses_count = num_addresses;
-
-        /* Process each address */
-        zend_ulong i = 0;
-        zval*      addr_val;
-        ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
-            if (Z_TYPE_P(addr_val) == IS_ARRAY) {
-                HashTable* addr_ht = Z_ARRVAL_P(addr_val);
-
-                /* Extract host */
-                zval* host_val = zend_hash_str_find(addr_ht, "host", 4);
-                if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
-                    config->addresses[i].host = Z_STRVAL_P(host_val);
-                } else {
-                    config->addresses[i].host = "localhost";
-                }
-
-                /* Extract port */
-                zval* port_val = zend_hash_str_find(addr_ht, "port", 4);
-                if (port_val && Z_TYPE_P(port_val) == IS_LONG) {
-                    config->addresses[i].port = Z_LVAL_P(port_val);
-                } else {
-                    config->addresses[i].port = default_port;
-                }
-
-                i++;
-            } else {
-                /* Invalid address format */
-                const char* error_message =
-                    "Invalid address format. Expected array with 'host' and 'port' keys.";
-                VALKEY_LOG_ERROR("php_construct", error_message);
-                zend_throw_exception(
-                    get_exception_ce_for_client_type(is_cluster), error_message, 0);
-                valkey_glide_cleanup_client_config(config);
-                return;
-            }
-        }
-        ZEND_HASH_FOREACH_END();
-    } else {
-        /* No addresses provided - set default */
-        config->addresses         = ecalloc(1, sizeof(valkey_glide_node_address_t));
-        config->addresses_count   = 1;
-        config->addresses[0].host = "localhost";
-        config->addresses[0].port = default_port;
-    }
+    /* Set addresses */
+    _populate_config_addresses(params, config, is_cluster);
 
     /* Process credentials if provided */
     if (params->credentials && Z_TYPE_P(params->credentials) == IS_ARRAY) {
