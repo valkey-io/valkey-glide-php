@@ -698,37 +698,7 @@ PHP_METHOD(ValkeyGlide, sunsubscribe) { /* TODO: Implement */
 PHP_METHOD(ValkeyGlide, pubsub) { /* TODO: Implement */
 }
 
-PHP_METHOD(ValkeyGlide, eval) {
-    execute_eval_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
-}
-
-PHP_METHOD(ValkeyGlide, eval_ro) {
-    execute_eval_ro_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
-}
-
-PHP_METHOD(ValkeyGlide, evalsha) {
-    execute_evalsha_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
-}
-
-PHP_METHOD(ValkeyGlide, evalsha_ro) {
-    execute_evalsha_ro_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
-}
-
-PHP_METHOD(ValkeyGlide, scriptExists) {
-    execute_script_exists_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
-}
-
-PHP_METHOD(ValkeyGlide, scriptFlush) {
-    execute_script_flush_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
-}
-
-PHP_METHOD(ValkeyGlide, scriptKill) {
-    execute_script_kill_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
-}
-
-PHP_METHOD(ValkeyGlide, scriptShow) {
-    execute_script_show_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
-}
+// Script methods are now implemented in valkey_glide_script_commands.c
 
 PHP_METHOD(ValkeyGlide, functionLoad) {
     execute_function_load_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);

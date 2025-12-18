@@ -743,6 +743,17 @@ class ValkeyGlide
     public function echo(string $str): ValkeyGlide|string|false;
 
     /**
+     * Invoke a Lua script (Java/Go compatible API).
+     *
+     * @param string $script The Lua script to execute
+     * @param array $keys Array of key arguments accessed by the script
+     * @param array $args Array of function arguments
+     *
+     * @return mixed The script's return value
+     */
+    public function invokeScript(string $script, array $keys = [], array $args = []): mixed;
+
+    /**
      * Execute a LUA script on the valkey server.
      *
      * @see https://valkey.io/commands/eval/
@@ -757,14 +768,6 @@ class ValkeyGlide
      *               strings, arrays, nested arrays, etc.
      */
     public function eval(string $script, array $args = [], int $num_keys = 0): mixed;
-
-    /**
-     * This is simply the read-only variant of eval, meaning the underlying script
-     * may not modify data in valkey.
-     *
-     * @see ValkeyGlide::eval()
-     */
-    public function eval_ro(string $script, array $args = [], int $num_keys = 0): mixed;
 
     /**
      * Execute a LUA script on the server but instead of sending the script, send
@@ -784,14 +787,6 @@ class ValkeyGlide
      *
      */
     public function evalsha(string $sha1, array $args = [], int $num_keys = 0): mixed;
-
-    /**
-     * This is simply the read-only variant of evalsha, meaning the underlying script
-     * may not modify data in valkey.
-     *
-     * @see ValkeyGlide::evalsha()
-     */
-    public function evalsha_ro(string $sha1, array $args = [], int $num_keys = 0): mixed;
 
     /**
      * Execute either a MULTI or PIPELINE block and return the array of replies.

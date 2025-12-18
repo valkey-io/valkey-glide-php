@@ -183,14 +183,15 @@ int execute_discard_command(zval* object, int argc, zval* return_value, zend_cla
 int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_fcall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_fcall_ro_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_eval_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_eval_ro_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_evalsha_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_evalsha_ro_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_script_exists_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_script_flush_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_script_kill_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_script_show_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+// Script command helper functions (following Go pattern)
+zval execute_invoke_script_command(valkey_glide_object* valkey_glide,
+                                   const char*          script_hash,
+                                   zval*                keys,
+                                   zval*                args);
+zval execute_script_exists_command(valkey_glide_object* valkey_glide, zval* sha1s);
+zval execute_script_flush_command(valkey_glide_object* valkey_glide);
+zval execute_script_kill_command(valkey_glide_object* valkey_glide);
+zval execute_script_show_command(valkey_glide_object* valkey_glide, const char* sha1);
 int execute_function_load_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_list_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_flush_command(zval*             object,

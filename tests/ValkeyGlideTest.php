@@ -5258,10 +5258,16 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->markTestSkipped();
         }
 
-        /* The eval_ro method uses the same underlying handlers as eval so we
-           only need to verify we can call it. */
+        /* Test invokeScript method (Go/Java compatible API) */
         if ($this->minVersionCheck('7.0.0')) {
-            $this->assertEquals('1.55', $this->valkey_glide->eval_ro("return '1.55'"));
+            $this->assertEquals('1.55', $this->valkey_glide->invokeScript("return '1.55'"));
+            
+            // Test with keys and args
+            $key1 = uniqid() . '-' . rand(1, 1000);
+            $key2 = uniqid() . '-' . rand(1, 1000);
+            $script = "return {KEYS[1], KEYS[2], ARGV[1], ARGV[2]}";
+            $result = $this->valkey_glide->invokeScript($script, [$key1, $key2], ['arg1', 'arg2']);
+            $this->assertEquals([$key1, $key2, 'arg1', 'arg2'], $result);
         }
 
         // Basic single line response tests
@@ -5411,10 +5417,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $this->valkey_glide->eval($scr));
         $this->assertEquals(1, $this->valkey_glide->evalsha($sha));
 
-        /* Our evalsha_ro handler is the same as evalsha so just make sure
-           we can invoke the command */
+        /* Test invokeScript with hash (alternative to evalsha) */
         if ($this->minVersionCheck('7.0.0')) {
-            $this->assertEquals(1, $this->valkey_glide->evalsha_ro($sha));
+            $this->assertEquals(1, $this->valkey_glide->invokeScript($sha));
         }
     }
 

@@ -655,6 +655,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals(2, $this->valkey_glide->eval($s2_src, [$key], 1));
         $this->assertEquals(3, $this->valkey_glide->eval($s3_src, [$key], 1));
 
+        // Test invokeScript method (Go/Java compatible API)
+        $this->assertEquals(1, $this->valkey_glide->invokeScript($s1_src, [$key]));
+
         // They should all exist now
         $result = $this->valkey_glide->scriptExists([$s1_sha, $s2_sha, $s3_sha]);
         $this->assertTrue(is_array($result) && count(array_filter($result)) == 3);
