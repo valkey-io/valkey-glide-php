@@ -1351,6 +1351,46 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::scriptShow
      */
     public function scriptShow(string $sha1): ValkeyGlideCluster|string|false;
+
+    /**
+     * @see ValkeyGlide::functionLoad
+     */
+    public function functionLoad(string $libraryCode, bool $replace = false): ValkeyGlideCluster|string|false;
+
+    /**
+     * @see ValkeyGlide::functionList
+     */
+    public function functionList(?string $libNamePattern = null, bool $withCode = false): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::functionFlush
+     */
+    public function functionFlush(?string $mode = null): ValkeyGlideCluster|string|false;
+
+    /**
+     * @see ValkeyGlide::functionDelete
+     */
+    public function functionDelete(string $libName): ValkeyGlideCluster|string|false;
+
+    /**
+     * @see ValkeyGlide::functionDump
+     */
+    public function functionDump(): ValkeyGlideCluster|string|false;
+
+    /**
+     * @see ValkeyGlide::functionRestore
+     */
+    public function functionRestore(string $payload, ?string $policy = null): ValkeyGlideCluster|string|false;
+
+    /**
+     * @see ValkeyGlide::functionKill
+     */
+    public function functionKill(): ValkeyGlideCluster|string|false;
+
+    /**
+     * @see ValkeyGlide::functionStats
+     */
+    public function functionStats(): ValkeyGlideCluster|array|false;
 }
 
 class ValkeyGlideClusterException extends RuntimeException
