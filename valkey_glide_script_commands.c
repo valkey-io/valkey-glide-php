@@ -2,7 +2,7 @@
 
 #include "command_response.h"
 #include "php.h"
-#include "valkey_glide.h"
+#include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
 
 /* Execute EVAL command */
