@@ -140,104 +140,6 @@ void valkey_glide_init_common_constructor_params(
     params->context                 = NULL;
 }
 
-/**
- * Populates the TLS settings for the client configuration from the given parameters.
- *
- * @param params    Constructor parameters from PHP
- * @param config    Client configuration to populate
- */
-static void _populate_config_tls(valkey_glide_php_common_constructor_params_t* params,
-                                 valkey_glide_base_client_configuration_t*     config) {
-    /* TLS can be enabled in two ways:
-     *   1. Explicitly via the use_tls parameter
-     *   2. Implicitly via tls:// or ssl:// prefix in any address */
-    config->use_tls = params->use_tls;
-
-    HashTable* addresses_ht = Z_ARRVAL_P(params->addresses);
-    zval*      addr_val;
-
-    ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
-        if (Z_TYPE_P(addr_val) == IS_ARRAY) {
-            HashTable* addr_ht  = Z_ARRVAL_P(addr_val);
-            zval*      host_val = zend_hash_str_find(addr_ht, "host", 4);
-
-            if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
-                const char* host = Z_STRVAL_P(host_val);
-                if (strncmp(host, TLS_PREFIX, TLS_PREFIX_LEN) == 0 ||
-                    strncmp(host, SSL_PREFIX, SSL_PREFIX_LEN) == 0) {
-                    config->use_tls = true;
-                    break;
-                }
-            }
-        }
-    }
-    ZEND_HASH_FOREACH_END();
-}
-
-/**
- * Populates the addresses for the client configuration from the given parameters.
- *
- * @param params    Constructor parameters from PHP
- * @param config    Client configuration to populate
- * @param is_cluster Whether this is a cluster client
- */
-static void _populate_config_addresses(valkey_glide_php_common_constructor_params_t* params,
-                                       valkey_glide_base_client_configuration_t*     config,
-                                       bool                                          is_cluster) {
-    // Addresses are guaranteed to be non-empty.
-    // See 'ValkeyGlide::__construct'.
-    HashTable* addresses_ht  = Z_ARRVAL_P(params->addresses);
-    zend_ulong num_addresses = zend_hash_num_elements(addresses_ht);
-
-    config->addresses       = ecalloc(num_addresses, sizeof(valkey_glide_node_address_t));
-    config->addresses_count = num_addresses;
-
-    zend_ulong i = 0;
-    zval*      addr_val;
-
-    ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
-        if (Z_TYPE_P(addr_val) == IS_ARRAY) {
-            HashTable* addr_ht = Z_ARRVAL_P(addr_val);
-
-            /* Extract host */
-            config->addresses[i].host = (char*) DEFAULT_HOST;
-
-            zval* host_val = zend_hash_str_find(addr_ht, "host", 4);
-            if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
-                const char* host = Z_STRVAL_P(host_val);
-
-                /* Strip TLS PREFIX prefix if present */
-                if (strncmp(host, TLS_PREFIX, TLS_PREFIX_LEN) == 0) {
-                    host += TLS_PREFIX_LEN;
-                } else if (strncmp(host, SSL_PREFIX, SSL_PREFIX_LEN) == 0) {
-                    host += SSL_PREFIX_LEN;
-                }
-
-                config->addresses[i].host = (char*) host;
-            }
-
-            /* Extract port */
-            config->addresses[i].port = is_cluster ? DEFAULT_PORT_CLUSTER : DEFAULT_PORT_STANDALONE;
-
-            zval* port_val = zend_hash_str_find(addr_ht, "port", 4);
-            if (port_val && Z_TYPE_P(port_val) == IS_LONG) {
-                config->addresses[i].port = Z_LVAL_P(port_val);
-            }
-
-            i++;
-        } else {
-            /* Invalid address format */
-            const char* error_message =
-                "Invalid address format. Expected array with 'host' and 'port' keys.";
-            VALKEY_LOG_ERROR("php_construct", error_message);
-            zend_throw_exception(get_exception_ce_for_client_type(is_cluster), error_message, 0);
-            valkey_glide_cleanup_client_config(config);
-            return;
-        }
-    }
-    ZEND_HASH_FOREACH_END();
-}
-
 void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
                                            valkey_glide_base_client_configuration_t*     config,
                                            bool is_cluster) {
@@ -277,210 +179,11 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             break;
     }
 
-    /* Set TLS */
     _populate_config_tls(params, config);
-
-    /* Set addresses */
     _populate_config_addresses(params, config, is_cluster);
-
-    /* Process credentials if provided */
-    if (params->credentials && Z_TYPE_P(params->credentials) == IS_ARRAY) {
-        HashTable* cred_ht = Z_ARRVAL_P(params->credentials);
-
-        /* Allocate credentials structure */
-        config->credentials             = ecalloc(1, sizeof(valkey_glide_server_credentials_t));
-        config->credentials->iam_config = NULL;
-
-        /* Check for username */
-        zval* username_val = zend_hash_str_find(cred_ht, "username", 8);
-        if (username_val && Z_TYPE_P(username_val) == IS_STRING) {
-            config->credentials->username = Z_STRVAL_P(username_val);
-        } else {
-            config->credentials->username = NULL;
-        }
-
-        /* Check for password */
-        zval* password_val = zend_hash_str_find(cred_ht, "password", 8);
-        if (password_val && Z_TYPE_P(password_val) == IS_STRING) {
-            config->credentials->password = Z_STRVAL_P(password_val);
-        } else {
-            config->credentials->password = NULL;
-        }
-
-        /* Check for IAM config (mutually exclusive with password) */
-        zval* iam_config_val = zend_hash_str_find(cred_ht, "iamConfig", 9);
-        if (iam_config_val && Z_TYPE_P(iam_config_val) == IS_ARRAY) {
-            HashTable* iam_ht = Z_ARRVAL_P(iam_config_val);
-
-            /* Allocate IAM config structure */
-            config->credentials->iam_config = ecalloc(1, sizeof(valkey_glide_iam_config_t));
-
-            /* Parse cluster_name (required) */
-            zval* cluster_name_val =
-                zend_hash_str_find(iam_ht,
-                                   VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME,
-                                   strlen(VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME));
-            if (cluster_name_val && Z_TYPE_P(cluster_name_val) == IS_STRING) {
-                config->credentials->iam_config->cluster_name = Z_STRVAL_P(cluster_name_val);
-            } else {
-                config->credentials->iam_config->cluster_name = NULL;
-            }
-
-            /* Parse region (required) */
-            zval* region_val = zend_hash_str_find(
-                iam_ht, VALKEY_GLIDE_IAM_CONFIG_REGION, strlen(VALKEY_GLIDE_IAM_CONFIG_REGION));
-            if (region_val && Z_TYPE_P(region_val) == IS_STRING) {
-                config->credentials->iam_config->region = Z_STRVAL_P(region_val);
-            } else {
-                config->credentials->iam_config->region = NULL;
-            }
-
-            /* Parse service type (required) */
-            zval* service_val = zend_hash_str_find(
-                iam_ht, VALKEY_GLIDE_IAM_CONFIG_SERVICE, strlen(VALKEY_GLIDE_IAM_CONFIG_SERVICE));
-            if (service_val && Z_TYPE_P(service_val) == IS_STRING) {
-                const char* service_str = Z_STRVAL_P(service_val);
-                if (strcasecmp(service_str, VALKEY_GLIDE_IAM_SERVICE_MEMORYDB) == 0) {
-                    config->credentials->iam_config->service_type =
-                        VALKEY_GLIDE_SERVICE_TYPE_MEMORYDB;
-                } else {
-                    config->credentials->iam_config->service_type =
-                        VALKEY_GLIDE_SERVICE_TYPE_ELASTICACHE;
-                }
-            } else {
-                config->credentials->iam_config->service_type =
-                    VALKEY_GLIDE_SERVICE_TYPE_ELASTICACHE;
-            }
-
-            /* Parse refresh interval (optional, defaults to 300 seconds) */
-            zval* refresh_val =
-                zend_hash_str_find(iam_ht,
-                                   VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL,
-                                   strlen(VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL));
-            if (refresh_val && Z_TYPE_P(refresh_val) == IS_LONG) {
-                config->credentials->iam_config->refresh_interval_seconds = Z_LVAL_P(refresh_val);
-            } else {
-                config->credentials->iam_config->refresh_interval_seconds =
-                    0; /* 0 means use default */
-            }
-
-            /* Clear password when using IAM */
-            config->credentials->password = NULL;
-
-            /* Validate that username is provided for IAM */
-            if (!config->credentials->username) {
-                zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
-                                     "IAM authentication requires a username",
-                                     0);
-            }
-        }
-    } else {
-        config->credentials = NULL;
-    }
-
-    /* Process reconnect strategy if provided */
-    if (params->reconnect_strategy && Z_TYPE_P(params->reconnect_strategy) == IS_ARRAY) {
-        HashTable* reconnect_ht = Z_ARRVAL_P(params->reconnect_strategy);
-
-        /* Allocate reconnect strategy structure */
-        config->reconnect_strategy = ecalloc(1, sizeof(valkey_glide_backoff_strategy_t));
-
-        /* Check for num_of_retries */
-        zval* retries_val = zend_hash_str_find(reconnect_ht, "num_of_retries", 14);
-        if (retries_val && Z_TYPE_P(retries_val) == IS_LONG) {
-            config->reconnect_strategy->num_of_retries = Z_LVAL_P(retries_val);
-        } else {
-            config->reconnect_strategy->num_of_retries = VALKEY_GLIDE_DEFAULT_NUM_OF_RETRIES;
-        }
-
-        /* Check for factor */
-        zval* factor_val = zend_hash_str_find(reconnect_ht, "factor", 6);
-        if (factor_val && Z_TYPE_P(factor_val) == IS_LONG) {
-            config->reconnect_strategy->factor = Z_LVAL_P(factor_val);
-        } else {
-            config->reconnect_strategy->factor = VALKEY_GLIDE_DEFAULT_FACTOR;
-        }
-
-        /* Check for exponent_base */
-        zval* exponent_val = zend_hash_str_find(reconnect_ht, "exponent_base", 13);
-        if (exponent_val && Z_TYPE_P(exponent_val) == IS_LONG) {
-            config->reconnect_strategy->exponent_base = Z_LVAL_P(exponent_val);
-        } else {
-            config->reconnect_strategy->exponent_base = VALKEY_GLIDE_DEFAULT_EXPONENT_BASE;
-        }
-
-        /* Check for jitter_percent - optional */
-        zval* jitter_val = zend_hash_str_find(reconnect_ht, "jitter_percent", 14);
-        if (jitter_val && Z_TYPE_P(jitter_val) == IS_LONG) {
-            config->reconnect_strategy->jitter_percent = Z_LVAL_P(jitter_val);
-        } else {
-            config->reconnect_strategy->jitter_percent = VALKEY_GLIDE_DEFAULT_JITTER_PERCENTAGE;
-        }
-    } else {
-        config->reconnect_strategy = NULL;
-    }
-
-    /* Process advanced config if provided */
-    if (params->advanced_config && Z_TYPE_P(params->advanced_config) == IS_ARRAY) {
-        HashTable* advanced_ht = Z_ARRVAL_P(params->advanced_config);
-
-        /* Allocate advanced config structure */
-        config->advanced_config =
-            ecalloc(1, sizeof(valkey_glide_advanced_base_client_configuration_t));
-
-        /* Check for connection_timeout */
-        zval* conn_timeout_val = zend_hash_str_find(advanced_ht, "connection_timeout", 18);
-        if (conn_timeout_val && Z_TYPE_P(conn_timeout_val) == IS_LONG) {
-            config->advanced_config->connection_timeout = Z_LVAL_P(conn_timeout_val);
-        } else {
-            config->advanced_config->connection_timeout = VALKEY_GLIDE_DEFAULT_CONNECTION_TIMEOUT;
-        }
-
-        /* Check for TLS config */
-        zval* tls_config_val = zend_hash_str_find(advanced_ht, "tls_config", 10);
-        if (tls_config_val && Z_TYPE_P(tls_config_val) == IS_ARRAY) {
-            HashTable* tls_ht = Z_ARRVAL_P(tls_config_val);
-            config->advanced_config->tls_config =
-                ecalloc(1, sizeof(valkey_glide_tls_advanced_configuration_t));
-
-            zval* use_insecure_tls_val = zend_hash_str_find(tls_ht, "use_insecure_tls", 16);
-            if (use_insecure_tls_val && Z_TYPE_P(use_insecure_tls_val) == IS_TRUE) {
-                config->advanced_config->tls_config->use_insecure_tls = true;
-            } else {
-                config->advanced_config->tls_config->use_insecure_tls = false;
-            }
-        } else {
-            config->advanced_config->tls_config = NULL;
-        }
-
-        /* Check for OTEL config */
-        zval* otel_config_val = zend_hash_str_find(advanced_ht, "otel", sizeof("otel") - 1);
-        if (otel_config_val) {
-            /* Validate that OTEL config is an object, not an array or other type */
-            if (Z_TYPE_P(otel_config_val) != IS_NULL && Z_TYPE_P(otel_config_val) != IS_OBJECT) {
-                VALKEY_LOG_ERROR(
-                    "otel_config",
-                    "OpenTelemetry configuration must be an OpenTelemetryConfig object");
-                zend_throw_exception(
-                    get_exception_ce_for_client_type(is_cluster),
-                    "OpenTelemetry configuration must be an OpenTelemetryConfig object",
-                    0);
-                return;
-            }
-
-            VALKEY_LOG_DEBUG("otel_config", "Processing OTEL configuration from advanced_config");
-            if (!valkey_glide_otel_init(otel_config_val)) {
-                VALKEY_LOG_ERROR("otel_config", "Failed to initialize OTEL");
-                /* Exception already thrown by valkey_glide_otel_init if validation failed */
-                zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
-                                     "Failed to initialize OpenTelemetry",
-                                     0);
-                return;
-            }
-        }
-    } else {
-        config->advanced_config = NULL;
-    }
+    _populate_config_credentials(params, config, is_cluster);
+    _populate_config_reconnect_strategy(params, config);
+    _populate_config_advanced(params, config);
 }
 
 const zend_function_entry valkey_glide_cluster_methods[] = {
@@ -908,3 +611,322 @@ PHP_FUNCTION(valkey_glide_logger_get_level) {
 // Individual HFE methods that call unified layer
 
 // HFE methods are implemented in valkey_z_php_methods.c
+
+/**
+ * Populates the TLS settings for the client configuration from the given parameters.
+ *
+ * @param params    Constructor parameters from PHP
+ * @param config    Client configuration to populate
+ */
+static void _populate_config_tls(valkey_glide_php_common_constructor_params_t* params,
+                                 valkey_glide_base_client_configuration_t*     config) {
+    /* TLS can be enabled in two ways:
+     *   1. Explicitly via the use_tls parameter
+     *   2. Implicitly via tls:// or ssl:// prefix in any address */
+    config->use_tls = params->use_tls;
+
+    HashTable* addresses_ht = Z_ARRVAL_P(params->addresses);
+    zval*      addr_val;
+
+    ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
+        if (Z_TYPE_P(addr_val) == IS_ARRAY) {
+            HashTable* addr_ht  = Z_ARRVAL_P(addr_val);
+            zval*      host_val = zend_hash_str_find(addr_ht, "host", 4);
+
+            if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
+                const char* host = Z_STRVAL_P(host_val);
+                if (strncmp(host, TLS_PREFIX, TLS_PREFIX_LEN) == 0 ||
+                    strncmp(host, SSL_PREFIX, SSL_PREFIX_LEN) == 0) {
+                    config->use_tls = true;
+                    break;
+                }
+            }
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+}
+
+/**
+ * Populates the addresses for the client configuration from the given parameters.
+ *
+ * @param params    Constructor parameters from PHP
+ * @param config    Client configuration to populate
+ * @param is_cluster Whether this is a cluster client
+ */
+static void _populate_config_addresses(valkey_glide_php_common_constructor_params_t* params,
+                                       valkey_glide_base_client_configuration_t*     config,
+                                       bool                                          is_cluster) {
+    // Addresses are guaranteed to be non-empty.
+    // See 'ValkeyGlide::__construct'.
+    HashTable* addresses_ht  = Z_ARRVAL_P(params->addresses);
+    zend_ulong num_addresses = zend_hash_num_elements(addresses_ht);
+
+    config->addresses       = ecalloc(num_addresses, sizeof(valkey_glide_node_address_t));
+    config->addresses_count = num_addresses;
+
+    zend_ulong i = 0;
+    zval*      addr_val;
+
+    ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
+        if (Z_TYPE_P(addr_val) == IS_ARRAY) {
+            HashTable* addr_ht = Z_ARRVAL_P(addr_val);
+
+            /* Extract host */
+            config->addresses[i].host = (char*) DEFAULT_HOST;
+
+            zval* host_val = zend_hash_str_find(addr_ht, "host", 4);
+            if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
+                const char* host = Z_STRVAL_P(host_val);
+
+                /* Strip TLS PREFIX prefix if present */
+                if (strncmp(host, TLS_PREFIX, TLS_PREFIX_LEN) == 0) {
+                    host += TLS_PREFIX_LEN;
+                } else if (strncmp(host, SSL_PREFIX, SSL_PREFIX_LEN) == 0) {
+                    host += SSL_PREFIX_LEN;
+                }
+
+                config->addresses[i].host = (char*) host;
+            }
+
+            /* Extract port */
+            config->addresses[i].port = is_cluster ? DEFAULT_PORT_CLUSTER : DEFAULT_PORT_STANDALONE;
+
+            zval* port_val = zend_hash_str_find(addr_ht, "port", 4);
+            if (port_val && Z_TYPE_P(port_val) == IS_LONG) {
+                config->addresses[i].port = Z_LVAL_P(port_val);
+            }
+
+            i++;
+        } else {
+            /* Invalid address format */
+            const char* error_message =
+                "Invalid address format. Expected array with 'host' and 'port' keys.";
+            VALKEY_LOG_ERROR("php_construct", error_message);
+            zend_throw_exception(get_exception_ce_for_client_type(is_cluster), error_message, 0);
+            valkey_glide_cleanup_client_config(config);
+            return;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+}
+
+/**
+ * Populates the credentials for the client configuration from the given parameters.
+ *
+ * @param params     Constructor parameters from PHP
+ * @param config     Client configuration to populate
+ * @param is_cluster Whether this is a cluster client
+ */
+static void _populate_config_credentials(valkey_glide_php_common_constructor_params_t* params,
+                                         valkey_glide_base_client_configuration_t*     config,
+                                         bool                                          is_cluster) {
+    if (!params->credentials || Z_TYPE_P(params->credentials) != IS_ARRAY) {
+        config->credentials = NULL;
+        return;
+    }
+
+    HashTable* cred_ht = Z_ARRVAL_P(params->credentials);
+
+    /* Allocate credentials structure */
+    config->credentials = ecalloc(1, sizeof(valkey_glide_server_credentials_t));
+
+    /* Check for username */
+    config->credentials->username = NULL;
+
+    zval* username_val = zend_hash_str_find(cred_ht, "username", 8);
+    if (username_val && Z_TYPE_P(username_val) == IS_STRING) {
+        config->credentials->username = Z_STRVAL_P(username_val);
+    }
+
+    /* Check for password */
+    config->credentials->password = NULL;
+
+    zval* password_val = zend_hash_str_find(cred_ht, "password", 8);
+    if (password_val && Z_TYPE_P(password_val) == IS_STRING) {
+        config->credentials->password = Z_STRVAL_P(password_val);
+    }
+
+    /* Check for IAM config (mutually exclusive with password) */
+    config->credentials->iam_config = NULL;
+
+    zval* iam_config_val = zend_hash_str_find(cred_ht, "iamConfig", 9);
+    if (iam_config_val && Z_TYPE_P(iam_config_val) == IS_ARRAY) {
+        HashTable* iam_ht = Z_ARRVAL_P(iam_config_val);
+
+        /* Allocate IAM config structure */
+        config->credentials->iam_config = ecalloc(1, sizeof(valkey_glide_iam_config_t));
+
+        /* Parse cluster_name (required) */
+        config->credentials->iam_config->cluster_name = NULL;
+
+        zval* cluster_name_val = zend_hash_str_find(iam_ht,
+                                                    VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME,
+                                                    strlen(VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME));
+        if (cluster_name_val && Z_TYPE_P(cluster_name_val) == IS_STRING) {
+            config->credentials->iam_config->cluster_name = Z_STRVAL_P(cluster_name_val);
+        }
+
+        /* Parse region (required) */
+        config->credentials->iam_config->region = NULL;
+
+        zval* region_val = zend_hash_str_find(
+            iam_ht, VALKEY_GLIDE_IAM_CONFIG_REGION, strlen(VALKEY_GLIDE_IAM_CONFIG_REGION));
+        if (region_val && Z_TYPE_P(region_val) == IS_STRING) {
+            config->credentials->iam_config->region = Z_STRVAL_P(region_val);
+        }
+
+        /* Parse service type (required) */
+        config->credentials->iam_config->service_type = VALKEY_GLIDE_SERVICE_TYPE_ELASTICACHE;
+
+        zval* service_val = zend_hash_str_find(
+            iam_ht, VALKEY_GLIDE_IAM_CONFIG_SERVICE, strlen(VALKEY_GLIDE_IAM_CONFIG_SERVICE));
+        if (service_val && Z_TYPE_P(service_val) == IS_STRING) {
+            const char* service_str = Z_STRVAL_P(service_val);
+            if (strcasecmp(service_str, VALKEY_GLIDE_IAM_SERVICE_MEMORYDB) == 0) {
+                config->credentials->iam_config->service_type = VALKEY_GLIDE_SERVICE_TYPE_MEMORYDB;
+            }
+        }
+
+        /* Parse refresh interval (optional, defaults to 300 seconds) */
+        config->credentials->iam_config->refresh_interval_seconds = 0; /* 0 means use default */
+
+        zval* refresh_val = zend_hash_str_find(iam_ht,
+                                               VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL,
+                                               strlen(VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL));
+        if (refresh_val && Z_TYPE_P(refresh_val) == IS_LONG) {
+            config->credentials->iam_config->refresh_interval_seconds = Z_LVAL_P(refresh_val);
+        }
+
+        /* Clear password when using IAM */
+        config->credentials->password = NULL;
+
+        /* Validate that username is provided for IAM */
+        if (!config->credentials->username) {
+            zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                                 "IAM authentication requires a username",
+                                 0);
+        }
+    }
+}
+
+/**
+ * Populates the reconnect strategy settingsfor the client configuration from the given parameters.
+ *
+ * @param params     Constructor parameters from PHP
+ * @param config     Client configuration to populate
+ */
+static void _populate_config_reconnect_strategy(
+    valkey_glide_php_common_constructor_params_t* params,
+    valkey_glide_base_client_configuration_t*     config) {
+    if (!params->reconnect_strategy || Z_TYPE_P(params->reconnect_strategy) != IS_ARRAY) {
+        config->reconnect_strategy = NULL;
+        return;
+    }
+
+    HashTable* reconnect_ht = Z_ARRVAL_P(params->reconnect_strategy);
+
+    /* Allocate reconnect strategy structure */
+    config->reconnect_strategy = ecalloc(1, sizeof(valkey_glide_backoff_strategy_t));
+
+    /* Check for num_of_retries */
+    zval* retries_val = zend_hash_str_find(reconnect_ht, "num_of_retries", 14);
+    if (retries_val && Z_TYPE_P(retries_val) == IS_LONG) {
+        config->reconnect_strategy->num_of_retries = Z_LVAL_P(retries_val);
+    } else {
+        config->reconnect_strategy->num_of_retries = VALKEY_GLIDE_DEFAULT_NUM_OF_RETRIES;
+    }
+
+    /* Check for factor */
+    zval* factor_val = zend_hash_str_find(reconnect_ht, "factor", 6);
+    if (factor_val && Z_TYPE_P(factor_val) == IS_LONG) {
+        config->reconnect_strategy->factor = Z_LVAL_P(factor_val);
+    } else {
+        config->reconnect_strategy->factor = VALKEY_GLIDE_DEFAULT_FACTOR;
+    }
+
+    /* Check for exponent_base */
+    zval* exponent_val = zend_hash_str_find(reconnect_ht, "exponent_base", 13);
+    if (exponent_val && Z_TYPE_P(exponent_val) == IS_LONG) {
+        config->reconnect_strategy->exponent_base = Z_LVAL_P(exponent_val);
+    } else {
+        config->reconnect_strategy->exponent_base = VALKEY_GLIDE_DEFAULT_EXPONENT_BASE;
+    }
+
+    /* Check for jitter_percent - optional */
+    zval* jitter_val = zend_hash_str_find(reconnect_ht, "jitter_percent", 14);
+    if (jitter_val && Z_TYPE_P(jitter_val) == IS_LONG) {
+        config->reconnect_strategy->jitter_percent = Z_LVAL_P(jitter_val);
+    } else {
+        config->reconnect_strategy->jitter_percent = VALKEY_GLIDE_DEFAULT_JITTER_PERCENTAGE;
+    }
+}
+
+/**
+ * Populates the advanced configuration settings for the client configuration from the given
+ * parameters.
+ *
+ * @param params     Constructor parameters from PHP
+ * @param config     Client configuration to populate
+ */
+static void _populate_config_advanced(valkey_glide_php_common_constructor_params_t* params,
+                                      valkey_glide_base_client_configuration_t*     config) {
+    HashTable* advanced_ht = Z_ARRVAL_P(params->advanced_config);
+
+    // Populate from 'advanced_config' parameters
+    // ------------------------------------------
+
+    if (params->advanced_config && Z_TYPE_P(params->advanced_config) == IS_ARRAY) {
+        /* Check for connection_timeout */
+        config->advanced_config->connection_timeout = VALKEY_GLIDE_DEFAULT_CONNECTION_TIMEOUT;
+
+        zval* conn_timeout_val = zend_hash_str_find(advanced_ht, "connection_timeout", 18);
+        if (conn_timeout_val && Z_TYPE_P(conn_timeout_val) == IS_LONG) {
+            config->advanced_config->connection_timeout = Z_LVAL_P(conn_timeout_val);
+        }
+
+        /* Check for TLS config */
+        config->advanced_config->tls_config = NULL;
+
+        zval* tls_config_val = zend_hash_str_find(advanced_ht, "tls_config", 10);
+        if (tls_config_val && Z_TYPE_P(tls_config_val) == IS_ARRAY) {
+            HashTable* tls_ht = Z_ARRVAL_P(tls_config_val);
+            config->advanced_config->tls_config =
+                ecalloc(1, sizeof(valkey_glide_tls_advanced_configuration_t));
+
+            zval* use_insecure_tls_val = zend_hash_str_find(tls_ht, "use_insecure_tls", 16);
+            config->advanced_config->tls_config->use_insecure_tls =
+                use_insecure_tls_val && Z_TYPE_P(use_insecure_tls_val) == IS_TRUE;
+        }
+
+        /* Check for OTEL config */
+        zval* otel_config_val = zend_hash_str_find(advanced_ht, "otel", sizeof("otel") - 1);
+        if (otel_config_val) {
+            /* Validate that OTEL config is an object, not an array or other type */
+            if (Z_TYPE_P(otel_config_val) != IS_NULL && Z_TYPE_P(otel_config_val) != IS_OBJECT) {
+                VALKEY_LOG_ERROR(
+                    "otel_config",
+                    "OpenTelemetry configuration must be an OpenTelemetryConfig object");
+                zend_throw_exception(
+                    get_exception_ce_for_client_type(is_cluster),
+                    "OpenTelemetry configuration must be an OpenTelemetryConfig object",
+                    0);
+                return;
+            }
+
+            VALKEY_LOG_DEBUG("otel_config", "Processing OTEL configuration from advanced_config");
+            if (!valkey_glide_otel_init(otel_config_val)) {
+                VALKEY_LOG_ERROR("otel_config", "Failed to initialize OTEL");
+                /* Exception already thrown by valkey_glide_otel_init if validation failed */
+                zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                                     "Failed to initialize OpenTelemetry",
+                                     0);
+                return;
+            }
+        }
+    }
+
+    // Populate from 'context' parameters
+    // ----------------------------------
+
+    // TODO: Implement this
+}
