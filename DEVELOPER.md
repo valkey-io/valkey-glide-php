@@ -254,7 +254,6 @@ cd tests
 ./start_valkey_with_replicas.sh 
 ./create-valkey-cluster.sh 
 php -n -d extension=../modules/valkey_glide.so TestValkeyGlide.php
-
 ```
 
 ### Linters
@@ -288,8 +287,6 @@ VSCode is configured to automatically use the project's linting tools:
 - Format on save for both languages
 - Integration with project-specific linting configurations
 - Extensions recommended: PHP, C/C++, phpcs, phpstan, clangd
-
-
 
 ### Extension Development Guidelines
 
