@@ -16,6 +16,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <zend.h>
+#include <zend_API.h>
+#include <zend_exceptions.h>
 
 #include "command_response.h"
 #include "ext/standard/php_var.h"
@@ -927,23 +930,28 @@ static int execute_fcall_command_internal(zval*                object,
         ZVAL_COPY(return_value, object);
         return 1;
     }
-    if (result) {
-        if (result->command_error) {
-            /* Command failed */
-            free_command_result(result);
-            return 0;
-        }
 
-        else if (result->response) {
-            /* FCALL can return various types */
-            status = process_fcall_command_reposonse(result->response, NULL, return_value);
-            free_command_result(result);
-            return status;
-        }
-        free_command_result(result);
+    if (!result) {
+        zend_throw_exception(zend_ce_exception, "FCall: Failed to execute command", 0);
+        return 0;
     }
 
-    return 0;
+    if (result->command_error) {
+        zend_throw_exception(zend_ce_exception, "FCall: Command execution error", 0);
+        free_command_result(result);
+        return 0;
+    }
+
+    if (!result->response) {
+        zend_throw_exception(zend_ce_exception, "FCall: No response received", 0);
+        free_command_result(result);
+        return 0;
+    }
+
+    /* FCALL can return various types */
+    status = process_fcall_command_reposonse(result->response, NULL, return_value);
+    free_command_result(result);
+    return status;
 }
 
 /* Execute an FCALL command using the Valkey Glide client */

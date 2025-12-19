@@ -1,13 +1,13 @@
 /* Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0 */
 
+#include <zend_exceptions.h>
+
 #include "command_response.h"
 #include "common.h"
 #include "include/glide_bindings.h"
 #include "php.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
-
-/* Execute FUNCTION LOAD command */
 int execute_function_load_command(zval*             object,
                                   int               argc,
                                   zval*             return_value,
@@ -45,14 +45,26 @@ int execute_function_load_command(zval*             object,
     efree(cmd_args);
     efree(args_len);
 
-    if (result && !result->command_error && result->response) {
-        int status = command_response_to_zval(result->response, return_value, 0, false);
-        free_command_result(result);
-        return status;
+    if (!result) {
+        zend_throw_exception(zend_ce_exception, "FunctionLoad: Failed to execute command", 0);
+        return 0;
     }
-    if (result)
+
+    if (result->command_error) {
+        zend_throw_exception(zend_ce_exception, "FunctionLoad: Command execution error", 0);
         free_command_result(result);
-    return 0;
+        return 0;
+    }
+
+    if (!result->response) {
+        zend_throw_exception(zend_ce_exception, "FunctionLoad: No response received", 0);
+        free_command_result(result);
+        return 0;
+    }
+
+    int status = command_response_to_zval(result->response, return_value, 0, false);
+    free_command_result(result);
+    return status;
 }
 
 /* Simplified implementations for other function commands */
