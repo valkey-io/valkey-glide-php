@@ -115,6 +115,8 @@ zend_object* create_valkey_glide_cluster_object(zend_class_entry* ce)  // TODO c
 
 /**
  * Builds and returns the advanced configuration for the given constructor parameters.
+ * Returns NULL if no advanced configuration is set.
+ *
  * @param params Pointer to the common constructor parameters structure.
  * @return Pointer to the allocated advanced configuration structure, or NULL if not set.
  */
@@ -156,6 +158,21 @@ valkey_glide_advanced_base_client_configuration_t* _build_advanced_config(
     }
 
     return advanced_config;
+}
+
+/**
+ * Returns whether the client should use TLS for the given constructor parameters.
+ *
+ * @param params Pointer to the common constructor parameters structure.
+ * @return true if TLS should be used, false otherwise.
+ */
+static bool _determine_use_tls(valkey_glide_php_common_constructor_params_t* params) {
+    if (params->use_tls) {
+        return true;
+    }
+
+    // TODO: Check addresses for tls:// or ssl:// prefix.
+    return false;
 }
 
 /**
@@ -225,8 +242,9 @@ void valkey_glide_init_common_constructor_params(
 void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
                                            valkey_glide_base_client_configuration_t*     config,
                                            bool is_cluster) {
+    config->use_tls = _determine_use_tls(params);
+
     /* Basic configuration */
-    config->use_tls = params->use_tls;
     config->request_timeout =
         params->request_timeout_is_null ? -1 : params->request_timeout; /* -1 means not set */
     config->client_name = params->client_name ? params->client_name : NULL;
