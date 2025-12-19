@@ -85,7 +85,7 @@ jobs:
       host-matrix-output: ${{ steps.get-matrices.outputs.host-matrix-output }}
       version-matrix-output: ${{ steps.get-matrices.outputs.version-matrix-output }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - id: get-matrices
@@ -108,7 +108,7 @@ jobs:
     runs-on: ${{ matrix.host.RUNNER }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -178,7 +178,7 @@ jobs:
         engine: ${{ fromJson(needs.get-matrices.outputs.engine-matrix-output) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -377,7 +377,7 @@ jobs:
         engine: ${{ fromJson(needs.get-matrices.outputs.engine-matrix-output) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -820,7 +820,7 @@ jobs:
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -909,7 +909,7 @@ jobs:
       version-matrix-output: ${{ steps.get-matrices.outputs.version-matrix-output }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - id: get-matrices
@@ -940,7 +940,7 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           echo IMAGE=amazonlinux:latest | sed -r 's/:/-/g' >> $GITHUB_ENV
       # Replace `:` in the variable otherwise it can't be used in `upload-artifact`
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -1069,7 +1069,7 @@ jobs:
       - name: Setup self-hosted runner access
         run: sudo chown -R $USER:$USER /home/ubuntu/actions-runner/_work/valkey-glide
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: Swatinem/rust-cache@v2
         with:

@@ -48,7 +48,7 @@ jobs:
       version: ${{ steps.determine-version.outputs.version }}
       release-branch: ${{ steps.determine-version.outputs.release-branch }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -162,7 +162,7 @@ jobs:
 
             console.log(`PR #${prNumber} has been merged to ${pr.base.ref}! Proceeding with tag creation.`);
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ needs.prepare-version-bump.outputs.release-branch }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -195,7 +195,7 @@ jobs:
     outputs:
       is-rc: ${{ steps.check-rc.outputs.is-rc }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check if version is a release candidate
         id: check-rc
@@ -225,7 +225,7 @@ jobs:
     outputs:
       package-version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && needs.prepare-version-bump.outputs.release-branch || github.ref }}
           submodules: recursive
