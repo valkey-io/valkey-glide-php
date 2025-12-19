@@ -328,7 +328,16 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
 
             zval* host_val = zend_hash_str_find(addr_ht, "host", 4);
             if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
-                config->addresses[i].host = Z_STRVAL_P(host_val);
+                const char* host = Z_STRVAL_P(host_val);
+
+                /* Strip TLS/SSL prefix if present */
+                if (strncmp(host, TLS_PREFIX, TLS_PREFIX_LEN) == 0) {
+                    host += TLS_PREFIX_LEN;
+                } else if (strncmp(host, SSL_PREFIX, SSL_PREFIX_LEN) == 0) {
+                    host += SSL_PREFIX_LEN;
+                }
+
+                config->addresses[i].host = (char*) host;
             }
 
             /* Extract port */
