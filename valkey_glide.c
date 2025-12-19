@@ -129,13 +129,16 @@ static int  _determine_connection_timeout(valkey_glide_php_common_constructor_pa
 static bool _determine_use_insecure_tls(valkey_glide_php_common_constructor_params_t* params);
 static bool _determine_use_tls(valkey_glide_php_common_constructor_params_t* params);
 
+static int _load_certificate_file(const char* path, uint8_t** data, size_t* length);
+
 static valkey_glide_tls_advanced_configuration_t* _build_tls_advanced_config(
-    valkey_glide_php_common_constructor_params_t* params);
+    valkey_glide_php_common_constructor_params_t* params, bool is_cluster);
 static valkey_glide_advanced_base_client_configuration_t* _build_advanced_config(
-    valkey_glide_php_common_constructor_params_t* params);
+    valkey_glide_php_common_constructor_params_t* params, bool is_cluster);
 
 static void _initialize_open_telemetry(valkey_glide_php_common_constructor_params_t* params,
                                        bool                                          is_cluster);
+static bool _load_data_from_file(const char* path, uint8_t** data, size_t* length);
 
 void valkey_glide_init_common_constructor_params(
     valkey_glide_php_common_constructor_params_t* params) {
@@ -389,7 +392,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
     }
 
     config->use_tls         = _determine_use_tls(params);
-    config->advanced_config = _build_advanced_config(params);
+    config->advanced_config = _build_advanced_config(params, is_cluster);
 
     // Raise an exception if insecure TLS is requested but TLS is not enabled
     if (!config->use_tls && config->advanced_config && config->advanced_config->tls_config &&
@@ -906,34 +909,6 @@ static int _determine_connection_timeout(valkey_glide_php_common_constructor_par
 }
 
 /**
- * Determines whether to use insecure TLS from the given constructor parameters.
- *
- * @param params Pointer to the common constructor parameters structure.
- * @return       true if insecure TLS should be used, false otherwise.
- */
-static bool _determine_use_insecure_tls(valkey_glide_php_common_constructor_params_t* params) {
-    // From stream context...
-    HashTable* stream_context_ht = _get_stream_context_ht(params);
-    if (stream_context_ht) {
-        zval* use_insecure_tls_val = zend_hash_str_find(stream_context_ht, "verify_peer", 11);
-        if (use_insecure_tls_val && Z_TYPE_P(use_insecure_tls_val) == IS_FALSE) {
-            return true;
-        }
-    }
-
-    // From advanced config...
-    HashTable* advanced_tls_ht = _get_advance_tls_config_ht(params);
-    if (advanced_tls_ht) {
-        zval* use_insecure_tls_val = zend_hash_str_find(advanced_tls_ht, "use_insecure_tls", 16);
-        if (use_insecure_tls_val && Z_TYPE_P(use_insecure_tls_val) == IS_TRUE) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-/**
  * Determines whether to use TLS from the given constructor parameters.
  *
  * @param params Pointer to the common constructor parameters structure.
@@ -973,19 +948,61 @@ static bool _determine_use_tls(valkey_glide_php_common_constructor_params_t* par
  * Builds the TLS advanced configuration from the given constructor parameters.
  * Returns NULL if no advanced TLS configuration is specified.
  *
- * @param params Pointer to the common constructor parameters structure.
- * @return       Pointer to the constructed TLS advanced configuration structure.
+ * @param params     Pointer to the common constructor parameters structure.
+ * @param is_cluster Whether this is a cluster client
+ * @return           Pointer to the constructed TLS advanced configuration structure.
  */
 static valkey_glide_tls_advanced_configuration_t* _build_tls_advanced_config(
-    valkey_glide_php_common_constructor_params_t* params) {
+    valkey_glide_php_common_constructor_params_t* params, bool is_cluster) {
+    // Allocate memory with default values.
     valkey_glide_tls_advanced_configuration_t* tls_advanced_config =
         ecalloc(1, sizeof(valkey_glide_tls_advanced_configuration_t));
 
-    tls_advanced_config->use_insecure_tls = _determine_use_insecure_tls(params);
+    tls_advanced_config->use_insecure_tls = false;
+    tls_advanced_config->root_certs       = NULL;
+    tls_advanced_config->root_certs_len   = 0;
 
-    // TODO: Load root certificates from stream context or advanced config
-    tls_advanced_config->root_certs     = NULL;
-    tls_advanced_config->root_certs_len = 0;
+
+    // From stream context...
+    HashTable* stream_context_ht = _get_stream_context_ht(params);
+    if (stream_context_ht) {
+        // Insecure TLS
+        zval* use_insecure_tls_val = zend_hash_str_find(stream_context_ht, "verify_peer", 11);
+        if (use_insecure_tls_val && Z_TYPE_P(use_insecure_tls_val) == IS_FALSE) {
+            tls_advanced_config->use_insecure_tls = true;
+        }
+
+        // Root certificate
+        zval* cafile_val = zend_hash_str_find(stream_context_ht, "cafile", 6);
+        if (cafile_val && Z_TYPE_P(cafile_val) == IS_STRING) {
+            const char* cafile_path = Z_STRVAL_P(cafile_val);
+            uint8_t*    cert_data;
+            size_t      cert_len;
+
+            if (_load_data_from_file(cafile_path, &cert_data, &cert_len) == 0) {
+                tls_advanced_config->root_certs     = cert_data;
+                tls_advanced_config->root_certs_len = cert_len;
+            } else {
+                VALKEY_LOG_ERROR("tls_config_cafile", "Failed to load root certificate from file");
+                zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                                     "Failed to load root certificate from file",
+                                     0);
+            }
+        }
+    }
+
+    // From advanced config...
+    HashTable* advanced_tls_ht = _get_advance_tls_config_ht(params);
+    if (advanced_tls_ht) {
+        // Insecure TLS
+        zval* use_insecure_tls_val = zend_hash_str_find(advanced_tls_ht, "use_insecure_tls", 16);
+        if (use_insecure_tls_val && Z_TYPE_P(use_insecure_tls_val) == IS_TRUE) {
+            tls_advanced_config->use_insecure_tls = true;
+        }
+
+        // Root certificate
+        // TODO: Support root certificate file path in advanced config
+    }
 
     return tls_advanced_config;
 }
@@ -994,16 +1011,17 @@ static valkey_glide_tls_advanced_configuration_t* _build_tls_advanced_config(
  * Builds the advanced configuration from the given constructor parameters.
  * Returns NULL if no advanced configuration is specified.
  *
- * @param params Pointer to the common constructor parameters structure.
- * @return       Pointer to the constructed advanced configuration structure.
+ * @param params     Pointer to the common constructor parameters structure.
+ * @param is_cluster Whether this is a cluster client
+ * @return           Pointer to the constructed advanced configuration structure.
  */
 static valkey_glide_advanced_base_client_configuration_t* _build_advanced_config(
-    valkey_glide_php_common_constructor_params_t* params) {
+    valkey_glide_php_common_constructor_params_t* params, bool is_cluster) {
     valkey_glide_advanced_base_client_configuration_t* advanced_config =
         ecalloc(1, sizeof(valkey_glide_advanced_base_client_configuration_t));
 
     advanced_config->connection_timeout = _determine_connection_timeout(params);
-    advanced_config->tls_config         = _build_tls_advanced_config(params);
+    advanced_config->tls_config         = _build_tls_advanced_config(params, is_cluster);
 
     return advanced_config;
 }
@@ -1046,4 +1064,38 @@ static void _initialize_open_telemetry(valkey_glide_php_common_constructor_param
     }
 
     return;
+}
+
+/**
+ * Loads data from the file at the specified path.
+ * Returns true if successful, false otherwise.
+ *
+ * @param path   Path to the file
+ * @param data   Pointer to store the data (caller must free)
+ * @param length Pointer to store the data length
+ * @return       0 on success, -1 on error
+ */
+static bool _load_data_from_file(const char* path, uint8_t** data, size_t* length) {
+    FILE* f = fopen(path, "rb");
+    if (!f)
+        return false;
+
+    fseek(f, 0, SEEK_END);
+    *length = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    *data = emalloc(*length);
+    if (!*data) {
+        fclose(f);
+        return false;
+    }
+
+    if (fread(*data, 1, *length, f) != *length) {
+        efree(*data);
+        fclose(f);
+        return false;
+    }
+
+    fclose(f);
+    return true;
 }
