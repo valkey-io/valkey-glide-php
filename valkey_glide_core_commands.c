@@ -56,7 +56,7 @@ uint8_t* create_connection_request(size_t*                                   len
 
     // Using variable-length arrays to avoid memory management.
     ConnectionRequest__NodeAddress  request_addresses[address_count];
-    ConnectionRequest__NodeAddress* request_addresses_list[address_count];
+    ConnectionRequest__NodeAddress* request_addresses_list[address_count]; 
 
     for (size_t i = 0; i < address_count; ++i) {
         request_addresses[i] =
@@ -99,14 +99,31 @@ uint8_t* create_connection_request(size_t*                                   len
 
     /* Set values from configuration */
     conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__NoTls;
+
     if (config->use_tls) {
-        if (config->advanced_config && config->advanced_config->tls_config &&
-            config->advanced_config->tls_config->use_insecure_tls) {
-            conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__InsecureTls;
-        } else {
-            conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__SecureTls;
+        conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__SecureTls;
+
+        if (config->advanced_config && config->advanced_config->tls_config) {
+            valkey_glide_tls_advanced_configuration_t* tls_config =
+                config->advanced_config->tls_config;
+
+            // Set insecure TLS mode if specified
+            if (tls_config->use_insecure_tls) {
+                conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__InsecureTls;
+            }
+
+            // Set root certificates if specified
+            if (tls_config->root_certs && tls_config->root_certs_len > 0) {
+                ProtobufCBinaryData root_cert_data;
+                root_cert_data.data = tls_config->root_certs;
+                root_cert_data.len  = tls_config->root_certs_len;
+                
+                conn_req.n_root_certs = 1;
+                conn_req.root_certs   = &root_cert_data;
+            }
         }
     }
+
     conn_req.cluster_mode_enabled = is_cluster;
     conn_req.request_timeout =
         config->request_timeout > 0 ? config->request_timeout : 5000; /* Default 5 seconds */
