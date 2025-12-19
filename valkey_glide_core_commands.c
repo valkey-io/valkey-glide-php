@@ -56,7 +56,7 @@ uint8_t* create_connection_request(size_t*                                   len
 
     // Using variable-length arrays to avoid memory management.
     ConnectionRequest__NodeAddress  request_addresses[address_count];
-    ConnectionRequest__NodeAddress* request_addresses_list[address_count]; 
+    ConnectionRequest__NodeAddress* request_addresses_list[address_count];
 
     for (size_t i = 0; i < address_count; ++i) {
         request_addresses[i] =
@@ -117,7 +117,7 @@ uint8_t* create_connection_request(size_t*                                   len
                 ProtobufCBinaryData root_cert_data;
                 root_cert_data.data = tls_config->root_certs;
                 root_cert_data.len  = tls_config->root_certs_len;
-                
+
                 conn_req.n_root_certs = 1;
                 conn_req.root_certs   = &root_cert_data;
             }
@@ -216,8 +216,8 @@ static const ConnectionResponse* create_base_glide_client(
     valkey_glide_periodic_checks_status_t     periodic_checks,
     bool                                      is_cluster,
     bool                                      refresh_topology_from_initial_nodes) {
-    size_t      len;
-    uint8_t*    request_bytes = create_connection_request(
+    size_t   len;
+    uint8_t* request_bytes = create_connection_request(
         &len, config, periodic_checks, is_cluster, refresh_topology_from_initial_nodes);
 
     if (!request_bytes) {
