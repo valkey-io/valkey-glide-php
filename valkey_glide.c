@@ -262,59 +262,50 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             break;
     }
 
-    /* Process addresses array - handle multiple addresses */
+    /* Process addresses array - handle multiple addresses
+     * Address array is non-empty - see ValkeyGlide::__construct */
     HashTable* addresses_ht  = Z_ARRVAL_P(params->addresses);
     zend_ulong num_addresses = zend_hash_num_elements(addresses_ht);
 
-    int default_port = is_cluster ? DEFAULT_PORT_CLUSTER : DEFAULT_PORT_STANDALONE;
-    if (num_addresses > 0) {
-        /* Allocate addresses array */
-        config->addresses       = ecalloc(num_addresses, sizeof(valkey_glide_node_address_t));
-        config->addresses_count = num_addresses;
+    /* Allocate addresses array */
+    config->addresses       = ecalloc(num_addresses, sizeof(valkey_glide_node_address_t));
+    config->addresses_count = num_addresses;
 
-        /* Process each address */
-        zend_ulong i = 0;
-        zval*      addr_val;
-        ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
-            if (Z_TYPE_P(addr_val) == IS_ARRAY) {
-                HashTable* addr_ht = Z_ARRVAL_P(addr_val);
+    /* Process each address */
+    zend_ulong i = 0;
+    zval*      addr_val;
+    ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
+        if (Z_TYPE_P(addr_val) == IS_ARRAY) {
+            HashTable* addr_ht = Z_ARRVAL_P(addr_val);
 
-                /* Extract host */
-                config->addresses[i].host = (char*) DEFAULT_HOST;
+            /* Extract host */
+            config->addresses[i].host = (char*) DEFAULT_HOST;
 
-                zval* host_val = zend_hash_str_find(addr_ht, "host", 4);
-                if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
-                    config->addresses[i].host = Z_STRVAL_P(host_val);
-                }
-
-                /* Extract port */
-                config->addresses[i].port = default_port;
-
-                zval* port_val = zend_hash_str_find(addr_ht, "port", 4);
-                if (port_val && Z_TYPE_P(port_val) == IS_LONG) {
-                    config->addresses[i].port = Z_LVAL_P(port_val);
-                }
-
-                i++;
-            } else {
-                /* Invalid address format */
-                const char* error_message =
-                    "Invalid address format. Expected array with 'host' and 'port' keys.";
-                VALKEY_LOG_ERROR("php_construct", error_message);
-                zend_throw_exception(
-                    get_exception_ce_for_client_type(is_cluster), error_message, 0);
-                valkey_glide_cleanup_client_config(config);
-                return;
+            zval* host_val = zend_hash_str_find(addr_ht, "host", 4);
+            if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
+                config->addresses[i].host = Z_STRVAL_P(host_val);
             }
+
+            /* Extract port */
+            config->addresses[i].port = is_cluster ? DEFAULT_PORT_CLUSTER : DEFAULT_PORT_STANDALONE;
+
+            zval* port_val = zend_hash_str_find(addr_ht, "port", 4);
+            if (port_val && Z_TYPE_P(port_val) == IS_LONG) {
+                config->addresses[i].port = Z_LVAL_P(port_val);
+            }
+
+            i++;
+        } else {
+            /* Invalid address format */
+            const char* error_message =
+                "Invalid address format. Expected array with 'host' and 'port' keys.";
+            VALKEY_LOG_ERROR("php_construct", error_message);
+            zend_throw_exception(get_exception_ce_for_client_type(is_cluster), error_message, 0);
+            valkey_glide_cleanup_client_config(config);
+            return;
         }
-        ZEND_HASH_FOREACH_END();
-    } else {
-        /* No addresses provided - set default */
-        config->addresses         = ecalloc(1, sizeof(valkey_glide_node_address_t));
-        config->addresses_count   = 1;
-        config->addresses[0].host = (char*) DEFAULT_HOST;
-        config->addresses[0].port = default_port;
     }
+    ZEND_HASH_FOREACH_END();
 
     /* Process credentials if provided */
     if (params->credentials && Z_TYPE_P(params->credentials) == IS_ARRAY) {
@@ -592,7 +583,7 @@ PHP_MINFO_FUNCTION(redis)
 /* {{{ proto ValkeyGlide ValkeyGlide::__construct(array $addresses, bool $use_tls, ?array
    $credentials, ValkeyGlideReadFrom $read_from, ?int $request_timeout, ?array $reconnect_strategy,
    ?int $database_id, ?string $client_name, ?int $inflight_requests_limit, ?string $client_az,
-   ?array $advanced_config, ?bool $lazy_connect) Public constructor */
+   ?array $advanced_config, ?bool $lazy_connect, ?array $context) Public constructor */
 PHP_METHOD(ValkeyGlide, __construct) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
@@ -611,6 +602,7 @@ PHP_METHOD(ValkeyGlide, __construct) {
     Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
     Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
     Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
+    Z_PARAM_ARRAY_OR_NULL(common_params.context)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
