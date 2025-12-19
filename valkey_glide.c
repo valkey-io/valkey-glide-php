@@ -855,7 +855,7 @@ static HashTable* _get_stream_context_ht(valkey_glide_php_common_constructor_par
 
 /**
  * Returns the advanced configuration hash table from the given constructor parameters.
- * Returns NULL if no stream context is specified.
+ * Returns NULL if no advanced configuration is specified.
  *
  * @param params Pointer to the common constructor parameters structure.
  * @return       Pointer to the advanced configuration hash table, or NULL if not found.
