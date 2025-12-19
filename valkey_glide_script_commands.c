@@ -102,7 +102,8 @@ void execute_invoke_script_command(valkey_glide_object* valkey_glide,
                                    const char*          script_hash,
                                    zval*                keys,
                                    zval*                args,
-                                   zval*                return_value) {
+                                   zval*                return_value,
+                                   bool                 use_false_if_null) {
     // Prepare FFI arguments
     uintptr_t *    key_ptrs, *arg_ptrs;
     unsigned long *key_lens, *arg_lens;
@@ -125,7 +126,7 @@ void execute_invoke_script_command(valkey_glide_object* valkey_glide,
                                                  0      // route_bytes_len
     );
 
-    command_response_to_zval(result->response, return_value, 0, false);
+    command_response_to_zval(result->response, return_value, 0, use_false_if_null);
     free_command_result(result);
 
     // Cleanup
@@ -193,7 +194,7 @@ PHP_METHOD(ValkeyGlide, invokeScript) {
     }
 
     // Execute script (like Go's InvokeScript)
-    execute_invoke_script_command(valkey_glide, script_hash, keys, args, return_value);
+    execute_invoke_script_command(valkey_glide, script_hash, keys, args, return_value, false);
 
     efree(script_hash);
 }
@@ -243,7 +244,7 @@ PHP_METHOD(ValkeyGlide, eval) {
     }
 
     execute_invoke_script_command(
-        valkey_glide, script_hash, &keys_array, &args_array, return_value);
+        valkey_glide, script_hash, &keys_array, &args_array, return_value, false);
 
     efree(script_hash);
     zval_dtor(&keys_array);
@@ -288,7 +289,7 @@ PHP_METHOD(ValkeyGlide, evalsha) {
     }
 
     // Use provided SHA1 hash directly (no need to hash again)
-    execute_invoke_script_command(valkey_glide, sha1, &keys_array, &args_array, return_value);
+    execute_invoke_script_command(valkey_glide, sha1, &keys_array, &args_array, return_value, true);
 
     zval_dtor(&keys_array);
     zval_dtor(&args_array);
@@ -368,7 +369,7 @@ PHP_METHOD(ValkeyGlideCluster, eval) {
     }
 
     execute_invoke_script_command(
-        valkey_glide, script_hash, &keys_array, &args_array, return_value);
+        valkey_glide, script_hash, &keys_array, &args_array, return_value, false);
 
     efree(script_hash);
     zval_dtor(&keys_array);
@@ -413,7 +414,7 @@ PHP_METHOD(ValkeyGlideCluster, evalsha) {
     }
 
     // Use provided SHA1 hash directly (no need to hash again)
-    execute_invoke_script_command(valkey_glide, sha1, &keys_array, &args_array, return_value);
+    execute_invoke_script_command(valkey_glide, sha1, &keys_array, &args_array, return_value, true);
 
     zval_dtor(&keys_array);
     zval_dtor(&args_array);

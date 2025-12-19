@@ -5227,7 +5227,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         // Flush any scripts we have
-        $this->assertEquals('OK', $this->valkey_glide->scriptFlush());
+        $this->assertTrue($this->valkey_glide->scriptFlush());
 
         // Silly scripts to test against
         $s1_src = 'return 1';
@@ -5320,8 +5320,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->scriptFlush();
 
         // Non existent script (but proper sha1), and a random (not) sha1 string
-        $this->assertFalse($this->valkey_glide->evalsha(sha1(uniqid())));
-        $this->assertFalse($this->valkey_glide->evalsha('some-random-data'));
+        $this->assertNull($this->valkey_glide->evalsha(sha1(uniqid())));
+        $this->assertNull($this->valkey_glide->evalsha('some-random-data'));
 
         // Load a script
         $cb  = uniqid(); // To ensure the script is new
@@ -5329,7 +5329,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $sha = sha1($scr);
 
         // Run it when it doesn't exist, run it with eval, and then run it with sha1
-        $this->assertFalse($this->valkey_glide->evalsha($scr));
+        $this->assertNull($this->valkey_glide->evalsha($scr));
         $this->assertEquals(1, $this->valkey_glide->eval($scr));
         $this->assertEquals(1, $this->valkey_glide->evalsha($sha));
 
@@ -7545,7 +7545,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         try {
-            $this->assertEquals('OK', $this->valkey_glide->functionFlush());
+            $this->assertTrue($this->valkey_glide->functionFlush());
             $this->assertEquals('mylib', $this->valkey_glide->functionLoad("#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)", false));
             $this->assertEquals('foo', $this->valkey_glide->fcall('myfunc', [], ['foo']));
             $payload = $this->valkey_glide->functionDump();
@@ -7553,11 +7553,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->assertEquals('foo', $this->valkey_glide->fcall_ro('myfunc', [], ['foo']));
             $stats = $this->valkey_glide->functionStats();
             $this->assertIsArray($stats);
-            $this->assertEquals('OK', $this->valkey_glide->functionDelete('mylib'));
-            $this->assertEquals('OK', $this->valkey_glide->functionRestore($payload));
+            $this->assertTrue($this->valkey_glide->functionDelete('mylib'));
+            $this->assertTrue($this->valkey_glide->functionRestore($payload));
             $list = $this->valkey_glide->functionList();
             $this->assertIsArray($list);
-            $this->assertEquals('OK', $this->valkey_glide->functionDelete('mylib'));
+            $this->assertTrue($this->valkey_glide->functionDelete('mylib'));
         } catch (Exception $e) {
             $this->markTestSkipped('Function commands require Valkey 7.0+: ' . $e->getMessage());
         }
