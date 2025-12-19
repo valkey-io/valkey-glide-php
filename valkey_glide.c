@@ -47,8 +47,8 @@ static const int         DEFAULT_PORT_CLUSTER    = 7001;
 /* TLS/SSL prefix constants */
 static const char* const TLS_PREFIX     = "tls://";
 static const char* const SSL_PREFIX     = "ssl://";
-static const size_t      TLS_PREFIX_LEN = strlen(TLS_PREFIX);
-static const size_t      SSL_PREFIX_LEN = strlen(SSL_PREFIX);
+static const size_t      TLS_PREFIX_LEN = 6;
+static const size_t      SSL_PREFIX_LEN = 6;
 
 zend_class_entry* valkey_glide_ce;
 zend_class_entry* valkey_glide_exception_ce;
