@@ -123,7 +123,7 @@ zend_object* create_valkey_glide_cluster_object(zend_class_entry* ce)  // TODO c
 // Forward declarations for helper functions
 static HashTable* _get_stream_context_ht(valkey_glide_php_common_constructor_params_t* params);
 static HashTable* _get_advanced_config_ht(valkey_glide_php_common_constructor_params_t* params);
-static HashTable* _get_advance_tls_config_ht(valkey_glide_php_common_constructor_params_t* params);
+static HashTable* _get_advanced_tls_config_ht(valkey_glide_php_common_constructor_params_t* params);
 
 static int  _determine_connection_timeout(valkey_glide_php_common_constructor_params_t* params);
 static bool _determine_use_insecure_tls(valkey_glide_php_common_constructor_params_t* params);
@@ -131,7 +131,7 @@ static bool _determine_use_tls(valkey_glide_php_common_constructor_params_t* par
 
 static int _load_certificate_file(const char* path, uint8_t** data, size_t* length);
 
-static valkey_glide_tls_advanced_configuration_t* _build_tls_advanced_config(
+static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
     valkey_glide_php_common_constructor_params_t* params, bool is_cluster);
 static valkey_glide_advanced_base_client_configuration_t* _build_advanced_config(
     valkey_glide_php_common_constructor_params_t* params, bool is_cluster);
@@ -874,7 +874,8 @@ static HashTable* _get_advanced_config_ht(valkey_glide_php_common_constructor_pa
  * @param params Pointer to the common constructor parameters structure.
  * @return       Pointer to the advanced TLS configuration hash table, or NULL if not found.
  */
-static HashTable* _get_advance_tls_config_ht(valkey_glide_php_common_constructor_params_t* params) {
+static HashTable* _get_advanced_tls_config_ht(
+    valkey_glide_php_common_constructor_params_t* params) {
     HashTable* advanced_config_ht = _get_advanced_config_ht(params);
     if (!advanced_config_ht) {
         return NULL;
@@ -945,14 +946,14 @@ static bool _determine_use_tls(valkey_glide_php_common_constructor_params_t* par
 }
 
 /**
- * Builds the TLS advanced configuration from the given constructor parameters.
+ * Builds the advanced TLS configuration from the given constructor parameters.
  * Returns NULL if no advanced TLS configuration is specified.
  *
  * @param params     Pointer to the common constructor parameters structure.
  * @param is_cluster Whether this is a cluster client
  * @return           Pointer to the constructed TLS advanced configuration structure.
  */
-static valkey_glide_tls_advanced_configuration_t* _build_tls_advanced_config(
+static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
     valkey_glide_php_common_constructor_params_t* params, bool is_cluster) {
     // Allocate memory with default values.
     valkey_glide_tls_advanced_configuration_t* tls_advanced_config =
@@ -961,7 +962,6 @@ static valkey_glide_tls_advanced_configuration_t* _build_tls_advanced_config(
     tls_advanced_config->use_insecure_tls = false;
     tls_advanced_config->root_certs       = NULL;
     tls_advanced_config->root_certs_len   = 0;
-
 
     // From stream context...
     HashTable* stream_context_ht = _get_stream_context_ht(params);
@@ -991,8 +991,8 @@ static valkey_glide_tls_advanced_configuration_t* _build_tls_advanced_config(
         }
     }
 
-    // From advanced config...
-    HashTable* advanced_tls_ht = _get_advance_tls_config_ht(params);
+    // From advanced TLS config...
+    HashTable* advanced_tls_ht = _get_advanced_tls_config_ht(params);
     if (advanced_tls_ht) {
         // Insecure TLS
         zval* use_insecure_tls_val = zend_hash_str_find(advanced_tls_ht, "use_insecure_tls", 16);
@@ -1001,7 +1001,11 @@ static valkey_glide_tls_advanced_configuration_t* _build_tls_advanced_config(
         }
 
         // Root certificate
-        // TODO: Support root certificate file path in advanced config
+        zval* root_certs = zend_hash_str_find(advanced_tls_ht, "root_certs", 10);
+        if (root_certs && Z_TYPE_P(root_certs) == IS_STRING) {
+            tls_advanced_config->root_certs     = (uint8_t*) Z_STRVAL_P(root_certs);
+            tls_advanced_config->root_certs_len = Z_STRLEN_P(root_certs);
+        }
     }
 
     return tls_advanced_config;
@@ -1021,7 +1025,7 @@ static valkey_glide_advanced_base_client_configuration_t* _build_advanced_config
         ecalloc(1, sizeof(valkey_glide_advanced_base_client_configuration_t));
 
     advanced_config->connection_timeout = _determine_connection_timeout(params);
-    advanced_config->tls_config         = _build_tls_advanced_config(params, is_cluster);
+    advanced_config->tls_config         = _build_advanced_tls_config(params, is_cluster);
 
     return advanced_config;
 }
