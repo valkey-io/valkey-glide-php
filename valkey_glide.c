@@ -391,35 +391,52 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         } else {
             config->advanced_config->tls_config = NULL;
         }
-
-        /* Check for OTEL config */
-        zval* otel_config_val = zend_hash_str_find(advanced_ht, "otel", sizeof("otel") - 1);
-        if (otel_config_val) {
-            /* Validate that OTEL config is an object, not an array or other type */
-            if (Z_TYPE_P(otel_config_val) != IS_NULL && Z_TYPE_P(otel_config_val) != IS_OBJECT) {
-                VALKEY_LOG_ERROR(
-                    "otel_config",
-                    "OpenTelemetry configuration must be an OpenTelemetryConfig object");
-                zend_throw_exception(
-                    get_exception_ce_for_client_type(is_cluster),
-                    "OpenTelemetry configuration must be an OpenTelemetryConfig object",
-                    0);
-                return;
-            }
-
-            VALKEY_LOG_DEBUG("otel_config", "Processing OTEL configuration from advanced_config");
-            if (!valkey_glide_otel_init(otel_config_val)) {
-                VALKEY_LOG_ERROR("otel_config", "Failed to initialize OTEL");
-                /* Exception already thrown by valkey_glide_otel_init if validation failed */
-                zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
-                                     "Failed to initialize OpenTelemetry",
-                                     0);
-                return;
-            }
-        }
     } else {
         config->advanced_config = NULL;
     }
+
+    _initialize_open_telemetry(params);
+}
+
+/**
+ * Initialize OpenTelemetry from the given constructors parameters.
+ * Throws an exception on failure, or does nothing if OpenTelementry is not configured.
+ * @param params Pointer to the common constructor parameters structure.
+ */
+static void _initialize_open_telemetry(valkey_glide_php_common_constructor_params_t* params) {
+    if (!params->advanced_config)
+        return;
+
+    if (Z_TYPE_P(params->advanced_config) != IS_ARRAY)
+        return;
+
+    HashTable* advanced_ht     = Z_ARRVAL_P(params->advanced_config);
+    zval*      otel_config_val = zend_hash_str_find(advanced_ht, "otel", sizeof("otel") - 1);
+
+    if (!otel_config_val)
+        return;
+
+    /* Validate that OTEL config is an object, not an array or other type */
+    if (Z_TYPE_P(otel_config_val) != IS_NULL && Z_TYPE_P(otel_config_val) != IS_OBJECT) {
+        VALKEY_LOG_ERROR("otel_config",
+                         "OpenTelemetry configuration must be an OpenTelemetryConfig object");
+        zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                             "OpenTelemetry configuration must be an OpenTelemetryConfig object",
+                             0);
+        return;
+    }
+
+    VALKEY_LOG_DEBUG("otel_config", "Processing OTEL configuration from advanced_config");
+    int initialized = valkey_glide_otel_init(otel_config_val);
+
+    if (!initialized) {
+        VALKEY_LOG_ERROR("otel_config", "Failed to initialize OTEL");
+        /* Exception already thrown by valkey_glide_otel_init if validation failed */
+        zend_throw_exception(
+            get_exception_ce_for_client_type(is_cluster), "Failed to initialize OpenTelemetry", 0);
+    }
+
+    return;
 }
 
 const zend_function_entry valkey_glide_cluster_methods[] = {
