@@ -162,12 +162,12 @@ static char* store_script_and_get_hash(const char* script) {
 
 // PHP method implementations following Go pattern
 PHP_METHOD(ValkeyGlide, invokeScript) {
-    char*  script;
-    size_t script_len;
+    char*  script_or_hash;
+    size_t script_or_hash_len;
     zval * keys = NULL, *args = NULL;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
-    Z_PARAM_STRING(script, script_len)
+    Z_PARAM_STRING(script_or_hash, script_or_hash_len)
     Z_PARAM_OPTIONAL
     Z_PARAM_ARRAY(keys)
     Z_PARAM_ARRAY(args)
@@ -175,12 +175,6 @@ PHP_METHOD(ValkeyGlide, invokeScript) {
 
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
-
-    // Store script and get hash (like Go's NewScript)
-    char* script_hash = store_script_and_get_hash(script);
-    if (!script_hash) {
-        RETURN_FALSE;
-    }
 
     // Prepare empty arrays if not provided
     zval empty_keys, empty_args;
@@ -193,10 +187,20 @@ PHP_METHOD(ValkeyGlide, invokeScript) {
         args = &empty_args;
     }
 
-    // Execute script (like Go's InvokeScript)
-    execute_invoke_script_command(valkey_glide, script_hash, keys, args, return_value, false);
-
-    efree(script_hash);
+    // Check if input looks like a SHA1 hash (40 hex characters)
+    if (script_or_hash_len == 40 && strspn(script_or_hash, "0123456789abcdefABCDEF") == 40) {
+        // Use as hash directly (like evalsha)
+        execute_invoke_script_command(
+            valkey_glide, script_or_hash, keys, args, return_value, false);
+    } else {
+        // Store script and get hash (like eval)
+        char* script_hash = store_script_and_get_hash(script_or_hash);
+        if (!script_hash) {
+            RETURN_FALSE;
+        }
+        execute_invoke_script_command(valkey_glide, script_hash, keys, args, return_value, false);
+        efree(script_hash);
+    }
 }
 
 // PHPRedis compatibility methods
