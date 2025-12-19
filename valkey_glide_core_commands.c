@@ -58,13 +58,12 @@ uint8_t* create_connection_request(const char*                               hos
     default_addr.port                                    = port;
     ConnectionRequest__NodeAddress* default_addr_list[1] = {&default_addr};
 
-    bool   request_contains_addresses = config->addresses && config->addresses_count > 0;
-    size_t addresses_count            = request_contains_addresses ? config->addresses_count : 0;
+    /* Addresses array is non-empty - see ValkeyGlide::__construct */
     ConnectionRequest__NodeAddress
-        request_addresses[addresses_count];  // Using a variable-length array to avoid memory
-                                             // management.
-    ConnectionRequest__NodeAddress* request_addresses_list[addresses_count];
-    for (size_t i = 0; i < addresses_count; ++i) {
+        request_addresses[config->addresses_count];  // Using a variable-length array to avoid
+                                                     // memory management.
+    ConnectionRequest__NodeAddress* request_addresses_list[config->addresses_count];
+    for (size_t i = 0; i < config->addresses_count; ++i) {
         // Initialize a temporary NodeAddress then copy it to request_addresses. This is not
         // strictly necessary since we set all fields anyway, but follows the best practice of using
         // protobuf initializers on new messages.
@@ -80,15 +79,9 @@ uint8_t* create_connection_request(const char*                               hos
     node_addr.host                           = (char*) host;
     node_addr.port                           = port;
 
-    /* Add the node address to the connection request. Use the default endpoint if the constructor
-       call did not supply any endpoints. */
-    if (request_contains_addresses) {
-        conn_req.n_addresses = addresses_count;
-        conn_req.addresses   = request_addresses_list;
-    } else {
-        conn_req.n_addresses = 1;
-        conn_req.addresses   = default_addr_list;
-    }
+    /* Add the node address to the connection request. */
+    conn_req.n_addresses = config->addresses_count;
+    conn_req.addresses   = request_addresses_list;
 
     /* Set up authentication if provided */
     ConnectionRequest__AuthenticationInfo auth_info = CONNECTION_REQUEST__AUTHENTICATION_INFO__INIT;
