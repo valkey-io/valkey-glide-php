@@ -967,8 +967,8 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
     HashTable* stream_context_ht = _get_stream_context_ht(params);
     if (stream_context_ht) {
         // Insecure TLS
-        zval* use_insecure_tls_val = zend_hash_str_find(stream_context_ht, "verify_peer", 11);
-        if (use_insecure_tls_val && Z_TYPE_P(use_insecure_tls_val) == IS_FALSE) {
+        zval* verify_peer_val = zend_hash_str_find(stream_context_ht, "verify_peer", 11);
+        if (verify_peer_val && Z_TYPE_P(verify_peer_val) == IS_FALSE) {
             tls_advanced_config->use_insecure_tls = true;
         }
 
