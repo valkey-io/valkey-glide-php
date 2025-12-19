@@ -1077,7 +1077,7 @@ static void _initialize_open_telemetry(valkey_glide_php_common_constructor_param
  * @param path   Path to the file
  * @param data   Pointer to store the data (caller must free)
  * @param length Pointer to store the data length
- * @return       0 on success, -1 on error
+ * @return       true if successful, false otherwise
  */
 static bool _load_data_from_file(const char* path, uint8_t** data, size_t* length) {
     FILE* f = fopen(path, "rb");
