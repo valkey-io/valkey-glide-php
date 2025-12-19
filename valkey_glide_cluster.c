@@ -1004,35 +1004,43 @@ COPY_METHOD_IMPL(ValkeyGlideCluster)
 
 /* Function Commands */
 PHP_METHOD(ValkeyGlideCluster, functionLoad) {
-    execute_function_load_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+    execute_function_load_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
 
 PHP_METHOD(ValkeyGlideCluster, functionList) {
-    execute_function_list_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+    execute_function_list_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
 
 PHP_METHOD(ValkeyGlideCluster, functionFlush) {
-    execute_function_flush_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+    execute_function_flush_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
 
 PHP_METHOD(ValkeyGlideCluster, functionDelete) {
-    execute_function_delete_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+    execute_function_delete_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
 
 PHP_METHOD(ValkeyGlideCluster, functionDump) {
-    execute_function_dump_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+    execute_function_dump_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
 
 PHP_METHOD(ValkeyGlideCluster, functionRestore) {
-    execute_function_restore_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+    execute_function_restore_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
 
 PHP_METHOD(ValkeyGlideCluster, functionKill) {
-    execute_function_kill_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+    execute_function_kill_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
 
 PHP_METHOD(ValkeyGlideCluster, functionStats) {
-    execute_function_stats_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+    execute_function_stats_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
 
 #endif /* PHP_REDIS_CLUSTER_C */
