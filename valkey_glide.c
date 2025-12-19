@@ -963,9 +963,23 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
     tls_advanced_config->root_certs       = NULL;
     tls_advanced_config->root_certs_len   = 0;
 
-    // From stream context...
+    // TLS configuration can be specified either from
+    // the stream context or from the advanced TLS config.
     HashTable* stream_context_ht = _get_stream_context_ht(params);
-    if (stream_context_ht) {
+    HashTable* advanced_tls_ht   = _get_advanced_tls_config_ht(params);
+
+    // Raise an exception if both are provided.
+    if (stream_context_ht && advanced_tls_ht) {
+        VALKEY_LOG_ERROR("tls_config_conflict",
+                         "At most one of stream context or advanced TLS config can be specified.");
+        zend_throw_exception(
+            get_exception_ce_for_client_type(is_cluster),
+            "At most one of stream context or advanced TLS config can be specified.",
+            0);
+    }
+
+    // Set TLS configuration from stream context.
+    else if (stream_context_ht) {
         // Insecure TLS
         zval* verify_peer_val = zend_hash_str_find(stream_context_ht, "verify_peer", 11);
         if (verify_peer_val && Z_TYPE_P(verify_peer_val) == IS_FALSE) {
@@ -991,9 +1005,8 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
         }
     }
 
-    // From advanced TLS config...
-    HashTable* advanced_tls_ht = _get_advanced_tls_config_ht(params);
-    if (advanced_tls_ht) {
+    // Set TLS configuration from advanced TLS config.
+    else if (advanced_tls_ht) {
         // Insecure TLS
         zval* use_insecure_tls_val = zend_hash_str_find(advanced_tls_ht, "use_insecure_tls", 16);
         if (use_insecure_tls_val && Z_TYPE_P(use_insecure_tls_val) == IS_TRUE) {
