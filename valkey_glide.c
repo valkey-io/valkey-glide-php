@@ -1,6 +1,7 @@
 /* -*- Mode: C; tab-width: 4 -*- */
 /** Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0 */
 
+#include <stdbool.h>
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -42,6 +43,12 @@ void register_mock_constructor_class(void);
 static const char* const DEFAULT_HOST            = "localhost";
 static const int         DEFAULT_PORT_STANDALONE = 6379;
 static const int         DEFAULT_PORT_CLUSTER    = 7001;
+
+/* TLS/SSL prefix constants */
+static const char* const TLS_PREFIX     = "tls://";
+static const char* const SSL_PREFIX     = "ssl://";
+static const size_t      TLS_PREFIX_LEN = strlen(TLS_PREFIX);
+static const size_t      SSL_PREFIX_LEN = strlen(SSL_PREFIX);
 
 zend_class_entry* valkey_glide_ce;
 zend_class_entry* valkey_glide_exception_ce;
@@ -167,11 +174,31 @@ valkey_glide_advanced_base_client_configuration_t* _build_advanced_config(
  * @return true if TLS should be used, false otherwise.
  */
 static bool _determine_use_tls(valkey_glide_php_common_constructor_params_t* params) {
+    // 1. TLS enabled explicitly via the 'use_tls' parameter.
     if (params->use_tls) {
         return true;
     }
 
-    // TODO: Check addresses for tls:// or ssl:// prefix.
+    // 2. TLS enabled implicitly via the 'addresses' parameter.
+    HashTable* addresses_ht = Z_ARRVAL_P(params->addresses);
+    zval*      addr_val;
+
+    ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
+        if (Z_TYPE_P(addr_val) == IS_ARRAY) {
+            HashTable* addr_ht  = Z_ARRVAL_P(addr_val);
+            zval*      host_val = zend_hash_str_find(addr_ht, "host", 4);
+
+            if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
+                const char* host = Z_STRVAL_P(host_val);
+                if (strncmp(host, TLS_PREFIX, TLS_PREFIX_LEN) == 0 ||
+                    strncmp(host, SSL_PREFIX, SSL_PREFIX_LEN) == 0) {
+                    return true;
+                }
+            }
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+
     return false;
 }
 
