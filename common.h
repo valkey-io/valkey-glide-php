@@ -170,6 +170,7 @@ typedef struct {
     zend_bool lazy_connect_is_null;
     zend_long database_id;
     zend_bool database_id_is_null;
+    zval*     context; /* Stream context for TLS */
 } valkey_glide_php_common_constructor_params_t;
 
 void valkey_glide_init_common_constructor_params(
