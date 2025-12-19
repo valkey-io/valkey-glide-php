@@ -1080,26 +1080,25 @@ static void _initialize_open_telemetry(valkey_glide_php_common_constructor_param
  * @return       true if successful, false otherwise
  */
 static bool _load_data_from_file(const char* path, uint8_t** data, size_t* length) {
+    /* Open the file */
     FILE* f = fopen(path, "rb");
     if (!f)
         return false;
 
-    fseek(f, 0, SEEK_END);
-    *length = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    *data = emalloc(*length);
-    if (!*data) {
+    /* Get file size using fstat */
+    struct stat st;
+    if (fstat(fileno(f), &st) != 0 || st.st_size <= 0) {
         fclose(f);
         return false;
     }
 
-    if (fread(*data, 1, *length, f) != *length) {
-        efree(*data);
-        fclose(f);
-        return false;
-    }
+    /* Allocate data */
+    *length = (size_t) st.st_size;
+    *data   = emalloc(*length);
 
+    /* Read file contents */
+    size_t bytes_read = fread(*data, 1, *length, f);
     fclose(f);
+
     return true;
 }
