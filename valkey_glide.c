@@ -38,6 +38,11 @@ extern void free_valkey_glide_client_configuration(
 
 void register_mock_constructor_class(void);
 
+/* Default values for addresses */
+static const char* const DEFAULT_HOST            = "localhost";
+static const int         DEFAULT_PORT_STANDALONE = 6379;
+static const int         DEFAULT_PORT_CLUSTER    = 7001;
+
 zend_class_entry* valkey_glide_ce;
 zend_class_entry* valkey_glide_exception_ce;
 
@@ -214,6 +219,7 @@ void valkey_glide_init_common_constructor_params(
     params->lazy_connect_is_null    = 1;
     params->database_id             = 0;
     params->database_id_is_null     = 1;
+    params->context                 = NULL;
 }
 
 void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
@@ -260,7 +266,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
     HashTable* addresses_ht  = Z_ARRVAL_P(params->addresses);
     zend_ulong num_addresses = zend_hash_num_elements(addresses_ht);
 
-    int default_port = is_cluster ? 7001 : 6379;
+    int default_port = is_cluster ? DEFAULT_PORT_CLUSTER : DEFAULT_PORT_STANDALONE;
     if (num_addresses > 0) {
         /* Allocate addresses array */
         config->addresses       = ecalloc(num_addresses, sizeof(valkey_glide_node_address_t));
@@ -274,19 +280,19 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
                 HashTable* addr_ht = Z_ARRVAL_P(addr_val);
 
                 /* Extract host */
+                config->addresses[i].host = (char*) DEFAULT_HOST;
+
                 zval* host_val = zend_hash_str_find(addr_ht, "host", 4);
                 if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
                     config->addresses[i].host = Z_STRVAL_P(host_val);
-                } else {
-                    config->addresses[i].host = "localhost";
                 }
 
                 /* Extract port */
+                config->addresses[i].port = default_port;
+
                 zval* port_val = zend_hash_str_find(addr_ht, "port", 4);
                 if (port_val && Z_TYPE_P(port_val) == IS_LONG) {
                     config->addresses[i].port = Z_LVAL_P(port_val);
-                } else {
-                    config->addresses[i].port = default_port;
                 }
 
                 i++;
@@ -306,7 +312,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         /* No addresses provided - set default */
         config->addresses         = ecalloc(1, sizeof(valkey_glide_node_address_t));
         config->addresses_count   = 1;
-        config->addresses[0].host = "localhost";
+        config->addresses[0].host = (char*) DEFAULT_HOST;
         config->addresses[0].port = default_port;
     }
 
