@@ -108,6 +108,94 @@ zend_object* create_valkey_glide_cluster_object(zend_class_entry* ce)  // TODO c
     return &valkey_glide->std;
 }
 
+/**
+ * Builds and returns the advanced configuration for the given constructor parameters.
+ * @param params Pointer to the common constructor parameters structure.
+ * @return Pointer to the allocated advanced configuration structure, or NULL if not set.
+ */
+valkey_glide_advanced_base_client_configuration_t* _build_advanced_config(
+    valkey_glide_php_common_constructor_params_t* params) {
+    if (!params->advanced_config)
+        return NULL;
+
+    if (Z_TYPE_P(params->advanced_config) != IS_ARRAY)
+        return NULL;
+
+    HashTable* advanced_config_ht = Z_ARRVAL_P(params->advanced_config);
+    valkey_glide_advanced_base_client_configuration_t* advanced_config =
+        ecalloc(1, sizeof(valkey_glide_advanced_base_client_configuration_t));
+
+    /* Set connection timeout */
+    advanced_config->connection_timeout = VALKEY_GLIDE_DEFAULT_CONNECTION_TIMEOUT;
+
+    zval* conn_timeout_val = zend_hash_str_find(advanced_config_ht, "connection_timeout", 18);
+    if (conn_timeout_val && Z_TYPE_P(conn_timeout_val) == IS_LONG) {
+        advanced_config->connection_timeout = Z_LVAL_P(conn_timeout_val);
+    }
+
+    /* Set TLS advanced configuration */
+    advanced_config->tls_config = NULL;
+
+    zval* tls_config_val = zend_hash_str_find(advanced_config_ht, "tls_config", 10);
+    if (tls_config_val && Z_TYPE_P(tls_config_val) == IS_ARRAY) {
+        HashTable* tls_ht           = Z_ARRVAL_P(tls_config_val);
+        advanced_config->tls_config = ecalloc(1, sizeof(valkey_glide_tls_advanced_configuration_t));
+
+        /* Set insecure TLS */
+        zval* use_insecure_tls_val = zend_hash_str_find(tls_ht, "use_insecure_tls", 16);
+        advanced_config->tls_config->use_insecure_tls =
+            use_insecure_tls_val && Z_TYPE_P(use_insecure_tls_val) == IS_TRUE;
+
+        /* Set root certificates */
+        // TODO: Support loading from file path
+    }
+
+    return advanced_config;
+}
+
+/**
+ * Initialize OpenTelemetry from the given constructor parameters, if configured.
+ * Throws an exception if initialization fails.
+ * @param params     Pointer to the common constructor parameters structure.
+ * @param is_cluster Whether this is a cluster client
+ */
+static void _initialize_open_telemetry(valkey_glide_php_common_constructor_params_t* params,
+                                       bool                                          is_cluster) {
+    if (!params->advanced_config)
+        return;
+
+    if (Z_TYPE_P(params->advanced_config) != IS_ARRAY)
+        return;
+
+    HashTable* advanced_config_ht = Z_ARRVAL_P(params->advanced_config);
+    zval*      otel_config_val = zend_hash_str_find(advanced_config_ht, "otel", sizeof("otel") - 1);
+
+    if (!otel_config_val)
+        return;
+
+    /* Validate that OTEL config is an object, not an array or other type */
+    if (Z_TYPE_P(otel_config_val) != IS_NULL && Z_TYPE_P(otel_config_val) != IS_OBJECT) {
+        VALKEY_LOG_ERROR("otel_config",
+                         "OpenTelemetry configuration must be an OpenTelemetryConfig object");
+        zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                             "OpenTelemetry configuration must be an OpenTelemetryConfig object",
+                             0);
+        return;
+    }
+
+    VALKEY_LOG_DEBUG("otel_config", "Processing OTEL configuration from advanced_config");
+    int initialized = valkey_glide_otel_init(otel_config_val);
+
+    if (!initialized) {
+        VALKEY_LOG_ERROR("otel_config", "Failed to initialize OTEL");
+        /* Exception already thrown by valkey_glide_otel_init if validation failed */
+        zend_throw_exception(
+            get_exception_ce_for_client_type(is_cluster), "Failed to initialize OpenTelemetry", 0);
+    }
+
+    return;
+}
+
 void valkey_glide_init_common_constructor_params(
     valkey_glide_php_common_constructor_params_t* params) {
     params->addresses               = NULL;
@@ -359,84 +447,9 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         config->reconnect_strategy = NULL;
     }
 
-    /* Process advanced config if provided */
-    if (params->advanced_config && Z_TYPE_P(params->advanced_config) == IS_ARRAY) {
-        HashTable* advanced_ht = Z_ARRVAL_P(params->advanced_config);
+    config->advanced_config = _build_advanced_config(params);
 
-        /* Allocate advanced config structure */
-        config->advanced_config =
-            ecalloc(1, sizeof(valkey_glide_advanced_base_client_configuration_t));
-
-        /* Check for connection_timeout */
-        zval* conn_timeout_val = zend_hash_str_find(advanced_ht, "connection_timeout", 18);
-        if (conn_timeout_val && Z_TYPE_P(conn_timeout_val) == IS_LONG) {
-            config->advanced_config->connection_timeout = Z_LVAL_P(conn_timeout_val);
-        } else {
-            config->advanced_config->connection_timeout = VALKEY_GLIDE_DEFAULT_CONNECTION_TIMEOUT;
-        }
-
-        /* Check for TLS config */
-        zval* tls_config_val = zend_hash_str_find(advanced_ht, "tls_config", 10);
-        if (tls_config_val && Z_TYPE_P(tls_config_val) == IS_ARRAY) {
-            HashTable* tls_ht = Z_ARRVAL_P(tls_config_val);
-            config->advanced_config->tls_config =
-                ecalloc(1, sizeof(valkey_glide_tls_advanced_configuration_t));
-
-            zval* use_insecure_tls_val = zend_hash_str_find(tls_ht, "use_insecure_tls", 16);
-            if (use_insecure_tls_val && Z_TYPE_P(use_insecure_tls_val) == IS_TRUE) {
-                config->advanced_config->tls_config->use_insecure_tls = true;
-            } else {
-                config->advanced_config->tls_config->use_insecure_tls = false;
-            }
-        } else {
-            config->advanced_config->tls_config = NULL;
-        }
-    } else {
-        config->advanced_config = NULL;
-    }
-
-    _initialize_open_telemetry(params);
-}
-
-/**
- * Initialize OpenTelemetry from the given constructors parameters.
- * Throws an exception on failure, or does nothing if OpenTelementry is not configured.
- * @param params Pointer to the common constructor parameters structure.
- */
-static void _initialize_open_telemetry(valkey_glide_php_common_constructor_params_t* params) {
-    if (!params->advanced_config)
-        return;
-
-    if (Z_TYPE_P(params->advanced_config) != IS_ARRAY)
-        return;
-
-    HashTable* advanced_ht     = Z_ARRVAL_P(params->advanced_config);
-    zval*      otel_config_val = zend_hash_str_find(advanced_ht, "otel", sizeof("otel") - 1);
-
-    if (!otel_config_val)
-        return;
-
-    /* Validate that OTEL config is an object, not an array or other type */
-    if (Z_TYPE_P(otel_config_val) != IS_NULL && Z_TYPE_P(otel_config_val) != IS_OBJECT) {
-        VALKEY_LOG_ERROR("otel_config",
-                         "OpenTelemetry configuration must be an OpenTelemetryConfig object");
-        zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
-                             "OpenTelemetry configuration must be an OpenTelemetryConfig object",
-                             0);
-        return;
-    }
-
-    VALKEY_LOG_DEBUG("otel_config", "Processing OTEL configuration from advanced_config");
-    int initialized = valkey_glide_otel_init(otel_config_val);
-
-    if (!initialized) {
-        VALKEY_LOG_ERROR("otel_config", "Failed to initialize OTEL");
-        /* Exception already thrown by valkey_glide_otel_init if validation failed */
-        zend_throw_exception(
-            get_exception_ce_for_client_type(is_cluster), "Failed to initialize OpenTelemetry", 0);
-    }
-
-    return;
+    _initialize_open_telemetry(params, is_cluster);
 }
 
 const zend_function_entry valkey_glide_cluster_methods[] = {
