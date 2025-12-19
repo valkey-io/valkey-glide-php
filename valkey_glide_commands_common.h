@@ -65,9 +65,7 @@ const ConnectionResponse* create_glide_cluster_client(
 
 /* Return the protobuf message representing the connection request. Caller must free the result with
  * efree() */
-uint8_t* create_connection_request(const char*                               host,
-                                   int                                       port,
-                                   size_t*                                   len,
+uint8_t* create_connection_request(size_t*                                   len,
                                    valkey_glide_base_client_configuration_t* config,
                                    valkey_glide_periodic_checks_status_t     periodic_checks,
                                    bool                                      is_cluster,

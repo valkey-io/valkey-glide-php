@@ -96,6 +96,7 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
     Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
     Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
+    Z_PARAM_ARRAY_OR_NULL(common_params.context)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* Validate addresses array */
@@ -124,8 +125,8 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
 
     /* Build the connection request. */
     size_t   protobuf_message_len;
-    uint8_t* request_bytes = create_connection_request(
-        "localhost", 6379, &protobuf_message_len, &client_config, 0, false, false);
+    uint8_t* request_bytes =
+        create_connection_request(&protobuf_message_len, &client_config, 0, false, false);
 
     zval* php_request =
         build_php_connection_request(request_bytes, protobuf_message_len, &client_config);
@@ -153,6 +154,7 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
     Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
     Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
     Z_PARAM_LONG_OR_NULL(common_params.database_id, common_params.database_id_is_null)
+    Z_PARAM_ARRAY_OR_NULL(common_params.context)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* Validate database_id range before setting */
@@ -190,9 +192,7 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
     /* Build the connection request. */
     size_t   protobuf_message_len;
     uint8_t* request_bytes =
-        create_connection_request("localhost",
-                                  6379,
-                                  &protobuf_message_len,
+        create_connection_request(&protobuf_message_len,
                                   &client_config.base,
                                   client_config.periodic_checks_status,
                                   true,

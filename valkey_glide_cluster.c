@@ -55,6 +55,7 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
     Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
     Z_PARAM_LONG_OR_NULL(common_params.database_id, common_params.database_id_is_null)
+    Z_PARAM_ARRAY_OR_NULL(common_params.context)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
