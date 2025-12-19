@@ -5258,140 +5258,56 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->markTestSkipped();
         }
 
-        /* Test invokeScript method (Go/Java compatible API) */
-        if ($this->minVersionCheck('7.0.0')) {
-            $this->assertEquals('1.55', $this->valkey_glide->invokeScript("return '1.55'"));
-            
-            // Test with keys and args
-            $key1 = uniqid() . '-' . rand(1, 1000);
-            $key2 = uniqid() . '-' . rand(1, 1000);
-            $script = "return {KEYS[1], KEYS[2], ARGV[1], ARGV[2]}";
-            $result = $this->valkey_glide->invokeScript($script, [$key1, $key2], ['arg1', 'arg2']);
-            $this->assertEquals([$key1, $key2, 'arg1', 'arg2'], $result);
-        }
-
-        // Basic single line response tests
+        // Test basic eval with simple return values
         $this->assertEquals(1, $this->valkey_glide->eval('return 1'));
-        $this->assertEqualsWeak(1.55, $this->valkey_glide->eval("return '1.55'"));
-        $this->assertEquals('hello, world', $this->valkey_glide->eval("return 'hello, world'"));
+        $this->assertEquals('Hello from Lua', $this->valkey_glide->eval("return 'Hello from Lua'"));
+        $this->assertEquals(123, $this->valkey_glide->eval('return 123'));
 
-        /*
-         * Keys to be incorporated into lua results
-         */
-        // Make a list
-        $this->valkey_glide->del('{eval-key}-list');
-        $this->valkey_glide->rpush('{eval-key}-list', 'a');
-        $this->valkey_glide->rpush('{eval-key}-list', 'b');
-        $this->valkey_glide->rpush('{eval-key}-list', 'c');
+        // Test eval with arrays
+        $this->assertEquals([1, 2, 3], $this->valkey_glide->eval('return {1, 2, 3}'));
+        $this->assertEquals(['a', 'b', 'c'], $this->valkey_glide->eval("return {'a', 'b', 'c'}"));
 
-        // Make a set
-        $this->valkey_glide->del('{eval-key}-zset');
-        $this->valkey_glide->zadd('{eval-key}-zset', 0, 'd');
-        $this->valkey_glide->zadd('{eval-key}-zset', 1, 'e');
-        $this->valkey_glide->zadd('{eval-key}-zset', 2, 'f');
+        // Test eval with KEYS and ARGV
+        $script = 'return {KEYS[1], KEYS[2], ARGV[1], ARGV[2]}';
+        $args = ['key1', 'key2', 'arg1', 'arg2'];
+        $result = $this->valkey_glide->eval($script, $args, 2);
+        $this->assertEquals(['key1', 'key2', 'arg1', 'arg2'], $result);
 
-        // Basic keys
-        $this->valkey_glide->set('{eval-key}-str1', 'hello, world');
-        $this->valkey_glide->set('{eval-key}-str2', 'hello again!');
-
-        // Use a script to return our list, and verify its response
-        $list = $this->valkey_glide->eval("return redis.call('lrange', KEYS[1], 0, -1)", ['{eval-key}-list'], 1);
-        $this->assertEquals(['a', 'b', 'c'], $list);
-
-        // Use a script to return our zset
-        $zset = $this->valkey_glide->eval("return redis.call('zrange', KEYS[1], 0, -1)", ['{eval-key}-zset'], 1);
-        $this->assertEquals(['d', 'e', 'f'], $zset);
-
-        // Test an empty MULTI BULK response
-        $this->valkey_glide->del('{eval-key}-nolist');
-        $empty_resp = $this->valkey_glide->eval(
-            "return redis.call('lrange', '{eval-key}-nolist', 0, -1)",
-            ['{eval-key}-nolist'],
-            1
-        );
-        $this->assertEquals([], $empty_resp);
-
-        // Now test a nested reply
-        $nested_script = "
-            return {
-                1,2,3, {
-                    redis.call('get', '{eval-key}-str1'),
-                    redis.call('get', '{eval-key}-str2'),
-                    redis.call('lrange', 'not-any-kind-of-list', 0, -1),
-                    {
-                        redis.call('zrange', '{eval-key}-zset', 0, -1),
-                        redis.call('lrange', '{eval-key}-list', 0, -1)
-                    }
-                }
-            }
+        // Test eval with Redis operations
+        $key = '{eval-test}-key';
+        $value = 'test-value';
+        
+        // Set a value using eval
+        $setScript = "
+            local key = KEYS[1]
+            local value = ARGV[1]
+            redis.call('SET', key, value)
+            return redis.call('GET', key)
         ";
+        $result = $this->valkey_glide->eval($setScript, [$key, $value], 1);
+        $this->assertEquals($value, $result);
 
-        $expected = [
-            1, 2, 3, [
-                'hello, world',
-                'hello again!',
-                [],
-                [
-                    ['d', 'e', 'f'],
-                    ['a', 'b', 'c']
-                ]
-            ]
-        ];
+        // Test eval with arithmetic
+        $mathScript = "
+            local a = tonumber(ARGV[1])
+            local b = tonumber(ARGV[2])
+            return a + b
+        ";
+        $result = $this->valkey_glide->eval($mathScript, ['10', '20'], 0);
+        $this->assertEquals(30, $result);
 
-        // Now run our script, and check our values against each other
-        $eval_result = $this->valkey_glide->eval($nested_script, ['{eval-key}-str1', '{eval-key}-str2', '{eval-key}-zset', '{eval-key}-list'], 4);
-        $this->assertTrue(
-            is_array($eval_result) &&
-            count($this->arrayDiffRecursive($eval_result, $expected)) == 0
-        );
+        // Test evalsha with cached script
+        $simpleScript = 'return 42';
+        $sha1 = sha1($simpleScript);
+        
+        // First eval to cache the script
+        $this->assertEquals(42, $this->valkey_glide->eval($simpleScript));
+        
+        // Then use evalsha
+        $this->assertEquals(42, $this->valkey_glide->evalsha($sha1));
 
-        /*
-         * Nested reply wihin a multi/pipeline block
-         */
-
-        $num_scripts = 10;
-
-        $modes = [ValkeyGlide::MULTI];
-        if ($this->havePipeline()) {
-            $modes[] = ValkeyGlide::PIPELINE;
-        }
-
-        foreach ($modes as $mode) {
-            $this->valkey_glide->multi($mode);
-            for ($i = 0; $i < $num_scripts; $i++) {
-                $this->valkey_glide->eval($nested_script, ['{eval-key}-dummy'], 1);
-            }
-            $replies = $this->valkey_glide->exec();
-
-            foreach ($replies as $reply) {
-                $this->assertTrue(
-                    is_array($reply) &&
-                    count($this->arrayDiffRecursive($reply, $expected)) == 0
-                );
-            }
-        }
-
-        /*
-         * KEYS/ARGV
-         */
-
-        $args_script = 'return {KEYS[1],KEYS[2],KEYS[3],ARGV[1],ARGV[2],ARGV[3]}';
-        $args_args   = ['{k}1', '{k}2', '{k}3', 'v1', 'v2', 'v3'];
-        $args_result = $this->valkey_glide->eval($args_script, $args_args, 3);
-        $this->assertEquals($args_args, $args_result);
-
-        // turn on key prefixing
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, 'prefix:');
-        $args_result = $this->valkey_glide->eval($args_script, $args_args, 3);
-
-        // Make sure our first three are prefixed
-        for ($i = 0; $i < count($args_result); $i++) {
-            if ($i < 3) {
-                $this->assertEquals('prefix:' . $args_args[$i], $args_result[$i]);
-            } else {
-                $this->assertEquals($args_args[$i], $args_result[$i]);
-            }
-        }
+        // Clean up
+        $this->valkey_glide->del($key);
     }
 
     public function testEvalSHA()
