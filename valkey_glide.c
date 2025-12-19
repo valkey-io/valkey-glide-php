@@ -120,130 +120,22 @@ zend_object* create_valkey_glide_cluster_object(zend_class_entry* ce)  // TODO c
     return &valkey_glide->std;
 }
 
-/**
- * Builds and returns the advanced configuration for the given constructor parameters.
- * Returns NULL if no advanced configuration is set.
- *
- * @param params Pointer to the common constructor parameters structure.
- * @return Pointer to the allocated advanced configuration structure, or NULL if not set.
- */
-valkey_glide_advanced_base_client_configuration_t* _build_advanced_config(
-    valkey_glide_php_common_constructor_params_t* params) {
-    if (!params->advanced_config)
-        return NULL;
+// Forward declarations for helper functions
+static HashTable* _get_stream_context_ht(valkey_glide_php_common_constructor_params_t* params);
+static HashTable* _get_advanced_config_ht(valkey_glide_php_common_constructor_params_t* params);
+static HashTable* _get_advance_tls_config_ht(valkey_glide_php_common_constructor_params_t* params);
 
-    if (Z_TYPE_P(params->advanced_config) != IS_ARRAY)
-        return NULL;
+static int  _determine_connection_timeout(valkey_glide_php_common_constructor_params_t* params);
+static bool _determine_use_insecure_tls(valkey_glide_php_common_constructor_params_t* params);
+static bool _determine_use_tls(valkey_glide_php_common_constructor_params_t* params);
 
-    HashTable* advanced_config_ht = Z_ARRVAL_P(params->advanced_config);
-    valkey_glide_advanced_base_client_configuration_t* advanced_config =
-        ecalloc(1, sizeof(valkey_glide_advanced_base_client_configuration_t));
+static valkey_glide_tls_advanced_configuration_t* _build_tls_advanced_config(
+    valkey_glide_php_common_constructor_params_t* params);
+static valkey_glide_advanced_base_client_configuration_t* _build_advanced_config(
+    valkey_glide_php_common_constructor_params_t* params);
 
-    /* Set connection timeout */
-    advanced_config->connection_timeout = VALKEY_GLIDE_DEFAULT_CONNECTION_TIMEOUT;
-
-    zval* conn_timeout_val = zend_hash_str_find(advanced_config_ht, "connection_timeout", 18);
-    if (conn_timeout_val && Z_TYPE_P(conn_timeout_val) == IS_LONG) {
-        advanced_config->connection_timeout = Z_LVAL_P(conn_timeout_val);
-    }
-
-    /* Set TLS advanced configuration */
-    advanced_config->tls_config = NULL;
-
-    zval* tls_config_val = zend_hash_str_find(advanced_config_ht, "tls_config", 10);
-    if (tls_config_val && Z_TYPE_P(tls_config_val) == IS_ARRAY) {
-        HashTable* tls_ht           = Z_ARRVAL_P(tls_config_val);
-        advanced_config->tls_config = ecalloc(1, sizeof(valkey_glide_tls_advanced_configuration_t));
-
-        /* Set insecure TLS */
-        zval* use_insecure_tls_val = zend_hash_str_find(tls_ht, "use_insecure_tls", 16);
-        advanced_config->tls_config->use_insecure_tls =
-            use_insecure_tls_val && Z_TYPE_P(use_insecure_tls_val) == IS_TRUE;
-
-        /* Set root certificates */
-        // TODO: Support loading from file path
-    }
-
-    return advanced_config;
-}
-
-/**
- * Returns whether the client should use TLS for the given constructor parameters.
- *
- * @param params Pointer to the common constructor parameters structure.
- * @return true if TLS should be used, false otherwise.
- */
-static bool _determine_use_tls(valkey_glide_php_common_constructor_params_t* params) {
-    // 1. TLS enabled explicitly via the 'use_tls' parameter.
-    if (params->use_tls) {
-        return true;
-    }
-
-    // 2. TLS enabled implicitly via the 'addresses' parameter.
-    HashTable* addresses_ht = Z_ARRVAL_P(params->addresses);
-    zval*      addr_val;
-
-    ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
-        if (Z_TYPE_P(addr_val) == IS_ARRAY) {
-            HashTable* addr_ht  = Z_ARRVAL_P(addr_val);
-            zval*      host_val = zend_hash_str_find(addr_ht, "host", 4);
-
-            if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
-                const char* host = Z_STRVAL_P(host_val);
-                if (strncmp(host, TLS_PREFIX, TLS_PREFIX_LEN) == 0 ||
-                    strncmp(host, SSL_PREFIX, SSL_PREFIX_LEN) == 0) {
-                    return true;
-                }
-            }
-        }
-    }
-    ZEND_HASH_FOREACH_END();
-
-    return false;
-}
-
-/**
- * Initialize OpenTelemetry from the given constructor parameters, if configured.
- * Throws an exception if initialization fails.
- * @param params     Pointer to the common constructor parameters structure.
- * @param is_cluster Whether this is a cluster client
- */
 static void _initialize_open_telemetry(valkey_glide_php_common_constructor_params_t* params,
-                                       bool                                          is_cluster) {
-    if (!params->advanced_config)
-        return;
-
-    if (Z_TYPE_P(params->advanced_config) != IS_ARRAY)
-        return;
-
-    HashTable* advanced_config_ht = Z_ARRVAL_P(params->advanced_config);
-    zval*      otel_config_val = zend_hash_str_find(advanced_config_ht, "otel", sizeof("otel") - 1);
-
-    if (!otel_config_val)
-        return;
-
-    /* Validate that OTEL config is an object, not an array or other type */
-    if (Z_TYPE_P(otel_config_val) != IS_NULL && Z_TYPE_P(otel_config_val) != IS_OBJECT) {
-        VALKEY_LOG_ERROR("otel_config",
-                         "OpenTelemetry configuration must be an OpenTelemetryConfig object");
-        zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
-                             "OpenTelemetry configuration must be an OpenTelemetryConfig object",
-                             0);
-        return;
-    }
-
-    VALKEY_LOG_DEBUG("otel_config", "Processing OTEL configuration from advanced_config");
-    int initialized = valkey_glide_otel_init(otel_config_val);
-
-    if (!initialized) {
-        VALKEY_LOG_ERROR("otel_config", "Failed to initialize OTEL");
-        /* Exception already thrown by valkey_glide_otel_init if validation failed */
-        zend_throw_exception(
-            get_exception_ce_for_client_type(is_cluster), "Failed to initialize OpenTelemetry", 0);
-    }
-
-    return;
-}
+                                       bool                                          is_cluster);
 
 void valkey_glide_init_common_constructor_params(
     valkey_glide_php_common_constructor_params_t* params) {
@@ -269,8 +161,6 @@ void valkey_glide_init_common_constructor_params(
 void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
                                            valkey_glide_base_client_configuration_t*     config,
                                            bool is_cluster) {
-    config->use_tls = _determine_use_tls(params);
-
     /* Basic configuration */
     config->request_timeout =
         params->request_timeout_is_null ? -1 : params->request_timeout; /* -1 means not set */
@@ -498,7 +388,18 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         config->reconnect_strategy = NULL;
     }
 
+    config->use_tls         = _determine_use_tls(params);
     config->advanced_config = _build_advanced_config(params);
+
+    // Raise an exception if insecure TLS is requested but TLS is not enabled
+    if (!config->use_tls && config->advanced_config && config->advanced_config->tls_config &&
+        config->advanced_config->tls_config->use_insecure_tls) {
+        VALKEY_LOG_ERROR("insecure_tls_with_tls_disabled",
+                         "Cannot configure insecure TLS when TLS is disabled.");
+        zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                             "Cannot configure insecure TLS when TLS is disabled.",
+                             0);
+    }
 
     _initialize_open_telemetry(params, is_cluster);
 }
@@ -928,3 +829,221 @@ PHP_FUNCTION(valkey_glide_logger_get_level) {
 // Individual HFE methods that call unified layer
 
 // HFE methods are implemented in valkey_z_php_methods.c
+
+/**
+ * Returns the stream context hash table from the given constructor parameters.
+ * Returns NULL if no stream context is specified.
+ *
+ * @param params Pointer to the common constructor parameters structure.
+ * @return       Pointer to the stream context hash table, or NULL if not found.
+ */
+static HashTable* _get_stream_context_ht(valkey_glide_php_common_constructor_params_t* params) {
+    if (!params->context || Z_TYPE_P(params->context) != IS_ARRAY)
+        return NULL;
+
+    HashTable* context_ht = Z_ARRVAL_P(params->context);
+
+    zval* stream_context_val = zend_hash_str_find(context_ht, "stream_context", 14);
+    if (!stream_context_val || Z_TYPE_P(stream_context_val) != IS_ARRAY)
+        return NULL;
+
+    return Z_ARRVAL_P(stream_context_val);
+}
+
+/**
+ * Returns the advanced configuration hash table from the given constructor parameters.
+ * Returns NULL if no stream context is specified.
+ *
+ * @param params Pointer to the common constructor parameters structure.
+ * @return       Pointer to the advanced configuration hash table, or NULL if not found.
+ */
+static HashTable* _get_advanced_config_ht(valkey_glide_php_common_constructor_params_t* params) {
+    if (!params->advanced_config || Z_TYPE_P(params->advanced_config) != IS_ARRAY)
+        return NULL;
+
+    return Z_ARRVAL_P(params->advanced_config);
+}
+
+/**
+ * Returns the advanced TLS configuration hash table from the given constructor parameters.
+ * Returns NULL if no advanced TLS configuration is specified.
+ *
+ * @param params Pointer to the common constructor parameters structure.
+ * @return       Pointer to the advanced TLS configuration hash table, or NULL if not found.
+ */
+static HashTable* _get_advance_tls_config_ht(valkey_glide_php_common_constructor_params_t* params) {
+    HashTable* advanced_config_ht = _get_advanced_config_ht(params);
+    if (!advanced_config_ht) {
+        return NULL;
+    }
+
+    zval* tls_config_val = zend_hash_str_find(advanced_config_ht, "tls_config", 10);
+    if (!tls_config_val || Z_TYPE_P(tls_config_val) != IS_ARRAY) {
+        return NULL;
+    }
+
+    return Z_ARRVAL_P(tls_config_val);
+}
+
+/**
+ * Determines the connection timeout from the given constructor parameters.
+ *
+ * @param params Pointer to the common constructor parameters structure.
+ * @return       Connection timeout in milliseconds.
+ */
+static int _determine_connection_timeout(valkey_glide_php_common_constructor_params_t* params) {
+    HashTable* advanced_config_ht = _get_advanced_config_ht(params);
+    if (!advanced_config_ht) {
+        return VALKEY_GLIDE_DEFAULT_CONNECTION_TIMEOUT;
+    }
+
+    zval* conn_timeout_val = zend_hash_str_find(advanced_config_ht, "connection_timeout", 18);
+    if (!conn_timeout_val || Z_TYPE_P(conn_timeout_val) != IS_LONG) {
+        return VALKEY_GLIDE_DEFAULT_CONNECTION_TIMEOUT;
+    }
+
+    return Z_LVAL_P(conn_timeout_val);
+}
+
+/**
+ * Determines whether to use insecure TLS from the given constructor parameters.
+ *
+ * @param params Pointer to the common constructor parameters structure.
+ * @return       true if insecure TLS should be used, false otherwise.
+ */
+static bool _determine_use_insecure_tls(valkey_glide_php_common_constructor_params_t* params) {
+    // From stream context...
+    HashTable* stream_context_ht = _get_stream_context_ht(params);
+    if (stream_context_ht) {
+        zval* use_insecure_tls_val = zend_hash_str_find(stream_context_ht, "verify_peer", 11);
+        if (use_insecure_tls_val && Z_TYPE_P(use_insecure_tls_val) == IS_FALSE) {
+            return true;
+        }
+    }
+
+    // From advanced config...
+    HashTable* advanced_tls_ht = _get_advance_tls_config_ht(params);
+    if (advanced_tls_ht) {
+        zval* use_insecure_tls_val = zend_hash_str_find(advanced_tls_ht, "use_insecure_tls", 16);
+        if (use_insecure_tls_val && Z_TYPE_P(use_insecure_tls_val) == IS_TRUE) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Determines whether to use TLS from the given constructor parameters.
+ *
+ * @param params Pointer to the common constructor parameters structure.
+ * @return       true if TLS should be used, false otherwise.
+ */
+static bool _determine_use_tls(valkey_glide_php_common_constructor_params_t* params) {
+    // 1. TLS enabled explicitly via the 'use_tls' parameter.
+    if (params->use_tls)
+        return true;
+
+    // 2. TLS enabled implicitly via the 'addresses' parameter.
+    HashTable* addresses_ht = Z_ARRVAL_P(params->addresses);
+
+    zval* addr_val;
+    ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
+        if (Z_TYPE_P(addr_val) == IS_ARRAY) {
+            HashTable* addr_ht  = Z_ARRVAL_P(addr_val);
+            zval*      host_val = zend_hash_str_find(addr_ht, "host", 4);
+
+            if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
+                const char* host = Z_STRVAL_P(host_val);
+
+                // Use TLS if the host string starts with "tls://" or "ssl://".
+                if (strncmp(host, TLS_PREFIX, TLS_PREFIX_LEN) == 0 ||
+                    strncmp(host, SSL_PREFIX, SSL_PREFIX_LEN) == 0) {
+                    return true;
+                }
+            }
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+
+    return false;
+}
+
+/**
+ * Builds the TLS advanced configuration from the given constructor parameters.
+ * Returns NULL if no advanced TLS configuration is specified.
+ *
+ * @param params Pointer to the common constructor parameters structure.
+ * @return       Pointer to the constructed TLS advanced configuration structure.
+ */
+static valkey_glide_tls_advanced_configuration_t* _build_tls_advanced_config(
+    valkey_glide_php_common_constructor_params_t* params) {
+    valkey_glide_tls_advanced_configuration_t* tls_advanced_config =
+        ecalloc(1, sizeof(valkey_glide_tls_advanced_configuration_t));
+
+    tls_advanced_config->use_insecure_tls = _determine_use_insecure_tls(params);
+
+    // TODO: Load root certificates from stream context or advanced config
+    tls_advanced_config->root_certs     = NULL;
+    tls_advanced_config->root_certs_len = 0;
+
+    return tls_advanced_config;
+}
+
+/**
+ * Builds the advanced configuration from the given constructor parameters.
+ * Returns NULL if no advanced configuration is specified.
+ *
+ * @param params Pointer to the common constructor parameters structure.
+ * @return       Pointer to the constructed advanced configuration structure.
+ */
+static valkey_glide_advanced_base_client_configuration_t* _build_advanced_config(
+    valkey_glide_php_common_constructor_params_t* params) {
+    valkey_glide_advanced_base_client_configuration_t* advanced_config =
+        ecalloc(1, sizeof(valkey_glide_advanced_base_client_configuration_t));
+
+    advanced_config->connection_timeout = _determine_connection_timeout(params);
+    advanced_config->tls_config         = _build_tls_advanced_config(params);
+
+    return advanced_config;
+}
+
+/**
+ * Initializes OpenTelemetry from the given constructor parameters, if configured.
+ * Throws an exception if initialization fails.
+ *
+ * @param params     Pointer to the common constructor parameters structure.
+ * @param is_cluster Whether this is a cluster client
+ */
+static void _initialize_open_telemetry(valkey_glide_php_common_constructor_params_t* params,
+                                       bool                                          is_cluster) {
+    if (!params->advanced_config || Z_TYPE_P(params->advanced_config) != IS_ARRAY)
+        return;
+
+    HashTable* advanced_config_ht = Z_ARRVAL_P(params->advanced_config);
+
+    zval* otel_config_val = zend_hash_str_find(advanced_config_ht, "otel", sizeof("otel") - 1);
+    if (!otel_config_val)
+        return;
+
+    /* Validate that OTEL config is an object, not an array or other type */
+    if (Z_TYPE_P(otel_config_val) != IS_NULL && Z_TYPE_P(otel_config_val) != IS_OBJECT) {
+        VALKEY_LOG_ERROR("otel_config",
+                         "OpenTelemetry configuration must be an OpenTelemetryConfig object");
+        zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
+                             "OpenTelemetry configuration must be an OpenTelemetryConfig object",
+                             0);
+        return;
+    }
+
+    VALKEY_LOG_DEBUG("otel_config", "Processing OTEL configuration from advanced_config");
+
+    if (!valkey_glide_otel_init(otel_config_val)) {
+        VALKEY_LOG_ERROR("otel_config", "Failed to initialize OTEL");
+        /* Exception already thrown by valkey_glide_otel_init if validation failed */
+        zend_throw_exception(
+            get_exception_ce_for_client_type(is_cluster), "Failed to initialize OpenTelemetry", 0);
+    }
+
+    return;
+}
