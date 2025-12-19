@@ -979,6 +979,7 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
     }
 
     // Set TLS configuration from stream context.
+    // Reference: https://www.php.net/manual/en/context.ssl.php
     else if (stream_context_ht) {
         // Insecure TLS
         zval* verify_peer_val = zend_hash_str_find(stream_context_ht, "verify_peer", 11);
