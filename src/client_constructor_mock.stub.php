@@ -79,13 +79,10 @@
 
 class ClientConstructorMock
 {
-    private const string DEFAULT_HOST = 'localhost';
-    private const int DEFAULT_PORT = 8080;
-
     /**
      * Mock creation of a standalone connection request instance with the provided configuration.
      *
-     * @param array $addresses                   Array of server addresses [['host' => 'localhost', 'port' => 6379], ...].
+     * @param array|null $addresses              Array of server addresses [['host' => 'localhost', 'port' => 6379], ...].
      * @param bool $use_tls                      Whether to use TLS encryption.
      * @param array|null $credentials            Authentication credentials ['password' => 'xxx', 'username' => 'yyy'].
      * @param int $read_from                     Read strategy for the client.
@@ -101,7 +98,7 @@ class ClientConstructorMock
      * @param bool|null $lazy_connect            Whether to use lazy connection.
      */
     public static function simulate_standalone_constructor(
-        array $addresses = [],
+        ?array $addresses = null,
         bool $use_tls = false,
         ?array $credentials = null,
         int $read_from = ValkeyGlide::READ_FROM_PRIMARY,
@@ -112,30 +109,12 @@ class ClientConstructorMock
         ?string $client_az = null,
         ?array $advanced_config = null,
         ?bool $lazy_connect = null
-    ): \Connection_request\ConnectionRequest {
-
-        // Add default address if none provided.
-        if (empty($addresses)) {
-            $addresses[] = ['host' => self::DEFAULT_HOST, 'port' => self::DEFAULT_PORT];
-        }
-
-        // Set default hosts or ports if not provided.
-        foreach ($addresses as &$address) {
-            if (!isset($address['host'])) {
-                $address['host'] = self::DEFAULT_HOST;
-            }
-            if (!isset($address['port'])) {
-                $address['port'] = self::DEFAULT_PORT;
-            }
-        }
-
-        return new \Connection_request\ConnectionRequest();
-    }
+    ): \Connection_request\ConnectionRequest;
 
     /**
      * Mock creation of a cluster connection request instance with the provided configuration.
      *
-     * @param array $addresses                        Array of server addresses [['host' => '127.0.0.1', 'port' => 7001], ...].
+     * @param array|null $addresses                   Array of server addresses [['host' => '127.0.0.1', 'port' => 7001], ...].
      * @param bool $use_tls                           Whether to use TLS encryption.
      * @param array|null $credentials                 Authentication credentials ['password' => 'xxx', 'username' => 'yyy'].
      * @param int $read_from                          Read strategy for the client.
@@ -155,7 +134,7 @@ class ClientConstructorMock
      *                                                If not specified, defaults to database 0.
      */
     public static function simulate_cluster_constructor(
-        array $addresses = [],
+        ?array $addresses = null,
         bool $use_tls = false,
         ?array $credentials = null,
         int $read_from = ValkeyGlide::READ_FROM_PREFER_REPLICA,
@@ -167,23 +146,5 @@ class ClientConstructorMock
         ?array $advanced_config = null,
         ?bool $lazy_connect = null,
         ?int $database_id = null
-    ): \Connection_request\ConnectionRequest {
-
-        // Add default address if none provided.
-        if (empty($addresses)) {
-            $addresses[] = ['host' => self::DEFAULT_HOST, 'port' => self::DEFAULT_PORT];
-        }
-
-        // Set default hosts or ports if not provided.
-        foreach ($addresses as &$address) {
-            if (!isset($address['host'])) {
-                $address['host'] = self::DEFAULT_HOST;
-            }
-            if (!isset($address['port'])) {
-                $address['port'] = self::DEFAULT_PORT;
-            }
-        }
-
-        return new \Connection_request\ConnectionRequest();
-    }
+    ): \Connection_request\ConnectionRequest;
 }
