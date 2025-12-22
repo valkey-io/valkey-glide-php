@@ -219,7 +219,8 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             /* Extract host */
             config->addresses[i].host = (char*) DEFAULT_HOST;
 
-            zval* host_val = zend_hash_str_find(addr_ht, "host", 4);
+            zval* host_val = zend_hash_str_find(
+                addr_ht, VALKEY_GLIDE_ADDRESS_HOST, sizeof(VALKEY_GLIDE_ADDRESS_HOST) - 1);
             if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
                 const char* host = Z_STRVAL_P(host_val);
 
@@ -236,7 +237,8 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             /* Extract port */
             config->addresses[i].port = is_cluster ? DEFAULT_PORT_CLUSTER : DEFAULT_PORT_STANDALONE;
 
-            zval* port_val = zend_hash_str_find(addr_ht, "port", 4);
+            zval* port_val = zend_hash_str_find(
+                addr_ht, VALKEY_GLIDE_ADDRESS_PORT, sizeof(VALKEY_GLIDE_ADDRESS_PORT) - 1);
             if (port_val && Z_TYPE_P(port_val) == IS_LONG) {
                 config->addresses[i].port = Z_LVAL_P(port_val);
             }
@@ -263,7 +265,8 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         config->credentials->iam_config = NULL;
 
         /* Check for username */
-        zval* username_val = zend_hash_str_find(cred_ht, "username", 8);
+        zval* username_val = zend_hash_str_find(
+            cred_ht, VALKEY_GLIDE_AUTH_USERNAME, strlen(VALKEY_GLIDE_AUTH_USERNAME));
         if (username_val && Z_TYPE_P(username_val) == IS_STRING) {
             config->credentials->username = Z_STRVAL_P(username_val);
         } else {
@@ -271,7 +274,8 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         }
 
         /* Check for password */
-        zval* password_val = zend_hash_str_find(cred_ht, "password", 8);
+        zval* password_val = zend_hash_str_find(
+            cred_ht, VALKEY_GLIDE_AUTH_PASSWORD, strlen(VALKEY_GLIDE_AUTH_PASSWORD));
         if (password_val && Z_TYPE_P(password_val) == IS_STRING) {
             config->credentials->password = Z_STRVAL_P(password_val);
         } else {
@@ -279,7 +283,8 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         }
 
         /* Check for IAM config (mutually exclusive with password) */
-        zval* iam_config_val = zend_hash_str_find(cred_ht, "iamConfig", 9);
+        zval* iam_config_val = zend_hash_str_find(
+            cred_ht, VALKEY_GLIDE_AUTH_IAM_CONFIG, strlen(VALKEY_GLIDE_AUTH_IAM_CONFIG));
         if (iam_config_val && Z_TYPE_P(iam_config_val) == IS_ARRAY) {
             HashTable* iam_ht = Z_ARRVAL_P(iam_config_val);
 
@@ -357,7 +362,8 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         config->reconnect_strategy = ecalloc(1, sizeof(valkey_glide_backoff_strategy_t));
 
         /* Check for num_of_retries */
-        zval* retries_val = zend_hash_str_find(reconnect_ht, "num_of_retries", 14);
+        zval* retries_val = zend_hash_str_find(
+            reconnect_ht, VALKEY_GLIDE_NUM_OF_RETRIES, strlen(VALKEY_GLIDE_NUM_OF_RETRIES));
         if (retries_val && Z_TYPE_P(retries_val) == IS_LONG) {
             config->reconnect_strategy->num_of_retries = Z_LVAL_P(retries_val);
         } else {
@@ -365,7 +371,8 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         }
 
         /* Check for factor */
-        zval* factor_val = zend_hash_str_find(reconnect_ht, "factor", 6);
+        zval* factor_val =
+            zend_hash_str_find(reconnect_ht, VALKEY_GLIDE_FACTOR, strlen(VALKEY_GLIDE_FACTOR));
         if (factor_val && Z_TYPE_P(factor_val) == IS_LONG) {
             config->reconnect_strategy->factor = Z_LVAL_P(factor_val);
         } else {
@@ -373,7 +380,8 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         }
 
         /* Check for exponent_base */
-        zval* exponent_val = zend_hash_str_find(reconnect_ht, "exponent_base", 13);
+        zval* exponent_val = zend_hash_str_find(
+            reconnect_ht, VALKEY_GLIDE_EXPONENT_BASE, strlen(VALKEY_GLIDE_EXPONENT_BASE));
         if (exponent_val && Z_TYPE_P(exponent_val) == IS_LONG) {
             config->reconnect_strategy->exponent_base = Z_LVAL_P(exponent_val);
         } else {
@@ -381,7 +389,8 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         }
 
         /* Check for jitter_percent - optional */
-        zval* jitter_val = zend_hash_str_find(reconnect_ht, "jitter_percent", 14);
+        zval* jitter_val = zend_hash_str_find(
+            reconnect_ht, VALKEY_GLIDE_JITTER_PERCENT, strlen(VALKEY_GLIDE_JITTER_PERCENT));
         if (jitter_val && Z_TYPE_P(jitter_val) == IS_LONG) {
             config->reconnect_strategy->jitter_percent = Z_LVAL_P(jitter_val);
         } else {
@@ -846,7 +855,8 @@ static HashTable* _get_stream_context_ht(valkey_glide_php_common_constructor_par
 
     HashTable* context_ht = Z_ARRVAL_P(params->context);
 
-    zval* stream_context_val = zend_hash_str_find(context_ht, "stream_context", 14);
+    zval* stream_context_val = zend_hash_str_find(
+        context_ht, VALKEY_GLIDE_CONTEXT_STREAM, sizeof(VALKEY_GLIDE_CONTEXT_STREAM) - 1);
     if (!stream_context_val || Z_TYPE_P(stream_context_val) != IS_ARRAY)
         return NULL;
 
@@ -881,7 +891,8 @@ static HashTable* _get_advanced_tls_config_ht(
         return NULL;
     }
 
-    zval* tls_config_val = zend_hash_str_find(advanced_config_ht, "tls_config", 10);
+    zval* tls_config_val = zend_hash_str_find(
+        advanced_config_ht, VALKEY_GLIDE_TLS_CONFIG, sizeof(VALKEY_GLIDE_TLS_CONFIG) - 1);
     if (!tls_config_val || Z_TYPE_P(tls_config_val) != IS_ARRAY) {
         return NULL;
     }
@@ -901,7 +912,9 @@ static int _determine_connection_timeout(valkey_glide_php_common_constructor_par
         return VALKEY_GLIDE_DEFAULT_CONNECTION_TIMEOUT;
     }
 
-    zval* conn_timeout_val = zend_hash_str_find(advanced_config_ht, "connection_timeout", 18);
+    zval* conn_timeout_val = zend_hash_str_find(advanced_config_ht,
+                                                VALKEY_GLIDE_CONNECTION_TIMEOUT,
+                                                sizeof(VALKEY_GLIDE_CONNECTION_TIMEOUT) - 1);
     if (!conn_timeout_val || Z_TYPE_P(conn_timeout_val) != IS_LONG) {
         return VALKEY_GLIDE_DEFAULT_CONNECTION_TIMEOUT;
     }
@@ -931,7 +944,8 @@ static bool _determine_use_tls(valkey_glide_php_common_constructor_params_t* par
     ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
         if (Z_TYPE_P(addr_val) == IS_ARRAY) {
             HashTable* addr_ht  = Z_ARRVAL_P(addr_val);
-            zval*      host_val = zend_hash_str_find(addr_ht, "host", 4);
+            zval*      host_val = zend_hash_str_find(
+                addr_ht, VALKEY_GLIDE_ADDRESS_HOST, sizeof(VALKEY_GLIDE_ADDRESS_HOST) - 1);
 
             if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
                 const char* host = Z_STRVAL_P(host_val);
@@ -985,13 +999,15 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
     // Reference: https://www.php.net/manual/en/context.ssl.php
     else if (stream_context_ht) {
         // Insecure TLS
-        zval* verify_peer_val = zend_hash_str_find(stream_context_ht, "verify_peer", 11);
+        zval* verify_peer_val = zend_hash_str_find(
+            stream_context_ht, VALKEY_GLIDE_VERIFY_PEER, sizeof(VALKEY_GLIDE_VERIFY_PEER) - 1);
         if (verify_peer_val && Z_TYPE_P(verify_peer_val) == IS_FALSE) {
             tls_advanced_config->use_insecure_tls = true;
         }
 
         // Root certificate
-        zval* cafile_val = zend_hash_str_find(stream_context_ht, "cafile", 6);
+        zval* cafile_val = zend_hash_str_find(
+            stream_context_ht, VALKEY_GLIDE_CAFILE, sizeof(VALKEY_GLIDE_CAFILE) - 1);
         if (cafile_val && Z_TYPE_P(cafile_val) == IS_STRING) {
             const char* cafile_path = Z_STRVAL_P(cafile_val);
             uint8_t*    cert_data;
@@ -1012,13 +1028,16 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
     // Set TLS configuration from advanced TLS config.
     else if (advanced_tls_ht) {
         // Insecure TLS
-        zval* use_insecure_tls_val = zend_hash_str_find(advanced_tls_ht, "use_insecure_tls", 16);
+        zval* use_insecure_tls_val = zend_hash_str_find(advanced_tls_ht,
+                                                        VALKEY_GLIDE_USE_INSECURE_TLS,
+                                                        sizeof(VALKEY_GLIDE_USE_INSECURE_TLS) - 1);
         if (use_insecure_tls_val && Z_TYPE_P(use_insecure_tls_val) == IS_TRUE) {
             tls_advanced_config->use_insecure_tls = true;
         }
 
         // Root certificate
-        zval* root_certs = zend_hash_str_find(advanced_tls_ht, "root_certs", 10);
+        zval* root_certs = zend_hash_str_find(
+            advanced_tls_ht, VALKEY_GLIDE_ROOT_CERTS, sizeof(VALKEY_GLIDE_ROOT_CERTS) - 1);
         if (root_certs && Z_TYPE_P(root_certs) == IS_STRING) {
             tls_advanced_config->root_certs     = (uint8_t*) Z_STRVAL_P(root_certs);
             tls_advanced_config->root_certs_len = Z_STRLEN_P(root_certs);
