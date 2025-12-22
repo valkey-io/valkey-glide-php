@@ -95,6 +95,9 @@ require_once __DIR__ . "/GPBMetadata/ConnectionRequest.php";
  */
 class ConnectionRequestTest extends \TestSuite
 {
+    private const string HOST = 'localhost';
+    private const int PORT = 8080;
+
     /** Internal helper function to call from C to deserialize the message to a ConnectionRequest object */
     public static function deserialize($data): \Connection_request\ConnectionRequest
     {
@@ -158,42 +161,6 @@ class ConnectionRequestTest extends \TestSuite
         $address = $addresses[1];
         $this->assertEquals('172.0.1.24', $address->getHost());
         $this->assertEquals(9000, $address->getPort());
-    }
-
-    public function testStandaloneUseTlsOn()
-    {
-        $request = ClientConstructorMock::simulate_standalone_constructor(
-            addresses: [['host' => 'localhost', 'port' => 8080]],
-            use_tls: true
-        );
-        $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
-    }
-
-    public function testClusterUseTlsOn()
-    {
-        $request = ClientConstructorMock::simulate_cluster_constructor(
-            addresses: [['host' => 'localhost', 'port' => 8080]],
-            use_tls: true
-        );
-        $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
-    }
-
-    public function testStandaloneUseTlsOff()
-    {
-        $request = ClientConstructorMock::simulate_standalone_constructor(
-            addresses: [['host' => 'localhost', 'port' => 8080]],
-            use_tls: false
-        );
-        $this->assertEquals(\Connection_request\TlsMode::NoTls, $request->getTlsMode());
-    }
-
-    public function testClusterUseTlsOff()
-    {
-        $request = ClientConstructorMock::simulate_cluster_constructor(
-            addresses: [['host' => 'localhost', 'port' => 8080]],
-            use_tls: false
-        );
-        $this->assertEquals(\Connection_request\TlsMode::NoTls, $request->getTlsMode());
     }
 
     public function testStandaloneCredentials()
@@ -503,5 +470,60 @@ class ConnectionRequestTest extends \TestSuite
 
         // Standalone clients should always have this as false (ignored)
         $this->assertFalse($request->getRefreshTopologyFromInitialNodes());
+    }
+
+    // Tls Tests
+    // ---------
+
+    public function testStandaloneUseTlsOn()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(use_tls: true);
+        $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
+    }
+
+    public function testClusterUseTlsOn()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(use_tls: true);
+        $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
+    }
+
+    public function testStandaloneUseTlsOff()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(use_tls: false);
+        $this->assertEquals(\Connection_request\TlsMode::NoTls, $request->getTlsMode());
+    }
+
+    public function testClusterUseTlsOff()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(use_tls: false);
+        $this->assertEquals(\Connection_request\TlsMode::NoTls, $request->getTlsMode());
+    }
+
+    public function testStandaloneTlsPrefix()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor([['host' => 'tls://' . self::HOST]]);
+        $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
+        $this->assertEquals([self::HOST], array_map(fn($a) => $a->getHost(), iterator_to_array($request->getAddresses())));
+    }
+
+    public function testStandaloneSslPrefix()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor([['host' => 'ssl://' . self::HOST]]);
+        $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
+        $this->assertEquals([self::HOST], array_map(fn($a) => $a->getHost(), iterator_to_array($request->getAddresses())));
+    }
+
+    public function testClusterTlsPrefix()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor([['host' => 'tls://' . self::HOST]]);
+        $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
+        $this->assertEquals([self::HOST], array_map(fn($a) => $a->getHost(), iterator_to_array($request->getAddresses())));
+    }
+
+    public function testClusterSslPrefix()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor([['host' => 'ssl://' . self::HOST]]);
+        $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
+        $this->assertEquals([self::HOST], array_map(fn($a) => $a->getHost(), iterator_to_array($request->getAddresses())));
     }
 }
