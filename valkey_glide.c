@@ -916,11 +916,15 @@ static int _determine_connection_timeout(valkey_glide_php_common_constructor_par
  * @return       true if TLS should be used, false otherwise.
  */
 static bool _determine_use_tls(valkey_glide_php_common_constructor_params_t* params) {
-    // 1. TLS enabled explicitly via the 'use_tls' parameter.
+    // 1. Enable TLS if the 'use_tls' parameter is set to true.
     if (params->use_tls)
         return true;
 
-    // 2. TLS enabled implicitly via the 'addresses' parameter.
+    // 2. Enable TLS if the stream context is specified.
+    if (_get_stream_context_ht(params))
+        return true;
+
+    // 3. Enable TLS if any address has a host that starts with "tls://" or "ssl://".
     HashTable* addresses_ht = Z_ARRVAL_P(params->addresses);
 
     zval* addr_val;
@@ -932,7 +936,6 @@ static bool _determine_use_tls(valkey_glide_php_common_constructor_params_t* par
             if (host_val && Z_TYPE_P(host_val) == IS_STRING) {
                 const char* host = Z_STRVAL_P(host_val);
 
-                // Use TLS if the host string starts with "tls://" or "ssl://".
                 if (strncmp(host, TLS_PREFIX, TLS_PREFIX_LEN) == 0 ||
                     strncmp(host, SSL_PREFIX, SSL_PREFIX_LEN) == 0) {
                     return true;
