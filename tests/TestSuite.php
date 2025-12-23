@@ -100,10 +100,6 @@ class TestSuite
     private static $BOLD_ON = "\033[1m";
     private static $BOLD_OFF = "\033[0m";
 
-    private static $BLACK = "\033[0;30m";
-    private static $DARKGRAY = "\033[1;30m";
-    private static $BLUE = "\033[0;34m";
-    private static $PURPLE = "\033[0;35m";
     private static $GREEN = "\033[0;32m";
     private static $YELLOW = "\033[0;33m";
     private static $RED = "\033[0;31m";
