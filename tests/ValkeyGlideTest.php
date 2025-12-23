@@ -243,8 +243,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
     }
 
-
-
     public function testBitop()
     {
         if (! $this->minVersionCheck('2.6.0')) {
@@ -7852,10 +7850,25 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             ]
         );
 
-        // Perform basic operation to verify client works
-        $result = $client->ping();
-        $this->assertTrue($result);
-
+        $this->assertConnected($client);
+        
         $client->close();
+    }
+
+    // TLS Tests
+    // ---------
+
+    // TODO
+    public function testTlsSecureStream() {}
+    public function testTlsSecureConfig() {}
+    public function testTlsInsecureStream() {}
+    public function testTlsInsecureConfig() {}
+
+    // Helper Methods
+    // --------------
+
+    private function assertConnected(ValkeyGlide $client)
+    {
+        $this->assertTrue($client->ping(), "Client should be connected");
     }
 }
