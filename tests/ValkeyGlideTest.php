@@ -7858,11 +7858,37 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
     // TLS Tests
     // ---------
 
-    // TODO
-    public function testTlsSecureStream() {}
-    public function testTlsSecureConfig() {}
-    public function testTlsInsecureStream() {}
-    public function testTlsInsecureConfig() {}
+    public function testTlsSecureStream()
+    {
+        // Skip if TLS is not enabled.
+        if (! $this->getTLS()) {
+            $this->markTestSkipped("TLS is not enabled server");
+        }
+    }
+
+    public function testTlsSecureConfig()
+    {
+        // Skip if TLS is not enabled.
+        if (! $this->getTLS()) {
+            $this->markTestSkipped("TLS is not enabled server");
+        }
+    }
+
+    public function testTlsInsecureStream()
+    {
+        // Skip if TLS is not enabled.
+        if (! $this->getTLS()) {
+            $this->markTestSkipped("TLS is not enabled server");
+        }
+    }
+
+    public function testTlsInsecureConfig()
+    {
+        // Skip if TLS is not enabled.
+        if (! $this->getTLS()) {
+            $this->markTestSkipped("TLS is not enabled server");
+        }
+    }
 
     // Helper Methods
     // --------------
