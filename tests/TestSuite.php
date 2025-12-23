@@ -976,8 +976,11 @@ class TestSuite
 
         $total = $passed + $failed + $skipped;
         echo "========================\n";
-        echo "Test Summary:\n";
-        echo "Total: $total | Passed: $passed | Failed: $failed | Skipped: $skipped\n";
+        echo "Test Summary\n";
+        echo "Passed: $passed\n";
+        echo "Failed: $failed\n";
+        echo "Skipped: $skipped\n";
+        echo "Total: $total\n";
 
         if (!empty($failed_tests)) {
             echo "\nFailed tests:\n";
