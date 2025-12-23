@@ -97,29 +97,26 @@ uint8_t* create_connection_request(size_t*                                   len
         conn_req.authentication_info = &auth_info;
     }
 
-    /* Set values from configuration */
-    conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__NoTls;
-
-    ProtobufCBinaryData root_cert_data;
-    if (config->use_tls) {
+    /* Set TLS mode */
+    if (!config->use_tls) {
+        conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__NoTls;
+    } else if (config->advanced_config && config->advanced_config->tls_config &&
+               config->advanced_config->tls_config->use_insecure_tls) {
+        conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__InsecureTls;
+    } else {
         conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__SecureTls;
+    }
 
-        if (config->advanced_config && config->advanced_config->tls_config) {
-            valkey_glide_tls_advanced_configuration_t* tls_config =
-                config->advanced_config->tls_config;
+    /* Set root certificates */
+    ProtobufCBinaryData root_cert_data;
+    if (config->advanced_config && config->advanced_config->tls_config) {
+        valkey_glide_tls_advanced_configuration_t* tls_config = config->advanced_config->tls_config;
 
-            // Set insecure TLS mode if specified
-            if (tls_config->use_insecure_tls) {
-                conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__InsecureTls;
-            }
-
-            // Set root certificates if specified
-            if (tls_config->root_certs && tls_config->root_certs_len > 0) {
-                root_cert_data =
-                    (ProtobufCBinaryData) {tls_config->root_certs_len, tls_config->root_certs};
-                conn_req.n_root_certs = 1;
-                conn_req.root_certs   = &root_cert_data;
-            }
+        if (tls_config->root_certs && tls_config->root_certs_len > 0) {
+            root_cert_data =
+                (ProtobufCBinaryData) {tls_config->root_certs_len, tls_config->root_certs};
+            conn_req.n_root_certs = 1;
+            conn_req.root_certs   = &root_cert_data;
         }
     }
 
