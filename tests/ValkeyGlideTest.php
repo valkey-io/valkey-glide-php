@@ -77,8 +77,6 @@ require_once __DIR__ . '/ValkeyGlideBaseTest.php';
 
 class ValkeyGlideTest extends ValkeyGlideBaseTest
 {
-    // Test constants
-    private const array DEFAULT_ADDRESS_TLS = ['host' => 'localhost', 'port' => 6400];
 
     /**
      * Generate a random string of specified length
@@ -7838,7 +7836,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
     {
         // Test that refresh_topology_from_initial_nodes is ignored for standalone clients
         $client = new ValkeyGlide(
-            addresses: self::DEFAULT_ADDRESS_TLS,
+            addresses: [['host' => 'localhost', 'port' => 6379]],
             use_tls: false,
             credentials: null,
             read_from: ValkeyGlide::READ_FROM_PRIMARY,
@@ -7861,40 +7859,44 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
     // TLS Tests
     // ---------
 
+    private const array TLS_ADDRESS = ['host' => 'localhost', 'port' => 6400];
+    private const string TLS_CERTIFICATE_PATH = __DIR__ . '/../valkey-glide/utils/tls_crts/ca.crt';
+
     public function testTlsSecureStream()
     {
-        if (! $this->getTLS()) {
+        if (! $this->getTLS())
             $this->markTestSkipped("TLS is not enabled for ValkeyGlide server");
-        }
 
-        // TODO
-        return;
+        $client = new ValkeyGlide(
+            addresses: [self::TLS_ADDRESS],
+            context: stream_context_create(['ssl' => ['cafile' => self::TLS_CERTIFICATE_PATH]])
+        );
+
+        $this->assertConnected($client);
     }
 
     public function testTlsSecureConfig()
     {
-        if (! $this->getTLS()) {
+        if (! $this->getTLS())
             $this->markTestSkipped("TLS is not enabled for ValkeyGlide server");
-        }
 
-        // TODO
-        return;
+        $client = new ValkeyGlide(
+            addresses: [self::TLS_ADDRESS],
+            use_tls: true,
+            advanced_config: ['tls_config' => ['root_certs' => file_get_contents(self::TLS_CERTIFICATE_PATH)]]
+        );
+
+        $this->assertConnected($client);
     }
 
     public function testTlsInsecureStream()
     {
-        if (! $this->getTLS()) {
+        if (! $this->getTLS())
             $this->markTestSkipped("TLS is not enabled for ValkeyGlide server");
-        }
 
         $client = new ValkeyGlide(
-            addresses: [self::DEFAULT_ADDRESS_TLS],
-            context: stream_context_create([
-                'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                ]
-            ]),
+            addresses: [self::TLS_ADDRESS],
+            context: stream_context_create(['ssl' => ['verify_peer' => false]])
         );
 
         $this->assertConnected($client);
@@ -7902,12 +7904,11 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
     public function testTlsInsecureConfig()
     {
-        if (! $this->getTLS()) {
+        if (! $this->getTLS())
             $this->markTestSkipped("TLS is not enabled server");
-        }
 
         $client = new ValkeyGlide(
-            addresses: [self::DEFAULT_ADDRESS_TLS],
+            addresses: [self::TLS_ADDRESS],
             use_tls: true,
             advanced_config: ['tls_config' => ['use_insecure_tls' => true]]
         );
