@@ -108,7 +108,8 @@ class ClientConstructorMock
         ?string $client_name = null,
         ?string $client_az = null,
         ?array $advanced_config = null,
-        ?bool $lazy_connect = null
+        ?bool $lazy_connect = null,
+        ?array $context = null,
     ): \Connection_request\ConnectionRequest;
 
     /**
@@ -145,6 +146,7 @@ class ClientConstructorMock
         ?string $client_az = null,
         ?array $advanced_config = null,
         ?bool $lazy_connect = null,
-        ?int $database_id = null
+        ?int $database_id = null,
+        ?array $context = null,
     ): \Connection_request\ConnectionRequest;
 }

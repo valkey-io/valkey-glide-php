@@ -95,6 +95,9 @@ require_once __DIR__ . "/GPBMetadata/ConnectionRequest.php";
  */
 class ConnectionRequestTest extends \TestSuite
 {
+    // Test constants
+    private const CERTIFICATE_DATA = "CERTIFICATE_DATA";
+
     /** Internal helper function to call from C to deserialize the message to a ConnectionRequest object */
     public static function deserialize($data): \Connection_request\ConnectionRequest
     {
@@ -392,9 +395,21 @@ class ConnectionRequestTest extends \TestSuite
         $this->assertEquals(\Connection_request\TlsMode::NoTls, $request->getTlsMode());
     }
 
+    public function testClusterUseTlsDefault()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor();
+        $this->assertEquals(\Connection_request\TlsMode::NoTls, $request->getTlsMode());
+    }
+
     public function testStandaloneUseTlsEnabled()
     {
         $request = ClientConstructorMock::simulate_standalone_constructor(use_tls: true);
+        $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
+    }
+
+    public function testClusterUseTlsEnabled()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(use_tls: true);
         $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
     }
 
@@ -404,22 +419,22 @@ class ConnectionRequestTest extends \TestSuite
         $this->assertEquals(\Connection_request\TlsMode::NoTls, $request->getTlsMode());
     }
 
-    public function testClusterUseTlsDefault()
-    {
-        $request = ClientConstructorMock::simulate_cluster_constructor();
-        $this->assertEquals(\Connection_request\TlsMode::NoTls, $request->getTlsMode());
-    }
-
-    public function testClusterUseTlsEnabled()
-    {
-        $request = ClientConstructorMock::simulate_cluster_constructor(use_tls: true);
-        $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
-    }
-
     public function testClusterUseTlsDisabled()
     {
         $request = ClientConstructorMock::simulate_cluster_constructor(use_tls: false);
         $this->assertEquals(\Connection_request\TlsMode::NoTls, $request->getTlsMode());
+    }
+
+    public function testStandaloneStreamContext()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(context: ['stream' => []]);
+        $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
+    }
+
+    public function testClusterStreamContext()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(context: ['stream' => []]);
+        $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
     }
 
     public function testStandaloneUseInsecureTlsEnabled()
@@ -511,6 +526,103 @@ class ConnectionRequestTest extends \TestSuite
         $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
         $this->assertEquals(['localhost'], $this->get_addresses($request));
     }
+
+    public function testStandaloneRootCerts()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            use_tls: true,
+            advanced_config: ['tls_config' => ['root_certs' => self::CERTIFICATE_DATA]]
+        );
+
+        $root_certs = $request->getRootCerts();
+        $this->assertEquals(1, $root_certs->count());
+        $this->assertEquals(self::CERTIFICATE_DATA, $root_certs[0]);
+    }
+
+    public function testClusterRootCerts()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            use_tls: true,
+            advanced_config: ['tls_config' => ['root_certs' => self::CERTIFICATE_DATA]]
+        );
+
+        $root_certs = $request->getRootCerts();
+        $this->assertEquals(1, $root_certs->count());
+        $this->assertEquals(self::CERTIFICATE_DATA, $root_certs[0]);
+    }
+
+    public function testStandalonetestCaFile()
+    {
+        $file_path = tempnam(sys_get_temp_dir(), 'valkey_glide_test_cert_');
+        file_put_contents($file_path, self::CERTIFICATE_DATA);
+
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            use_tls: true,
+            context: ['stream' => ['cafile' => $file_path]]
+        );
+
+        $root_certs = $request->getRootCerts();
+        $this->assertEquals(1, $root_certs->count());
+        $this->assertEquals(self::CERTIFICATE_DATA, $root_certs[0]);
+
+        unlink($file_path);
+    }
+
+    public function testClustertestCaFile()
+    {
+        $file_path = tempnam(sys_get_temp_dir(), 'valkey_glide_test_cert_');
+        file_put_contents($file_path, self::CERTIFICATE_DATA);
+
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            use_tls: true,
+            context: ['stream' => ['cafile' => $file_path]]
+        );
+
+        $root_certs = $request->getRootCerts();
+        $this->assertEquals(1, $root_certs->count());
+        $this->assertEquals(self::CERTIFICATE_DATA, $root_certs[0]);
+
+        unlink($file_path);
+    }
+
+    public function testStandaloneVerifyPeerEnabled()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            use_tls: true,
+            context: ['stream' => ['verify_peer' => true]]
+        );
+        $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
+    }
+
+    public function testStandaloneVerifyPeerDisabled()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            use_tls: true,
+            context: ['stream' => ['verify_peer' => false]]
+        );
+        $this->assertEquals(\Connection_request\TlsMode::InsecureTls, $request->getTlsMode());
+    }
+
+    public function testClusterVerifyPeerEnabled()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            use_tls: true,
+            context: ['stream' => ['verify_peer' => true]]
+        );
+        $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
+    }
+
+    public function testClusterVerifyPeerDisabled()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            use_tls: true,
+            context: ['stream' => ['verify_peer' => false]]
+        );
+        $this->assertEquals(\Connection_request\TlsMode::InsecureTls, $request->getTlsMode());
+    }
+
+    // Helper methods
+    // --------------
 
     /**
      * Returns host names from a connection request's addresses.

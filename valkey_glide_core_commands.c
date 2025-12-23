@@ -100,6 +100,7 @@ uint8_t* create_connection_request(size_t*                                   len
     /* Set values from configuration */
     conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__NoTls;
 
+    ProtobufCBinaryData root_cert_data;
     if (config->use_tls) {
         conn_req.tls_mode = CONNECTION_REQUEST__TLS_MODE__SecureTls;
 
@@ -114,10 +115,8 @@ uint8_t* create_connection_request(size_t*                                   len
 
             // Set root certificates if specified
             if (tls_config->root_certs && tls_config->root_certs_len > 0) {
-                ProtobufCBinaryData root_cert_data;
-                root_cert_data.data = tls_config->root_certs;
-                root_cert_data.len  = tls_config->root_certs_len;
-
+                root_cert_data =
+                    (ProtobufCBinaryData) {tls_config->root_certs_len, tls_config->root_certs};
                 conn_req.n_root_certs = 1;
                 conn_req.root_certs   = &root_cert_data;
             }

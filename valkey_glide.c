@@ -528,6 +528,10 @@ void valkey_glide_cleanup_client_config(valkey_glide_base_client_configuration_t
 
     if (config->advanced_config) {
         if (config->advanced_config->tls_config) {
+            if (config->advanced_config->tls_config->root_certs) {
+                efree(config->advanced_config->tls_config->root_certs);
+                config->advanced_config->tls_config->root_certs = NULL;
+            }
             efree(config->advanced_config->tls_config);
             config->advanced_config->tls_config = NULL;
         }
@@ -1013,7 +1017,7 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
             uint8_t*    cert_data;
             size_t      cert_len;
 
-            if (_load_data_from_file(cafile_path, &cert_data, &cert_len) == 0) {
+            if (_load_data_from_file(cafile_path, &cert_data, &cert_len)) {
                 tls_advanced_config->root_certs     = cert_data;
                 tls_advanced_config->root_certs_len = cert_len;
             } else {
@@ -1039,8 +1043,12 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
         zval* root_certs = zend_hash_str_find(
             advanced_tls_ht, VALKEY_GLIDE_ROOT_CERTS, sizeof(VALKEY_GLIDE_ROOT_CERTS) - 1);
         if (root_certs && Z_TYPE_P(root_certs) == IS_STRING) {
-            tls_advanced_config->root_certs     = (uint8_t*) Z_STRVAL_P(root_certs);
-            tls_advanced_config->root_certs_len = Z_STRLEN_P(root_certs);
+            uint8_t* cert_data = (uint8_t*) Z_STRVAL_P(root_certs);
+            size_t   cert_len = Z_STRLEN_P(root_certs);
+
+            tls_advanced_config->root_certs_len = cert_len;
+            tls_advanced_config->root_certs     = emalloc(cert_len);
+            memcpy(tls_advanced_config->root_certs, Z_STRVAL_P(root_certs), cert_len);
         }
     }
 
@@ -1135,6 +1143,14 @@ static bool _load_data_from_file(const char* path, uint8_t** data, size_t* lengt
     /* Read file contents */
     size_t bytes_read = fread(*data, 1, *length, f);
     fclose(f);
+
+    /* Verify the read succeeded */
+    if (bytes_read != *length) {
+        efree(*data);
+        *data   = NULL;
+        *length = 0;
+        return false;
+    }
 
     return true;
 }
