@@ -207,24 +207,23 @@ abstract class ValkeyGlideBaseTest extends TestSuite
 
     protected function newInstance()
     {
-        if (!$this->getTLS()) {
-            $r = new ValkeyGlide([[
-                'host' => $this->getHost(),
-                'port' => $this->getPort(),
-            ]]);
-        } else {
-            $advancedConfig = [
-                'tls_config' => ['use_insecure_tls' => true]
-            ];
-            $r = new ValkeyGlide(addresses: [[
-                'host' => $this->getHost(),
-                'port' => $this->getPort(),
-            ]], use_tls: true, advanced_config: $advancedConfig);
+        $args = ['addresses' => [[
+            'host' => $this->getHost(),
+            'port' => $this->getPort()
+        ]]];
+
+        // Add TLS arguments
+        if ($this->getTLS()) {
+            $args['use_tls'] = true;
+            $args['advanced_config'] = ['tls_config' => ['use_insecure_tls' => true]];
         }
+
+        $r = new ValkeyGlide(...$args);
 
         if ($this->getAuth()) {
             $this->assertTrue($r->auth($this->getAuth()));
         }
+
         return $r;
     }
 
