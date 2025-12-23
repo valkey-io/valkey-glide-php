@@ -158,19 +158,20 @@ $colorize = !isset($opt['nocolors']);
 /* Get our test filter if provided one */
 $filter = $opt['test'] ?? null;
 
-/* Grab override host/port if it was passed */
-$host = $opt['host'] ?? '127.0.0.1';
-$port = $opt['port'] ?? 6379;
-
-/* Get optional username and auth (password) */
-$user = $opt['user'] ?? null;
-$auth = $opt['auth'] ?? null;
-
 /* Check if TLS should be enabled. */
 $tls = isset($opt['tls']);
 if (isset($opt['tls'])) {
     echo TestSuite::makeBold("Assuming TLS connection for client constructor feature tests.\n");
 }
+
+/* Grab override host/port if it was passed */
+$host = $opt['host'] ?? '127.0.0.1';
+$port = $opt['port'] ?? ($tls ? 6400 : 6379);
+
+/* Get optional username and auth (password) */
+$user = $opt['user'] ?? null;
+$auth = $opt['auth'] ?? null;
+
 
 if ($user && $auth) {
     $auth = [$user, $auth];
