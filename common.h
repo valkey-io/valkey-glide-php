@@ -114,7 +114,7 @@ typedef struct {
 /* TLS Constants */
 #define VALKEY_GLIDE_TLS_PREFIX "tls://"
 #define VALKEY_GLIDE_SSL_PREFIX "ssl://"
-#define VALKEY_GLIDE_CONTEXT_STREAM "stream"
+#define VALKEY_GLIDE_SSL_OPTIONS "ssl"
 #define VALKEY_GLIDE_VERIFY_PEER "verify_peer"
 #define VALKEY_GLIDE_CAFILE "cafile"
 

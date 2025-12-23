@@ -28,8 +28,13 @@
 #endif
 #include <zend_exceptions.h>
 
+/* PHP stream includes for context handling */
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
+
+#include "ext/standard/file.h"
+#include "main/php_globals.h"
+#include "php_streams.h"
 
 /* Include configuration parsing */
 extern int parse_valkey_glide_client_configuration(
@@ -121,7 +126,7 @@ zend_object* create_valkey_glide_cluster_object(zend_class_entry* ce)  // TODO c
 }
 
 // Forward declarations for helper functions
-static HashTable* _get_stream_context_ht(valkey_glide_php_common_constructor_params_t* params);
+static HashTable* _get_stream_context_ssl_options_ht(valkey_glide_php_common_constructor_params_t* params);
 static HashTable* _get_advanced_config_ht(valkey_glide_php_common_constructor_params_t* params);
 static HashTable* _get_advanced_tls_config_ht(valkey_glide_php_common_constructor_params_t* params);
 
@@ -560,7 +565,7 @@ PHP_METHOD(ValkeyGlide, __construct) {
     valkey_glide_init_common_constructor_params(&common_params);
     valkey_glide_object* valkey_glide;
 
-    ZEND_PARSE_PARAMETERS_START(1, 11)
+    ZEND_PARSE_PARAMETERS_START(1, 12)
     Z_PARAM_ARRAY(common_params.addresses)
     Z_PARAM_OPTIONAL
     Z_PARAM_BOOL(common_params.use_tls)
@@ -573,7 +578,8 @@ PHP_METHOD(ValkeyGlide, __construct) {
     Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
     Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
     Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
-    Z_PARAM_ARRAY_OR_NULL(common_params.context)
+    Z_PARAM_RESOURCE_EX(
+        common_params.context, 1, 0) /* Use Z_PARAM_RESOURCE_OR_NULL with PHP 8.5+ */
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
@@ -847,24 +853,30 @@ PHP_FUNCTION(valkey_glide_logger_get_level) {
 // HFE methods are implemented in valkey_z_php_methods.c
 
 /**
- * Returns the stream context hash table from the given constructor parameters.
- * Returns NULL if no stream context is specified.
+ * Extracts the SSL options HashTable from a PHP stream context resource.
+ * Returns NULL if no stream context is provided or no SSL options are configured.
  *
  * @param params Pointer to the common constructor parameters structure.
- * @return       Pointer to the stream context hash table, or NULL if not found.
+ * @return       Pointer to the SSL options HashTable, or NULL if not found.
  */
-static HashTable* _get_stream_context_ht(valkey_glide_php_common_constructor_params_t* params) {
-    if (!params->context || Z_TYPE_P(params->context) != IS_ARRAY)
+static HashTable* _get_stream_context_ssl_options_ht(valkey_glide_php_common_constructor_params_t* params) {
+    if (!params->context || Z_TYPE_P(params->context) != IS_RESOURCE)
         return NULL;
 
-    HashTable* context_ht = Z_ARRVAL_P(params->context);
-
-    zval* stream_context_val = zend_hash_str_find(
-        context_ht, VALKEY_GLIDE_CONTEXT_STREAM, sizeof(VALKEY_GLIDE_CONTEXT_STREAM) - 1);
-    if (!stream_context_val || Z_TYPE_P(stream_context_val) != IS_ARRAY)
+    void* resource = zend_fetch_resource_ex(params->context, "Stream-Context", php_le_stream_context());
+    if (!resource)
         return NULL;
 
-    return Z_ARRVAL_P(stream_context_val);
+    php_stream_context* stream_ctx = (php_stream_context*) resource;
+    if (Z_TYPE(stream_ctx->options) != IS_ARRAY)
+        return NULL;
+
+    zval* ssl_options = zend_hash_str_find(
+        Z_ARRVAL(stream_ctx->options), VALKEY_GLIDE_SSL_OPTIONS, sizeof(VALKEY_GLIDE_SSL_OPTIONS) - 1);
+    if (!ssl_options || Z_TYPE_P(ssl_options) != IS_ARRAY)
+        return NULL;
+
+    return Z_ARRVAL_P(ssl_options);
 }
 
 /**
@@ -938,7 +950,7 @@ static bool _determine_use_tls(valkey_glide_php_common_constructor_params_t* par
         return true;
 
     // 2. Enable TLS if the stream context is specified.
-    if (_get_stream_context_ht(params))
+    if (_get_stream_context_ssl_options_ht(params))
         return true;
 
     // 3. Enable TLS if any address has a host that starts with "tls://" or "ssl://".
@@ -986,7 +998,7 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
 
     // TLS configuration can be specified either from
     // the stream context or from the advanced TLS config.
-    HashTable* stream_context_ht = _get_stream_context_ht(params);
+    HashTable* stream_context_ht = _get_stream_context_ssl_options_ht(params);
     HashTable* advanced_tls_ht   = _get_advanced_tls_config_ht(params);
 
     // Raise an exception if both are provided.
@@ -1044,7 +1056,7 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
             advanced_tls_ht, VALKEY_GLIDE_ROOT_CERTS, sizeof(VALKEY_GLIDE_ROOT_CERTS) - 1);
         if (root_certs && Z_TYPE_P(root_certs) == IS_STRING) {
             uint8_t* cert_data = (uint8_t*) Z_STRVAL_P(root_certs);
-            size_t   cert_len = Z_STRLEN_P(root_certs);
+            size_t   cert_len  = Z_STRLEN_P(root_certs);
 
             tls_advanced_config->root_certs_len = cert_len;
             tls_advanced_config->root_certs     = emalloc(cert_len);

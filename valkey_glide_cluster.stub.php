@@ -77,8 +77,6 @@
 * <http://www.zend.com>.
 */
 
-
-
 class ValkeyGlideCluster
 {
     /**
@@ -212,6 +210,7 @@ class ValkeyGlideCluster
      *                                          and within the range supported by the server configuration.
      *                                          For cluster mode, requires Valkey 9.0+ with cluster-databases > 1.
      *                                          If not specified, defaults to database 0.
+     * @param resource|null $context            Stream context for the connection.
      */
     public function __construct(
         array $addresses,
@@ -225,17 +224,14 @@ class ValkeyGlideCluster
         ?string $client_az = null,
         ?array $advanced_config = null,
         ?bool $lazy_connect = null,
-        ?int $database_id = null
-    ) {
-    }
-
-
+        ?int $database_id = null,
+        ?resource $context = null,
+    ) {}
 
     /**
      * @see ValkeyGlide::append()
      */
     public function append(string $key, mixed $value): ValkeyGlideCluster|bool|int;
-
 
     /**
      * @see ValkeyGlide::bitcount
@@ -385,7 +381,6 @@ class ValkeyGlideCluster
      */
     public function decrBy(string $key, int $value): ValkeyGlideCluster|int|false;
 
-
     /**
      * @see ValkeyGlide::del()
      */
@@ -511,7 +506,6 @@ class ValkeyGlideCluster
      */
     public function getDel(string $key): mixed;
 
-
     /**
      * @see ValkeyGlide::getEx
      */
@@ -536,8 +530,6 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::getset
      */
     public function getset(string $key, mixed $value): ValkeyGlideCluster|string|bool;
-
-
 
     /**
      * @see ValkeyGlide::hdel
@@ -719,7 +711,6 @@ class ValkeyGlideCluster
      */
     public function info(mixed $route, string ...$sections): ValkeyGlideCluster|array|false;
 
-
     /**
      * @see ValkeyGlide::lindex
      */
@@ -819,7 +810,6 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::pexpireat
      */
     public function pexpireAt(string $key, int $timestamp, ?string $mode = null): ValkeyGlideCluster|bool;
-
 
     /**
      * @see ValkeyGlide::pfadd()
@@ -933,7 +923,6 @@ class ValkeyGlideCluster
      */
     public function sAdd(string $key, mixed $value, mixed ...$other_values): ValkeyGlideCluster|int|false;
 
-
     /**
      * @see ValkeyGlide::scan
      */
@@ -1008,7 +997,6 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::smismember
      */
     public function sMisMember(string $key, string $member, string ...$other_members): ValkeyGlideCluster|array|false;
-
 
     /**
      * @see ValkeyGlide::smembers()
@@ -1282,7 +1270,6 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::zRemRangeByScore
      */
     public function zRemRangeByScore(string $key, string $min, string $max): ValkeyGlideCluster|int|false;
-
 
     /**
      * @see ValkeyGlide::zrevrangebyscore
