@@ -2,56 +2,44 @@
 <ruleset name="ValkeyGlide">
     <description>PHP CodeSniffer configuration for Valkey GLIDE PHP</description>
     
-    <!-- Files to check -->
-    <file>tests/</file>
+    <!-- Check all PHP files. -->
+    <file>./</file>
+    <extensions>php</extensions>
     
-    <!-- Exclude generated files -->
-    <exclude-pattern>*/vendor/*</exclude-pattern>
-    <exclude-pattern>*.pb-c.c</exclude-pattern>
-    <exclude-pattern>*.pb-c.h</exclude-pattern>
-    <exclude-pattern>*/autom4te.cache/*</exclude-pattern>
-    <exclude-pattern>*/build/*</exclude-pattern>
-    <exclude-pattern>*/.libs/*</exclude-pattern>
-    <exclude-pattern>*/tests/Connection_request/*</exclude-pattern>
-    <exclude-pattern>*/tests/GPBMetadata/*</exclude-pattern>
-    <exclude-pattern>*/valkey-glide/*</exclude-pattern>
+    <!-- Exclude vendor files -->
+    <exclude-pattern>vendor/*</exclude-pattern>
+    <exclude-pattern>build/*</exclude-pattern>
+    
     <!-- Use PSR-12 standard -->
     <rule ref="PSR12"/>
     
     <!-- Additional rules -->
     <rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
-    <rule ref="Generic.PHP.RequireStrictTypes"/>
     
-    <!-- Customize some rules -->
+    <!-- Customize line length -->
     <rule ref="Generic.Files.LineLength">
         <properties>
             <property name="lineLimit" value="200"/>
             <property name="absoluteLineLimit" value="0"/>
         </properties>
     </rule>
-
     
     <!-- Allow underscores in test method names -->
     <rule ref="PSR1.Methods.CamelCapsMethodName.NotCamelCaps">
-        <exclude-pattern>*/tests/*</exclude-pattern>
+        <exclude-pattern>tests/*</exclude-pattern>
+        <exclude-pattern>*.stub.php</exclude-pattern>
     </rule>
-
+    
+    <!-- Relax strict types requirement for certain files -->
+    <rule ref="Generic.PHP.RequireStrictTypes">
+        <exclude-pattern>tests/*</exclude-pattern>
+        <exclude-pattern>examples/*</exclude-pattern>
+        <exclude-pattern>*.stub.php</exclude-pattern>
+    </rule>
+    
+    <!-- Relax class declaration rules for tests and stubs -->
     <rule ref="PSR1.Classes.ClassDeclaration">
         <exclude-pattern>tests/*</exclude-pattern>
-        <exclude-pattern>*</exclude-pattern>
-    </rule>
-    <rule ref="Generic.PHP.RequireStrictTypes">
-        <!-- Exclude stub files -->
-        <exclude-pattern>*.stub.php</exclude-pattern>
-        <!-- Exclude examples -->
-        <exclude-pattern>examples/*</exclude-pattern>
-        <!-- Exclude specific files -->
-        <exclude-pattern>run-tests.php</exclude-pattern>
-        <!-- Exclude test files if needed -->
-        <exclude-pattern>tests/*</exclude-pattern>
-    </rule>
-
-    <rule ref="PSR1.Methods.CamelCapsMethodName.NotCamelCaps">
         <exclude-pattern>*.stub.php</exclude-pattern>
     </rule>
 </ruleset>
