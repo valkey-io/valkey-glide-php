@@ -9,11 +9,11 @@ if [ ! -f "config.m4" ]; then
     exit 1
 fi
 
-# Install composer dependencies if needed
-if [ -f "composer.json" ] && [ ! -d "vendor" ]; then
+# Install composer dependencies if needed.
+if [ ! -d "vendor" ]; then
     echo "Installing composer dependencies..."
     if command -v composer &> /dev/null; then
-        composer install --dev --no-progress --quiet
+        composer install --no-interaction --prefer-dist --optimize-autoloader
     else
         echo "Error: composer not found"
         exit 1
@@ -21,16 +21,12 @@ if [ -f "composer.json" ] && [ ! -d "vendor" ]; then
 fi
 
 # Check that phpcs is available.
-if ! command -v phpcs &> /dev/null && [ ! -f "vendor/bin/phpcs" ]; then
-    echo "Error: phpcs not found"
+if [ ! -f "vendor/bin/phpcs" ]; then
+    echo "Error: phpcs not found. Run 'composer install' first."
     exit 1
 fi
 
 # Run PHP CodeSniffer
 echo "Running PHP CodeSniffer..."
-if [ -f "vendor/bin/phpcs" ]; then
-    ./vendor/bin/phpcs --standard=phpcs.xml --colors
-else
-    phpcs --standard=phpcs.xml --colors
-fi
+./vendor/bin/phpcs --standard=phpcs.xml
 echo "✓ PHP CodeSniffer passed"
