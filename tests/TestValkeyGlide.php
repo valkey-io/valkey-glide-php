@@ -76,6 +76,7 @@ if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
     require_once __DIR__ . '/../vendor/autoload.php';
 }
 
+echo "Loading ValkeyGlide tests...\n";
 require_once __DIR__ . "/TestSuite.php";
 require_once __DIR__ . "/ConnectionRequestTest.php";
 require_once __DIR__ . "/ValkeyGlideBaseTest.php";
@@ -87,7 +88,7 @@ require_once __DIR__ . "/ValkeyGlideClusterFeaturesTest.php";
 require_once __DIR__ . "/ValkeyGlideBatchTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterBatchTest.php";
 require_once __DIR__ . "/UpdateConnectionPasswordTest.php";
-echo "Loading ValkeyGlide tests...\n";
+
 function getClassArray($classes)
 {
     $result = [];
@@ -100,12 +101,7 @@ function getClassArray($classes)
         $result = array_merge($result, explode(',', $class));
     }
 
-    return array_unique(
-        array_map(function ($v) {
-            return strtolower($v);
-        },
-            $result)
-    );
+    return array_unique($result);
 }
 
 function getTestClass($class)
@@ -140,7 +136,9 @@ function raHosts($host, $ports)
         return sprintf("%s:%d", $host, $port);
     }, $ports);
 }
+
 echo "Running ValkeyGlide tests...\n";
+
 /* Make sure errors go to stdout and are shown */
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
@@ -171,7 +169,6 @@ $port = $opt['port'] ?? ($tls ? 6400 : 6379);
 /* Get optional username and auth (password) */
 $user = $opt['user'] ?? null;
 $auth = $opt['auth'] ?? null;
-
 
 if ($user && $auth) {
     $auth = [$user, $auth];

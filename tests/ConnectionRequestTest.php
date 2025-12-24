@@ -427,13 +427,13 @@ class ConnectionRequestTest extends \TestSuite
 
     public function testStandaloneStreamContext()
     {
-        $request = ClientConstructorMock::simulate_standalone_constructor(context: ['stream' => []]);
+        $request = ClientConstructorMock::simulate_standalone_constructor(context: stream_context_create(['ssl' => ['option' => 'value']]));
         $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
     }
 
     public function testClusterStreamContext()
     {
-        $request = ClientConstructorMock::simulate_cluster_constructor(context: ['stream' => []]);
+        $request = ClientConstructorMock::simulate_cluster_constructor(context: stream_context_create(['ssl' => ['option' => 'value']]));
         $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
     }
 
@@ -558,7 +558,7 @@ class ConnectionRequestTest extends \TestSuite
 
         $request = ClientConstructorMock::simulate_standalone_constructor(
             use_tls: true,
-            context: ['stream' => ['cafile' => $file_path]]
+            context: stream_context_create(['ssl' => ['cafile' => $file_path]])
         );
 
         $root_certs = $request->getRootCerts();
@@ -575,7 +575,7 @@ class ConnectionRequestTest extends \TestSuite
 
         $request = ClientConstructorMock::simulate_cluster_constructor(
             use_tls: true,
-            context: ['stream' => ['cafile' => $file_path]]
+            context: stream_context_create(['ssl' => ['cafile' => $file_path]])
         );
 
         $root_certs = $request->getRootCerts();
@@ -589,7 +589,7 @@ class ConnectionRequestTest extends \TestSuite
     {
         $request = ClientConstructorMock::simulate_standalone_constructor(
             use_tls: true,
-            context: ['stream' => ['verify_peer' => true]]
+            context: stream_context_create(['ssl' => ['verify_peer' => true]])
         );
         $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
     }
@@ -598,7 +598,7 @@ class ConnectionRequestTest extends \TestSuite
     {
         $request = ClientConstructorMock::simulate_standalone_constructor(
             use_tls: true,
-            context: ['stream' => ['verify_peer' => false]]
+            context: stream_context_create(['ssl' => ['verify_peer' => false]])
         );
         $this->assertEquals(\Connection_request\TlsMode::InsecureTls, $request->getTlsMode());
     }
@@ -607,7 +607,7 @@ class ConnectionRequestTest extends \TestSuite
     {
         $request = ClientConstructorMock::simulate_cluster_constructor(
             use_tls: true,
-            context: ['stream' => ['verify_peer' => true]]
+            context: stream_context_create(['ssl' => ['verify_peer' => true]])
         );
         $this->assertEquals(\Connection_request\TlsMode::SecureTls, $request->getTlsMode());
     }
@@ -616,7 +616,7 @@ class ConnectionRequestTest extends \TestSuite
     {
         $request = ClientConstructorMock::simulate_cluster_constructor(
             use_tls: true,
-            context: ['stream' => ['verify_peer' => false]]
+            context: stream_context_create(['ssl' => ['verify_peer' => false]])
         );
         $this->assertEquals(\Connection_request\TlsMode::InsecureTls, $request->getTlsMode());
     }

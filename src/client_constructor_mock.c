@@ -102,7 +102,8 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
     Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
     Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
-    Z_PARAM_ARRAY_OR_NULL(common_params.context)
+    Z_PARAM_RESOURCE_EX(
+        common_params.context, 1, 0) /* Use Z_PARAM_RESOURCE_OR_NULL with PHP 8.5+ */
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     // If addresses was not provided, create an empty array
@@ -184,7 +185,8 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
     Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
     Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
     Z_PARAM_LONG_OR_NULL(common_params.database_id, common_params.database_id_is_null)
-    Z_PARAM_ARRAY_OR_NULL(common_params.context)
+    Z_PARAM_RESOURCE_EX(
+        common_params.context, 1, 0) /* Use Z_PARAM_RESOURCE_OR_NULL with PHP 8.5+ */
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* If addresses was not provided, create an empty array */

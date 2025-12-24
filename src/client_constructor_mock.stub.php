@@ -96,6 +96,7 @@ class ClientConstructorMock
      *                                           'tls_config' => ['use_insecure_tls' => false]].
      *                                           connection_timeout is in milliseconds.
      * @param bool|null $lazy_connect            Whether to use lazy connection.
+     * @param resource|null $context             Stream context for the connection.
      */
     public static function simulate_standalone_constructor(
         ?array $addresses = null,
@@ -109,7 +110,7 @@ class ClientConstructorMock
         ?string $client_az = null,
         ?array $advanced_config = null,
         ?bool $lazy_connect = null,
-        ?array $context = null,
+        mixed $context = null,
     ): \Connection_request\ConnectionRequest;
 
     /**
@@ -133,6 +134,7 @@ class ClientConstructorMock
      *                                                and within the range supported by the server configuration.
      *                                                For cluster mode, requires Valkey 9.0+ with cluster-databases > 1.
      *                                                If not specified, defaults to database 0.
+     * @param resource|null $context                     Stream context for the connection.
      */
     public static function simulate_cluster_constructor(
         ?array $addresses = null,
@@ -147,6 +149,6 @@ class ClientConstructorMock
         ?array $advanced_config = null,
         ?bool $lazy_connect = null,
         ?int $database_id = null,
-        ?array $context = null,
+        mixed $context = null,
     ): \Connection_request\ConnectionRequest;
 }
