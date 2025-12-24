@@ -95,9 +95,6 @@ require_once __DIR__ . "/GPBMetadata/ConnectionRequest.php";
  */
 class ConnectionRequestTest extends \TestSuite
 {
-    // Test constants
-    private const CERTIFICATE_DATA = "CERTIFICATE_DATA";
-
     /** Internal helper function to call from C to deserialize the message to a ConnectionRequest object */
     public static function deserialize($data): \Connection_request\ConnectionRequest
     {
@@ -388,6 +385,8 @@ class ConnectionRequestTest extends \TestSuite
 
     // Tls Tests
     // ---------
+
+    private const CERTIFICATE_DATA = "CERTIFICATE_DATA";
 
     public function testStandaloneUseTlsDefault()
     {

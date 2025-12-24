@@ -1,3 +1,9 @@
+## 0.11.0
+
+#### Features
+
+* PHP: Implement TLS support for PHP client ([#2983](https://github.com/valkey-io/valkey-glide/pull/2983))
+
 ## 0.10.0
 
 #### Changes

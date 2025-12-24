@@ -1,7 +1,7 @@
 /* -*- Mode: C; tab-width: 4 -*- */
 /** Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0 */
 
-#include <stdbool.h>
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -10,12 +10,10 @@
 #include "common.h"
 #include "logger.h"          // Include logger functionality
 #include "logger_arginfo.h"  // Include logger functions arginfo - MUST BE LAST for ext_functions
-#include "php_valkey_glide.h"
 #include "valkey_glide_arginfo.h"          // Include generated arginfo header
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
-#include "valkey_glide_hash_common.h"
 #include "valkey_glide_otel.h"  // Include OTEL support
 
 /* Enum support includes - must be BEFORE arginfo includes */
@@ -26,15 +24,15 @@
 #include "zend_object_handlers.h"
 #include "zend_objects.h"
 #endif
+
+#include <main/php_globals.h>
+#include <php_streams.h>
+#include <stdbool.h>
 #include <zend_exceptions.h>
 
-/* PHP stream includes for context handling */
 #include <ext/spl/spl_exceptions.h>
+#include <ext/standard/file.h>
 #include <ext/standard/info.h>
-
-#include "ext/standard/file.h"
-#include "main/php_globals.h"
-#include "php_streams.h"
 
 /* Include configuration parsing */
 extern int parse_valkey_glide_client_configuration(

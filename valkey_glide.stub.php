@@ -326,7 +326,7 @@ class ValkeyGlide
      *                                                      ->build()].
      *                                          connection_timeout is in milliseconds.
      * @param bool|null $lazy_connect           Whether to use lazy connection.
-     * @param resource|null $context           Stream context for the connection.
+     * @param resource|null $context            Stream context for the connection.
      */
     public function __construct(
         array $addresses,
