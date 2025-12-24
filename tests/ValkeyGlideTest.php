@@ -74,7 +74,6 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die('Use TestValkeyGlide.php to run tests
 
 require_once __DIR__ . '/ValkeyGlideBaseTest.php';
 
-
 class ValkeyGlideTest extends ValkeyGlideBaseTest
 {
 
@@ -7859,13 +7858,10 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
     // TLS Tests
     // ---------
 
-    private const array TLS_ADDRESS = ['host' => 'localhost', 'port' => 6400];
-    private const string TLS_CERTIFICATE_PATH = __DIR__ . '/../valkey-glide/utils/tls_crts/ca.crt';
-
     public function testTlsSecureStream()
     {
         $client = new ValkeyGlide(
-            addresses: [self::TLS_ADDRESS],
+            addresses: [self::TLS_ADDRESS_STANDALONE],
             context: stream_context_create(['ssl' => ['cafile' => self::TLS_CERTIFICATE_PATH]])
         );
 
@@ -7875,7 +7871,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
     public function testTlsSecureConfig()
     {
         $client = new ValkeyGlide(
-            addresses: [self::TLS_ADDRESS],
+            addresses: [self::TLS_ADDRESS_STANDALONE],
             use_tls: true,
             advanced_config: ['tls_config' => ['root_certs' => file_get_contents(self::TLS_CERTIFICATE_PATH)]]
         );
@@ -7886,7 +7882,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
     public function testTlsInsecureStream()
     {
         $client = new ValkeyGlide(
-            addresses: [self::TLS_ADDRESS],
+            addresses: [self::TLS_ADDRESS_STANDALONE],
             context: stream_context_create(['ssl' => ['verify_peer' => false]])
         );
 
@@ -7896,19 +7892,11 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
     public function testTlsInsecureConfig()
     {
         $client = new ValkeyGlide(
-            addresses: [self::TLS_ADDRESS],
+            addresses: [self::TLS_ADDRESS_STANDALONE],
             use_tls: true,
             advanced_config: ['tls_config' => ['use_insecure_tls' => true]]
         );
 
         $this->assertConnected($client);
-    }
-
-    // Helper Methods
-    // --------------
-
-    private function assertConnected(ValkeyGlide $client)
-    {
-        $this->assertTrue($client->ping(), "Client should be connected");
     }
 }

@@ -102,6 +102,10 @@ abstract class ValkeyGlideBaseTest extends TestSuite
         'Cupertino'     => [-122.032182, 37.322998]
     ];
 
+    protected const array TLS_ADDRESS_STANDALONE = ['host' => 'localhost', 'port' => 6400];
+    protected const array TLS_ADDRESS_CLUSTER    = ['host' => 'localhost', 'port' => 8001];
+    protected const string TLS_CERTIFICATE_PATH  = __DIR__ . '/../valkey-glide/utils/tls_crts/ca.crt';
+
     protected function getNilValue()
     {
         return false;
@@ -249,5 +253,10 @@ abstract class ValkeyGlideBaseTest extends TestSuite
     protected function haveMulti()
     {
         return defined(get_class($this->valkey_glide) . '::MULTI');
+    }
+
+    protected function assertConnected(ValkeyGlide|ValkeyGlideCluster $client)
+    {
+        $this->assertTrue($client->ping(), "Client should be connected");
     }
 }

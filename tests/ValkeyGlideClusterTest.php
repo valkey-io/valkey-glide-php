@@ -1131,10 +1131,53 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             ]
         );
 
-        // Perform basic operation to verify client works
-        $result = $client->ping(['type' => 'primarySlotKey', 'key' => 'test']);
-        $this->assertTrue($result);
+        $this->assertConnected($client);
 
         $client->close();
+    }
+
+    // TLS Tests
+    // ---------
+
+    public function testTlsSecureStream()
+    {
+        $client = new ValkeyGlide(
+            addresses: [self::TLS_ADDRESS_CLUSTER],
+            context: stream_context_create(['ssl' => ['cafile' => self::TLS_CERTIFICATE_PATH]])
+        );
+
+        $this->assertConnected($client);
+    }
+
+    public function testTlsSecureConfig()
+    {
+        $client = new ValkeyGlide(
+            addresses: [self::TLS_ADDRESS_CLUSTER],
+            use_tls: true,
+            advanced_config: ['tls_config' => ['root_certs' => file_get_contents(self::TLS_CERTIFICATE_PATH)]]
+        );
+
+        $this->assertConnected($client);
+    }
+
+    public function testTlsInsecureStream()
+    {
+        $client = new ValkeyGlide(
+            addresses: [self::TLS_ADDRESS_CLUSTER],
+            context: stream_context_create(['ssl' => ['verify_peer' => false]])
+        );
+
+        $this->assertConnected($client);
+    }
+
+    public function testTlsInsecureConfig()
+    {
+        $client = new ValkeyGlide(
+            addresses: [self::TLS_ADDRESS_CLUSTER],
+            use_tls: true,
+            advanced_config: ['tls_config' => ['use_insecure_tls' => true]]
+        );
+
+        $this->assertConnected($client);
     }
 }
