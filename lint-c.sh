@@ -1,7 +1,13 @@
 #!/bin/bash
 set -e
 
-echo "Running C code linting..."
+# Parse arguments
+FIX=false
+if [[ "$1" == "--fix" ]]; then
+    FIX=true
+fi
+
+echo "Running C linting..."
 
 # Check that clang-format is available.
 if ! command -v clang-format &> /dev/null; then
@@ -24,10 +30,15 @@ fi
 # - Exclude generated protobuf files (*.pb-c.*).
 # - Exclude files in valkey-glide submodule.
 # - Exclude files in 'include' directory.
+CLANG_FORMAT_OPTIONS="--dry-run --Werror"
+if [ "$FIX" = true ]; then
+    CLANG_FORMAT_OPTIONS="-i"
+fi
+
 find . -name "*.c" -o -name "*.h" | \
     grep -v "\.pb-c\." | \
     grep -v "valkey-glide/" | \
     grep -v "include/" | \
-    xargs clang-format --dry-run --Werror
+    xargs clang-format $CLANG_FORMAT_OPTIONS
 
-echo "✓ C code formatting check passed"
+echo "✓ C linting completed!"

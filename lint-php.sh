@@ -1,7 +1,13 @@
 #!/bin/bash
 set -e
 
-echo "Running PHP code linting..."
+# Parse arguments
+FIX=false
+if [[ "$1" == "--fix" ]]; then
+    FIX=true
+fi
+
+echo "Running PHP linting..."
 
 # Check working directory.
 if [ ! -f "config.m4" ]; then
@@ -26,7 +32,11 @@ if [ ! -f "vendor/bin/phpcs" ]; then
     exit 1
 fi
 
-# Run PHP CodeSniffer
-echo "Running PHP CodeSniffer..."
-./vendor/bin/phpcs --standard=phpcs.xml
-echo "✓ PHP CodeSniffer passed"
+# Run PHP CodeSniffer or PHP Code Beautifier
+if [ "$FIX" = true ]; then
+    ./vendor/bin/phpcbf --standard=phpcs.xml
+else
+    ./vendor/bin/phpcs --standard=phpcs.xml
+fi
+
+echo "✓ PHP linting completed!"
