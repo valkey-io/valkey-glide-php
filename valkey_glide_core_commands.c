@@ -113,8 +113,7 @@ uint8_t* create_connection_request(size_t*                                   len
         valkey_glide_tls_advanced_configuration_t* tls_config = config->advanced_config->tls_config;
 
         if (tls_config->root_certs && tls_config->root_certs_len > 0) {
-            root_cert_data =
-                (ProtobufCBinaryData) {tls_config->root_certs_len, tls_config->root_certs};
+            root_cert_data = (ProtobufCBinaryData){tls_config->root_certs_len, tls_config->root_certs};
             conn_req.n_root_certs = 1;
             conn_req.root_certs   = &root_cert_data;
         }
