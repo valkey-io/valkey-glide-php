@@ -44,6 +44,46 @@ void register_mock_constructor_class(void) {
     mock_constructor_ce = register_class_ClientConstructorMock();
 }
 
+/**
+ * Populates address with default values if not specified or incomplete.
+ * @param addresses Pointer to the zval containing the addresses array.
+ */
+static void _populate_addresses(zval** addresses) {
+    // If addresses was not provided, create an empty array
+    if (*addresses == NULL) {
+        *addresses = emalloc(sizeof(zval));
+        array_init(*addresses);
+    }
+
+    // If addresses array is empty, add a default entry.
+    if (zend_hash_num_elements(Z_ARRVAL_P(*addresses)) == 0) {
+        zval address_entry;
+        array_init(&address_entry);
+        zend_hash_next_index_insert(Z_ARRVAL_P(*addresses), &address_entry);
+    }
+
+    // Iterate through addresses and set default host and port if missing.
+    HashTable* addresses_ht = Z_ARRVAL_P(*addresses);
+    zval*      addr_val;
+
+    ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
+        HashTable* addr_ht = Z_ARRVAL_P(addr_val);
+
+        if (!zend_hash_str_exists(addr_ht, HOST_KEY, sizeof(HOST_KEY) - 1)) {
+            zval host_val;
+            ZVAL_STRING(&host_val, DEFAULT_HOST);
+            zend_hash_str_add(addr_ht, HOST_KEY, sizeof(HOST_KEY) - 1, &host_val);
+        }
+
+        if (!zend_hash_str_exists(addr_ht, PORT_KEY, sizeof(PORT_KEY) - 1)) {
+            zval port_val;
+            ZVAL_LONG(&port_val, DEFAULT_PORT);
+            zend_hash_str_add(addr_ht, PORT_KEY, sizeof(PORT_KEY) - 1, &port_val);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+}
+
 static zval* build_php_connection_request(uint8_t*                                  request_bytes,
                                           size_t                                    request_len,
                                           valkey_glide_base_client_configuration_t* base_config) {
@@ -106,38 +146,7 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
         common_params.context, 1, 0) /* Use Z_PARAM_RESOURCE_OR_NULL with PHP 8.5+ */
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
-    // If addresses was not provided, create an empty array
-    if (common_params.addresses == NULL) {
-        common_params.addresses = emalloc(sizeof(zval));
-        array_init(common_params.addresses);
-    }
-
-    // If addresses array is empty, add a default entry.
-    if (zend_hash_num_elements(Z_ARRVAL_P(common_params.addresses)) == 0) {
-        zval address_entry;
-        array_init(&address_entry);
-        zend_hash_next_index_insert(Z_ARRVAL_P(common_params.addresses), &address_entry);
-    }
-
-    // Iterate through addresses and set default host and port if missing.
-    HashTable* addresses_ht = Z_ARRVAL_P(common_params.addresses);
-    zval*      addr_val;
-    ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
-        HashTable* addr_ht = Z_ARRVAL_P(addr_val);
-
-        if (!zend_hash_str_exists(addr_ht, HOST_KEY, sizeof(HOST_KEY) - 1)) {
-            zval host_val;
-            ZVAL_STRING(&host_val, DEFAULT_HOST);
-            zend_hash_str_add(addr_ht, HOST_KEY, sizeof(HOST_KEY) - 1, &host_val);
-        }
-
-        if (!zend_hash_str_exists(addr_ht, PORT_KEY, sizeof(PORT_KEY) - 1)) {
-            zval port_val;
-            ZVAL_LONG(&port_val, DEFAULT_PORT);
-            zend_hash_str_add(addr_ht, PORT_KEY, sizeof(PORT_KEY) - 1, &port_val);
-        }
-    }
-    ZEND_HASH_FOREACH_END();
+    _populate_addresses(&common_params.addresses);
 
     /* Validate database_id range before setting */
     if (!common_params.database_id_is_null && common_params.database_id < 0) {
@@ -189,38 +198,7 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
         common_params.context, 1, 0) /* Use Z_PARAM_RESOURCE_OR_NULL with PHP 8.5+ */
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
-    /* If addresses was not provided, create an empty array */
-    if (common_params.addresses == NULL) {
-        common_params.addresses = emalloc(sizeof(zval));
-        array_init(common_params.addresses);
-    }
-
-    /* If addresses array is empty, add a default entry. */
-    if (zend_hash_num_elements(Z_ARRVAL_P(common_params.addresses)) == 0) {
-        zval address_entry;
-        array_init(&address_entry);
-        zend_hash_next_index_insert(Z_ARRVAL_P(common_params.addresses), &address_entry);
-    }
-
-    /* Iterate through addresses and set default host and port if missing. */
-    HashTable* addresses_ht = Z_ARRVAL_P(common_params.addresses);
-    zval*      addr_val;
-    ZEND_HASH_FOREACH_VAL(addresses_ht, addr_val) {
-        HashTable* addr_ht = Z_ARRVAL_P(addr_val);
-
-        if (!zend_hash_str_exists(addr_ht, HOST_KEY, sizeof(HOST_KEY) - 1)) {
-            zval host_val;
-            ZVAL_STRING(&host_val, DEFAULT_HOST);
-            zend_hash_str_add(addr_ht, HOST_KEY, sizeof(HOST_KEY) - 1, &host_val);
-        }
-
-        if (!zend_hash_str_exists(addr_ht, PORT_KEY, sizeof(PORT_KEY) - 1)) {
-            zval port_val;
-            ZVAL_LONG(&port_val, DEFAULT_PORT);
-            zend_hash_str_add(addr_ht, PORT_KEY, sizeof(PORT_KEY) - 1, &port_val);
-        }
-    }
-    ZEND_HASH_FOREACH_END();
+    _populate_addresses(&common_params.addresses);
 
     /* Validate database_id range before setting */
     if (!common_params.database_id_is_null && common_params.database_id < 0) {
