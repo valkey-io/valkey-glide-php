@@ -102,9 +102,9 @@ abstract class ValkeyGlideBaseTest extends TestSuite
         'Cupertino'     => [-122.032182, 37.322998]
     ];
 
-    protected const array TLS_ADDRESS_STANDALONE = ['host' => 'localhost', 'port' => 6400];
-    protected const array TLS_ADDRESS_CLUSTER    = ['host' => 'localhost', 'port' => 8001];
-    protected const string TLS_CERTIFICATE_PATH  = __DIR__ . '/../valkey-glide/utils/tls_crts/ca.crt';
+    protected const TLS_ADDRESS_STANDALONE = ['host' => 'localhost', 'port' => 6400];
+    protected const TLS_ADDRESS_CLUSTER    = ['host' => 'localhost', 'port' => 8001];
+    protected const TLS_CERTIFICATE_PATH   = __DIR__ . '/../valkey-glide/utils/tls_crts/ca.crt';
 
     protected function getNilValue()
     {
