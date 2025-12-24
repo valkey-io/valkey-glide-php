@@ -76,7 +76,6 @@ require_once __DIR__ . '/ValkeyGlideBaseTest.php';
 
 class ValkeyGlideTest extends ValkeyGlideBaseTest
 {
-
     /**
      * Generate a random string of specified length
      *
@@ -7851,7 +7850,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         );
 
         $this->assertConnected($client);
-        
+
         $client->close();
     }
 

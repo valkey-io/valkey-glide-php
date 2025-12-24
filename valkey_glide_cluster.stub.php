@@ -226,7 +226,8 @@ class ValkeyGlideCluster
         ?bool $lazy_connect = null,
         ?int $database_id = null,
         ?resource $context = null,
-    ) {}
+    ) {
+    }
 
     /**
      * @see ValkeyGlide::append()
