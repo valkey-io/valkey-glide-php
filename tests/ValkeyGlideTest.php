@@ -26,7 +26,7 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die('Use TestValkeyGlide.php to run tests
 *   4. Products derived from this software may not be called "PHP", nor
 *      may "PHP" appear in their name, without prior written permission
 *      from group@php.net.  You may indicate that your software works in
-*      conjunction with PHP by saying "Foo for PHP" instead of calling
+*      conjunction with PHP by saying "Foo for PHP" instead of calling7639
 *      it "PHP Foo" or "phpfoo"
 *
 *   5. The PHP Group may publish revised and/or new versions of the
@@ -7636,7 +7636,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals('mylib', $this->valkey_glide->function('load', "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)"));
         $this->assertEquals('foo', $this->valkey_glide->fcall('myfunc', [], ['foo']));
         $payload = $this->valkey_glide->function('dump');
-        $this->assertEquals('mylib', $this->valkey_glide->function('load', 'replace', "#!lua name=mylib\nredis.register_function{function_name='myfunc', callback=function(keys, args) return args[1] end, flags={'no-writes'}}"));
+        $this->assertEquals(
+            'mylib',
+            $this->valkey_glide->function('load', 'replace', "#!lua name=mylib\nredis.register_function{function_name='myfunc', callback=function(keys, args) return args[1] end, flags={'no-writes'}}")
+        );
         $this->assertEquals('foo', $this->valkey_glide->fcall_ro('myfunc', [], ['foo']));
         $this->assertEquals(['running_script' => false, 'engines' => ['LUA' => ['libraries_count' => 1, 'functions_count' => 1]]], $this->valkey_glide->function('stats'));
         $this->assertTrue($this->valkey_glide->function('delete', 'mylib'));
