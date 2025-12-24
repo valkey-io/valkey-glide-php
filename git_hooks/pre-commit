@@ -1,0 +1,14 @@
+#!/bin/bash
+# Pre-commit hook to run linters
+
+# Run linters
+./lint.sh
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ Linting failed! Please fix the issues before committing."
+    echo "   Run './lint.sh --fix' to auto-fix some issues."
+    exit 1
+fi
+
+exit 0
