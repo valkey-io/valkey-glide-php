@@ -6,9 +6,10 @@
     <file>./</file>
     <extensions>php</extensions>
     
-    <!-- Exclude vendor files -->
-    <exclude-pattern>vendor/*</exclude-pattern>
-    <exclude-pattern>build/*</exclude-pattern>
+    <!-- Exclude vendor and build files -->
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/build/*</exclude-pattern>
+    <exclude-pattern>run-tests.php</exclude-pattern>
     
     <!-- Use PSR-12 standard -->
     <rule ref="PSR12"/>
