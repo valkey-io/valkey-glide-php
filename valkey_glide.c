@@ -126,7 +126,8 @@ zend_object* create_valkey_glide_cluster_object(zend_class_entry* ce)  // TODO c
 }
 
 // Forward declarations for helper functions
-static HashTable* _get_stream_context_ssl_options_ht(valkey_glide_php_common_constructor_params_t* params);
+static HashTable* _get_stream_context_ssl_options_ht(
+    valkey_glide_php_common_constructor_params_t* params);
 static HashTable* _get_advanced_config_ht(valkey_glide_php_common_constructor_params_t* params);
 static HashTable* _get_advanced_tls_config_ht(valkey_glide_php_common_constructor_params_t* params);
 
@@ -859,11 +860,13 @@ PHP_FUNCTION(valkey_glide_logger_get_level) {
  * @param params Pointer to the common constructor parameters structure.
  * @return       Pointer to the SSL options HashTable, or NULL if not found.
  */
-static HashTable* _get_stream_context_ssl_options_ht(valkey_glide_php_common_constructor_params_t* params) {
+static HashTable* _get_stream_context_ssl_options_ht(
+    valkey_glide_php_common_constructor_params_t* params) {
     if (!params->context || Z_TYPE_P(params->context) != IS_RESOURCE)
         return NULL;
 
-    void* resource = zend_fetch_resource_ex(params->context, "Stream-Context", php_le_stream_context());
+    void* resource =
+        zend_fetch_resource_ex(params->context, "Stream-Context", php_le_stream_context());
     if (!resource)
         return NULL;
 
@@ -871,8 +874,9 @@ static HashTable* _get_stream_context_ssl_options_ht(valkey_glide_php_common_con
     if (Z_TYPE(stream_ctx->options) != IS_ARRAY)
         return NULL;
 
-    zval* ssl_options = zend_hash_str_find(
-        Z_ARRVAL(stream_ctx->options), VALKEY_GLIDE_SSL_OPTIONS, sizeof(VALKEY_GLIDE_SSL_OPTIONS) - 1);
+    zval* ssl_options = zend_hash_str_find(Z_ARRVAL(stream_ctx->options),
+                                           VALKEY_GLIDE_SSL_OPTIONS,
+                                           sizeof(VALKEY_GLIDE_SSL_OPTIONS) - 1);
     if (!ssl_options || Z_TYPE_P(ssl_options) != IS_ARRAY)
         return NULL;
 
