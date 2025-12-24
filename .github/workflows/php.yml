@@ -888,15 +888,9 @@ jobs:
         run: |
           ./configure --enable-valkey-glide --disable-header-generation
 
-      - name: Lint C code formatting
+      - name: Run linters
         run: |
-          find . -name "*.c" -o -name "*.h" | grep -v "\.pb-c\." | xargs clang-format --dry-run --Werror
-
-      - name: Lint PHP code (if PHP files exist)
-        run: |
-          if find tests/ -name "*.php" | head -1 | grep -q .; then
-              phpcs . || true
-          fi
+          ./lint.sh
 
   get-containers:
     runs-on: ubuntu-latest
