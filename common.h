@@ -7,8 +7,6 @@
 #include <stdio.h>
 #include <zend_smart_str.h>
 
-#include <ext/standard/php_smart_string.h>
-
 #include "include/glide_bindings.h"
 
 /* ValkeyGlidePHP version */
