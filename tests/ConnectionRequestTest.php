@@ -467,7 +467,7 @@ class ConnectionRequestTest extends \TestSuite
         $request = ClientConstructorMock::simulate_cluster_constructor(
             addresses: [['host' => 'localhost', 'port' => 8080]]
         );
-        
+
         $this->assertFalse($request->getRefreshTopologyFromInitialNodes());
     }
 
@@ -478,7 +478,7 @@ class ConnectionRequestTest extends \TestSuite
             addresses: [['host' => 'localhost', 'port' => 8080]],
             advanced_config: ['refresh_topology_from_initial_nodes' => true]
         );
-        
+
         $this->assertTrue($request->getRefreshTopologyFromInitialNodes());
     }
 
@@ -489,7 +489,7 @@ class ConnectionRequestTest extends \TestSuite
             addresses: [['host' => 'localhost', 'port' => 8080]],
             advanced_config: ['refresh_topology_from_initial_nodes' => false]
         );
-        
+
         $this->assertFalse($request->getRefreshTopologyFromInitialNodes());
     }
 
@@ -500,7 +500,7 @@ class ConnectionRequestTest extends \TestSuite
             addresses: [['host' => 'localhost', 'port' => 8080]],
             advanced_config: ['refresh_topology_from_initial_nodes' => true]
         );
-        
+
         // Standalone clients should always have this as false (ignored)
         $this->assertFalse($request->getRefreshTopologyFromInitialNodes());
     }

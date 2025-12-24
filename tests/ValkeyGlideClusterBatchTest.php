@@ -26,7 +26,7 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
         $this->version  = $info['valkey_version'] ?? $info['redis_version'] ?? '0.0.0';
 
         $this->is_valkey = $this->detectValkey($info);
-        
+
         // Log server type and version for debugging
         $server_type = $this->is_valkey ? 'Valkey' : 'Redis';
         echo "Connected to $server_type cluster batch server version: {$this->version}\n";

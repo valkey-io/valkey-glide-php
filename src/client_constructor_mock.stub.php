@@ -128,8 +128,8 @@ class ClientConstructorMock
      *                                                'tls_config' => ['use_insecure_tls' => false]].
      *                                                connection_timeout is in milliseconds.
      * @param bool|null $lazy_connect                 Whether to use lazy connection.
-     * @param int|null $database_id                   Index of the logical database to connect to. Must be non-negative 
-     *                                                and within the range supported by the server configuration. 
+     * @param int|null $database_id                   Index of the logical database to connect to. Must be non-negative
+     *                                                and within the range supported by the server configuration.
      *                                                For cluster mode, requires Valkey 9.0+ with cluster-databases > 1.
      *                                                If not specified, defaults to database 0.
      */

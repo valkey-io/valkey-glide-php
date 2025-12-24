@@ -3892,48 +3892,48 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     {
         $key1 = 'batch_select_test_' . uniqid();
         $logFile = '/tmp/valkey_select_batch_test_' . uniqid() . '.log';
-        
+
         // Clean up any existing log file
         if (file_exists($logFile)) {
             unlink($logFile);
         }
-        
+
         // Configure logging to our test file (following testGetCommandWithLogging pattern)
         $this->assertTrue(valkey_glide_logger_set_config('error', $logFile), 'Logger configuration should succeed');
         $this->assertTrue(valkey_glide_logger_is_initialized(), 'Logger should be initialized');
-        
+
         // Verify SELECT works in normal mode
         $result = $this->valkey_glide->select(0);
         $this->assertTrue($result, 'SELECT should work in normal mode');
-        
+
         // Test SELECT returns false in batch mode and logs error
         $this->valkey_glide->multi();
         $this->valkey_glide->set($key1, 'test_value');
-        
+
         $selectResult = $this->valkey_glide->select(1);
-        
+
         $this->assertFalse($selectResult, 'SELECT should return false in batch mode');
-        
+
         // Cancel the batch and cleanup
         $this->valkey_glide->discard();
         $this->valkey_glide->del($key1);
-        
+
         // Verify logging actually worked (following testGetCommandWithLogging pattern)
         sleep(1); // Wait for logs to be written
-        
+
         // Verify log file creation using glob pattern (logger may append timestamp)
         $actualLogFiles = glob($logFile . '*');
         $this->assertTrue(count($actualLogFiles) > 0, 'Log file should be created');
-        
+
         // Verify log content
         $actualLogFile = $actualLogFiles[0];
-        
+
         try {
             $this->assertTrue(file_exists($actualLogFile), 'Log file should exist');
-            
+
             $logContent = file_get_contents($actualLogFile);
             $this->assertTrue(!empty($logContent), 'Log file should not be empty');
-            
+
             // Verify the error message exists in the log
             $this->assertStringContains('SELECT command cannot be used in batch mode', $logContent, 'Should contain SELECT batch mode error message');
         } finally {

@@ -902,7 +902,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     public function testOtelConfiguration()
     {
         $tracesFile = sys_get_temp_dir() . '/valkey_glide_traces_test.json';
-        
+
         // Clean up any existing trace file
         if (file_exists($tracesFile)) {
             unlink($tracesFile);
@@ -962,10 +962,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         // Parse JSON lines (each line is a separate JSON object)
         $lines = explode("\n", trim($tracesContent));
         $spanNames = [];
-        
+
         foreach ($lines as $line) {
-            if (empty($line)) continue;
-            
+            if (empty($line)) {
+                continue;
+            }
+
             $span = json_decode($line, true);
             if ($span && isset($span['name'])) {
                 $spanNames[] = $span['name'];
@@ -986,7 +988,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     public function testOtelSamplingPercentage()
     {
         $tracesFile = sys_get_temp_dir() . '/valkey_glide_traces_sampling_test.json';
-        
+
         // Clean up any existing trace file
         if (file_exists($tracesFile)) {
             unlink($tracesFile);
@@ -1061,12 +1063,15 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
                     'otel' => $arrayConfig
                 ]
             );
-            
+
             $this->fail("Array-based OpenTelemetry configuration should be rejected");
         } catch (Exception $e) {
             // Verify the error message indicates object is required
-            $this->assertStringContains("OpenTelemetryConfig object", $e->getMessage(),
-                "Error should indicate OpenTelemetryConfig object is required");
+            $this->assertStringContains(
+                "OpenTelemetryConfig object",
+                $e->getMessage(),
+                "Error should indicate OpenTelemetryConfig object is required"
+            );
         }
     }
 
@@ -1104,8 +1109,11 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             ->build();
 
         // Verify default sample percentage is 1
-        $this->assertEquals(1, $tracesConfig->getSamplePercentage(), 
-            "Sample percentage should default to 1 when not specified");
+        $this->assertEquals(
+            1,
+            $tracesConfig->getSamplePercentage(),
+            "Sample percentage should default to 1 when not specified"
+        );
     }
 
     public function testOtelSetSamplePercentage()
@@ -1154,8 +1162,11 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             ValkeyGlide::setOtelSamplePercentage(101);
             $this->fail("Should throw exception for percentage > 100");
         } catch (Exception $e) {
-            $this->assertStringContains("0 and 100", $e->getMessage(),
-                "Error should mention valid range");
+            $this->assertStringContains(
+                "0 and 100",
+                $e->getMessage(),
+                "Error should mention valid range"
+            );
         }
     }
 }

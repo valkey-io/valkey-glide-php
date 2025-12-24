@@ -128,11 +128,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Basic MOVE method availability test
         $key = '{key}test_move_' . uniqid();
         $this->valkey_glide->set($key, 'test_value');
-        
+
         // MOVE should return boolean (may be false if multi-database not supported)
         $result = $this->valkey_glide->move($key, 1);
         $this->assertIsBool($result);
-        
+
         // Clean up
         $this->valkey_glide->del($key);
     }
@@ -954,14 +954,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Test copy to different database in cluster mode
         $this->valkey_glide->del('{key}src', '{key}dst');
         $this->valkey_glide->set('{key}src', 'cluster_test_value');
-        
+
         // Test with string key
         $this->assertTrue($this->valkey_glide->copy('{key}src', '{key}dst', ['DB' => 1]));
-        
+
         // Test with constant
         $this->valkey_glide->set('{key}src2', 'cluster_constant_test');
         $this->assertTrue($this->valkey_glide->copy('{key}src2', '{key}dst2', [ValkeyGlide::COPY_DB => 1]));
-        
+
         // Test combined options
         $this->assertTrue($this->valkey_glide->copy('{key}src', '{key}dst', [
             ValkeyGlide::COPY_DB => 1,
@@ -991,17 +991,17 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
 
         $key = '{key}isolation_test_' . uniqid();
-        
+
         $this->valkey_glide->select(0);
         $this->valkey_glide->set($key, 'value_db0');
         $this->valkey_glide->select(1);
         $this->valkey_glide->set($key, 'value_db1');
-        
+
         $this->valkey_glide->select(0);
         $this->assertEquals('value_db0', $this->valkey_glide->get($key));
         $this->valkey_glide->select(1);
         $this->assertEquals('value_db1', $this->valkey_glide->get($key));
-        
+
         // Clean up
         $this->valkey_glide->del($key);
         $this->valkey_glide->select(0);
@@ -1015,21 +1015,21 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
 
         $key = '{key}move_test_' . uniqid();
-        
+
         $this->valkey_glide->select(0);
         $this->valkey_glide->set($key, 'move_test_value');
-        
+
         // In Valkey 9.0+, MOVE should succeed - failure indicates missing cluster-databases config
         $result = $this->valkey_glide->move($key, 1);
         $this->assertTrue($result, 'MOVE should succeed in Valkey 9.0+ cluster (ensure cluster-databases > 1 is configured)');
-        
+
         // Verify MOVE worked correctly
         $this->assertEquals(0, $this->valkey_glide->exists($key)); // Should not exist in DB 0
-        
+
         $this->valkey_glide->select(1);
         $this->assertEquals(1, $this->valkey_glide->exists($key)); // Should exist in DB 1
         $this->assertEquals('move_test_value', $this->valkey_glide->get($key));
-        
+
         // Clean up
         $this->valkey_glide->del($key);
         $this->valkey_glide->select(0);
@@ -1043,20 +1043,20 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $srcKey = '{key}copy_src_' . uniqid();
         $dstKey = '{key}copy_dst_' . uniqid();
-        
+
         $this->valkey_glide->select(0);
         $this->valkey_glide->set($srcKey, 'copy_test_value');
-        
+
         // COPY with DB parameter should work in Valkey 9.0+ clusters
         $result = $this->valkey_glide->copy($srcKey, $dstKey, ['DB' => 1]);
         $this->assertTrue($result, 'COPY should succeed in Valkey 9.0+ cluster');
-        
+
         // Verify COPY worked correctly
         $this->assertEquals('copy_test_value', $this->valkey_glide->get($srcKey)); // Original still exists
-        
+
         $this->valkey_glide->select(1);
         $this->assertEquals('copy_test_value', $this->valkey_glide->get($dstKey)); // Copy exists
-        
+
         // Clean up
         $this->valkey_glide->del($dstKey);
         $this->valkey_glide->select(0);
@@ -1078,11 +1078,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             client_az: null,
             advanced_config: ['connection_timeout' => 5000]
         );
-        
+
         // Perform basic operation to verify client works
         $result = $client->ping(['type' => 'primarySlotKey', 'key' => 'test']);
         $this->assertTrue($result);
-        
+
         $client->close();
     }
 
@@ -1104,11 +1104,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
                 'refresh_topology_from_initial_nodes' => true
             ]
         );
-        
+
         // Perform basic operation to verify client works
         $result = $client->ping(['type' => 'primarySlotKey', 'key' => 'test']);
         $this->assertTrue($result);
-        
+
         $client->close();
     }
 
@@ -1130,11 +1130,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
                 'refresh_topology_from_initial_nodes' => false
             ]
         );
-        
+
         // Perform basic operation to verify client works
         $result = $client->ping(['type' => 'primarySlotKey', 'key' => 'test']);
         $this->assertTrue($result);
-        
+
         $client->close();
     }
 }

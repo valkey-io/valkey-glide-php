@@ -7760,7 +7760,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // Capture output using ob_start
         ob_start();
-        
+
         try {
             // Test setup
             $testKey = 'console-test-key-' . uniqid();
@@ -7796,24 +7796,24 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->assertStringContains("console-test", $output, "Should contain console logging output");
         } else {
             echo "\n=== NO STDOUT CAPTURED VIA ob_start() - CHECKING STDOUT REDIRECTION ===\n";
-            
+
             // Since ob_start() doesn't capture C-level stdout, we need to test stdout redirection
             // Create a temporary script to capture stdout
             $tempScript = tempnam(sys_get_temp_dir(), 'stdout_test_');
             $stdoutFile = tempnam(sys_get_temp_dir(), 'stdout_output_');
-            
+
             file_put_contents($tempScript, '<?php
 if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_glide.so")) {
     valkey_glide_logger_set_config("debug", null);
     valkey_glide_logger_info("stdout-test", "Testing stdout capture");
 }
 ?>');
-            
+
             // Execute script and redirect stdout to file
             exec("php $tempScript 1>$stdoutFile 2>/dev/null");
-            
+
             $stdoutContent = file_get_contents($stdoutFile);
-            
+
             if (!empty($stdoutContent)) {
                 echo "STDOUT content captured:\n";
                 echo $stdoutContent . "\n";
@@ -7822,7 +7822,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             } else {
                 echo "No stdout output captured\n";
             }
-            
+
             // Cleanup
             unlink($tempScript);
             unlink($stdoutFile);
@@ -7848,11 +7848,11 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
                 'refresh_topology_from_initial_nodes' => true  // Should be completely ignored
             ]
         );
-        
+
         // Perform basic operation to verify client works
         $result = $client->ping();
         $this->assertTrue($result);
-        
+
         $client->close();
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Example demonstrating OpenTelemetry integration with Valkey GLIDE PHP
  */
@@ -9,10 +10,9 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use ValkeyGlide\OpenTelemetry\{OpenTelemetryConfig, TracesConfig, MetricsConfig};
 
 try {
-    
     // Get system temp directory
     $tmpDir = sys_get_temp_dir();
-    
+
     // Create OpenTelemetry configuration using builder pattern
     $otelConfig = OpenTelemetryConfig::builder()
         ->traces(
@@ -74,7 +74,6 @@ try {
 
     $client->close();
     echo "Client closed" . PHP_EOL . PHP_EOL;
-
 } catch (Exception $e) {
     echo "Error: " . $e->getMessage() . PHP_EOL;
     exit(1);
@@ -85,4 +84,3 @@ echo "Class-based configuration demonstrated." . PHP_EOL;
 echo "Check the following files for telemetry data:" . PHP_EOL;
 echo "- {$tmpDir}/valkey_glide_traces.json (traces)" . PHP_EOL;
 echo "- {$tmpDir}/valkey_glide_metrics.json (metrics)" . PHP_EOL;
-?>

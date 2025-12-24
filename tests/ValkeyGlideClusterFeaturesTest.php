@@ -571,7 +571,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     public function testClusterConstructorAcceptsDatabaseId(): void
     {
         $addresses = [['host' => 'localhost', 'port' => 7001]];
-        
+
         // Test that constructor accepts all 12 parameters including database_id
         try {
             $valkey_glide = new ValkeyGlideCluster(
@@ -636,7 +636,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     public function testClusterConstructorBackwardCompatibility(): void
     {
         $addresses = [['host' => 'localhost', 'port' => 7001]];
-        
+
         try {
             // Test with 11 parameters (without database_id) - should still work
             $valkey_glide = new ValkeyGlideCluster(
@@ -670,7 +670,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     public function testClusterConstructorParameterCount(): void
     {
         $addresses = [['host' => 'localhost', 'port' => 7001]];
-        
+
         // Test with too many parameters (13) - should fail
         try {
             $client = new ValkeyGlideCluster(
@@ -688,9 +688,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 0,                                   // 12 - database_id
                 'extra_param'                        // 13 - should cause error
             );
-            
+
             $this->fail('Expected ArgumentCountError for too many parameters');
-            
         } catch (ArgumentCountError $e) {
             // This is expected - too many parameters
             $this->assertStringContains('expects at most 12 arguments', $e->getMessage());
@@ -766,7 +765,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         // Use same file as standalone since OTEL can only be initialized once per process
         $tracesFile = sys_get_temp_dir() . '/valkey_glide_traces_test.json';
-        
+
         // Clean up any existing trace file
         if (file_exists($tracesFile)) {
             unlink($tracesFile);
@@ -832,10 +831,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         // Parse JSON lines (each line is a separate JSON object)
         $lines = explode("\n", trim($tracesContent));
         $spanNames = [];
-        
+
         foreach ($lines as $line) {
-            if (empty($line)) continue;
-            
+            if (empty($line)) {
+                continue;
+            }
+
             $span = json_decode($line, true);
             if ($span && isset($span['name'])) {
                 $spanNames[] = $span['name'];
@@ -857,7 +858,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     {
         // Use same file as standalone since OTEL can only be initialized once per process
         $tracesFile = sys_get_temp_dir() . '/valkey_glide_traces_sampling_test.json';
-        
+
         // Clean up any existing trace file
         if (file_exists($tracesFile)) {
             unlink($tracesFile);
@@ -940,12 +941,15 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                     'otel' => $arrayConfig
                 ]
             );
-            
+
             $this->fail("Array-based OpenTelemetry configuration should be rejected for cluster");
         } catch (Exception $e) {
             // Verify the error message indicates object is required
-            $this->assertStringContains("OpenTelemetryConfig object", $e->getMessage(),
-                "Error should indicate OpenTelemetryConfig object is required");
+            $this->assertStringContains(
+                "OpenTelemetryConfig object",
+                $e->getMessage(),
+                "Error should indicate OpenTelemetryConfig object is required"
+            );
         }
     }
 
@@ -985,8 +989,11 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             ->build();
 
         // Verify default sample percentage is 1
-        $this->assertEquals(1, $tracesConfig->getSamplePercentage(), 
-            "Sample percentage should default to 1 when not specified");
+        $this->assertEquals(
+            1,
+            $tracesConfig->getSamplePercentage(),
+            "Sample percentage should default to 1 when not specified"
+        );
     }
 
     public function testOtelClusterSetSamplePercentage()

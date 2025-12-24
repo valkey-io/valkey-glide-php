@@ -27,7 +27,14 @@ class UpdateConnectionPasswordTest extends TestSuite
             false,
             $credentials,
             ValkeyGlide::READ_FROM_PRIMARY,
-            null, null, null, null, null, null, null, 0
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            0
         );
     }
 
@@ -39,14 +46,14 @@ class UpdateConnectionPasswordTest extends TestSuite
     public function testUpdateConnectionPasswordEmptyString()
     {
         $client = $this->createClient();
-        
+
         try {
             $client->updateConnectionPassword("", false);
             $this->fail("Expected exception for empty password");
         } catch (Exception $e) {
             $this->assertStringContains("Password cannot be empty", $e->getMessage());
         }
-        
+
         $client->close();
     }
 
@@ -54,14 +61,14 @@ class UpdateConnectionPasswordTest extends TestSuite
     public function testUpdateConnectionPasswordEmptyStringCluster()
     {
         $client = $this->createClusterClient();
-        
+
         try {
             $client->updateConnectionPassword("", false);
             $this->fail("Expected exception for empty password");
         } catch (Exception $e) {
             $this->assertStringContains("Password cannot be empty", $e->getMessage());
         }
-        
+
         $client->close();
     }
 
@@ -69,7 +76,7 @@ class UpdateConnectionPasswordTest extends TestSuite
     public function testUpdateConnectionPasswordNull()
     {
         $client = $this->createClient();
-        
+
         try {
             // Suppress deprecation warning - null is converted to empty string
             @$client->updateConnectionPassword(null, false);
@@ -78,7 +85,7 @@ class UpdateConnectionPasswordTest extends TestSuite
             // Should throw exception for empty password
             $this->assertStringContains("Password cannot be empty", $e->getMessage());
         }
-        
+
         $client->close();
     }
 
@@ -86,7 +93,7 @@ class UpdateConnectionPasswordTest extends TestSuite
     public function testUpdateConnectionPasswordNullCluster()
     {
         $client = $this->createClusterClient();
-        
+
         try {
             // Suppress deprecation warning - null is converted to empty string
             @$client->updateConnectionPassword(null, false);
@@ -95,7 +102,7 @@ class UpdateConnectionPasswordTest extends TestSuite
             // Should throw exception for empty password
             $this->assertStringContains("Password cannot be empty", $e->getMessage());
         }
-        
+
         $client->close();
     }
 
@@ -107,11 +114,11 @@ class UpdateConnectionPasswordTest extends TestSuite
     public function testUpdateConnectionPasswordLongString()
     {
         $client = $this->createClient();
-        
+
         $longPassword = str_repeat("a", 1000);
         $result = $client->updateConnectionPassword($longPassword, false);
         $this->assertEquals("OK", $result, "Update with long password should return OK");
-        
+
         $client->close();
     }
 
@@ -119,11 +126,11 @@ class UpdateConnectionPasswordTest extends TestSuite
     public function testUpdateConnectionPasswordLongStringCluster()
     {
         $client = $this->createClusterClient();
-        
+
         $longPassword = str_repeat("a", 1000);
         $result = $client->updateConnectionPassword($longPassword, false);
         $this->assertEquals("OK", $result, "Cluster update with long password should return OK");
-        
+
         $client->close();
     }
 
@@ -135,10 +142,10 @@ class UpdateConnectionPasswordTest extends TestSuite
     public function testUpdateConnectionPasswordImmediateAuthInvalidPassword()
     {
         $client = $this->createClient();
-        
+
         // Verify initial connection
         $this->assertNotNull($client->ping(), "Client should be connected");
-        
+
         // Try immediate auth with wrong password (server has no password)
         try {
             $client->updateConnectionPassword("wrong_password", true);
@@ -146,7 +153,7 @@ class UpdateConnectionPasswordTest extends TestSuite
         } catch (Exception $e) {
             $this->assertStringContains("AUTH", $e->getMessage(), "Should fail authentication");
         }
-        
+
         $client->close();
     }
 
@@ -154,7 +161,7 @@ class UpdateConnectionPasswordTest extends TestSuite
     public function testUpdateConnectionPasswordClusterImmediateAuthInvalidPassword()
     {
         $client = $this->createClusterClient();
-        
+
         try {
             $client->updateConnectionPassword("invalid_password", true);
             $this->fail("Expected exception for immediate auth with wrong password");
@@ -162,7 +169,7 @@ class UpdateConnectionPasswordTest extends TestSuite
             // Server has no password, so immediate auth with any password should fail
             $this->assertStringContains("AUTH", $e->getMessage());
         }
-        
+
         $client->close();
     }
 
@@ -175,41 +182,41 @@ class UpdateConnectionPasswordTest extends TestSuite
     {
         $client = $this->createClient();
         $adminClient = $this->createClient();
-        
+
         try {
             $this->assertNotNull($client->ping(), "Client should be connected");
             $this->assertNotNull($adminClient->ping(), "Admin client should be connected");
-            
+
             // Update client connection password
             $result = $client->updateConnectionPassword("test_password", false);
             $this->assertEquals("OK", $result);
-            
+
             $this->assertNotNull($client->ping(), "Client should still work without reconnect");
-            
+
             // Update server password using admin client
             $adminClient->config("SET", "requirepass", "test_password");
-            
+
             // Get client ID and kill only the test client
             $clientId = $client->client("ID");
             $adminClient->client("KILL", "ID", $clientId);
             sleep(1);
-            
+
             $this->assertNotNull($client->ping(), "Client should reconnect with new password");
-            
+
             // Clear client connection password
             $result = $client->clearConnectionPassword(false);
             $this->assertEquals("OK", $result);
-            
+
             $this->assertNotNull($client->ping(), "Client should still work without reconnect");
-            
+
             // Clear server password using admin client
             $adminClient->config("SET", "requirepass", "");
-            
+
             // Kill test client again
             $clientId = $client->client("ID");
             $adminClient->client("KILL", "ID", $clientId);
             sleep(1);
-            
+
             $this->assertNotNull($client->ping(), "Client should reconnect without password");
         } finally {
             // Ensure server password is cleared even if test fails
@@ -220,7 +227,7 @@ class UpdateConnectionPasswordTest extends TestSuite
             } catch (Exception $e) {
                 // Ignore cleanup errors
             }
-            
+
             if (isset($client)) {
                 $client->close();
             }
@@ -248,28 +255,28 @@ class UpdateConnectionPasswordTest extends TestSuite
     public function testUpdateConnectionPasswordWithServerRotationImmediateAuth()
     {
         $client = $this->createClient();
-        
+
         try {
             $this->assertNotNull($client->ping(), "Client should be connected");
-            
+
             // Update server password
             $client->config("SET", "requirepass", "test_password");
             sleep(1);
-            
+
             // Update client connection password with immediate auth
             $result = $client->updateConnectionPassword("test_password", true);
             $this->assertEquals("OK", $result);
-            
+
             $this->assertNotNull($client->ping(), "Client should work after immediate auth");
-            
+
             // Clear server password
             $client->config("SET", "requirepass", "");
             sleep(1);
-            
+
             // Clear client connection password
             $result = $client->clearConnectionPassword(false);
             $this->assertEquals("OK", $result);
-            
+
             $this->assertNotNull($client->ping(), "Client should work after clearing password");
         } finally {
             // Ensure server password is cleared even if test fails
@@ -280,7 +287,7 @@ class UpdateConnectionPasswordTest extends TestSuite
             } catch (Exception $e) {
                 // Ignore cleanup errors
             }
-            
+
             if (isset($client)) {
                 $client->close();
             }

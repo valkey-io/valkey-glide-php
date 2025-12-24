@@ -110,7 +110,7 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest
         $info = $this->valkey_glide->info("randomNode");
         $this->version = $info['valkey_version'] ?? $info['redis_version'] ?? '0.0.0';
         $this->is_valkey = $this->detectValkey($info);
-        
+
         // Log server type and version for debugging
         $server_type = $this->is_valkey ? 'Valkey' : 'Redis';
         echo "Connected to $server_type cluster base server version: {$this->version}\n";

@@ -86,7 +86,7 @@ class ValkeyGlideCluster
      * @var string
      */
     public const CONDITION_NX = "NX";  // Only if field doesn't exist
-    
+
     /**
      * @var string
      */
@@ -97,17 +97,17 @@ class ValkeyGlideCluster
      * @var string
      */
     public const TIME_UNIT_SECONDS = "EX";           // Expire in seconds
-    
+
     /**
      * @var string
      */
     public const TIME_UNIT_MILLISECONDS = "PX";      // Expire in milliseconds
-    
+
     /**
      * @var string
      */
     public const TIME_UNIT_TIMESTAMP_SECONDS = "EXAT";   // Expire at timestamp (seconds)
-    
+
     /**
      * @var string
      */
@@ -116,7 +116,7 @@ class ValkeyGlideCluster
     /**
      * IAM Authentication Constants
      */
-    
+
     /**
      * @var string
      * IAM service type for AWS ElastiCache
@@ -208,8 +208,8 @@ class ValkeyGlideCluster
      *                                                        ->flushIntervalMs(5000)
      *                                                        ->build()
      * @param bool|null $lazy_connect           Whether to use lazy connection.
-     * @param int|null $database_id             Index of the logical database to connect to. Must be non-negative 
-     *                                          and within the range supported by the server configuration. 
+     * @param int|null $database_id             Index of the logical database to connect to. Must be non-negative
+     *                                          and within the range supported by the server configuration.
      *                                          For cluster mode, requires Valkey 9.0+ with cluster-databases > 1.
      *                                          If not specified, defaults to database 0.
      */
@@ -226,7 +226,8 @@ class ValkeyGlideCluster
         ?array $advanced_config = null,
         ?bool $lazy_connect = null,
         ?int $database_id = null
-    ) {}
+    ) {
+    }
 
 
 

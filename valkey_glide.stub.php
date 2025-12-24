@@ -86,7 +86,7 @@ class ValkeyGlide
      * @var string
      */
     public const CONDITION_NX = "NX";  // Only if field doesn't exist
-    
+
     /**
      * @var string
      */
@@ -97,17 +97,17 @@ class ValkeyGlide
      * @var string
      */
     public const TIME_UNIT_SECONDS = "EX";           // Expire in seconds
-    
+
     /**
      * @var string
      */
     public const TIME_UNIT_MILLISECONDS = "PX";      // Expire in milliseconds
-    
+
     /**
      * @var string
      */
     public const TIME_UNIT_TIMESTAMP_SECONDS = "EXAT";   // Expire at timestamp (seconds)
-    
+
     /**
      * @var string
      */
@@ -204,7 +204,7 @@ class ValkeyGlide
     public const COPY_REPLACE = 'REPLACE';
 
     /**
-     * @var string  
+     * @var string
      * COPY command option key for specifying destination database
      */
     public const COPY_DB = 'DB';
@@ -212,7 +212,7 @@ class ValkeyGlide
     /**
      * IAM Authentication Constants
      */
-    
+
     /**
      * @var string
      * IAM service type for AWS ElastiCache
@@ -540,7 +540,7 @@ class ValkeyGlide
 
     /**
      * Set the OpenTelemetry sample percentage at runtime.
-     * 
+     *
      * @param int $percentage The sample percentage (0-100)
      * @throws Exception if OpenTelemetry is not initialized or percentage is invalid
      */
@@ -548,7 +548,7 @@ class ValkeyGlide
 
     /**
      * Get the current OpenTelemetry sample percentage.
-     * 
+     *
      * @return int|null The sample percentage (0-100), or null if not initialized
      */
     public static function getOtelSamplePercentage(): ?int;
@@ -924,7 +924,7 @@ class ValkeyGlide
      *
      * @see https://valkey.io/commands/fcall
      */
-    public function fcall(string $fn, array $keys = [], array $args = []): mixed; 
+    public function fcall(string $fn, array $keys = [], array $args = []): mixed;
 
     /**
      * This is a read-only variant of the FCALL command that cannot execute commands that modify data.
@@ -938,7 +938,7 @@ class ValkeyGlide
      *
      * @see https://valkey.io/commands/fcall_ro
      */
-    public function fcall_ro(string $fn, array $keys = [], array $args = []): mixed; 
+    public function fcall_ro(string $fn, array $keys = [], array $args = []): mixed;
 
     /**
      * Deletes every key in all ValkeyGlide databases
@@ -2133,7 +2133,7 @@ class ValkeyGlide
      *       ->rpush('mylist', 'a', 'b', 'c')
      *       ->exec();
      */
-     public function pipeline(): bool|ValkeyGlide;
+    public function pipeline(): bool|ValkeyGlide;
 
 
     /**
