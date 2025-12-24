@@ -842,13 +842,13 @@ jobs:
               libtool \
               pkg-config \
               libssl-dev \
-              clang-format \
               protobuf-c-compiler \
               libprotobuf-c-dev \
               libprotobuf-c1
-
-      - name: Check clang-format version
-        run: clang-format --version
+          
+          # Install clang-format-18 and set it as default.
+          sudo apt-get install -y clang-format-18
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
 
       - name: Install protoc
         uses: ./.github/workflows/install-rust-and-protoc
