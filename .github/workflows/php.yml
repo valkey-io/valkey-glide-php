@@ -15,7 +15,6 @@ on:
       - .github/workflows/install-shared-dependencies/action.yml
       - .github/workflows/build-php-wrapper/action.yml
       - .github/workflows/test-benchmark/action.yml
-      - .github/workflows/lint-rust/action.yml
       - .github/workflows/install-engine/action.yml
       - .github/workflows/create-test-matrices/action.yml
       - .github/json_matrices/**
@@ -29,7 +28,6 @@ on:
       - .github/workflows/install-shared-dependencies/action.yml
       - .github/workflows/build-php-wrapper/action.yml
       - .github/workflows/test-benchmark/action.yml
-      - .github/workflows/lint-rust/action.yml
       - .github/workflows/install-engine/action.yml
       - .github/workflows/create-test-matrices/action.yml
       - .github/json_matrices/**
