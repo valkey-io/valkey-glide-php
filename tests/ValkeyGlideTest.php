@@ -26,7 +26,7 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die('Use TestValkeyGlide.php to run tests
 *   4. Products derived from this software may not be called "PHP", nor
 *      may "PHP" appear in their name, without prior written permission
 *      from group@php.net.  You may indicate that your software works in
-*      conjunction with PHP by saying "Foo for PHP" instead of calling7639
+*      conjunction with PHP by saying "Foo for PHP" instead of calling
 *      it "PHP Foo" or "phpfoo"
 *
 *   5. The PHP Group may publish revised and/or new versions of the

@@ -43,7 +43,7 @@ See the [Valkey installation guide](https://valkey.io/topics/installation/) to i
 sudo apt update -y
 sudo apt install -y php-dev php-cli git gcc make autotools-dev libtool pkg-config openssl libssl-dev unzip libprotobuf-c-dev libprotobuf-c1
 
-# Install clang-format-18 and ensure clang-format point to it.
+# Install clang-format-18 and ensure clang-format points to it.
 sudo apt install -y clang-format-18
 sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
 clang-format --version  # Version 18.x
@@ -276,8 +276,8 @@ php -n -d extension=../modules/valkey_glide.so TestValkeyGlide.php
 Development on the PHP wrapper involves changes in both C and PHP code. We have comprehensive linting infrastructure to ensure code quality and consistency. All linting checks are automatically run in our GitHub Actions CI pipeline.
 
 - `clang-format` - C code formatting with Google-based style. Configured by `.clang-format`.
-- `phpcs` (PHP_CodeSniffer) - enforces PHP code standards. Congigured by `phpcs.xml`.
-- `phpcbf` (PHP Code Beautifier and Fixer) - corrects PHP code standards. Congigured by `phpcs.xml`.
+- `phpcs` (PHP_CodeSniffer) - enforces PHP code standards. Configured by `phpcs.xml`.
+- `phpcbf` (PHP Code Beautifier and Fixer) - corrects PHP code standards. Configured by `phpcs.xml`.
 
 #### Running Linters
 

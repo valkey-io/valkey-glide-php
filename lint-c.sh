@@ -21,7 +21,7 @@ fi
 # Verify clang-format version.
 CLANG_VERSION=$(clang-format --version | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
 if [[ ! "$CLANG_VERSION" =~ ^18\. ]]; then
-    echo "Warning: clang-format version $CLANG_VERSION detected, but version 18.x is required."
+    echo "Error: Expected clang-format version 18.x but got $CLANG_VERSION"
     exit 1
 fi
 
@@ -35,10 +35,10 @@ if [ "$FIX" = true ]; then
     CLANG_FORMAT_OPTIONS="-i"
 fi
 
-find . -name "*.c" -o -name "*.h" | \
-    grep -v "\.pb-c\." | \
-    grep -v "valkey-glide/" | \
-    grep -v "include/" | \
-    xargs clang-format $CLANG_FORMAT_OPTIONS
+find . \( -name "*.c" -o -name "*.h" \) -print0 | \
+    grep -zv "\.pb-c\." | \
+    grep -zv "valkey-glide/" | \
+    grep -zv "include/" | \
+    xargs -0 -r clang-format $CLANG_FORMAT_OPTIONS
 
 echo "✓ C linting completed!"

@@ -15,12 +15,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Run PHP linting
 echo ""
 echo "=== PHP Code Linting ==="
-"$SCRIPT_DIR/lint-php.sh" $FIX
+"$SCRIPT_DIR/lint-php.sh" "$FIX"
 
 # Run C linting
 echo ""
 echo "=== C Code Linting ==="
-"$SCRIPT_DIR/lint-c.sh" $FIX
+"$SCRIPT_DIR/lint-c.sh" "$FIX"
 
 echo ""
 echo "✓ All linting completed!"
