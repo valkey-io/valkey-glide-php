@@ -31,30 +31,22 @@
             <property name="absoluteLineLimit" value="0"/>
         </properties>
     </rule>
-    
-    <!-- Allow underscores in test method names -->
+
+    <!-- Relax some rules for tests and stubs -->
     <rule ref="PSR1.Methods.CamelCapsMethodName.NotCamelCaps">
         <exclude-pattern>tests/*</exclude-pattern>
         <exclude-pattern>*.stub.php</exclude-pattern>
     </rule>
-    
-    <!-- Relax strict types requirement for certain files -->
     <rule ref="Generic.PHP.RequireStrictTypes">
         <exclude-pattern>tests/*</exclude-pattern>
-        <exclude-pattern>examples/*</exclude-pattern>
         <exclude-pattern>*.stub.php</exclude-pattern>
-        <exclude-pattern>*Config.php</exclude-pattern>
-        <exclude-pattern>*ConfigBuilder.php</exclude-pattern>
     </rule>
-    
-    <!-- Relax class declaration rules for tests and stubs -->
     <rule ref="PSR1.Classes.ClassDeclaration">
         <exclude-pattern>tests/*</exclude-pattern>
         <exclude-pattern>*.stub.php</exclude-pattern>
     </rule>
-    
-    <!-- Allow side effects in test files -->
     <rule ref="PSR1.Files.SideEffects">
         <exclude-pattern>tests/*</exclude-pattern>
+        <exclude-pattern>*.stub.php</exclude-pattern>
     </rule>
 </ruleset>
