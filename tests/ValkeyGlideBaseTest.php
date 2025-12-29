@@ -257,6 +257,11 @@ abstract class ValkeyGlideBaseTest extends TestSuite
 
     protected function assertConnected(ValkeyGlide|ValkeyGlideCluster $client)
     {
-        $this->assertTrue($client->ping(), "Client should be connected");
+        $result =
+            $client instanceof ValkeyGlideCluster
+            ? $client->ping('allPrimaries')
+            : $client->ping();
+
+        $this->assertTrue($result, "Client should be connected");
     }
 }
