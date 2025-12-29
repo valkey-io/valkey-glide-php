@@ -42,6 +42,12 @@ See the [Valkey installation guide](https://valkey.io/topics/installation/) to i
 ```bash
 sudo apt update -y
 sudo apt install -y php-dev php-cli git gcc make autotools-dev libtool pkg-config openssl libssl-dev unzip libprotobuf-c-dev libprotobuf-c1
+
+# Install clang-format-18 and ensure clang-format point to it.
+sudo apt install -y clang-format-18
+sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
+clang-format --version  # Version 18.x
+
 # Install rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
@@ -74,6 +80,12 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
 # Check that the Rust compiler is installed
 rustc --version
+
+# Install clang-format-18 and update PATH to point to it.
+brew install llvm@18
+echo 'export PATH="/opt/homebrew/opt/llvm@18/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+clang-format --version  # Should show version 18.x
 ```
 
 **Install protobuf compiler**
@@ -263,24 +275,33 @@ php -n -d extension=../modules/valkey_glide.so TestValkeyGlide.php
 
 Development on the PHP wrapper involves changes in both C and PHP code. We have comprehensive linting infrastructure to ensure code quality and consistency. All linting checks are automatically run in our GitHub Actions CI pipeline.
 
-#### Language-specific Linters
+- `clang-format` - C code formatting with Google-based style. Configured by `.clang-format`.
+- `phpcs` (PHP_CodeSniffer) - enforces PHP code standards. Congigured by `phpcs.xml`.
+- `phpcbf` (PHP Code Beautifier and Fixer) - corrects PHP code standards. Congigured by `phpcs.xml`.
 
-**C Code:**
-- **clang-format**: Code formatting with Google-based style (4-space indentation, 100-char line limit)
-- **valgrind**: Memory leak detection during testing
+#### Running Linters
 
-**PHP Code:**
-- **PHP_CodeSniffer (phpcs)**:  coding standards.
-- **PHP Code Beautifier (phpcbf)**: Automatic code formatting
+```bash
+# All linters (C and PHP code)
+./lint.sh            # Check
+./lint.sh --fix      # Fix
 
+# C code only
+./lint-c.sh          # Check
+./lint-c.sh --fix    # Fix
 
-#### Linting Configuration Files
+# PHP code only
+./lint-php.sh        # Check
+./lint-php.sh --fix  # Fix
+```
 
-The project includes comprehensive linting configuration:
+#### Git Hooks
 
-- **`phpcs.xml`**: PHP_CodeSniffer configuration with PSR-12 standards
-- **`.clang-format`**: C code formatting rules (Google-based style)
-- **`composer.json`**: Development dependencies and linting scripts
+Install the pre-commit hook to automatically run linters before each commit:
+
+```bash
+./git_hooks/install-git-hooks.sh
+```
 
 #### IDE Integration
 
@@ -290,8 +311,6 @@ VSCode is configured to automatically use the project's linting tools:
 - Format on save for both languages
 - Integration with project-specific linting configurations
 - Extensions recommended: PHP, C/C++, phpcs, phpstan, clangd
-
-
 
 ### Extension Development Guidelines
 
