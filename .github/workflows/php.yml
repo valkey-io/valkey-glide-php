@@ -843,7 +843,7 @@ jobs:
               protobuf-c-compiler \
               libprotobuf-c-dev \
               libprotobuf-c1
-          
+
           # Install clang-format-18 and set it as default.
           sudo apt-get install -y clang-format-18
           sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
