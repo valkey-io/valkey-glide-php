@@ -8,6 +8,7 @@
 #include "php.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
+
 int execute_function_load_command(zval*             object,
                                   int               argc,
                                   zval*             return_value,
