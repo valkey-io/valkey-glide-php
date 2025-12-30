@@ -1102,6 +1102,36 @@ jobs:
           echo "Composer install completed. Checking for composer.lock:"
           ls -la composer.lock || echo "Warning: composer.lock not found"
 
+      - name: Start Valkey servers
+        working-directory: tests
+        run: |
+          set -e  # Exit on any error
+
+          # Ensure /usr/local/bin is in PATH (where valkey-server is installed)
+          export PATH="/usr/local/bin:$PATH"
+
+          echo "=== Starting Valkey servers ==="
+
+          # Make scripts executable
+          chmod +x start_valkey_with_replicas.sh create-valkey-cluster.sh
+
+          # Start standalone servers (6379, 6380, 6381, 6400)
+          echo "=== Starting standalone Valkey servers ==="
+          ./start_valkey_with_replicas.sh
+
+          # Wait a moment for servers to start
+          echo "=== Waiting for standalone servers to start ==="
+          sleep 3
+
+          # Start cluster servers (7001-7006, 8001-8006)
+          echo "=== Starting Valkey cluster ==="
+          ./create-valkey-cluster.sh
+
+          # Final server status check
+          echo "=== Final server status check ==="
+          ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
+          echo "=== Valkey servers startup completed ==="
+
       - name: Run modules tests
         run: |
           # Run tests using direct extension loading with absolute path
