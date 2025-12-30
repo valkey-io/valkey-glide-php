@@ -1,11 +1,11 @@
 /* Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0 */
 
+#include "php.h"
 #include <zend_exceptions.h>
 
 #include "command_response.h"
 #include "common.h"
 #include "include/glide_bindings.h"
-#include "php.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
 
