@@ -1,5 +1,7 @@
 /* Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0 */
 
+#include <zend.h>
+#include <zend_API.h>
 #include <zend_exceptions.h>
 
 #include "command_response.h"
