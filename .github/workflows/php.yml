@@ -253,9 +253,6 @@ jobs:
           # Ensure Xcode Command Line Tools are installed (required for ASAN)
           xcode-select --install || echo "Xcode Command Line Tools already installed"
 
-      - name: Install protobuf-c
-        run: brew install protobuf-c
-
       - name: Export DYLD_LIBRARY_PATH
         run: echo "DYLD_LIBRARY_PATH=$(brew --prefix protobuf-c)/lib" >> $GITHUB_ENV
 
@@ -1077,27 +1074,12 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Rust and protoc
-        uses: ./.github/workflows/install-rust-and-protoc
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             valkey-glide/ffi
             valkey-glide/glide-core
           key: modules-aarch64
-
-      - name: Pre-build Rust components
-        run: |
-          echo "=== Pre-building Rust components for make ==="
-          cd valkey-glide/ffi
-          cargo build --release
-          echo "Rust pre-build completed"
-
-      - name: Install zig
-        uses: ./.github/workflows/install-zig
 
       - name: Build PHP wrapper
         uses: ./.github/workflows/build-php-wrapper
