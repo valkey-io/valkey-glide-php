@@ -34,12 +34,36 @@ valkey-server --port 6381 \
   --logfile "$BASE_DIR/6381/valkey.log" \
   --enable-debug-command yes
 
-# Handle TLS setup with graceful failure
-echo "Setting up TLS standalone server..."
-if ../valkey-glide/utils/cluster_manager.py --tls start --prefix tls-standalone -p 6400 -r 0; then
-    echo "✅ TLS standalone server started on port 6400"
+# Handle TLS setup with improved debugging and verification
+echo "Setting up TLS standalone server on port 6400..."
+echo "DEBUG: Current directory: $(pwd)"
+echo "DEBUG: Checking for cluster_manager.py..."
+ls -la ../valkey-glide/utils/cluster_manager.py 2>&1 | head -2
+echo "DEBUG: Checking for TLS certs..."
+ls -la ../valkey-glide/utils/tls_crts/ 2>&1 | head -5
+
+if python3 ../valkey-glide/utils/cluster_manager.py --tls start --prefix tls-standalone -p 6400 -r 0; then
+    echo "✅ TLS standalone server start command succeeded"
+    
+    # Verify TLS server is actually responding
+    echo "Verifying TLS server connectivity on port 6400..."
+    TLS_READY=false
+    for i in {1..10}; do
+        if nc -z 127.0.0.1 6400 2>/dev/null; then
+            echo "✅ TLS server verified and responding on port 6400"
+            TLS_READY=true
+            break
+        fi
+        echo "Waiting for TLS server... attempt $i/10"
+        sleep 1
+    done
+    
+    if [ "$TLS_READY" = false ]; then
+        echo "⚠️  WARNING: TLS server started but not responding on port 6400"
+    fi
 else
-    echo "⚠️  WARNING: TLS standalone setup failed (port 6400 may be in use), continuing without TLS..."
+    echo "⚠️  WARNING: TLS standalone setup command failed"
+    echo "TLS tests will likely fail. Check cluster_manager.py output above for errors."
 fi
 
 # Wait a moment for servers to start

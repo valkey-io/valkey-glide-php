@@ -495,8 +495,28 @@ jobs:
           echo "=== Starting Valkey cluster ==="
           ./create-valkey-cluster.sh
 
+          # Verify server connectivity before running tests
+          echo "=== Verifying server connectivity ==="
+          
+          # Check standard servers
+          for port in 6379 6380 6381; do
+            if nc -z 127.0.0.1 $port 2>/dev/null; then
+              echo "✅ Server responding on port $port"
+            else
+              echo "❌ ERROR: No response from port $port"
+              exit 1
+            fi
+          done
+          
+          # Check TLS server (non-blocking - warning only)
+          if nc -z 127.0.0.1 6400 2>/dev/null; then
+            echo "✅ TLS server responding on port 6400"
+          else
+            echo "⚠️  WARNING: TLS server on port 6400 not responding (TLS tests may fail)"
+          fi
+          
           # Final server status check
-          echo "=== Final server status check ==="
+          echo "=== Server process status ==="
           ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
           echo "=== Valkey servers startup completed ==="
 
@@ -1002,8 +1022,28 @@ jobs:
           echo "=== Starting Valkey cluster ==="
           ./create-valkey-cluster.sh
 
+          # Verify server connectivity before running tests
+          echo "=== Verifying server connectivity ==="
+          
+          # Check standard servers
+          for port in 6379 6380 6381; do
+            if nc -z 127.0.0.1 $port 2>/dev/null; then
+              echo "✅ Server responding on port $port"
+            else
+              echo "❌ ERROR: No response from port $port"
+              exit 1
+            fi
+          done
+          
+          # Check TLS server (non-blocking - warning only)
+          if nc -z 127.0.0.1 6400 2>/dev/null; then
+            echo "✅ TLS server responding on port 6400"
+          else
+            echo "⚠️  WARNING: TLS server on port 6400 not responding (TLS tests may fail)"
+          fi
+          
           # Final server status check
-          echo "=== Final server status check ==="
+          echo "=== Server process status ==="
           ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
           echo "=== Valkey servers startup completed ==="
 
