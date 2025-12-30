@@ -7861,6 +7861,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
     {
         $client = new ValkeyGlide(
             addresses: [self::TLS_ADDRESS_STANDALONE],
+            advanced_config: ['connection_timeout' => 5000], # Allow longer timeout for TLS connection
             context: stream_context_create(['ssl' => ['cafile' => self::TLS_CERTIFICATE_PATH]])
         );
 
@@ -7872,7 +7873,10 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $client = new ValkeyGlide(
             addresses: [self::TLS_ADDRESS_STANDALONE],
             use_tls: true,
-            advanced_config: ['tls_config' => ['root_certs' => file_get_contents(self::TLS_CERTIFICATE_PATH)]]
+            advanced_config: [
+                'connection_timeout' => 5000, # Allow longer timeout for TLS connection
+                'tls_config' => ['root_certs' => file_get_contents(self::TLS_CERTIFICATE_PATH)]
+            ]
         );
 
         $this->assertConnected($client);
@@ -7882,6 +7886,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
     {
         $client = new ValkeyGlide(
             addresses: [self::TLS_ADDRESS_STANDALONE],
+            advanced_config: ['connection_timeout' => 5000], # Allow longer timeout for TLS connection
             context: stream_context_create(['ssl' => ['verify_peer' => false]])
         );
 
@@ -7893,7 +7898,10 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $client = new ValkeyGlide(
             addresses: [self::TLS_ADDRESS_STANDALONE],
             use_tls: true,
-            advanced_config: ['tls_config' => ['use_insecure_tls' => true]]
+            advanced_config: [
+                'connection_timeout' => 5000, # Allow longer timeout for TLS connection
+                'tls_config' => ['use_insecure_tls' => true]
+            ]
         );
 
         $this->assertConnected($client);
