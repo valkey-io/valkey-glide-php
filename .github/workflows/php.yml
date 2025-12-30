@@ -136,8 +136,6 @@ jobs:
           composer install --no-interaction --prefer-dist --optimize-autoloader
           echo "Composer install completed. Checking for composer.lock:"
           ls -la composer.lock || echo "Warning: composer.lock not found"
-          echo "Current directory contents:"
-          ls -la
 
       - name: Run PHP Extension Tests
         uses: ./.github/workflows/run-php-tests
@@ -1090,6 +1088,19 @@ jobs:
           target: aarch64-unknown-linux-gnu
           php-version: ${{ env.BASE_PHP_VERSION }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate test protobuf PHP classes
+        run: |
+          protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/ ./valkey-glide/glide-core/src/protobuf/connection_request.proto
+          echo "tests directory contents:"
+          cd tests
+          ls -la
+
+      - name: Install PHP dependencies
+        run: |
+          composer install --no-interaction --prefer-dist --optimize-autoloader
+          echo "Composer install completed. Checking for composer.lock:"
+          ls -la composer.lock || echo "Warning: composer.lock not found"
 
       - name: Run modules tests
         run: |
