@@ -1056,6 +1056,11 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install Rust and protoc
+        uses: ./.github/workflows/install-rust-and-protoc
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
