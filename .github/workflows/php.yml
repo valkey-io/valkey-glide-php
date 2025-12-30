@@ -1088,6 +1088,7 @@ jobs:
           target: aarch64-unknown-linux-gnu
           php-version: ${{ env.BASE_PHP_VERSION }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: "8.0"
 
       - name: Generate test protobuf PHP classes
         run: |
