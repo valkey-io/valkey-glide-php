@@ -501,6 +501,24 @@ jobs:
           # Final server status check
           echo "=== Final server status check ==="
           ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
+          
+          # Verify standard servers are responding
+          echo "=== Verifying server connectivity ==="
+          for port in 6379 6380 6381; do
+            if nc -z 127.0.0.1 $port 2>/dev/null; then
+              echo "✅ Server responding on port $port"
+            else
+              echo "❌ WARNING: No response from port $port"
+            fi
+          done
+          
+          # Verify TLS server (port 6400) - non-blocking check
+          if nc -z 127.0.0.1 6400 2>/dev/null; then
+            echo "✅ TLS server responding on port 6400"
+          else
+            echo "⚠️  WARNING: TLS server on port 6400 not responding (TLS tests may fail)"
+          fi
+          
           echo "=== Valkey servers startup completed ==="
 
       - name: Check Valgrind PATH
@@ -1131,6 +1149,24 @@ jobs:
           # Final server status check
           echo "=== Final server status check ==="
           ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
+          
+          # Verify standard servers are responding
+          echo "=== Verifying server connectivity ==="
+          for port in 6379 6380 6381; do
+            if nc -z 127.0.0.1 $port 2>/dev/null; then
+              echo "✅ Server responding on port $port"
+            else
+              echo "❌ WARNING: No response from port $port"
+            fi
+          done
+          
+          # Verify TLS server (port 6400) - non-blocking check
+          if nc -z 127.0.0.1 6400 2>/dev/null; then
+            echo "✅ TLS server responding on port 6400"
+          else
+            echo "⚠️  WARNING: TLS server on port 6400 not responding (TLS tests may fail)"
+          fi
+          
           echo "=== Valkey servers startup completed ==="
 
       - name: Run modules tests
