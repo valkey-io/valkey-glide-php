@@ -461,7 +461,7 @@ PHP_METHOD(ValkeyGlideCluster, invokeScript) {
             RETURN_FALSE;
         }
         execute_invoke_script_command(valkey_glide, script_hash, keys, args, return_value, true);
-        free(script_hash);
+        efree(script_hash);
     }
 
     // Clean up empty arrays if we created them
