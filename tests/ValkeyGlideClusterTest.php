@@ -1141,7 +1141,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testTlsSecureStream()
     {
-        $client = new ValkeyGlide(
+        $client = new ValkeyGlideCluster(
             addresses: [self::TLS_ADDRESS_CLUSTER],
             context: stream_context_create(['ssl' => ['cafile' => self::TLS_CERTIFICATE_PATH]])
         );
@@ -1151,7 +1151,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testTlsSecureConfig()
     {
-        $client = new ValkeyGlide(
+        $client = new ValkeyGlideCluster(
             addresses: [self::TLS_ADDRESS_CLUSTER],
             use_tls: true,
             advanced_config: ['tls_config' => ['root_certs' => file_get_contents(self::TLS_CERTIFICATE_PATH)]]
@@ -1162,7 +1162,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testTlsInsecureStream()
     {
-        $client = new ValkeyGlide(
+        $client = new ValkeyGlideCluster(
             addresses: [self::TLS_ADDRESS_CLUSTER],
             context: stream_context_create(['ssl' => ['verify_peer' => false]])
         );
@@ -1172,7 +1172,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testTlsInsecureConfig()
     {
-        $client = new ValkeyGlide(
+        $client = new ValkeyGlideCluster(
             addresses: [self::TLS_ADDRESS_CLUSTER],
             use_tls: true,
             advanced_config: ['tls_config' => ['use_insecure_tls' => true]]
