@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Get the directory where this script is located and use it as working directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 BASE_DIR="$HOME/valkey-cluster"
 PORTS=(7001 7002 7003 7004 7005 7006)
 VALKEY_BIN=$(which valkey-server)

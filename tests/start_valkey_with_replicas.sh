@@ -2,6 +2,10 @@
 
 set -e
 
+# Get the directory where this script is located and use it as working directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 BASE_DIR="$(pwd)/valkey_data"
 
 # Create data directories with full path
