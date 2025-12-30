@@ -1323,6 +1323,11 @@ class ValkeyGlideCluster
     public function evalsha(string $sha1, array $args = [], int $num_keys = 0): mixed;
 
     /**
+     * @see ValkeyGlide::invokeScript
+     */
+    public function invokeScript(string $script, array $keys = [], array $args = []): mixed;
+
+    /**
      * @see ValkeyGlide::fcall
      */
     public function fcall(string $fn, array $keys = [], array $args = []): mixed;
