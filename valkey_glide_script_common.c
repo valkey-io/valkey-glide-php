@@ -1,6 +1,7 @@
 /** Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0 */
 
 #include "valkey_glide_script_common.h"
+
 #include "common.h"
 
 // Helper function to process array arguments
