@@ -682,7 +682,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $sha = sha1($scr);
 
         // Run it when it doesn't exist, run it with eval, and then run it with sha1
-        $this->assertFalse($this->valkey_glide->evalsha($scr, [$key], 1));
+        $this->assertFalse($this->valkey_glide->evalsha($sha, [$key], 1));
         $this->assertEquals(1, $this->valkey_glide->eval($scr, [$key], 1));
         $this->assertEquals(1, $this->valkey_glide->evalsha($sha, [$key], 1));
     }
