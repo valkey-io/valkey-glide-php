@@ -5329,7 +5329,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $sha = sha1($scr);
 
         // Run it when it doesn't exist, run it with eval, and then run it with sha1
-        $this->assertNull($this->valkey_glide->evalsha($scr));
+        $this->assertNull($this->valkey_glide->evalsha($sha));
         $this->assertEquals(1, $this->valkey_glide->eval($scr));
         $this->assertEquals(1, $this->valkey_glide->evalsha($sha));
 
