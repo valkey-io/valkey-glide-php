@@ -475,9 +475,9 @@ PHP_METHOD(ValkeyGlide, scriptFlush) {
         RETURN_FALSE;
     }
 
-    // ScriptFlush returns OK response type, return "OK" string like Go implementation
+    // PHPRedis scriptFlush returns boolean true
     free_command_result(result);
-    RETURN_STRING("OK");
+    RETURN_TRUE;
 }
 
 PHP_METHOD(ValkeyGlide, scriptKill) {
