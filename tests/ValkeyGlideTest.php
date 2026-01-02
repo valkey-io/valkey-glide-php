@@ -7562,7 +7562,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             
             // Test function dump and restore
             $payload = $this->valkey_glide->functionDump();
-            $this->assertNotEmpty($payload);
+            $this->assertTrue(!empty($payload));
             
             // Test replace functionality - should fail without replace flag
             try {
