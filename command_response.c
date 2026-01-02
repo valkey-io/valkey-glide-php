@@ -23,7 +23,7 @@
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_otel.h"
 
-#define DEBUG_COMMAND_RESPONSE_TO_ZVAL 1
+#define DEBUG_COMMAND_RESPONSE_TO_ZVAL 0
 
 /* Parse a cluster route from a zval parameter */
 typedef struct {
@@ -536,9 +536,11 @@ int command_response_to_zval(CommandResponse* response,
                 }
             } else if (use_associative_array == COMMAND_RESPONSE_ARRAY_ASSOCIATIVE) {
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-                VALKEY_LOG_DEBUG_FMT("response_processing",
-                                     "response->array_value[0]->command_response_type = %d",
-                                     response->array_value[0].response_type);
+                if (response->array_value_len > 0) {
+                    VALKEY_LOG_DEBUG_FMT("response_processing",
+                                         "response->array_value[0]->command_response_type = %d",
+                                         response->array_value[0].response_type);
+                }
 #endif
                 array_init(output);
                 for (int64_t i = 0; i < response->array_value_len; ++i) {
