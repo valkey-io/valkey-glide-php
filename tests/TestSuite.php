@@ -433,6 +433,16 @@ class TestSuite
         return false;
     }
 
+    protected function assertEmpty($v): bool
+    {
+        if (count($v)) {
+            self::$errors[] = $this->assertionTrace("%s is not empty", $this->printArg($v));
+            return false;
+        }
+
+        return true;
+    }
+
     protected function assertIsArray($v, ?int $size = null): bool
     {
         if (! is_array($v)) {

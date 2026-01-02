@@ -1005,12 +1005,10 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
 
     // Raise an exception if both are provided.
     if (stream_context_ht && advanced_tls_ht) {
-        VALKEY_LOG_ERROR("tls_config_conflict",
-                         "At most one of stream context or advanced TLS config can be specified.");
-        zend_throw_exception(
-            get_exception_ce_for_client_type(is_cluster),
-            "At most one of stream context or advanced TLS config can be specified.",
-            0);
+        const char* error_msg =
+            'At most one of stream context or advanced TLS config can be specified.';
+        VALKEY_LOG_ERROR('tls_config_conflict', error_msg);
+        zend_throw_exception(get_exception_ce_for_client_type(is_cluster), error_msg, 0);
     }
 
     // Set TLS configuration from stream context.
@@ -1035,10 +1033,10 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
                 tls_advanced_config->root_certs     = cert_data;
                 tls_advanced_config->root_certs_len = cert_len;
             } else {
-                VALKEY_LOG_ERROR("tls_config_cafile", "Failed to load root certificate from file");
-                zend_throw_exception(get_exception_ce_for_client_type(is_cluster),
-                                     "Failed to load root certificate from file",
-                                     0);
+                const char* error_message = 'Failed to load root certificate from file';
+                VALKEY_LOG_ERROR('tls_config_cafile', error_message);
+                zend_throw_exception(
+                    get_exception_ce_for_client_type(is_cluster), error_message, 0);
             }
         }
     }
