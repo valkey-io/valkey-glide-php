@@ -7556,8 +7556,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testFunction()
     {
+        // Function commands are supported in Redis 7.0+ and all Valkey versions
         if (version_compare($this->version, '7.0') < 0) {
-            $this->markTestSkipped('Function commands require Valkey 7.0+');
+            $this->markTestSkipped('Function commands require Redis 7.0+ or Valkey');
         }
 
         try {
@@ -7566,7 +7567,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             // Generate Lua library code matching Go/Java implementation
             $libName = 'mylib1c';
             $funcName = 'myfunc1c';
-            $code = "#!lua name={$libName}\nredis.register_function{ function_name = '{$funcName}', callback = function(keys, args) return args[1] end, flags = { 'no-writes' } }";
+            $code = "#!lua name={$libName}\nvalkey.register_function{ function_name = '{$funcName}', callback = function(keys, args) return args[1] end, flags = { 'no-writes' } }";
             
             $this->assertEquals($libName, $this->valkey_glide->functionLoad($code, false));
             $this->assertEquals('one', $this->valkey_glide->fcall($funcName, [], ['one', 'two']));
