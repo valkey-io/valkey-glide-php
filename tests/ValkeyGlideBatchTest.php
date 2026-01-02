@@ -3858,6 +3858,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testFunctionDumpRestoreBatch()
     {
+        // Ensure clean state
+        $this->valkey_glide->function('FLUSH');
 
         $functionCode = "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)";
 
