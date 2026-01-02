@@ -109,11 +109,21 @@ Use conventional commit format:
 
 ### Code Quality Requirements
 
-**C Linters:**
-Run clang-format on any modified .c and .h files.
+#### Running Linters
 
-**PHP Linters:**
-To be added.
+```bash
+# All linters
+./lint.sh            # Check
+./lint.sh --fix      # Fix
+
+# C code only
+./lint-c.sh          # Check
+./lint-c.sh --fix    # Fix
+
+# PHP code only
+./lint-php.sh        # Check
+./lint-php.sh --fix  # Fix
+```
 
 ## Guardrails & Policies
 
@@ -123,13 +133,12 @@ See the .gitignore
 ## Quality Gates (Agent Checklist)
 
 - [ ] Build passes: `phpize, ./configure, make` succeeds
-- [ ] All tests pass: `make install` succeeds
-- [ ] Linting passes: `clang-format` does not report warnings on changed .c or .h files
+- [ ] All tests pass: `make test` succeeds
+- [ ] Linting passes: `./lint.sh` does not report warnings
 - [ ] No generated outputs committed (check `.gitignore`)
 - [ ] DCO signoff present: `git log --format="%B" -n 1 | grep "Signed-off-by"`
 - [ ] Conventional commit format used
 - [ ] Documentation follows Google Style format
-- [ ] Shared logic properly isolated in `glide-shared/`
 
 ## Quick Facts for Reasoners
 

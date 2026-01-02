@@ -282,7 +282,7 @@ Development on the PHP wrapper involves changes in both C and PHP code. We have 
 #### Running Linters
 
 ```bash
-# All linters (C and PHP code)
+# All linters
 ./lint.sh            # Check
 ./lint.sh --fix      # Fix
 
