@@ -5352,10 +5352,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $this->valkey_glide->eval($scr));
         $this->assertEquals(1, $this->valkey_glide->evalsha($sha));
 
-        /* Test invokeScript with hash (alternative to evalsha) */
-        if ($this->minVersionCheck('7.0.0')) {
-            $this->assertEquals(1, $this->valkey_glide->invokeScript($sha));
-        }
+        // Test invokeScript with hash (alternative to evalsha)
+        // if ($this->minVersionCheck('7.0.0')) {
+        //     $this->assertEquals(1, $this->valkey_glide->invokeScript($sha));
+        // }
     }
     */
 
