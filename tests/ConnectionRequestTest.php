@@ -553,8 +553,10 @@ class ConnectionRequestTest extends \TestSuite
 
     public function testRootCertsStreamContext()
     {
-        $file_path = tempnam(sys_get_temp_dir(), 'valkey_glide_test_cert_');
-        file_put_contents($file_path, self::CERTIFICATE_DATA);
+        $file_handle = tmpfile();
+        fwrite($file_handle, self::CERTIFICATE_DATA);
+
+        $file_path = stream_get_meta_data($file_handle)['uri'];
         $stream_context = stream_context_create(['ssl' => ['cafile' => $file_path]]);
 
         $request = ClientConstructorMock::simulate_standalone_constructor(use_tls: true, context: $stream_context);
@@ -569,7 +571,7 @@ class ConnectionRequestTest extends \TestSuite
         $this->assertEquals(1, $root_certs->count());
         $this->assertEquals(self::CERTIFICATE_DATA, $root_certs[0]);
 
-        unlink($file_path);
+        fclose($file_handle); // Automatically unlinks the file
     }
 
     public function testRootCertStreamContextInvalidPath()
