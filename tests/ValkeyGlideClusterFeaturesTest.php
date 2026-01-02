@@ -670,7 +670,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     public function testClusterConstructorParameterCount(): void
     {
         $addresses = [['host' => 'localhost', 'port' => 7001]];
-        
+
         // Test with too many parameters (14) - should fail
         try {
             $client = new ValkeyGlideCluster(
