@@ -221,7 +221,7 @@ PHP_METHOD(ValkeyGlide, eval) {
 
     // Convert num_keys to string
     char num_keys_str[32];
-    snprintf(num_keys_str, sizeof(num_keys_str), "%lld", (long long)num_keys);
+    snprintf(num_keys_str, sizeof(num_keys_str), "%lld", (long long) num_keys);
     command_args[2] = num_keys_str;
 
     int arg_index = 3;
@@ -235,7 +235,7 @@ PHP_METHOD(ValkeyGlide, eval) {
     }
 
     // Convert char** to uintptr_t* for execute_command
-    uintptr_t* cmd_args = emalloc(sizeof(uintptr_t) * total_args);
+    uintptr_t*     cmd_args = emalloc(sizeof(uintptr_t) * total_args);
     unsigned long* args_len = emalloc(sizeof(unsigned long) * total_args);
     for (int i = 0; i < total_args; i++) {
         cmd_args[i] = (uintptr_t) command_args[i];
@@ -282,32 +282,62 @@ PHP_METHOD(ValkeyGlide, evalsha) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
 
-    // Split args into keys and args based on num_keys (PHPRedis style)
-    zval keys_array, args_array;
-    array_init(&keys_array);
-    array_init(&args_array);
-
+    // Build command arguments like rawcommand
+    int total_args = 2;  // EVALSHA + sha1
     if (args && Z_TYPE_P(args) == IS_ARRAY) {
-        zval*     entry;
-        zend_long i = 0;
+        total_args += zend_hash_num_elements(Z_ARRVAL_P(args));
+    }
+    total_args++;  // for num_keys
+
+    char** command_args = emalloc(sizeof(char*) * total_args);
+    command_args[0]     = "EVALSHA";
+    command_args[1]     = sha1;
+
+    // Convert num_keys to string
+    char num_keys_str[32];
+    snprintf(num_keys_str, sizeof(num_keys_str), "%lld", (long long) num_keys);
+    command_args[2] = num_keys_str;
+
+    int arg_index = 3;
+    if (args && Z_TYPE_P(args) == IS_ARRAY) {
+        zval* entry;
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(args), entry) {
-            if (i < num_keys) {
-                add_next_index_zval(&keys_array, entry);
-                Z_TRY_ADDREF_P(entry);
-            } else {
-                add_next_index_zval(&args_array, entry);
-                Z_TRY_ADDREF_P(entry);
-            }
-            i++;
+            convert_to_string(entry);
+            command_args[arg_index++] = Z_STRVAL_P(entry);
         }
         ZEND_HASH_FOREACH_END();
     }
 
-    // Use provided SHA1 hash directly (no need to hash again)
-    execute_invoke_script_command(valkey_glide, sha1, &keys_array, &args_array, return_value, true);
+    // Convert char** to uintptr_t* for execute_command
+    uintptr_t*     cmd_args = emalloc(sizeof(uintptr_t) * total_args);
+    unsigned long* args_len = emalloc(sizeof(unsigned long) * total_args);
+    for (int i = 0; i < total_args; i++) {
+        cmd_args[i] = (uintptr_t) command_args[i];
+        args_len[i] = strlen(command_args[i]);
+    }
 
-    zval_dtor(&keys_array);
-    zval_dtor(&args_array);
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, EvalSha, total_args, cmd_args, args_len);
+    efree(command_args);
+    efree(cmd_args);
+    efree(args_len);
+
+    if (!result) {
+        RETURN_FALSE;
+    }
+
+    if (result->command_error) {
+        free_command_result(result);
+        RETURN_FALSE;
+    }
+
+    if (!result->response) {
+        free_command_result(result);
+        RETURN_FALSE;
+    }
+
+    command_response_to_zval(result->response, return_value, 0, false);
+    free_command_result(result);
 }
 
 PHP_METHOD(ValkeyGlide, scriptExists) {
