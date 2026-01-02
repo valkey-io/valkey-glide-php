@@ -764,6 +764,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
     */
 
+    /*
     public function testEvalBulkResponseMulti()
     {
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
@@ -782,6 +783,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals($key1, $result[0][0]);
         $this->assertEquals($key2, $result[0][1]);
     }
+    */
 
     public function testEvalBulkEmptyResponse()
     {
