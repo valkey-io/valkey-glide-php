@@ -7569,7 +7569,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
                 $this->valkey_glide->functionLoad($code, false);
                 $this->fail('Expected exception for duplicate library load');
             } catch (Exception $e) {
-                $this->assertStringContainsString('already exists', $e->getMessage());
+                $this->assertStringContains('already exists', $e->getMessage());
             }
             
             // Test replace functionality - should succeed with replace flag
