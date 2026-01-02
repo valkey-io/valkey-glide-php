@@ -221,7 +221,7 @@ PHP_METHOD(ValkeyGlide, eval) {
 
     // Convert num_keys to string
     char num_keys_str[32];
-    snprintf(num_keys_str, sizeof(num_keys_str), "%ld", num_keys);
+    snprintf(num_keys_str, sizeof(num_keys_str), "%lld", (long long)num_keys);
     command_args[2] = num_keys_str;
 
     int arg_index = 3;
@@ -234,9 +234,19 @@ PHP_METHOD(ValkeyGlide, eval) {
         ZEND_HASH_FOREACH_END();
     }
 
+    // Convert char** to uintptr_t* for execute_command
+    uintptr_t* cmd_args = emalloc(sizeof(uintptr_t) * total_args);
+    unsigned long* args_len = emalloc(sizeof(unsigned long) * total_args);
+    for (int i = 0; i < total_args; i++) {
+        cmd_args[i] = (uintptr_t) command_args[i];
+        args_len[i] = strlen(command_args[i]);
+    }
+
     CommandResult* result =
-        execute_command(valkey_glide->glide_client, Eval, total_args, command_args, NULL);
+        execute_command(valkey_glide->glide_client, Eval, total_args, cmd_args, args_len);
     efree(command_args);
+    efree(cmd_args);
+    efree(args_len);
 
     if (!result) {
         RETURN_FALSE;
