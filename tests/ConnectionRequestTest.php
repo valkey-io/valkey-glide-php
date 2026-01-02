@@ -571,7 +571,7 @@ class ConnectionRequestTest extends \TestSuite
         $this->assertEquals(1, $root_certs->count());
         $this->assertEquals(self::CERTIFICATE_DATA, $root_certs[0]);
 
-        fclose($file_handle); // Automatically unlinks the file
+        fclose($file_handle);
     }
 
     public function testRootCertStreamContextInvalidPath()
