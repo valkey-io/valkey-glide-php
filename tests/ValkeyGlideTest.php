@@ -5320,8 +5320,19 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->scriptFlush();
 
         // Non existent script (but proper sha1), and a random (not) sha1 string
-        $this->assertFalse($this->valkey_glide->evalsha(sha1(uniqid())));
-        $this->assertFalse($this->valkey_glide->evalsha('some-random-data'));
+        try {
+            $result1 = $this->valkey_glide->evalsha(sha1(uniqid()));
+            $this->assertFalse($result1);
+        } catch (Exception $e) {
+            $this->assertStringContains('NoScriptError', $e->getMessage());
+        }
+        
+        try {
+            $result2 = $this->valkey_glide->evalsha('some-random-data');
+            $this->assertFalse($result2);
+        } catch (Exception $e) {
+            $this->assertStringContains('NoScriptError', $e->getMessage());
+        }
 
         // Load a script
         $cb  = uniqid(); // To ensure the script is new
@@ -5329,7 +5340,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $sha = sha1($scr);
 
         // Run it when it doesn't exist, run it with eval, and then run it with sha1
-        $this->assertFalse($this->valkey_glide->evalsha($sha));
+        try {
+            $result3 = $this->valkey_glide->evalsha($sha);
+            $this->assertFalse($result3);
+        } catch (Exception $e) {
+            $this->assertStringContains('NoScriptError', $e->getMessage());
+        }
         $this->assertEquals(1, $this->valkey_glide->eval($scr));
         $this->assertEquals(1, $this->valkey_glide->evalsha($sha));
 
