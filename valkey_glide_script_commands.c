@@ -101,10 +101,14 @@ void execute_invoke_script_command(valkey_glide_object* valkey_glide,
     );
 
     // Cleanup FFI arguments
-    if (key_ptrs) efree(key_ptrs);
-    if (key_lens) efree(key_lens);
-    if (arg_ptrs) efree(arg_ptrs);
-    if (arg_lens) efree(arg_lens);
+    if (key_ptrs)
+        efree(key_ptrs);
+    if (key_lens)
+        efree(key_lens);
+    if (arg_ptrs)
+        efree(arg_ptrs);
+    if (arg_lens)
+        efree(arg_lens);
 
     if (!result) {
         RETURN_FALSE;
