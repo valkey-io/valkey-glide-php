@@ -100,6 +100,12 @@ void execute_invoke_script_command(valkey_glide_object* valkey_glide,
                                                  0      // route_bytes_len
     );
 
+    // Cleanup FFI arguments
+    if (key_ptrs) efree(key_ptrs);
+    if (key_lens) efree(key_lens);
+    if (arg_ptrs) efree(arg_ptrs);
+    if (arg_lens) efree(arg_lens);
+
     if (!result) {
         RETURN_FALSE;
     }
@@ -116,16 +122,6 @@ void execute_invoke_script_command(valkey_glide_object* valkey_glide,
 
     command_response_to_zval(result->response, return_value, 0, use_false_if_null);
     free_command_result(result);
-
-    // Cleanup
-    if (key_ptrs)
-        efree(key_ptrs);
-    if (key_lens)
-        efree(key_lens);
-    if (arg_ptrs)
-        efree(arg_ptrs);
-    if (arg_lens)
-        efree(arg_lens);
 }
 
 // Helper to store script and get hash (like Go's storeScript)
@@ -475,13 +471,9 @@ PHP_METHOD(ValkeyGlide, scriptFlush) {
         RETURN_FALSE;
     }
 
-    if (!result->response) {
-        free_command_result(result);
-        RETURN_FALSE;
-    }
-
-    command_response_to_zval(result->response, return_value, 0, false);
+    // ScriptFlush returns OK response type, return "OK" string like Go implementation
     free_command_result(result);
+    RETURN_STRING("OK");
 }
 
 PHP_METHOD(ValkeyGlide, scriptKill) {
