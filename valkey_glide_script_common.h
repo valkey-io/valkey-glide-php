@@ -3,6 +3,8 @@
 #ifndef VALKEY_GLIDE_SCRIPT_COMMON_H
 #define VALKEY_GLIDE_SCRIPT_COMMON_H
 
+#include "php.h"
+
 // Function declarations for helper functions
 char** process_array_to_args(zval* array, int* count);
 
