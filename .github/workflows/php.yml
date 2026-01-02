@@ -185,7 +185,7 @@ jobs:
           echo "Job running with the following matrix configuration:"
           echo "${{ toJson(matrix) }}"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             valkey-glide/ffi/target
@@ -384,7 +384,7 @@ jobs:
           echo "Job running with the following matrix configuration:"
           echo "${{ toJson(matrix) }}"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry/index/
@@ -406,7 +406,7 @@ jobs:
             ubuntu-latest
 
       - name: Cache Cargo dependencies (early)
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry/index/
@@ -868,7 +868,7 @@ jobs:
           python3 utils/remove_optional_from_proto.py
           echo "=== Proto file cleanup completed ==="
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             valkey-glide/ffi/target
@@ -936,7 +936,7 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             valkey-glide/ffi/target
