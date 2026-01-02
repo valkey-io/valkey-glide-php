@@ -7541,23 +7541,46 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testFunction()
     {
         if (version_compare($this->version, '7.0') < 0) {
-            $this->markTestSkipped();
+            $this->markTestSkipped('Function commands require Valkey 7.0+');
         }
 
         try {
             $this->assertTrue($this->valkey_glide->functionFlush());
-            $this->assertEquals('mylib', $this->valkey_glide->functionLoad("#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)", false));
-            $this->assertEquals('foo', $this->valkey_glide->fcall('myfunc', [], ['foo']));
-            $payload = $this->valkey_glide->functionDump();
-            $this->assertEquals('mylib', $this->valkey_glide->functionLoad("#!lua name=mylib\nredis.register_function{function_name='myfunc', callback=function(keys, args) return args[1] end, flags={'no-writes'}}", true));
-            $this->assertEquals('foo', $this->valkey_glide->fcall_ro('myfunc', [], ['foo']));
-            $stats = $this->valkey_glide->functionStats();
-            $this->assertIsArray($stats);
-            $this->assertTrue($this->valkey_glide->functionDelete('mylib'));
-            $this->assertTrue($this->valkey_glide->functionRestore($payload));
+            
+            // Generate Lua library code matching Go/Java implementation
+            $libName = 'mylib1c';
+            $funcName = 'myfunc1c';
+            $code = "#!lua name={$libName}\nredis.register_function{ function_name = '{$funcName}', callback = function(keys, args) return args[1] end, flags = { 'no-writes' } }";
+            
+            $this->assertEquals($libName, $this->valkey_glide->functionLoad($code, false));
+            $this->assertEquals('one', $this->valkey_glide->fcall($funcName, [], ['one', 'two']));
+            $this->assertEquals('one', $this->valkey_glide->fcall_ro($funcName, [], ['one', 'two']));
+            
+            // Test function list
             $list = $this->valkey_glide->functionList();
             $this->assertIsArray($list);
-            $this->assertTrue($this->valkey_glide->functionDelete('mylib'));
+            
+            // Test function dump and restore
+            $payload = $this->valkey_glide->functionDump();
+            $this->assertNotEmpty($payload);
+            
+            // Test replace functionality - should fail without replace flag
+            try {
+                $this->valkey_glide->functionLoad($code, false);
+                $this->fail('Expected exception for duplicate library load');
+            } catch (Exception $e) {
+                $this->assertStringContainsString('already exists', $e->getMessage());
+            }
+            
+            // Test replace functionality - should succeed with replace flag
+            $this->assertEquals($libName, $this->valkey_glide->functionLoad($code, true));
+            
+            $stats = $this->valkey_glide->functionStats();
+            $this->assertIsArray($stats);
+            
+            $this->assertTrue($this->valkey_glide->functionDelete($libName));
+            $this->assertTrue($this->valkey_glide->functionRestore($payload));
+            $this->assertTrue($this->valkey_glide->functionDelete($libName));
         } catch (Exception $e) {
             $this->markTestSkipped('Function commands require Valkey 7.0+: ' . $e->getMessage());
         }

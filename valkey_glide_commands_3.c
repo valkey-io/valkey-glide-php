@@ -937,7 +937,7 @@ static int execute_fcall_command_internal(zval*                object,
     }
 
     if (result->command_error) {
-        zend_throw_exception(zend_ce_exception, "FCall: Command execution error", 0);
+        zend_throw_exception(zend_ce_exception, result->command_error->command_error_message, 0);
         free_command_result(result);
         return 0;
     }

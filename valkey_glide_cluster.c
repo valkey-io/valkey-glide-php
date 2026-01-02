@@ -778,6 +778,21 @@ PHP_METHOD(ValkeyGlideCluster, scriptFlush) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     CommandResult* result = execute_command(valkey_glide->glide_client, ScriptFlush, 0, NULL, NULL);
+
+    if (!result) {
+        RETURN_FALSE;
+    }
+
+    if (result->command_error) {
+        free_command_result(result);
+        RETURN_FALSE;
+    }
+
+    if (!result->response) {
+        free_command_result(result);
+        RETURN_FALSE;
+    }
+
     command_response_to_zval(result->response, return_value, 0, false);
     free_command_result(result);
 }
@@ -788,6 +803,21 @@ PHP_METHOD(ValkeyGlideCluster, scriptKill) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     CommandResult* result = execute_command(valkey_glide->glide_client, ScriptKill, 0, NULL, NULL);
+
+    if (!result) {
+        RETURN_FALSE;
+    }
+
+    if (result->command_error) {
+        free_command_result(result);
+        RETURN_FALSE;
+    }
+
+    if (!result->response) {
+        free_command_result(result);
+        RETURN_FALSE;
+    }
+
     command_response_to_zval(result->response, return_value, 0, false);
     free_command_result(result);
 }

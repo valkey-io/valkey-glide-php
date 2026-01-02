@@ -54,7 +54,7 @@ int execute_function_load_command(zval*             object,
     }
 
     if (result->command_error) {
-        zend_throw_exception(zend_ce_exception, "FunctionLoad: Command execution error", 0);
+        zend_throw_exception(zend_ce_exception, result->command_error->command_error_message, 0);
         free_command_result(result);
         return 0;
     }

@@ -23,7 +23,7 @@
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_otel.h"
 
-#define DEBUG_COMMAND_RESPONSE_TO_ZVAL 0
+#define DEBUG_COMMAND_RESPONSE_TO_ZVAL 1
 
 /* Parse a cluster route from a zval parameter */
 typedef struct {
@@ -471,8 +471,9 @@ int command_response_to_zval(CommandResponse* response,
             return 0;
         case Int:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-            VALKEY_LOG_DEBUG_FMT(
-                "response_processing", "CommandResponse is Int: %ld", response->int_value);
+            VALKEY_LOG_DEBUG_FMT("response_processing",
+                                 "CommandResponse is Int: %lld",
+                                 (long long) response->int_value);
 #endif
             ZVAL_LONG(output, response->int_value);
             return 1;
