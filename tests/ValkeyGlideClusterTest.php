@@ -711,11 +711,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         
         // Set key1 with value1
         $result2 = $this->valkey_glide->invokeScript($script2, [$key1], ['value1']);
-        $this->assertEquals('OK', $result2);
+        $this->assertTrue($result2);
         
         // Set key2 with value2
         $result3 = $this->valkey_glide->invokeScript($script2, [$key2], ['value2']);
-        $this->assertEquals('OK', $result3);
+        $this->assertTrue($result3);
 
         // Test script that gets a key's value
         $script3 = "return redis.call('GET', KEYS[1])";
