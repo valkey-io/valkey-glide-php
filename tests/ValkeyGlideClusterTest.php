@@ -163,7 +163,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             $result = $this->valkey_glide->fcall('nonexistent', [], []);
         } catch (Exception $e) {
             // Expected - function doesn't exist
-            $this->assertStringContains('unknown function', $e->getMessage());
+            $this->assertStringContains('Function not found', $e->getMessage());
         }
     }
 

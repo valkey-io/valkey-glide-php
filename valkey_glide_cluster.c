@@ -788,13 +788,9 @@ PHP_METHOD(ValkeyGlideCluster, scriptFlush) {
         RETURN_FALSE;
     }
 
-    if (!result->response) {
-        free_command_result(result);
-        RETURN_FALSE;
-    }
-
-    command_response_to_zval(result->response, return_value, 0, false);
+    // Cluster scriptFlush returns "OK" string for PHPRedis compatibility
     free_command_result(result);
+    RETURN_STRING("OK");
 }
 /* }}} */
 
