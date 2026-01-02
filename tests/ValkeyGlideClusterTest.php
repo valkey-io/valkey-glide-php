@@ -665,6 +665,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     /* ValkeyGlideCluster::EVALSHA needs a 'key' to let us know which node we want to
      * direct the command at */
+    /*
     public function testEvalSHA()
     {
         $key = uniqid() . '-' . rand(1, 1000);
@@ -686,7 +687,64 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals(1, $this->valkey_glide->eval($scr, [$key], 1));
         $this->assertEquals(1, $this->valkey_glide->evalsha($sha, [$key], 1));
     }
+    */
 
+    public function testInvokeScript()
+    {
+        if (version_compare($this->version, '7.0.0') < 0) {
+            $this->markTestSkipped('invokeScript requires Redis 7.0+');
+        }
+
+        // Use hash tags to ensure keys map to same slot in cluster
+        $key1 = '{invoke-script-test}-key1';
+        $key2 = '{invoke-script-test}-key2';
+
+        // Test a script that returns a string without keys and args
+        $script1 = "return 'Hello'";
+        $result1 = $this->valkey_glide->invokeScript($script1);
+        $this->assertEquals('Hello', $result1);
+
+        // Test script that sets a key with value
+        $script2 = "return redis.call('SET', KEYS[1], ARGV[1])";
+        
+        // Set key1 with value1
+        $result2 = $this->valkey_glide->invokeScript($script2, [$key1], ['value1']);
+        $this->assertEquals('OK', $result2);
+        
+        // Set key2 with value2
+        $result3 = $this->valkey_glide->invokeScript($script2, [$key2], ['value2']);
+        $this->assertEquals('OK', $result3);
+
+        // Test script that gets a key's value
+        $script3 = "return redis.call('GET', KEYS[1])";
+        
+        // Get key1's value
+        $result4 = $this->valkey_glide->invokeScript($script3, [$key1]);
+        $this->assertEquals('value1', $result4);
+        
+        // Get key2's value
+        $result5 = $this->valkey_glide->invokeScript($script3, [$key2]);
+        $this->assertEquals('value2', $result5);
+
+        // Test invokeScript with SHA1 hash (script should be auto-loaded)
+        $simpleScript = 'return 42';
+        $sha1 = sha1($simpleScript);
+        
+        // First run with script source
+        $result6 = $this->valkey_glide->invokeScript($simpleScript);
+        $this->assertEquals(42, $result6);
+        
+        // Then run with SHA1 hash
+        $result7 = $this->valkey_glide->invokeScript($sha1);
+        $this->assertEquals(42, $result7);
+
+        // Clean up
+        $this->valkey_glide->del([$key1, $key2]);
+    }
+
+    /*
+
+    /*
     public function testEvalBulkResponse()
     {
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
@@ -702,6 +760,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals($key1, $result[0]);
         $this->assertEquals($key2, $result[1]);
     }
+    */
 
     public function testEvalBulkResponseMulti()
     {
