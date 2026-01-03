@@ -110,16 +110,8 @@ runs:
           cargo install cbindgen
         fi
 
-    - name: Install ziglang (Ubuntu)
-      if: ${{ inputs.os == 'ubuntu' }}
-      shell: bash
-      run: |
-        pip3 install ziglang
-        if [ -f "$HOME/.cargo/bin/cargo-zigbuild" ]; then
-          echo "cargo-zigbuild already installed (cached)"
-        else
-          cargo install --locked cargo-zigbuild
-        fi
+    - name: Install zig
+      uses: ./.github/workflows/install-zig
 
     - name: Setup sccache
       uses: mozilla-actions/sccache-action@v0.0.4
