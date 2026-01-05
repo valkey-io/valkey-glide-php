@@ -205,10 +205,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertTrue($this->valkey_glide->functionDelete($libName));
         $this->assertTrue($this->valkey_glide->functionRestore($payload));
         
-        // Test fcall with second function (fcall_ro requires no-writes flag which has syntax issues)
+        // Test fcall_ro with read-only function (requires no-writes flag)
         $libNameRO = 'mylib_ro';
         $funcNameRO = 'myfunc_ro';
-        $codeRO = "#!lua name=$libNameRO\nredis.register_function{ function_name = '$funcNameRO', callback = function(keys, args) return args[1] end }";
+        $codeRO = "#!lua name=$libNameRO\nredis.register_function{ function_name = '$funcNameRO', callback = function(keys, args) return args[1] end, flags = { 'no-writes' } }";
         $this->assertEquals($libNameRO, $this->valkey_glide->functionLoad($codeRO, false));
         $this->assertEquals('second_test', $this->valkey_glide->fcall_ro($funcNameRO, [], ['second_test']));
     }
