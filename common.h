@@ -129,9 +129,9 @@ typedef struct {
 } valkey_glide_backoff_strategy_t;
 
 typedef struct {
-    bool     use_insecure_tls; /* Whether to use insecure TLS (skips certificate verification) */
     uint8_t* root_certs;       /* Certificate data bytes */
     size_t   root_certs_len;   /* Length of certificate data */
+    bool     use_insecure_tls; /* Whether to use insecure TLS (skips certificate verification) */
 } valkey_glide_tls_advanced_configuration_t;
 
 typedef struct {
