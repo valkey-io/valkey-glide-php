@@ -157,13 +157,59 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     /**
-     * Test function commands: fcall (expects exception for non-existent function)
+     * Test function commands: functionFlush, functionLoad, fcall, fcall_ro, 
+     * functionList, functionDump, functionStats, functionDelete, functionRestore
      */
     public function testFunction()
     {
-        $this->expectException(Exception::class);
-        $this->expectExceptionMessageMatches('/Function not found/');
-        $this->valkey_glide->fcall('nonexistent', [], []);
+        // Function commands are supported in Redis 7.0+ and all Valkey versions
+        if (version_compare($this->version, '7.0') < 0) {
+            $this->markTestSkipped('Function commands require Redis 7.0+ or Valkey');
+        }
+
+        $this->assertTrue($this->valkey_glide->functionFlush());
+        
+        // Generate Lua library code using working pattern from batch tests
+        $libName = 'mylib1c';
+        $funcName = 'myfunc1c';
+        
+        // Use simple single function pattern that works
+        $code = "#!lua name=$libName\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
+        
+        $this->assertEquals($libName, $this->valkey_glide->functionLoad($code, false));
+        $this->assertEquals('one', $this->valkey_glide->fcall($funcName, [], ['one', 'two']));
+        
+        // Load read-only function separately with replace
+        $funcNameRO = 'myfunc1c_ro';
+        $codeRO = "#!lua name=$libName\nredis.register_function{function_name='$funcNameRO', callback=function(keys, args) return args[1] end, flags={'no-writes'}}";
+        $this->assertEquals($libName, $this->valkey_glide->functionLoad($codeRO, true));
+        $this->assertEquals('one', $this->valkey_glide->fcall_ro($funcNameRO, [], ['one', 'two']));
+        
+        // Test function list
+        $list = $this->valkey_glide->functionList();
+        $this->assertIsArray($list);
+        
+        // Test function dump and restore
+        $payload = $this->valkey_glide->functionDump();
+        $this->assertTrue(!empty($payload));
+        
+        // Test replace functionality - should fail without replace flag
+        try {
+            $this->valkey_glide->functionLoad($code, false);
+            $this->fail('Expected exception for duplicate library load');
+        } catch (Exception $e) {
+            $this->assertStringContains('already exists', $e->getMessage());
+        }
+        
+        // Test replace functionality - should succeed with replace flag
+        $this->assertEquals($libName, $this->valkey_glide->functionLoad($code, true));
+        
+        $stats = $this->valkey_glide->functionStats();
+        $this->assertIsArray($stats);
+        
+        $this->assertTrue($this->valkey_glide->functionDelete($libName));
+        $this->assertTrue($this->valkey_glide->functionRestore($payload));
+        $this->assertTrue($this->valkey_glide->functionDelete($libName));
     }
 
 
