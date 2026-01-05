@@ -5281,7 +5281,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test eval with Redis operations
         $key = '{eval-test}-key';
         $value = 'test-value';
-        
+
         // Set a value using eval
         $setScript = "
             local key = KEYS[1]
@@ -5304,10 +5304,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test evalsha with cached script
         $simpleScript = 'return 42';
         $sha1 = sha1($simpleScript);
-        
+
         // First eval to cache the script
         $this->assertEquals(42, $this->valkey_glide->eval($simpleScript));
-        
+
         // Then use evalsha
         $this->assertEquals(42, $this->valkey_glide->evalsha($sha1));
 
@@ -5318,7 +5318,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     /*
     // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
-    // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same. 
+    // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
     public function testEvalSHA()
     {
         if (version_compare($this->version, '2.5.0') < 0) {
@@ -5335,7 +5335,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         } catch (Exception $e) {
             $this->assertStringContains('NoScriptError', $e->getMessage());
         }
-        
+
         try {
             $result2 = $this->valkey_glide->evalsha('some-random-data');
             $this->assertFalse($result2);
@@ -5381,22 +5381,22 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // Test script that sets a key with value
         $script2 = "return redis.call('SET', KEYS[1], ARGV[1])";
-        
+
         // Set key1 with value1
         $result2 = $this->valkey_glide->invokeScript($script2, [$key1], ['value1']);
         $this->assertTrue($result2);
-        
+
         // Set key2 with value2
         $result3 = $this->valkey_glide->invokeScript($script2, [$key2], ['value2']);
         $this->assertTrue($result3);
 
         // Test script that gets a key's value
         $script3 = "return redis.call('GET', KEYS[1])";
-        
+
         // Get key1's value
         $result4 = $this->valkey_glide->invokeScript($script3, [$key1]);
         $this->assertEquals('value1', $result4);
-        
+
         // Get key2's value
         $result5 = $this->valkey_glide->invokeScript($script3, [$key2]);
         $this->assertEquals('value2', $result5);
@@ -5404,11 +5404,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test invokeScript with SHA1 hash (script should be auto-loaded)
         $simpleScript = 'return 42';
         $sha1 = sha1($simpleScript);
-        
+
         // First run with script source
         $result6 = $this->valkey_glide->invokeScript($simpleScript);
         $this->assertEquals(42, $result6);
-        
+
         // Then run with SHA1 hash
         $result7 = $this->valkey_glide->invokeScript($sha1);
         $this->assertEquals(42, $result7);
@@ -5425,23 +5425,23 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // Create a unique script code
         $code = "return 'test-script-show'";
-        
+
         // First execute the script to ensure it's loaded and cached
         $result = $this->valkey_glide->invokeScript($code);
         $this->assertEquals('test-script-show', $result);
-        
+
         // Get the SHA1 hash of the script
         $sha1 = sha1($code);
-        
+
         // Verify script exists in cache after execution
         $exists = $this->valkey_glide->scriptExists([$sha1]);
         $this->assertTrue($exists[0], 'Script should be cached after invokeScript');
-        
+
         // Now test scriptShow with cached script
         $scriptSource = $this->valkey_glide->scriptShow($sha1);
         $this->assertNotNull($scriptSource, 'scriptShow should return script source for cached script');
         $this->assertEquals($code, $scriptSource);
-        
+
         // Test scriptShow with non-existing SHA1 - should throw NoScriptError
         $nonExistingSha1 = sha1('non-existing-script-' . uniqid());
         try {
@@ -5467,7 +5467,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             // Should throw NotBusy error when no script is running
             $this->assertStringContains('NotBusy', $e->getMessage());
         }
-        
+
         // Note: Testing actual script killing would require running a long script
         // in a separate connection, which is complex in PHP's synchronous model.
     }
@@ -7672,7 +7672,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     /**
-     * Test function commands: functionFlush, functionLoad, fcall, fcall_ro, 
+     * Test function commands: functionFlush, functionLoad, fcall, fcall_ro,
      * functionList, functionDump, functionStats, functionDelete, functionRestore
      */
     public function testFunction()
@@ -7683,31 +7683,31 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $this->assertTrue($this->valkey_glide->functionFlush());
-        
+
         // Use the correct Lua function syntax from Go tests
         $libName = 'mylib1c';
         $funcName = 'myfunc1c';
-        
+
         // Generate function code using the working pattern
         $code = "#!lua name=$libName\nredis.register_function{ function_name = '$funcName', callback = function(keys, args) return args[1] end }";
-        
+
         $this->assertEquals($libName, $this->valkey_glide->functionLoad($code, false));
         $this->assertEquals('test_value', $this->valkey_glide->fcall($funcName, [], ['test_value']));
-        
+
         // Test function list
         $list = $this->valkey_glide->functionList();
         $this->assertIsArray($list);
         $this->assertTrue(count($list) > 0);
-        
+
         // Test function dump and restore
         $payload = $this->valkey_glide->functionDump();
         $this->assertIsString($payload);
         $this->assertTrue(!empty($payload));
-        
+
         // Test function stats
         $stats = $this->valkey_glide->functionStats();
         $this->assertIsArray($stats);
-        
+
         // Test replace functionality - should fail without replace flag
         try {
             $this->valkey_glide->functionLoad($code, false);
@@ -7715,11 +7715,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         } catch (Exception $e) {
             $this->assertStringContains('already exists', $e->getMessage());
         }
-        
+
         // Test functionRestore after functionDelete
         $this->assertTrue($this->valkey_glide->functionDelete($libName));
         $this->assertTrue($this->valkey_glide->functionRestore($payload));
-        
+
         // Test fcall with second function (fcall_ro requires no-writes flag which has syntax issues)
         $libNameRO = 'mylib_ro';
         $funcNameRO = 'myfunc_ro';
