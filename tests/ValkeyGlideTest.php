@@ -5220,7 +5220,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         return $aReturn;
     }
 
-    public function testScript()
+    public function testScriptExistsAndScriptFlush()
     {
         if (version_compare($this->version, '2.5.0') < 0) {
             $this->markTestSkipped();
@@ -5255,6 +5255,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     /*
+    // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
+    // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
     public function testEval()
     {
         if (version_compare($this->version, '2.5.0') < 0) {
@@ -5315,6 +5317,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     */
 
     /*
+    // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
+    // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same. 
     public function testEvalSHA()
     {
         if (version_compare($this->version, '2.5.0') < 0) {
@@ -5411,6 +5415,48 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // Clean up
         $this->valkey_glide->del([$key1, $key2]);
+    }
+
+    public function testScriptShow()
+    {
+        if (version_compare($this->version, '8.0.0') < 0) {
+            $this->markTestSkipped('scriptShow requires Redis 8.0+');
+        }
+
+        // Create a unique script code
+        $code = "return 'test-script-show'";
+        
+        // Load the script using invokeScript
+        $result = $this->valkey_glide->invokeScript($code);
+        $this->assertEquals('test-script-show', $result);
+        
+        // Get the SHA1 hash of the script
+        $sha1 = sha1($code);
+        
+        // Test scriptShow with existing SHA1
+        $scriptSource = $this->valkey_glide->scriptShow($sha1);
+        $this->assertEquals($code, $scriptSource);
+        
+        // Test scriptShow with non-existing SHA1
+        $nonExistingSha1 = sha1('non-existing-script');
+        $result = $this->valkey_glide->scriptShow($nonExistingSha1);
+        $this->assertFalse($result);
+    }
+
+    public function testScriptKill()
+    {
+        if (version_compare($this->version, '2.6.0') < 0) {
+            $this->markTestSkipped('scriptKill requires Redis 2.6+');
+        }
+
+        // Ensure no script is running at the beginning
+        $result = $this->valkey_glide->scriptKill();
+        $this->assertFalse($result); // Should fail when no script is running
+        
+        // Note: Testing actual script killing would require running a long script
+        // in a separate connection, which is complex in PHP's synchronous model.
+        // The Go tests use goroutines for this, but PHP would need process forking
+        // or async execution which is beyond the scope of this basic test.
     }
 
     public function testClient()
