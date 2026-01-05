@@ -3828,7 +3828,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testFunctionManagementBatch()
     {
 
-        $functionCode = "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)";
+        $functionCode = "#!lua name=mylib\nredis.register_function{function_name='myfunc', callback=function(keys, args) return args[1] end}";
 
         // Execute FUNCTION LOAD, FUNCTION LIST, FUNCTION DELETE in multi/exec batch
         $results = $this->valkey_glide->multi()
