@@ -349,35 +349,7 @@ PHP_METHOD(ValkeyGlide, evalsha) {
     free_command_result(result);
 }
 
-PHP_METHOD(ValkeyGlide, scriptExists) {
-    zval* sha1s;
-
-    ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_ARRAY(sha1s)
-    ZEND_PARSE_PARAMETERS_END();
-
-    valkey_glide_object* valkey_glide =
-        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
-
-    int            count;
-    uintptr_t*     args;
-    unsigned long* args_len;
-    process_array_to_uintptr_args(sha1s, &count, &args, &args_len);
-
-    CommandResult* result =
-        execute_command(valkey_glide->glide_client, ScriptExists, count, args, args_len);
-
-    // Free allocated memory
-    if (args) {
-        efree(args);
-    }
-    if (args_len) {
-        efree(args_len);
-    }
-
-    command_response_to_zval(result->response, return_value, 0, false);
-    free_command_result(result);
-}
+SCRIPT_EXISTS_METHOD_IMPL(ValkeyGlide)
 
 // Cluster implementations
 PHP_METHOD(ValkeyGlideCluster, eval) {
@@ -553,64 +525,6 @@ PHP_METHOD(ValkeyGlide, scriptFlush) {
     RETURN_TRUE;
 }
 
-PHP_METHOD(ValkeyGlide, scriptKill) {
-    valkey_glide_object* valkey_glide =
-        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
-    CommandResult* result = execute_command(valkey_glide->glide_client, ScriptKill, 0, NULL, NULL);
+SCRIPT_KILL_METHOD_IMPL(ValkeyGlide)
 
-    if (!result) {
-        zend_throw_exception(zend_ce_exception, "ScriptKill: Failed to execute command", 0);
-        return;
-    }
-
-    if (result->command_error) {
-        zend_throw_exception(zend_ce_exception, result->command_error->command_error_message, 0);
-        free_command_result(result);
-        return;
-    }
-
-    if (!result->response) {
-        zend_throw_exception(zend_ce_exception, "ScriptKill: No response received", 0);
-        free_command_result(result);
-        return;
-    }
-
-    command_response_to_zval(result->response, return_value, 0, false);
-    free_command_result(result);
-}
-
-PHP_METHOD(ValkeyGlide, scriptShow) {
-    char*  sha1;
-    size_t sha1_len;
-
-    ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_STRING(sha1, sha1_len)
-    ZEND_PARSE_PARAMETERS_END();
-
-    valkey_glide_object* valkey_glide =
-        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
-    uintptr_t      args[]     = {(uintptr_t) sha1};
-    unsigned long  args_len[] = {sha1_len};
-    CommandResult* result =
-        execute_command(valkey_glide->glide_client, ScriptShow, 1, args, args_len);
-
-    if (!result) {
-        zend_throw_exception(zend_ce_exception, "ScriptShow: Failed to execute command", 0);
-        return;
-    }
-
-    if (result->command_error) {
-        zend_throw_exception(zend_ce_exception, result->command_error->command_error_message, 0);
-        free_command_result(result);
-        return;
-    }
-
-    if (!result->response) {
-        zend_throw_exception(zend_ce_exception, "ScriptShow: No response received", 0);
-        free_command_result(result);
-        return;
-    }
-
-    command_response_to_zval(result->response, return_value, 0, false);
-    free_command_result(result);
-}
+SCRIPT_SHOW_METHOD_IMPL(ValkeyGlide)
