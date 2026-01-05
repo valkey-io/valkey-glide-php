@@ -3,6 +3,7 @@
 #include "include/glide_bindings.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_script_common.h"
+#include "zend_exceptions.h"
 
 // Helper function to process array arguments with lengths for FFI
 static void process_array_to_uintptr_args(zval*           array,
