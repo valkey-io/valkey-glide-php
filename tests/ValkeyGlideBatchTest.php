@@ -3832,12 +3832,12 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         // Execute FUNCTION LOAD, FUNCTION LIST, FUNCTION DELETE in multi/exec batch
         $results = $this->valkey_glide->multi()
-            ->function('LOAD', $functionCode)
-            ->function('LIST')
+            ->functionLoad($functionCode)
+            ->functionList()
             ->fcall('myfunc', [], ['foo'])
-            ->function('LOAD', "#!lua name=mylib_ro\nredis.register_function{function_name='myfunc_ro', callback=function(keys, args) return args[1] end, flags={'no-writes'}}")
+            ->functionLoad("#!lua name=mylib_ro\nredis.register_function{function_name='myfunc_ro', callback=function(keys, args) return args[1] end, flags={'no-writes'}}")
             ->fcall_ro('myfunc_ro', [], ['foo'])
-            ->function('DELETE', 'mylib')
+            ->functionDelete('mylib')
             ->exec();
 
         // Verify transaction results
