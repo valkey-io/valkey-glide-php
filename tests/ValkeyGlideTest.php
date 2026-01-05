@@ -8069,4 +8069,3 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $client->close();
     }
 }
-
