@@ -5463,8 +5463,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         
         // Note: Testing actual script killing would require running a long script
         // in a separate connection, which is complex in PHP's synchronous model.
-        // The Go tests use goroutines for this, but PHP would need process forking
-        // or async execution which is beyond the scope of this basic test.
     }
 
     public function testClient()

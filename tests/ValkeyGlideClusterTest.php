@@ -793,13 +793,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         
         // Note: Testing actual script killing would require running a long script
         // in a separate connection, which is complex in PHP's synchronous model.
-        // The Go tests use goroutines for this, but PHP would need process forking
-        // or async execution which is beyond the scope of this basic test.
     }
 
     /*
-
-    /*
+    // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
+    // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
     public function testEvalBulkResponse()
     {
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
@@ -818,6 +816,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     */
 
     /*
+    // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
+    // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
     public function testEvalBulkResponseMulti()
     {
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
@@ -838,6 +838,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
     */
 
+    /*
+    // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
+    // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
     public function testEvalBulkEmptyResponse()
     {
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
@@ -853,6 +856,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertNull($result);
     }
 
+    // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
+    // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
     public function testEvalBulkEmptyResponseMulti()
     {
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
