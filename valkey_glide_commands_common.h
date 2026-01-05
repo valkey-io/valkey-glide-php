@@ -1190,6 +1190,54 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             getThis(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0); \
     }
 
+#define INVOKE_SCRIPT_METHOD_IMPL(class_name)                                                     \
+    PHP_METHOD(class_name, invokeScript) {                                                        \
+        char*  script_or_hash;                                                                    \
+        size_t script_or_hash_len;                                                                \
+        zval * keys = NULL, *args = NULL;                                                         \
+                                                                                                  \
+        ZEND_PARSE_PARAMETERS_START(1, 3)                                                         \
+        Z_PARAM_STRING(script_or_hash, script_or_hash_len)                                        \
+        Z_PARAM_OPTIONAL                                                                          \
+        Z_PARAM_ARRAY(keys)                                                                       \
+        Z_PARAM_ARRAY(args)                                                                       \
+        ZEND_PARSE_PARAMETERS_END();                                                              \
+                                                                                                  \
+        valkey_glide_object* valkey_glide =                                                       \
+            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());                     \
+                                                                                                  \
+        zval empty_keys, empty_args;                                                              \
+        if (!keys) {                                                                              \
+            array_init(&empty_keys);                                                              \
+            keys = &empty_keys;                                                                   \
+        }                                                                                         \
+        if (!args) {                                                                              \
+            array_init(&empty_args);                                                              \
+            args = &empty_args;                                                                   \
+        }                                                                                         \
+                                                                                                  \
+        if (script_or_hash_len == 40 && strspn(script_or_hash, "0123456789abcdefABCDEF") == 40) { \
+            execute_invoke_script_command(valkey_glide,                                           \
+                                          script_or_hash,                                         \
+                                          keys,                                                   \
+                                          args,                                                   \
+                                          return_value,                                           \
+                                          strcmp(#class_name, "ValkeyGlideCluster") == 0);        \
+        } else {                                                                                  \
+            char* script_hash = store_script_and_get_hash(script_or_hash);                        \
+            if (!script_hash) {                                                                   \
+                RETURN_FALSE;                                                                     \
+            }                                                                                     \
+            execute_invoke_script_command(valkey_glide,                                           \
+                                          script_hash,                                            \
+                                          keys,                                                   \
+                                          args,                                                   \
+                                          return_value,                                           \
+                                          strcmp(#class_name, "ValkeyGlideCluster") == 0);        \
+            efree(script_hash);                                                                   \
+        }                                                                                         \
+    }
+
 #define DUMP_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, dump) {                                              \
         if (execute_dump_command(getThis(),                                     \

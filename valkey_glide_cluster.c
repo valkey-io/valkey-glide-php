@@ -938,6 +938,11 @@ SCRIPT_KILL_METHOD_IMPL(ValkeyGlideCluster)
 SCRIPT_SHOW_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto mixed ValkeyGlideCluster::invokeScript(string script_or_hash, [array keys, array args])
+ */
+INVOKE_SCRIPT_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* Function Commands */
 PHP_METHOD(ValkeyGlideCluster, functionLoad) {
     execute_function_load_command(

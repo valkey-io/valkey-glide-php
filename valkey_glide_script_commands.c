@@ -176,48 +176,6 @@ void execute_script_flush_command(zval* object, zval* return_value, bool is_clus
 
 
 // PHP method implementations following Go pattern
-PHP_METHOD(ValkeyGlide, invokeScript) {
-    char*  script_or_hash;
-    size_t script_or_hash_len;
-    zval * keys = NULL, *args = NULL;
-
-    ZEND_PARSE_PARAMETERS_START(1, 3)
-    Z_PARAM_STRING(script_or_hash, script_or_hash_len)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_ARRAY(keys)
-    Z_PARAM_ARRAY(args)
-    ZEND_PARSE_PARAMETERS_END();
-
-    valkey_glide_object* valkey_glide =
-        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
-
-    // Prepare empty arrays if not provided
-    zval empty_keys, empty_args;
-    if (!keys) {
-        array_init(&empty_keys);
-        keys = &empty_keys;
-    }
-    if (!args) {
-        array_init(&empty_args);
-        args = &empty_args;
-    }
-
-    // Check if input looks like a SHA1 hash (40 hex characters)
-    if (script_or_hash_len == 40 && strspn(script_or_hash, "0123456789abcdefABCDEF") == 40) {
-        // Use as hash directly (like evalsha)
-        execute_invoke_script_command(
-            valkey_glide, script_or_hash, keys, args, return_value, false);
-    } else {
-        // Store script and get hash (like eval)
-        char* script_hash = store_script_and_get_hash(script_or_hash);
-        if (!script_hash) {
-            RETURN_FALSE;
-        }
-        execute_invoke_script_command(valkey_glide, script_hash, keys, args, return_value, false);
-        efree(script_hash);
-    }
-}
-
 // PHPRedis compatibility methods
 PHP_METHOD(ValkeyGlide, eval) {
     // TODO: EVAL command is not supported by glide-core. Remove this comment when supported.
@@ -479,53 +437,4 @@ PHP_METHOD(ValkeyGlideCluster, evalsha) {
 
     zval_dtor(&keys_array);
     zval_dtor(&args_array);
-}
-
-PHP_METHOD(ValkeyGlideCluster, invokeScript) {
-    char*  script_or_hash;
-    size_t script_or_hash_len;
-    zval * keys = NULL, *args = NULL;
-
-    ZEND_PARSE_PARAMETERS_START(1, 3)
-    Z_PARAM_STRING(script_or_hash, script_or_hash_len)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_ARRAY(keys)
-    Z_PARAM_ARRAY(args)
-    ZEND_PARSE_PARAMETERS_END();
-
-    valkey_glide_object* valkey_glide =
-        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
-
-    // Prepare empty arrays if not provided
-    zval empty_keys, empty_args;
-    if (!keys) {
-        array_init(&empty_keys);
-        keys = &empty_keys;
-    }
-    if (!args) {
-        array_init(&empty_args);
-        args = &empty_args;
-    }
-
-    // Check if input looks like a SHA1 hash (40 hex characters)
-    if (script_or_hash_len == 40 && strspn(script_or_hash, "0123456789abcdefABCDEF") == 40) {
-        // Use as hash directly (like evalsha)
-        execute_invoke_script_command(valkey_glide, script_or_hash, keys, args, return_value, true);
-    } else {
-        // Store script and get hash (like eval)
-        char* script_hash = store_script_and_get_hash(script_or_hash);
-        if (!script_hash) {
-            RETURN_FALSE;
-        }
-        execute_invoke_script_command(valkey_glide, script_hash, keys, args, return_value, true);
-        efree(script_hash);
-    }
-
-    // Clean up empty arrays if we created them
-    if (!keys) {
-        zval_dtor(&empty_keys);
-    }
-    if (!args) {
-        zval_dtor(&empty_args);
-    }
 }

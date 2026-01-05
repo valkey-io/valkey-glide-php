@@ -715,6 +715,10 @@ SCRIPT_SHOW_METHOD_IMPL(ValkeyGlide)
 SCRIPT_FLUSH_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto mixed ValkeyGlide::invokeScript(string script_or_hash, [array keys, array args]) */
+INVOKE_SCRIPT_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 PHP_METHOD(ValkeyGlide, functionLoad) {
     execute_function_load_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
