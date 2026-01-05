@@ -158,13 +158,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testFunction()
     {
-        try {
-            // Test fcall (function commands work in cluster mode)
-            $result = $this->valkey_glide->fcall('nonexistent', [], []);
-        } catch (Exception $e) {
-            // Expected - function doesn't exist
-            $this->assertStringContains('Function not found', $e->getMessage());
-        }
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessageMatches('/Function not found/');
+        $this->valkey_glide->fcall('nonexistent', [], []);
     }
 
 
@@ -632,6 +628,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
      * we can direct it to a given node */
     public function testScriptExistsAndScriptFlush()
     {
+        if (version_compare($this->version, '2.6.0') < 0) {
+            $this->markTestSkipped('Script commands require Redis 2.6+');
+        }
+
         $key = uniqid() . '-' . rand(1, 1000);
 
         // Flush any scripts we have
@@ -693,8 +693,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testInvokeScript()
     {
-        if (version_compare($this->version, '7.0.0') < 0) {
-            $this->markTestSkipped('invokeScript requires Redis 7.0+');
+        if (version_compare($this->version, '2.6.0') < 0) {
+            $this->markTestSkipped('invokeScript requires Redis 2.6+');
         }
 
         // Use hash tags to ensure keys map to same slot in cluster
@@ -753,12 +753,15 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Create a unique script code
         $code = "return 'test-script-show'";
         
-        // Load the script using invokeScript
+        // Load the script using invokeScript to ensure it's cached
         $result = $this->valkey_glide->invokeScript($code);
         $this->assertEquals('test-script-show', $result);
         
         // Get the SHA1 hash of the script
         $sha1 = sha1($code);
+        
+        // Small delay to ensure script is cached across cluster
+        usleep(100000); // 100ms
         
         // Test scriptShow with existing SHA1
         $scriptSource = $this->valkey_glide->scriptShow($sha1);
