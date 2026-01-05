@@ -699,6 +699,8 @@ PHP_METHOD(ValkeyGlide, sunsubscribe) { /* TODO: Implement */
 PHP_METHOD(ValkeyGlide, pubsub) { /* TODO: Implement */
 }
 
+/* Script commands */
+
 /* {{{ proto array ValkeyGlide::scriptExists(array sha1s) */
 SCRIPT_EXISTS_METHOD_IMPL(ValkeyGlide)
 /* }}} */
@@ -719,6 +721,15 @@ SCRIPT_FLUSH_METHOD_IMPL(ValkeyGlide)
 INVOKE_SCRIPT_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto mixed ValkeyGlide::fcall(string name, int numkeys, mixed ...args) */
+FCALL_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::fcall_ro(string name, int numkeys, mixed ...args) */
+FCALL_RO_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* Function commands */
 PHP_METHOD(ValkeyGlide, functionLoad) {
     execute_function_load_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }

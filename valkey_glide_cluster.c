@@ -727,14 +727,6 @@ PHP_METHOD(ValkeyGlideCluster, punsubscribe) {
 /* {{{ proto mixed ValkeyGlideCluster::evalsha_ro(string sha, [array args, int numkeys]) */
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::fcall(string fn, [array keys, array args]) */
-FCALL_METHOD_IMPL(ValkeyGlideCluster)
-/* }}} */
-
-/* {{{ proto mixed ValkeyGlideCluster::fcall_ro(string fn, [array keys, array args]) */
-FCALL_RO_METHOD_IMPL(ValkeyGlideCluster)
-/* }}} */
-
 /* Commands that do not interact with ValkeyGlide, but just report stuff about
  * various options, etc */
 
@@ -924,6 +916,8 @@ CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlideCluster)
 
 COPY_METHOD_IMPL(ValkeyGlideCluster)
 
+/* Script commands */
+
 /* {{{ proto array ValkeyGlideCluster::scriptExists(array sha1s) */
 SCRIPT_EXISTS_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
@@ -941,6 +935,14 @@ SCRIPT_SHOW_METHOD_IMPL(ValkeyGlideCluster)
 /* {{{ proto mixed ValkeyGlideCluster::invokeScript(string script_or_hash, [array keys, array args])
  */
 INVOKE_SCRIPT_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::fcall(string fn, [array keys, array args]) */
+FCALL_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::fcall_ro(string fn, [array keys, array args]) */
+FCALL_RO_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* Function Commands */

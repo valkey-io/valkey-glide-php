@@ -692,14 +692,6 @@ DISCARD_METHOD_IMPL(ValkeyGlide)
 EXEC_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlide::fcall(string name, int numkeys, mixed ...args) */
-FCALL_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto mixed ValkeyGlide::fcall_ro(string name, int numkeys, mixed ...args) */
-FCALL_RO_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
 /* {{{ proto string ValkeyGlide::dump(string key) */
 DUMP_METHOD_IMPL(ValkeyGlide)
 /* }}} */
