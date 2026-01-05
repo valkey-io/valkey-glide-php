@@ -753,15 +753,16 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Create a unique script code
         $code = "return 'test-script-show'";
         
-        // Load the script using invokeScript to ensure it's cached
+        // Explicitly load script using SCRIPT LOAD equivalent (via invokeScript)
         $result = $this->valkey_glide->invokeScript($code);
         $this->assertEquals('test-script-show', $result);
         
         // Get the SHA1 hash of the script
         $sha1 = sha1($code);
         
-        // Small delay to ensure script is cached across cluster
-        usleep(100000); // 100ms
+        // Verify script exists first
+        $exists = $this->valkey_glide->scriptExists([$sha1]);
+        $this->assertTrue($exists[0], 'Script should exist in cache');
         
         // Test scriptShow with existing SHA1
         $scriptSource = $this->valkey_glide->scriptShow($sha1);

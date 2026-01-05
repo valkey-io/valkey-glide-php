@@ -5426,15 +5426,16 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Create a unique script code
         $code = "return 'test-script-show'";
         
-        // Load the script using invokeScript to ensure it's cached
+        // Explicitly load script using SCRIPT LOAD equivalent (via invokeScript)
         $result = $this->valkey_glide->invokeScript($code);
         $this->assertEquals('test-script-show', $result);
         
         // Get the SHA1 hash of the script
         $sha1 = sha1($code);
         
-        // Small delay to ensure script is cached
-        usleep(100000); // 100ms
+        // Verify script exists first
+        $exists = $this->valkey_glide->scriptExists([$sha1]);
+        $this->assertTrue($exists[0], 'Script should exist in cache');
         
         // Test scriptShow with existing SHA1
         $scriptSource = $this->valkey_glide->scriptShow($sha1);
@@ -7670,11 +7671,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         $this->assertTrue($this->valkey_glide->functionFlush());
         
-        // Generate Lua library code matching Go/Java implementation
+        // Generate Lua library code with correct syntax
         $libName = 'mylib1c';
         $funcName = 'myfunc1c';
         $funcNameRO = 'myfunc1c_ro';
-        $code = "#!lua name=$libName\nredis.register_function('$funcName', function(keys, args) return args[1] end)\nredis.register_function{function_name='$funcNameRO', callback=function(keys, args) return args[1] end, flags={'no-writes'}}";
+        $code = "#!lua name=$libName\n" .
+                "redis.register_function('$funcName', function(keys, args) return args[1] end)\n" .
+                "redis.register_function{function_name='$funcNameRO', callback=function(keys, args) return args[1] end, flags={'no-writes'}}";
         
         $this->assertEquals($libName, $this->valkey_glide->functionLoad($code, false));
         $this->assertEquals('one', $this->valkey_glide->fcall($funcName, [], ['one', 'two']));
