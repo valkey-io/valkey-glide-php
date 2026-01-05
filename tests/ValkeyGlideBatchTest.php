@@ -3835,7 +3835,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
             ->function('LOAD', $functionCode)
             ->function('LIST')
             ->fcall('myfunc', [], ['foo'])
-            ->function('load', 'replace', "#!lua name=mylib\nredis.register_function{function_name='myfunc_ro', callback=function(keys, args) return args[1] end, flags={'no-writes'}}")
+            ->function('LOAD', 'REPLACE', "#!lua name=mylib\nredis.register_function{function_name='myfunc_ro', callback=function(keys, args) return args[1] end, flags={'no-writes'}}")
             ->fcall_ro('myfunc_ro', [], ['foo'])
             ->function('DELETE', 'mylib')
             ->exec();
