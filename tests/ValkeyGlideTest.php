@@ -5433,22 +5433,24 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Get the SHA1 hash of the script
         $sha1 = sha1($code);
         
-        // Force script to be cached by calling scriptExists first
+        // Verify script exists in cache after execution
         $exists = $this->valkey_glide->scriptExists([$sha1]);
-        if (!$exists[0]) {
-            // If script doesn't exist, load it explicitly
-            $this->valkey_glide->invokeScript($code);
-        }
+        $this->assertTrue($exists[0], 'Script should be cached after invokeScript');
         
-        // Now test scriptShow with existing SHA1
+        // Now test scriptShow with cached script
         $scriptSource = $this->valkey_glide->scriptShow($sha1);
-        $this->assertNotNull($scriptSource, 'scriptShow should return script source');
+        $this->assertNotNull($scriptSource, 'scriptShow should return script source for cached script');
         $this->assertEquals($code, $scriptSource);
         
-        // Test scriptShow with non-existing SHA1
-        $nonExistingSha1 = sha1('non-existing-script');
-        $result = $this->valkey_glide->scriptShow($nonExistingSha1);
-        $this->assertFalse($result);
+        // Test scriptShow with non-existing SHA1 - should throw NoScriptError
+        $nonExistingSha1 = sha1('non-existing-script-' . uniqid());
+        try {
+            $result = $this->valkey_glide->scriptShow($nonExistingSha1);
+            $this->fail('scriptShow should throw exception for non-existing script');
+        } catch (Exception $e) {
+            // Should throw NoScriptError for non-existing script
+            $this->assertStringContains('NoScriptError', $e->getMessage());
+        }
     }
 
     public function testScriptKill()
@@ -5457,9 +5459,14 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->markTestSkipped('scriptKill requires Redis 2.6+');
         }
 
-        // Ensure no script is running at the beginning
-        $result = $this->valkey_glide->scriptKill();
-        $this->assertFalse($result); // Should fail when no script is running
+        // Test scriptKill when no script is running - should throw NotBusy error
+        try {
+            $result = $this->valkey_glide->scriptKill();
+            $this->fail('scriptKill should throw exception when no script is running');
+        } catch (Exception $e) {
+            // Should throw NotBusy error when no script is running
+            $this->assertStringContains('NotBusy', $e->getMessage());
+        }
         
         // Note: Testing actual script killing would require running a long script
         // in a separate connection, which is complex in PHP's synchronous model.

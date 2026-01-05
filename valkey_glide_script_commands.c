@@ -559,17 +559,20 @@ PHP_METHOD(ValkeyGlide, scriptKill) {
     CommandResult* result = execute_command(valkey_glide->glide_client, ScriptKill, 0, NULL, NULL);
 
     if (!result) {
-        RETURN_FALSE;
+        zend_throw_exception(zend_ce_exception, "ScriptKill: Failed to execute command", 0);
+        return;
     }
 
     if (result->command_error) {
+        zend_throw_exception(zend_ce_exception, result->command_error->command_error_message, 0);
         free_command_result(result);
-        RETURN_FALSE;
+        return;
     }
 
     if (!result->response) {
+        zend_throw_exception(zend_ce_exception, "ScriptKill: No response received", 0);
         free_command_result(result);
-        RETURN_FALSE;
+        return;
     }
 
     command_response_to_zval(result->response, return_value, 0, false);
@@ -590,6 +593,24 @@ PHP_METHOD(ValkeyGlide, scriptShow) {
     unsigned long  args_len[] = {sha1_len};
     CommandResult* result =
         execute_command(valkey_glide->glide_client, ScriptShow, 1, args, args_len);
+
+    if (!result) {
+        zend_throw_exception(zend_ce_exception, "ScriptShow: Failed to execute command", 0);
+        return;
+    }
+
+    if (result->command_error) {
+        zend_throw_exception(zend_ce_exception, result->command_error->command_error_message, 0);
+        free_command_result(result);
+        return;
+    }
+
+    if (!result->response) {
+        zend_throw_exception(zend_ce_exception, "ScriptShow: No response received", 0);
+        free_command_result(result);
+        return;
+    }
+
     command_response_to_zval(result->response, return_value, 0, false);
     free_command_result(result);
 }
