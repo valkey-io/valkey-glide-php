@@ -177,7 +177,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $code = "#!lua name=$libName\nredis.register_function{ function_name = '$funcName', callback = function(keys, args) return args[1] end }";
         
         $this->assertEquals($libName, $this->valkey_glide->functionLoad($code, false));
-        $this->assertEquals('test_value', $this->valkey_glide->fcall($funcName, [], ['test_value']));
+        $this->assertEquals('test_value', $this->valkey_glide->fcall_ro($funcName, [], ['test_value']));
         
         // Test function list
         $list = $this->valkey_glide->functionList();
