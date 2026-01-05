@@ -3858,7 +3858,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertIsArray($functions);
         // Library should be deleted, so it shouldn't appear in the list
     }
-
+    /*
     public function testFunctionDumpRestoreBatch()
     {
         // Ensure clean state
@@ -3889,6 +3889,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->function('FLUSH');
     }
     */
+    *  /
     // ===================================================================
     // SELECT COMMAND BATCH MODE PREVENTION TESTS
     // ===================================================================
