@@ -146,6 +146,32 @@ char* store_script_and_get_hash(const char* script) {
     return hash;
 }
 
+// Helper function for script flush command
+void execute_script_flush_command(zval* object, zval* return_value, bool is_cluster) {
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    CommandResult* result = execute_command(valkey_glide->glide_client, ScriptFlush, 0, NULL, NULL);
+
+    if (!result) {
+        RETURN_FALSE;
+    }
+
+    if (result->command_error) {
+        free_command_result(result);
+        RETURN_FALSE;
+    }
+
+    free_command_result(result);
+
+    if (is_cluster) {
+        // Cluster scriptFlush returns "OK" string for PHPRedis compatibility
+        RETURN_STRING("OK");
+    } else {
+        // PHPRedis scriptFlush returns boolean true
+        RETURN_TRUE;
+    }
+}
+
 // Script management commands using RequestType (like Go's executeCommand)
 
 
@@ -349,8 +375,6 @@ PHP_METHOD(ValkeyGlide, evalsha) {
     free_command_result(result);
 }
 
-SCRIPT_EXISTS_METHOD_IMPL(ValkeyGlide)
-
 // Cluster implementations
 PHP_METHOD(ValkeyGlideCluster, eval) {
     // TODO: EVAL command is not supported by glide-core. Remove this comment when supported.
@@ -505,26 +529,3 @@ PHP_METHOD(ValkeyGlideCluster, invokeScript) {
         zval_dtor(&empty_args);
     }
 }
-
-PHP_METHOD(ValkeyGlide, scriptFlush) {
-    valkey_glide_object* valkey_glide =
-        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
-    CommandResult* result = execute_command(valkey_glide->glide_client, ScriptFlush, 0, NULL, NULL);
-
-    if (!result) {
-        RETURN_FALSE;
-    }
-
-    if (result->command_error) {
-        free_command_result(result);
-        RETURN_FALSE;
-    }
-
-    // PHPRedis scriptFlush returns boolean true
-    free_command_result(result);
-    RETURN_TRUE;
-}
-
-SCRIPT_KILL_METHOD_IMPL(ValkeyGlide)
-
-SCRIPT_SHOW_METHOD_IMPL(ValkeyGlide)

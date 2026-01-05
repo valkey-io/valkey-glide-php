@@ -735,37 +735,6 @@ FCALL_METHOD_IMPL(ValkeyGlideCluster)
 FCALL_RO_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto array ValkeyGlideCluster::scriptExists(array sha1s) */
-SCRIPT_EXISTS_METHOD_IMPL(ValkeyGlideCluster)
-/* }}} */
-
-/* {{{ proto string ValkeyGlideCluster::scriptFlush([string mode]) */
-PHP_METHOD(ValkeyGlideCluster, scriptFlush) {
-    valkey_glide_object* valkey_glide =
-        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
-    CommandResult* result = execute_command(valkey_glide->glide_client, ScriptFlush, 0, NULL, NULL);
-
-    if (!result) {
-        RETURN_FALSE;
-    }
-
-    if (result->command_error) {
-        free_command_result(result);
-        RETURN_FALSE;
-    }
-
-    // Cluster scriptFlush returns "OK" string for PHPRedis compatibility
-    free_command_result(result);
-    RETURN_STRING("OK");
-}
-/* }}} */
-
-SCRIPT_KILL_METHOD_IMPL(ValkeyGlideCluster)
-/* }}} */
-
-SCRIPT_SHOW_METHOD_IMPL(ValkeyGlideCluster)
-
-/* }}} */
 /* Commands that do not interact with ValkeyGlide, but just report stuff about
  * various options, etc */
 
@@ -954,6 +923,20 @@ CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 COPY_METHOD_IMPL(ValkeyGlideCluster)
+
+/* {{{ proto array ValkeyGlideCluster::scriptExists(array sha1s) */
+SCRIPT_EXISTS_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string ValkeyGlideCluster::scriptFlush([string mode]) */
+SCRIPT_FLUSH_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+SCRIPT_KILL_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+SCRIPT_SHOW_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
 
 /* Function Commands */
 PHP_METHOD(ValkeyGlideCluster, functionLoad) {

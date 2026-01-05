@@ -699,6 +699,22 @@ PHP_METHOD(ValkeyGlide, sunsubscribe) { /* TODO: Implement */
 PHP_METHOD(ValkeyGlide, pubsub) { /* TODO: Implement */
 }
 
+/* {{{ proto array ValkeyGlide::scriptExists(array sha1s) */
+SCRIPT_EXISTS_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string ValkeyGlide::scriptKill() */
+SCRIPT_KILL_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string ValkeyGlide::scriptShow(string sha1) */
+SCRIPT_SHOW_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string ValkeyGlide::scriptFlush([string mode]) */
+SCRIPT_FLUSH_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 PHP_METHOD(ValkeyGlide, functionLoad) {
     execute_function_load_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
