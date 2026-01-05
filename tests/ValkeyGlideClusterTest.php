@@ -1414,3 +1414,4 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $client->close();
     }
 }
+
