@@ -193,6 +193,10 @@ PHP_METHOD(ValkeyGlide, invokeScript) {
 
 // PHPRedis compatibility methods
 PHP_METHOD(ValkeyGlide, eval) {
+    // TODO: EVAL command is not supported by glide-core. Remove this comment when supported.
+    zend_throw_exception(zend_ce_exception, "EVAL command is not supported by glide-core", 0);
+    RETURN_FALSE;
+
     char*     script;
     size_t    script_len;
     zval*     args     = NULL;
@@ -267,6 +271,10 @@ PHP_METHOD(ValkeyGlide, eval) {
 }
 
 PHP_METHOD(ValkeyGlide, evalsha) {
+    // TODO: EVALSHA command is not supported by glide-core. Remove this comment when supported.
+    zend_throw_exception(zend_ce_exception, "EVALSHA command is not supported by glide-core", 0);
+    RETURN_FALSE;
+
     char*     sha1;
     size_t    sha1_len;
     zval*     args     = NULL;
@@ -372,6 +380,11 @@ PHP_METHOD(ValkeyGlide, scriptExists) {
 
 // Cluster implementations
 PHP_METHOD(ValkeyGlideCluster, eval) {
+    // TODO: EVAL command is not supported by glide-core. Remove this comment when supported.
+    zend_throw_exception(
+        get_valkey_glide_cluster_exception_ce(), "EVAL command is not supported by glide-core", 0);
+    RETURN_FALSE;
+
     char*     script;
     size_t    script_len;
     zval*     args     = NULL;
@@ -422,6 +435,12 @@ PHP_METHOD(ValkeyGlideCluster, eval) {
 }
 
 PHP_METHOD(ValkeyGlideCluster, evalsha) {
+    // TODO: EVALSHA command is not supported by glide-core. Remove this comment when supported.
+    zend_throw_exception(get_valkey_glide_cluster_exception_ce(),
+                         "EVALSHA command is not supported by glide-core",
+                         0);
+    RETURN_FALSE;
+
     char*     sha1;
     size_t    sha1_len;
     zval*     args     = NULL;

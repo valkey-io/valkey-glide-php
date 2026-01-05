@@ -7662,6 +7662,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->select(0);
     }
 
+    /**
+     * Test function commands: functionFlush, functionLoad, fcall, fcall_ro, 
+     * functionList, functionDump, functionStats, functionDelete, functionRestore
+     */
     public function testFunction()
     {
         // Function commands are supported in Redis 7.0+ and all Valkey versions

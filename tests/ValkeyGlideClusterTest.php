@@ -156,6 +156,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertTrue($this->valkey_glide->flushdb($key, true));
     }
 
+    /**
+     * Test function commands: fcall (expects exception for non-existent function)
+     */
     public function testFunction()
     {
         $this->expectException(Exception::class);
