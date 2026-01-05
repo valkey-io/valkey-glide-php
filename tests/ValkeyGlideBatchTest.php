@@ -3889,7 +3889,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->function('FLUSH');
     }
     */
-    *  /
+
     // ===================================================================
     // SELECT COMMAND BATCH MODE PREVENTION TESTS
     // ===================================================================
