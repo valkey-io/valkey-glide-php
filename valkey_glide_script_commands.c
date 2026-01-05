@@ -130,7 +130,7 @@ void execute_invoke_script_command(valkey_glide_object* valkey_glide,
 }
 
 // Helper to store script and get hash (like Go's storeScript)
-static char* store_script_and_get_hash(const char* script) {
+char* store_script_and_get_hash(const char* script) {
     struct ScriptHashBuffer* hash_buffer = store_script((const uint8_t*) script, strlen(script));
     if (!hash_buffer || !hash_buffer->ptr) {
         if (hash_buffer) {

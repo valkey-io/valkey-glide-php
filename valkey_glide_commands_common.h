@@ -1184,6 +1184,12 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         free_command_result(result);                                                             \
     }
 
+#define SCRIPT_FLUSH_METHOD_IMPL(class_name)                                          \
+    PHP_METHOD(class_name, scriptFlush) {                                             \
+        execute_script_flush_command(                                                 \
+            getThis(), return_value, strcmp(#class_name, "ValkeyGlideCluster") == 0); \
+    }
+
 #define DUMP_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, dump) {                                              \
         if (execute_dump_command(getThis(),                                     \
