@@ -3851,10 +3851,10 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertTrue($results[5]); // FUNCTION DELETE result
 
         // Clean up the second library
-        $this->assertTrue($this->valkey_glide->function('DELETE', 'mylib_ro'));
+        $this->assertTrue($this->valkey_glide->functionDelete('mylib_ro'));
 
         // Verify server-side effects
-        $functions = $this->valkey_glide->function('LIST');
+        $functions = $this->valkey_glide->functionList();
         $this->assertIsArray($functions);
         // Library should be deleted, so it shouldn't appear in the list
     }
