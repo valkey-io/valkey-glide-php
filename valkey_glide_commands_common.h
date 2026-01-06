@@ -1222,13 +1222,16 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());                     \
                                                                                                   \
         zval empty_keys, empty_args;                                                              \
+        bool cleanup_keys = false, cleanup_args = false;                                          \
         if (!keys) {                                                                              \
             array_init(&empty_keys);                                                              \
             keys = &empty_keys;                                                                   \
+            cleanup_keys = true;                                                                  \
         }                                                                                         \
         if (!args) {                                                                              \
             array_init(&empty_args);                                                              \
             args = &empty_args;                                                                   \
+            cleanup_args = true;                                                                  \
         }                                                                                         \
                                                                                                   \
         if (script_or_hash_len == 40 && strspn(script_or_hash, "0123456789abcdefABCDEF") == 40) { \
@@ -1241,6 +1244,8 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         } else {                                                                                  \
             char* script_hash = store_script_and_get_hash(script_or_hash);                        \
             if (!script_hash) {                                                                   \
+                if (cleanup_keys) zval_dtor(&empty_keys);                                         \
+                if (cleanup_args) zval_dtor(&empty_args);                                         \
                 RETURN_FALSE;                                                                     \
             }                                                                                     \
             execute_invoke_script_command(valkey_glide,                                           \
@@ -1251,6 +1256,9 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
                                           strcmp(#class_name, "ValkeyGlideCluster") == 0);        \
             efree(script_hash);                                                                   \
         }                                                                                         \
+                                                                                                  \
+        if (cleanup_keys) zval_dtor(&empty_keys);                                                 \
+        if (cleanup_args) zval_dtor(&empty_args);                                                 \
     }
 
 #define DUMP_METHOD_IMPL(class_name)                                            \
