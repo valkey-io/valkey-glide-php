@@ -5,39 +5,6 @@
 #include "valkey_glide_script_common.h"
 #include "zend_exceptions.h"
 
-// Helper function to process array arguments with lengths for FFI
-static void process_array_to_uintptr_args(zval*           array,
-                                          int*            count,
-                                          uintptr_t**     args,
-                                          unsigned long** args_len) {
-    if (Z_TYPE_P(array) != IS_ARRAY) {
-        *count    = 0;
-        *args     = NULL;
-        *args_len = NULL;
-        return;
-    }
-
-    *count = zend_hash_num_elements(Z_ARRVAL_P(array));
-    if (*count == 0) {
-        *args     = NULL;
-        *args_len = NULL;
-        return;
-    }
-
-    *args     = emalloc(sizeof(uintptr_t) * (*count));
-    *args_len = emalloc(sizeof(unsigned long) * (*count));
-    zval* entry;
-    int   i = 0;
-
-    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(array), entry) {
-        convert_to_string(entry);
-        (*args)[i]     = (uintptr_t) Z_STRVAL_P(entry);
-        (*args_len)[i] = Z_STRLEN_P(entry);
-        i++;
-    }
-    ZEND_HASH_FOREACH_END();
-}
-
 // Helper to convert string array to FFI format
 static void prepare_ffi_args(zval*           array,
                              uintptr_t**     ptrs,
