@@ -1365,12 +1365,12 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::functionList
      */
-    public function functionList(?string $libNamePattern = null, bool $withCode = false): ValkeyGlideCluster|array|false;
+    public function functionList(): ValkeyGlideCluster|array|false;
 
     /**
      * @see ValkeyGlide::functionFlush
      */
-    public function functionFlush(?string $mode = null): ValkeyGlideCluster|string|false;
+    public function functionFlush(): ValkeyGlideCluster|string|false;
 
     /**
      * @see ValkeyGlide::functionDelete
@@ -1385,7 +1385,7 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::functionRestore
      */
-    public function functionRestore(string $payload, ?string $policy = null): ValkeyGlideCluster|string|false;
+    public function functionRestore(string $payload): ValkeyGlideCluster|string|false;
 
     /**
      * @see ValkeyGlide::functionKill

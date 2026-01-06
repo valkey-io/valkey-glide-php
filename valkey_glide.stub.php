@@ -2677,23 +2677,18 @@ class ValkeyGlide
      *
      * @see https://valkey.io/commands/function-list
      *
-     * @param string|null $libNamePattern Optional wildcard pattern for library names
-     * @param bool $withCode Whether to include library code in response
-     *
      * @return ValkeyGlide|array|false Array of library information
      */
-    public function functionList(?string $libNamePattern = null, bool $withCode = false): ValkeyGlide|array|false;
+    public function functionList(): ValkeyGlide|array|false;
 
     /**
      * Delete all function libraries.
      *
      * @see https://valkey.io/commands/function-flush
      *
-     * @param string|null $mode Optional flush mode: "SYNC" or "ASYNC"
-     *
      * @return ValkeyGlide|string|false "OK" on success
      */
-    public function functionFlush(?string $mode = null): ValkeyGlide|string|false;
+    public function functionFlush(): ValkeyGlide|string|false;
 
     /**
      * Delete a function library.
@@ -2721,11 +2716,10 @@ class ValkeyGlide
      * @see https://valkey.io/commands/function-restore
      *
      * @param string $payload The serialized data from functionDump
-     * @param string|null $policy Optional restore policy: "APPEND", "FLUSH", or "REPLACE"
      *
      * @return ValkeyGlide|string|false "OK" on success
      */
-    public function functionRestore(string $payload, ?string $policy = null): ValkeyGlide|string|false;
+    public function functionRestore(string $payload): ValkeyGlide|string|false;
 
     /**
      * Kill currently executing function.
