@@ -1099,32 +1099,47 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         RETURN_FALSE;                                                               \
     }
 
-#define SCRIPT_EXISTS_METHOD_IMPL(class_name)                                                 \
-    PHP_METHOD(class_name, scriptExists) {                                                    \
-        zval* sha1s;                                                                          \
-        ZEND_PARSE_PARAMETERS_START(1, 1)                                                     \
-        Z_PARAM_ARRAY(sha1s)                                                                  \
-        ZEND_PARSE_PARAMETERS_END();                                                          \
-        valkey_glide_object* valkey_glide =                                                   \
-            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());                 \
-        int            count    = zend_hash_num_elements(Z_ARRVAL_P(sha1s));                  \
-        uintptr_t*     args     = emalloc(sizeof(uintptr_t) * count);                         \
-        unsigned long* args_len = emalloc(sizeof(unsigned long) * count);                     \
-        zval*          entry;                                                                 \
-        int            i = 0;                                                                 \
-        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(sha1s), entry) {                                     \
-            convert_to_string(entry);                                                         \
-            args[i]     = (uintptr_t) Z_STRVAL_P(entry);                                      \
-            args_len[i] = Z_STRLEN_P(entry);                                                  \
-            i++;                                                                              \
-        }                                                                                     \
-        ZEND_HASH_FOREACH_END();                                                              \
-        CommandResult* result =                                                               \
-            execute_command(valkey_glide->glide_client, ScriptExists, count, args, args_len); \
-        efree(args);                                                                          \
-        efree(args_len);                                                                      \
-        command_response_to_zval(result->response, return_value, 0, false);                   \
-        free_command_result(result);                                                          \
+#define SCRIPT_EXISTS_METHOD_IMPL(class_name)                                                      \
+    PHP_METHOD(class_name, scriptExists) {                                                         \
+        zval* sha1s;                                                                               \
+        ZEND_PARSE_PARAMETERS_START(1, 1)                                                          \
+        Z_PARAM_ARRAY(sha1s)                                                                       \
+        ZEND_PARSE_PARAMETERS_END();                                                               \
+        valkey_glide_object* valkey_glide =                                                        \
+            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());                      \
+        int            count    = zend_hash_num_elements(Z_ARRVAL_P(sha1s));                       \
+        uintptr_t*     args     = emalloc(sizeof(uintptr_t) * count);                              \
+        unsigned long* args_len = emalloc(sizeof(unsigned long) * count);                          \
+        zval*          entry;                                                                      \
+        int            i = 0;                                                                      \
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(sha1s), entry) {                                          \
+            convert_to_string(entry);                                                              \
+            args[i]     = (uintptr_t) Z_STRVAL_P(entry);                                           \
+            args_len[i] = Z_STRLEN_P(entry);                                                       \
+            i++;                                                                                   \
+        }                                                                                          \
+        ZEND_HASH_FOREACH_END();                                                                   \
+        CommandResult* result =                                                                    \
+            execute_command(valkey_glide->glide_client, ScriptExists, count, args, args_len);      \
+        efree(args);                                                                               \
+        efree(args_len);                                                                           \
+        if (!result) {                                                                             \
+            zend_throw_exception(zend_ce_exception, "ScriptExists: Failed to execute command", 0); \
+            return;                                                                                \
+        }                                                                                           \
+        if (result->command_error) {                                                               \
+            zend_throw_exception(                                                                  \
+                zend_ce_exception, result->command_error->command_error_message, 0);               \
+            free_command_result(result);                                                           \
+            return;                                                                                \
+        }                                                                                           \
+        if (!result->response) {                                                                   \
+            zend_throw_exception(zend_ce_exception, "ScriptExists: No response received", 0);      \
+            free_command_result(result);                                                           \
+            return;                                                                                \
+        }                                                                                           \
+        command_response_to_zval(result->response, return_value, 0, false);                        \
+        free_command_result(result);                                                               \
     }
 
 #define SCRIPT_SHOW_METHOD_IMPL(class_name)                                                      \
