@@ -732,7 +732,7 @@ FCALL_RO_METHOD_IMPL(ValkeyGlide)
 /* {{{ proto mixed ValkeyGlide::eval(string script, array args, int num_keys) */
 PHP_METHOD(ValkeyGlide, eval) {
     // TODO: EVAL command is not supported by glide-core. Remove this comment when supported.
-    // Github issue: https://github.com/valkey-io/valkey-glide-php/issues/113    
+    // Github issue: https://github.com/valkey-io/valkey-glide-php/issues/113
     zend_throw_exception(zend_ce_exception, "EVAL command is not supported by glide-core", 0);
     RETURN_FALSE;
 }
@@ -741,7 +741,7 @@ PHP_METHOD(ValkeyGlide, eval) {
 /* {{{ proto mixed ValkeyGlide::evalsha(string sha1, array args, int num_keys) */
 PHP_METHOD(ValkeyGlide, evalsha) {
     // TODO: EVALSHA command is not supported by glide-core. Remove this comment when supported.
-    // Github issue: https://github.com/valkey-io/valkey-glide-php/issues/113    
+    // Github issue: https://github.com/valkey-io/valkey-glide-php/issues/113
     zend_throw_exception(zend_ce_exception, "EVALSHA command is not supported by glide-core", 0);
     RETURN_FALSE;
 }
@@ -750,7 +750,7 @@ PHP_METHOD(ValkeyGlide, evalsha) {
 /* {{{ proto mixed ValkeyGlide::eval_ro(string script, array args, int num_keys) */
 PHP_METHOD(ValkeyGlide, eval_ro) {
     // TODO: EVAL_RO command is not supported by glide-core. Remove this comment when supported.
-    // Github issue: https://github.com/valkey-io/valkey-glide-php/issues/113    
+    // Github issue: https://github.com/valkey-io/valkey-glide-php/issues/113
     zend_throw_exception(zend_ce_exception, "EVAL_RO command is not supported by glide-core", 0);
     RETURN_FALSE;
 }
@@ -759,7 +759,7 @@ PHP_METHOD(ValkeyGlide, eval_ro) {
 /* {{{ proto mixed ValkeyGlide::evalsha_ro(string sha1, array args, int num_keys) */
 PHP_METHOD(ValkeyGlide, evalsha_ro) {
     // TODO: EVALSHA_RO command is not supported by glide-core. Remove this comment when supported.
-    // Github issue: https://github.com/valkey-io/valkey-glide-php/issues/113    
+    // Github issue: https://github.com/valkey-io/valkey-glide-php/issues/113
     zend_throw_exception(zend_ce_exception, "EVALSHA_RO command is not supported by glide-core", 0);
     RETURN_FALSE;
 }
