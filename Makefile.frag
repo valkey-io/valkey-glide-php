@@ -1,7 +1,8 @@
 # Platform-specific configuration
 ifeq ($(shell uname),Darwin)
     # Override libtool's flat namespace with two-level namespace on macOS
-    LDFLAGS += -Wl,-twolevel_namespace -Wl,-undefined,dynamic_lookup
+    # Add to VALKEY_GLIDE_SHARED_LIBADD to avoid triggering libtool regeneration
+    VALKEY_GLIDE_SHARED_LIBADD += -Wl,-twolevel_namespace -Wl,-undefined,dynamic_lookup
 else
     # Linux - config.m4 handles FFI library, just add protobuf-c
     VALKEY_GLIDE_SHARED_LIBADD += -lprotobuf-c
@@ -13,6 +14,10 @@ PROTO_SRC_DIR = valkey-glide/glide-core/src/protobuf
 GEN_INCLUDE_DIR = include/glide
 GEN_SRC_DIR = src
 CFLAGS += -Werror
+
+# Clean up libtool backup files
+clean-local:
+	@rm -f libtool.bak
 
 # Force header generation before any compilation
 $(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a

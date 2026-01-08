@@ -73,6 +73,17 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     darwin*)
       AC_MSG_CHECKING([for protobuf-c library])
       AC_MSG_RESULT([skipped on macOS - using rpath linking])
+      dnl Still need protobuf-c headers on macOS
+      AC_MSG_CHECKING([for protobuf-c headers])
+      if test -d "/opt/homebrew/include/protobuf-c"; then
+        PHP_ADD_INCLUDE("/opt/homebrew/include")
+        AC_MSG_RESULT([found in /opt/homebrew/include])
+      elif test -d "/usr/local/include/protobuf-c"; then
+        PHP_ADD_INCLUDE("/usr/local/include")
+        AC_MSG_RESULT([found in /usr/local/include])
+      else
+        AC_MSG_ERROR([protobuf-c headers not found. Please install protobuf-c])
+      fi
       ;;
     *)
       AC_MSG_CHECKING([for protobuf-c library])
