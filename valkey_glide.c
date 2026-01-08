@@ -809,7 +809,8 @@ PHP_METHOD(ValkeyGlide, functionStats) {
     execute_function_stats_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
 
-/* {{{ proto ValkeyGlide|bool|string|array ValkeyGlide::function(string operation, mixed ...$args) */
+/* {{{ proto ValkeyGlide|bool|string|array ValkeyGlide::function(string operation, mixed ...$args)
+ */
 PHP_METHOD(ValkeyGlide, function) {
     execute_function_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
