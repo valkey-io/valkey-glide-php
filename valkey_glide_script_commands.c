@@ -130,11 +130,6 @@ void execute_script_flush_command(zval* object, zval* return_value, bool is_clus
 
     free_command_result(result);
 
-    if (is_cluster) {
-        // Cluster scriptFlush returns "OK" string for PHPRedis compatibility
-        RETURN_STRING("OK");
-    } else {
-        // PHPRedis scriptFlush returns boolean true
-        RETURN_TRUE;
-    }
+    // Both standalone and cluster now return boolean true for consistency
+    RETURN_TRUE;
 }
