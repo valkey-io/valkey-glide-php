@@ -42,6 +42,103 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $valkey_glide->close();
     }
 
+    public function testPubSubCallbackExecution()
+    {
+        $callback_triggered = false;
+        $received_channel = null;
+        $received_message = null;
+        
+        $subscriber = new ValkeyGlide([
+            ['host' => $this->getHost(), 'port' => $this->getPort()]
+        ]);
+        
+        $publisher = new ValkeyGlide([
+            ['host' => $this->getHost(), 'port' => $this->getPort()]
+        ]);
+        
+        // Subscribe with callback
+        $result = $subscriber->subscribe(['test_callback_channel'], function($client, $channel, $message) use (&$callback_triggered, &$received_channel, &$received_message) {
+            $callback_triggered = true;
+            $received_channel = $channel;
+            $received_message = $message;
+        });
+        
+        $this->assertTrue($result, 'Subscribe should return true');
+        
+        // Publish message
+        $count = $publisher->publish('test_callback_channel', 'callback_test_message');
+        $this->assertGTE(1, $count, 'Should have at least 1 subscriber');
+        
+        // Allow time for message delivery
+        usleep(100000); // 100ms
+        
+        $this->assertTrue($callback_triggered, 'Callback should be triggered');
+        $this->assertEquals('test_callback_channel', $received_channel, 'Channel should match');
+        $this->assertEquals('callback_test_message', $received_message, 'Message should match');
+        
+        $subscriber->close();
+        $publisher->close();
+    }
+
+    public function testPubSubMultipleChannels()
+    {
+        $messages_received = [];
+        
+        $subscriber = new ValkeyGlide([
+            ['host' => $this->getHost(), 'port' => $this->getPort()]
+        ]);
+        
+        $publisher = new ValkeyGlide([
+            ['host' => $this->getHost(), 'port' => $this->getPort()]
+        ]);
+        
+        // Subscribe to multiple channels
+        $result = $subscriber->subscribe(['channel1', 'channel2'], function($client, $channel, $message) use (&$messages_received) {
+            $messages_received[] = ['channel' => $channel, 'message' => $message];
+        });
+        
+        $this->assertTrue($result, 'Multi-channel subscribe should return true');
+        
+        // Publish to both channels
+        $count1 = $publisher->publish('channel1', 'message1');
+        $count2 = $publisher->publish('channel2', 'message2');
+        
+        $this->assertGTE(1, $count1, 'Channel1 should have subscriber');
+        $this->assertGTE(1, $count2, 'Channel2 should have subscriber');
+        
+        // Allow time for message delivery
+        usleep(200000); // 200ms
+        
+        $this->assertCount(2, $messages_received, 'Should receive 2 messages');
+        
+        // Verify messages (order may vary)
+        $channels = array_column($messages_received, 'channel');
+        $this->assertContains('channel1', $channels, 'Should receive from channel1');
+        $this->assertContains('channel2', $channels, 'Should receive from channel2');
+        
+        $subscriber->close();
+        $publisher->close();
+    }
+
+    public function testPubSubUnsubscribe()
+    {
+        $subscriber = new ValkeyGlide([
+            ['host' => $this->getHost(), 'port' => $this->getPort()]
+        ]);
+        
+        // Subscribe first
+        $result = $subscriber->subscribe(['unsub_test_channel'], function($client, $channel, $message) {
+            // Callback for subscription
+        });
+        $this->assertTrue($result, 'Subscribe should succeed');
+        
+        // Unsubscribe
+        $unsub_result = $subscriber->unsubscribe(['unsub_test_channel']);
+        $this->assertTrue($unsub_result, 'Unsubscribe should succeed');
+        
+        $subscriber->close();
+    }
+
     public function testPubSubActualMessageDelivery()
     {
         // Test multi-process pubsub by verifying subscriber count increases
