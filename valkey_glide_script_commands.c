@@ -116,17 +116,5 @@ void execute_script_flush_command(zval* object, zval* return_value, bool is_clus
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     CommandResult* result = execute_command(valkey_glide->glide_client, ScriptFlush, 0, NULL, NULL);
 
-    if (!result) {
-        RETURN_FALSE;
-    }
-
-    if (result->command_error) {
-        free_command_result(result);
-        RETURN_FALSE;
-    }
-
-    free_command_result(result);
-
-    // Both standalone and cluster now return boolean true for consistency
-    RETURN_TRUE;
+    handle_function_command_result_or_return_false(result, "ScriptFlush", return_value);
 }

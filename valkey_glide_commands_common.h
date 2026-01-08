@@ -126,6 +126,22 @@ static inline int handle_command_result_or_return_status(CommandResult* result,
     return status;
 }
 
+/* Helper function for function commands that returns false on error (PHPRedis compatibility) */
+static inline int handle_function_command_result_or_return_false(CommandResult* result,
+                                                                 const char*    command_name,
+                                                                 zval*          return_value) {
+    if (!result || result->command_error || !result->response) {
+        ZVAL_FALSE(return_value);
+        if (result) {
+            free_command_result(result);
+        }
+        return 0;
+    }
+    int status = command_response_to_zval(result->response, return_value, 0, false);
+    free_command_result(result);
+    return status;
+}
+
 /* ClientConfig removed - using valkey_glide_client_configuration_t instead */
 /* Forward declaration for ClientAdapter */
 typedef struct ClientAdapter ClientAdapter;
@@ -1228,14 +1244,13 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         handle_command_result_or_throw(result, "ScriptKill", return_value);         \
     }
 
-#define SCRIPT_FLUSH_METHOD_IMPL(class_name)                                         \
-    PHP_METHOD(class_name, scriptFlush) {                                            \
-        valkey_glide_object* valkey_glide =                                          \
-            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());        \
-        CommandResult* result =                                                      \
-            execute_command(valkey_glide->glide_client, ScriptFlush, 0, NULL, NULL); \
-        handle_command_result_or_return_status(result, "ScriptFlush", return_value); \
-        ZVAL_TRUE(return_value);                                                     \
+#define SCRIPT_FLUSH_METHOD_IMPL(class_name)                                                 \
+    PHP_METHOD(class_name, scriptFlush) {                                                    \
+        valkey_glide_object* valkey_glide =                                                  \
+            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());                \
+        CommandResult* result =                                                              \
+            execute_command(valkey_glide->glide_client, ScriptFlush, 0, NULL, NULL);         \
+        handle_function_command_result_or_return_false(result, "ScriptFlush", return_value); \
     }
 
 #define INVOKE_SCRIPT_METHOD_IMPL(class_name)                                              \

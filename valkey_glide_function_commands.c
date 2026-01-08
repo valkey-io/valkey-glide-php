@@ -50,8 +50,7 @@ int execute_function_load_command(zval*             object,
     efree(cmd_args);
     efree(args_len);
 
-    handle_command_result_or_throw(result, "FunctionLoad", return_value);
-    return 1;
+    return handle_function_command_result_or_return_false(result, "FunctionLoad", return_value);
 }
 
 int execute_function_list_command(zval*             object,
@@ -68,8 +67,7 @@ int execute_function_list_command(zval*             object,
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionList, 0, NULL, NULL);
 
-    handle_command_result_or_throw(result, "FunctionList", return_value);
-    return 1;
+    return handle_function_command_result_or_return_false(result, "FunctionList", return_value);
 }
 
 int execute_function_flush_command(zval*             object,
@@ -85,7 +83,7 @@ int execute_function_flush_command(zval*             object,
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionFlush, 0, NULL, NULL);
-    return handle_command_result_or_return_status(result, "FunctionFlush", return_value);
+    return handle_function_command_result_or_return_false(result, "FunctionFlush", return_value);
 }
 
 int execute_function_delete_command(zval*             object,
@@ -113,7 +111,7 @@ int execute_function_delete_command(zval*             object,
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionDelete, 1, cmd_args, args_len);
-    return handle_command_result_or_return_status(result, "FunctionDelete", return_value);
+    return handle_function_command_result_or_return_false(result, "FunctionDelete", return_value);
 }
 
 int execute_function_dump_command(zval*             object,
@@ -129,7 +127,7 @@ int execute_function_dump_command(zval*             object,
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionDump, 0, NULL, NULL);
-    return handle_command_result_or_return_status(result, "FunctionDump", return_value);
+    return handle_function_command_result_or_return_false(result, "FunctionDump", return_value);
 }
 
 int execute_function_restore_command(zval*             object,
@@ -157,7 +155,7 @@ int execute_function_restore_command(zval*             object,
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionRestore, 1, cmd_args, args_len);
-    return handle_command_result_or_return_status(result, "FunctionRestore", return_value);
+    return handle_function_command_result_or_return_false(result, "FunctionRestore", return_value);
 }
 
 int execute_function_kill_command(zval*             object,
@@ -173,7 +171,7 @@ int execute_function_kill_command(zval*             object,
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionKill, 0, NULL, NULL);
-    return handle_command_result_or_return_status(result, "FunctionKill", return_value);
+    return handle_function_command_result_or_return_false(result, "FunctionKill", return_value);
 }
 
 int execute_function_stats_command(zval*             object,
@@ -189,5 +187,5 @@ int execute_function_stats_command(zval*             object,
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionStats, 0, NULL, NULL);
-    return handle_command_result_or_return_status(result, "FunctionStats", return_value);
+    return handle_function_command_result_or_return_false(result, "FunctionStats", return_value);
 }
