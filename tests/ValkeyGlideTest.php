@@ -8014,42 +8014,34 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
     public function testFunctionLoad()
     {
-        $client = $this->createClient();
-
         $lib = "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)";
 
         try {
-            $result = $client->functionLoad($lib, false);
+            $result = $this->valkey_glide->functionLoad($lib, false);
             $this->assertEquals('mylib', $result);
 
             // Clean up
-            $client->functionDelete('mylib');
+            $this->valkey_glide->functionDelete('mylib');
         } catch (Exception $e) {
             // Function commands require Valkey 7.0+, skip if not available
             $this->markTestSkipped('Function commands require Valkey 7.0+');
         }
-
-        $client->close();
     }
 
     public function testFcall()
     {
-        $client = $this->createClient();
-
         $lib = "#!lua name=testlib\nredis.register_function('testfunc', function(keys, args) return 'test' end)";
 
         try {
-            $client->functionLoad($lib, true);
+            $this->valkey_glide->functionLoad($lib, true);
 
-            $result = $client->fcall('testfunc', [], []);
+            $result = $this->valkey_glide->fcall('testfunc', [], []);
             $this->assertEquals('test', $result);
 
             // Clean up
-            $client->functionDelete('testlib');
+            $this->valkey_glide->functionDelete('testlib');
         } catch (Exception $e) {
             $this->markTestSkipped('Function commands require Valkey 7.0+');
         }
-
-        $client->close();
     }
 }

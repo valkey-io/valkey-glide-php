@@ -1383,17 +1383,13 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testFcall()
     {
-        $client = $this->createClient();
-
         try {
             // Test fcall (function commands work in cluster mode)
-            $result = $client->fcall('testfunc', [], []);
+            $result = $this->valkey_glide->fcall('testfunc', [], []);
             // This will likely fail since function doesn't exist, but tests the method exists
         } catch (Exception $e) {
             // Expected - function doesn't exist
             $this->assertStringContainsString('unknown function', $e->getMessage());
         }
-
-        $client->close();
     }
 }
