@@ -55,7 +55,7 @@ def remove_optional_from_proto(directory):
     return True
 
 def patch_rust_types_rs(rust_types_file):
-    """Patch the Rust types.rs file to fix jitter_percent and refresh_interval_seconds type mismatches"""
+    """Patch the Rust types.rs file to fix jitter_percent, refresh_interval_seconds, and compression_level type mismatches"""
     
     if not os.path.exists(rust_types_file):
         log_message(f"Rust types file not found: {rust_types_file}", "ERROR")
@@ -73,6 +73,9 @@ def patch_rust_types_rs(rust_types_file):
         
         refresh_pattern = r'refresh_interval_seconds,\s*\n\s*}'
         refresh_replacement = 'refresh_interval_seconds: Some(refresh_interval_seconds),\n                }'
+        
+        compression_pattern = r'compression_level:\s*proto_config\.compression_level,'
+        compression_replacement = 'compression_level: Some(proto_config.compression_level),'
         
         needs_patching = False
         new_content = content
@@ -96,6 +99,16 @@ def patch_rust_types_rs(rust_types_file):
         elif 'refresh_interval_seconds: Some(refresh_interval_seconds)' in new_content:
             log_message("refresh_interval_seconds already patched")
         
+        # Apply compression_level patch
+        if re.search(compression_pattern, new_content):
+            if not needs_patching:
+                create_backup(rust_types_file)
+            new_content = re.sub(compression_pattern, compression_replacement, new_content)
+            needs_patching = True
+            log_message("Applied compression_level patch")
+        elif 'Some(proto_config.compression_level)' in new_content:
+            log_message("compression_level already patched")
+        
         if needs_patching:
             with open(rust_types_file, 'w') as f:
                 f.write(new_content)
@@ -118,8 +131,9 @@ def verify_rust_patch(rust_types_file):
         # Check for the fixed patterns
         jitter_fixed = 'Some(strategy.jitter_percent)' in content
         refresh_fixed = 'refresh_interval_seconds: Some(refresh_interval_seconds)' in content
+        compression_fixed = 'Some(proto_config.compression_level)' in content
         
-        if jitter_fixed and refresh_fixed:
+        if jitter_fixed and refresh_fixed and compression_fixed:
             log_message("Rust patch verification: SUCCESS")
             return True
         else:
@@ -128,6 +142,8 @@ def verify_rust_patch(rust_types_file):
                 missing.append("jitter_percent fix")
             if not refresh_fixed:
                 missing.append("refresh_interval_seconds fix")
+            if not compression_fixed:
+                missing.append("compression_level fix")
             log_message(f"Rust patch verification: FAILED - Missing: {', '.join(missing)}", "ERROR")
             return False
     

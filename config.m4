@@ -93,6 +93,7 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
   case $host_os in
     darwin*)
       VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD \$(top_builddir)/valkey-glide/ffi/target/release/libglide_ffi.a -lresolv"
+      LDFLAGS="$LDFLAGS -Wl,-undefined,dynamic_lookup"
       ;;
     *)
       dnl Add Rust FFI library linking for Linux (like working commit)

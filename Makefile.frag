@@ -1,6 +1,7 @@
 # Platform-specific configuration
 ifeq ($(shell uname),Darwin)
-    INCLUDES += -I/opt/homebrew/include
+    # Override libtool's flat namespace with two-level namespace on macOS
+    LDFLAGS += -Wl,-twolevel_namespace -Wl,-undefined,dynamic_lookup
 else
     # Linux - config.m4 handles FFI library, just add protobuf-c
     VALKEY_GLIDE_SHARED_LIBADD += -lprotobuf-c
