@@ -922,14 +922,14 @@ COPY_METHOD_IMPL(ValkeyGlideCluster)
 SCRIPT_EXISTS_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto string ValkeyGlideCluster::scriptFlush([string mode]) */
-SCRIPT_FLUSH_METHOD_IMPL(ValkeyGlideCluster)
-/* }}} */
-
 SCRIPT_KILL_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 SCRIPT_SHOW_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string ValkeyGlideCluster::scriptFlush([string mode]) */
+SCRIPT_FLUSH_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto mixed ValkeyGlideCluster::invokeScript(string script_or_hash, [array keys, array args])
