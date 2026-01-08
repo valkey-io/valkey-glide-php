@@ -126,7 +126,7 @@ static inline int handle_command_result_or_return_status(CommandResult* result,
     return status;
 }
 
-// PHPRedis-compatible helper that returns false on errors instead of throwing exceptions
+// Helper that returns false on errors instead of throwing exceptions
 static inline int handle_function_command_result_or_return_false(CommandResult* result,
                                                                  const char*    command_name,
                                                                  zval*          return_value) {
@@ -141,8 +141,6 @@ static inline int handle_function_command_result_or_return_false(CommandResult* 
     free_command_result(result);
     return status;
 }
-
-/* Helper function for function commands that returns false on error (PHPRedis compatibility) */
 
 /* ClientConfig removed - using valkey_glide_client_configuration_t instead */
 /* Forward declaration for ClientAdapter */

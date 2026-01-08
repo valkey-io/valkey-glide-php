@@ -5432,15 +5432,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertNotNull($scriptSource, 'scriptShow should return script source for cached script');
         $this->assertEquals($code, $scriptSource);
 
-        // Test scriptShow with non-existing SHA1 - should throw NoScriptError
+        // Test scriptShow with non-existing SHA1 - should return false
         $nonExistingSha1 = sha1('non-existing-script-' . uniqid());
-        try {
-            $result = $this->valkey_glide->scriptShow($nonExistingSha1);
-            $this->fail('scriptShow should throw exception for non-existing script');
-        } catch (Exception $e) {
-            // Should throw NoScriptError for non-existing script
-            $this->assertStringContains('NoScriptError', $e->getMessage());
-        }
+        $result = $this->valkey_glide->scriptShow($nonExistingSha1);
+        $this->assertFalse($result, 'scriptShow should return false for non-existing script');
     }
 
     public function testScriptKillThrowsException()
@@ -5451,14 +5446,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->markTestSkipped('scriptKill requires Redis 2.6+');
         }
 
-        // Test scriptKill when no script is running - should throw NotBusy error
-        try {
-            $result = $this->valkey_glide->scriptKill();
-            $this->fail('scriptKill should throw exception when no script is running');
-        } catch (Exception $e) {
-            // Should throw NotBusy error when no script is running
-            $this->assertStringContains('NotBusy', $e->getMessage());
-        }
+        // Test scriptKill when no script is running - should return false
+        $result = $this->valkey_glide->scriptKill();
+        $this->assertFalse($result, 'scriptKill should return false when no script is running');
     }
 
     public function testClient()
@@ -7977,7 +7967,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
     public function testScriptExists()
     {
-        $script = 'return 1';
+        $script = 'return ' . uniqid(); // Make script unique to avoid cache conflicts
         $sha1 = sha1($script);
 
         // Script doesn't exist yet
