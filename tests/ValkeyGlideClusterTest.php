@@ -1376,7 +1376,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $result = $this->valkey_glide->scriptFlush();
         $this->assertTrue($result);
 
-        // Note: We can't easily verify the script is gone since scriptExists 
+        // Note: We can't easily verify the script is gone since scriptExists
         // checks SHA1 hashes, but invokeScript doesn't return the hash
         // The important part is that scriptFlush returns true without error
     }
