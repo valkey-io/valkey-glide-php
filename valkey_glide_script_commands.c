@@ -2,7 +2,6 @@
 #include "common.h"
 #include "include/glide_bindings.h"
 #include "valkey_glide_commands_common.h"
-#include "valkey_glide_script_common.h"
 #include "zend_exceptions.h"
 
 // Helper to convert string array to FFI format

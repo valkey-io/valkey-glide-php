@@ -34,6 +34,16 @@ typedef struct CommandResult      CommandResult;
 typedef struct CommandError       CommandError;
 typedef struct ConnectionResponse ConnectionResponse;
 
+/* Forward declarations for script command functions */
+void  execute_script_flush_command(zval* object, zval* return_value, bool is_cluster);
+void  execute_invoke_script_command(valkey_glide_object* valkey_glide,
+                                    const char*          hash,
+                                    zval*                keys,
+                                    zval*                args,
+                                    zval*                return_value,
+                                    bool                 is_cluster);
+char* store_script_and_get_hash(const char* script);
+
 enum TLSMode {
     /**
      * No TLS encryption is used for the connection.

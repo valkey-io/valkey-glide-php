@@ -19,7 +19,6 @@
 #include "valkey_glide_hash_common.h" /* Include hash command framework */
 #include "valkey_glide_list_common.h"
 #include "valkey_glide_s_common.h"
-#include "valkey_glide_script_common.h"
 #include "valkey_glide_x_common.h"
 #include "valkey_glide_z_common.h"
 
