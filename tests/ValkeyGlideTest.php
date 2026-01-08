@@ -7967,7 +7967,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
     public function testScriptExists()
     {
-        $script = 'return ' . uniqid(); // Make script unique to avoid cache conflicts
+        $script = 'return "' . uniqid() . '"'; // Make script unique and return as string
         $sha1 = sha1($script);
 
         // Script doesn't exist yet
@@ -8001,34 +8001,41 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
     public function testFunctionLoad()
     {
+        // Function commands are supported in Redis 7.0+ and all Valkey versions
+        if (version_compare($this->version, '7.0.0') < 0 && !$this->isValkey) {
+            $this->markTestSkipped('Function commands require Redis 7.0+ or Valkey');
+        }
+
         $lib = "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)";
 
-        try {
-            $result = $this->valkey_glide->functionLoad($lib, false);
-            $this->assertEquals('mylib', $result);
+        $result = $this->valkey_glide->functionLoad($lib, false);
+        $this->assertEquals('mylib', $result);
 
-            // Clean up
-            $this->valkey_glide->functionDelete('mylib');
-        } catch (Exception $e) {
-            // Function commands require Valkey 7.0+, skip if not available
-            $this->markTestSkipped('Function commands require Valkey 7.0+');
-        }
+        // Clean up
+        $this->valkey_glide->functionDelete('mylib');
     }
 
     public function testFcall()
     {
-        $lib = "#!lua name=testlib\nredis.register_function('testfunc', function(keys, args) return 'test' end)";
-
-        try {
-            $this->valkey_glide->functionLoad($lib, true);
-
-            $result = $this->valkey_glide->fcall('testfunc', [], []);
-            $this->assertEquals('test', $result);
-
-            // Clean up
-            $this->valkey_glide->functionDelete('testlib');
-        } catch (Exception $e) {
-            $this->markTestSkipped('Function commands require Valkey 7.0+');
+        // Function commands are supported in Redis 7.0+ and all Valkey versions
+        if (version_compare($this->version, '7.0.0') < 0 && !$this->isValkey) {
+            $this->markTestSkipped('Function commands require Redis 7.0+ or Valkey');
         }
+
+        // Use exact same syntax as testFunctionLoad which works
+        $libName = 'testlib';
+        $funcName = 'testfunc';
+        $lib = "#!lua name=$libName\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
+
+        // Load the function library (use false like testFunctionLoad)
+        $loadResult = $this->valkey_glide->functionLoad($lib, false);
+        $this->assertEquals($libName, $loadResult);
+
+        // Call the function with an argument (like testFunctionLoad does)
+        $result = $this->valkey_glide->fcall($funcName, [], ['test']);
+        $this->assertEquals('test', $result);
+
+        // Clean up
+        $this->valkey_glide->functionDelete($libName);
     }
 }

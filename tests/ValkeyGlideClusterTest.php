@@ -1370,13 +1370,25 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testFcall()
     {
-        try {
-            // Test fcall (function commands work in cluster mode)
-            $result = $this->valkey_glide->fcall('testfunc', [], []);
-            // This will likely fail since function doesn't exist, but tests the method exists
-        } catch (Exception $e) {
-            // Expected - function doesn't exist
-            $this->assertStringContainsString('unknown function', $e->getMessage());
+        // Function commands are supported in Redis 7.0+ and all Valkey versions
+        if (version_compare($this->version, '7.0.0') < 0 && !$this->isValkey) {
+            $this->markTestSkipped('Function commands require Redis 7.0+ or Valkey');
         }
+
+        // Use exact same syntax as testFunctionLoad which works
+        $libName = 'testlib_cluster';
+        $funcName = 'testfunc_cluster';
+        $lib = "#!lua name=$libName\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
+
+        // Load the function library (use false like testFunctionLoad)
+        $loadResult = $this->valkey_glide->functionLoad($lib, false);
+        $this->assertEquals($libName, $loadResult);
+
+        // Call the function with an argument (like testFunctionLoad does)
+        $result = $this->valkey_glide->fcall($funcName, [], ['test_cluster']);
+        $this->assertEquals('test_cluster', $result);
+
+        // Clean up
+        $this->valkey_glide->functionDelete($libName);
     }
 }
