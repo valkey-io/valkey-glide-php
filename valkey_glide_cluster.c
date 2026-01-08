@@ -922,9 +922,11 @@ COPY_METHOD_IMPL(ValkeyGlideCluster)
 SCRIPT_EXISTS_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto string ValkeyGlideCluster::scriptKill() */
 SCRIPT_KILL_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto string ValkeyGlideCluster::scriptShow(string sha1) */
 SCRIPT_SHOW_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
@@ -945,13 +947,16 @@ FCALL_METHOD_IMPL(ValkeyGlideCluster)
 FCALL_RO_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto mixed ValkeyGlideCluster::eval(string script, array args, int num_keys) */
 PHP_METHOD(ValkeyGlideCluster, eval) {
     // TODO: EVAL command is not supported by glide-core. Remove this comment when supported.
     zend_throw_exception(
         get_valkey_glide_cluster_exception_ce(), "EVAL command is not supported by glide-core", 0);
     RETURN_FALSE;
 }
+/* }}} */
 
+/* {{{ proto mixed ValkeyGlideCluster::evalsha(string sha1, array args, int num_keys) */
 PHP_METHOD(ValkeyGlideCluster, evalsha) {
     // TODO: EVALSHA command is not supported by glide-core. Remove this comment when supported.
     zend_throw_exception(get_valkey_glide_cluster_exception_ce(),
@@ -959,7 +964,9 @@ PHP_METHOD(ValkeyGlideCluster, evalsha) {
                          0);
     RETURN_FALSE;
 }
+/* }}} */
 
+/* {{{ proto mixed ValkeyGlideCluster::eval_ro(string script, array args, int num_keys) */
 PHP_METHOD(ValkeyGlideCluster, eval_ro) {
     // TODO: EVAL_RO command is not supported by glide-core. Remove this comment when supported.
     zend_throw_exception(get_valkey_glide_cluster_exception_ce(),
@@ -967,7 +974,9 @@ PHP_METHOD(ValkeyGlideCluster, eval_ro) {
                          0);
     RETURN_FALSE;
 }
+/* }}} */
 
+/* {{{ proto mixed ValkeyGlideCluster::evalsha_ro(string sha1, array args, int num_keys) */
 PHP_METHOD(ValkeyGlideCluster, evalsha_ro) {
     // TODO: EVALSHA_RO command is not supported by glide-core. Remove this comment when supported.
     zend_throw_exception(get_valkey_glide_cluster_exception_ce(),
@@ -975,37 +984,50 @@ PHP_METHOD(ValkeyGlideCluster, evalsha_ro) {
                          0);
     RETURN_FALSE;
 }
+/* }}} */
 
 /* Function Commands */
+/* {{{ proto string ValkeyGlideCluster::functionLoad(string code, [bool replace]) */
 PHP_METHOD(ValkeyGlideCluster, functionLoad) {
     execute_function_load_command(
         getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
+/* }}} */
 
+/* {{{ proto array ValkeyGlideCluster::functionList([string library_name]) */
 PHP_METHOD(ValkeyGlideCluster, functionList) {
     execute_function_list_command(
         getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
+/* }}} */
 
+/* {{{ proto bool ValkeyGlideCluster::functionFlush() */
 PHP_METHOD(ValkeyGlideCluster, functionFlush) {
     execute_function_flush_command(
         getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
+/* }}} */
 
+/* {{{ proto bool ValkeyGlideCluster::functionDelete(string library_name) */
 PHP_METHOD(ValkeyGlideCluster, functionDelete) {
     execute_function_delete_command(
         getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
+/* }}} */
 
+/* {{{ proto string ValkeyGlideCluster::functionDump() */
 PHP_METHOD(ValkeyGlideCluster, functionDump) {
     execute_function_dump_command(
         getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
+/* }}} */
 
+/* {{{ proto bool ValkeyGlideCluster::functionRestore(string data) */
 PHP_METHOD(ValkeyGlideCluster, functionRestore) {
     execute_function_restore_command(
         getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
+/* }}} */
 
 PHP_METHOD(ValkeyGlideCluster, functionKill) {
     execute_function_kill_command(

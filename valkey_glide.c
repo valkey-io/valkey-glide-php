@@ -729,54 +729,74 @@ FCALL_METHOD_IMPL(ValkeyGlide)
 FCALL_RO_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto mixed ValkeyGlide::eval(string script, array args, int num_keys) */
 PHP_METHOD(ValkeyGlide, eval) {
     // TODO: EVAL command is not supported by glide-core. Remove this comment when supported.
     zend_throw_exception(zend_ce_exception, "EVAL command is not supported by glide-core", 0);
     RETURN_FALSE;
 }
+/* }}} */
 
+/* {{{ proto mixed ValkeyGlide::evalsha(string sha1, array args, int num_keys) */
 PHP_METHOD(ValkeyGlide, evalsha) {
     // TODO: EVALSHA command is not supported by glide-core. Remove this comment when supported.
     zend_throw_exception(zend_ce_exception, "EVALSHA command is not supported by glide-core", 0);
     RETURN_FALSE;
 }
+/* }}} */
 
+/* {{{ proto mixed ValkeyGlide::eval_ro(string script, array args, int num_keys) */
 PHP_METHOD(ValkeyGlide, eval_ro) {
     // TODO: EVAL_RO command is not supported by glide-core. Remove this comment when supported.
     zend_throw_exception(zend_ce_exception, "EVAL_RO command is not supported by glide-core", 0);
     RETURN_FALSE;
 }
+/* }}} */
 
+/* {{{ proto mixed ValkeyGlide::evalsha_ro(string sha1, array args, int num_keys) */
 PHP_METHOD(ValkeyGlide, evalsha_ro) {
     // TODO: EVALSHA_RO command is not supported by glide-core. Remove this comment when supported.
     zend_throw_exception(zend_ce_exception, "EVALSHA_RO command is not supported by glide-core", 0);
     RETURN_FALSE;
 }
+/* }}} */
 
 /* Function commands */
+/* {{{ proto string ValkeyGlide::functionLoad(string code, [bool replace]) */
 PHP_METHOD(ValkeyGlide, functionLoad) {
     execute_function_load_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
+/* }}} */
 
+/* {{{ proto array ValkeyGlide::functionList([string library_name]) */
 PHP_METHOD(ValkeyGlide, functionList) {
     execute_function_list_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
+/* }}} */
 
+/* {{{ proto bool ValkeyGlide::functionFlush() */
 PHP_METHOD(ValkeyGlide, functionFlush) {
     execute_function_flush_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
+/* }}} */
 
+/* {{{ proto bool ValkeyGlide::functionDelete(string library_name) */
 PHP_METHOD(ValkeyGlide, functionDelete) {
     execute_function_delete_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
+/* }}} */
 
+/* {{{ proto string ValkeyGlide::functionDump() */
 PHP_METHOD(ValkeyGlide, functionDump) {
     execute_function_dump_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
+/* }}} */
 
+/* {{{ proto bool ValkeyGlide::functionRestore(string data) */
 PHP_METHOD(ValkeyGlide, functionRestore) {
     execute_function_restore_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
+/* }}} */
 
 PHP_METHOD(ValkeyGlide, functionKill) {
     execute_function_kill_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
