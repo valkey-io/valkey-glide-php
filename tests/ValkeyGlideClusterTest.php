@@ -817,12 +817,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
-    public function testScriptKill()
+    public function testScriptKillThrowsException()
     {
+        // Note: Testing actual script killing would require running a long script
+        // in a separate connection, which is complex in PHP's synchronous model.
         if (version_compare($this->version, '2.6.0') < 0) {
             $this->markTestSkipped('scriptKill requires Redis 2.6+');
         }
-
+        
         // Test scriptKill when no script is running - should throw NotBusy error
         try {
             $result = $this->valkey_glide->scriptKill();
@@ -832,8 +834,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             $this->assertStringContains('NotBusy', $e->getMessage());
         }
 
-        // Note: Testing actual script killing would require running a long script
-        // in a separate connection, which is complex in PHP's synchronous model.
+
     }
 
     public function testEvalBulkResponse()
