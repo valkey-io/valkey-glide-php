@@ -664,7 +664,7 @@ class ValkeyGlide
     public function decr(string $key, int $by = 1): ValkeyGlide|int|false;
 
     /**
-     * Decrement a valkey integer by a value
+     * Decrement a Valkey integer by a value
      *
      * @param string $key   The integer key to decrement.
      * @param int    $value How much to decrement the key.
@@ -754,14 +754,14 @@ class ValkeyGlide
     public function invokeScript(string $script, array $keys = [], array $args = []): mixed;
 
     /**
-     * Execute a LUA script on the valkey server.
+     * Execute a LUA script on the Valkey server.
      *
      * @see https://valkey.io/commands/eval/
      *
      * @param string $script   A string containing the LUA script
      * @param array  $args     An array of arguments to pass to this script
      * @param int    $num_keys How many of the arguments are keys.  This is needed
-     *                         as valkey distinguishes between key name arguments
+     *                         as Valkey distinguishes between key name arguments
      *                         and other data.
      *
      * @return mixed LUA scripts may return arbitrary data so this method can return
@@ -787,6 +787,35 @@ class ValkeyGlide
      *
      */
     public function evalsha(string $sha1, array $args = [], int $num_keys = 0): mixed;
+
+    /**
+     * Execute a read-only LUA script on the server.
+     *
+     * @param string $script   A string containing the LUA script
+     * @param array  $args     An array of arguments to pass to this script
+     * @param int    $num_keys How many of the arguments are keys.
+     *
+     * @return mixed LUA scripts may return arbitrary data so this method can return
+     *               strings, arrays, nested arrays, etc.
+     *
+     * @see https://valkey.io/commands/eval_ro/
+     * @see ValkeyGlide::eval();
+     */
+    public function eval_ro(string $script, array $args = [], int $num_keys = 0): mixed;
+
+    /**
+     * Execute a read-only LUA script on the server using SHA1 hash.
+     *
+     * @param string $sha1     The SHA1 hash of the lua code.
+     * @param array  $args     Arguments to send to the script.
+     * @param int    $num_keys The number of arguments that are keys
+     *
+     * @return mixed Returns whatever the specific script does.
+     *
+     * @see https://valkey.io/commands/evalsha_ro/
+     * @see ValkeyGlide::evalsha();
+     */
+    public function evalsha_ro(string $sha1, array $args = [], int $num_keys = 0): mixed;
 
     /**
      * Execute either a MULTI or PIPELINE block and return the array of replies.
@@ -1718,7 +1747,7 @@ class ValkeyGlide
 
     /**
      * Retrieve information about the connected valkey-server.  If no arguments are passed to
-     * this function, valkey will return every info field.  Alternatively you may pass a specific
+     * this function, Valkey will return every info field.  Alternatively you may pass a specific
      * section you want returned (e.g. 'server', or 'memory') to receive only information pertaining
      * to that section.
      *
@@ -1953,7 +1982,7 @@ class ValkeyGlide
     public function mget(array $keys): ValkeyGlide|array|false;
 
     /**
-     * Move a key to a different database on the same valkey instance.
+     * Move a key to a different database on the same Valkey instance.
      *
      * @param string $key The key to move
      * @return ValkeyGlide|bool True if the key was moved
@@ -2081,7 +2110,7 @@ class ValkeyGlide
     public function pfmerge(string $dst, array $srckeys): ValkeyGlide|bool;
 
     /**
-     * PING the valkey server with an optional string argument.
+     * PING the Valkey server with an optional string argument.
      *
      * @see https://valkey.io/commands/ping
      *
@@ -2104,7 +2133,7 @@ class ValkeyGlide
      *
      * NOTE:  That this is shorthand for ValkeyGlide::multi(ValkeyGlide::PIPELINE)
      *
-     * @return ValkeyGlide The valkey object is returned, to facilitate method chaining.
+     * @return ValkeyGlide The Valkey object is returned, to facilitate method chaining.
      *
      * @example
      * $valkey_glide->pipeline()
@@ -2191,7 +2220,7 @@ class ValkeyGlide
     /**
      * Pop one or more elements from the end of a list.
      *
-     * @param string $key   A valkey LIST key name.
+     * @param string $key   A Valkey LIST key name.
      * @param int    $count The maximum number of elements to pop at once.
      *                      NOTE:  The `count` argument requires ValkeyGlide >= 6.2.0
      *
@@ -2563,7 +2592,7 @@ class ValkeyGlide
      * @param string|null $pattern An optional glob-style pattern for matching key names.  If passed as
      *                         NULL, it is the equivalent of sending '*' (match every key).
      *
-     * @param int    $count    A hint to valkey that tells it how many keys to return in a single
+     * @param int    $count    A hint to Valkey that tells it how many keys to return in a single
      *                         call to SCAN.  The larger the number, the longer ValkeyGlide may block
      *                         clients while iterating the key space.
      *
@@ -2847,7 +2876,7 @@ class ValkeyGlide
     /**
      * Check whether a given value is the member of a ValkeyGlide SET.
      *
-     * @param string $key   The valkey set to check.
+     * @param string $key   The Valkey set to check.
      * @param mixed  $value The value to test.
      *
      * @return ValkeyGlide|bool True if the member exists and false if not.
@@ -2922,7 +2951,7 @@ class ValkeyGlide
     public function srem(string $key, mixed $value, mixed ...$other_values): ValkeyGlide|int|false;
 
     /**
-     * Scan the members of a valkey SET key.
+     * Scan the members of a Valkey SET key.
      *
      * @see https://valkey.io/commands/sscan
      * @see https://valkey.io/commands/scan
@@ -3604,7 +3633,7 @@ class ValkeyGlide
      *                          MAXLEN - An integer describing the maximum desired length of the stream after the command.
      *                          MINID  - An ID that will become the new minimum ID in the stream, as ValkeyGlide will trim all
      *                                   messages older than this ID.
-     * @param bool   $approx    Whether valkey is allowed to do an approximate trimming of the stream.  This is
+     * @param bool   $approx    Whether Valkey is allowed to do an approximate trimming of the stream.  This is
      *                          more efficient for ValkeyGlide given how streams are stored internally.
      * @param bool   $minid     When set to `true`, users should pass a minimum ID to the `$threshold` argument.
      * @param int    $limit     An optional upper bound on how many entries to trim during the command.

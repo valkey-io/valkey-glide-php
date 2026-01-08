@@ -741,6 +741,18 @@ PHP_METHOD(ValkeyGlide, evalsha) {
     RETURN_FALSE;
 }
 
+PHP_METHOD(ValkeyGlide, eval_ro) {
+    // TODO: EVAL_RO command is not supported by glide-core. Remove this comment when supported.
+    zend_throw_exception(zend_ce_exception, "EVAL_RO command is not supported by glide-core", 0);
+    RETURN_FALSE;
+}
+
+PHP_METHOD(ValkeyGlide, evalsha_ro) {
+    // TODO: EVALSHA_RO command is not supported by glide-core. Remove this comment when supported.
+    zend_throw_exception(zend_ce_exception, "EVALSHA_RO command is not supported by glide-core", 0);
+    RETURN_FALSE;
+}
+
 /* Function commands */
 PHP_METHOD(ValkeyGlide, functionLoad) {
     execute_function_load_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);

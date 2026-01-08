@@ -960,6 +960,22 @@ PHP_METHOD(ValkeyGlideCluster, evalsha) {
     RETURN_FALSE;
 }
 
+PHP_METHOD(ValkeyGlideCluster, eval_ro) {
+    // TODO: EVAL_RO command is not supported by glide-core. Remove this comment when supported.
+    zend_throw_exception(get_valkey_glide_cluster_exception_ce(),
+                         "EVAL_RO command is not supported by glide-core",
+                         0);
+    RETURN_FALSE;
+}
+
+PHP_METHOD(ValkeyGlideCluster, evalsha_ro) {
+    // TODO: EVALSHA_RO command is not supported by glide-core. Remove this comment when supported.
+    zend_throw_exception(get_valkey_glide_cluster_exception_ce(),
+                         "EVALSHA_RO command is not supported by glide-core",
+                         0);
+    RETURN_FALSE;
+}
+
 /* Function Commands */
 PHP_METHOD(ValkeyGlideCluster, functionLoad) {
     execute_function_load_command(

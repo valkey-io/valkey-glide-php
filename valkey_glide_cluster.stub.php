@@ -402,15 +402,7 @@ class ValkeyGlideCluster
      */
     public function echo(mixed $route, string $msg): ValkeyGlideCluster|string|false;
 
-    /**
-     * @see ValkeyGlide::eval
-     */
-   /* TODO public function eval(string $script, array $args = [], int $num_keys = 0): mixed; */
 
-    /**
-     * @see ValkeyGlide::evalsha
-     */
-   /* TODO public function evalsha(string $script_sha, array $args = [], int $num_keys = 0): mixed;*/
 
     /**
      * @see ValkeyGlide::exec()
@@ -1321,6 +1313,16 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::evalsha
      */
     public function evalsha(string $sha1, array $args = [], int $num_keys = 0): mixed;
+
+    /**
+     * @see ValkeyGlide::eval_ro
+     */
+    public function eval_ro(string $script, array $keys = [], array $args = []): mixed;
+
+    /**
+     * @see ValkeyGlide::evalsha_ro
+     */
+    public function evalsha_ro(string $sha1, array $keys = [], array $args = []): mixed;
 
     /**
      * @see ValkeyGlide::invokeScript
