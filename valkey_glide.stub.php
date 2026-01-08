@@ -743,7 +743,7 @@ class ValkeyGlide
     public function echo(string $str): ValkeyGlide|string|false;
 
     /**
-     * Invoke a Lua script (Java/Go compatible API).
+     * Invoke a Lua script
      *
      * @param string $script The Lua script to execute
      * @param array $keys Array of key arguments accessed by the script
