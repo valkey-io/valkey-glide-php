@@ -23,11 +23,13 @@ int execute_function_load_command(zval*             object,
     if (zend_parse_method_parameters(
             argc, object, "Os|b", &object, ce, &library_code, &library_code_len, &replace) ==
         FAILURE) {
+        zend_throw_exception(zend_ce_exception, "Invalid parameters for FunctionLoad", 0);
         return 0;
     }
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
         return 0;
     }
 
@@ -70,26 +72,40 @@ int execute_function_load_command(zval*             object,
     return status;
 }
 
-/* Simplified implementations for other function commands */
 int execute_function_list_command(zval*             object,
                                   int               argc,
                                   zval*             return_value,
                                   zend_class_entry* ce) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide->glide_client)
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
         return 0;
+    }
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionList, 0, NULL, NULL);
-    if (result && !result->command_error && result->response) {
-        int status = command_response_to_zval(result->response, return_value, 0, false);
-        free_command_result(result);
-        return status;
+
+    if (!result) {
+        zend_throw_exception(zend_ce_exception, "FunctionList: Failed to execute command", 0);
+        return 0;
     }
-    if (result)
+
+    if (result->command_error) {
+        zend_throw_exception(zend_ce_exception, result->command_error->command_error_message, 0);
         free_command_result(result);
-    return 0;
+        return 0;
+    }
+
+    if (!result->response) {
+        zend_throw_exception(zend_ce_exception, "FunctionList: No response received", 0);
+        free_command_result(result);
+        return 0;
+    }
+
+    int status = command_response_to_zval(result->response, return_value, 0, false);
+    free_command_result(result);
+    return status;
 }
 
 int execute_function_flush_command(zval*             object,
@@ -98,19 +114,14 @@ int execute_function_flush_command(zval*             object,
                                    zend_class_entry* ce) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide->glide_client)
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
         return 0;
+    }
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionFlush, 0, NULL, NULL);
-    if (result && !result->command_error && result->response) {
-        int status = command_response_to_zval(result->response, return_value, 0, false);
-        free_command_result(result);
-        return status;
-    }
-    if (result)
-        free_command_result(result);
-    return 0;
+    return handle_command_result_or_return_status(result, "FunctionFlush", return_value);
 }
 
 int execute_function_delete_command(zval*             object,
@@ -123,11 +134,13 @@ int execute_function_delete_command(zval*             object,
 
     if (zend_parse_method_parameters(argc, object, "Os", &object, ce, &lib_name, &lib_name_len) ==
         FAILURE) {
+        zend_throw_exception(zend_ce_exception, "Invalid parameters for FunctionDelete", 0);
         return 0;
     }
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
         return 0;
     }
 
@@ -136,15 +149,7 @@ int execute_function_delete_command(zval*             object,
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionDelete, 1, cmd_args, args_len);
-
-    if (result && !result->command_error && result->response) {
-        int status = command_response_to_zval(result->response, return_value, 0, false);
-        free_command_result(result);
-        return status;
-    }
-    if (result)
-        free_command_result(result);
-    return 0;
+    return handle_command_result_or_return_status(result, "FunctionDelete", return_value);
 }
 
 int execute_function_dump_command(zval*             object,
@@ -153,19 +158,14 @@ int execute_function_dump_command(zval*             object,
                                   zend_class_entry* ce) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide->glide_client)
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
         return 0;
+    }
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionDump, 0, NULL, NULL);
-    if (result && !result->command_error && result->response) {
-        int status = command_response_to_zval(result->response, return_value, 0, false);
-        free_command_result(result);
-        return status;
-    }
-    if (result)
-        free_command_result(result);
-    return 0;
+    return handle_command_result_or_return_status(result, "FunctionDump", return_value);
 }
 
 int execute_function_restore_command(zval*             object,
@@ -178,11 +178,13 @@ int execute_function_restore_command(zval*             object,
 
     if (zend_parse_method_parameters(argc, object, "Os", &object, ce, &payload, &payload_len) ==
         FAILURE) {
+        zend_throw_exception(zend_ce_exception, "Invalid parameters for FunctionRestore", 0);
         return 0;
     }
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
         return 0;
     }
 
@@ -191,15 +193,7 @@ int execute_function_restore_command(zval*             object,
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionRestore, 1, cmd_args, args_len);
-
-    if (result && !result->command_error && result->response) {
-        int status = command_response_to_zval(result->response, return_value, 0, false);
-        free_command_result(result);
-        return status;
-    }
-    if (result)
-        free_command_result(result);
-    return 0;
+    return handle_command_result_or_return_status(result, "FunctionRestore", return_value);
 }
 
 int execute_function_kill_command(zval*             object,
@@ -208,19 +202,14 @@ int execute_function_kill_command(zval*             object,
                                   zend_class_entry* ce) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide->glide_client)
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
         return 0;
+    }
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionKill, 0, NULL, NULL);
-    if (result && !result->command_error && result->response) {
-        int status = command_response_to_zval(result->response, return_value, 0, false);
-        free_command_result(result);
-        return status;
-    }
-    if (result)
-        free_command_result(result);
-    return 0;
+    return handle_command_result_or_return_status(result, "FunctionKill", return_value);
 }
 
 int execute_function_stats_command(zval*             object,
@@ -229,17 +218,12 @@ int execute_function_stats_command(zval*             object,
                                    zend_class_entry* ce) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide->glide_client)
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
         return 0;
+    }
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionStats, 0, NULL, NULL);
-    if (result && !result->command_error && result->response) {
-        int status = command_response_to_zval(result->response, return_value, 0, false);
-        free_command_result(result);
-        return status;
-    }
-    if (result)
-        free_command_result(result);
-    return 0;
+    return handle_command_result_or_return_status(result, "FunctionStats", return_value);
 }
