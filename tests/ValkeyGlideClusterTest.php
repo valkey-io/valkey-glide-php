@@ -226,7 +226,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         // Test LOAD operation (without replace flag to avoid parameter issue)
         $this->assertEquals($libName, $this->valkey_glide->function('LOAD', $code));
-        $this->assertEquals('test_value', $this->valkey_glide->fcall($funcName, [], ['test_value']));
+        $this->assertEquals('test_value', $this->valkey_glide->fcall($funcName, [], ['test_value'], ValkeyGlide::READ_FROM_PRIMARY));
 
         // Test LIST operation
         $list = $this->valkey_glide->function('LIST');
