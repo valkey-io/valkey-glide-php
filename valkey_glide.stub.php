@@ -2147,7 +2147,7 @@ class ValkeyGlide
      *
      * @return bool True if we were subscribed.
      */
-    /* TODO public function psubscribe(array $patterns, callable $cb): bool; */
+    public function psubscribe(array $patterns, callable $cb): bool;
 
     /**
      * Get a keys time to live in milliseconds.
@@ -2176,7 +2176,7 @@ class ValkeyGlide
      *
      * @return ValkeyGlide|int The number of subscribed clients to the given channel.
      */
-   /* TODO  public function publish(string $channel, string $message): ValkeyGlide|int|false;*/
+    public function publish(string $channel, string $message): int;
 
     /* TODO public function pubsub(string $command, mixed $arg = null): mixed;*/
 
@@ -2191,7 +2191,7 @@ class ValkeyGlide
      *
      * @return ValkeyGlide|array|bool  The array of subscribed patterns or false on failure.
      */
-   /* public function punsubscribe(array $patterns): ValkeyGlide|array|bool;*/
+    public function punsubscribe(?array $patterns = null): bool;
 
     /**
      * Pop one or more elements from the end of a list.
@@ -2948,7 +2948,7 @@ class ValkeyGlide
      * // broken and this command will execute.
      * echo "Subscribe loop ended\n";
      */
-    /* TODO public function subscribe(array $channels, callable $cb): bool; */
+    public function subscribe(array $channels, callable $cb): bool;
 
     /**
      * Unsubscribes the client from the given shard channels,
@@ -3067,7 +3067,7 @@ class ValkeyGlide
      *
      * echo "We've unsubscribed from both channels, exiting\n";
      */
-    /* TODO public function unsubscribe(array $channels): ValkeyGlide|array|bool; */
+    public function unsubscribe(?array $channels = null): bool;
 
     /**
      * Remove any previously WATCH'ed keys in a transaction.

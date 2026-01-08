@@ -36,6 +36,8 @@
 extern zend_class_entry* ce;
 extern zend_class_entry* get_valkey_glide_exception_ce();
 
+#include "valkey_glide_pubsub_common.h"
+
 /* Import the string conversion functions from command_response.c */
 extern char* long_to_string(long value, size_t* len);
 extern char* double_to_string(double value, size_t* len);

@@ -21,6 +21,7 @@
 #include "valkey_glide_s_common.h"
 #include "valkey_glide_x_common.h"
 #include "valkey_glide_z_common.h"
+#include "valkey_glide_pubsub_common.h"
 
 #if PHP_VERSION_ID < 80000
 #include "valkey_glide_cluster_legacy_arginfo.h"
@@ -573,11 +574,6 @@ LRANGE_METHOD_IMPL(ValkeyGlideCluster)
 ZREMRANGEBYRANK_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto long ValkeyGlideCluster::publish(string key, string msg) */
-PHP_METHOD(ValkeyGlideCluster, publish) {
-}
-/* }}} */
-
 /* {{{ proto bool ValkeyGlideCluster::rename(string key1, string key2) */
 RENAME_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
@@ -696,21 +692,45 @@ OBJECT_METHOD_IMPL(ValkeyGlideCluster)
 
 /* {{{ proto null ValkeyGlideCluster::subscribe(array chans, callable cb) */
 PHP_METHOD(ValkeyGlideCluster, subscribe) {
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
 /* }}} */
 
 /* {{{ proto null ValkeyGlideCluster::psubscribe(array pats, callable cb) */
 PHP_METHOD(ValkeyGlideCluster, psubscribe) {
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
 /* }}} */
 
 /* {{{ proto array ValkeyGlideCluster::unsubscribe(array chans) */
 PHP_METHOD(ValkeyGlideCluster, unsubscribe) {
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_unsubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
 /* }}} */
 
 /* {{{ proto array ValkeyGlideCluster::punsubscribe(array pats) */
 PHP_METHOD(ValkeyGlideCluster, punsubscribe) {
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_punsubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
 /* }}} */
 
@@ -807,6 +827,15 @@ CLIENT_METHOD_IMPL(ValkeyGlideCluster)
  *     proto mixed ValkeyGlideCluster::config(array host_port, ...) */
 CONFIG_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
+
+PHP_METHOD(ValkeyGlideCluster, publish) {
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
+}
 
 /* {{{ proto mixed ValkeyGlideCluster::pubsub(string key, ...)
  *     proto mixed ValkeyGlideCluster::pubsub(array host_port, ...) */

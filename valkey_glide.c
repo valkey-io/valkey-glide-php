@@ -13,7 +13,25 @@
 #include "valkey_glide_arginfo.h"          // Include generated arginfo header
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_pubsub_common.h"
 #include "valkey_glide_core_common.h"
+#include "include/glide_bindings.h"
+
+// FFI function declarations
+extern struct CommandResult* command(
+    const void* client_adapter_ptr,
+    uintptr_t request_id,
+    enum RequestType command_type,
+    unsigned long arg_count,
+    const uintptr_t* args,
+    const unsigned long* args_len,
+    const uint8_t* route_bytes,
+    uintptr_t route_bytes_len,
+    uint64_t span_ptr
+);
+
+extern void free_command_result(struct CommandResult* command_result_ptr);
+
 #include "valkey_glide_otel.h"  // Include OTEL support
 
 /* Enum support includes - must be BEFORE arginfo includes */
@@ -479,11 +497,16 @@ PHP_MINIT_FUNCTION(valkey_glide) {
     return SUCCESS;
 }
 
+PHP_MSHUTDOWN_FUNCTION(valkey_glide) {
+    valkey_glide_pubsub_shutdown();
+    return SUCCESS;
+}
+
 zend_module_entry valkey_glide_module_entry = {STANDARD_MODULE_HEADER,
                                                "valkey_glide",
                                                ext_functions,
                                                PHP_MINIT(valkey_glide),
-                                               NULL,
+                                               PHP_MSHUTDOWN(valkey_glide),
                                                NULL,
                                                NULL,
                                                NULL,
@@ -680,19 +703,51 @@ CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlide)
 
 /* Basic method stubs - these need to be implemented with ValkeyGlide */
 
-PHP_METHOD(ValkeyGlide, publish) { /* TODO: Implement */
-}
-PHP_METHOD(ValkeyGlide, psubscribe) { /* TODO: Implement */
-}
 PHP_METHOD(ValkeyGlide, ssubscribe) { /* TODO: Implement */
 }
-PHP_METHOD(ValkeyGlide, subscribe) { /* TODO: Implement */
+PHP_METHOD(ValkeyGlide, subscribe) {
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
-PHP_METHOD(ValkeyGlide, unsubscribe) { /* TODO: Implement */
+
+PHP_METHOD(ValkeyGlide, psubscribe) {
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
-PHP_METHOD(ValkeyGlide, punsubscribe) { /* TODO: Implement */
+
+PHP_METHOD(ValkeyGlide, unsubscribe) {
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_unsubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
-PHP_METHOD(ValkeyGlide, sunsubscribe) { /* TODO: Implement */
+
+PHP_METHOD(ValkeyGlide, punsubscribe) {
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_punsubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
+}
+
+PHP_METHOD(ValkeyGlide, publish) {
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
 
 PHP_METHOD(ValkeyGlide, pubsub) { /* TODO: Implement */

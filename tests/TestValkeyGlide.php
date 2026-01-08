@@ -84,6 +84,7 @@ require_once __DIR__ . "/ValkeyGlideClusterBaseTest.php";
 require_once __DIR__ . "/ValkeyGlideTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterTest.php";
 require_once __DIR__ . "/ValkeyGlideFeaturesTest.php";
+require_once __DIR__ . "/ValkeyGlidePubSubTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterFeaturesTest.php";
 require_once __DIR__ . "/ValkeyGlideBatchTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterBatchTest.php";
@@ -111,6 +112,7 @@ function getTestClass($class)
         'valkeyglide'         => 'ValkeyGlideTest',
         'valkeyglidecluster'  => 'ValkeyGlideClusterTest',
         'valkeyglideclientfeatures' => 'ValkeyGlideFeaturesTest',
+        'valkeyglidepubsub'   => 'ValkeyGlidePubSubTest',
         'valkeyglideclusterfeatures' => 'ValkeyGlideClusterFeaturesTest',
         'valkeyglideclientbatch' => 'ValkeyGlideBatchTest',
         'valkeyglideclusterbatch' => 'ValkeyGlideClusterBatchTest',

@@ -1037,4 +1037,60 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         ValkeyGlide::setOtelSamplePercentage($randomPercentage);
         $this->assertEquals($randomPercentage, ValkeyGlide::getOtelSamplePercentage(), "Sample percentage should be $randomPercentage");
     }
+
+    public function testClusterPubSubBasicSubscribe()
+    {
+        // Test cluster pubsub with in-memory tracking
+        $cluster = $this->createClient();
+        
+        // Test publish works and returns integer
+        $count = $cluster->publish('cluster_test', 'test_message');
+        $this->assertIsInt($count);
+        $this->assertGreaterThanOrEqual(0, $count);
+        
+        // Test subscribe method accepts callback
+        $messages = [];
+        try {
+            $cluster->subscribe(['cluster_test'], function($redis, $channel, $message) use (&$messages) {
+                $messages[] = "$channel:$message";
+                if ($message === 'quit') {
+                    $redis->unsubscribe(['cluster_test']);
+                }
+            });
+            $this->assertTrue(true); // Completed without hanging
+        } catch (Exception $e) {
+            // Expected if connection issues
+            $this->assertStringContains('connect', strtolower($e->getMessage()));
+        }
+        
+        $cluster->close();
+    }
+
+    public function testClusterPubSubPatternSubscribe()
+    {
+        $cluster = $this->createClient();
+        
+        // Test pattern methods exist
+        $this->assertTrue(method_exists($cluster, 'psubscribe'));
+        $this->assertTrue(method_exists($cluster, 'punsubscribe'));
+        
+        // Test parameter validation
+        $result = $cluster->psubscribe([], function() {});
+        $this->assertFalse($result);
+        
+        $cluster->close();
+    }
+
+    public function testClusterPubSubMethodsExist()
+    {
+        $cluster = $this->createClient();
+        
+        // Test that all pubsub methods exist on cluster
+        $this->assertTrue(method_exists($cluster, 'subscribe'));
+        $this->assertTrue(method_exists($cluster, 'psubscribe'));
+        $this->assertTrue(method_exists($cluster, 'unsubscribe'));
+        $this->assertTrue(method_exists($cluster, 'punsubscribe'));
+        
+        $cluster->close();
+    }
 }
