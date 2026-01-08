@@ -151,7 +151,7 @@ $opt = getopt('', ['host:', 'port:', 'class:', 'test:', 'nocolors', 'user:', 'au
 /* The test class(es) we want to run */
 $classes =
     getClassArray($opt['class']
-        ?? 'connectionrequest,valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,valkeyglideclusterfeatures,valkeyglideclientbatch,valkeyglideclusterbatch,updateconnectionpassword');
+        ?? 'connectionrequest,valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,valkeyglidepubsub,valkeyglideclusterfeatures,valkeyglideclientbatch,valkeyglideclusterbatch,updateconnectionpassword');
 
 $colorize = !isset($opt['nocolors']);
 

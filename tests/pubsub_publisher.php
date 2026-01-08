@@ -2,6 +2,12 @@
 // Publisher script for multi-process pubsub test
 // Usage: php publisher.php <host> <port> <channel> <message> <sync_file>
 
+// Load ValkeyGlide extension if not already loaded
+if (!extension_loaded('valkey_glide')) {
+    echo "ValkeyGlide extension not loaded\n";
+    exit(1);
+}
+
 if ($argc !== 6) {
     echo "Usage: php publisher.php <host> <port> <channel> <message> <sync_file>\n";
     exit(1);
