@@ -741,6 +741,8 @@ PHP_METHOD(ValkeyGlide, punsubscribe) {
     valkey_glide_punsubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
 
+
+
 PHP_METHOD(ValkeyGlide, publish) {
     valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     if (!valkey_glide->glide_client) {

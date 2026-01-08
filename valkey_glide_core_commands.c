@@ -192,6 +192,12 @@ uint8_t* create_connection_request(size_t*                                   len
         conn_req.client_az = config->client_az;
     }
 
+    /* Enable pubsub infrastructure for dynamic subscriptions */
+    ConnectionRequest__PubSubSubscriptions pubsub_subs = CONNECTION_REQUEST__PUB_SUB_SUBSCRIPTIONS__INIT;
+    pubsub_subs.n_channels_or_patterns_by_type = 0;
+    pubsub_subs.channels_or_patterns_by_type = NULL;
+    conn_req.pubsub_subscriptions = &pubsub_subs;
+
     /* Calculate the size of the serialized message */
     *len = connection_request__connection_request__get_packed_size(&conn_req);
 

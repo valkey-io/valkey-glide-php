@@ -7,10 +7,10 @@
 #include "valkey_glide_commands_common.h"
 
 // Request type constants
-#define REQUEST_TYPE_SUBSCRIBE Subscribe
-#define REQUEST_TYPE_PSUBSCRIBE PSubscribe
-#define REQUEST_TYPE_UNSUBSCRIBE Unsubscribe
-#define REQUEST_TYPE_PUNSUBSCRIBE PUnsubscribe
+#define REQUEST_TYPE_SUBSCRIBE SubscribeBlocking
+#define REQUEST_TYPE_PSUBSCRIBE PSubscribeBlocking
+#define REQUEST_TYPE_UNSUBSCRIBE UnsubscribeBlocking
+#define REQUEST_TYPE_PUNSUBSCRIBE PUnsubscribeBlocking
 #define REQUEST_TYPE_PUBLISH Publish
 
 // Pubsub callback info structure
@@ -38,6 +38,7 @@ extern void free_command_result(struct CommandResult* command_result_ptr);
 // Pubsub management functions
 void init_pubsub_callbacks(void);
 void cleanup_callback_info(zval *zv);
+void cleanup_callback_info_ptr(void *ptr);
 void register_pubsub_callback(uintptr_t client_ptr, zval *callback, zval *client_obj);
 void unregister_pubsub_callback(uintptr_t client_ptr);
 zval* find_pubsub_callback(const char *client_key);
@@ -70,5 +71,6 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
 void valkey_glide_unsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
 void valkey_glide_punsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
 void valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
+
 
 #endif // VALKEY_GLIDE_PUBSUB_COMMON_H

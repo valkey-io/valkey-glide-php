@@ -10,7 +10,7 @@ static bool pubsub_callbacks_initialized = false;
 // Initialize pubsub callbacks
 void init_pubsub_callbacks(void) {
     if (!pubsub_callbacks_initialized) {
-        zend_hash_init(&pubsub_callbacks, 16, NULL, NULL, 0);
+        zend_hash_init(&pubsub_callbacks, 16, NULL, cleanup_callback_info, 0);
         pubsub_callbacks_initialized = true;
     }
 }
@@ -34,8 +34,18 @@ void remove_pubsub_callback(const char *client_key) {
 void cleanup_callback_info(zval *zv) {
     pubsub_callback_info *info = (pubsub_callback_info *)Z_PTR_P(zv);
     if (info) {
-        zval_ptr_dtor(&info->callback);
-        zval_ptr_dtor(&info->client_obj);
+        zval_dtor(&info->callback);
+        zval_dtor(&info->client_obj);
+        efree(info);
+    }
+}
+
+// Cleanup callback info for pointer-based storage
+void cleanup_callback_info_ptr(void *ptr) {
+    pubsub_callback_info *info = (pubsub_callback_info *)ptr;
+    if (info) {
+        zval_dtor(&info->callback);
+        zval_dtor(&info->client_obj);
         efree(info);
     }
 }
@@ -51,19 +61,27 @@ void pubsub_callback_handler(
     const uint8_t *pattern,
     int64_t pattern_len
 ) {
-    if (!pubsub_callbacks_initialized) return;
+    if (!pubsub_callbacks_initialized) {
+        return;
+    }
 
     char client_key[32];
     snprintf(client_key, sizeof(client_key), "%lu", (unsigned long)client_ptr);
     
     zval *callback_zv = zend_hash_str_find(&pubsub_callbacks, client_key, strlen(client_key));
-    if (!callback_zv) return;
+    if (!callback_zv) {
+        return;
+    }
 
     pubsub_callback_info *info = (pubsub_callback_info *)Z_PTR_P(callback_zv);
-    if (!info || !info->is_active) return;
+    if (!info || !info->is_active) {
+        return;
+    }
 
     // Only handle message types
-    if (kind != 3 && kind != 4 && kind != 5) return;
+    if (kind != 3 && kind != 4 && kind != 5) {
+        return;
+    }
 
     zval php_channel, php_message, php_pattern;
     ZVAL_STRINGL(&php_channel, (char*)channel, channel_len);
@@ -103,10 +121,17 @@ void register_pubsub_callback(uintptr_t client_ptr, zval *callback, zval *client
     snprintf(client_key, sizeof(client_key), "%lu", (unsigned long)client_ptr);
 
     pubsub_callback_info *info = emalloc(sizeof(pubsub_callback_info));
+    
+    // Initialize zvals first
+    ZVAL_UNDEF(&info->callback);
+    ZVAL_UNDEF(&info->client_obj);
+    
+    // Copy the zvals
     ZVAL_COPY(&info->callback, callback);
     ZVAL_COPY(&info->client_obj, client_obj);
     info->is_active = true;
 
+    // Store the pointer in a zval using ZVAL_PTR
     zval callback_zv;
     ZVAL_PTR(&callback_zv, info);
     zend_hash_str_update(&pubsub_callbacks, client_key, strlen(client_key), &callback_zv);
@@ -124,8 +149,8 @@ void unregister_pubsub_callback(uintptr_t client_ptr) {
         pubsub_callback_info *info = (pubsub_callback_info *)Z_PTR_P(callback_zv);
         if (info) {
             info->is_active = false;
-            cleanup_callback_info(callback_zv);
         }
+        // Delete from hashtable - this will call cleanup_callback_info
         zend_hash_str_del(&pubsub_callbacks, client_key, strlen(client_key));
     }
 }
@@ -133,10 +158,13 @@ void unregister_pubsub_callback(uintptr_t client_ptr) {
 // Subscribe implementation
 void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection) {
     zval *channels, *callback;
+    zend_long timeout_ms = 0; // Default timeout (0 = wait indefinitely)
     
-    ZEND_PARSE_PARAMETERS_START(2, 2)
+    ZEND_PARSE_PARAMETERS_START(2, 3)
         Z_PARAM_ARRAY(channels)
         Z_PARAM_ZVAL(callback)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(timeout_ms)
     ZEND_PARSE_PARAMETERS_END();
 
     if (!zend_is_callable(callback, 0, NULL)) {
@@ -151,9 +179,12 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
     HashTable *channels_ht = Z_ARRVAL_P(channels);
     uint32_t channel_count = zend_hash_num_elements(channels_ht);
     
-    uintptr_t *args = emalloc(channel_count * sizeof(uintptr_t));
-    unsigned long *args_len = emalloc(channel_count * sizeof(unsigned long));
+    // For blocking subscribe, we need channels + timeout_ms
+    uint32_t total_args = channel_count + 1;
+    uintptr_t *args = emalloc(total_args * sizeof(uintptr_t));
+    unsigned long *args_len = emalloc(total_args * sizeof(unsigned long));
     
+    // Add channels
     uint32_t i = 0;
     zval *channel_zv;
     ZEND_HASH_FOREACH_VAL(channels_ht, channel_zv) {
@@ -162,11 +193,17 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
         args_len[i] = Z_STRLEN_P(channel_zv);
         i++;
     } ZEND_HASH_FOREACH_END();
+    
+    // Add timeout_ms as string (like Python does)
+    char timeout_str[32];
+    snprintf(timeout_str, sizeof(timeout_str), "%lld", (long long)timeout_ms);
+    args[channel_count] = (uintptr_t)timeout_str;
+    args_len[channel_count] = strlen(timeout_str);
 
     // Call FFI command
     struct CommandResult* result = command(
         connection, 0, REQUEST_TYPE_SUBSCRIBE,
-        channel_count, args, args_len, NULL, 0, 0
+        total_args, args, args_len, NULL, 0, 0
     );
 
     efree(args);
@@ -189,10 +226,13 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
 // PSubscribe implementation
 void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection) {
     zval *patterns, *callback;
+    zend_long timeout_ms = 0; // Default timeout (0 = wait indefinitely)
     
-    ZEND_PARSE_PARAMETERS_START(2, 2)
+    ZEND_PARSE_PARAMETERS_START(2, 3)
         Z_PARAM_ARRAY(patterns)
         Z_PARAM_ZVAL(callback)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(timeout_ms)
     ZEND_PARSE_PARAMETERS_END();
 
     if (!zend_is_callable(callback, 0, NULL)) {
@@ -207,9 +247,12 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
     HashTable *patterns_ht = Z_ARRVAL_P(patterns);
     uint32_t pattern_count = zend_hash_num_elements(patterns_ht);
     
-    uintptr_t *args = emalloc(pattern_count * sizeof(uintptr_t));
-    unsigned long *args_len = emalloc(pattern_count * sizeof(unsigned long));
+    // For blocking psubscribe, we need patterns + timeout_ms
+    uint32_t total_args = pattern_count + 1;
+    uintptr_t *args = emalloc(total_args * sizeof(uintptr_t));
+    unsigned long *args_len = emalloc(total_args * sizeof(unsigned long));
     
+    // Add patterns
     uint32_t i = 0;
     zval *pattern_zv;
     ZEND_HASH_FOREACH_VAL(patterns_ht, pattern_zv) {
@@ -218,11 +261,17 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
         args_len[i] = Z_STRLEN_P(pattern_zv);
         i++;
     } ZEND_HASH_FOREACH_END();
+    
+    // Add timeout_ms as string
+    char timeout_str[32];
+    snprintf(timeout_str, sizeof(timeout_str), "%lld", (long long)timeout_ms);
+    args[pattern_count] = (uintptr_t)timeout_str;
+    args_len[pattern_count] = strlen(timeout_str);
 
     // Call FFI command
     struct CommandResult* result = command(
         connection, 0, REQUEST_TYPE_PSUBSCRIBE,
-        pattern_count, args, args_len, NULL, 0, 0
+        total_args, args, args_len, NULL, 0, 0
     );
 
     efree(args);
@@ -400,23 +449,34 @@ void valkey_glide_pubsub_callback(
     const uint8_t *pattern,
     int64_t pattern_len
 ) {
+    // DEBUG: Log that FFI callback was invoked
+    php_error(E_WARNING, "FFI callback invoked: client=%lu, kind=%d, channel_len=%lld", 
+              (unsigned long)client_adapter_ptr, (int)kind, (long long)channel_len);
+    
     // Check if there's a callback registered for this client
     char client_key[32];
-    snprintf(client_key, sizeof(client_key), "%p", (void*)client_adapter_ptr);
+    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long)client_adapter_ptr);
     
     zval *callback_zv = find_pubsub_callback(client_key);
     if (callback_zv) {
+        php_error(E_WARNING, "Found callback for client %s", client_key);
         pubsub_callback_info *info = (pubsub_callback_info *)Z_PTR_P(callback_zv);
         if (info && info->is_active) {
+            php_error(E_WARNING, "Calling pubsub_callback_handler");
             // Call the PHP callback
             pubsub_callback_handler(client_adapter_ptr, (int)kind, message, message_len, 
                                   channel, channel_len, pattern, pattern_len);
         } else {
+            php_error(E_WARNING, "Callback info inactive or null");
             // Clean up inactive callback
             remove_pubsub_callback(client_key);
         }
+    } else {
+        php_error(E_WARNING, "No callback found for client %s", client_key);
     }
 }
+
+
 
 // Shutdown function
 void valkey_glide_pubsub_shutdown(void) {
