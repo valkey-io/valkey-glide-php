@@ -499,11 +499,14 @@ static int process_fcall_command_reposonse(CommandResponse* response,
 /* Execute a FUNCTION command using the Valkey Glide client */
 int execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
+    char*                operation = NULL;
+    size_t               operation_len;
     zval*                z_args;
     int                  args_count;
 
-    /* Parse parameters */
-    if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &z_args, &args_count) ==
+    /* Parse parameters: operation string + variadic args */
+    if (zend_parse_method_parameters(
+            argc, object, "Os*", &object, ce, &operation, &operation_len, &z_args, &args_count) ==
         FAILURE) {
         return 0;
     }
@@ -513,115 +516,112 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
 
     /* If we have a Glide client, use it */
     if (valkey_glide->glide_client) {
-        /* Check if args are valid */
-        if (!z_args || args_count <= 0) {
+        /* Check if operation is valid */
+        if (!operation || operation_len == 0) {
             return 0;
         }
 
-        /* Determine the specific function command type */
-        enum RequestType function_command_type =
-            determine_function_command_type(z_args, args_count);
-        if (function_command_type == InvalidRequest) {
-            /* Unknown function subcommand */
-            return 0;
-        }
-
-        /* Use helper function to convert remaining arguments to strings (skip the subcommand) */
-        uintptr_t*     cmd_args          = NULL;
-        unsigned long* args_len          = NULL;
-        char**         allocated_strings = NULL;
-        int            allocated_count   = 0;
-        unsigned long  final_arg_count   = 0;
-
-        /* If there are arguments after the subcommand, convert them */
-        if (args_count > 1) {
-            if (!convert_zval_args_to_strings(&z_args[1],
-                                              args_count - 1,
-                                              &cmd_args,
-                                              &args_len,
-                                              &allocated_strings,
-                                              &allocated_count)) {
+        /* For operations that take no arguments, call directly */
+        if (strcasecmp(operation, "FLUSH") == 0) {
+            return execute_function_flush_command(object, 1, return_value, ce);
+        } else if (strcasecmp(operation, "STATS") == 0) {
+            return execute_function_stats_command(object, 1, return_value, ce);
+        } else if (strcasecmp(operation, "DUMP") == 0) {
+            return execute_function_dump_command(object, 1, return_value, ce);
+        } else if (strcasecmp(operation, "KILL") == 0) {
+            return execute_function_kill_command(object, 1, return_value, ce);
+        } else if (strcasecmp(operation, "LIST") == 0) {
+            return execute_function_list_command(object, 1 + args_count, return_value, ce);
+        } else if (strcasecmp(operation, "LOAD") == 0) {
+            if (args_count < 1) {
                 return 0;
             }
-            final_arg_count = args_count - 1;
-        }
 
-        /* Check if we're in batch mode */
-        if (valkey_glide->is_in_batch_mode) {
-            /* Convert arguments to uint8_t** format for batch processing */
-            uintptr_t*     batch_args  = NULL;
-            unsigned long* arg_lengths = NULL;
+            /* Extract library code - must be string */
+            if (Z_TYPE(z_args[0]) != IS_STRING) {
+                return 0;
+            }
+            char*  library_code     = Z_STRVAL(z_args[0]);
+            size_t library_code_len = Z_STRLEN(z_args[0]);
 
-            if (final_arg_count > 0) {
-                batch_args  = (uintptr_t*) emalloc(final_arg_count * sizeof(uintptr_t*));
-                arg_lengths = (uintptr_t*) emalloc(final_arg_count * sizeof(unsigned long));
-
-                /* Copy arguments to batch format */
-                for (unsigned long i = 0; i < final_arg_count; i++) {
-                    batch_args[i]  = cmd_args[i];
-                    arg_lengths[i] = args_len[i];
+            /* Extract optional replace flag */
+            zend_bool replace = 0;
+            if (args_count > 1) {
+                /* Simple boolean conversion */
+                if (Z_TYPE(z_args[1]) == IS_TRUE) {
+                    replace = 1;
+                } else if (Z_TYPE(z_args[1]) == IS_FALSE) {
+                    replace = 0;
+                } else if (Z_TYPE(z_args[1]) == IS_LONG) {
+                    replace = Z_LVAL(z_args[1]) ? 1 : 0;
                 }
+                /* For other types, default to false */
             }
 
-            /* Buffer the command for batch execution */
-            int buffer_result = buffer_command_for_batch(valkey_glide,
-                                                         function_command_type,
-                                                         batch_args,
-                                                         arg_lengths,
-                                                         final_arg_count,
-                                                         NULL,
-                                                         process_function_command_reposonse);
+            /* Build command arguments like the original function */
+            unsigned long  arg_count = replace ? 2 : 1;
+            uintptr_t*     cmd_args  = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+            unsigned long* args_len  = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-            /* Free the argument arrays */
-            cleanup_allocated_strings(allocated_strings, allocated_count);
-            if (cmd_args)
-                efree(cmd_args);
-            if (args_len)
-                efree(args_len);
-            if (batch_args)
-                efree(batch_args);
-            if (arg_lengths)
-                efree(arg_lengths);
+            cmd_args[0] = (uintptr_t) library_code;
+            args_len[0] = library_code_len;
 
-            if (buffer_result) {
-                /* In batch mode, return $this for method chaining */
-                ZVAL_COPY(return_value, object);
-                return 1;
+            if (replace) {
+                cmd_args[1] = (uintptr_t) "REPLACE";
+                args_len[1] = 7;
             }
-            return 0;
-        } else {
-            /* Execute the command directly */
-            CommandResult* result = execute_command(valkey_glide->glide_client,
-                                                    function_command_type,
-                                                    final_arg_count,
-                                                    cmd_args,
-                                                    args_len);
 
-            /* Free the argument arrays using helper function */
-            cleanup_allocated_strings(allocated_strings, allocated_count);
-            if (cmd_args)
-                efree(cmd_args);
-            if (args_len)
-                efree(args_len);
+            CommandResult* result = execute_command(
+                valkey_glide->glide_client, FunctionLoad, arg_count, cmd_args, args_len);
+            efree(cmd_args);
+            efree(args_len);
 
-            /* Handle the result directly */
-            int status = 0;
-            if (result) {
-                if (result->command_error) {
-                    /* Command failed */
-                    free_command_result(result);
-                    return 0;
-                }
-
-                if (result->response) {
-                    /* FUNCTION can return various types based on subcommand */
-                    status =
-                        process_function_command_reposonse(result->response, NULL, return_value);
-                    free_command_result(result);
-                    return status;
-                }
-                free_command_result(result);
+            return handle_function_command_result_or_return_false(
+                result, "FunctionLoad", return_value);
+        } else if (strcasecmp(operation, "DELETE") == 0) {
+            /* DELETE expects: library_name */
+            if (args_count < 1) {
+                return 0;
             }
+
+            /* Extract library name - must be string */
+            if (Z_TYPE(z_args[0]) != IS_STRING) {
+                return 0;
+            }
+            char*  lib_name     = Z_STRVAL(z_args[0]);
+            size_t lib_name_len = Z_STRLEN(z_args[0]);
+
+            /* Build command arguments like the original function */
+            uintptr_t     cmd_args[1] = {(uintptr_t) lib_name};
+            unsigned long args_len[1] = {lib_name_len};
+
+            CommandResult* result =
+                execute_command(valkey_glide->glide_client, FunctionDelete, 1, cmd_args, args_len);
+
+            return handle_function_command_result_or_return_false(
+                result, "FunctionDelete", return_value);
+        } else if (strcasecmp(operation, "RESTORE") == 0) {
+            /* RESTORE expects: payload */
+            if (args_count < 1) {
+                return 0;
+            }
+
+            /* Extract payload - must be string */
+            if (Z_TYPE(z_args[0]) != IS_STRING) {
+                return 0;
+            }
+            char*  payload     = Z_STRVAL(z_args[0]);
+            size_t payload_len = Z_STRLEN(z_args[0]);
+
+            /* Build command arguments like the original function */
+            uintptr_t     cmd_args[1] = {(uintptr_t) payload};
+            unsigned long args_len[1] = {payload_len};
+
+            CommandResult* result =
+                execute_command(valkey_glide->glide_client, FunctionRestore, 1, cmd_args, args_len);
+
+            return handle_function_command_result_or_return_false(
+                result, "FunctionRestore", return_value);
         }
     }
 

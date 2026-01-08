@@ -1557,5 +1557,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         RETURN_FALSE;                                                             \
     }
 
+/* Function command declarations */
+int execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 #endif /* VALKEY_GLIDE_COMMANDS_COMMON_H */
