@@ -23,13 +23,11 @@ int execute_function_load_command(zval*             object,
     if (zend_parse_method_parameters(
             argc, object, "Os|b", &object, ce, &library_code, &library_code_len, &replace) ==
         FAILURE) {
-        zend_throw_exception(zend_ce_exception, "Invalid parameters for FunctionLoad", 0);
         return 0;
     }
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide->glide_client) {
-        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
         return 0;
     }
 
@@ -60,7 +58,7 @@ int execute_function_list_command(zval*             object,
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide->glide_client) {
-        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
+        ZVAL_FALSE(return_value);
         return 0;
     }
 
@@ -77,7 +75,7 @@ int execute_function_flush_command(zval*             object,
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide->glide_client) {
-        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
+        ZVAL_FALSE(return_value);
         return 0;
     }
 
@@ -96,13 +94,13 @@ int execute_function_delete_command(zval*             object,
 
     if (zend_parse_method_parameters(argc, object, "Os", &object, ce, &lib_name, &lib_name_len) ==
         FAILURE) {
-        zend_throw_exception(zend_ce_exception, "Invalid parameters for FunctionDelete", 0);
+        ZVAL_FALSE(return_value);
         return 0;
     }
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide->glide_client) {
-        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
+        ZVAL_FALSE(return_value);
         return 0;
     }
 
@@ -121,7 +119,7 @@ int execute_function_dump_command(zval*             object,
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide->glide_client) {
-        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
+        ZVAL_FALSE(return_value);
         return 0;
     }
 
@@ -140,13 +138,13 @@ int execute_function_restore_command(zval*             object,
 
     if (zend_parse_method_parameters(argc, object, "Os", &object, ce, &payload, &payload_len) ==
         FAILURE) {
-        zend_throw_exception(zend_ce_exception, "Invalid parameters for FunctionRestore", 0);
+        ZVAL_FALSE(return_value);
         return 0;
     }
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide->glide_client) {
-        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
+        ZVAL_FALSE(return_value);
         return 0;
     }
 
@@ -165,7 +163,7 @@ int execute_function_kill_command(zval*             object,
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide->glide_client) {
-        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
+        ZVAL_FALSE(return_value);
         return 0;
     }
 
@@ -181,7 +179,7 @@ int execute_function_stats_command(zval*             object,
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide->glide_client) {
-        zend_throw_exception(zend_ce_exception, "Client not initialized", 0);
+        ZVAL_FALSE(return_value);
         return 0;
     }
 

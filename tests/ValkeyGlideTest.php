@@ -7697,13 +7697,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $stats = $this->valkey_glide->functionStats();
         $this->assertIsArray($stats);
 
-        // Test replace functionality - should fail without replace flag
-        try {
-            $this->valkey_glide->functionLoad($code, false);
-            $this->fail('Expected exception for duplicate library load');
-        } catch (Exception $e) {
-            $this->assertStringContains('already exists', $e->getMessage());
-        }
+        // Test replace functionality - should return false without replace flag
+        $result = $this->valkey_glide->functionLoad($code, false);
+        $this->assertFalse($result, 'Expected false for duplicate library load');
 
         // Test functionRestore after functionDelete
         $this->assertTrue($this->valkey_glide->functionDelete($libName));

@@ -126,7 +126,7 @@ static inline int handle_command_result_or_return_status(CommandResult* result,
     return status;
 }
 
-/* Helper function for function commands that returns false on error (PHPRedis compatibility) */
+// PHPRedis-compatible helper that returns false on errors instead of throwing exceptions
 static inline int handle_function_command_result_or_return_false(CommandResult* result,
                                                                  const char*    command_name,
                                                                  zval*          return_value) {
@@ -141,6 +141,8 @@ static inline int handle_function_command_result_or_return_false(CommandResult* 
     free_command_result(result);
     return status;
 }
+
+/* Helper function for function commands that returns false on error (PHPRedis compatibility) */
 
 /* ClientConfig removed - using valkey_glide_client_configuration_t instead */
 /* Forward declaration for ClientAdapter */
@@ -1216,32 +1218,32 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             execute_command(valkey_glide->glide_client, ScriptExists, count, args, args_len); \
         efree(args);                                                                          \
         efree(args_len);                                                                      \
-        handle_command_result_or_throw(result, "ScriptExists", return_value);                 \
+        handle_function_command_result_or_return_false(result, "ScriptExists", return_value); \
     }
 
-#define SCRIPT_SHOW_METHOD_IMPL(class_name)                                             \
-    PHP_METHOD(class_name, scriptShow) {                                                \
-        char*  sha1;                                                                    \
-        size_t sha1_len;                                                                \
-        ZEND_PARSE_PARAMETERS_START(1, 1)                                               \
-        Z_PARAM_STRING(sha1, sha1_len)                                                  \
-        ZEND_PARSE_PARAMETERS_END();                                                    \
-        valkey_glide_object* valkey_glide =                                             \
-            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());           \
-        uintptr_t      args[]     = {(uintptr_t) sha1};                                 \
-        unsigned long  args_len[] = {sha1_len};                                         \
-        CommandResult* result =                                                         \
-            execute_command(valkey_glide->glide_client, ScriptShow, 1, args, args_len); \
-        handle_command_result_or_throw(result, "ScriptShow", return_value);             \
+#define SCRIPT_SHOW_METHOD_IMPL(class_name)                                                 \
+    PHP_METHOD(class_name, scriptShow) {                                                    \
+        char*  sha1;                                                                        \
+        size_t sha1_len;                                                                    \
+        ZEND_PARSE_PARAMETERS_START(1, 1)                                                   \
+        Z_PARAM_STRING(sha1, sha1_len)                                                      \
+        ZEND_PARSE_PARAMETERS_END();                                                        \
+        valkey_glide_object* valkey_glide =                                                 \
+            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());               \
+        uintptr_t      args[]     = {(uintptr_t) sha1};                                     \
+        unsigned long  args_len[] = {sha1_len};                                             \
+        CommandResult* result =                                                             \
+            execute_command(valkey_glide->glide_client, ScriptShow, 1, args, args_len);     \
+        handle_function_command_result_or_return_false(result, "ScriptShow", return_value); \
     }
 
-#define SCRIPT_KILL_METHOD_IMPL(class_name)                                         \
-    PHP_METHOD(class_name, scriptKill) {                                            \
-        valkey_glide_object* valkey_glide =                                         \
-            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());       \
-        CommandResult* result =                                                     \
-            execute_command(valkey_glide->glide_client, ScriptKill, 0, NULL, NULL); \
-        handle_command_result_or_throw(result, "ScriptKill", return_value);         \
+#define SCRIPT_KILL_METHOD_IMPL(class_name)                                                 \
+    PHP_METHOD(class_name, scriptKill) {                                                    \
+        valkey_glide_object* valkey_glide =                                                 \
+            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());               \
+        CommandResult* result =                                                             \
+            execute_command(valkey_glide->glide_client, ScriptKill, 0, NULL, NULL);         \
+        handle_function_command_result_or_return_false(result, "ScriptKill", return_value); \
     }
 
 #define SCRIPT_FLUSH_METHOD_IMPL(class_name)                                                 \
