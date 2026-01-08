@@ -1125,18 +1125,18 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         if (!result) {                                                                             \
             zend_throw_exception(zend_ce_exception, "ScriptExists: Failed to execute command", 0); \
             return;                                                                                \
-        }                                                                                           \
+        }                                                                                          \
         if (result->command_error) {                                                               \
             zend_throw_exception(                                                                  \
                 zend_ce_exception, result->command_error->command_error_message, 0);               \
             free_command_result(result);                                                           \
             return;                                                                                \
-        }                                                                                           \
+        }                                                                                          \
         if (!result->response) {                                                                   \
             zend_throw_exception(zend_ce_exception, "ScriptExists: No response received", 0);      \
             free_command_result(result);                                                           \
             return;                                                                                \
-        }                                                                                           \
+        }                                                                                          \
         command_response_to_zval(result->response, return_value, 0, false);                        \
         free_command_result(result);                                                               \
     }
@@ -1224,12 +1224,12 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         bool cleanup_keys = false, cleanup_args = false;                                          \
         if (!keys) {                                                                              \
             array_init(&empty_keys);                                                              \
-            keys = &empty_keys;                                                                   \
+            keys         = &empty_keys;                                                           \
             cleanup_keys = true;                                                                  \
         }                                                                                         \
         if (!args) {                                                                              \
             array_init(&empty_args);                                                              \
-            args = &empty_args;                                                                   \
+            args         = &empty_args;                                                           \
             cleanup_args = true;                                                                  \
         }                                                                                         \
                                                                                                   \
@@ -1243,8 +1243,10 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         } else {                                                                                  \
             char* script_hash = store_script_and_get_hash(script_or_hash);                        \
             if (!script_hash) {                                                                   \
-                if (cleanup_keys) zval_dtor(&empty_keys);                                         \
-                if (cleanup_args) zval_dtor(&empty_args);                                         \
+                if (cleanup_keys)                                                                 \
+                    zval_dtor(&empty_keys);                                                       \
+                if (cleanup_args)                                                                 \
+                    zval_dtor(&empty_args);                                                       \
                 RETURN_FALSE;                                                                     \
             }                                                                                     \
             execute_invoke_script_command(valkey_glide,                                           \
@@ -1256,8 +1258,10 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             efree(script_hash);                                                                   \
         }                                                                                         \
                                                                                                   \
-        if (cleanup_keys) zval_dtor(&empty_keys);                                                 \
-        if (cleanup_args) zval_dtor(&empty_args);                                                 \
+        if (cleanup_keys)                                                                         \
+            zval_dtor(&empty_keys);                                                               \
+        if (cleanup_args)                                                                         \
+            zval_dtor(&empty_args);                                                               \
     }
 
 #define DUMP_METHOD_IMPL(class_name)                                            \
