@@ -5459,7 +5459,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             // Should throw NotBusy error when no script is running
             $this->assertStringContains('NotBusy', $e->getMessage());
         }
-
     }
 
     public function testClient()
@@ -7979,83 +7978,87 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
         $this->assertConnected($client);
     }
-    
-    public function testScriptExists() {
+
+    public function testScriptExists()
+    {
         $client = $this->createClient();
-        
+
         $script = 'return 1';
         $sha1 = sha1($script);
-        
+
         // Script doesn't exist yet
         $result = $client->scriptExists([$sha1]);
         $this->assertIsArray($result);
         $this->assertFalse($result[0]);
-        
+
         // Load script
         $client->eval($script, [], 0);
-        
+
         // Now it exists
         $result = $client->scriptExists([$sha1]);
         $this->assertTrue($result[0]);
-        
+
         $client->close();
     }
-    
-    public function testScriptFlush() {
+
+    public function testScriptFlush()
+    {
         $client = $this->createClient();
-        
+
         // Load a script
         $script = 'return 1';
         $client->eval($script, [], 0);
-        
+
         // Flush scripts
         $result = $client->scriptFlush();
         $this->assertEquals('OK', $result);
-        
+
         // Verify script is gone
         $sha1 = sha1($script);
         $exists = $client->scriptExists([$sha1]);
         $this->assertFalse($exists[0]);
-        
+
         $client->close();
     }
-    
-    public function testFunctionLoad() {
+
+    public function testFunctionLoad()
+    {
         $client = $this->createClient();
-        
+
         $lib = "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)";
-        
+
         try {
             $result = $client->functionLoad($lib, false);
             $this->assertEquals('mylib', $result);
-            
+
             // Clean up
             $client->functionDelete('mylib');
         } catch (Exception $e) {
             // Function commands require Valkey 7.0+, skip if not available
             $this->markTestSkipped('Function commands require Valkey 7.0+');
         }
-        
+
         $client->close();
     }
-    
-    public function testFcall() {
+
+    public function testFcall()
+    {
         $client = $this->createClient();
-        
+
         $lib = "#!lua name=testlib\nredis.register_function('testfunc', function(keys, args) return 'test' end)";
-        
+
         try {
             $client->functionLoad($lib, true);
-            
+
             $result = $client->fcall('testfunc', [], []);
             $this->assertEquals('test', $result);
-            
+
             // Clean up
             $client->functionDelete('testlib');
         } catch (Exception $e) {
             $this->markTestSkipped('Function commands require Valkey 7.0+');
         }
-        
+
         $client->close();
     }
 }
