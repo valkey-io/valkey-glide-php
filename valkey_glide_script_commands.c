@@ -54,7 +54,7 @@ void execute_invoke_script_command(valkey_glide_object* valkey_glide,
     prepare_ffi_args(keys, &key_ptrs, &key_lens, &key_count);
     prepare_ffi_args(args, &arg_ptrs, &arg_lens, &arg_count);
 
-    // Call invoke_script (like Go's executeScriptWithRoute)
+    // Call invoke_script
     struct CommandResult* result = invoke_script(valkey_glide->glide_client,
                                                  0,  // request_id
                                                  script_hash,
@@ -96,7 +96,7 @@ void execute_invoke_script_command(valkey_glide_object* valkey_glide,
     free_command_result(result);
 }
 
-// Helper to store script and get hash (like Go's storeScript)
+// Helper to store script and get hash
 char* store_script_and_get_hash(const char* script) {
     struct ScriptHashBuffer* hash_buffer = store_script((const uint8_t*) script, strlen(script));
     if (!hash_buffer || !hash_buffer->ptr) {

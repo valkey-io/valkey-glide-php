@@ -927,11 +927,11 @@ SCRIPT_FLUSH_METHOD_IMPL(ValkeyGlideCluster)
 INVOKE_SCRIPT_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::fcall(string fn, array keys, array args) */
+/* {{{ proto mixed ValkeyGlideCluster::fcall(string fn, array keys, [array args]) */
 FCALL_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::fcall_ro(string fn, array keys, array args) */
+/* {{{ proto mixed ValkeyGlideCluster::fcall_ro(string fn, array keys, [array args]) */
 FCALL_RO_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 

@@ -721,11 +721,11 @@ SCRIPT_FLUSH_METHOD_IMPL(ValkeyGlide)
 INVOKE_SCRIPT_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlide::fcall(string fn, array keys, array args) */
+/* {{{ proto mixed ValkeyGlide::fcall(string fn, array keys, [array args]) */
 FCALL_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlide::fcall_ro(string fn, array keys, array args) */
+/* {{{ proto mixed ValkeyGlide::fcall_ro(string fn, array keys, [array args]) */
 FCALL_RO_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 

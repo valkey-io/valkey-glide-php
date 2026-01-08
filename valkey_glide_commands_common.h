@@ -183,7 +183,6 @@ int execute_discard_command(zval* object, int argc, zval* return_value, zend_cla
 int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_fcall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_fcall_ro_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-// Script command helper functions are now inline in PHP_METHOD implementations
 int execute_function_load_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_list_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_flush_command(zval*             object,
