@@ -50,26 +50,8 @@ int execute_function_load_command(zval*             object,
     efree(cmd_args);
     efree(args_len);
 
-    if (!result) {
-        zend_throw_exception(zend_ce_exception, "FunctionLoad: Failed to execute command", 0);
-        return 0;
-    }
-
-    if (result->command_error) {
-        zend_throw_exception(zend_ce_exception, result->command_error->command_error_message, 0);
-        free_command_result(result);
-        return 0;
-    }
-
-    if (!result->response) {
-        zend_throw_exception(zend_ce_exception, "FunctionLoad: No response received", 0);
-        free_command_result(result);
-        return 0;
-    }
-
-    int status = command_response_to_zval(result->response, return_value, 0, false);
-    free_command_result(result);
-    return status;
+    handle_command_result_or_throw(result, "FunctionLoad", return_value);
+    return 1;
 }
 
 int execute_function_list_command(zval*             object,
@@ -86,26 +68,8 @@ int execute_function_list_command(zval*             object,
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionList, 0, NULL, NULL);
 
-    if (!result) {
-        zend_throw_exception(zend_ce_exception, "FunctionList: Failed to execute command", 0);
-        return 0;
-    }
-
-    if (result->command_error) {
-        zend_throw_exception(zend_ce_exception, result->command_error->command_error_message, 0);
-        free_command_result(result);
-        return 0;
-    }
-
-    if (!result->response) {
-        zend_throw_exception(zend_ce_exception, "FunctionList: No response received", 0);
-        free_command_result(result);
-        return 0;
-    }
-
-    int status = command_response_to_zval(result->response, return_value, 0, false);
-    free_command_result(result);
-    return status;
+    handle_command_result_or_throw(result, "FunctionList", return_value);
+    return 1;
 }
 
 int execute_function_flush_command(zval*             object,

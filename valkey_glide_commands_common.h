@@ -20,7 +20,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <zend.h>
+#include <zend_exceptions.h>
 
+#include "command_response.h"
 #include "common.h"
 #include "include/glide/connection_request.pb-c.h"
 #include "include/glide_bindings.h"
