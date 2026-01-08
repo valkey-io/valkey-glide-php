@@ -209,6 +209,49 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals('second_test', $this->valkey_glide->fcall_ro($funcNameRO, [], ['second_test']));
     }
 
+    public function testGenericFunctionCommand()
+    {
+        // Function commands are supported in Redis 7.0+ and all Valkey versions
+        if (version_compare($this->version, '7.0') < 0) {
+            $this->markTestSkipped('Function commands require Redis 7.0+ or Valkey');
+        }
+
+        // Test FLUSH operation
+        $this->assertTrue($this->valkey_glide->function('FLUSH'));
+
+        // Use the correct Lua function syntax (parentheses like testFunctionLoad)
+        $libName = 'mylib_generic_cluster';
+        $funcName = 'myfunc_generic_cluster';
+        $code = "#!lua name=$libName\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
+
+        // Test LOAD operation (without replace flag to avoid parameter issue)
+        $this->assertEquals($libName, $this->valkey_glide->function('LOAD', $code));
+        $this->assertEquals('test_value', $this->valkey_glide->fcall($funcName, [], ['test_value']));
+
+        // Test LIST operation
+        $list = $this->valkey_glide->function('LIST');
+        $this->assertIsArray($list);
+        $this->assertTrue(count($list) > 0);
+
+        // Test DUMP operation
+        $payload = $this->valkey_glide->function('DUMP');
+        $this->assertIsString($payload);
+        $this->assertTrue(!empty($payload));
+
+        // Test STATS operation
+        $stats = $this->valkey_glide->function('STATS');
+        $this->assertIsArray($stats);
+
+        // Test DELETE operation
+        $this->assertTrue($this->valkey_glide->function('DELETE', $libName));
+
+        // Test RESTORE operation
+        $this->assertTrue($this->valkey_glide->function('RESTORE', $payload));
+
+        // Clean up
+        $this->valkey_glide->function('DELETE', $libName);
+    }
+
 
 
 

@@ -1020,15 +1020,26 @@ PHP_METHOD(ValkeyGlideCluster, functionRestore) {
 }
 /* }}} */
 
+/* {{{ proto bool ValkeyGlideCluster::functionKill() */
 PHP_METHOD(ValkeyGlideCluster, functionKill) {
     execute_function_kill_command(
         getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
+/* }}} */
 
+/* {{{ proto array ValkeyGlideCluster::functionStats() */
 PHP_METHOD(ValkeyGlideCluster, functionStats) {
     execute_function_stats_command(
         getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::function(string operation, ...$args) */
+PHP_METHOD(ValkeyGlideCluster, function) {
+    execute_function_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+}
+/* }}} */
 
 #endif /* PHP_REDIS_CLUSTER_C */
 /* vim: set tabstop=4 softtabstop=4 expandtab shiftwidth=4: */

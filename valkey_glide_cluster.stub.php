@@ -1398,6 +1398,12 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::functionStats
      */
     public function functionStats(): ValkeyGlideCluster|array|false;
+
+    /**
+     * Generic function command that supports all function operations.
+     * @see ValkeyGlide::function
+     */
+    public function function(string $operation, mixed ...$args): mixed;
 }
 
 class ValkeyGlideClusterException extends RuntimeException

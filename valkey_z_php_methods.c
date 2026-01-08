@@ -671,10 +671,6 @@ WAIT_METHOD_IMPL(ValkeyGlide)
 CONFIG_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlide::function(string cmd, ...) */
-FUNCTION_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
 /* {{{ proto ValkeyGlide ValkeyGlide::multi() */
 MULTI_METHOD_IMPL(ValkeyGlide)
 /* }}} */
