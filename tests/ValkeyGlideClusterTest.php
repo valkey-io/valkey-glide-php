@@ -1337,7 +1337,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testScriptExists()
     {
-        $script = 'return 1';
+        $script = 'return ' . uniqid(); // Make script unique to avoid cache conflicts
         $sha1 = sha1($script);
 
         // Script doesn't exist yet
