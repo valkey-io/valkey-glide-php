@@ -7981,24 +7981,20 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
     public function testScriptExists()
     {
-        $client = $this->createClient();
-
         $script = 'return 1';
         $sha1 = sha1($script);
 
         // Script doesn't exist yet
-        $result = $client->scriptExists([$sha1]);
+        $result = $this->valkey_glide->scriptExists([$sha1]);
         $this->assertIsArray($result);
         $this->assertFalse($result[0]);
 
         // Load script
-        $client->eval($script, [], 0);
+        $this->valkey_glide->eval($script, [], 0);
 
         // Now it exists
-        $result = $client->scriptExists([$sha1]);
+        $result = $this->valkey_glide->scriptExists([$sha1]);
         $this->assertTrue($result[0]);
-
-        $client->close();
     }
 
     public function testScriptFlush()
