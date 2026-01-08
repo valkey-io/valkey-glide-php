@@ -707,7 +707,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
         // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
         $this->markTestSkipped();
-        
+
         $key = uniqid() . '-' . rand(1, 1000);
 
         // Flush any loaded scripts
@@ -824,7 +824,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         if (version_compare($this->version, '2.6.0') < 0) {
             $this->markTestSkipped('scriptKill requires Redis 2.6+');
         }
-        
+
         // Test scriptKill when no script is running - should throw NotBusy error
         try {
             $result = $this->valkey_glide->scriptKill();
@@ -833,8 +833,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             // Should throw NotBusy error when no script is running
             $this->assertStringContains('NotBusy', $e->getMessage());
         }
-
-
     }
 
     public function testEvalBulkResponse()
@@ -1349,50 +1347,53 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $this->assertConnected($client);
     }
-    
-    public function testScriptExists() {
+
+    public function testScriptExists()
+    {
         $client = $this->createClient();
-        
+
         $script = 'return 1';
         $sha1 = sha1($script);
-        
+
         // Script doesn't exist yet
         $result = $client->scriptExists([$sha1]);
         $this->assertIsArray($result);
         $this->assertFalse($result[0]);
-        
+
         // Load script
         $client->eval($script, [], 0);
-        
+
         // Now it exists
         $result = $client->scriptExists([$sha1]);
         $this->assertTrue($result[0]);
-        
+
         $client->close();
     }
-    
-    public function testScriptFlush() {
+
+    public function testScriptFlush()
+    {
         $client = $this->createClient();
-        
+
         // Load a script
         $script = 'return 1';
         $client->eval($script, [], 0);
-        
+
         // Flush scripts
         $result = $client->scriptFlush();
         $this->assertEquals('OK', $result);
-        
+
         // Verify script is gone
         $sha1 = sha1($script);
         $exists = $client->scriptExists([$sha1]);
         $this->assertFalse($exists[0]);
-        
+
         $client->close();
     }
-    
-    public function testFcall() {
+
+    public function testFcall()
+    {
         $client = $this->createClient();
-        
+
         try {
             // Test fcall (function commands work in cluster mode)
             $result = $client->fcall('testfunc', [], []);
@@ -1401,7 +1402,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             // Expected - function doesn't exist
             $this->assertStringContainsString('unknown function', $e->getMessage());
         }
-        
+
         $client->close();
     }
 }
