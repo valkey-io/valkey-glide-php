@@ -7975,11 +7975,12 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->assertIsArray($result);
         $this->assertFalse($result[0]);
 
-        // Load script using invokeScript (which caches it)
-        $this->valkey_glide->invokeScript($script, []);
+        // Load script using eval (which should cache it)
+        $this->valkey_glide->eval($script, []);
 
-        // Now it should exist (invokeScript caches the script)
+        // Now it should exist (eval caches the script)
         $result = $this->valkey_glide->scriptExists([$sha1]);
+        $this->assertIsArray($result);
         $this->assertTrue($result[0]);
     }
 

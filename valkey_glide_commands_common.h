@@ -1200,6 +1200,10 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         ZEND_PARSE_PARAMETERS_END();                                                          \
         valkey_glide_object* valkey_glide =                                                   \
             VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());                 \
+        if (!valkey_glide || !valkey_glide->glide_client) {                                   \
+            ZVAL_FALSE(return_value);                                                         \
+            return;                                                                           \
+        }                                                                                     \
         int            count    = zend_hash_num_elements(Z_ARRVAL_P(sha1s));                  \
         uintptr_t*     args     = emalloc(sizeof(uintptr_t) * count);                         \
         unsigned long* args_len = emalloc(sizeof(unsigned long) * count);                     \
