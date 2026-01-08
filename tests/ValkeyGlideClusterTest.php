@@ -674,8 +674,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertTrue($this->valkey_glide->discard());
     }
 
-    /* ValkeyGlideCluster::script() is a 'raw' command, which requires a key such that
-     * we can direct it to a given node */
     public function testScriptExistsAndScriptFlush()
     {
         if (version_compare($this->version, '2.6.0') < 0) {
@@ -700,26 +698,16 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertIsArray($result);
         $this->assertTrue(is_array($result) && count(array_filter($result)) == 0);
 
-        // Load them up by running eval (which caches them)
-        // Temporarily commented out due to Rust core eval support issue
-        // $this->assertEquals(1, $this->valkey_glide->eval($s1_src, [$key], 1));
-        // $this->assertEquals(2, $this->valkey_glide->eval($s2_src, [$key], 1));
-        // $this->assertEquals(3, $this->valkey_glide->eval($s3_src, [$key], 1));
-
-        // Test invokeScript method (Go/Java compatible API)
+        // Test invokeScript method
         $this->assertEquals(1, $this->valkey_glide->invokeScript($s1_src, [$key]));
-
-        // Skip the existence check since we can't load scripts without eval
-        // They should all exist now
-        // $result = $this->valkey_glide->scriptExists([$s1_sha, $s2_sha, $s3_sha]);
-        // $this->assertTrue(is_array($result) && count(array_filter($result)) == 3);
     }
 
-    /* ValkeyGlideCluster::EVALSHA needs a 'key' to let us know which node we want to
-     * direct the command at */
-    /*
     public function testEvalSHA()
     {
+        // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
+        // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
+        $this->markTestSkipped();
+        
         $key = uniqid() . '-' . rand(1, 1000);
 
         // Flush any loaded scripts
@@ -739,7 +727,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals(1, $this->valkey_glide->eval($scr, [$key], 1));
         $this->assertEquals(1, $this->valkey_glide->evalsha($sha, [$key], 1));
     }
-    */
 
     public function testInvokeScript()
     {
@@ -849,11 +836,12 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // in a separate connection, which is complex in PHP's synchronous model.
     }
 
-    /*
-    // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
-    // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
     public function testEvalBulkResponse()
     {
+        // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
+        // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
+        $this->markTestSkipped();
+
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
         $key2 = uniqid() . '-' . rand(1, 1000) . '{hash}';
 
@@ -867,13 +855,13 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals($key1, $result[0]);
         $this->assertEquals($key2, $result[1]);
     }
-    */
 
-    /*
-    // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
-    // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
     public function testEvalBulkResponseMulti()
     {
+        // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
+        // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
+        $this->markTestSkipped();
+
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
         $key2 = uniqid() . '-' . rand(1, 1000) . '{hash}';
 
@@ -890,13 +878,13 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals($key1, $result[0][0]);
         $this->assertEquals($key2, $result[0][1]);
     }
-    */
 
-    /*
-    // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
-    // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
     public function testEvalBulkEmptyResponse()
     {
+        // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
+        // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
+        $this->markTestSkipped();
+
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
         $key2 = uniqid() . '-' . rand(1, 1000) . '{hash}';
 
@@ -910,10 +898,12 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertNull($result);
     }
 
-    // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
-    // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
     public function testEvalBulkEmptyResponseMulti()
     {
+        // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
+        // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
+        $this->markTestSkipped();
+
         $key1 = uniqid() . '-' . rand(1, 1000) . '{hash}';
         $key2 = uniqid() . '-' . rand(1, 1000) . '{hash}';
 

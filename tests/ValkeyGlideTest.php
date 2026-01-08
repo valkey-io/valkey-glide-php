@@ -5226,8 +5226,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->markTestSkipped('Script commands require Redis 2.6+');
         }
 
+        $key = uniqid() . '-' . rand(1, 1000);
+
         // Flush any scripts we have
-        $this->assertTrue($this->valkey_glide->scriptFlush());
+        $this->assertEquals('OK', $this->valkey_glide->scriptFlush());
 
         // Silly scripts to test against
         $s1_src = 'return 1';
@@ -5242,26 +5244,19 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertIsArray($result);
         $this->assertTrue(is_array($result) && count(array_filter($result)) == 0);
 
-        // Load them up by running eval (which caches them)
-        // Temporarily commented out due to Rust core eval support issue
-        // $this->assertEquals(1, $this->valkey_glide->eval($s1_src, [], 0));
-        // $this->assertEquals(2, $this->valkey_glide->eval($s2_src, [], 0));
-        // $this->assertEquals(3, $this->valkey_glide->eval($s3_src, [], 0));
-
-        // Skip the existence check since we can't load scripts without eval
-        // They should all exist now
-        // $result = $this->valkey_glide->scriptExists([$s1_sha, $s2_sha, $s3_sha]);
-        // $this->assertTrue(is_array($result) && count(array_filter($result)) == 3);
+        // Test invokeScript method
+        $this->assertEquals(1, $this->valkey_glide->invokeScript($s1_src, [$key]));
     }
 
-    /*
-    // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
-    // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
     public function testEval()
     {
         if (version_compare($this->version, '2.5.0') < 0) {
             $this->markTestSkipped();
         }
+
+        // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
+        // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
+        $this->markTestSkipped();
 
         // Test basic eval with simple return values
         $this->assertEquals(1, $this->valkey_glide->eval('return 1'));
@@ -5314,16 +5309,17 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Clean up
         $this->valkey_glide->del($key);
     }
-    */
 
-    /*
-    // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
-    // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
+
     public function testEvalSHA()
     {
         if (version_compare($this->version, '2.5.0') < 0) {
             $this->markTestSkipped();
         }
+
+        // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
+        // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
+        $this->markTestSkipped();
 
         // Flush any loaded scripts
         $this->valkey_glide->scriptFlush();
@@ -5357,13 +5353,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         $this->assertEquals(1, $this->valkey_glide->eval($scr));
         $this->assertEquals(1, $this->valkey_glide->evalsha($sha));
-
-        // Test invokeScript with hash (alternative to evalsha)
-        // if ($this->minVersionCheck('7.0.0')) {
-        //     $this->assertEquals(1, $this->valkey_glide->invokeScript($sha));
-        // }
     }
-    */
 
     public function testInvokeScript()
     {
