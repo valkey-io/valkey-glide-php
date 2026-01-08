@@ -715,18 +715,6 @@ PHP_METHOD(ValkeyGlideCluster, punsubscribe) {
 }
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::eval(string script, [array args, int numkeys) */
-/* }}} */
-
-/* {{{ proto mixed ValkeyGlideCluster::eval_ro(string script, [array args, int numkeys) */
-/* }}} */
-
-/* {{{ proto mixed ValkeyGlideCluster::evalsha(string sha, [array args, int numkeys]) */
-/* }}} */
-
-/* {{{ proto mixed ValkeyGlideCluster::evalsha_ro(string sha, [array args, int numkeys]) */
-/* }}} */
-
 /* Commands that do not interact with ValkeyGlide, but just report stuff about
  * various options, etc */
 
