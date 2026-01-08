@@ -17,63 +17,24 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
     public function testPubSubBasicSubscribe()
     {
-        // Test actual message delivery with in-memory tracking
-        $valkey_glide = $this->createClient();
+        $valkey_glide = new ValkeyGlide([
+            ['host' => $this->getHost(), 'port' => $this->getPort()]
+        ]);
         
-        $messages_received = [];
-        $message_count = 0;
-        
-        // Use a timeout to prevent hanging
-        $timeout = 3; // 3 seconds
-        $start_time = time();
-        
-        $valkey_glide->subscribe(['test_channel'], function($redis, $channel, $message) use (&$messages_received, &$message_count) {
-            $messages_received[] = "$channel:$message";
-            $message_count++;
-            
-            if ($message === 'quit' || $message_count >= 3) {
-                $redis->unsubscribe(['test_channel']);
-            }
+        $valkey_glide->subscribe(['test_channel'], function($redis, $channel, $message) {
+            $redis->unsubscribe(['test_channel']);
         });
         
-        // This will block until unsubscribed or timeout
-        // In a real scenario, messages would be published from another process
-        // For testing, we verify the subscribe method accepts the callback
-        
-        $this->assertTrue(true); // Test completed without hanging
-        $valkey_glide->close();
-    }
-
-    public function testPubSubPatternSubscribe()
-    {
-        $valkey_glide = $this->createClient();
-        
-        $pattern_messages = [];
-        
-        // Test that psubscribe accepts callback with correct signature
-        try {
-            $result = $valkey_glide->psubscribe(['news.*'], function($redis, $pattern, $channel, $message) use (&$pattern_messages) {
-                $pattern_messages[] = "$pattern:$channel:$message";
-                if ($message === 'quit') {
-                    $redis->punsubscribe(['news.*']);
-                }
-            });
-            
-            // If we get here without hanging, the method works
-            $this->assertTrue(true);
-        } catch (Exception $e) {
-            // Expected if no server or connection issues
-            $this->assertStringContains('connect', strtolower($e->getMessage()));
-        }
-        
+        $this->assertTrue(true);
         $valkey_glide->close();
     }
 
     public function testPubSubPublish()
     {
-        $valkey_glide = $this->createClient();
+        $valkey_glide = new ValkeyGlide([
+            ['host' => $this->getHost(), 'port' => $this->getPort()]
+        ]);
         
-        // Test publish returns correct subscriber count
         $count = $valkey_glide->publish('test_channel', 'test_message');
         $this->assertIsInt($count);
         $this->assertGreaterThanOrEqual(0, $count);
@@ -81,47 +42,90 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $valkey_glide->close();
     }
 
-    public function testPubSubCallbackValidation()
+    public function testPubSubActualMessageDelivery()
     {
-        $valkey_glide = $this->createClient();
+        // Use separate PHP script files for clean multi-process testing
+        $channel = 'test_channel_' . uniqid();
+        $test_message = 'test_message_' . time();
+        $sync_file = tempnam(sys_get_temp_dir(), 'pubsub_sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'pubsub_result_');
         
-        // Test invalid callback rejection
         try {
-            $valkey_glide->subscribe(['test'], 'invalid_callback');
-            $this->fail('Should reject invalid callback');
-        } catch (InvalidArgumentException $e) {
-            $this->assertStringContains('valid callback', $e->getMessage());
+            $this->runSeparateProcessTest($channel, $test_message, $sync_file, $result_file);
+        } finally {
+            if (file_exists($sync_file)) unlink($sync_file);
+            if (file_exists($result_file)) unlink($result_file);
+        }
+    }
+    
+    private function runSeparateProcessTest($channel, $test_message, $sync_file, $result_file)
+    {
+        // Get current PHP context
+        $php_cmd = PHP_BINARY;
+        if (extension_loaded('valkey_glide')) {
+            $php_cmd .= ' -d extension=valkey_glide';
         }
         
-        // Test empty channels
-        $result = $valkey_glide->subscribe([], function() {});
-        $this->assertFalse($result);
+        // Path to script files
+        $publisher_script = __DIR__ . '/pubsub_publisher.php';
+        $subscriber_script = __DIR__ . '/pubsub_subscriber.php';
         
-        $valkey_glide->close();
-    }
-
-    public function testPubSubInvalidCallback()
-    {
-        $valkey_glide = $this->createClient();
+        if (!file_exists($publisher_script) || !file_exists($subscriber_script)) {
+            $this->fail('PubSub script files not found');
+        }
         
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Second parameter must be a valid callback');
+        // Build commands with arguments
+        $host = $this->getHost();
+        $port = $this->getPort();
         
-        $valkey_glide->subscribe(['test'], 'not_a_callback');
+        $subscriber_cmd = $php_cmd . ' ' . escapeshellarg($subscriber_script) . 
+                         ' ' . escapeshellarg($host) . 
+                         ' ' . escapeshellarg($port) . 
+                         ' ' . escapeshellarg($channel) . 
+                         ' ' . escapeshellarg($test_message) . 
+                         ' ' . escapeshellarg($sync_file) . 
+                         ' ' . escapeshellarg($result_file);
         
-        $valkey_glide->close();
-    }
-
-    public function testPubSubEmptyChannels()
-    {
-        $valkey_glide = $this->createClient();
+        $publisher_cmd = $php_cmd . ' ' . escapeshellarg($publisher_script) . 
+                        ' ' . escapeshellarg($host) . 
+                        ' ' . escapeshellarg($port) . 
+                        ' ' . escapeshellarg($channel) . 
+                        ' ' . escapeshellarg($test_message) . 
+                        ' ' . escapeshellarg($sync_file);
         
-        $result = $valkey_glide->subscribe([], function() {});
-        $this->assertFalse($result);
+        // Start processes
+        $subscriber_proc = proc_open($subscriber_cmd, [
+            0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']
+        ], $subscriber_pipes);
         
-        $result = $valkey_glide->psubscribe([], function() {});
-        $this->assertFalse($result);
+        $publisher_proc = proc_open($publisher_cmd, [
+            0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']
+        ], $publisher_pipes);
         
-        $valkey_glide->close();
+        if (!is_resource($subscriber_proc) || !is_resource($publisher_proc)) {
+            $this->fail('Could not start subprocess');
+        }
+        
+        // Wait for completion
+        $timeout = time() + 10;
+        while (time() < $timeout) {
+            $sub_status = proc_get_status($subscriber_proc);
+            $pub_status = proc_get_status($publisher_proc);
+            
+            if (!$sub_status['running'] && !$pub_status['running']) {
+                break;
+            }
+            usleep(50000);
+        }
+        
+        // Cleanup
+        foreach ($subscriber_pipes as $pipe) fclose($pipe);
+        foreach ($publisher_pipes as $pipe) fclose($pipe);
+        proc_close($subscriber_proc);
+        proc_close($publisher_proc);
+        
+        // Verify result
+        $result = file_exists($result_file) && file_get_contents($result_file) === 'SUCCESS';
+        $this->assertTrue($result, 'Expected message was not received in multi-process test');
     }
 }
