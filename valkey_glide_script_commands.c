@@ -78,17 +78,20 @@ void execute_invoke_script_command(valkey_glide_object* valkey_glide,
         efree(arg_lens);
 
     if (!result) {
-        RETURN_FALSE;
+        ZVAL_FALSE(return_value);
+        return;
     }
 
     if (result->command_error) {
         free_command_result(result);
-        RETURN_FALSE;
+        ZVAL_FALSE(return_value);
+        return;
     }
 
     if (!result->response) {
         free_command_result(result);
-        RETURN_FALSE;
+        ZVAL_FALSE(return_value);
+        return;
     }
 
     command_response_to_zval(result->response, return_value, 0, use_false_if_null);
