@@ -2690,6 +2690,21 @@ class ValkeyGlide
     public function scriptShow(string $sha1): ValkeyGlide|string|false;
 
     /**
+     * Execute a generic SCRIPT command.
+     *
+     * This method provides a unified interface for all SCRIPT operations.
+     * It accepts an operation string and variable arguments.
+     *
+     * @param string $operation The SCRIPT operation to execute (FLUSH, KILL, EXISTS, SHOW)
+     * @param member $args Variable arguments for the operation
+     *
+     * @return ValkeyGlide|bool|string|array The result depends on the operation
+     *
+     * @see https://valkey.io/commands/script
+     */
+    public function script(string $operation, mixed ...$args): ValkeyGlide|bool|string|array;
+
+    /**
      * Load a function library to Valkey.
      *
      * @see https://valkey.io/commands/function-load

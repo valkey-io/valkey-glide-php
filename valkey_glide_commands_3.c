@@ -628,6 +628,103 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
     return 0;
 }
 
+/* Execute a SCRIPT command using the Valkey Glide client */
+int execute_script_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                operation = NULL;
+    size_t               operation_len;
+    zval*                z_args;
+    int                  args_count;
+
+    /* Parse parameters: operation string + variadic args */
+    if (zend_parse_method_parameters(
+            argc, object, "Os*", &object, ce, &operation, &operation_len, &z_args, &args_count) ==
+        FAILURE) {
+        return 0;
+    }
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+
+    /* If we have a Glide client, use it */
+    if (valkey_glide->glide_client) {
+        /* Check if operation is valid */
+        if (!operation || operation_len == 0) {
+            return 0;
+        }
+
+        /* For operations that take no arguments, call directly */
+        if (strcasecmp(operation, "FLUSH") == 0) {
+            /* Optional mode argument */
+            if (args_count > 0 && Z_TYPE(z_args[0]) == IS_STRING) {
+                char*          mode        = Z_STRVAL(z_args[0]);
+                size_t         mode_len    = Z_STRLEN(z_args[0]);
+                uintptr_t      cmd_args[1] = {(uintptr_t) mode};
+                unsigned long  args_len[1] = {mode_len};
+                CommandResult* result =
+                    execute_command(valkey_glide->glide_client, ScriptFlush, 1, cmd_args, args_len);
+                return handle_function_command_result_or_return_false(
+                    result, "ScriptFlush", return_value);
+            } else {
+                CommandResult* result =
+                    execute_command(valkey_glide->glide_client, ScriptFlush, 0, NULL, NULL);
+                return handle_function_command_result_or_return_false(
+                    result, "ScriptFlush", return_value);
+            }
+        } else if (strcasecmp(operation, "KILL") == 0) {
+            CommandResult* result =
+                execute_command(valkey_glide->glide_client, ScriptKill, 0, NULL, NULL);
+            return handle_function_command_result_or_return_false(
+                result, "ScriptKill", return_value);
+        } else if (strcasecmp(operation, "EXISTS") == 0) {
+            /* EXISTS expects: array of SHA1 hashes */
+            if (args_count < 1 || Z_TYPE(z_args[0]) != IS_ARRAY) {
+                return 0;
+            }
+
+            zval*          sha1_array = &z_args[0];
+            unsigned long  hash_count = zend_hash_num_elements(Z_ARRVAL_P(sha1_array));
+            uintptr_t*     cmd_args   = (uintptr_t*) emalloc(hash_count * sizeof(uintptr_t));
+            unsigned long* args_len = (unsigned long*) emalloc(hash_count * sizeof(unsigned long));
+
+            zval* entry;
+            int   i = 0;
+            ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(sha1_array), entry) {
+                convert_to_string(entry);
+                cmd_args[i] = (uintptr_t) Z_STRVAL_P(entry);
+                args_len[i] = Z_STRLEN_P(entry);
+                i++;
+            }
+            ZEND_HASH_FOREACH_END();
+
+            CommandResult* result = execute_command(
+                valkey_glide->glide_client, ScriptExists, hash_count, cmd_args, args_len);
+            efree(cmd_args);
+            efree(args_len);
+
+            return handle_function_command_result_or_return_false(
+                result, "ScriptExists", return_value);
+        } else if (strcasecmp(operation, "SHOW") == 0) {
+            /* SHOW expects: SHA1 hash */
+            if (args_count < 1 || Z_TYPE(z_args[0]) != IS_STRING) {
+                return 0;
+            }
+
+            char*          sha1        = Z_STRVAL(z_args[0]);
+            size_t         sha1_len    = Z_STRLEN(z_args[0]);
+            uintptr_t      cmd_args[1] = {(uintptr_t) sha1};
+            unsigned long  args_len[1] = {sha1_len};
+            CommandResult* result =
+                execute_command(valkey_glide->glide_client, ScriptShow, 1, cmd_args, args_len);
+
+            return handle_function_command_result_or_return_false(
+                result, "ScriptShow", return_value);
+        }
+    }
+
+    return 0;
+}
+
 /* Common function to initialize batch mode */
 static int initialize_batch_mode(valkey_glide_object* valkey_glide,
                                  int                  batch_type,

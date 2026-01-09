@@ -794,12 +794,6 @@ PHP_METHOD(ValkeyGlideCluster, pubsub) {
 }
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::script(string key, ...)
- *     proto mixed ValkeyGlideCluster::script(array host_port, ...) */
-PHP_METHOD(ValkeyGlideCluster, script) {
-}
-/* }}} */
-
 /* {{{ proto array ValkeyGlideCluster::geohash(string key, string mem1, [string mem2...]) */
 GEOHASH_METHOD_IMPL(ValkeyGlideCluster)
 
@@ -1038,6 +1032,14 @@ PHP_METHOD(ValkeyGlideCluster, functionStats) {
 PHP_METHOD(ValkeyGlideCluster, function) {
     execute_function_command(
         getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+}
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::script(mixed route, mixed ...$args) */
+PHP_METHOD(ValkeyGlideCluster, script) {
+    // For now, ignore the route parameter and delegate to the generic script command
+    // TODO: Implement proper routing support for cluster script commands
+    execute_script_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
 /* }}} */
 

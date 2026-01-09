@@ -1108,6 +1108,20 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         RETURN_FALSE;                                                               \
     }
 
+#define SCRIPT_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, script) {                                              \
+        if (execute_script_command(getThis(),                                     \
+                                   ZEND_NUM_ARGS(),                               \
+                                   return_value,                                  \
+                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                       ? get_valkey_glide_cluster_ce()            \
+                                       : get_valkey_glide_ce())) {                \
+            return;                                                               \
+        }                                                                         \
+        zval_dtor(return_value);                                                  \
+        RETURN_FALSE;                                                             \
+    }
+
 #define MULTI_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, multi) {                                              \
         if (execute_multi_command(getThis(),                                     \
@@ -1559,5 +1573,6 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 
 /* Function command declarations */
 int execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_script_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 #endif /* VALKEY_GLIDE_COMMANDS_COMMON_H */

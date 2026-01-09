@@ -5248,6 +5248,40 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $this->valkey_glide->invokeScript($s1_src, [$key]));
     }
 
+    public function testGenericScript()
+    {
+        if (version_compare($this->version, '2.6.0') < 0) {
+            $this->markTestSkipped('Script commands require Redis 2.6+');
+        }
+
+        // Test FLUSH operation
+        $this->assertTrue($this->valkey_glide->script('FLUSH'));
+
+        // Test script hashes for EXISTS operation
+        $s1_src = 'return 1';
+        $s1_sha = sha1($s1_src);
+        $s2_src = 'return 2';
+        $s2_sha = sha1($s2_src);
+
+        // Test EXISTS operation - should return false for non-existent scripts
+        $result = $this->valkey_glide->script('EXISTS', [$s1_sha, $s2_sha]);
+        $this->assertIsArray($result);
+        $this->assertTrue(count(array_filter($result)) == 0);
+
+        // Load a script and test EXISTS again
+        $this->valkey_glide->invokeScript($s1_src, []);
+        $result = $this->valkey_glide->script('EXISTS', [$s1_sha]);
+        $this->assertIsArray($result);
+        $this->assertTrue($result[0]);
+
+        // Test SHOW operation
+        $source = $this->valkey_glide->script('SHOW', $s1_sha);
+        $this->assertEquals($s1_src, $source);
+
+        // Test FLUSH with mode
+        $this->assertTrue($this->valkey_glide->script('FLUSH', 'SYNC'));
+    }
+
     public function testEval()
     {
         if (version_compare($this->version, '2.5.0') < 0) {

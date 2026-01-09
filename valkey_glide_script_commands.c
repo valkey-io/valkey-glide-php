@@ -105,7 +105,7 @@ char* store_script_and_get_hash(const char* script) {
         return NULL;
     }
 
-    char* hash = estrndup(hash_buffer->ptr, hash_buffer->len);
+    char* hash = estrndup((const char*) hash_buffer->ptr, hash_buffer->len);
     free_script_hash_buffer(hash_buffer);
     return hash;
 }
