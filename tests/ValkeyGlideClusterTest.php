@@ -776,9 +776,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertIsArray($result);
         $this->assertTrue($result[0]);
 
-        // Test SHOW operation
-        $source = $this->valkey_glide->script(null, 'SHOW', $s1_sha);
-        $this->assertEquals($s1_src, $source);
+        // Test SHOW operation (only test if Redis 8.0+ for scriptShow support)
+        if (version_compare($this->version, '8.0.0') >= 0) {
+            $source = $this->valkey_glide->script(null, 'SHOW', $s1_sha);
+            $this->assertEquals($s1_src, $source);
+        }
     }
 
     public function testEvalSHA()
