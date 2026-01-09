@@ -758,9 +758,27 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             $this->markTestSkipped('Script commands require Redis 2.6+');
         }
 
-        // Only test FLUSH operation which is implemented
-        $result = $this->valkey_glide->script(null, 'FLUSH');
-        $this->assertTrue($result);
+        // Test FLUSH operation
+        $this->assertTrue($this->valkey_glide->script(null, 'FLUSH'));
+
+        // Test script hashes for EXISTS operation
+        $s1_src = 'return 1';
+        $s1_sha = sha1($s1_src);
+
+        // Test EXISTS operation - should return false for non-existent scripts
+        $result = $this->valkey_glide->script(null, 'EXISTS', [$s1_sha]);
+        $this->assertIsArray($result);
+        $this->assertFalse($result[0]);
+
+        // Load a script and test EXISTS again
+        $this->valkey_glide->invokeScript($s1_src, []);
+        $result = $this->valkey_glide->script(null, 'EXISTS', [$s1_sha]);
+        $this->assertIsArray($result);
+        $this->assertTrue($result[0]);
+
+        // Test SHOW operation
+        $source = $this->valkey_glide->script(null, 'SHOW', $s1_sha);
+        $this->assertEquals($s1_src, $source);
     }
 
     public function testEvalSHA()

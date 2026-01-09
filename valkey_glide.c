@@ -716,6 +716,10 @@ SCRIPT_SHOW_METHOD_IMPL(ValkeyGlide)
 SCRIPT_FLUSH_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto mixed ValkeyGlide::script(string operation, mixed ...$args) */
+SCRIPT_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto mixed ValkeyGlide::invokeScript(string script_or_hash, [array keys, array args]) */
 INVOKE_SCRIPT_METHOD_IMPL(ValkeyGlide)
 /* }}} */

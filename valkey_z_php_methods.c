@@ -843,9 +843,3 @@ PFCOUNT_METHOD_IMPL(ValkeyGlide)
 /* {{{ proto bool ValkeyGlide::pfmerge(string dst, array keys) */
 PFMERGE_METHOD_IMPL(ValkeyGlide)
 /* }}} */
-
-/* {{{ proto mixed ValkeyGlide::script(string operation, mixed ...$args) */
-PHP_METHOD(ValkeyGlide, script) {
-    execute_script_command(getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_ce());
-}
-/* }}} */
