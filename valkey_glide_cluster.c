@@ -919,7 +919,7 @@ SCRIPT_FLUSH_METHOD_IMPL(ValkeyGlideCluster)
 SCRIPT_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::invokeScript(string script_or_hash, [array keys, array args])
+/* {{{ proto mixed ValkeyGlideCluster::invokeScript(string script, [array keys, array args])
  */
 INVOKE_SCRIPT_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
