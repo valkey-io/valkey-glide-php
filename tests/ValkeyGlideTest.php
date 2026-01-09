@@ -969,7 +969,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals($now + 20, $this->valkey_glide->expiretime('key3'));
         $this->assertEquals($future_ms, $this->valkey_glide->pexpiretime('key3'));
 
-        // Test PEXPIRE with options (Redis 7.0+)
+        // Test PEXPIRE with options (Valkey 7.0+)
 
         // PEXPIRE NX -- Set expiry only when the key has no expiry
         $this->assertTrue($this->valkey_glide->set('pexpire_nx_key', 'value'));
@@ -994,7 +994,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($this->valkey_glide->pexpire('pexpire_lt_key', 10000, 'LT')); // Success - less
         $this->assertFalse($this->valkey_glide->pexpire('pexpire_lt_key', 12000, 'LT')); // Fail - not less
 
-        // Test PEXPIREAT with options (Redis 7.0+)
+        // Test PEXPIREAT with options (Valkey 7.0+)
         $now_ms = $now * 1000;
 
         // PEXPIREAT NX -- Set expiry only when the key has no expiry
@@ -1757,7 +1757,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testMove()
     {
-        // Version check if needed (move has been available since early Redis versions)
+        // Version check if needed (move has been available since early Valkey versions)
         $key1 = 'move_test_key1';
         $key2 = 'move_test_key2';
         $value1 = 'test_value1';
@@ -5223,7 +5223,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testScriptExistsAndScriptFlush()
     {
         if (version_compare($this->version, '2.6.0') < 0) {
-            $this->markTestSkipped('Script commands require Redis 2.6+');
+            $this->markTestSkipped('Script commands require Valkey 2.6+');
         }
 
         $key = uniqid() . '-' . rand(1, 1000);
@@ -5251,7 +5251,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGenericScript()
     {
         if (version_compare($this->version, '2.6.0') < 0) {
-            $this->markTestSkipped('Script commands require Redis 2.6+');
+            $this->markTestSkipped('Script commands require Valkey 2.6+');
         }
 
         // Test FLUSH operation
@@ -5274,9 +5274,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertIsArray($result);
         $this->assertTrue($result[0]);
 
-        // Test SHOW operation
-        $source = $this->valkey_glide->script('SHOW', $s1_sha);
-        $this->assertEquals($s1_src, $source);
+        // Test SHOW operation (only test if Valkey 8.0+ for scriptShow support)
+        if (version_compare($this->version, '8.0.0') >= 0) {
+            $source = $this->valkey_glide->script('SHOW', $s1_sha);
+            $this->assertEquals($s1_src, $source);
+        }
 
         // Test FLUSH with mode
         $this->assertTrue($this->valkey_glide->script('FLUSH', 'SYNC'));
@@ -5307,7 +5309,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $result = $this->valkey_glide->eval($script, $args, 2);
         $this->assertEquals(['key1', 'key2', 'arg1', 'arg2'], $result);
 
-        // Test eval with Redis operations
+        // Test eval with Valkey operations
         $key = '{eval-test}-key';
         $value = 'test-value';
 
@@ -5392,7 +5394,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testInvokeScript()
     {
         if (version_compare($this->version, '2.6.0') < 0) {
-            $this->markTestSkipped('invokeScript requires Redis 2.6+');
+            $this->markTestSkipped('invokeScript requires Valkey 2.6+');
         }
 
         $key1 = '{invoke-script-test}-key1';
@@ -5444,7 +5446,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testScriptShow()
     {
         if (version_compare($this->version, '8.0.0') < 0) {
-            $this->markTestSkipped('scriptShow requires Redis 8.0+');
+            $this->markTestSkipped('scriptShow requires Valkey 8.0+');
         }
 
         // Create a unique script code
@@ -5477,7 +5479,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Note: Testing actual script killing would require running a long script
         // in a separate connection, which is complex in PHP's synchronous model.
         if (version_compare($this->version, '2.6.0') < 0) {
-            $this->markTestSkipped('scriptKill requires Redis 2.6+');
+            $this->markTestSkipped('scriptKill requires Valkey 2.6+');
         }
 
         // Test scriptKill when no script is running - should return false
@@ -6211,7 +6213,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchStoreBasicRadius()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCHSTORE requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test basic radius search and store
@@ -6229,7 +6231,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchStoreFromCoordinates()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCHSTORE requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test search and store from longitude/latitude coordinates
@@ -6252,7 +6254,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchStoreByBox()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCHSTORE requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test rectangular search and store (BYBOX)
@@ -6274,7 +6276,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchStoreWithCount()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCHSTORE requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test COUNT option
@@ -6297,7 +6299,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchStoreWithCountAny()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCHSTORE requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test COUNT with ANY option
@@ -6320,7 +6322,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchStoreWithSort()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCHSTORE requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test ASC sorting
@@ -6343,7 +6345,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchStoreWithStoreDist()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCHSTORE requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test STOREDIST option - stores distances instead of geohashes
@@ -6374,7 +6376,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchStoreComplexQuery()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCHSTORE requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Complex query: box search from coordinates with multiple options
@@ -6409,7 +6411,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchStoreDifferentUnits()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCHSTORE requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test different units
@@ -6435,7 +6437,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchStoreOverwriteDestination()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCHSTORE requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // First search and store
@@ -6470,7 +6472,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchStoreEmptyResult()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCHSTORE requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Search in area with no cities
@@ -6492,7 +6494,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchStoreNonExistentSource()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCHSTORE requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Search on non-existent source key
@@ -6514,7 +6516,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchStoreReturnValue()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCHSTORE requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test that return value matches actual stored count
@@ -6550,7 +6552,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchStorePreservesGeoData()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCHSTORE requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCHSTORE requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Store without STOREDIST (should preserve geo data)
@@ -6579,7 +6581,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchBasicRadius()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test basic radius search from member
@@ -6595,7 +6597,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchFromCoordinates()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test search from longitude/latitude coordinates
@@ -6608,7 +6610,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchByBox()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test rectangular search (BYBOX)
@@ -6623,7 +6625,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchWithCoord()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Chico', 50, 'km', ['withcoord']);
@@ -6643,7 +6645,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchWithDist()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Chico', 50, 'km', ['withdist']);
@@ -6661,7 +6663,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchWithHash()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         $result = $this->valkey_glide->geosearch('{geo}_test_key', 'Chico', 50, 'km', ['withhash']);
@@ -6678,7 +6680,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchWithAllOptions()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         $result = $this->valkey_glide->geosearch(
@@ -6704,7 +6706,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchWithCount()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test COUNT option
@@ -6722,7 +6724,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchWithCountAny()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test COUNT with ANY option
@@ -6740,7 +6742,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchWithSortAsc()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test ASC sorting with distances
@@ -6767,7 +6769,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchWithSortDesc()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
         $this->addTestCities();
 
@@ -6795,7 +6797,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchAlternativeSortSyntax()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test alternative sort syntax using 'sort' key
@@ -6822,7 +6824,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchDifferentUnits()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Test different units
@@ -6838,7 +6840,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchComplexQuery()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Complex query: box search from coordinates with all options
@@ -6869,7 +6871,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchEmptyResult()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
         $this->addTestCities();
         // Search in area with no cities
@@ -6881,7 +6883,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testGeoSearchNonExistentKey()
     {
         if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('GEOSEARCH requires Redis 6.2.0+');
+            $this->markTestSkipped('GEOSEARCH requires Valkey 6.2.0+');
         }
 
         // Search on non-existent key
@@ -7690,9 +7692,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
      */
     public function testFunction()
     {
-        // Function commands are supported in Redis 7.0+ and all Valkey versions
+        // Function commands are supported in Valkey 7.0+ and all Valkey versions
         if (version_compare($this->version, '7.0') < 0) {
-            $this->markTestSkipped('Function commands require Redis 7.0+ or Valkey');
+            $this->markTestSkipped('Function commands require Valkey 7.0+');
         }
 
         $this->assertTrue($this->valkey_glide->functionFlush());
@@ -8035,9 +8037,9 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
     public function testFunctionLoad()
     {
-        // Function commands are supported in Redis 7.0+ and all Valkey versions
+        // Function commands are supported in Valkey 7.0+ and all Valkey versions
         if (version_compare($this->version, '7.0.0') < 0 && !$this->isValkey) {
-            $this->markTestSkipped('Function commands require Redis 7.0+ or Valkey');
+            $this->markTestSkipped('Function commands require Valkey 7.0+');
         }
 
         $lib = "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)";
@@ -8051,9 +8053,9 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
     public function testFcall()
     {
-        // Function commands are supported in Redis 7.0+ and all Valkey versions
+        // Function commands are supported in Valkey 7.0+ and all Valkey versions
         if (version_compare($this->version, '7.0.0') < 0 && !$this->isValkey) {
-            $this->markTestSkipped('Function commands require Redis 7.0+ or Valkey');
+            $this->markTestSkipped('Function commands require Valkey 7.0+');
         }
 
         // Use exact same syntax as testFunctionLoad which works
@@ -8075,9 +8077,9 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
     public function testGenericFunctionCommand()
     {
-        // Function commands are supported in Redis 7.0+ and all Valkey versions
+        // Function commands are supported in Valkey 7.0+ and all Valkey versions
         if (version_compare($this->version, '7.0') < 0) {
-            $this->markTestSkipped('Function commands require Redis 7.0+ or Valkey');
+            $this->markTestSkipped('Function commands require Valkey 7.0+');
         }
 
         // Test FLUSH operation
