@@ -12,7 +12,7 @@ The Valkey GLIDE PHP wrapper is implemented as a PHP extension written in C that
 The extension follows standard PHP extension development practices and uses the Zend API to expose Valkey GLIDE functionality to PHP applications.
 
 **Important**: The PHP extension depends on the FFI (Foreign Function Interface) library located in the `valkey-glide/ffi` directory. This FFI library provides the bridge between the PHP extension and the Rust-based `valkey-glide/glide-core`. You must build the FFI library before attempting to build the PHP extension.
-
+**Note**: We have used the interface and behaviour to be as similar to PHPRedis as possible for compatibility.
 ### Build from source
 
 #### Prerequisites
