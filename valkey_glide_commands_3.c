@@ -652,40 +652,45 @@ int execute_script_command(zval* object, int argc, zval* return_value, zend_clas
 
     /* For cluster, we need to manually extract parameters starting from offset */
     if (is_cluster) {
-        zval *all_params = (zval *)safe_emalloc(argc, sizeof(zval), 0);
+        zval* all_params = (zval*) safe_emalloc(argc, sizeof(zval), 0);
         if (zend_get_parameters_array_ex(argc, all_params) == FAILURE) {
             efree(all_params);
             return 0;
         }
-        
+
         if (argc < 2 || Z_TYPE(all_params[1]) != IS_STRING) {
             efree(all_params);
             return 0;
         }
-        
-        operation = Z_STRVAL(all_params[1]);
+
+        operation     = Z_STRVAL(all_params[1]);
         operation_len = Z_STRLEN(all_params[1]);
-        z_args = (argc > 2) ? &all_params[2] : NULL;
-        args_count = argc - 2;
-        
+        z_args        = (argc > 2) ? &all_params[2] : NULL;
+        args_count    = argc - 2;
+
         /* Continue with normal processing */
         valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-        
+
         /* Process the command with adjusted parameters */
-        int result = process_script_operation(valkey_glide, operation, z_args, args_count, return_value);
-        
+        int result =
+            process_script_operation(valkey_glide, operation, z_args, args_count, return_value);
+
         efree(all_params);
         return result;
     }
 
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    
+
     return process_script_operation(valkey_glide, operation, z_args, args_count, return_value);
 }
 
 /* Helper function to process script operations */
-static int process_script_operation(valkey_glide_object* valkey_glide, char* operation, zval* z_args, int args_count, zval* return_value) {
+static int process_script_operation(valkey_glide_object* valkey_glide,
+                                    char*                operation,
+                                    zval*                z_args,
+                                    int                  args_count,
+                                    zval*                return_value) {
     if (valkey_glide->glide_client) {
         /* Check if operation is valid */
         if (!operation || operation_len == 0) {
