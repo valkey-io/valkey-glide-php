@@ -628,6 +628,13 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
     return 0;
 }
 
+static int process_script_operation(valkey_glide_object* valkey_glide,
+                                    char*                operation,
+                                    size_t               operation_len,
+                                    zval*                z_args,
+                                    int                  args_count,
+                                    zval*                return_value);
+
 /* Execute a SCRIPT command using the Valkey Glide client */
 int execute_script_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -673,7 +680,7 @@ int execute_script_command(zval* object, int argc, zval* return_value, zend_clas
 
         /* Process the command with adjusted parameters */
         int result =
-            process_script_operation(valkey_glide, operation, z_args, args_count, return_value);
+            process_script_operation(valkey_glide, operation, operation_len, z_args, args_count, return_value);
 
         efree(all_params);
         return result;
@@ -682,12 +689,13 @@ int execute_script_command(zval* object, int argc, zval* return_value, zend_clas
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
 
-    return process_script_operation(valkey_glide, operation, z_args, args_count, return_value);
+    return process_script_operation(valkey_glide, operation, operation_len, z_args, args_count, return_value);
 }
 
 /* Helper function to process script operations */
 static int process_script_operation(valkey_glide_object* valkey_glide,
                                     char*                operation,
+                                    size_t               operation_len,
                                     zval*                z_args,
                                     int                  args_count,
                                     zval*                return_value) {
