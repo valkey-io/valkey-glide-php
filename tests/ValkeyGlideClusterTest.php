@@ -770,13 +770,13 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Test EXISTS operation - should return false for non-existent scripts
         $result = $this->valkey_glide->script(null, 'EXISTS', [$s1_sha, $s2_sha]);
         $this->assertIsArray($result);
-        $this->assertTrue(count(array_filter($result)) == 0);
+        $this->assertTrue(is_array($result) && count(array_filter($result)) == 0);
 
         // Load a script and test EXISTS again
         $this->valkey_glide->invokeScript($s1_src, []);
         $result = $this->valkey_glide->script(null, 'EXISTS', [$s1_sha]);
         $this->assertIsArray($result);
-        $this->assertTrue($result[0]);
+        $this->assertTrue(is_array($result) && $result[0]);
 
         // Test SHOW operation
         $source = $this->valkey_glide->script(null, 'SHOW', $s1_sha);
