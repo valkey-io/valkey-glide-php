@@ -231,9 +231,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         try {
             $this->assertEquals('test_value', $this->valkey_glide->fcall($funcName, [], ['test_value']));
         } catch (Exception $e) {
-            // Skip if read-only replica error
-            if (strpos($e->getMessage(), 'readonly') !== false) {
-                $this->markTestSkipped('Skipping fcall test due to read-only replica');
+            // Skip if read-only replica error (case-insensitive check)
+            if (stripos($e->getMessage(), 'readonly') !== false || stripos($e->getMessage(), 'ReadOnly') !== false) {
+                $this->markTestSkipped('Skipping fcall test due to read-only replica: ' . $e->getMessage());
             } else {
                 throw $e;
             }
