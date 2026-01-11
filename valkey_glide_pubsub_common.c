@@ -72,20 +72,16 @@ void cleanup_callback_info(zval *zv) {
         pubsub_message *msg = info->queue_head;
         while (msg) {
             pubsub_message *next = msg->next;
-            if (msg->channel) free(msg->channel);
-            if (msg->message) free(msg->message);
-            if (msg->pattern) free(msg->pattern);
-            free(msg);
+            if (msg->channel) efree(msg->channel);
+            if (msg->message) efree(msg->message);
+            if (msg->pattern) efree(msg->pattern);
+            efree(msg);
             msg = next;
         }
         
         mutex_destroy(&info->queue_mutex);
-        if (Z_TYPE(info->callback) != IS_UNDEF) {
-            zval_ptr_dtor(&info->callback);
-        }
-        if (Z_TYPE(info->client_obj) != IS_UNDEF) {
-            zval_ptr_dtor(&info->client_obj);
-        }
+        zval_ptr_dtor(&info->callback);
+        Z_DELREF(info->client_obj);
         efree(info);
     }
 }
@@ -134,43 +130,43 @@ void pubsub_callback_handler(
     }
 
     // Allocate and populate message node
-    pubsub_message *msg = (pubsub_message *)malloc(sizeof(pubsub_message));
+    pubsub_message *msg = (pubsub_message *)emalloc(sizeof(pubsub_message));
     if (!msg) return;
     
     msg->kind = kind;
     msg->next = NULL;
     
     // Copy channel
-    msg->channel = (uint8_t *)malloc(channel_len);
+    msg->channel = (uint8_t *)emalloc(channel_len);
     if (msg->channel) {
         memcpy(msg->channel, channel, channel_len);
         msg->channel_len = channel_len;
     } else {
-        free(msg);
+        efree(msg);
         return;
     }
     
     // Copy message
-    msg->message = (uint8_t *)malloc(message_len);
+    msg->message = (uint8_t *)emalloc(message_len);
     if (msg->message) {
         memcpy(msg->message, message, message_len);
         msg->message_len = message_len;
     } else {
-        free(msg->channel);
-        free(msg);
+        efree(msg->channel);
+        efree(msg);
         return;
     }
     
     // Copy pattern if present
     if (pattern && pattern_len > 0) {
-        msg->pattern = (uint8_t *)malloc(pattern_len);
+        msg->pattern = (uint8_t *)emalloc(pattern_len);
         if (msg->pattern) {
             memcpy(msg->pattern, pattern, pattern_len);
             msg->pattern_len = pattern_len;
         } else {
-            free(msg->message);
-            free(msg->channel);
-            free(msg);
+            efree(msg->message);
+            efree(msg->channel);
+            efree(msg);
             return;
         }
     } else {
@@ -198,9 +194,10 @@ void register_pubsub_callback(uintptr_t client_ptr, zval *callback, zval *client
 
     pubsub_callback_info *info = emalloc(sizeof(pubsub_callback_info));
     
-    // Copy the callback and client object
+    // Copy the callback but just reference the client object
     ZVAL_COPY(&info->callback, callback);
-    ZVAL_COPY(&info->client_obj, client_obj);
+    info->client_obj = *client_obj;
+    Z_ADDREF(info->client_obj);
     info->is_active = true;
     
     // Initialize message queue
@@ -331,9 +328,6 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
             } else {
                 ZVAL_NULL(&php_pattern);
             }
-
-            // Increment refcount before passing to call_user_function
-            Z_ADDREF(info->client_obj);
             
             zval args[4];
             args[0] = info->client_obj;
@@ -348,9 +342,6 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
             if (call_user_function(NULL, NULL, &info->callback, &retval, arg_count, args) == SUCCESS) {
                 zval_ptr_dtor(&retval);
             }
-            
-            // Decrement refcount after call
-            Z_DELREF(info->client_obj);
 
             zval_ptr_dtor(&php_channel);
             zval_ptr_dtor(&php_message);
@@ -359,10 +350,10 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
             }
             
             // Free message
-            if (msg->channel) free(msg->channel);
-            if (msg->message) free(msg->message);
-            if (msg->pattern) free(msg->pattern);
-            free(msg);
+            if (msg->channel) efree(msg->channel);
+            if (msg->message) efree(msg->message);
+            if (msg->pattern) efree(msg->pattern);
+            efree(msg);
         } else {
             // No message, sleep briefly to avoid busy-wait
             usleep(1000); // 1ms
