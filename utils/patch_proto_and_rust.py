@@ -55,7 +55,7 @@ def remove_optional_from_proto(directory):
     return True
 
 def patch_rust_types_rs(rust_types_file):
-    """Patch the Rust types.rs file to fix jitter_percent, refresh_interval_seconds, and compression_level type mismatches"""
+    """Patch the Rust types.rs file to fix type mismatches"""
     
     if not os.path.exists(rust_types_file):
         log_message(f"Rust types file not found: {rust_types_file}", "ERROR")
@@ -67,47 +67,57 @@ def patch_rust_types_rs(rust_types_file):
         with open(rust_types_file, 'r') as f:
             content = f.read()
         
-        # Check if the file needs patching
-        jitter_pattern = r'jitter_percent:\s*strategy\.jitter_percent,'
-        jitter_replacement = 'jitter_percent: Some(strategy.jitter_percent),'
-        
-        refresh_pattern = r'refresh_interval_seconds,\s*\n\s*}'
-        refresh_replacement = 'refresh_interval_seconds: Some(refresh_interval_seconds),\n                }'
-        
-        compression_pattern = r'compression_level:\s*proto_config\.compression_level,'
-        compression_replacement = 'compression_level: Some(proto_config.compression_level),'
-        
         needs_patching = False
         new_content = content
         
-        # Apply jitter_percent patch
-        if re.search(jitter_pattern, content):
+        # Fix tcp_nodelay: changed from Option<bool> to bool
+        tcp_nodelay_pattern = r'let tcp_nodelay = value\.tcp_nodelay\.unwrap_or\(true\);'
+        tcp_nodelay_replacement = 'let tcp_nodelay = value.tcp_nodelay;'
+        if re.search(tcp_nodelay_pattern, content):
             create_backup(rust_types_file)
+            new_content = re.sub(tcp_nodelay_pattern, tcp_nodelay_replacement, new_content)
+            needs_patching = True
+            log_message("Applied tcp_nodelay patch")
+        
+        # Fix pubsub_reconciliation_interval_ms: changed from Option<u32> to u32
+        pubsub_pattern = r'value\.pubsub_reconciliation_interval_ms\.filter\(\|&v\| v != 0\);'
+        pubsub_replacement = 'if value.pubsub_reconciliation_interval_ms != 0 { Some(value.pubsub_reconciliation_interval_ms) } else { None };'
+        if re.search(pubsub_pattern, new_content):
+            if not needs_patching:
+                create_backup(rust_types_file)
+            new_content = re.sub(pubsub_pattern, pubsub_replacement, new_content)
+            needs_patching = True
+            log_message("Applied pubsub_reconciliation_interval_ms patch")
+        
+        # Apply jitter_percent patch
+        jitter_pattern = r'jitter_percent:\s*strategy\.jitter_percent,'
+        jitter_replacement = 'jitter_percent: Some(strategy.jitter_percent),'
+        if re.search(jitter_pattern, new_content):
+            if not needs_patching:
+                create_backup(rust_types_file)
             new_content = re.sub(jitter_pattern, jitter_replacement, new_content)
             needs_patching = True
             log_message("Applied jitter_percent patch")
-        elif 'Some(strategy.jitter_percent)' in content:
-            log_message("jitter_percent already patched")
         
         # Apply refresh_interval_seconds patch
+        refresh_pattern = r'refresh_interval_seconds,\s*\n\s*}'
+        refresh_replacement = 'refresh_interval_seconds: Some(refresh_interval_seconds),\n                }'
         if re.search(refresh_pattern, new_content):
             if not needs_patching:
                 create_backup(rust_types_file)
             new_content = re.sub(refresh_pattern, refresh_replacement, new_content)
             needs_patching = True
             log_message("Applied refresh_interval_seconds patch")
-        elif 'refresh_interval_seconds: Some(refresh_interval_seconds)' in new_content:
-            log_message("refresh_interval_seconds already patched")
         
         # Apply compression_level patch
+        compression_pattern = r'compression_level:\s*proto_config\.compression_level,'
+        compression_replacement = 'compression_level: Some(proto_config.compression_level),'
         if re.search(compression_pattern, new_content):
             if not needs_patching:
                 create_backup(rust_types_file)
             new_content = re.sub(compression_pattern, compression_replacement, new_content)
             needs_patching = True
             log_message("Applied compression_level patch")
-        elif 'Some(proto_config.compression_level)' in new_content:
-            log_message("compression_level already patched")
         
         if needs_patching:
             with open(rust_types_file, 'w') as f:

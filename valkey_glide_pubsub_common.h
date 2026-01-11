@@ -6,6 +6,15 @@
 #include "common.h"
 #include "valkey_glide_commands_common.h"
 
+// Platform-agnostic mutex
+#ifdef _WIN32
+    #include <windows.h>
+    typedef CRITICAL_SECTION mutex_t;
+#else
+    #include <pthread.h>
+    typedef pthread_mutex_t mutex_t;
+#endif
+
 // Request type constants
 #define REQUEST_TYPE_SUBSCRIBE SubscribeBlocking
 #define REQUEST_TYPE_PSUBSCRIBE PSubscribeBlocking
@@ -13,11 +22,26 @@
 #define REQUEST_TYPE_PUNSUBSCRIBE PUnsubscribeBlocking
 #define REQUEST_TYPE_PUBLISH Publish
 
+// Message queue node
+typedef struct pubsub_message {
+    uint8_t *channel;
+    int64_t channel_len;
+    uint8_t *message;
+    int64_t message_len;
+    uint8_t *pattern;
+    int64_t pattern_len;
+    int kind;
+    struct pubsub_message *next;
+} pubsub_message;
+
 // Pubsub callback info structure
 typedef struct {
     zval callback;
     zval client_obj;
     bool is_active;
+    pubsub_message *queue_head;
+    pubsub_message *queue_tail;
+    mutex_t queue_mutex;
 } pubsub_callback_info;
 
 // FFI function declarations
@@ -34,6 +58,12 @@ extern struct CommandResult* command(
 );
 
 extern void free_command_result(struct CommandResult* command_result_ptr);
+
+// Mutex wrapper functions
+void mutex_init(mutex_t *m);
+void mutex_lock(mutex_t *m);
+void mutex_unlock(mutex_t *m);
+void mutex_destroy(mutex_t *m);
 
 // Pubsub management functions
 void init_pubsub_callbacks(void);

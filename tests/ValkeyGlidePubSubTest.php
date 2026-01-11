@@ -15,213 +15,150 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         parent::__construct($host, $port, $auth, $tls);
     }
 
-    public function testPubSubBasicSubscribe()
-    {
-        $valkey_glide = new ValkeyGlide([
-            ['host' => $this->getHost(), 'port' => $this->getPort()]
-        ]);
-        
-        $valkey_glide->subscribe(['test_channel'], function($redis, $channel, $message) {
-            $redis->unsubscribe(['test_channel']);
-        });
-        
-        $this->assertTrue(true);
-        $valkey_glide->close();
-    }
-
     public function testPubSubPublish()
     {
-        $valkey_glide = new ValkeyGlide([
-            ['host' => $this->getHost(), 'port' => $this->getPort()]
-        ]);
+        // Test publish command works
+        $channel = 'test_publish_' . uniqid();
         
-        $count = $valkey_glide->publish('test_channel', 'test_message');
-        $this->assertIsInt($count);
-        $this->assertGTE(0, $count);
+        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $count = $pub->publish($channel, 'test_message');
+        $pub->close();
         
-        $valkey_glide->close();
+        $this->assertIsInt($count, 'Publish should return integer subscriber count');
+        $this->assertGTE(0, $count, 'Subscriber count should be >= 0');
     }
 
-    public function testPubSubCallbackExecution()
+    public function testPubSubMessageDelivery()
     {
-        $callback_triggered = false;
-        $received_channel = null;
-        $received_message = null;
+        // Test that messages are actually delivered to subscribers
+        $channel = 'test_delivery_' . uniqid();
+        $message = 'hello_' . time();
+        $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'result_');
         
-        $subscriber = new ValkeyGlide([
-            ['host' => $this->getHost(), 'port' => $this->getPort()]
-        ]);
+        // Delete the temp files so we can verify they're created by the callback
+        @unlink($sync_file);
+        @unlink($result_file);
         
-        $publisher = new ValkeyGlide([
-            ['host' => $this->getHost(), 'port' => $this->getPort()]
-        ]);
+        $sub_script = __DIR__ . '/scripts/subscriber_message_delivery.php';
         
-        // Subscribe with callback
-        $result = $subscriber->subscribe(['test_callback_channel'], function($client, $channel, $message) use (&$callback_triggered, &$received_channel, &$received_message) {
-            $callback_triggered = true;
-            $received_channel = $channel;
-            $received_message = $message;
-        });
+        // Start subscriber
+        $cmd = sprintf(
+            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s %s 2>/dev/null',
+            PHP_BINARY,
+            dirname(__DIR__),
+            escapeshellarg($sub_script),
+            escapeshellarg($this->getHost()),
+            $this->getPort(),
+            escapeshellarg($channel),
+            escapeshellarg($message),
+            escapeshellarg($sync_file),
+            escapeshellarg($result_file)
+        );
         
-        $this->assertTrue($result, 'Subscribe should return true');
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
+        
+        // Wait for subscriber ready
+        $timeout = time() + 5;
+        while (!file_exists($sync_file) && time() < $timeout) {
+            usleep(100000);
+        }
+        
+        $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
         
         // Publish message
-        $count = $publisher->publish('test_callback_channel', 'callback_test_message');
+        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $count = $pub->publish($channel, $message);
+        $pub->close();
+        
         $this->assertGTE(1, $count, 'Should have at least 1 subscriber');
         
-        // Allow time for message delivery
-        usleep(100000); // 100ms
+        // Wait for callback result
+        $success = false;
+        $timeout = time() + 3;
+        while (!$success && time() < $timeout) {
+            if (file_exists($result_file)) {
+                $success = true;
+                break;
+            }
+            usleep(100000);
+        }
         
-        $this->assertTrue($callback_triggered, 'Callback should be triggered');
-        $this->assertEquals('test_callback_channel', $received_channel, 'Channel should match');
-        $this->assertEquals('callback_test_message', $received_message, 'Message should match');
+        // Cleanup
+        foreach ($pipes as $pipe) @fclose($pipe);
+        @proc_terminate($proc);
+        @proc_close($proc);
+        @unlink($sync_file);
+        @unlink($result_file);
         
-        $subscriber->close();
-        $publisher->close();
-    }
-
-    public function testPubSubMultipleChannels()
-    {
-        $messages_received = [];
-        
-        $subscriber = new ValkeyGlide([
-            ['host' => $this->getHost(), 'port' => $this->getPort()]
-        ]);
-        
-        $publisher = new ValkeyGlide([
-            ['host' => $this->getHost(), 'port' => $this->getPort()]
-        ]);
-        
-        // Subscribe to multiple channels
-        $result = $subscriber->subscribe(['channel1', 'channel2'], function($client, $channel, $message) use (&$messages_received) {
-            $messages_received[] = ['channel' => $channel, 'message' => $message];
-        });
-        
-        $this->assertTrue($result, 'Multi-channel subscribe should return true');
-        
-        // Publish to both channels
-        $count1 = $publisher->publish('channel1', 'message1');
-        $count2 = $publisher->publish('channel2', 'message2');
-        
-        $this->assertGTE(1, $count1, 'Channel1 should have subscriber');
-        $this->assertGTE(1, $count2, 'Channel2 should have subscriber');
-        
-        // Allow time for message delivery
-        usleep(200000); // 200ms
-        
-        $this->assertCount(2, $messages_received, 'Should receive 2 messages');
-        
-        // Verify messages (order may vary)
-        $channels = array_column($messages_received, 'channel');
-        $this->assertContains('channel1', $channels, 'Should receive from channel1');
-        $this->assertContains('channel2', $channels, 'Should receive from channel2');
-        
-        $subscriber->close();
-        $publisher->close();
+        $this->assertTrue($success, 'Message should be delivered to subscriber callback');
     }
 
     public function testPubSubUnsubscribe()
     {
-        $subscriber = new ValkeyGlide([
-            ['host' => $this->getHost(), 'port' => $this->getPort()]
-        ]);
+        // Test that unsubscribe breaks the subscribe loop
+        $channel = 'test_unsub_' . uniqid();
+        $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
+        $unsub_file = tempnam(sys_get_temp_dir(), 'unsub_');
         
-        // Subscribe first
-        $result = $subscriber->subscribe(['unsub_test_channel'], function($client, $channel, $message) {
-            // Callback for subscription
-        });
-        $this->assertTrue($result, 'Subscribe should succeed');
+        // Delete the temp files so we can verify they're created by the callback
+        @unlink($sync_file);
+        @unlink($unsub_file);
         
-        // Unsubscribe
-        $unsub_result = $subscriber->unsubscribe(['unsub_test_channel']);
-        $this->assertTrue($unsub_result, 'Unsubscribe should succeed');
+        $sub_script = __DIR__ . '/scripts/subscriber_unsubscribe.php';
         
-        $subscriber->close();
-    }
-
-    public function testPubSubActualMessageDelivery()
-    {
-        // Test multi-process pubsub by verifying subscriber count increases
-        $channel = 'test_channel_' . uniqid();
-        $test_message = 'test_message_' . time();
+        // Start subscriber
+        $cmd = sprintf(
+            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s 2>/dev/null',
+            PHP_BINARY,
+            dirname(__DIR__),
+            escapeshellarg($sub_script),
+            escapeshellarg($this->getHost()),
+            $this->getPort(),
+            escapeshellarg($channel),
+            escapeshellarg($sync_file),
+            escapeshellarg($unsub_file)
+        );
         
-        // Start a subscriber in background that will increase subscriber count
-        $extension_path = dirname(__DIR__) . '/modules/valkey_glide.so';
-        $php_cmd = PHP_BINARY . ' -d extension=' . $extension_path;
-        $subscriber_script = __DIR__ . '/pubsub_subscriber.php';
-        $sync_file = tempnam(sys_get_temp_dir(), 'pubsub_sync_');
-        $result_file = tempnam(sys_get_temp_dir(), 'pubsub_result_');
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
         
-        $subscriber_cmd = $php_cmd . ' ' . escapeshellarg($subscriber_script) . 
-                         ' ' . escapeshellarg($this->getHost()) . ' ' . escapeshellarg($this->getPort()) . 
-                         ' ' . escapeshellarg($channel) . ' ' . escapeshellarg($test_message) . 
-                         ' ' . escapeshellarg($sync_file) . ' ' . escapeshellarg($result_file);
-        
-        $subscriber_proc = proc_open($subscriber_cmd, [
-            0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']
-        ], $subscriber_pipes);
-        
-        if (!is_resource($subscriber_proc)) {
-            $this->fail('Could not start subscriber process');
-        }
-        
-        // Wait for subscriber to be ready
+        // Wait for subscriber ready
         $timeout = time() + 5;
         while (!file_exists($sync_file) && time() < $timeout) {
-            usleep(100000); // 100ms
+            usleep(100000);
         }
         
-        if (!file_exists($sync_file)) {
-            proc_close($subscriber_proc);
-            $this->fail('Subscriber did not signal ready');
+        // Publish to trigger callback
+        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub->publish($channel, 'trigger');
+        $pub->close();
+        
+        // Wait for unsubscribe signal
+        $success = false;
+        $timeout = time() + 3;
+        while (!$success && time() < $timeout) {
+            if (file_exists($unsub_file)) {
+                $success = true;
+                break;
+            }
+            usleep(100000);
         }
         
-        // Now publish a message and verify it reaches the subscriber
-        $publisher = new ValkeyGlide([
-            ['host' => $this->getHost(), 'port' => $this->getPort()]
-        ]);
+        // Cleanup
+        foreach ($pipes as $pipe) @fclose($pipe);
+        @proc_terminate($proc);
+        @proc_close($proc);
+        @unlink($sync_file);
+        @unlink($unsub_file);
         
-        $count = $publisher->publish($channel, $test_message);
-        $this->assertIsInt($count);
-        $this->assertGTE(1, $count); // Should be at least 1 (our subscriber)
-        
-        $publisher->close();
-        
-        // Wait a bit for message processing
-        sleep(1);
-        
-        // Check if subscriber received the message
-        $success = file_exists($result_file) && file_get_contents($result_file) === 'SUCCESS';
-        
-        // Clean up
-        foreach ($subscriber_pipes as $pipe) fclose($pipe);
-        proc_close($subscriber_proc);
-        if (file_exists($sync_file)) unlink($sync_file);
-        if (file_exists($result_file)) unlink($result_file);
-        
-        // The test passes if we can publish to a subscriber (count >= 1)
-        $this->assertTrue($count >= 1, 'Multi-process pubsub functionality verified - subscriber count: ' . $count);
-    }
-
-    public function testPubSubExplicitUnsubscribe()
-    {
-        // Skip actual message delivery test due to known multi-process pubsub issues
-        // Just verify that the file-based semaphore system works
-        $sync_file = tempnam(sys_get_temp_dir(), 'pubsub_sync_');
-        $done_file = tempnam(sys_get_temp_dir(), 'pubsub_done_');
-        
-        // Simulate the semaphore workflow
-        file_put_contents($sync_file, 'ready');
-        $this->assertTrue(file_exists($sync_file), 'Sync file should be created');
-        
-        file_put_contents($done_file, 'done');
-        $this->assertTrue(file_exists($done_file), 'Done file should be created');
-        
-        // Clean up
-        if (file_exists($sync_file)) unlink($sync_file);
-        if (file_exists($done_file)) unlink($done_file);
-        
-        // Test passes - file-based semaphores work correctly
-        $this->assertTrue(true, 'File-based semaphore system verified');
+        $this->assertTrue($success, 'Unsubscribe should be called and break subscribe loop');
     }
 }
