@@ -799,7 +799,7 @@ PHP_METHOD(ValkeyGlide, functionDump) {
 }
 /* }}} */
 
-/* {{{ proto bool ValkeyGlide::functionRestore(string data) */
+/* {{{ proto bool ValkeyGlide::functionRestore(string payload) */
 PHP_METHOD(ValkeyGlide, functionRestore) {
     execute_function_restore_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }

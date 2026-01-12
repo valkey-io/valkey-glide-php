@@ -1011,7 +1011,7 @@ PHP_METHOD(ValkeyGlideCluster, functionDump) {
 }
 /* }}} */
 
-/* {{{ proto bool ValkeyGlideCluster::functionRestore(string data) */
+/* {{{ proto bool ValkeyGlideCluster::functionRestore(string payload) */
 PHP_METHOD(ValkeyGlideCluster, functionRestore) {
     execute_function_restore_command(
         getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
