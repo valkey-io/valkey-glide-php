@@ -604,7 +604,7 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
                 }
                 return 0;
             }
-            
+
             int status = process_core_bool_result(result->response, NULL, return_value);
             free_command_result(result);
             return status;
@@ -634,7 +634,7 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
                 }
                 return 0;
             }
-            
+
             int status = process_core_bool_result(result->response, NULL, return_value);
             free_command_result(result);
             return status;

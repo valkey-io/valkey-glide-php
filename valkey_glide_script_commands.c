@@ -127,7 +127,7 @@ void execute_script_flush_command(zval* object, zval* return_value, bool is_clus
         }
         return;
     }
-    
+
     int status = process_core_bool_result(result->response, NULL, return_value);
     free_command_result(result);
 }
