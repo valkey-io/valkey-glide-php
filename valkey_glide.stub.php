@@ -2709,7 +2709,7 @@ class ValkeyGlide
      *
      * @see https://valkey.io/commands/function-load
      *
-     * @param string $libraryCode The source code implementing the library
+     * @param string $code The source code implementing the library
      * @param bool $replace Whether to overwrite existing library with same name
      *
      * @return ValkeyGlide|string|false The library name that was loaded
