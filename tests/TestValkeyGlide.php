@@ -85,6 +85,7 @@ require_once __DIR__ . "/ValkeyGlideTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterTest.php";
 require_once __DIR__ . "/ValkeyGlideFeaturesTest.php";
 require_once __DIR__ . "/ValkeyGlidePubSubTest.php";
+require_once __DIR__ . "/ValkeyGlideClusterPubSubTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterFeaturesTest.php";
 require_once __DIR__ . "/ValkeyGlideBatchTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterBatchTest.php";
@@ -113,6 +114,7 @@ function getTestClass($class)
         'valkeyglidecluster'  => 'ValkeyGlideClusterTest',
         'valkeyglideclientfeatures' => 'ValkeyGlideFeaturesTest',
         'valkeyglidepubsub'   => 'ValkeyGlidePubSubTest',
+        'valkeyglideclusterpubsub' => 'ValkeyGlideClusterPubSubTest',
         'valkeyglideclusterfeatures' => 'ValkeyGlideClusterFeaturesTest',
         'valkeyglideclientbatch' => 'ValkeyGlideBatchTest',
         'valkeyglideclusterbatch' => 'ValkeyGlideClusterBatchTest',
@@ -151,7 +153,7 @@ $opt = getopt('', ['host:', 'port:', 'class:', 'test:', 'nocolors', 'user:', 'au
 /* The test class(es) we want to run */
 $classes =
     getClassArray($opt['class']
-        ?? 'connectionrequest,valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,valkeyglidepubsub,valkeyglideclusterfeatures,valkeyglideclientbatch,valkeyglideclusterbatch,updateconnectionpassword');
+        ?? 'connectionrequest,valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,valkeyglidepubsub,valkeyglideclusterpubsub,valkeyglideclusterfeatures,valkeyglideclientbatch,valkeyglideclusterbatch,updateconnectionpassword');
 
 $colorize = !isset($opt['nocolors']);
 
@@ -185,6 +187,8 @@ TestSuite::flagColorization($colorize);
 echo "Note: these tests might take up to a minute. Don't worry :-)\n";
 echo "Using PHP version " . PHP_VERSION . " (" . (PHP_INT_SIZE * 8) . " bits)\n";
 
+$failed_classes = [];
+
 foreach ($classes as $class) {
     $class = getTestClass($class);
 
@@ -194,8 +198,14 @@ foreach ($classes as $class) {
     echo TestSuite::makeBold($class) . "\n";
 
     if (TestSuite::run("$class", $filter, $host, $port, $auth, $tls)) {
-        exit(1);
+        $failed_classes[] = $class;
     }
+}
+
+/* Report failures and exit */
+if (!empty($failed_classes)) {
+    echo "\n" . TestSuite::makeWarning("Failed test classes: " . implode(", ", $failed_classes) . "\n");
+    exit(1);
 }
 
 /* Success */

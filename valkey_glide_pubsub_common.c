@@ -194,7 +194,7 @@ void register_pubsub_callback(uintptr_t client_ptr, zval *callback, zval *client
 
     pubsub_callback_info *info = emalloc(sizeof(pubsub_callback_info));
     
-    // Copy the callback but just reference the client object
+    // Copy the callback and reference the client object
     ZVAL_COPY(&info->callback, callback);
     info->client_obj = *client_obj;
     Z_ADDREF(info->client_obj);
