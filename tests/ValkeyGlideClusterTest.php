@@ -179,10 +179,20 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals($libName, $this->valkey_glide->functionLoad($code, false));
         $this->assertEquals('test_value', $this->valkey_glide->fcall_ro($funcName, [], ['test_value']));
 
-        // Test function list
+        // Test function list (without parameter)
         $list = $this->valkey_glide->functionList();
         $this->assertIsArray($list);
         $this->assertTrue(count($list) > 0);
+
+        // Test function list with library name parameter
+        $filteredList = $this->valkey_glide->functionList($libName);
+        $this->assertIsArray($filteredList);
+        $this->assertTrue(count($filteredList) > 0);
+
+        // Test function list with non-existent library name
+        $emptyList = $this->valkey_glide->functionList('nonexistent_lib');
+        $this->assertIsArray($emptyList);
+        $this->assertEquals(0, count($emptyList));
 
         // Test function dump and restore
         $payload = $this->valkey_glide->functionDump();

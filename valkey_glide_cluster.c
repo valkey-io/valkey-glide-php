@@ -919,20 +919,20 @@ SCRIPT_FLUSH_METHOD_IMPL(ValkeyGlideCluster)
 SCRIPT_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::invokeScript(string script, [array keys, array args])
+/* {{{ proto mixed ValkeyGlideCluster::invokeScript(string script, [array keys], [array args])
  */
 INVOKE_SCRIPT_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::fcall(string fn, array keys, [array args]) */
+/* {{{ proto mixed ValkeyGlideCluster::fcall(string fn, [array keys], [array args]) */
 FCALL_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::fcall_ro(string fn, array keys, [array args]) */
+/* {{{ proto mixed ValkeyGlideCluster::fcall_ro(string fn, [array keys], [array args]) */
 FCALL_RO_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::eval(string script, array args, int num_keys) */
+/* {{{ proto mixed ValkeyGlideCluster::eval(string script, [array args], [int num_keys]) */
 PHP_METHOD(ValkeyGlideCluster, eval) {
     // TODO: EVAL command is not supported by glide-core. Remove this comment when supported.
     // Github issue: https://github.com/valkey-io/valkey-glide-php/issues/113
@@ -942,7 +942,7 @@ PHP_METHOD(ValkeyGlideCluster, eval) {
 }
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::evalsha(string sha1, array args, int num_keys) */
+/* {{{ proto mixed ValkeyGlideCluster::evalsha(string sha1, [array args], [int num_keys]) */
 PHP_METHOD(ValkeyGlideCluster, evalsha) {
     // TODO: EVALSHA command is not supported by glide-core. Remove this comment when supported.
     // Github issue: https://github.com/valkey-io/valkey-glide-php/issues/113
@@ -953,7 +953,7 @@ PHP_METHOD(ValkeyGlideCluster, evalsha) {
 }
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::eval_ro(string script, array args, int num_keys) */
+/* {{{ proto mixed ValkeyGlideCluster::eval_ro(string script, [array keys], [array args]) */
 PHP_METHOD(ValkeyGlideCluster, eval_ro) {
     // TODO: EVAL_RO command is not supported by glide-core. Remove this comment when supported.
     // Github issue: https://github.com/valkey-io/valkey-glide-php/issues/113
@@ -964,7 +964,7 @@ PHP_METHOD(ValkeyGlideCluster, eval_ro) {
 }
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::evalsha_ro(string sha1, array args, int num_keys) */
+/* {{{ proto mixed ValkeyGlideCluster::evalsha_ro(string sha1, [array keys], [array args]) */
 PHP_METHOD(ValkeyGlideCluster, evalsha_ro) {
     // TODO: EVALSHA_RO command is not supported by glide-core. Remove this comment when supported.
     // Github issue: https://github.com/valkey-io/valkey-glide-php/issues/113

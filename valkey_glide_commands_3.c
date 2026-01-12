@@ -598,8 +598,16 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
             CommandResult* result =
                 execute_command(valkey_glide->glide_client, FunctionDelete, 1, cmd_args, args_len);
 
-            return handle_function_command_result_or_return_false(
-                result, "FunctionDelete", return_value);
+            if (!result || result->command_error || !result->response) {
+                if (result) {
+                    free_command_result(result);
+                }
+                return 0;
+            }
+            
+            int status = process_core_bool_result(result->response, NULL, return_value);
+            free_command_result(result);
+            return status;
         } else if (strcasecmp(operation, "RESTORE") == 0) {
             /* RESTORE expects: payload */
             if (args_count < 1) {
@@ -620,8 +628,16 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
             CommandResult* result =
                 execute_command(valkey_glide->glide_client, FunctionRestore, 1, cmd_args, args_len);
 
-            return handle_function_command_result_or_return_false(
-                result, "FunctionRestore", return_value);
+            if (!result || result->command_error || !result->response) {
+                if (result) {
+                    free_command_result(result);
+                }
+                return 0;
+            }
+            
+            int status = process_core_bool_result(result->response, NULL, return_value);
+            free_command_result(result);
+            return status;
         }
     }
 

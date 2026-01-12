@@ -1347,7 +1347,7 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::scriptFlush
      */
-    public function scriptFlush(?string $mode = null): ValkeyGlideCluster|string|false;
+    public function scriptFlush(?string $mode = null): bool;
 
     /**
      * @see ValkeyGlide::scriptKill
@@ -1362,22 +1362,27 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::functionLoad
      */
-    public function functionLoad(string $libraryCode, bool $replace = false): ValkeyGlideCluster|string|false;
+    public function functionLoad(string $code, bool $replace = false): ValkeyGlideCluster|string|false;
 
     /**
-     * @see ValkeyGlide::functionList
+     * List function libraries.
+     *
+     * @param string|null $library_name Optional pattern for matching library names
+     * @see https://valkey.io/commands/function-list
+     *
+     * @return ValkeyGlideCluster|array|false Array of library information
      */
-    public function functionList(): ValkeyGlideCluster|array|false;
+    public function functionList(?string $library_name = null): ValkeyGlideCluster|array|false;
 
     /**
      * @see ValkeyGlide::functionFlush
      */
-    public function functionFlush(): ValkeyGlideCluster|string|false;
+    public function functionFlush(): ValkeyGlideCluster|bool;
 
     /**
      * @see ValkeyGlide::functionDelete
      */
-    public function functionDelete(string $libName): ValkeyGlideCluster|string|false;
+    public function functionDelete(string $library_name): ValkeyGlideCluster|bool;
 
     /**
      * @see ValkeyGlide::functionDump
@@ -1387,12 +1392,12 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::functionRestore
      */
-    public function functionRestore(string $payload): ValkeyGlideCluster|string|false;
+    public function functionRestore(string $payload): ValkeyGlideCluster|bool;
 
     /**
      * @see ValkeyGlide::functionKill
      */
-    public function functionKill(): ValkeyGlideCluster|string|false;
+    public function functionKill(): ValkeyGlideCluster|bool;
 
     /**
      * @see ValkeyGlide::functionStats

@@ -2665,9 +2665,9 @@ class ValkeyGlide
      *
      * @param string|null $mode Optional flush mode: "SYNC" or "ASYNC"
      *
-     * @return ValkeyGlide|string|false "OK" on success
+     * @return bool True on success
      */
-    public function scriptFlush(?string $mode = null): ValkeyGlide|string|false;
+    public function scriptFlush(?string $mode = null): bool;
 
     /**
      * Kill the currently executing Lua script.
@@ -2714,36 +2714,37 @@ class ValkeyGlide
      *
      * @return ValkeyGlide|string|false The library name that was loaded
      */
-    public function functionLoad(string $libraryCode, bool $replace = false): ValkeyGlide|string|false;
+    public function functionLoad(string $code, bool $replace = false): ValkeyGlide|string|false;
 
     /**
      * List function libraries.
      *
+     * @param string|null $library_name Optional pattern for matching library names
      * @see https://valkey.io/commands/function-list
      *
      * @return ValkeyGlide|array|false Array of library information
      */
-    public function functionList(): ValkeyGlide|array|false;
+    public function functionList(?string $library_name = null): ValkeyGlide|array|false;
 
     /**
      * Delete all function libraries.
      *
      * @see https://valkey.io/commands/function-flush
      *
-     * @return ValkeyGlide|string|false "OK" on success
+     * @return ValkeyGlide|bool Returns true on success
      */
-    public function functionFlush(): ValkeyGlide|string|false;
+    public function functionFlush(): ValkeyGlide|bool;
 
     /**
      * Delete a function library.
      *
      * @see https://valkey.io/commands/function-delete
      *
-     * @param string $libName The library name to delete
+     * @param string $library_name The library name to delete
      *
-     * @return ValkeyGlide|string|false "OK" on success
+     * @return ValkeyGlide|bool Returns true on success
      */
-    public function functionDelete(string $libName): ValkeyGlide|string|false;
+    public function functionDelete(string $library_name): ValkeyGlide|bool;
 
     /**
      * Return serialized payload of all loaded libraries.
@@ -2761,18 +2762,18 @@ class ValkeyGlide
      *
      * @param string $payload The serialized data from functionDump
      *
-     * @return ValkeyGlide|string|false "OK" on success
+     * @return ValkeyGlide|bool Returns true on success
      */
-    public function functionRestore(string $payload): ValkeyGlide|string|false;
+    public function functionRestore(string $payload): ValkeyGlide|bool;
 
     /**
      * Kill currently executing function.
      *
      * @see https://valkey.io/commands/function-kill
      *
-     * @return ValkeyGlide|string|false "OK" on success
+     * @return ValkeyGlide|bool Returns true on success
      */
-    public function functionKill(): ValkeyGlide|string|false;
+    public function functionKill(): ValkeyGlide|bool;
 
     /**
      * Get information about currently running function and available engines.

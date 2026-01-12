@@ -62,8 +62,27 @@ int execute_function_list_command(zval*             object,
         return 0;
     }
 
-    CommandResult* result =
-        execute_command(valkey_glide->glide_client, FunctionList, 0, NULL, NULL);
+    char*  library_name = NULL;
+    size_t library_name_len;
+    bool   has_library_name = false;
+
+    /* Parse parameters: optional library_name */
+    if (zend_parse_method_parameters(
+            argc, object, "O|s", &object, ce, &library_name, &library_name_len) == FAILURE) {
+        return 0;
+    }
+
+    /* Check if library_name parameter was provided */
+    has_library_name = (argc > 0);
+
+    CommandResult* result;
+    if (has_library_name) {
+        uintptr_t     cmd_args[1] = {(uintptr_t) library_name};
+        unsigned long args_len[1] = {library_name_len};
+        result = execute_command(valkey_glide->glide_client, FunctionList, 1, cmd_args, args_len);
+    } else {
+        result = execute_command(valkey_glide->glide_client, FunctionList, 0, NULL, NULL);
+    }
 
     return handle_function_command_result_or_return_false(result, "FunctionList", return_value);
 }
@@ -81,7 +100,18 @@ int execute_function_flush_command(zval*             object,
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionFlush, 0, NULL, NULL);
-    return handle_function_command_result_or_return_false(result, "FunctionFlush", return_value);
+
+    if (!result || result->command_error || !result->response) {
+        ZVAL_FALSE(return_value);
+        if (result) {
+            free_command_result(result);
+        }
+        return 0;
+    }
+
+    int status = process_core_bool_result(result->response, NULL, return_value);
+    free_command_result(result);
+    return status;
 }
 
 int execute_function_delete_command(zval*             object,
@@ -109,7 +139,18 @@ int execute_function_delete_command(zval*             object,
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionDelete, 1, cmd_args, args_len);
-    return handle_function_command_result_or_return_false(result, "FunctionDelete", return_value);
+
+    if (!result || result->command_error || !result->response) {
+        ZVAL_FALSE(return_value);
+        if (result) {
+            free_command_result(result);
+        }
+        return 0;
+    }
+
+    int status = process_core_bool_result(result->response, NULL, return_value);
+    free_command_result(result);
+    return status;
 }
 
 int execute_function_dump_command(zval*             object,
@@ -153,7 +194,18 @@ int execute_function_restore_command(zval*             object,
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionRestore, 1, cmd_args, args_len);
-    return handle_function_command_result_or_return_false(result, "FunctionRestore", return_value);
+
+    if (!result || result->command_error || !result->response) {
+        ZVAL_FALSE(return_value);
+        if (result) {
+            free_command_result(result);
+        }
+        return 0;
+    }
+
+    int status = process_core_bool_result(result->response, NULL, return_value);
+    free_command_result(result);
+    return status;
 }
 
 int execute_function_kill_command(zval*             object,
@@ -169,7 +221,18 @@ int execute_function_kill_command(zval*             object,
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionKill, 0, NULL, NULL);
-    return handle_function_command_result_or_return_false(result, "FunctionKill", return_value);
+
+    if (!result || result->command_error || !result->response) {
+        ZVAL_FALSE(return_value);
+        if (result) {
+            free_command_result(result);
+        }
+        return 0;
+    }
+
+    int status = process_core_bool_result(result->response, NULL, return_value);
+    free_command_result(result);
+    return status;
 }
 
 int execute_function_stats_command(zval*             object,
