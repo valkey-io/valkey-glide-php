@@ -8110,7 +8110,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             }
         }
         $this->assertNotNull($list, 'function LIST should not return null');
-        $this->assertIsArray($list, 'function LIST should return an array');
+        $this->assertIsArray($list);
         $this->assertTrue(count($list) > 0);
 
         // Test DUMP operation
