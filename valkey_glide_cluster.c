@@ -903,7 +903,7 @@ COPY_METHOD_IMPL(ValkeyGlideCluster)
 SCRIPT_EXISTS_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto string ValkeyGlideCluster::scriptKill() */
+/* {{{ proto bool ValkeyGlideCluster::scriptKill() */
 SCRIPT_KILL_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
