@@ -659,6 +659,17 @@ jobs:
           # Store exit code for later use
           echo "$VALGRIND_EXIT_CODE" > ./valgrind_logs/exit_code.txt
 
+      - name: Display Valgrind Output Log
+        if: always()
+        run: |
+          if [ -f valgrind_output.log ]; then
+            echo "=== Valgrind Output Log ==="
+            cat valgrind_output.log
+            echo "=== End Valgrind Output Log ==="
+          else
+            echo "valgrind_output.log not found"
+          fi
+
       - name: Display Valgrind results
         if: always()
         run: |
