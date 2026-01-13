@@ -39,14 +39,14 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         
         $sub_script = __DIR__ . '/scripts/subscriber_message_delivery_cluster.php';
         
-        // Start subscriber
+        // Start subscriber - use cluster port 7001
         $cmd = sprintf(
             '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s %s 2>/dev/null',
             PHP_BINARY,
             dirname(__DIR__),
             escapeshellarg($sub_script),
-            escapeshellarg($this->getHost()),
-            $this->getPort(),
+            escapeshellarg('127.0.0.1'),
+            7001,
             escapeshellarg($channel),
             escapeshellarg($message),
             escapeshellarg($sync_file),
@@ -105,14 +105,14 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         
         $sub_script = __DIR__ . '/scripts/subscriber_unsubscribe_cluster.php';
         
-        // Start subscriber
+        // Start subscriber - use cluster port 7001
         $cmd = sprintf(
             '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s 2>/dev/null',
             PHP_BINARY,
             dirname(__DIR__),
             escapeshellarg($sub_script),
-            escapeshellarg($this->getHost()),
-            $this->getPort(),
+            escapeshellarg('127.0.0.1'),
+            7001,
             escapeshellarg($channel),
             escapeshellarg($sync_file),
             escapeshellarg($unsub_file)
@@ -152,5 +152,66 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         @unlink($unsub_file);
         
         $this->assertTrue($success, 'Unsubscribe should work in cluster mode');
+    }
+
+    public function testPubSubPSubscribe()
+    {
+        $pattern = 'test_pattern_*';
+        $channel = 'test_pattern_' . uniqid();
+        $message = 'pattern_msg_' . time();
+        $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'result_');
+        
+        @unlink($sync_file);
+        @unlink($result_file);
+        
+        $sub_script = __DIR__ . '/scripts/subscriber_psubscribe_cluster.php';
+        
+        $cmd = sprintf(
+            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s %s %s 2>/dev/null',
+            PHP_BINARY,
+            dirname(__DIR__),
+            escapeshellarg($sub_script),
+            escapeshellarg('127.0.0.1'),
+            7001,
+            escapeshellarg($pattern),
+            escapeshellarg($channel),
+            escapeshellarg($message),
+            escapeshellarg($sync_file),
+            escapeshellarg($result_file)
+        );
+        
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
+        
+        $timeout = time() + 5;
+        while (!file_exists($sync_file) && time() < $timeout) {
+            usleep(100000);
+        }
+        
+        $this->assertTrue(file_exists($sync_file), 'PSubscriber should signal ready');
+        
+        $this->valkey_glide->publish($channel, $message);
+        
+        $success = false;
+        $timeout = time() + 5;
+        while (!$success && time() < $timeout) {
+            if (file_exists($result_file)) {
+                $success = true;
+                break;
+            }
+            usleep(100000);
+        }
+        
+        foreach ($pipes as $pipe) @fclose($pipe);
+        @proc_terminate($proc);
+        @proc_close($proc);
+        @unlink($sync_file);
+        @unlink($result_file);
+        
+        $this->assertTrue($success, 'Pattern subscription should work in cluster mode');
     }
 }

@@ -1,20 +1,19 @@
 <?php
-// Subscriber script for testPubSubMessageDelivery (Cluster)
-// Args: host, port, channel, expected_message, sync_file, result_file
-
 $host = $argv[1];
 $port = (int)$argv[2];
 $channel = $argv[3];
-$expected_msg = $argv[4];
+$expected_message = $argv[4];
 $sync_file = $argv[5];
 $result_file = $argv[6];
 
-$sub = new ValkeyGlideCluster([['host' => $host, 'port' => 7001]]);
-file_put_contents($sync_file, 'ready');
+$client = new ValkeyGlideCluster([['host' => $host, 'port' => $port]]);
 
-$sub->subscribe([$channel], function($client, $ch, $msg) use ($result_file, $expected_msg, $channel) {
-    if ($msg === $expected_msg) {
-        file_put_contents($result_file, 'SUCCESS');
+file_put_contents($sync_file, '1');
+
+$client->subscribe([$channel], function($client, $ch, $msg) use ($expected_message, $result_file) {
+    if ($msg === $expected_message) {
+        file_put_contents($result_file, '1');
+        $client->unsubscribe([$ch]);
     }
-    $client->unsubscribe([$channel]);
 });
+
