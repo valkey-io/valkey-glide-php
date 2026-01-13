@@ -524,10 +524,10 @@ static int process_fcall_command_reposonse(CommandResponse* response,
 /* Execute a FUNCTION command using the Valkey Glide client */
 int execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
-    char*                operation = NULL;
+    char*                operation    = NULL;
     size_t               operation_len = 0;
-    zval*                z_args = NULL;
-    int                  args_count = 0;
+    zval*                z_args       = NULL;
+    int                  args_count   = 0;
 
     /* Parse parameters: operation string + variadic args */
     if (zend_parse_method_parameters(
