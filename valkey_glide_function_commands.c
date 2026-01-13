@@ -11,6 +11,24 @@
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
 
+/**
+ * Helper function to handle CommandResult for boolean function commands
+ * Returns 0 on error, otherwise returns the status from process_core_bool_result
+ */
+static int handle_function_bool_result(CommandResult* result, zval* return_value) {
+    if (!result || result->command_error || !result->response) {
+        ZVAL_FALSE(return_value);
+        if (result) {
+            free_command_result(result);
+        }
+        return 0;
+    }
+
+    int status = process_core_bool_result(result->response, NULL, return_value);
+    free_command_result(result);
+    return status;
+}
+
 int execute_function_load_command(zval*             object,
                                   int               argc,
                                   zval*             return_value,
@@ -97,17 +115,7 @@ int execute_function_flush_command(zval*             object,
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionFlush, 0, NULL, NULL);
 
-    if (!result || result->command_error || !result->response) {
-        ZVAL_FALSE(return_value);
-        if (result) {
-            free_command_result(result);
-        }
-        return 0;
-    }
-
-    int status = process_core_bool_result(result->response, NULL, return_value);
-    free_command_result(result);
-    return status;
+    return handle_function_bool_result(result, return_value);
 }
 
 int execute_function_delete_command(zval*             object,
@@ -136,17 +144,7 @@ int execute_function_delete_command(zval*             object,
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionDelete, 1, cmd_args, args_len);
 
-    if (!result || result->command_error || !result->response) {
-        ZVAL_FALSE(return_value);
-        if (result) {
-            free_command_result(result);
-        }
-        return 0;
-    }
-
-    int status = process_core_bool_result(result->response, NULL, return_value);
-    free_command_result(result);
-    return status;
+    return handle_function_bool_result(result, return_value);
 }
 
 int execute_function_dump_command(zval*             object,
@@ -191,17 +189,7 @@ int execute_function_restore_command(zval*             object,
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionRestore, 1, cmd_args, args_len);
 
-    if (!result || result->command_error || !result->response) {
-        ZVAL_FALSE(return_value);
-        if (result) {
-            free_command_result(result);
-        }
-        return 0;
-    }
-
-    int status = process_core_bool_result(result->response, NULL, return_value);
-    free_command_result(result);
-    return status;
+    return handle_function_bool_result(result, return_value);
 }
 
 int execute_function_kill_command(zval*             object,
@@ -218,17 +206,7 @@ int execute_function_kill_command(zval*             object,
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionKill, 0, NULL, NULL);
 
-    if (!result || result->command_error || !result->response) {
-        ZVAL_FALSE(return_value);
-        if (result) {
-            free_command_result(result);
-        }
-        return 0;
-    }
-
-    int status = process_core_bool_result(result->response, NULL, return_value);
-    free_command_result(result);
-    return status;
+    return handle_function_bool_result(result, return_value);
 }
 
 int execute_function_stats_command(zval*             object,
