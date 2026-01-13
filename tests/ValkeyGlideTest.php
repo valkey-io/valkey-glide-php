@@ -7750,7 +7750,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test fcall with second function (fcall_ro requires no-writes flag which has syntax issues)
         $libNameRO = 'mylib_ro';
         $funcNameRO = 'myfunc_ro';
-        $codeRO = "#!lua name=$libNameRO\nredis.register_function{ function_name = '$funcNameRO', callback = function(keys, args) return args[1] end }";
+        $codeRO = "#!lua name='$libNameRO'\nredis.register_function{ function_name = '$funcNameRO', callback = function(keys, args) return args[1] end }";
         $this->assertEquals($libNameRO, $this->valkey_glide->functionLoad($codeRO, false));
         $this->assertEquals('second_test', $this->valkey_glide->fcall($funcNameRO, [], ['second_test']));
     }
@@ -8077,7 +8077,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         // Use exact same syntax as testFunctionLoad which works
         $libName = 'testlib';
         $funcName = 'testfunc';
-        $lib = "#!lua name=$libName\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
+        $lib = "#!lua name='$libName'\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
 
         // Load the function library (use false like testFunctionLoad)
         $loadResult = $this->valkey_glide->functionLoad($lib, false);
@@ -8104,7 +8104,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         // Use the correct Lua function syntax (parentheses like testFunctionLoad)
         $libName = 'mylib_generic';
         $funcName = 'myfunc_generic';
-        $code = "#!lua name=$libName\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
+        $code = "#!lua name='$libName'\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
 
         // Test LOAD operation (without replace flag to avoid parameter issue)
         $this->assertEquals($libName, $this->valkey_glide->function('LOAD', $code));

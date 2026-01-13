@@ -174,7 +174,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $funcName = 'myfunc1c';
 
         // Generate function code using the working pattern with no-writes flag
-        $code = "#!lua name=$libName\nredis.register_function{ function_name = '$funcName', callback = function(keys, args) return args[1] end, flags = { 'no-writes' } }";
+        $code = "#!lua name='$libName'\nredis.register_function{ function_name = '$funcName', callback = function(keys, args) return args[1] end, flags = { 'no-writes' } }";
 
         $this->assertEquals($libName, $this->valkey_glide->functionLoad($code, false));
         $this->assertEquals('test_value', $this->valkey_glide->fcall_ro($funcName, [], ['test_value']));
@@ -214,7 +214,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Test fcall_ro with read-only function (requires no-writes flag)
         $libNameRO = 'mylib_ro';
         $funcNameRO = 'myfunc_ro';
-        $codeRO = "#!lua name=$libNameRO\nredis.register_function{ function_name = '$funcNameRO', callback = function(keys, args) return args[1] end, flags = { 'no-writes' } }";
+        $codeRO = "#!lua name='$libNameRO'\nredis.register_function{ function_name = '$funcNameRO', callback = function(keys, args) return args[1] end, flags = { 'no-writes' } }";
         $this->assertEquals($libNameRO, $this->valkey_glide->functionLoad($codeRO, false));
         $this->assertEquals('second_test', $this->valkey_glide->fcall_ro($funcNameRO, [], ['second_test']));
     }
@@ -232,7 +232,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Use the correct Lua function syntax (parentheses like testFunctionLoad)
         $libName = 'mylib_generic_cluster';
         $funcName = 'myfunc_generic_cluster';
-        $code = "#!lua name=$libName\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
+        $code = "#!lua name='$libName'\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
 
         // Test LOAD operation (without replace flag to avoid parameter issue)
         $this->assertEquals($libName, $this->valkey_glide->function('LOAD', $code));
@@ -1479,7 +1479,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Use exact same syntax as testFunctionLoad which works
         $libName = 'testlib_cluster';
         $funcName = 'testfunc_cluster';
-        $lib = "#!lua name=$libName\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
+        $lib = "#!lua name='$libName'\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
 
         try {
             // Load the function library (use false like testFunctionLoad)
