@@ -39,6 +39,31 @@ static void process_array_to_args(zval*          array,
                                   unsigned long* args_len,
                                   unsigned long* arg_index);
 
+/* Helper function for function LIST command with pre-parsed arguments */
+static int execute_function_list_command_with_args(zval*             object,
+                                                   char*             library_name,
+                                                   size_t            library_name_len,
+                                                   zval*             return_value,
+                                                   zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide->glide_client) {
+        ZVAL_FALSE(return_value);
+        return 0;
+    }
+
+    CommandResult* result;
+    if (library_name && library_name_len > 0) {
+        uintptr_t     cmd_args[1] = {(uintptr_t) library_name};
+        unsigned long args_len[1] = {library_name_len};
+        result = execute_command(valkey_glide->glide_client, FunctionList, 1, cmd_args, args_len);
+    } else {
+        result = execute_command(valkey_glide->glide_client, FunctionList, 0, NULL, NULL);
+    }
+
+    return handle_function_command_result_or_return_false(result, "FunctionList", return_value);
+}
+
 /* Helper functions to reduce code duplication */
 static int convert_zval_args_to_strings(zval*           args,
                                         int             args_count,
@@ -531,23 +556,18 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
         } else if (strcasecmp(operation, "KILL") == 0) {
             return execute_function_kill_command(object, 1, return_value, ce);
         } else if (strcasecmp(operation, "LIST") == 0) {
-            /* Handle LIST operation directly */
-            CommandResult* result;
+            /* Handle LIST operation - call functionList directly with parsed args */
             if (args_count > 0) {
                 /* Library name provided */
                 if (Z_TYPE(z_args[0]) != IS_STRING) {
                     return 0;
                 }
-                char*         library_name     = Z_STRVAL(z_args[0]);
-                size_t        library_name_len = Z_STRLEN(z_args[0]);
-                uintptr_t     cmd_args[1]      = {(uintptr_t) library_name};
-                unsigned long args_len[1]      = {library_name_len};
-                result = execute_command(valkey_glide->glide_client, FunctionList, 1, cmd_args, args_len);
+                return execute_function_list_command_with_args(
+                    object, Z_STRVAL(z_args[0]), Z_STRLEN(z_args[0]), return_value, ce);
             } else {
                 /* No library name provided */
-                result = execute_command(valkey_glide->glide_client, FunctionList, 0, NULL, NULL);
+                return execute_function_list_command_with_args(object, NULL, 0, return_value, ce);
             }
-            return handle_function_command_result_or_return_false(result, "FunctionList", return_value);
         } else if (strcasecmp(operation, "LOAD") == 0) {
             if (args_count < 1) {
                 return 0;

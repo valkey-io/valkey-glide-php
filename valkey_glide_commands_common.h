@@ -37,16 +37,6 @@ typedef struct CommandResult      CommandResult;
 typedef struct CommandError       CommandError;
 typedef struct ConnectionResponse ConnectionResponse;
 
-/* Forward declarations for script command functions */
-void  execute_script_flush_command(zval* object, zval* return_value, bool is_cluster);
-void  execute_invoke_script_command(valkey_glide_object* valkey_glide,
-                                    const char*          hash,
-                                    zval*                keys,
-                                    zval*                args,
-                                    zval*                return_value,
-                                    bool                 is_cluster);
-char* store_script_and_get_hash(const char* script);
-
 enum TLSMode {
     /**
      * No TLS encryption is used for the connection.
@@ -244,13 +234,23 @@ int execute_bitpos_command(zval* object, int argc, zval* return_value, zend_clas
 int execute_touch_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_wait_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_config_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_multi_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_pipeline_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_discard_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_fcall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_fcall_ro_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+
+/* Forward declarations for script command functions */
+void  execute_script_flush_command(zval* object, zval* return_value, bool is_cluster);
+void  execute_invoke_script_command(valkey_glide_object* valkey_glide,
+                                    const char*          hash,
+                                    zval*                keys,
+                                    zval*                args,
+                                    zval*                return_value,
+                                    bool                 is_cluster);
+char* store_script_and_get_hash(const char* script);
+int execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_load_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_list_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_flush_command(zval*             object,
