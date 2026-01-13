@@ -8058,7 +8058,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $this->markTestSkipped('Function commands require Valkey 7.0+');
         }
 
-        $lib = "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)";
+        $lib = "#!lua name='mylib'\nredis.register_function('myfunc', function(keys, args) return args[1] end)";
 
         $result = $this->valkey_glide->functionLoad($lib, false);
         $this->assertEquals('mylib', $result);
