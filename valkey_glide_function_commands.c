@@ -40,7 +40,7 @@ int execute_function_load_command(zval*             object,
 
     if (replace) {
         cmd_args[1] = (uintptr_t) "REPLACE";
-        args_len[1] = 7;
+        args_len[1] = strlen("REPLACE");
     }
 
     CommandResult* result =
@@ -64,7 +64,6 @@ int execute_function_list_command(zval*             object,
 
     char*  library_name = NULL;
     size_t library_name_len;
-    bool   has_library_name = false;
 
     /* Parse parameters: optional library_name */
     if (zend_parse_method_parameters(
@@ -72,11 +71,8 @@ int execute_function_list_command(zval*             object,
         return 0;
     }
 
-    /* Check if library_name parameter was provided */
-    has_library_name = (argc > 0);
-
     CommandResult* result;
-    if (has_library_name) {
+    if (argc > 0) {
         uintptr_t     cmd_args[1] = {(uintptr_t) library_name};
         unsigned long args_len[1] = {library_name_len};
         result = execute_command(valkey_glide->glide_client, FunctionList, 1, cmd_args, args_len);
