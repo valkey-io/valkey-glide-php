@@ -204,6 +204,8 @@ void register_pubsub_callback(uintptr_t client_ptr, zval *callback, zval *client
     info->queue_head = NULL;
     info->queue_tail = NULL;
     mutex_init(&info->queue_mutex);
+    info->subscription_count = 0;
+    info->in_subscribe_mode = false;
 
     // Store the pointer in a zval using ZVAL_PTR
     zval callback_zv;
@@ -229,6 +231,20 @@ void unregister_pubsub_callback(uintptr_t client_ptr) {
     }
 }
 
+// Check if client is in subscribe mode
+bool is_client_in_subscribe_mode(uintptr_t client_ptr) {
+    if (!pubsub_callbacks_initialized) return false;
+    
+    char client_key[32];
+    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long)client_ptr);
+    
+    zval *callback_zv = find_pubsub_callback(client_key);
+    if (!callback_zv) return false;
+    
+    pubsub_callback_info *info = (pubsub_callback_info *)Z_PTR_P(callback_zv);
+    return info ? info->in_subscribe_mode : false;
+}
+
 // Subscribe implementation
 void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection) {
     zval *channels, *callback;
@@ -240,6 +256,12 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(timeout_ms)
     ZEND_PARSE_PARAMETERS_END();
+
+    if (is_client_in_subscribe_mode((uintptr_t)connection)) {
+        zend_throw_exception(zend_ce_exception, 
+            "Client is in subscribe mode. Only unsubscribe commands are allowed.", 0);
+        RETURN_FALSE;
+    }
 
     if (!zend_is_callable(callback, 0, NULL)) {
         zend_throw_exception(zend_ce_exception, "Callback must be callable", 0);
@@ -301,9 +323,11 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
     }
     
     pubsub_callback_info *info = (pubsub_callback_info *)Z_PTR_P(callback_zv);
+    info->subscription_count += channel_count;
+    info->in_subscribe_mode = true;
     
     // Blocking loop: poll queue and invoke callback
-    while (info->is_active) {
+    while (info->is_active && info->subscription_count > 0) {
         pubsub_message *msg = NULL;
         
         // Pop message from queue (thread-safe)
@@ -371,6 +395,9 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
     
     // Give Rust thread time to process unsubscribe
     usleep(10000); // 10ms
+    
+    // Exit subscribe mode
+    info->in_subscribe_mode = false;
     
     // Unregister callback to prevent Rust thread from accessing freed memory
     unregister_pubsub_callback((uintptr_t)connection);
@@ -455,14 +482,23 @@ void valkey_glide_unsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* con
         Z_PARAM_ARRAY_OR_NULL(channels)
     ZEND_PARSE_PARAMETERS_END();
 
-    // Set is_active to false to break the subscribe loop
     char client_key[32];
     snprintf(client_key, sizeof(client_key), "%lu", (unsigned long)connection);
     zval *callback_zv = find_pubsub_callback(client_key);
     if (callback_zv) {
         pubsub_callback_info *info = (pubsub_callback_info *)Z_PTR_P(callback_zv);
         if (info) {
-            info->is_active = false;
+            if (channels) {
+                // Decrement by number of channels being unsubscribed
+                info->subscription_count -= zend_hash_num_elements(Z_ARRVAL_P(channels));
+            } else {
+                // Unsubscribe from all - set count to 0
+                info->subscription_count = 0;
+            }
+            if (info->subscription_count <= 0) {
+                info->subscription_count = 0;
+                info->is_active = false;
+            }
         }
     }
 

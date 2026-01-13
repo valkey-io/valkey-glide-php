@@ -15,10 +15,12 @@
 */
 
 #include "valkey_glide_core_common.h"
+#include "valkey_glide_pubsub_common.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <zend_exceptions.h>
 
 #include "logger.h"
 #include "valkey_glide_otel.h"
@@ -49,6 +51,16 @@ int execute_core_command(valkey_glide_object* valkey_glide,
         }
         efree(result_ptr);
         return 0;
+    }
+
+    /* Check if client is in subscribe mode - only unsubscribe allowed */
+    if (is_client_in_subscribe_mode((uintptr_t)args->glide_client)) {
+        if (args->cmd_type != REQUEST_TYPE_UNSUBSCRIBE && args->cmd_type != REQUEST_TYPE_PUNSUBSCRIBE) {
+            zend_throw_exception(get_valkey_glide_exception_ce(), 
+                "Client is in subscribe mode. Only unsubscribe commands are allowed.", 0);
+            efree(result_ptr);
+            return 0;
+        }
     }
 
     /* Log command execution entry */

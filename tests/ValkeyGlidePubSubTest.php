@@ -161,4 +161,193 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         
         $this->assertTrue($success, 'Unsubscribe should be called and break subscribe loop');
     }
+
+    public function testPubSubPartialUnsubscribe()
+    {
+        // Test that unsubscribing from one channel doesn't break the loop
+        $channel1 = 'test_partial1_' . uniqid();
+        $channel2 = 'test_partial2_' . uniqid();
+        $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'result_');
+        
+        @unlink($sync_file);
+        @unlink($result_file);
+        
+        $sub_script = __DIR__ . '/scripts/subscriber_partial_unsubscribe.php';
+        
+        $cmd = sprintf(
+            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s %s 2>/dev/null',
+            PHP_BINARY,
+            dirname(__DIR__),
+            escapeshellarg($sub_script),
+            escapeshellarg($this->getHost()),
+            $this->getPort(),
+            escapeshellarg($channel1),
+            escapeshellarg($channel2),
+            escapeshellarg($sync_file),
+            escapeshellarg($result_file)
+        );
+        
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
+        
+        $timeout = time() + 5;
+        while (!file_exists($sync_file) && time() < $timeout) {
+            usleep(100000);
+        }
+        
+        $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
+        
+        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub->publish($channel1, 'msg1');
+        usleep(100000);
+        $pub->publish($channel2, 'msg2');
+        $pub->close();
+        
+        $success = false;
+        $timeout = time() + 3;
+        while (!$success && time() < $timeout) {
+            if (file_exists($result_file)) {
+                $success = true;
+                break;
+            }
+            usleep(100000);
+        }
+        
+        foreach ($pipes as $pipe) @fclose($pipe);
+        @proc_terminate($proc);
+        @proc_close($proc);
+        @unlink($sync_file);
+        @unlink($result_file);
+        
+        $this->assertTrue($success, 'Should receive message on second channel after unsubscribing from first');
+    }
+
+    public function testPubSubModalMode()
+    {
+        // Test that client is in modal mode during subscribe - only unsubscribe allowed
+        $channel = 'test_modal_' . uniqid();
+        $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'result_');
+        
+        @unlink($sync_file);
+        @unlink($result_file);
+        
+        $sub_script = __DIR__ . '/scripts/subscriber_modal_test.php';
+        
+        $cmd = sprintf(
+            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s 2>/dev/null',
+            PHP_BINARY,
+            dirname(__DIR__),
+            escapeshellarg($sub_script),
+            escapeshellarg($this->getHost()),
+            $this->getPort(),
+            escapeshellarg($channel),
+            escapeshellarg($sync_file),
+            escapeshellarg($result_file)
+        );
+        
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
+        
+        $timeout = time() + 5;
+        while (!file_exists($sync_file) && time() < $timeout) {
+            usleep(100000);
+        }
+        
+        $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
+        
+        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub->publish($channel, 'trigger');
+        $pub->close();
+        
+        $success = false;
+        $timeout = time() + 3;
+        while (!$success && time() < $timeout) {
+            if (file_exists($result_file)) {
+                $content = file_get_contents($result_file);
+                if ($content === 'PASS') {
+                    $success = true;
+                }
+                break;
+            }
+            usleep(100000);
+        }
+        
+        foreach ($pipes as $pipe) @fclose($pipe);
+        @proc_terminate($proc);
+        @proc_close($proc);
+        @unlink($sync_file);
+        @unlink($result_file);
+        
+        $this->assertTrue($success, 'Commands should be blocked during subscribe mode');
+    }
+
+    public function testPubSubModalModeBlocksSubscribe()
+    {
+        $channel = 'test_modal_sub_' . uniqid();
+        $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'result_');
+        
+        @unlink($sync_file);
+        @unlink($result_file);
+        
+        $sub_script = __DIR__ . '/scripts/subscriber_modal_subscribe_test.php';
+        
+        $cmd = sprintf(
+            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s 2>/dev/null',
+            PHP_BINARY,
+            dirname(__DIR__),
+            escapeshellarg($sub_script),
+            escapeshellarg($this->getHost()),
+            $this->getPort(),
+            escapeshellarg($channel),
+            escapeshellarg($sync_file),
+            escapeshellarg($result_file)
+        );
+        
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
+        
+        $timeout = time() + 5;
+        while (!file_exists($sync_file) && time() < $timeout) {
+            usleep(100000);
+        }
+        
+        $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
+        
+        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub->publish($channel, 'trigger');
+        $pub->close();
+        
+        $success = false;
+        $timeout = time() + 3;
+        while (!$success && time() < $timeout) {
+            if (file_exists($result_file)) {
+                $content = file_get_contents($result_file);
+                if ($content === 'PASS') {
+                    $success = true;
+                }
+                break;
+            }
+            usleep(100000);
+        }
+        
+        foreach ($pipes as $pipe) @fclose($pipe);
+        @proc_terminate($proc);
+        @proc_close($proc);
+        @unlink($sync_file);
+        @unlink($result_file);
+        
+        $this->assertTrue($success, 'Subscribe should be blocked during subscribe mode');
+    }
 }

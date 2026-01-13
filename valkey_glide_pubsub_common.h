@@ -42,6 +42,8 @@ typedef struct {
     pubsub_message *queue_head;
     pubsub_message *queue_tail;
     mutex_t queue_mutex;
+    int subscription_count;
+    bool in_subscribe_mode;
 } pubsub_callback_info;
 
 // FFI function declarations
@@ -73,6 +75,7 @@ void register_pubsub_callback(uintptr_t client_ptr, zval *callback, zval *client
 void unregister_pubsub_callback(uintptr_t client_ptr);
 zval* find_pubsub_callback(const char *client_key);
 void remove_pubsub_callback(const char *client_key);
+bool is_client_in_subscribe_mode(uintptr_t client_ptr);
 void pubsub_callback_handler(
     uintptr_t client_ptr,
     int kind,
