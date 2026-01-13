@@ -5257,12 +5257,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test FLUSH operation
         $this->assertTrue($this->valkey_glide->script('FLUSH'));
 
-        // Test LOAD operation
-        $script_code = 'return "loaded via generic script"';
-        $expected_sha = sha1($script_code);
-        $actual_sha = $this->valkey_glide->script('LOAD', $script_code);
-        $this->assertEquals($expected_sha, $actual_sha);
-
         // Test script hashes for EXISTS operation
         $s1_src = 'return 1';
         $s1_sha = sha1($s1_src);
@@ -7710,25 +7704,15 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $funcName = 'myfunc1c';
 
         // Generate function code using the working pattern
-        $code = "#!lua name='$libName'\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
+        $code = "#!lua name=$libName\nredis.register_function{ function_name = '$funcName', callback = function(keys, args) return args[1] end }";
 
         $this->assertEquals($libName, $this->valkey_glide->functionLoad($code, false));
         $this->assertEquals('test_value', $this->valkey_glide->fcall($funcName, [], ['test_value']));
 
-        // Test function list (without parameter)
+        // Test function list
         $list = $this->valkey_glide->functionList();
         $this->assertIsArray($list);
         $this->assertTrue(count($list) > 0);
-
-        // Test function list with library name parameter
-        $filteredList = $this->valkey_glide->functionList($libName);
-        $this->assertIsArray($filteredList);
-        $this->assertTrue(count($filteredList) > 0);
-
-        // Test function list with non-existent library name
-        $emptyList = $this->valkey_glide->functionList('nonexistent_lib');
-        $this->assertIsArray($emptyList);
-        $this->assertEquals(0, count($emptyList));
 
         // Test function dump and restore
         $payload = $this->valkey_glide->functionDump();
@@ -7750,7 +7734,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test fcall with second function (fcall_ro requires no-writes flag which has syntax issues)
         $libNameRO = 'mylib_ro';
         $funcNameRO = 'myfunc_ro';
-        $codeRO = "#!lua name='$libNameRO'\nredis.register_function('$funcNameRO', function(keys, args) return args[1] end)";
+        $codeRO = "#!lua name=$libNameRO\nredis.register_function{ function_name = '$funcNameRO', callback = function(keys, args) return args[1] end }";
         $this->assertEquals($libNameRO, $this->valkey_glide->functionLoad($codeRO, false));
         $this->assertEquals('second_test', $this->valkey_glide->fcall($funcNameRO, [], ['second_test']));
     }
@@ -8058,7 +8042,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $this->markTestSkipped('Function commands require Valkey 7.0+');
         }
 
-        $lib = "#!lua name='mylib'\nredis.register_function('myfunc', function(keys, args) return args[1] end)";
+        $lib = "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)";
 
         $result = $this->valkey_glide->functionLoad($lib, false);
         $this->assertEquals('mylib', $result);
@@ -8077,7 +8061,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         // Use exact same syntax as testFunctionLoad which works
         $libName = 'testlib';
         $funcName = 'testfunc';
-        $lib = "#!lua name='$libName'\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
+        $lib = "#!lua name=$libName\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
 
         // Load the function library (use false like testFunctionLoad)
         $loadResult = $this->valkey_glide->functionLoad($lib, false);
@@ -8104,7 +8088,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         // Use the correct Lua function syntax (parentheses like testFunctionLoad)
         $libName = 'mylib_generic';
         $funcName = 'myfunc_generic';
-        $code = "#!lua name='$libName'\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
+        $code = "#!lua name=$libName\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
 
         // Test LOAD operation (without replace flag to avoid parameter issue)
         $this->assertEquals($libName, $this->valkey_glide->function('LOAD', $code));

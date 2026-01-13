@@ -3828,14 +3828,14 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testFunctionManagementBatch()
     {
 
-        $functionCode = "#!lua name='mylib'\nredis.register_function{function_name='myfunc', callback=function(keys, args) return args[1] end}";
+        $functionCode = "#!lua name=mylib\nredis.register_function{function_name='myfunc', callback=function(keys, args) return args[1] end}";
 
         // Execute FUNCTION LOAD, FUNCTION LIST, FUNCTION DELETE in multi/exec batch
         $results = $this->valkey_glide->multi()
             ->functionLoad($functionCode)
             ->functionList()
             ->fcall('myfunc', [], ['foo'])
-            ->functionLoad("#!lua name='mylib_ro'\nredis.register_function{function_name='myfunc_ro', callback=function(keys, args) return args[1] end, flags={'no-writes'}}")
+            ->functionLoad("#!lua name=mylib_ro\nredis.register_function{function_name='myfunc_ro', callback=function(keys, args) return args[1] end, flags={'no-writes'}}")
             ->fcall_ro('myfunc_ro', [], ['foo'])
             ->functionDelete('mylib')
             ->exec();
@@ -3864,7 +3864,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Ensure clean state
         $this->valkey_glide->function('FLUSH');
 
-        $functionCode = "#!lua name='mylib'\nredis.register_function('myfunc', function(keys, args) return args[1] end)";
+        $functionCode = "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)";
 
         // Setup function
         $this->valkey_glide->function('LOAD', $functionCode);
