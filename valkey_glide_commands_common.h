@@ -77,8 +77,8 @@ static inline void handle_command_result_or_throw(CommandResult* result,
                                                   const char*    command_name,
                                                   zval*          return_value) {
     if (!result) {
-        char* error_msg = emalloc(strlen(command_name) + 30);
-        sprintf(error_msg, "%s: Failed to execute command", command_name);
+        char* error_msg;
+        spprintf(&error_msg, 0, "%s: Failed to execute command", command_name);
         zend_throw_exception(zend_ce_exception, error_msg, 0);
         efree(error_msg);
         return;
