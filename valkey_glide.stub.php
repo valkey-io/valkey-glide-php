@@ -754,17 +754,17 @@ class ValkeyGlide
     public function invokeScript(string $script, array $keys = [], array $args = []): mixed;
 
     /**
-     * Execute a LUA script on the Valkey server.
+     * Execute a Lua script on the Valkey server.
      *
      * @see https://valkey.io/commands/eval/
      *
-     * @param string $script   A string containing the LUA script
+     * @param string $script   A string containing the Lua script
      * @param array  $args     An array of arguments to pass to this script
      * @param int    $num_keys How many of the arguments are keys.  This is needed
      *                         as Valkey distinguishes between key name arguments
      *                         and other data.
      *
-     * @return mixed LUA scripts may return arbitrary data so this method can return
+     * @return mixed Lua scripts may return arbitrary data so this method can return
      *               strings, arrays, nested arrays, etc.
      */
     public function eval(string $script, array $args = [], int $num_keys = 0): mixed;
@@ -789,13 +789,13 @@ class ValkeyGlide
     public function evalsha(string $sha1, array $args = [], int $num_keys = 0): mixed;
 
     /**
-     * Execute a read-only LUA script on the server.
+     * Execute a read-only Lua script on the server.
      *
      * @param string $script   A string containing the LUA script
      * @param array  $args     An array of arguments to pass to this script
      * @param int    $num_keys How many of the arguments are keys.
      *
-     * @return mixed LUA scripts may return arbitrary data so this method can return
+     * @return mixed Lua scripts may return arbitrary data so this method can return
      *               strings, arrays, nested arrays, etc.
      *
      * @see https://valkey.io/commands/eval_ro/
@@ -804,7 +804,7 @@ class ValkeyGlide
     public function eval_ro(string $script, array $args = [], int $num_keys = 0): mixed;
 
     /**
-     * Execute a read-only LUA script on the server using SHA1 hash.
+     * Execute a read-only Lua script on the server using SHA1 hash.
      *
      * @param string $script     The SHA1 hash of the lua code.
      * @param array  $args     Arguments to send to the script.
@@ -2699,7 +2699,7 @@ class ValkeyGlide
      * This method provides a unified interface for all SCRIPT operations.
      * It accepts an operation string and variable arguments.
      *
-     * @param string $operation The SCRIPT operation to execute (FLUSH, KILL, EXISTS, SHOW)
+     * @param string $operation The SCRIPT operation to execute (FLUSH, KILL, EXISTS, SHOW, LOAD)
      * @param member $args Variable arguments for the operation
      *
      * @return ValkeyGlide|bool|string|array The result depends on the operation

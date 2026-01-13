@@ -771,6 +771,12 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Test FLUSH operation
         $this->assertTrue($this->valkey_glide->script(null, 'FLUSH'));
 
+        // Test LOAD operation
+        $script_code = 'return "loaded via generic script"';
+        $expected_sha = sha1($script_code);
+        $actual_sha = $this->valkey_glide->script(null, 'LOAD', $script_code);
+        $this->assertEquals($expected_sha, $actual_sha);
+
         // Test script hashes for EXISTS operation
         $s1_src = 'return 1';
         $s1_sha = sha1($s1_src);

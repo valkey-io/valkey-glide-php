@@ -789,6 +789,21 @@ static int process_script_operation(valkey_glide_object* valkey_glide,
 
             return handle_function_command_result_or_return_false(
                 result, "ScriptShow", return_value);
+        } else if (strcasecmp(operation, "LOAD") == 0) {
+            /* LOAD expects: script code */
+            if (args_count < 1 || Z_TYPE(z_args[0]) != IS_STRING) {
+                return 0;
+            }
+
+            char*          script_code = Z_STRVAL(z_args[0]);
+            size_t         script_len  = Z_STRLEN(z_args[0]);
+            uintptr_t      cmd_args[1] = {(uintptr_t) script_code};
+            unsigned long  args_len[1] = {script_len};
+            CommandResult* result =
+                execute_command(valkey_glide->glide_client, ScriptLoad, 1, cmd_args, args_len);
+
+            return handle_function_command_result_or_return_false(
+                result, "ScriptLoad", return_value);
         }
     }
 
