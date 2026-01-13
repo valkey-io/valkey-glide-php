@@ -39,7 +39,7 @@ static void prepare_ffi_args(zval*           array,
     ZEND_HASH_FOREACH_END();
 }
 
-// Script execution using invoke_script FFI (following Go pattern)
+// Script execution using invoke_script FFI
 void execute_invoke_script_command(valkey_glide_object* valkey_glide,
                                    const char*          script_hash,
                                    zval*                keys,

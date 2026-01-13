@@ -531,7 +531,23 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
         } else if (strcasecmp(operation, "KILL") == 0) {
             return execute_function_kill_command(object, 1, return_value, ce);
         } else if (strcasecmp(operation, "LIST") == 0) {
-            return execute_function_list_command(object, 1 + args_count, return_value, ce);
+            /* Handle LIST operation directly */
+            CommandResult* result;
+            if (args_count > 0) {
+                /* Library name provided */
+                if (Z_TYPE(z_args[0]) != IS_STRING) {
+                    return 0;
+                }
+                char*         library_name     = Z_STRVAL(z_args[0]);
+                size_t        library_name_len = Z_STRLEN(z_args[0]);
+                uintptr_t     cmd_args[1]      = {(uintptr_t) library_name};
+                unsigned long args_len[1]      = {library_name_len};
+                result = execute_command(valkey_glide->glide_client, FunctionList, 1, cmd_args, args_len);
+            } else {
+                /* No library name provided */
+                result = execute_command(valkey_glide->glide_client, FunctionList, 0, NULL, NULL);
+            }
+            return handle_function_command_result_or_return_false(result, "FunctionList", return_value);
         } else if (strcasecmp(operation, "LOAD") == 0) {
             if (args_count < 1) {
                 return 0;
