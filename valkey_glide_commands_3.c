@@ -525,9 +525,9 @@ static int process_fcall_command_reposonse(CommandResponse* response,
 int execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                operation = NULL;
-    size_t               operation_len;
-    zval*                z_args;
-    int                  args_count;
+    size_t               operation_len = 0;
+    zval*                z_args = NULL;
+    int                  args_count = 0;
 
     /* Parse parameters: operation string + variadic args */
     if (zend_parse_method_parameters(
