@@ -7710,7 +7710,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $funcName = 'myfunc1c';
 
         // Generate function code using the working pattern
-        $code = "#!lua name='$libName'\nredis.register_function{ function_name = '$funcName', callback = function(keys, args) return args[1] end }";
+        $code = "#!lua name='$libName'\nredis.register_function('$funcName', function(keys, args) return args[1] end)";
 
         $this->assertEquals($libName, $this->valkey_glide->functionLoad($code, false));
         $this->assertEquals('test_value', $this->valkey_glide->fcall($funcName, [], ['test_value']));
@@ -7750,7 +7750,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test fcall with second function (fcall_ro requires no-writes flag which has syntax issues)
         $libNameRO = 'mylib_ro';
         $funcNameRO = 'myfunc_ro';
-        $codeRO = "#!lua name='$libNameRO'\nredis.register_function{ function_name = '$funcNameRO', callback = function(keys, args) return args[1] end }";
+        $codeRO = "#!lua name='$libNameRO'\nredis.register_function('$funcNameRO', function(keys, args) return args[1] end)";
         $this->assertEquals($libNameRO, $this->valkey_glide->functionLoad($codeRO, false));
         $this->assertEquals('second_test', $this->valkey_glide->fcall($funcNameRO, [], ['second_test']));
     }
