@@ -773,7 +773,7 @@ class ValkeyGlide
      * Execute a LUA script on the server but instead of sending the script, send
      * the SHA1 hash of the script.
      *
-     * @param string $script_sha The SHA1 hash of the lua code.  Note that the script
+     * @param string $sha1 The SHA1 hash of the lua code.  Note that the script
      *                           must already exist on the server, either having been
      *                           loaded with `SCRIPT LOAD` or having been executed directly
      *                           with `EVAL` first.
