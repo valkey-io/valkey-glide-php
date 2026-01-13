@@ -1322,7 +1322,7 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::evalsha_ro
      */
-    public function evalsha_ro(string $script, array $args = [], int $num_keys = 0): mixed;
+    public function evalsha_ro(string $sha1, array $args = [], int $num_keys = 0): mixed;
 
     /**
      * @see ValkeyGlide::invokeScript

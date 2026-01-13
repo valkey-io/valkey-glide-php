@@ -815,7 +815,7 @@ class ValkeyGlide
      * @see https://valkey.io/commands/evalsha_ro/
      * @see ValkeyGlide::evalsha();
      */
-    public function evalsha_ro(string $script, array $args = [], int $num_keys = 0): mixed;
+    public function evalsha_ro(string $sha1, array $args = [], int $num_keys = 0): mixed;
 
     /**
      * Execute either a MULTI or PIPELINE block and return the array of replies.
