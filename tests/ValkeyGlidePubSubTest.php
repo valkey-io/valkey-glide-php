@@ -350,4 +350,64 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         
         $this->assertTrue($success, 'Subscribe should be blocked during subscribe mode');
     }
+
+    public function testPubSubPSubscribe()
+    {
+        $pattern = 'test_psub_*';
+        $channel = 'test_psub_' . uniqid();
+        $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'result_');
+        
+        @unlink($sync_file);
+        @unlink($result_file);
+        
+        $sub_script = __DIR__ . '/scripts/subscriber_psubscribe.php';
+        
+        $cmd = sprintf(
+            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s 2>/dev/null',
+            PHP_BINARY,
+            dirname(__DIR__),
+            escapeshellarg($sub_script),
+            escapeshellarg($this->getHost()),
+            $this->getPort(),
+            escapeshellarg($pattern),
+            escapeshellarg($sync_file),
+            escapeshellarg($result_file)
+        );
+        
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
+        
+        $timeout = time() + 5;
+        while (!file_exists($sync_file) && time() < $timeout) {
+            usleep(100000);
+        }
+        
+        $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
+        
+        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub->publish($channel, 'pattern_message');
+        $pub->close();
+        
+        $success = false;
+        $timeout = time() + 3;
+        while (!$success && time() < $timeout) {
+            if (file_exists($result_file)) {
+                $success = true;
+                break;
+            }
+            usleep(100000);
+        }
+        
+        foreach ($pipes as $pipe) @fclose($pipe);
+        @proc_terminate($proc);
+        @proc_close($proc);
+        @unlink($sync_file);
+        @unlink($result_file);
+        
+        $this->assertTrue($success, 'Pattern subscribe should receive matching messages');
+    }
 }

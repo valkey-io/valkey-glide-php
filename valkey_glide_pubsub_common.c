@@ -245,6 +245,82 @@ bool is_client_in_subscribe_mode(uintptr_t client_ptr) {
     return info ? info->in_subscribe_mode : false;
 }
 
+// Common subscribe blocking loop
+static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub_type) {
+    char client_key[32];
+    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long)connection);
+    zval *callback_zv = find_pubsub_callback(client_key);
+    if (!callback_zv) return;
+    
+    pubsub_callback_info *info = (pubsub_callback_info *)Z_PTR_P(callback_zv);
+    info->in_subscribe_mode = true;
+    
+    while (info->is_active && info->subscription_count > 0) {
+        pubsub_message *msg = NULL;
+        
+        mutex_lock(&info->queue_mutex);
+        if (info->queue_head) {
+            msg = info->queue_head;
+            info->queue_head = msg->next;
+            if (!info->queue_head) {
+                info->queue_tail = NULL;
+            }
+        }
+        mutex_unlock(&info->queue_mutex);
+        
+        if (msg) {
+            zval php_channel, php_message, php_pattern;
+            ZVAL_STRINGL(&php_channel, (char*)msg->channel, msg->channel_len);
+            ZVAL_STRINGL(&php_message, (char*)msg->message, msg->message_len);
+            
+            if (msg->pattern && msg->pattern_len > 0) {
+                ZVAL_STRINGL(&php_pattern, (char*)msg->pattern, msg->pattern_len);
+            } else {
+                ZVAL_NULL(&php_pattern);
+            }
+            
+            zval args[4];
+            args[0] = info->client_obj;
+            args[1] = php_channel;
+            args[2] = php_message;
+            args[3] = php_pattern;
+
+            zval retval;
+            ZVAL_UNDEF(&retval);
+            int arg_count = (msg->pattern && msg->pattern_len > 0) ? 4 : 3;
+            
+            if (call_user_function(NULL, NULL, &info->callback, &retval, arg_count, args) == SUCCESS) {
+                zval_ptr_dtor(&retval);
+            }
+
+            zval_ptr_dtor(&php_channel);
+            zval_ptr_dtor(&php_message);
+            if (msg->pattern && msg->pattern_len > 0) {
+                zval_ptr_dtor(&php_pattern);
+            }
+            
+            if (msg->channel) efree(msg->channel);
+            if (msg->message) efree(msg->message);
+            if (msg->pattern) efree(msg->pattern);
+            efree(msg);
+        } else {
+            usleep(1000);
+        }
+    }
+    
+    struct CommandResult* unsub_result = command(
+        (const void*)connection, 0, unsub_type,
+        0, NULL, NULL, NULL, 0, 0
+    );
+    if (unsub_result) {
+        free_command_result(unsub_result);
+    }
+    
+    usleep(10000);
+    info->in_subscribe_mode = false;
+    unregister_pubsub_callback(connection);
+}
+
 // Subscribe implementation
 void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection) {
     zval *channels, *callback;
@@ -313,7 +389,6 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
     }
     free_command_result(result);
     
-    // Get callback info for blocking loop
     char client_key[32];
     snprintf(client_key, sizeof(client_key), "%lu", (unsigned long)connection);
     zval *callback_zv = find_pubsub_callback(client_key);
@@ -324,83 +399,8 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
     
     pubsub_callback_info *info = (pubsub_callback_info *)Z_PTR_P(callback_zv);
     info->subscription_count += channel_count;
-    info->in_subscribe_mode = true;
     
-    // Blocking loop: poll queue and invoke callback
-    while (info->is_active && info->subscription_count > 0) {
-        pubsub_message *msg = NULL;
-        
-        // Pop message from queue (thread-safe)
-        mutex_lock(&info->queue_mutex);
-        if (info->queue_head) {
-            msg = info->queue_head;
-            info->queue_head = msg->next;
-            if (!info->queue_head) {
-                info->queue_tail = NULL;
-            }
-        }
-        mutex_unlock(&info->queue_mutex);
-        
-        if (msg) {
-            // Invoke PHP callback
-            zval php_channel, php_message, php_pattern;
-            ZVAL_STRINGL(&php_channel, (char*)msg->channel, msg->channel_len);
-            ZVAL_STRINGL(&php_message, (char*)msg->message, msg->message_len);
-            
-            if (msg->pattern && msg->pattern_len > 0) {
-                ZVAL_STRINGL(&php_pattern, (char*)msg->pattern, msg->pattern_len);
-            } else {
-                ZVAL_NULL(&php_pattern);
-            }
-            
-            zval args[4];
-            args[0] = info->client_obj;
-            args[1] = php_channel;
-            args[2] = php_message;
-            args[3] = php_pattern;
-
-            zval retval;
-            ZVAL_UNDEF(&retval);
-            int arg_count = (msg->pattern && msg->pattern_len > 0) ? 4 : 3;
-            
-            if (call_user_function(NULL, NULL, &info->callback, &retval, arg_count, args) == SUCCESS) {
-                zval_ptr_dtor(&retval);
-            }
-
-            zval_ptr_dtor(&php_channel);
-            zval_ptr_dtor(&php_message);
-            if (msg->pattern && msg->pattern_len > 0) {
-                zval_ptr_dtor(&php_pattern);
-            }
-            
-            // Free message
-            if (msg->channel) efree(msg->channel);
-            if (msg->message) efree(msg->message);
-            if (msg->pattern) efree(msg->pattern);
-            efree(msg);
-        } else {
-            // No message, sleep briefly to avoid busy-wait
-            usleep(1000); // 1ms
-        }
-    }
-    
-    // After loop exits, send unsubscribe to clean up server-side
-    struct CommandResult* unsub_result = command(
-        connection, 0, REQUEST_TYPE_UNSUBSCRIBE,
-        0, NULL, NULL, NULL, 0, 0
-    );
-    if (unsub_result) {
-        free_command_result(unsub_result);
-    }
-    
-    // Give Rust thread time to process unsubscribe
-    usleep(10000); // 10ms
-    
-    // Exit subscribe mode
-    info->in_subscribe_mode = false;
-    
-    // Unregister callback to prevent Rust thread from accessing freed memory
-    unregister_pubsub_callback((uintptr_t)connection);
+    subscribe_blocking_loop((uintptr_t)connection, REQUEST_TYPE_UNSUBSCRIBE);
     
     RETVAL_TRUE;
 }
@@ -408,7 +408,7 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
 // PSubscribe implementation
 void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection) {
     zval *patterns, *callback;
-    zend_long timeout_ms = 0; // Default timeout (0 = wait indefinitely)
+    zend_long timeout_ms = 0;
     
     ZEND_PARSE_PARAMETERS_START(2, 3)
         Z_PARAM_ARRAY(patterns)
@@ -417,24 +417,26 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
         Z_PARAM_LONG(timeout_ms)
     ZEND_PARSE_PARAMETERS_END();
 
+    if (is_client_in_subscribe_mode((uintptr_t)connection)) {
+        zend_throw_exception(zend_ce_exception, 
+            "Client is in subscribe mode. Only unsubscribe commands are allowed.", 0);
+        RETURN_FALSE;
+    }
+
     if (!zend_is_callable(callback, 0, NULL)) {
         zend_throw_exception(zend_ce_exception, "Callback must be callable", 0);
         RETURN_FALSE;
     }
 
-    // Register callback
     register_pubsub_callback((uintptr_t)connection, callback, ZEND_THIS);
 
-    // Convert patterns array to arguments
     HashTable *patterns_ht = Z_ARRVAL_P(patterns);
     uint32_t pattern_count = zend_hash_num_elements(patterns_ht);
     
-    // For blocking psubscribe, we need patterns + timeout_ms
     uint32_t total_args = pattern_count + 1;
     uintptr_t *args = emalloc(total_args * sizeof(uintptr_t));
     unsigned long *args_len = emalloc(total_args * sizeof(unsigned long));
     
-    // Add patterns
     uint32_t i = 0;
     zval *pattern_zv;
     ZEND_HASH_FOREACH_VAL(patterns_ht, pattern_zv) {
@@ -444,13 +446,11 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
         i++;
     } ZEND_HASH_FOREACH_END();
     
-    // Add timeout_ms as string
     char timeout_str[32];
     snprintf(timeout_str, sizeof(timeout_str), "%lld", (long long)timeout_ms);
     args[pattern_count] = (uintptr_t)timeout_str;
     args_len[pattern_count] = strlen(timeout_str);
 
-    // Call FFI command
     struct CommandResult* result = command(
         connection, 0, REQUEST_TYPE_PSUBSCRIBE,
         total_args, args, args_len, NULL, 0, 0
@@ -459,18 +459,28 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
     efree(args);
     efree(args_len);
 
-    if (result) {
-        if (result->response && !result->command_error) {
-            RETVAL_TRUE;
-        } else {
-            zend_throw_exception(zend_ce_exception, "PSubscribe failed", 0);
-            RETVAL_FALSE;
-        }
-        free_command_result(result);
-    } else {
+    if (!result || result->command_error) {
+        if (result) free_command_result(result);
         zend_throw_exception(zend_ce_exception, "PSubscribe command failed", 0);
         RETVAL_FALSE;
+        return;
     }
+    free_command_result(result);
+    
+    char client_key[32];
+    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long)connection);
+    zval *callback_zv = find_pubsub_callback(client_key);
+    if (!callback_zv) {
+        RETVAL_FALSE;
+        return;
+    }
+    
+    pubsub_callback_info *info = (pubsub_callback_info *)Z_PTR_P(callback_zv);
+    info->subscription_count += pattern_count;
+    
+    subscribe_blocking_loop((uintptr_t)connection, REQUEST_TYPE_PUNSUBSCRIBE);
+    
+    RETVAL_TRUE;
 }
 
 // Unsubscribe implementation
@@ -514,50 +524,25 @@ void valkey_glide_punsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* co
         Z_PARAM_ARRAY_OR_NULL(patterns)
     ZEND_PARSE_PARAMETERS_END();
 
-    uint32_t pattern_count = 0;
-    uintptr_t *args = NULL;
-    unsigned long *args_len = NULL;
-    
-    if (patterns) {
-        HashTable *patterns_ht = Z_ARRVAL_P(patterns);
-        pattern_count = zend_hash_num_elements(patterns_ht);
-        
-        if (pattern_count > 0) {
-            args = emalloc(pattern_count * sizeof(uintptr_t));
-            args_len = emalloc(pattern_count * sizeof(unsigned long));
-            
-            uint32_t i = 0;
-            zval *pattern_zv;
-            ZEND_HASH_FOREACH_VAL(patterns_ht, pattern_zv) {
-                convert_to_string(pattern_zv);
-                args[i] = (uintptr_t)Z_STRVAL_P(pattern_zv);
-                args_len[i] = Z_STRLEN_P(pattern_zv);
-                i++;
-            } ZEND_HASH_FOREACH_END();
+    char client_key[32];
+    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long)connection);
+    zval *callback_zv = find_pubsub_callback(client_key);
+    if (callback_zv) {
+        pubsub_callback_info *info = (pubsub_callback_info *)Z_PTR_P(callback_zv);
+        if (info) {
+            if (patterns) {
+                info->subscription_count -= zend_hash_num_elements(Z_ARRVAL_P(patterns));
+            } else {
+                info->subscription_count = 0;
+            }
+            if (info->subscription_count <= 0) {
+                info->subscription_count = 0;
+                info->is_active = false;
+            }
         }
     }
 
-    // Call FFI command
-    struct CommandResult* result = command(
-        connection, 0, REQUEST_TYPE_PUNSUBSCRIBE,
-        pattern_count, args, args_len, NULL, 0, 0
-    );
-
-    if (args) efree(args);
-    if (args_len) efree(args_len);
-
-    if (result) {
-        if (result->response && !result->command_error) {
-            RETVAL_TRUE;
-        } else {
-            zend_throw_exception(zend_ce_exception, "PUnsubscribe failed", 0);
-            RETVAL_FALSE;
-        }
-        free_command_result(result);
-    } else {
-        zend_throw_exception(zend_ce_exception, "PUnsubscribe command failed", 0);
-        RETVAL_FALSE;
-    }
+    RETVAL_TRUE;
 }
 
 // Publish implementation
