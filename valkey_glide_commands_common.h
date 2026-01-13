@@ -250,7 +250,7 @@ void  execute_invoke_script_command(valkey_glide_object* valkey_glide,
                                     zval*                return_value,
                                     bool                 is_cluster);
 char* store_script_and_get_hash(const char* script);
-int execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int   execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_load_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_list_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_flush_command(zval*             object,
