@@ -28,6 +28,9 @@
 #include "include/glide/connection_request.pb-c.h"
 #include "include/glide_bindings.h"
 
+// Function declarations
+char* store_script_and_get_hash(const char* script);
+
 /* Forward declarations for types defined in glide_bindings.h */
 typedef struct CommandResponse    CommandResponse;
 typedef struct CommandResult      CommandResult;
@@ -95,35 +98,6 @@ static inline void handle_command_result_or_throw(CommandResult* result,
     }
     command_response_to_zval(result->response, return_value, 0, false);
     free_command_result(result);
-}
-
-/* Helper function variant that returns status code for functions */
-static inline int handle_command_result_or_return_status(CommandResult* result,
-                                                         const char*    command_name,
-                                                         zval*          return_value) {
-    if (!result) {
-        char* error_msg = emalloc(strlen(command_name) + 30);
-        sprintf(error_msg, "%s: Failed to execute command", command_name);
-        zend_throw_exception(zend_ce_exception, error_msg, 0);
-        efree(error_msg);
-        return 0;
-    }
-    if (result->command_error) {
-        zend_throw_exception(zend_ce_exception, result->command_error->command_error_message, 0);
-        free_command_result(result);
-        return 0;
-    }
-    if (!result->response) {
-        char* error_msg = emalloc(strlen(command_name) + 25);
-        sprintf(error_msg, "%s: No response received", command_name);
-        zend_throw_exception(zend_ce_exception, error_msg, 0);
-        efree(error_msg);
-        free_command_result(result);
-        return 0;
-    }
-    int status = command_response_to_zval(result->response, return_value, 0, false);
-    free_command_result(result);
-    return status;
 }
 
 // Helper that returns false on errors instead of throwing exceptions
