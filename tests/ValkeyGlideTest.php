@@ -7704,7 +7704,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $funcName = 'myfunc1c';
 
         // Generate function code using the working pattern
-        $code = "#!lua name=$libName\nredis.register_function{ function_name = '$funcName', callback = function(keys, args) return args[1] end }";
+        $code = "#!lua name='$libName'\nredis.register_function{ function_name = '$funcName', callback = function(keys, args) return args[1] end }";
 
         $this->assertEquals($libName, $this->valkey_glide->functionLoad($code, false));
         $this->assertEquals('test_value', $this->valkey_glide->fcall($funcName, [], ['test_value']));

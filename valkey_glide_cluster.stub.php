@@ -1352,7 +1352,7 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::scriptKill
      */
-    public function scriptKill(): ValkeyGlideCluster|string|false;
+    public function scriptKill(): bool;
 
     /**
      * @see ValkeyGlide::scriptShow

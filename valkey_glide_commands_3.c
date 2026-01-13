@@ -743,8 +743,9 @@ static int process_script_operation(valkey_glide_object* valkey_glide,
         } else if (strcasecmp(operation, "KILL") == 0) {
             CommandResult* result =
                 execute_command(valkey_glide->glide_client, ScriptKill, 0, NULL, NULL);
-            return handle_function_command_result_or_return_false(
-                result, "ScriptKill", return_value);
+            int status = process_core_bool_result(result->response, NULL, return_value);
+            free_command_result(result);
+            return status;
         } else if (strcasecmp(operation, "EXISTS") == 0) {
             /* EXISTS expects: array of SHA1 hashes */
             if (args_count < 1 || Z_TYPE(z_args[0]) != IS_ARRAY) {

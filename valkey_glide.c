@@ -704,7 +704,7 @@ PHP_METHOD(ValkeyGlide, pubsub) { /* TODO: Implement */
 SCRIPT_EXISTS_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto string ValkeyGlide::scriptKill() */
+/* {{{ proto bool ValkeyGlide::scriptKill() */
 SCRIPT_KILL_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 

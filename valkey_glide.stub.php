@@ -2648,6 +2648,10 @@ class ValkeyGlide
     public function scard(string $key): ValkeyGlide|int|false;
 
     /**
+     * TODO: Provide support for OK string https://github.com/valkey-io/valkey-glide-php/issues/118
+     */
+
+    /**
      * Check if scripts exist in the script cache by their SHA1 digests.
      *
      * @see https://valkey.io/commands/script-exists
@@ -2674,9 +2678,9 @@ class ValkeyGlide
      *
      * @see https://valkey.io/commands/script-kill
      *
-     * @return ValkeyGlide|string|false "OK" on success
+     * @return bool True on success
      */
-    public function scriptKill(): ValkeyGlide|string|false;
+    public function scriptKill(): bool;
 
     /**
      * Show the source code of a script by its SHA1 digest.
