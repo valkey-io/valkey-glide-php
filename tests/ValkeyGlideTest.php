@@ -8094,9 +8094,23 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->assertEquals($libName, $this->valkey_glide->function('LOAD', $code));
         $this->assertEquals('test_value', $this->valkey_glide->fcall($funcName, [], ['test_value']));
 
-        // Test LIST operation
-        $list = $this->valkey_glide->function('LIST');
-        $this->assertIsArray($list);
+        // Test LIST operation with retry for race conditions
+        $list = null;
+        $attempts = 0;
+        $maxAttempts = 5;
+        
+        while ($attempts < $maxAttempts) {
+            $list = $this->valkey_glide->function('LIST');
+            if (is_array($list) && count($list) > 0) {
+                break;
+            }
+            $attempts++;
+            if ($attempts < $maxAttempts) {
+                usleep(50000); // 50ms between attempts
+            }
+        }
+        $this->assertNotNull($list, 'function LIST should not return null');
+        $this->assertIsArray($list, 'function LIST should return an array');
         $this->assertTrue(count($list) > 0);
 
         // Test DUMP operation

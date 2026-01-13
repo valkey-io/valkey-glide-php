@@ -3,6 +3,22 @@
 #include "include/glide_bindings.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
+
+/**
+ * Helper function to handle CommandResult for boolean script commands (void return)
+ */
+static void handle_script_bool_result(CommandResult* result, zval* return_value) {
+    if (!result || result->command_error || !result->response) {
+        ZVAL_FALSE(return_value);
+        if (result) {
+            free_command_result(result);
+        }
+        return;
+    }
+
+    process_core_bool_result(result->response, NULL, return_value);
+    free_command_result(result);
+}
 #include "zend_exceptions.h"
 
 // Helper to convert string array to FFI format
@@ -119,15 +135,5 @@ void execute_script_flush_command(zval* object, zval* return_value, bool is_clus
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     CommandResult* result = execute_command(valkey_glide->glide_client, ScriptFlush, 0, NULL, NULL);
-
-    if (!result || result->command_error || !result->response) {
-        ZVAL_FALSE(return_value);
-        if (result) {
-            free_command_result(result);
-        }
-        return;
-    }
-
-    int status = process_core_bool_result(result->response, NULL, return_value);
-    free_command_result(result);
+    handle_script_bool_result(result, return_value);
 }
