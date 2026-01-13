@@ -8098,7 +8098,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $list = null;
         $attempts = 0;
         $maxAttempts = 5;
-        
+
         while ($attempts < $maxAttempts) {
             $list = $this->valkey_glide->function('LIST');
             if (is_array($list) && count($list) > 0) {
