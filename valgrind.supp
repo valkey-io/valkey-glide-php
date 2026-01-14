@@ -7,6 +7,7 @@
    Memcheck:Leak
    match-leak-kinds: possible
    fun:malloc
+   ...
    fun:*glide_core*scripts_container*add_script*
    fun:store_script
    fun:store_script_and_get_hash
