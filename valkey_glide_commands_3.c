@@ -688,7 +688,7 @@ static int process_script_operation(valkey_glide_object* valkey_glide,
                                     zval*                return_value);
 
 /* Execute a SCRIPT command using the Valkey Glide client */
-int execute_script_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+void execute_script_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                operation = NULL;
     size_t               operation_len;
@@ -706,7 +706,7 @@ int execute_script_command(zval* object, int argc, zval* return_value, zend_clas
     if (zend_parse_method_parameters(
             argc, object, "Os*", &object, ce, &operation, &operation_len, &z_args, &args_count) ==
         FAILURE) {
-        return 0;
+        return;
     }
 
     /* For cluster, we need to manually extract parameters starting from offset */
@@ -714,12 +714,12 @@ int execute_script_command(zval* object, int argc, zval* return_value, zend_clas
         zval* all_params = (zval*) safe_emalloc(argc, sizeof(zval), 0);
         if (zend_get_parameters_array_ex(argc, all_params) == FAILURE) {
             efree(all_params);
-            return 0;
+            return;
         }
 
         if (argc < 2 || Z_TYPE(all_params[1]) != IS_STRING) {
             efree(all_params);
-            return 0;
+            return;
         }
 
         operation     = Z_STRVAL(all_params[1]);
@@ -727,21 +727,44 @@ int execute_script_command(zval* object, int argc, zval* return_value, zend_clas
         z_args        = (argc > 2) ? &all_params[2] : NULL;
         args_count    = argc - 2;
 
-        /* Continue with normal processing */
-        valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-
-        /* Process the command with adjusted parameters */
-        int result = process_script_operation(
-            valkey_glide, operation, operation_len, z_args, args_count, return_value);
+        /* Route to helper functions where possible */
+        if (strcasecmp(operation, "EXISTS") == 0 && args_count > 0 &&
+            Z_TYPE(z_args[0]) == IS_ARRAY) {
+            execute_script_exists_command(object, &z_args[0], return_value, is_cluster);
+        } else if (strcasecmp(operation, "SHOW") == 0 && args_count > 0 &&
+                   Z_TYPE(z_args[0]) == IS_STRING) {
+            execute_script_show_command(
+                object, Z_STRVAL(z_args[0]), Z_STRLEN(z_args[0]), return_value, is_cluster);
+        } else if (strcasecmp(operation, "KILL") == 0) {
+            execute_script_kill_command(object, return_value, is_cluster);
+        } else {
+            valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+            process_script_operation(
+                valkey_glide, operation, operation_len, z_args, args_count, return_value);
+        }
 
         efree(all_params);
-        return result;
+        return;
     }
 
-    /* Get ValkeyGlide object */
+    /* Route to helper functions where possible */
+    if (strcasecmp(operation, "EXISTS") == 0 && args_count > 0 && Z_TYPE(z_args[0]) == IS_ARRAY) {
+        execute_script_exists_command(object, &z_args[0], return_value, is_cluster);
+        return;
+    } else if (strcasecmp(operation, "SHOW") == 0 && args_count > 0 &&
+               Z_TYPE(z_args[0]) == IS_STRING) {
+        execute_script_show_command(
+            object, Z_STRVAL(z_args[0]), Z_STRLEN(z_args[0]), return_value, is_cluster);
+        return;
+    } else if (strcasecmp(operation, "KILL") == 0) {
+        execute_script_kill_command(object, return_value, is_cluster);
+        return;
+    }
+
+    /* Get ValkeyGlide object and process remaining operations */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
 
-    return process_script_operation(
+    process_script_operation(
         valkey_glide, operation, operation_len, z_args, args_count, return_value);
 }
 
@@ -758,7 +781,6 @@ static int process_script_operation(valkey_glide_object* valkey_glide,
             return 0;
         }
 
-        /* For operations that take no arguments, call directly */
         if (strcasecmp(operation, "FLUSH") == 0) {
             /* Optional mode argument */
             if (args_count > 0 && Z_TYPE(z_args[0]) == IS_STRING) {
@@ -776,55 +798,6 @@ static int process_script_operation(valkey_glide_object* valkey_glide,
                 return handle_function_command_result_or_return_false(
                     result, "ScriptFlush", return_value);
             }
-        } else if (strcasecmp(operation, "KILL") == 0) {
-            CommandResult* result =
-                execute_command(valkey_glide->glide_client, ScriptKill, 0, NULL, NULL);
-            int status = process_core_bool_result(result->response, NULL, return_value);
-            free_command_result(result);
-            return status;
-        } else if (strcasecmp(operation, "EXISTS") == 0) {
-            /* EXISTS expects: array of SHA1 hashes */
-            if (args_count < 1 || Z_TYPE(z_args[0]) != IS_ARRAY) {
-                return 0;
-            }
-
-            zval*          sha1_array = &z_args[0];
-            unsigned long  hash_count = zend_hash_num_elements(Z_ARRVAL_P(sha1_array));
-            uintptr_t*     cmd_args   = (uintptr_t*) emalloc(hash_count * sizeof(uintptr_t));
-            unsigned long* args_len = (unsigned long*) emalloc(hash_count * sizeof(unsigned long));
-
-            zval* entry;
-            int   i = 0;
-            ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(sha1_array), entry) {
-                convert_to_string(entry);
-                cmd_args[i] = (uintptr_t) Z_STRVAL_P(entry);
-                args_len[i] = Z_STRLEN_P(entry);
-                i++;
-            }
-            ZEND_HASH_FOREACH_END();
-
-            CommandResult* result = execute_command(
-                valkey_glide->glide_client, ScriptExists, hash_count, cmd_args, args_len);
-            efree(cmd_args);
-            efree(args_len);
-
-            return handle_function_command_result_or_return_false(
-                result, "ScriptExists", return_value);
-        } else if (strcasecmp(operation, "SHOW") == 0) {
-            /* SHOW expects: SHA1 hash */
-            if (args_count < 1 || Z_TYPE(z_args[0]) != IS_STRING) {
-                return 0;
-            }
-
-            char*          sha1        = Z_STRVAL(z_args[0]);
-            size_t         sha1_len    = Z_STRLEN(z_args[0]);
-            uintptr_t      cmd_args[1] = {(uintptr_t) sha1};
-            unsigned long  args_len[1] = {sha1_len};
-            CommandResult* result =
-                execute_command(valkey_glide->glide_client, ScriptShow, 1, cmd_args, args_len);
-
-            return handle_function_command_result_or_return_false(
-                result, "ScriptShow", return_value);
         } else if (strcasecmp(operation, "LOAD") == 0) {
             /* TODO: Add scriptLoad to glide-core:
              * https://github.com/valkey-io/valkey-glide-php/issues/113 */
