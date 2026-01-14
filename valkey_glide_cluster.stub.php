@@ -872,7 +872,7 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::pubsub
      */
-    /* TODO public function pubsub(mixed $route, string ...$values): mixed;*/
+    public function pubsub(string $command, mixed $arg = null): mixed;
 
     /**
      * @see ValkeyGlide::punsubscribe

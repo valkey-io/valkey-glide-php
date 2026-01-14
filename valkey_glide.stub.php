@@ -2178,7 +2178,7 @@ class ValkeyGlide
      */
     public function publish(string $channel, string $message): int;
 
-    /* TODO public function pubsub(string $command, mixed $arg = null): mixed;*/
+    public function pubsub(string $command, mixed $arg = null): mixed;
 
     /**
      * Unsubscribe from one or more channels by pattern

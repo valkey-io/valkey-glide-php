@@ -410,4 +410,29 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         
         $this->assertTrue($success, 'Pattern subscribe should receive matching messages');
     }
+
+    public function testPubSubChannels()
+    {
+        $result = $this->valkey_glide->pubsub("channels");
+        $this->assertIsArray($result);
+    }
+
+    public function testPubSubChannelsWithPattern()
+    {
+        $result = $this->valkey_glide->pubsub("channels", "test*");
+        $this->assertIsArray($result);
+    }
+
+    public function testPubSubNumSub()
+    {
+        $result = $this->valkey_glide->pubsub("numsub", ["test_channel", "another_channel"]);
+        $this->assertIsArray($result);
+    }
+
+    public function testPubSubNumPat()
+    {
+        $result = $this->valkey_glide->pubsub("numpat");
+        $this->assertIsInt($result);
+        $this->assertGTE(0, $result);
+    }
 }

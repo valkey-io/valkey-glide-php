@@ -22,6 +22,7 @@
 #include "valkey_glide_x_common.h"
 #include "valkey_glide_z_common.h"
 #include "valkey_glide_pubsub_common.h"
+#include "valkey_glide_pubsub_introspection.h"
 
 #if PHP_VERSION_ID < 80000
 #include "valkey_glide_cluster_legacy_arginfo.h"
@@ -840,6 +841,12 @@ PHP_METHOD(ValkeyGlideCluster, publish) {
 /* {{{ proto mixed ValkeyGlideCluster::pubsub(string key, ...)
  *     proto mixed ValkeyGlideCluster::pubsub(array host_port, ...) */
 PHP_METHOD(ValkeyGlideCluster, pubsub) {
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
 /* }}} */
 

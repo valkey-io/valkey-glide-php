@@ -14,6 +14,7 @@
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_pubsub_common.h"
+#include "valkey_glide_pubsub_introspection.h"
 #include "valkey_glide_core_common.h"
 #include "include/glide_bindings.h"
 
@@ -752,7 +753,13 @@ PHP_METHOD(ValkeyGlide, publish) {
     valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
 
-PHP_METHOD(ValkeyGlide, pubsub) { /* TODO: Implement */
+PHP_METHOD(ValkeyGlide, pubsub) {
+    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
 PHP_METHOD(ValkeyGlide, eval) { /* TODO: Implement */
 }
