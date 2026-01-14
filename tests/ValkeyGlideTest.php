@@ -7954,10 +7954,11 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->assertIsArray($result);
         $this->assertFalse($result[0]);
 
-        // Load script using scriptInvoke (which caches it)
-        $this->valkey_glide->scriptInvoke($script, []);
+        // Load script using script LOAD
+        $loaded_sha = $this->valkey_glide->script('LOAD', $script);
+        $this->assertEquals($sha1, $loaded_sha);
 
-        // Now it should exist (scriptInvoke caches the script)
+        // Now it should exist
         $result = $this->valkey_glide->scriptExists([$sha1]);
         $this->assertIsArray($result);
         $this->assertTrue($result[0]);
@@ -7965,17 +7966,18 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
     public function testScriptFlush()
     {
-        // Load a script using scriptInvoke (which caches it)
+        // Load a script using script LOAD
         $script = 'return 1';
-        $this->valkey_glide->scriptInvoke($script, []);
+        $sha1 = $this->valkey_glide->script('LOAD', $script);
+        $this->assertNotEmpty($sha1);
 
         // Flush scripts
         $result = $this->valkey_glide->scriptFlush();
         $this->assertTrue($result);
 
-        // Note: We can't easily verify the script is gone since scriptExists
-        // checks SHA1 hashes, but scriptInvoke doesn't return the hash
-        // The important part is that scriptFlush returns true without error
+        // Verify script is gone
+        $exists = $this->valkey_glide->scriptExists([$sha1]);
+        $this->assertFalse($exists[0]);
     }
 
     public function testFunctionLoad()
