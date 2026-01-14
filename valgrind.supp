@@ -3,12 +3,10 @@
 # Script storage container - possibly lost during script caching
 # Memory is managed by Rust glide_core and properly freed on client destruction
 {
-   script_storage_bytes_allocation
+   script_storage_allocation
    Memcheck:Leak
    match-leak-kinds: possible
    fun:malloc
-   ...
-   fun:*bytes*BytesMut*
    fun:*glide_core*scripts_container*add_script*
    fun:store_script
    fun:store_script_and_get_hash
