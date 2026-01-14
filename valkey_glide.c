@@ -720,8 +720,8 @@ SCRIPT_FLUSH_METHOD_IMPL(ValkeyGlide)
 SCRIPT_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlide::invokeScript(string script, [array keys], [array args]) */
-INVOKE_SCRIPT_METHOD_IMPL(ValkeyGlide)
+/* {{{ proto mixed ValkeyGlide::scriptInvoke(string script, [array keys], [array args]) */
+SCRIPT_INVOKE_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
 /* {{{ proto mixed ValkeyGlide::fcall(string fn, [array keys], [array args]) */

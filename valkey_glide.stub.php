@@ -751,7 +751,7 @@ class ValkeyGlide
      *
      * @return mixed The script's return value
      */
-    public function invokeScript(string $script, array $keys = [], array $args = []): mixed;
+    public function scriptInvoke(string $script, array $keys = [], array $args = []): mixed;
 
     /**
      * Execute a Lua script on the Valkey server.

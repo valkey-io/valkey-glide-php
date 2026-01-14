@@ -1209,8 +1209,8 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         execute_script_flush_command(getThis(), return_value, false); \
     }
 
-#define INVOKE_SCRIPT_METHOD_IMPL(class_name)                                              \
-    PHP_METHOD(class_name, invokeScript) {                                                 \
+#define SCRIPT_INVOKE_METHOD_IMPL(class_name)                                              \
+    PHP_METHOD(class_name, scriptInvoke) {                                                 \
         char*  script_or_hash;                                                             \
         size_t script_or_hash_len;                                                         \
         zval * keys = NULL, *args = NULL;                                                  \
