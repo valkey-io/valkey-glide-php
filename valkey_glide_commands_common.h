@@ -243,6 +243,7 @@ int execute_fcall_ro_command(zval* object, int argc, zval* return_value, zend_cl
 
 /* Forward declarations for script command functions */
 void  execute_script_flush_command(zval* object, zval* return_value, bool is_cluster);
+void  execute_script_exists_command(zval* object, zval* sha1s, zval* return_value, bool is_cluster);
 void  execute_invoke_script_command(valkey_glide_object* valkey_glide,
                                     const char*          hash,
                                     zval*                keys,
@@ -1180,35 +1181,13 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         RETURN_FALSE;                                                               \
     }
 
-#define SCRIPT_EXISTS_METHOD_IMPL(class_name)                                                 \
-    PHP_METHOD(class_name, scriptExists) {                                                    \
-        zval* sha1s;                                                                          \
-        ZEND_PARSE_PARAMETERS_START(1, 1)                                                     \
-        Z_PARAM_ARRAY(sha1s)                                                                  \
-        ZEND_PARSE_PARAMETERS_END();                                                          \
-        valkey_glide_object* valkey_glide =                                                   \
-            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());                 \
-        if (!valkey_glide || !valkey_glide->glide_client) {                                   \
-            ZVAL_FALSE(return_value);                                                         \
-            return;                                                                           \
-        }                                                                                     \
-        int            count    = zend_hash_num_elements(Z_ARRVAL_P(sha1s));                  \
-        uintptr_t*     args     = emalloc(sizeof(uintptr_t) * count);                         \
-        unsigned long* args_len = emalloc(sizeof(unsigned long) * count);                     \
-        zval*          entry;                                                                 \
-        int            i = 0;                                                                 \
-        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(sha1s), entry) {                                     \
-            convert_to_string(entry);                                                         \
-            args[i]     = (uintptr_t) Z_STRVAL_P(entry);                                      \
-            args_len[i] = Z_STRLEN_P(entry);                                                  \
-            i++;                                                                              \
-        }                                                                                     \
-        ZEND_HASH_FOREACH_END();                                                              \
-        CommandResult* result =                                                               \
-            execute_command(valkey_glide->glide_client, ScriptExists, count, args, args_len); \
-        efree(args);                                                                          \
-        efree(args_len);                                                                      \
-        handle_function_command_result_or_return_false(result, "ScriptExists", return_value); \
+#define SCRIPT_EXISTS_METHOD_IMPL(class_name)                                 \
+    PHP_METHOD(class_name, scriptExists) {                                    \
+        zval* sha1s;                                                          \
+        ZEND_PARSE_PARAMETERS_START(1, 1)                                     \
+        Z_PARAM_ARRAY(sha1s)                                                  \
+        ZEND_PARSE_PARAMETERS_END();                                          \
+        execute_script_exists_command(getThis(), sha1s, return_value, false); \
     }
 
 #define SCRIPT_SHOW_METHOD_IMPL(class_name)                                                 \

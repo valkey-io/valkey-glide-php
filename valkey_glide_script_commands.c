@@ -137,3 +137,65 @@ void execute_script_flush_command(zval* object, zval* return_value, bool is_clus
     CommandResult* result = execute_command(valkey_glide->glide_client, ScriptFlush, 0, NULL, NULL);
     handle_script_bool_result(result, return_value);
 }
+
+// Helper function for script exists command
+void execute_script_exists_command(zval* object, zval* sha1s, zval* return_value, bool is_cluster) {
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        ZVAL_FALSE(return_value);
+        return;
+    }
+
+    int            count    = zend_hash_num_elements(Z_ARRVAL_P(sha1s));
+    uintptr_t*     args     = emalloc(sizeof(uintptr_t) * count);
+    unsigned long* args_len = emalloc(sizeof(unsigned long) * count);
+    zval*          entry;
+    int            i = 0;
+
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(sha1s), entry) {
+        convert_to_string(entry);
+        args[i]     = (uintptr_t) Z_STRVAL_P(entry);
+        args_len[i] = Z_STRLEN_P(entry);
+        i++;
+    }
+    ZEND_HASH_FOREACH_END();
+
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, ScriptExists, count, args, args_len);
+    efree(args);
+    efree(args_len);
+
+    handle_function_command_result_or_return_false(result, "ScriptExists", return_value);
+}
+
+// Helper function for script exists command
+void execute_script_exists_command(zval* object, zval* sha1s, zval* return_value, bool is_cluster) {
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        ZVAL_FALSE(return_value);
+        return;
+    }
+
+    int            count    = zend_hash_num_elements(Z_ARRVAL_P(sha1s));
+    uintptr_t*     args     = emalloc(sizeof(uintptr_t) * count);
+    unsigned long* args_len = emalloc(sizeof(unsigned long) * count);
+    zval*          entry;
+    int            i = 0;
+
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(sha1s), entry) {
+        convert_to_string(entry);
+        args[i]     = (uintptr_t) Z_STRVAL_P(entry);
+        args_len[i] = Z_STRLEN_P(entry);
+        i++;
+    }
+    ZEND_HASH_FOREACH_END();
+
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, ScriptExists, count, args, args_len);
+    efree(args);
+    efree(args_len);
+
+    handle_function_command_result_or_return_false(result, "ScriptExists", return_value);
+}
