@@ -170,6 +170,17 @@ class ValkeyGlideCluster
     public const    PERIODIC_CHECK_DISABLED = 1;
 
     /**
+     * Runtime option: Return "OK" string instead of true for OK responses
+     * When enabled, commands that return "+OK" from Valkey will return the string "OK"
+     * instead of boolean true (the default behavior).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_OPT_REPLY_LITERAL
+     *
+     */
+    public const OPT_REPLY_LITERAL = UNKNOWN;
+
+    /**
      * Create a new ValkeyGlideCluster instance with the provided configuration.
      * Supports both PHPRedis RedisCluster-style and ValkeyGlide-style parameters.
      *
@@ -246,6 +257,23 @@ class ValkeyGlideCluster
         ?int $database_id = null,
     ) {
     }
+
+    /**
+     * Set a client option.
+     *
+     * @param int $option The option to set (e.g., ValkeyGlideCluster::OPT_REPLY_LITERAL)
+     * @param mixed $value The value to set for the option
+     * @return bool True on success, false on failure
+     */
+    public function setOption(int $option, mixed $value): bool;
+
+    /**
+     * Get a client option value.
+     *
+     * @param int $option The option to get (e.g., ValkeyGlideCluster::OPT_REPLY_LITERAL)
+     * @return mixed The option value, or false if the option is not set or invalid
+     */
+    public function getOption(int $option): mixed;
 
     /**
      * @see ValkeyGlide::append()

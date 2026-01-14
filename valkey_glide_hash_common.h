@@ -453,18 +453,23 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
         RETURN_FALSE;                                                             \
     }
 
-#define HMSET_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, hMset) {                                              \
-        if (execute_hmset_command(getThis(),                                     \
-                                  ZEND_NUM_ARGS(),                               \
-                                  return_value,                                  \
-                                  strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                      ? get_valkey_glide_cluster_ce()            \
-                                      : get_valkey_glide_ce())) {                \
-            return;                                                              \
-        }                                                                        \
-        zval_dtor(return_value);                                                 \
-        RETURN_FALSE;                                                            \
+#define HMSET_METHOD_IMPL(class_name)                                             \
+    PHP_METHOD(class_name, hMset) {                                               \
+        if (execute_hmset_command(getThis(),                                      \
+                                  ZEND_NUM_ARGS(),                                \
+                                  return_value,                                   \
+                                  strcmp(#class_name, "ValkeyGlideCluster") == 0  \
+                                      ? get_valkey_glide_cluster_ce()             \
+                                      : get_valkey_glide_ce())) {                 \
+            valkey_glide_object* vg =                                             \
+                VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis()); \
+            if (vg) {                                                             \
+                APPLY_REPLY_LITERAL(vg, return_value);                            \
+            }                                                                     \
+            return;                                                               \
+        }                                                                         \
+        zval_dtor(return_value);                                                  \
+        RETURN_FALSE;                                                             \
     }
 
 #define HINCRBY_METHOD_IMPL(class_name)                                            \

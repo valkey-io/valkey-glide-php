@@ -1032,4 +1032,46 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         ValkeyGlide::setOtelSamplePercentage($randomPercentage);
         $this->assertEquals($randomPercentage, ValkeyGlide::getOtelSamplePercentage(), "Sample percentage should be $randomPercentage");
     }
+
+    public function testOptReplyLiteralConstant()
+    {
+        $this->assertTrue(defined('ValkeyGlideCluster::OPT_REPLY_LITERAL'));
+        $this->assertEquals(1, ValkeyGlideCluster::OPT_REPLY_LITERAL);
+    }
+
+    public function testClusterSetOptionGetOption()
+    {
+        $this->assertFalse($this->valkey_glide->getOption(ValkeyGlideCluster::OPT_REPLY_LITERAL));
+
+        $this->assertTrue($this->valkey_glide->setOption(ValkeyGlideCluster::OPT_REPLY_LITERAL, true));
+        $this->assertTrue($this->valkey_glide->getOption(ValkeyGlideCluster::OPT_REPLY_LITERAL));
+
+        $this->assertTrue($this->valkey_glide->setOption(ValkeyGlideCluster::OPT_REPLY_LITERAL, false));
+        $this->assertFalse($this->valkey_glide->getOption(ValkeyGlideCluster::OPT_REPLY_LITERAL));
+    }
+
+    public function testClusterOptReplyLiteralWithSet()
+    {
+        $key = 'test_cluster_opt_reply_literal_' . uniqid();
+
+        try {
+            $result = $this->valkey_glide->set($key, 'value1');
+            $this->assertTrue($result);
+            $this->assertIsBool($result);
+
+            $this->valkey_glide->setOption(ValkeyGlideCluster::OPT_REPLY_LITERAL, true);
+
+            $result = $this->valkey_glide->set($key, 'value2');
+            $this->assertEquals('OK', $result);
+            $this->assertIsString($result);
+            $this->assertEquals('value2', $this->valkey_glide->get($key));
+
+            $this->valkey_glide->setOption(ValkeyGlideCluster::OPT_REPLY_LITERAL, false);
+            $result = $this->valkey_glide->set($key, 'value3');
+            $this->assertTrue($result);
+        } finally {
+            $this->valkey_glide->setOption(ValkeyGlideCluster::OPT_REPLY_LITERAL, false);
+            $this->valkey_glide->del($key);
+        }
+    }
 }

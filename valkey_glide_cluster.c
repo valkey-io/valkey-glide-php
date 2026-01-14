@@ -1186,6 +1186,12 @@ PHP_METHOD(ValkeyGlideCluster, function) {
     execute_function_command(
         getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
 }
+/* {{{ proto bool ValkeyGlideCluster::setOption(int option, mixed value) */
+SETOPTION_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::getOption(int option) */
+GETOPTION_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 #endif /* PHP_REDIS_CLUSTER_C */

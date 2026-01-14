@@ -226,6 +226,11 @@ struct batch_command {
     enum RequestType     request_type;
 };
 
+/* Client runtime options - matching PHPRedis behavior */
+typedef enum {
+    VALKEY_GLIDE_OPT_REPLY_LITERAL = 1 /* Return "OK" string instead of true for Ok responses */
+} valkey_glide_option_t;
+
 typedef struct {
     const void*           glide_client; /* Valkey Glide client pointer */
     struct batch_command* buffered_commands;
@@ -233,6 +238,9 @@ typedef struct {
     size_t                command_capacity;
     int                   batch_type; /* ATOMIC, MULTI, or PIPELINE */
     bool                  is_in_batch_mode;
+
+    /* Runtime options (like PHPRedis OPT_* settings) */
+    bool reply_literal; /* OPT_REPLY_LITERAL: return "OK" string instead of true */
 
     zend_object std;
 } valkey_glide_object;

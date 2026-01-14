@@ -1290,4 +1290,93 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             );
         }
     }
+
+    public function testOptReplyLiteralConstant()
+    {
+        $this->assertTrue(defined('ValkeyGlide::OPT_REPLY_LITERAL'));
+        $this->assertEquals(1, ValkeyGlide::OPT_REPLY_LITERAL);
+    }
+
+    public function testSetOptionGetOption()
+    {
+        $this->assertFalse($this->valkey_glide->getOption(ValkeyGlide::OPT_REPLY_LITERAL));
+
+        $this->assertTrue($this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true));
+        $this->assertTrue($this->valkey_glide->getOption(ValkeyGlide::OPT_REPLY_LITERAL));
+
+        $this->assertTrue($this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false));
+        $this->assertFalse($this->valkey_glide->getOption(ValkeyGlide::OPT_REPLY_LITERAL));
+    }
+
+    public function testSetOptionInvalidOption()
+    {
+        $this->assertFalse($this->valkey_glide->setOption(9999, true));
+    }
+
+    public function testGetOptionInvalidOption()
+    {
+        $this->assertFalse($this->valkey_glide->getOption(9999));
+    }
+
+    public function testOptReplyLiteralWithSet()
+    {
+        $key = 'test_opt_reply_literal_' . uniqid();
+
+        try {
+            $result = $this->valkey_glide->set($key, 'value1');
+            $this->assertTrue($result);
+            $this->assertIsBool($result);
+
+            $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+
+            $result = $this->valkey_glide->set($key, 'value2');
+            $this->assertEquals('OK', $result);
+            $this->assertIsString($result);
+            $this->assertEquals('value2', $this->valkey_glide->get($key));
+
+            $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+            $result = $this->valkey_glide->set($key, 'value3');
+            $this->assertTrue($result);
+        } finally {
+            $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testOptReplyLiteralWithMset()
+    {
+        $key1 = 'test_mset_opt_1_' . uniqid();
+        $key2 = 'test_mset_opt_2_' . uniqid();
+
+        try {
+            $result = $this->valkey_glide->mset([$key1 => 'val1', $key2 => 'val2']);
+            $this->assertTrue($result);
+
+            $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+
+            $result = $this->valkey_glide->mset([$key1 => 'val3', $key2 => 'val4']);
+            $this->assertEquals('OK', $result);
+        } finally {
+            $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+            $this->valkey_glide->del($key1, $key2);
+        }
+    }
+
+    public function testOptReplyLiteralWithSetex()
+    {
+        $key = 'test_setex_opt_' . uniqid();
+
+        try {
+            $result = $this->valkey_glide->setex($key, 100, 'value1');
+            $this->assertTrue($result);
+
+            $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+
+            $result = $this->valkey_glide->setex($key, 100, 'value2');
+            $this->assertEquals('OK', $result);
+        } finally {
+            $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+            $this->valkey_glide->del($key);
+        }
+    }
 }
