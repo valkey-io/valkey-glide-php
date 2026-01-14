@@ -7969,7 +7969,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         // Load a script using script LOAD
         $script = 'return 1';
         $sha1 = $this->valkey_glide->script('LOAD', $script);
-        $this->assertNotEmpty($sha1);
+        $this->assertTrue(strlen($sha1) === 40); // SHA1 is 40 characters
 
         // Flush scripts
         $result = $this->valkey_glide->scriptFlush();
