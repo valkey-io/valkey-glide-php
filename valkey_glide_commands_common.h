@@ -247,12 +247,6 @@ void execute_script_exists_command(zval* object, zval* sha1s, zval* return_value
 void execute_script_show_command(
     zval* object, char* sha1, size_t sha1_len, zval* return_value, bool is_cluster);
 void  execute_script_kill_command(zval* object, zval* return_value, bool is_cluster);
-void  execute_invoke_script_command(valkey_glide_object* valkey_glide,
-                                    const char*          hash,
-                                    zval*                keys,
-                                    zval*                args,
-                                    zval*                return_value,
-                                    bool                 is_cluster);
 char* store_script_and_get_hash(const char* script);
 int   execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_load_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -1207,67 +1201,6 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 #define SCRIPT_FLUSH_METHOD_IMPL(class_name)                          \
     PHP_METHOD(class_name, scriptFlush) {                             \
         execute_script_flush_command(getThis(), return_value, false); \
-    }
-
-#define SCRIPT_INVOKE_METHOD_IMPL(class_name)                                              \
-    PHP_METHOD(class_name, scriptInvoke) {                                                 \
-        char*  script_or_hash;                                                             \
-        size_t script_or_hash_len;                                                         \
-        zval * keys = NULL, *args = NULL;                                                  \
-                                                                                           \
-        ZEND_PARSE_PARAMETERS_START(1, 3)                                                  \
-        Z_PARAM_STRING(script_or_hash, script_or_hash_len)                                 \
-        Z_PARAM_OPTIONAL                                                                   \
-        Z_PARAM_ARRAY(keys)                                                                \
-        Z_PARAM_ARRAY(args)                                                                \
-        ZEND_PARSE_PARAMETERS_END();                                                       \
-                                                                                           \
-        valkey_glide_object* valkey_glide =                                                \
-            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());              \
-                                                                                           \
-        zval empty_keys, empty_args;                                                       \
-        bool cleanup_keys = false, cleanup_args = false;                                   \
-        if (!keys) {                                                                       \
-            array_init(&empty_keys);                                                       \
-            keys         = &empty_keys;                                                    \
-            cleanup_keys = true;                                                           \
-        }                                                                                  \
-        if (!args) {                                                                       \
-            array_init(&empty_args);                                                       \
-            args         = &empty_args;                                                    \
-            cleanup_args = true;                                                           \
-        }                                                                                  \
-                                                                                           \
-        if (is_sha1_hash(script_or_hash, script_or_hash_len)) {                            \
-            execute_invoke_script_command(valkey_glide,                                    \
-                                          script_or_hash,                                  \
-                                          keys,                                            \
-                                          args,                                            \
-                                          return_value,                                    \
-                                          strcmp(#class_name, "ValkeyGlideCluster") == 0); \
-        } else {                                                                           \
-            char* script_hash = store_script_and_get_hash(script_or_hash);                 \
-            if (!script_hash) {                                                            \
-                if (cleanup_keys)                                                          \
-                    zval_dtor(&empty_keys);                                                \
-                if (cleanup_args)                                                          \
-                    zval_dtor(&empty_args);                                                \
-                zend_throw_exception(zend_ce_exception, "Failed to store script", 0);      \
-                return;                                                                    \
-            }                                                                              \
-            execute_invoke_script_command(valkey_glide,                                    \
-                                          script_hash,                                     \
-                                          keys,                                            \
-                                          args,                                            \
-                                          return_value,                                    \
-                                          strcmp(#class_name, "ValkeyGlideCluster") == 0); \
-            efree(script_hash);                                                            \
-        }                                                                                  \
-                                                                                           \
-        if (cleanup_keys)                                                                  \
-            zval_dtor(&empty_keys);                                                        \
-        if (cleanup_args)                                                                  \
-            zval_dtor(&empty_args);                                                        \
     }
 
 #define DUMP_METHOD_IMPL(class_name)                                            \

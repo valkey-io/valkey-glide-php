@@ -5243,9 +5243,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $result = $this->valkey_glide->scriptExists([$s1_sha, $s2_sha, $s3_sha]);
         $this->assertIsArray($result);
         $this->assertTrue(is_array($result) && count(array_filter($result)) == 0);
-
-        // Test scriptInvoke method
-        $this->assertEquals(1, $this->valkey_glide->scriptInvoke($s1_src, [$key]));
     }
 
     public function testGenericScript()
@@ -5268,8 +5265,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertIsArray($result);
         $this->assertTrue(count(array_filter($result)) == 0);
 
-        // Load a script and test EXISTS again
-        $this->valkey_glide->scriptInvoke($s1_src, []);
+        // Load a script using LOAD and test EXISTS again
+        $loaded_sha = $this->valkey_glide->script('LOAD', $s1_src);
+        $this->assertEquals($s1_sha, $loaded_sha);
         $result = $this->valkey_glide->script('EXISTS', [$s1_sha]);
         $this->assertIsArray($result);
         $this->assertTrue($result[0]);
@@ -5391,58 +5389,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $this->valkey_glide->evalsha($sha));
     }
 
-    public function testInvokeScript()
-    {
-        if (version_compare($this->version, '2.6.0') < 0) {
-            $this->markTestSkipped('scriptInvoke requires Valkey 2.6+');
-        }
-
-        $key1 = '{invoke-script-test}-key1';
-        $key2 = '{invoke-script-test}-key2';
-
-        // Test a script that returns a string without keys and args
-        $script1 = "return 'Hello'";
-        $result1 = $this->valkey_glide->scriptInvoke($script1);
-        $this->assertEquals('Hello', $result1);
-
-        // Test script that sets a key with value
-        $script2 = "return redis.call('SET', KEYS[1], ARGV[1])";
-
-        // Set key1 with value1
-        $result2 = $this->valkey_glide->scriptInvoke($script2, [$key1], ['value1']);
-        $this->assertTrue($result2);
-
-        // Set key2 with value2
-        $result3 = $this->valkey_glide->scriptInvoke($script2, [$key2], ['value2']);
-        $this->assertTrue($result3);
-
-        // Test script that gets a key's value
-        $script3 = "return redis.call('GET', KEYS[1])";
-
-        // Get key1's value
-        $result4 = $this->valkey_glide->scriptInvoke($script3, [$key1]);
-        $this->assertEquals('value1', $result4);
-
-        // Get key2's value
-        $result5 = $this->valkey_glide->scriptInvoke($script3, [$key2]);
-        $this->assertEquals('value2', $result5);
-
-        // Test scriptInvoke with SHA1 hash (script should be auto-loaded)
-        $simpleScript = 'return 42';
-        $sha1 = sha1($simpleScript);
-
-        // First run with script source
-        $result6 = $this->valkey_glide->scriptInvoke($simpleScript);
-        $this->assertEquals(42, $result6);
-
-        // Then run with SHA1 hash
-        $result7 = $this->valkey_glide->scriptInvoke($sha1);
-        $this->assertEquals(42, $result7);
-
-        // Clean up
-        $this->valkey_glide->del([$key1, $key2]);
-    }
-
     public function testScriptShow()
     {
         if (version_compare($this->version, '8.0.0') < 0) {
@@ -5452,16 +5398,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Create a unique script code
         $code = "return 'test-script-show'";
 
-        // First execute the script to ensure it's loaded and cached
-        $result = $this->valkey_glide->scriptInvoke($code);
-        $this->assertEquals('test-script-show', $result);
+        // Load the script using script LOAD
+        $sha1 = $this->valkey_glide->script('LOAD', $code);
+        $this->assertEquals(sha1($code), $sha1);
 
-        // Get the SHA1 hash of the script
-        $sha1 = sha1($code);
-
-        // Verify script exists in cache after execution
+        // Verify script exists in cache after loading
         $exists = $this->valkey_glide->scriptExists([$sha1]);
-        $this->assertTrue($exists[0], 'Script should be cached after scriptInvoke');
+        $this->assertTrue($exists[0], 'Script should be cached after LOAD');
 
         // Now test scriptShow with cached script
         $scriptSource = $this->valkey_glide->scriptShow($sha1);

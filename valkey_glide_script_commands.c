@@ -56,65 +56,6 @@ static void prepare_ffi_args(zval*           array,
 }
 
 // Script execution using invoke_script FFI
-void execute_invoke_script_command(valkey_glide_object* valkey_glide,
-                                   const char*          script_hash,
-                                   zval*                keys,
-                                   zval*                args,
-                                   zval*                return_value,
-                                   bool                 use_false_if_null) {
-    // Prepare FFI arguments
-    uintptr_t *    key_ptrs, *arg_ptrs;
-    unsigned long *key_lens, *arg_lens;
-    unsigned long  key_count, arg_count;
-
-    prepare_ffi_args(keys, &key_ptrs, &key_lens, &key_count);
-    prepare_ffi_args(args, &arg_ptrs, &arg_lens, &arg_count);
-
-    // Call invoke_script
-    struct CommandResult* result = invoke_script(valkey_glide->glide_client,
-                                                 0,  // request_id
-                                                 script_hash,
-                                                 key_count,
-                                                 key_ptrs,
-                                                 key_lens,
-                                                 arg_count,
-                                                 arg_ptrs,
-                                                 arg_lens,
-                                                 NULL,  // route_bytes
-                                                 0      // route_bytes_len
-    );
-
-    // Cleanup FFI arguments
-    if (key_ptrs)
-        efree(key_ptrs);
-    if (key_lens)
-        efree(key_lens);
-    if (arg_ptrs)
-        efree(arg_ptrs);
-    if (arg_lens)
-        efree(arg_lens);
-
-    if (!result) {
-        ZVAL_FALSE(return_value);
-        return;
-    }
-
-    if (result->command_error) {
-        free_command_result(result);
-        ZVAL_FALSE(return_value);
-        return;
-    }
-
-    if (!result->response) {
-        free_command_result(result);
-        ZVAL_FALSE(return_value);
-        return;
-    }
-
-    command_response_to_zval(result->response, return_value, 0, use_false_if_null);
-    free_command_result(result);
-}
-
 // Helper to store script and get hash
 char* store_script_and_get_hash(const char* script) {
     struct ScriptHashBuffer* hash_buffer = store_script((const uint8_t*) script, strlen(script));

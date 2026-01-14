@@ -743,17 +743,6 @@ class ValkeyGlide
     public function echo(string $str): ValkeyGlide|string|false;
 
     /**
-     * Invoke a Lua script
-     *
-     * @param string $script The Lua script to execute
-     * @param array $keys Array of key arguments accessed by the script
-     * @param array $args Array of function arguments
-     *
-     * @return mixed The script's return value
-     */
-    public function scriptInvoke(string $script, array $keys = [], array $args = []): mixed;
-
-    /**
      * Execute a Lua script on the Valkey server.
      *
      * @see https://valkey.io/commands/eval/
