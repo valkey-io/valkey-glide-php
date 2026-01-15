@@ -19,9 +19,9 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
     {
         // Test publish command works in cluster mode
         $channel = 'test_publish_' . uniqid();
-        
+
         $count = $this->valkey_glide->publish($channel, 'test_message');
-        
+
         $this->assertIsInt($count, 'Publish should return integer subscriber count');
         $this->assertGTE(0, $count, 'Subscriber count should be >= 0');
     }
@@ -33,12 +33,12 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         $message = 'hello_' . time();
         $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
         $result_file = tempnam(sys_get_temp_dir(), 'result_');
-        
+
         @unlink($sync_file);
         @unlink($result_file);
-        
+
         $sub_script = __DIR__ . '/scripts/subscriber_message_delivery_cluster.php';
-        
+
         // Start subscriber - use cluster port 7001
         $cmd = sprintf(
             '%s %s %s %d %s %s %s %s 2>/dev/null',
@@ -51,26 +51,26 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             escapeshellarg($sync_file),
             escapeshellarg($result_file)
         );
-        
+
         $proc = proc_open(
             $cmd,
             [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
             $pipes
         );
-        
+
         // Wait for subscriber ready
         $timeout = time() + 5;
         while (!file_exists($sync_file) && time() < $timeout) {
             usleep(100000);
         }
-        
+
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
-        
+
         // Publish message
         $count = $this->valkey_glide->publish($channel, $message);
-        
+
         $this->assertGTE(1, $count, 'Should have at least 1 subscriber');
-        
+
         // Wait for callback result
         $success = false;
         $timeout = time() + 5;
@@ -81,14 +81,16 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             }
             usleep(100000);
         }
-        
+
         // Cleanup
-        foreach ($pipes as $pipe) @fclose($pipe);
+        foreach ($pipes as $pipe) {
+            @fclose($pipe);
+        }
         @proc_terminate($proc);
         @proc_close($proc);
         @unlink($sync_file);
         @unlink($result_file);
-        
+
         $this->assertTrue($success, 'Message should be delivered to subscriber callback in cluster mode');
     }
 
@@ -98,12 +100,12 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         $channel = 'test_unsub_' . uniqid();
         $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
         $unsub_file = tempnam(sys_get_temp_dir(), 'unsub_');
-        
+
         @unlink($sync_file);
         @unlink($unsub_file);
-        
+
         $sub_script = __DIR__ . '/scripts/subscriber_unsubscribe_cluster.php';
-        
+
         // Start subscriber - use cluster port 7001
         $cmd = sprintf(
             '%s %s %s %d %s %s %s 2>/dev/null',
@@ -115,22 +117,22 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             escapeshellarg($sync_file),
             escapeshellarg($unsub_file)
         );
-        
+
         $proc = proc_open(
             $cmd,
             [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
             $pipes
         );
-        
+
         // Wait for subscriber ready
         $timeout = time() + 5;
         while (!file_exists($sync_file) && time() < $timeout) {
             usleep(100000);
         }
-        
+
         // Publish to trigger callback
         $this->valkey_glide->publish($channel, 'trigger');
-        
+
         // Wait for unsubscribe signal
         $success = false;
         $timeout = time() + 3;
@@ -141,14 +143,16 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             }
             usleep(100000);
         }
-        
+
         // Cleanup
-        foreach ($pipes as $pipe) @fclose($pipe);
+        foreach ($pipes as $pipe) {
+            @fclose($pipe);
+        }
         @proc_terminate($proc);
         @proc_close($proc);
         @unlink($sync_file);
         @unlink($unsub_file);
-        
+
         $this->assertTrue($success, 'Unsubscribe should work in cluster mode');
     }
 
@@ -159,12 +163,12 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         $message = 'pattern_msg_' . time();
         $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
         $result_file = tempnam(sys_get_temp_dir(), 'result_');
-        
+
         @unlink($sync_file);
         @unlink($result_file);
-        
+
         $sub_script = __DIR__ . '/scripts/subscriber_psubscribe_cluster.php';
-        
+
         $cmd = sprintf(
             '%s %s %s %d %s %s %s %s %s 2>/dev/null',
             PHP_BINARY,
@@ -177,22 +181,22 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             escapeshellarg($sync_file),
             escapeshellarg($result_file)
         );
-        
+
         $proc = proc_open(
             $cmd,
             [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
             $pipes
         );
-        
+
         $timeout = time() + 5;
         while (!file_exists($sync_file) && time() < $timeout) {
             usleep(100000);
         }
-        
+
         $this->assertTrue(file_exists($sync_file), 'PSubscriber should signal ready');
-        
+
         $this->valkey_glide->publish($channel, $message);
-        
+
         $success = false;
         $timeout = time() + 5;
         while (!$success && time() < $timeout) {
@@ -202,13 +206,15 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             }
             usleep(100000);
         }
-        
-        foreach ($pipes as $pipe) @fclose($pipe);
+
+        foreach ($pipes as $pipe) {
+            @fclose($pipe);
+        }
         @proc_terminate($proc);
         @proc_close($proc);
         @unlink($sync_file);
         @unlink($result_file);
-        
+
         $this->assertTrue($success, 'Pattern subscription should work in cluster mode');
     }
 }
