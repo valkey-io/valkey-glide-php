@@ -61,6 +61,9 @@ extern struct CommandResult* command(
 
 extern void free_command_result(struct CommandResult* command_result_ptr);
 
+extern const char* register_pubsub_callback(const void* client_adapter_ptr, PubSubCallback pubsub_callback);
+extern const char* unregister_pubsub_callback(const void* client_adapter_ptr);
+
 // Mutex wrapper functions
 void mutex_init(mutex_t *m);
 void mutex_lock(mutex_t *m);
@@ -71,8 +74,8 @@ void mutex_destroy(mutex_t *m);
 void init_pubsub_callbacks(void);
 void cleanup_callback_info(zval *zv);
 void cleanup_callback_info_ptr(void *ptr);
-void register_pubsub_callback(uintptr_t client_ptr, zval *callback, zval *client_obj);
-void unregister_pubsub_callback(uintptr_t client_ptr);
+void php_register_pubsub_callback(uintptr_t client_ptr, zval *callback, zval *client_obj);
+void php_unregister_pubsub_callback(uintptr_t client_ptr);
 zval* find_pubsub_callback(const char *client_key);
 void remove_pubsub_callback(const char *client_key);
 bool is_client_in_subscribe_mode(uintptr_t client_ptr);
