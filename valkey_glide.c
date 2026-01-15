@@ -8,28 +8,26 @@
 #include "cluster_scan_cursor.h"          // Include ClusterScanCursor class
 #include "cluster_scan_cursor_arginfo.h"  // Include ClusterScanCursor arginfo header
 #include "common.h"
+#include "include/glide_bindings.h"
 #include "logger.h"          // Include logger functionality
 #include "logger_arginfo.h"  // Include logger functions arginfo - MUST BE LAST for ext_functions
 #include "valkey_glide_arginfo.h"          // Include generated arginfo header
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_core_common.h"
 #include "valkey_glide_pubsub_common.h"
 #include "valkey_glide_pubsub_introspection.h"
-#include "valkey_glide_core_common.h"
-#include "include/glide_bindings.h"
 
 // FFI function declarations
-extern struct CommandResult* command(
-    const void* client_adapter_ptr,
-    uintptr_t request_id,
-    enum RequestType command_type,
-    unsigned long arg_count,
-    const uintptr_t* args,
-    const unsigned long* args_len,
-    const uint8_t* route_bytes,
-    uintptr_t route_bytes_len,
-    uint64_t span_ptr
-);
+extern struct CommandResult* command(const void*          client_adapter_ptr,
+                                     uintptr_t            request_id,
+                                     enum RequestType     command_type,
+                                     unsigned long        arg_count,
+                                     const uintptr_t*     args,
+                                     const unsigned long* args_len,
+                                     const uint8_t*       route_bytes,
+                                     uintptr_t            route_bytes_len,
+                                     uint64_t             span_ptr);
 
 extern void free_command_result(struct CommandResult* command_result_ptr);
 
@@ -707,7 +705,8 @@ CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlide)
 PHP_METHOD(ValkeyGlide, ssubscribe) { /* TODO: Implement */
 }
 PHP_METHOD(ValkeyGlide, subscribe) {
-    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     if (!valkey_glide->glide_client) {
         zend_throw_exception(zend_ce_exception, "Client not connected", 0);
         RETURN_FALSE;
@@ -716,7 +715,8 @@ PHP_METHOD(ValkeyGlide, subscribe) {
 }
 
 PHP_METHOD(ValkeyGlide, psubscribe) {
-    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     if (!valkey_glide->glide_client) {
         zend_throw_exception(zend_ce_exception, "Client not connected", 0);
         RETURN_FALSE;
@@ -725,7 +725,8 @@ PHP_METHOD(ValkeyGlide, psubscribe) {
 }
 
 PHP_METHOD(ValkeyGlide, unsubscribe) {
-    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     if (!valkey_glide->glide_client) {
         zend_throw_exception(zend_ce_exception, "Client not connected", 0);
         RETURN_FALSE;
@@ -734,7 +735,8 @@ PHP_METHOD(ValkeyGlide, unsubscribe) {
 }
 
 PHP_METHOD(ValkeyGlide, punsubscribe) {
-    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     if (!valkey_glide->glide_client) {
         zend_throw_exception(zend_ce_exception, "Client not connected", 0);
         RETURN_FALSE;
@@ -743,9 +745,9 @@ PHP_METHOD(ValkeyGlide, punsubscribe) {
 }
 
 
-
 PHP_METHOD(ValkeyGlide, publish) {
-    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     if (!valkey_glide->glide_client) {
         zend_throw_exception(zend_ce_exception, "Client not connected", 0);
         RETURN_FALSE;
@@ -754,7 +756,8 @@ PHP_METHOD(ValkeyGlide, publish) {
 }
 
 PHP_METHOD(ValkeyGlide, pubsub) {
-    valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     if (!valkey_glide->glide_client) {
         zend_throw_exception(zend_ce_exception, "Client not connected", 0);
         RETURN_FALSE;

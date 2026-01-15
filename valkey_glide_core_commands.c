@@ -193,10 +193,11 @@ uint8_t* create_connection_request(size_t*                                   len
     }
 
     /* Enable pubsub infrastructure for dynamic subscriptions */
-    ConnectionRequest__PubSubSubscriptions pubsub_subs = CONNECTION_REQUEST__PUB_SUB_SUBSCRIPTIONS__INIT;
+    ConnectionRequest__PubSubSubscriptions pubsub_subs =
+        CONNECTION_REQUEST__PUB_SUB_SUBSCRIPTIONS__INIT;
     pubsub_subs.n_channels_or_patterns_by_type = 0;
-    pubsub_subs.channels_or_patterns_by_type = NULL;
-    conn_req.pubsub_subscriptions = &pubsub_subs;
+    pubsub_subs.channels_or_patterns_by_type   = NULL;
+    conn_req.pubsub_subscriptions              = &pubsub_subs;
 
     /* Calculate the size of the serialized message */
     *len = connection_request__connection_request__get_packed_size(&conn_req);
@@ -233,8 +234,7 @@ static const ConnectionResponse* create_base_glide_client(
     client_type.tag = SyncClient;
 
     /* Create the client without pubsub callback - callbacks are registered dynamically */
-    const ConnectionResponse* conn_resp =
-        create_client(request_bytes, len, &client_type, NULL);
+    const ConnectionResponse* conn_resp = create_client(request_bytes, len, &client_type, NULL);
 
     /* Free the request bytes as they're no longer needed */
     efree(request_bytes);

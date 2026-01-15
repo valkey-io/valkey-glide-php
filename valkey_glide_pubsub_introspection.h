@@ -8,4 +8,4 @@
 // PUBSUB introspection command implementation
 void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
 
-#endif // VALKEY_GLIDE_PUBSUB_INTROSPECTION_H
+#endif  // VALKEY_GLIDE_PUBSUB_INTROSPECTION_H
