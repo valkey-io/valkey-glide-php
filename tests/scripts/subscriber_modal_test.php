@@ -1,4 +1,5 @@
 <?php
+
 // Subscriber script for modal mode test
 
 $host = $argv[1];
@@ -20,7 +21,7 @@ try {
 // Signal ready
 file_put_contents($sync_file, '1');
 
-$client->subscribe([$channel], function($client, $ch, $msg) use ($result_file) {
+$client->subscribe([$channel], function ($client, $ch, $msg) use ($result_file) {
     try {
         // Try to call GET - should fail
         $client->get('some_key');
@@ -35,7 +36,7 @@ $client->subscribe([$channel], function($client, $ch, $msg) use ($result_file) {
             file_put_contents($result_file, 'FAIL');
         }
     }
-    
+
     // Unsubscribe to exit
     $client->unsubscribe();
 });

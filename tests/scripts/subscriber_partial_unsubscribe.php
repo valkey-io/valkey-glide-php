@@ -1,4 +1,5 @@
 <?php
+
 // Subscriber script for testPubSubPartialUnsubscribe
 // Args: host, port, channel1, channel2, sync_file, result_file
 
@@ -12,7 +13,7 @@ $result_file = $argv[6];
 $sub = new ValkeyGlide([['host' => $host, 'port' => $port]]);
 file_put_contents($sync_file, 'ready');
 
-$sub->subscribe([$channel1, $channel2], function($client, $ch, $msg) use ($result_file, $channel1, $channel2) {
+$sub->subscribe([$channel1, $channel2], function ($client, $ch, $msg) use ($result_file, $channel1, $channel2) {
     if ($ch === $channel1) {
         // Unsubscribe from channel1 only - should NOT break loop
         $client->unsubscribe([$channel1]);

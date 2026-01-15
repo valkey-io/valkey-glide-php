@@ -1,4 +1,5 @@
 <?php
+
 // Publisher script for multi-process pubsub test
 // Usage: php publisher.php <host> <port> <channel> <message> <sync_file>
 
