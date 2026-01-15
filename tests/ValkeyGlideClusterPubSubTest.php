@@ -41,9 +41,8 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         
         // Start subscriber - use cluster port 7001
         $cmd = sprintf(
-            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s %s 2>/dev/null',
+            '%s %s %s %d %s %s %s %s 2>/dev/null',
             PHP_BINARY,
-            dirname(__DIR__),
             escapeshellarg($sub_script),
             escapeshellarg('127.0.0.1'),
             7001,
@@ -107,9 +106,8 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         
         // Start subscriber - use cluster port 7001
         $cmd = sprintf(
-            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s 2>/dev/null',
+            '%s %s %s %d %s %s %s 2>/dev/null',
             PHP_BINARY,
-            dirname(__DIR__),
             escapeshellarg($sub_script),
             escapeshellarg('127.0.0.1'),
             7001,
@@ -168,9 +166,8 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         $sub_script = __DIR__ . '/scripts/subscriber_psubscribe_cluster.php';
         
         $cmd = sprintf(
-            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s %s %s 2>/dev/null',
+            '%s %s %s %d %s %s %s %s %s 2>/dev/null',
             PHP_BINARY,
-            dirname(__DIR__),
             escapeshellarg($sub_script),
             escapeshellarg('127.0.0.1'),
             7001,

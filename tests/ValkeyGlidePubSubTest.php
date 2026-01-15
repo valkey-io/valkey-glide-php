@@ -44,9 +44,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         
         // Start subscriber
         $cmd = sprintf(
-            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s %s 2>/dev/null',
+            '%s %s %s %d %s %s %s %s 2>/dev/null',
             PHP_BINARY,
-            dirname(__DIR__),
             escapeshellarg($sub_script),
             escapeshellarg($this->getHost()),
             $this->getPort(),
@@ -113,9 +112,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         
         // Start subscriber
         $cmd = sprintf(
-            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s 2>/dev/null',
+            '%s %s %s %d %s %s %s 2>/dev/null',
             PHP_BINARY,
-            dirname(__DIR__),
             escapeshellarg($sub_script),
             escapeshellarg($this->getHost()),
             $this->getPort(),
@@ -176,9 +174,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $sub_script = __DIR__ . '/scripts/subscriber_partial_unsubscribe.php';
         
         $cmd = sprintf(
-            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s %s 2>/dev/null',
+            '%s %s %s %d %s %s %s %s 2>/dev/null',
             PHP_BINARY,
-            dirname(__DIR__),
             escapeshellarg($sub_script),
             escapeshellarg($this->getHost()),
             $this->getPort(),
@@ -239,9 +236,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $sub_script = __DIR__ . '/scripts/subscriber_modal_test.php';
         
         $cmd = sprintf(
-            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s 2>/dev/null',
+            '%s %s %s %d %s %s %s 2>/dev/null',
             PHP_BINARY,
-            dirname(__DIR__),
             escapeshellarg($sub_script),
             escapeshellarg($this->getHost()),
             $this->getPort(),
@@ -301,9 +297,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $sub_script = __DIR__ . '/scripts/subscriber_modal_subscribe_test.php';
         
         $cmd = sprintf(
-            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s 2>/dev/null',
+            '%s %s %s %d %s %s %s 2>/dev/null',
             PHP_BINARY,
-            dirname(__DIR__),
             escapeshellarg($sub_script),
             escapeshellarg($this->getHost()),
             $this->getPort(),
@@ -364,9 +359,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $sub_script = __DIR__ . '/scripts/subscriber_psubscribe.php';
         
         $cmd = sprintf(
-            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s 2>/dev/null',
+            '%s %s %s %d %s %s %s 2>/dev/null',
             PHP_BINARY,
-            dirname(__DIR__),
             escapeshellarg($sub_script),
             escapeshellarg($this->getHost()),
             $this->getPort(),
@@ -450,9 +444,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $sub_script = __DIR__ . '/scripts/subscriber_selective_unsubscribe.php';
         
         $cmd = sprintf(
-            '%s -n -d extension=%s/modules/valkey_glide.so %s %s %d %s %s %s %s 2>/dev/null',
+            '%s %s %s %d %s %s %s %s 2>/dev/null',
             PHP_BINARY,
-            dirname(__DIR__),
             escapeshellarg($sub_script),
             escapeshellarg($this->getHost()),
             $this->getPort(),
