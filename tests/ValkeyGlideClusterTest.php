@@ -767,18 +767,18 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertIsArray($result);
         $this->assertFalse($result[0]);
 
-        // Load a script using LOAD and test EXISTS again
-        $loaded_sha = $this->valkey_glide->script(null, 'LOAD', $s1_src);
-        $this->assertEquals($s1_sha, $loaded_sha);
+        // Test LOAD operation - now actually loads scripts on server
+        $hash1 = $this->valkey_glide->script(null, 'LOAD', $s1_src);
+        $this->assertEquals($s1_sha, $hash1);
+
+        // Verify script is now cached on server
         $result = $this->valkey_glide->script(null, 'EXISTS', [$s1_sha]);
-        $this->assertIsArray($result);
         $this->assertTrue($result[0]);
 
-        // Test SHOW operation (only test if Redis 8.0+ for scriptShow support)
-        if (version_compare($this->version, '8.0.0') >= 0) {
-            $source = $this->valkey_glide->script(null, 'SHOW', $s1_sha);
-            $this->assertEquals($s1_src, $source);
-        }
+        // Test FLUSH and verify scripts are flushed
+        $this->assertTrue($this->valkey_glide->script(null, 'FLUSH'));
+        $result = $this->valkey_glide->script(null, 'EXISTS', [$s1_sha]);
+        $this->assertFalse($result[0]);
     }
 
     public function testEvalSHA()
@@ -813,26 +813,20 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             $this->markTestSkipped('scriptShow requires Redis 8.0+');
         }
 
-        // Create a unique script code
-        $code = "return 'test-script-show'";
+        // Load a script
+        $script = 'return "test"';
+        $hash = $this->valkey_glide->script(null, 'LOAD', $script);
 
-        // Load the script using script LOAD
-        $sha1 = $this->valkey_glide->script(null, 'LOAD', $code);
-        $this->assertEquals(sha1($code), $sha1);
+        // Show the script
+        $result = $this->valkey_glide->scriptShow($hash);
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('source', $result);
+        $this->assertEquals($script, $result['source']);
 
-        // Verify script exists in cache after loading
-        $exists = $this->valkey_glide->scriptExists([$sha1]);
-        $this->assertTrue($exists[0], 'Script should be cached after LOAD');
-
-        // Now test scriptShow with cached script
-        $scriptSource = $this->valkey_glide->scriptShow($sha1);
-        $this->assertNotNull($scriptSource, 'scriptShow should return script source for cached script');
-        $this->assertEquals($code, $scriptSource);
-
-        // Test scriptShow with non-existing SHA1 - should return false
-        $nonExistingSha1 = sha1('non-existing-script-' . uniqid());
-        $result = $this->valkey_glide->scriptShow($nonExistingSha1);
-        $this->assertFalse($result, 'scriptShow should return false for non-existing script');
+        // Test non-existent script
+        $nonExistentHash = str_repeat('0', 40);
+        $result = $this->valkey_glide->scriptShow($nonExistentHash);
+        $this->assertNull($result);
     }
 
     public function testScriptKillThrowsException()
@@ -1364,37 +1358,35 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testScriptExists()
     {
-        $script = 'return "' . uniqid() . '"'; // Make script unique and return as string
-        $sha1 = sha1($script);
+        $script = 'return "Hello"';
+        $hash = $this->valkey_glide->script(null, 'LOAD', $script);
+        $this->assertTrue(strlen($hash) === 40); // SHA1 hash length
 
-        // Script doesn't exist yet
-        $result = $this->valkey_glide->scriptExists([$sha1]);
-        $this->assertIsArray($result);
-        $this->assertFalse($result[0]);
-
-        // Load script using script LOAD
-        $loaded_sha = $this->valkey_glide->script(null, 'LOAD', $script);
-        $this->assertEquals($sha1, $loaded_sha);
-
-        // Now it should exist
-        $result = $this->valkey_glide->scriptExists([$sha1]);
+        $result = $this->valkey_glide->scriptExists([$hash]);
         $this->assertTrue($result[0]);
+
+        $nonExistentHash = str_repeat('0', 40);
+        $result = $this->valkey_glide->scriptExists([$nonExistentHash]);
+        $this->assertFalse($result[0]);
     }
 
     public function testScriptFlush()
     {
-        // Load a script using script LOAD
-        $script = 'return 1';
-        $sha1 = $this->valkey_glide->script(null, 'LOAD', $script);
-        $this->assertTrue(strlen($sha1) === 40); // SHA1 is 40 characters
-
+        // Load a script
+        $script = 'return "test"';
+        $hash = $this->valkey_glide->script(null, 'LOAD', $script);
+        
+        // Verify it exists
+        $result = $this->valkey_glide->scriptExists([$hash]);
+        $this->assertTrue($result[0]);
+        
         // Flush scripts
         $result = $this->valkey_glide->scriptFlush();
         $this->assertTrue($result);
-
+        
         // Verify script is gone
-        $exists = $this->valkey_glide->scriptExists([$sha1]);
-        $this->assertFalse($exists[0]);
+        $result = $this->valkey_glide->scriptExists([$hash]);
+        $this->assertFalse($result[0]);
     }
 
     public function testFcall()

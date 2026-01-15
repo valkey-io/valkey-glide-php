@@ -799,19 +799,38 @@ static int process_script_operation(valkey_glide_object* valkey_glide,
                     result, "ScriptFlush", return_value);
             }
         } else if (strcasecmp(operation, "LOAD") == 0) {
-            /* TODO: Add scriptLoad to glide-core:
-             * https://github.com/valkey-io/valkey-glide-php/issues/113 */
             if (args_count < 1 || Z_TYPE(z_args[0]) != IS_STRING) {
                 return 0;
             }
 
             char* script_code = Z_STRVAL(z_args[0]);
-            char* hash        = store_script_and_get_hash(script_code);
 
+            // Store in client cache and get hash
+            char* hash = store_script_and_get_hash(script_code);
             if (!hash) {
                 return 0;
             }
 
+            // Send SCRIPT LOAD to server using custom command
+            uintptr_t cmd_args[3] = {
+                (uintptr_t) "SCRIPT", (uintptr_t) "LOAD", (uintptr_t) script_code};
+            unsigned long cmd_args_len[3] = {6,  // strlen("SCRIPT")
+                                             4,  // strlen("LOAD")
+                                             strlen(script_code)};
+
+            CommandResult* result = execute_command(
+                valkey_glide->glide_client, CustomCommand, 3, cmd_args, cmd_args_len);
+
+            // Check if command succeeded
+            if (!result || result->command_error) {
+                if (result) {
+                    free_command_result(result);
+                }
+                efree(hash);
+                return 0;
+            }
+
+            free_command_result(result);
             ZVAL_STRING(return_value, hash);
             efree(hash);
             return 1;
