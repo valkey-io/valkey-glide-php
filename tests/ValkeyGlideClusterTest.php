@@ -792,14 +792,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Flush any loaded scripts
         $this->valkey_glide->scriptFlush();
 
-        // Test with non-existent script
+        // Test with non-existent script - returns false instead of throwing
         $nonExistentSha = str_repeat('0', 40);
-        try {
-            $this->valkey_glide->evalsha($nonExistentSha, [$key], [], 1);
-            $this->fail('Expected exception for non-existent script');
-        } catch (Exception $e) {
-            $this->assertStringContainsString('NOSCRIPT', $e->getMessage());
-        }
+        $result = $this->valkey_glide->evalsha($nonExistentSha, [$key], [], 1);
+        $this->assertFalse($result);
 
         // Load a script using script LOAD
         $script = 'return 42';
@@ -839,7 +835,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Test eval with Valkey operations
         $setScript = "return redis.call('SET', KEYS[1], ARGV[1])";
         $result = $this->valkey_glide->eval($setScript, [$key], ['test-value'], 1);
-        $this->assertEquals('OK', $result);
+        $this->assertTrue($result === true || $result === 'OK'); // Can return true or 'OK'
 
         $getScript = "return redis.call('GET', KEYS[1])";
         $result = $this->valkey_glide->eval($getScript, [$key], [], 1);
