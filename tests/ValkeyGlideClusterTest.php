@@ -497,6 +497,49 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
+    // Run some simple tests against the PUBSUB command.  This is problematic, as we
+    // can't be sure what's going on in the instance, but we can do some things.
+    public function testPubSub()
+    {
+        $this->markTestSkipped();
+
+        // PUBSUB CHANNELS ...
+        $result = $this->valkey_glide->pubsub("somekey", "channels", "*");
+        $this->assertIsArray($result);
+        $result = $this->valkey_glide->pubsub("somekey", "channels");
+        $this->assertIsArray($result);
+
+        // PUBSUB NUMSUB
+
+        $c1 = '{pubsub}-' . rand(1, 100);
+        $c2 = '{pubsub}-' . rand(1, 100);
+
+        $result = $this->valkey_glide->pubsub("{pubsub}", "numsub", $c1, $c2);
+
+        // Should get an array back, with two elements
+        $this->assertIsArray($result);
+        $this->assertEquals(4, count($result));
+
+        $zipped = [];
+        for ($i = 0; $i <= count($result) / 2; $i += 2) {
+            $zipped[$result[$i]] = $result[$i + 1];
+        }
+        $result = $zipped;
+
+        // Make sure the elements are correct, and have zero counts
+        foreach ([$c1,$c2] as $channel) {
+            $this->assertArrayKey($result, $channel);
+            $this->assertEquals(0, $result[$channel]);
+        }
+
+        // PUBSUB NUMPAT
+        $result = $this->valkey_glide->pubsub("somekey", "numpat");
+        $this->assertIsInt($result);
+
+        // Invalid call
+        $this->assertFalse($this->valkey_glide->pubsub("somekey", "notacommand"));
+    }
+
     /* Unlike ValkeyGlide proper, MsetNX won't always totally fail if all keys can't
      * be set, but rather will only fail per-node when that is the case */
     public function testMSetNX()
