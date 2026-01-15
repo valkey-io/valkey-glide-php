@@ -353,3 +353,85 @@ void execute_evalsha_ro_command(zval* object, int argc, zval* return_value, bool
 
     efree(params);
 }
+
+
+// Helper function for script exists command
+void execute_script_exists_command(zval* object, zval* sha1s, zval* return_value, bool is_cluster) {
+    if (Z_TYPE_P(sha1s) != IS_ARRAY) {
+        RETURN_FALSE;
+    }
+
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+
+    int            count        = zend_hash_num_elements(Z_ARRVAL_P(sha1s));
+    uintptr_t*     cmd_args     = emalloc(sizeof(uintptr_t) * count);
+    unsigned long* cmd_args_len = emalloc(sizeof(unsigned long) * count);
+
+    int   idx = 0;
+    zval* entry;
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(sha1s), entry) {
+        convert_to_string(entry);
+        cmd_args[idx]     = (uintptr_t) Z_STRVAL_P(entry);
+        cmd_args_len[idx] = Z_STRLEN_P(entry);
+        idx++;
+    }
+    ZEND_HASH_FOREACH_END();
+
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, ScriptExists, count, cmd_args, cmd_args_len);
+
+    efree(cmd_args);
+    efree(cmd_args_len);
+
+    if (!result || result->command_error || !result->response) {
+        if (result) {
+            free_command_result(result);
+        }
+        RETURN_FALSE;
+    }
+
+    command_response_to_zval(result->response, return_value, 0, false);
+    free_command_result(result);
+}
+
+// Helper function for script show command
+void execute_script_show_command(
+    zval* object, char* sha1, size_t sha1_len, zval* return_value, bool is_cluster) {
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+
+    uintptr_t     cmd_args[1]     = {(uintptr_t) sha1};
+    unsigned long cmd_args_len[1] = {sha1_len};
+
+    CommandResult* result =
+        execute_command(valkey_glide->glide_client, ScriptShow, 1, cmd_args, cmd_args_len);
+
+    if (!result || result->command_error || !result->response) {
+        if (result) {
+            free_command_result(result);
+        }
+        RETURN_NULL();
+    }
+
+    command_response_to_zval(result->response, return_value, 0, false);
+    free_command_result(result);
+}
+
+// Helper function for script kill command
+void execute_script_kill_command(zval* object, zval* return_value, bool is_cluster) {
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+
+    CommandResult* result = execute_command(valkey_glide->glide_client, ScriptKill, 0, NULL, NULL);
+
+    if (!result || result->command_error) {
+        if (result) {
+            free_command_result(result);
+        }
+        RETURN_FALSE;
+    }
+
+    command_response_to_zval(result->response, return_value, 0, false);
+    free_command_result(result);
+}
