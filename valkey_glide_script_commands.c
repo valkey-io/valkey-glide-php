@@ -79,54 +79,277 @@ void execute_script_flush_command(zval* object, zval* return_value, bool is_clus
     handle_script_bool_result(result, return_value);
 }
 
-// Helper function for script exists command
-void execute_script_exists_command(zval* object, zval* sha1s, zval* return_value, bool is_cluster) {
+
+// Helper to build and execute eval-style commands
+static void execute_eval_style_command(const char* cmd_name,
+                                       size_t      cmd_len,
+                                       char*       script_or_sha,
+                                       size_t      script_len,
+                                       zval*       keys_array,
+                                       zval*       args_array,
+                                       zend_long   num_keys,
+                                       bool        num_keys_set,
+                                       zval*       object,
+                                       zval*       return_value) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide || !valkey_glide->glide_client) {
-        ZVAL_FALSE(return_value);
-        return;
+
+    int keys_count = keys_array ? zend_hash_num_elements(Z_ARRVAL_P(keys_array)) : 0;
+    int args_count = args_array ? zend_hash_num_elements(Z_ARRVAL_P(args_array)) : 0;
+
+    if (!num_keys_set) {
+        num_keys = keys_count;
     }
 
-    int            count    = zend_hash_num_elements(Z_ARRVAL_P(sha1s));
-    uintptr_t*     args     = emalloc(sizeof(uintptr_t) * count);
-    unsigned long* args_len = emalloc(sizeof(unsigned long) * count);
-    zval*          entry;
-    int            i = 0;
+    int            cmd_count = 3 + keys_count + args_count;  // cmd + script + numkeys + keys + args
+    uintptr_t*     cmd_args  = emalloc(sizeof(uintptr_t) * cmd_count);
+    unsigned long* cmd_args_len = emalloc(sizeof(unsigned long) * cmd_count);
 
-    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(sha1s), entry) {
-        convert_to_string(entry);
-        args[i]     = (uintptr_t) Z_STRVAL_P(entry);
-        args_len[i] = Z_STRLEN_P(entry);
-        i++;
+    int idx             = 0;
+    cmd_args[idx]       = (uintptr_t) cmd_name;
+    cmd_args_len[idx++] = cmd_len;
+
+    cmd_args[idx]       = (uintptr_t) script_or_sha;
+    cmd_args_len[idx++] = script_len;
+
+    char numkeys_str[32];
+    snprintf(numkeys_str, sizeof(numkeys_str), "%lld", (long long) num_keys);
+    cmd_args[idx]       = (uintptr_t) numkeys_str;
+    cmd_args_len[idx++] = strlen(numkeys_str);
+
+    if (keys_array) {
+        zval* entry;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(keys_array), entry) {
+            convert_to_string(entry);
+            cmd_args[idx]       = (uintptr_t) Z_STRVAL_P(entry);
+            cmd_args_len[idx++] = Z_STRLEN_P(entry);
+        }
+        ZEND_HASH_FOREACH_END();
     }
-    ZEND_HASH_FOREACH_END();
 
-    CommandResult* result =
-        execute_command(valkey_glide->glide_client, ScriptExists, count, args, args_len);
-    efree(args);
-    efree(args_len);
+    if (args_array) {
+        zval* entry;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(args_array), entry) {
+            convert_to_string(entry);
+            cmd_args[idx]       = (uintptr_t) Z_STRVAL_P(entry);
+            cmd_args_len[idx++] = Z_STRLEN_P(entry);
+        }
+        ZEND_HASH_FOREACH_END();
+    }
 
-    handle_function_command_result_or_return_false(result, "ScriptExists", return_value);
+    CommandResult* result = execute_command(
+        valkey_glide->glide_client, CustomCommand, cmd_count, cmd_args, cmd_args_len);
+
+    efree(cmd_args);
+    efree(cmd_args_len);
+
+    if (!result || result->command_error) {
+        if (result) {
+            free_command_result(result);
+        }
+        RETURN_FALSE;
+    }
+
+    command_response_to_zval(result->response, return_value, 0, false);
+    free_command_result(result);
 }
 
-// Helper function for script show command
-void execute_script_show_command(
-    zval* object, char* sha1, size_t sha1_len, zval* return_value, bool is_cluster) {
-    valkey_glide_object* valkey_glide =
-        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    uintptr_t     args[]     = {(uintptr_t) sha1};
-    unsigned long args_len[] = {sha1_len};
+void execute_eval_command(zval* object, int argc, zval* return_value, bool is_cluster) {
+    char*     script;
+    size_t    script_len;
+    zval*     keys_array   = NULL;
+    zval*     args_array   = NULL;
+    zend_long num_keys     = 0;
+    bool      num_keys_set = false;
 
-    CommandResult* result =
-        execute_command(valkey_glide->glide_client, ScriptShow, 1, args, args_len);
-    handle_function_command_result_or_return_false(result, "ScriptShow", return_value);
+    if (argc < 1 || argc > 4) {
+        RETURN_FALSE;
+    }
+
+    zval* params = emalloc(sizeof(zval) * argc);
+    if (zend_get_parameters_array_ex(argc, params) == FAILURE) {
+        efree(params);
+        RETURN_FALSE;
+    }
+
+    if (Z_TYPE(params[0]) != IS_STRING) {
+        efree(params);
+        RETURN_FALSE;
+    }
+    script     = Z_STRVAL(params[0]);
+    script_len = Z_STRLEN(params[0]);
+
+    if (argc >= 2 && Z_TYPE(params[1]) == IS_ARRAY) {
+        keys_array = &params[1];
+    }
+    if (argc >= 3 && Z_TYPE(params[2]) == IS_ARRAY) {
+        args_array = &params[2];
+    }
+    if (argc >= 4 && Z_TYPE(params[3]) == IS_LONG) {
+        num_keys     = Z_LVAL(params[3]);
+        num_keys_set = true;
+    }
+
+    execute_eval_style_command("EVAL",
+                               4,
+                               script,
+                               script_len,
+                               keys_array,
+                               args_array,
+                               num_keys,
+                               num_keys_set,
+                               object,
+                               return_value);
+
+    efree(params);
 }
 
-// Helper function for script kill command
-void execute_script_kill_command(zval* object, zval* return_value, bool is_cluster) {
-    valkey_glide_object* valkey_glide =
-        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    CommandResult* result = execute_command(valkey_glide->glide_client, ScriptKill, 0, NULL, NULL);
-    handle_function_command_result_or_return_false(result, "ScriptKill", return_value);
+void execute_evalsha_command(zval* object, int argc, zval* return_value, bool is_cluster) {
+    char*     sha1;
+    size_t    sha1_len;
+    zval*     keys_array   = NULL;
+    zval*     args_array   = NULL;
+    zend_long num_keys     = 0;
+    bool      num_keys_set = false;
+
+    if (argc < 1 || argc > 4) {
+        RETURN_FALSE;
+    }
+
+    zval* params = emalloc(sizeof(zval) * argc);
+    if (zend_get_parameters_array_ex(argc, params) == FAILURE) {
+        efree(params);
+        RETURN_FALSE;
+    }
+
+    if (Z_TYPE(params[0]) != IS_STRING) {
+        efree(params);
+        RETURN_FALSE;
+    }
+    sha1     = Z_STRVAL(params[0]);
+    sha1_len = Z_STRLEN(params[0]);
+
+    if (argc >= 2 && Z_TYPE(params[1]) == IS_ARRAY) {
+        keys_array = &params[1];
+    }
+    if (argc >= 3 && Z_TYPE(params[2]) == IS_ARRAY) {
+        args_array = &params[2];
+    }
+    if (argc >= 4 && Z_TYPE(params[3]) == IS_LONG) {
+        num_keys     = Z_LVAL(params[3]);
+        num_keys_set = true;
+    }
+
+    execute_eval_style_command("EVALSHA",
+                               7,
+                               sha1,
+                               sha1_len,
+                               keys_array,
+                               args_array,
+                               num_keys,
+                               num_keys_set,
+                               object,
+                               return_value);
+
+    efree(params);
+}
+
+void execute_eval_ro_command(zval* object, int argc, zval* return_value, bool is_cluster) {
+    char*     script;
+    size_t    script_len;
+    zval*     keys_array   = NULL;
+    zval*     args_array   = NULL;
+    zend_long num_keys     = 0;
+    bool      num_keys_set = false;
+
+    if (argc < 1 || argc > 4) {
+        RETURN_FALSE;
+    }
+
+    zval* params = emalloc(sizeof(zval) * argc);
+    if (zend_get_parameters_array_ex(argc, params) == FAILURE) {
+        efree(params);
+        RETURN_FALSE;
+    }
+
+    if (Z_TYPE(params[0]) != IS_STRING) {
+        efree(params);
+        RETURN_FALSE;
+    }
+    script     = Z_STRVAL(params[0]);
+    script_len = Z_STRLEN(params[0]);
+
+    if (argc >= 2 && Z_TYPE(params[1]) == IS_ARRAY) {
+        keys_array = &params[1];
+    }
+    if (argc >= 3 && Z_TYPE(params[2]) == IS_ARRAY) {
+        args_array = &params[2];
+    }
+    if (argc >= 4 && Z_TYPE(params[3]) == IS_LONG) {
+        num_keys     = Z_LVAL(params[3]);
+        num_keys_set = true;
+    }
+
+    execute_eval_style_command("EVAL_RO",
+                               7,
+                               script,
+                               script_len,
+                               keys_array,
+                               args_array,
+                               num_keys,
+                               num_keys_set,
+                               object,
+                               return_value);
+
+    efree(params);
+}
+
+void execute_evalsha_ro_command(zval* object, int argc, zval* return_value, bool is_cluster) {
+    char*     sha1;
+    size_t    sha1_len;
+    zval*     keys_array   = NULL;
+    zval*     args_array   = NULL;
+    zend_long num_keys     = 0;
+    bool      num_keys_set = false;
+
+    if (argc < 1 || argc > 4) {
+        RETURN_FALSE;
+    }
+
+    zval* params = emalloc(sizeof(zval) * argc);
+    if (zend_get_parameters_array_ex(argc, params) == FAILURE) {
+        efree(params);
+        RETURN_FALSE;
+    }
+
+    if (Z_TYPE(params[0]) != IS_STRING) {
+        efree(params);
+        RETURN_FALSE;
+    }
+    sha1     = Z_STRVAL(params[0]);
+    sha1_len = Z_STRLEN(params[0]);
+
+    if (argc >= 2 && Z_TYPE(params[1]) == IS_ARRAY) {
+        keys_array = &params[1];
+    }
+    if (argc >= 3 && Z_TYPE(params[2]) == IS_ARRAY) {
+        args_array = &params[2];
+    }
+    if (argc >= 4 && Z_TYPE(params[3]) == IS_LONG) {
+        num_keys     = Z_LVAL(params[3]);
+        num_keys_set = true;
+    }
+
+    execute_eval_style_command("EVALSHA_RO",
+                               10,
+                               sha1,
+                               sha1_len,
+                               keys_array,
+                               args_array,
+                               num_keys,
+                               num_keys_set,
+                               object,
+                               return_value);
+
+    efree(params);
 }

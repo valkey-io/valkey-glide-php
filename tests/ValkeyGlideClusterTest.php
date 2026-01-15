@@ -783,28 +783,102 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testEvalSHA()
     {
-        // Eval and EvalSha are not supported in PHP for now because it requires code change in glide_core for Eval and EvalSha.
-        // Remove this comment after Eval and EvalSha is supported and also uncomment the test below for the same.
-        $this->markTestSkipped();
+        if (version_compare($this->version, '2.5.0') < 0) {
+            $this->markTestSkipped();
+        }
 
-        $key = uniqid() . '-' . rand(1, 1000);
+        $key = '{eval-test}-' . uniqid();
 
         // Flush any loaded scripts
         $this->valkey_glide->scriptFlush();
 
-        // Non existent script (but proper sha1), and a random (not) sha1 string
-        $this->assertFalse($this->valkey_glide->evalsha(sha1(uniqid()), [$key], 1));
-        $this->assertFalse($this->valkey_glide->evalsha('some-random-data', [$key], 1));
+        // Test with non-existent script
+        $nonExistentSha = str_repeat('0', 40);
+        try {
+            $this->valkey_glide->evalsha($nonExistentSha, [$key], [], 1);
+            $this->fail('Expected exception for non-existent script');
+        } catch (Exception $e) {
+            $this->assertStringContainsString('NOSCRIPT', $e->getMessage());
+        }
 
-        // Load a script
-        $cb  = uniqid(); // To ensure the script is new
-        $scr = "local cb='$cb' return 1";
-        $sha = sha1($scr);
+        // Load a script using script LOAD
+        $script = 'return 42';
+        $sha = $this->valkey_glide->script(null, 'LOAD', $script);
 
-        // Run it when it doesn't exist, run it with eval, and then run it with sha1
-        $this->assertFalse($this->valkey_glide->evalsha($sha, [$key], 1));
-        $this->assertEquals(1, $this->valkey_glide->eval($scr, [$key], 1));
-        $this->assertEquals(1, $this->valkey_glide->evalsha($sha, [$key], 1));
+        // Execute using evalsha
+        $result = $this->valkey_glide->evalsha($sha);
+        $this->assertEquals(42, $result);
+
+        // Test evalsha with keys
+        $script2 = 'return {KEYS[1], ARGV[1]}';
+        $sha2 = $this->valkey_glide->script(null, 'LOAD', $script2);
+        $result = $this->valkey_glide->evalsha($sha2, [$key], ['myarg'], 1);
+        $this->assertEquals([$key, 'myarg'], $result);
+    }
+
+    public function testEval()
+    {
+        if (version_compare($this->version, '2.5.0') < 0) {
+            $this->markTestSkipped();
+        }
+
+        $key = '{eval-test}-' . uniqid();
+
+        // Test basic eval
+        $this->assertEquals(1, $this->valkey_glide->eval('return 1'));
+        $this->assertEquals('Hello', $this->valkey_glide->eval("return 'Hello'"));
+
+        // Test eval with keys and args
+        $script = 'return {KEYS[1], ARGV[1]}';
+        $result = $this->valkey_glide->eval($script, [$key], ['value'], 1);
+        $this->assertEquals([$key, 'value'], $result);
+
+        // Test eval with Valkey operations
+        $setScript = "return redis.call('SET', KEYS[1], ARGV[1])";
+        $result = $this->valkey_glide->eval($setScript, [$key], ['test-value'], 1);
+        $this->assertEquals('OK', $result);
+
+        $getScript = "return redis.call('GET', KEYS[1])";
+        $result = $this->valkey_glide->eval($getScript, [$key], [], 1);
+        $this->assertEquals('test-value', $result);
+
+        $this->valkey_glide->del($key);
+    }
+
+    public function testEvalRo()
+    {
+        if (version_compare($this->version, '7.0.0') < 0) {
+            $this->markTestSkipped('EVAL_RO requires Valkey 7.0+');
+        }
+
+        $key = '{eval-ro-test}-' . uniqid();
+
+        // Test basic eval_ro
+        $result = $this->valkey_glide->eval_ro('return "readonly"');
+        $this->assertEquals('readonly', $result);
+
+        // Test eval_ro with keys
+        $this->valkey_glide->set($key, 'test-value');
+        $script = "return redis.call('GET', KEYS[1])";
+        $result = $this->valkey_glide->eval_ro($script, [$key], [], 1);
+        $this->assertEquals('test-value', $result);
+
+        $this->valkey_glide->del($key);
+    }
+
+    public function testEvalshaRo()
+    {
+        if (version_compare($this->version, '7.0.0') < 0) {
+            $this->markTestSkipped('EVALSHA_RO requires Valkey 7.0+');
+        }
+
+        // Load a read-only script
+        $script = 'return "readonly from sha"';
+        $sha = $this->valkey_glide->script(null, 'LOAD', $script);
+
+        // Execute using evalsha_ro
+        $result = $this->valkey_glide->evalsha_ro($sha);
+        $this->assertEquals('readonly from sha', $result);
     }
 
     public function testScriptShow()
@@ -1375,15 +1449,15 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Load a script
         $script = 'return "test"';
         $hash = $this->valkey_glide->script(null, 'LOAD', $script);
-        
+
         // Verify it exists
         $result = $this->valkey_glide->scriptExists([$hash]);
         $this->assertTrue($result[0]);
-        
+
         // Flush scripts
         $result = $this->valkey_glide->scriptFlush();
         $this->assertTrue($result);
-        
+
         // Verify script is gone
         $result = $this->valkey_glide->scriptExists([$hash]);
         $this->assertFalse($result[0]);

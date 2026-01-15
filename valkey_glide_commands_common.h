@@ -248,6 +248,10 @@ void execute_script_show_command(
     zval* object, char* sha1, size_t sha1_len, zval* return_value, bool is_cluster);
 void  execute_script_kill_command(zval* object, zval* return_value, bool is_cluster);
 char* store_script_and_get_hash(const char* script);
+void  execute_eval_command(zval* object, int argc, zval* return_value, bool is_cluster);
+void  execute_evalsha_command(zval* object, int argc, zval* return_value, bool is_cluster);
+void  execute_eval_ro_command(zval* object, int argc, zval* return_value, bool is_cluster);
+void  execute_evalsha_ro_command(zval* object, int argc, zval* return_value, bool is_cluster);
 int   execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_load_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_list_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -1088,6 +1092,38 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
                                strcmp(#class_name, "ValkeyGlideCluster") == 0 \
                                    ? get_valkey_glide_cluster_ce()            \
                                    : get_valkey_glide_ce());                  \
+    }
+
+#define EVAL_METHOD_IMPL(class_name)                                          \
+    PHP_METHOD(class_name, eval) {                                            \
+        execute_eval_command(getThis(),                                       \
+                             ZEND_NUM_ARGS(),                                 \
+                             return_value,                                    \
+                             strcmp(#class_name, "ValkeyGlideCluster") == 0); \
+    }
+
+#define EVALSHA_METHOD_IMPL(class_name)                                          \
+    PHP_METHOD(class_name, evalsha) {                                            \
+        execute_evalsha_command(getThis(),                                       \
+                                ZEND_NUM_ARGS(),                                 \
+                                return_value,                                    \
+                                strcmp(#class_name, "ValkeyGlideCluster") == 0); \
+    }
+
+#define EVAL_RO_METHOD_IMPL(class_name)                                          \
+    PHP_METHOD(class_name, eval_ro) {                                            \
+        execute_eval_ro_command(getThis(),                                       \
+                                ZEND_NUM_ARGS(),                                 \
+                                return_value,                                    \
+                                strcmp(#class_name, "ValkeyGlideCluster") == 0); \
+    }
+
+#define EVALSHA_RO_METHOD_IMPL(class_name)                                          \
+    PHP_METHOD(class_name, evalsha_ro) {                                            \
+        execute_evalsha_ro_command(getThis(),                                       \
+                                   ZEND_NUM_ARGS(),                                 \
+                                   return_value,                                    \
+                                   strcmp(#class_name, "ValkeyGlideCluster") == 0); \
     }
 
 #define MULTI_METHOD_IMPL(class_name)                                            \
