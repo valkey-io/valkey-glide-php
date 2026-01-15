@@ -5287,6 +5287,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->markTestSkipped();
         }
 
+        // Flush scripts to ensure clean state
+        $this->valkey_glide->scriptFlush();
+
         // Test basic eval with simple return values
         $this->assertEquals(1, $this->valkey_glide->eval('return 1'));
         $this->assertEquals('Hello from Lua', $this->valkey_glide->eval("return 'Hello from Lua'"));
@@ -5404,11 +5407,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $script = 'return "test"';
         $hash = $this->valkey_glide->script('LOAD', $script);
 
-        // Show the script
+        // Show the script - returns the script source as a string
         $result = $this->valkey_glide->scriptShow($hash);
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('source', $result);
-        $this->assertEquals($script, $result['source']);
+        $this->assertIsString($result);
+        $this->assertEquals($script, $result);
 
         // Test non-existent script
         $nonExistentHash = str_repeat('0', 40);
