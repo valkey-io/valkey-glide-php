@@ -151,9 +151,10 @@ ini_set('display_errors', '1');
 $opt = getopt('', ['host:', 'port:', 'class:', 'test:', 'nocolors', 'user:', 'auth:', 'tls']);
 
 /* The test class(es) we want to run */
-$classes =
-    getClassArray($opt['class']
-        ?? 'connectionrequest,valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,valkeyglidepubsub,valkeyglideclusterpubsub,valkeyglideclusterfeatures,valkeyglideclientbatch,valkeyglideclusterbatch,updateconnectionpassword');
+$default_classes = 'connectionrequest,valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,';
+$default_classes .= 'valkeyglidepubsub,valkeyglideclusterpubsub,valkeyglideclusterfeatures,';
+$default_classes .= 'valkeyglideclientbatch,valkeyglideclusterbatch,updateconnectionpassword';
+$classes = getClassArray($opt['class'] ?? $default_classes);
 
 $colorize = !isset($opt['nocolors']);
 
