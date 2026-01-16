@@ -69,64 +69,47 @@ typedef struct {
 
 /* Common command options */
 typedef struct {
-    /* Expiry options */
-    long expire_seconds;
-    long expire_milliseconds;
-    long expire_at_seconds;      /* EXAT - expire at unix timestamp in seconds */
-    long expire_at_milliseconds; /* PXAT - expire at unix timestamp in milliseconds */
-    int  has_expire;
-    int  has_pexpire;
-    int  has_exat;
-    int  has_pxat;
-
-    /* Conditional options */
-    int nx; /* Only if not exists */
-    int xx; /* Only if exists */
-    int ch; /* Changed flag */
-
-    /* Range/limit options */
-    long start;
-    long end;
-    long offset;
-    long count;
-    int  has_range;
-    int  has_limit;
-
-    /* Special flags */
-    int get_old_value; /* GET flag for SET commands */
-    int keep_ttl;      /* KEEPTTL flag for SET commands */
-    int bybit;         /* BYBIT flag for bit commands */
-    int approximate;   /* ~ flag for approximate operations */
-    int persist;       /* PERSIST flag for GETEX commands */
-
-    /* SET command specific options */
     char*  ifeq_value; /* IFEQ comparison value */
     size_t ifeq_len;   /* IFEQ value length */
-    int    has_ifeq;   /* IFEQ flag */
+    long   expire_seconds;
+    long   expire_milliseconds;
+    long   expire_at_seconds;      /* EXAT - expire at unix timestamp in seconds */
+    long   expire_at_milliseconds; /* PXAT - expire at unix timestamp in milliseconds */
+    long   start;
+    long   end;
+    long   offset;
+    long   count;
+    int    has_expire;
+    int    has_pexpire;
+    int    has_exat;
+    int    has_pxat;
+    int    nx; /* Only if not exists */
+    int    xx; /* Only if exists */
+    int    ch; /* Changed flag */
+    int    has_range;
+    int    has_limit;
+    int    get_old_value; /* GET flag for SET commands */
+    int    keep_ttl;      /* KEEPTTL flag for SET commands */
+    int    bybit;         /* BYBIT flag for bit commands */
+    int    approximate;   /* ~ flag for approximate operations */
+    int    persist;       /* PERSIST flag for GETEX commands */
+    int    has_ifeq;      /* IFEQ flag */
 } core_options_t;
 
 /* Argument allocation type */
 /* Core command arguments structure - simplified without dynamic support */
 typedef struct {
     const void*      glide_client;
+    const char*      key;
+    zval*            route_param; /* Route parameter for cluster commands */
+    zval*            raw_options; /* Raw PHP options array for complex parsing */
+    size_t           key_len;
+    core_options_t   options;
+    core_arg_t       args[8]; /* Fixed arguments array - sufficient for current usage */
     enum RequestType cmd_type;
-
-    /* Primary key */
-    const char* key;
-    size_t      key_len;
-
-    /* Fixed arguments array - sufficient for current usage */
-    core_arg_t args[8];
-    int        arg_count;
-
-    /* Routing support for cluster commands */
-    zval*     route_param; /* Route parameter for cluster commands */
-    zend_bool is_cluster;  /* Flag to indicate cluster mode */
-    zend_bool has_route;   /* Flag to indicate route is provided */
-
-    /* Options */
-    core_options_t options;
-    zval*          raw_options; /* Raw PHP options array for complex parsing */
+    int              arg_count;
+    zend_bool        is_cluster; /* Flag to indicate cluster mode */
+    zend_bool        has_route;  /* Flag to indicate route is provided */
 } core_command_args_t;
 
 /* ====================================================================

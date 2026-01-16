@@ -29,13 +29,13 @@
  * Used for ZRANGE, ZREVRANGE, ZRANGEBYSCORE, etc.
  */
 typedef struct {
+    long limit_offset; /* LIMIT offset value */
+    long limit_count;  /* LIMIT count value */
     int  withscores;   /* WITHSCORES option */
     int  byscore;      /* BYSCORE option */
     int  bylex;        /* BYLEX option */
     int  rev;          /* REV option */
     int  has_limit;    /* Whether LIMIT is specified */
-    long limit_offset; /* LIMIT offset value */
-    long limit_count;  /* LIMIT count value */
 } range_options_t;
 
 /**
@@ -56,8 +56,8 @@ typedef struct {
  */
 typedef struct {
     zval* weights;       /* Weights array */
-    int   has_weights;   /* Whether weights are specified */
     zval* aggregate;     /* Aggregate option (SUM, MIN, MAX) */
+    int   has_weights;   /* Whether weights are specified */
     int   has_aggregate; /* Whether aggregate is specified */
     int   withscores;    /* WITHSCORES option */
 } store_options_t;
@@ -66,45 +66,28 @@ typedef struct {
  * Generic Z-command arguments structure
  */
 typedef struct {
-    /* Key arguments */
     const char* key;
-    size_t      key_len;
-
-    /* Member arguments */
     const char* member;
-    size_t      member_len;
-
-    /* Multiple members */
-    zval* members;
-    int   member_count;
-
-    /* Range arguments */
+    zval*       members;
     const char* min;
-    size_t      min_len;
     const char* max;
+    zval*       z_start;
+    zval*       z_end;
+    zval*       options;
+    zval*       weights;
+    long*       long_result;
+    double*     double_result;
+    zval*       zval_result;
+    size_t      key_len;
+    size_t      member_len;
+    size_t      min_len;
     size_t      max_len;
-
-    /* Numeric range arguments */
-    long start;
-    long end;
-
-    /* Score/increment arguments */
-    double score;
-    double increment;
-
-    /* Options */
-    zval* z_start;
-    zval* z_end;
-    zval* options;
-    zval* weights;
-
-    /* Command-specific flags */
-    int withscores;
-
-    /* Result destinations */
-    long*   long_result;
-    double* double_result;
-    zval*   zval_result;
+    double      score;
+    double      increment;
+    long        start;
+    long        end;
+    int         member_count;
+    int         withscores;
 } z_command_args_t;
 
 
@@ -118,8 +101,8 @@ typedef struct {
 typedef struct {
     z_result_processor_t processor;         /* Result processing function */
     void*                output_ptr;        /* Output pointer for results */
-    enum RequestType     cmd_type;          /* Command type for reference */
     char**               allocated_strings; /* Strings to free after batch */
+    enum RequestType     cmd_type;          /* Command type for reference */
     int                  allocated_count;   /* Number of allocated strings */
     int                  withscores;        /* For array result processing */
 } z_batch_state_t;

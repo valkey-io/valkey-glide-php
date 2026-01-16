@@ -1,5 +1,18 @@
 # Valgrind suppressions for ValkeyGlide PHP extension
 
+# Script storage container - possibly lost during script caching
+# Memory is managed by Rust glide_core and properly freed on client destruction
+{
+   script_storage_allocation
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*glide_core*scripts_container*add_script*
+   fun:store_script
+   fun:store_script_and_get_hash
+}
+
 # Cluster scan cursor container - possibly lost during hashmap resize
 # This appears to be related to scan cursor cleanup timing
 # TODO: Investigate proper cleanup in cluster_scan_container

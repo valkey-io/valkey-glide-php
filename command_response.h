@@ -51,7 +51,6 @@ CommandResult* execute_command_with_route(const void*          glide_client,
                                           const unsigned long* args_len,
                                           zval*                arg_route);
 
-
 /*
  * Handle a string response
  * Returns 1 on success, 0 if the key doesn't exist, -1 on error

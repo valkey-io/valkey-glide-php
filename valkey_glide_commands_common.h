@@ -20,10 +20,16 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <zend.h>
+#include <zend_exceptions.h>
 
+#include "command_response.h"
 #include "common.h"
 #include "include/glide/connection_request.pb-c.h"
 #include "include/glide_bindings.h"
+
+// Function declarations
+char* store_script_and_get_hash(const char* script);
 
 /* Forward declarations for types defined in glide_bindings.h */
 typedef struct CommandResponse    CommandResponse;
@@ -47,6 +53,57 @@ enum TLSMode {
      */
     InsecureTLS = 2,
 };
+
+/* Constants */
+#define SHA1_HASH_LENGTH 40
+
+/* Helper function to check if a string is a valid SHA1 hash */
+static inline bool is_sha1_hash(const char* str, size_t len) {
+    return len == SHA1_HASH_LENGTH && strspn(str, "0123456789abcdefABCDEF") == SHA1_HASH_LENGTH;
+}
+
+/* Helper function to handle command result with consistent error handling */
+static inline void handle_command_result_or_throw(CommandResult* result,
+                                                  const char*    command_name,
+                                                  zval*          return_value) {
+    if (!result) {
+        char* error_msg;
+        spprintf(&error_msg, 0, "%s: Failed to execute command", command_name);
+        zend_throw_exception(zend_ce_exception, error_msg, 0);
+        efree(error_msg);
+        return;
+    }
+    if (result->command_error) {
+        zend_throw_exception(zend_ce_exception, result->command_error->command_error_message, 0);
+        free_command_result(result);
+        return;
+    }
+    if (!result->response) {
+        char* error_msg = emalloc(strlen(command_name) + 25);
+        sprintf(error_msg, "%s: No response received", command_name);
+        zend_throw_exception(zend_ce_exception, error_msg, 0);
+        efree(error_msg);
+        free_command_result(result);
+        return;
+    }
+    command_response_to_zval(result->response, return_value, 0, false);
+    free_command_result(result);
+}
+
+// Helper that returns false on errors instead of throwing exceptions
+static inline int handle_function_command_result_or_return_false(CommandResult* result,
+                                                                 zval*          return_value) {
+    if (!result || result->command_error || !result->response) {
+        ZVAL_FALSE(return_value);
+        if (result) {
+            free_command_result(result);
+        }
+        return 0;
+    }
+    int status = command_response_to_zval(result->response, return_value, 0, false);
+    free_command_result(result);
+    return status;
+}
 
 /* ClientConfig removed - using valkey_glide_client_configuration_t instead */
 /* Forward declaration for ClientAdapter */
@@ -176,13 +233,50 @@ int execute_bitpos_command(zval* object, int argc, zval* return_value, zend_clas
 int execute_touch_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_wait_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_config_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_multi_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_pipeline_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_discard_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_fcall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_fcall_ro_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+
+/* Forward declarations for script command functions */
+void execute_script_flush_command(zval* object, zval* return_value, bool is_cluster);
+void execute_script_exists_command(zval* object, zval* sha1s, zval* return_value, bool is_cluster);
+void execute_script_show_command(
+    zval* object, char* sha1, size_t sha1_len, zval* return_value, bool is_cluster);
+void  execute_script_kill_command(zval* object, zval* return_value, bool is_cluster);
+char* store_script_and_get_hash(const char* script);
+void  execute_eval_command(zval* object, int argc, zval* return_value, bool is_cluster);
+void  execute_evalsha_command(zval* object, int argc, zval* return_value, bool is_cluster);
+void  execute_eval_ro_command(zval* object, int argc, zval* return_value, bool is_cluster);
+void  execute_evalsha_ro_command(zval* object, int argc, zval* return_value, bool is_cluster);
+int   execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_function_load_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_function_load_internal(valkey_glide_object* valkey_glide,
+                                   char*                library_code,
+                                   size_t               library_code_len,
+                                   zend_bool            replace,
+                                   zval*                return_value);
+int execute_function_list_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_function_flush_command(zval*             object,
+                                   int               argc,
+                                   zval*             return_value,
+                                   zend_class_entry* ce);
+int execute_function_delete_command(zval*             object,
+                                    int               argc,
+                                    zval*             return_value,
+                                    zend_class_entry* ce);
+int execute_function_dump_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_function_restore_command(zval*             object,
+                                     int               argc,
+                                     zval*             return_value,
+                                     zend_class_entry* ce);
+int execute_function_kill_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_function_stats_command(zval*             object,
+                                   int               argc,
+                                   zval*             return_value,
+                                   zend_class_entry* ce);
 int execute_dump_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_restore_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_expire_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -994,6 +1088,48 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         RETURN_FALSE;                                                               \
     }
 
+#define SCRIPT_METHOD_IMPL(class_name)                                        \
+    PHP_METHOD(class_name, script) {                                          \
+        execute_script_command(getThis(),                                     \
+                               ZEND_NUM_ARGS(),                               \
+                               return_value,                                  \
+                               strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                   ? get_valkey_glide_cluster_ce()            \
+                                   : get_valkey_glide_ce());                  \
+    }
+
+#define EVAL_METHOD_IMPL(class_name)                                          \
+    PHP_METHOD(class_name, eval) {                                            \
+        execute_eval_command(getThis(),                                       \
+                             ZEND_NUM_ARGS(),                                 \
+                             return_value,                                    \
+                             strcmp(#class_name, "ValkeyGlideCluster") == 0); \
+    }
+
+#define EVALSHA_METHOD_IMPL(class_name)                                          \
+    PHP_METHOD(class_name, evalsha) {                                            \
+        execute_evalsha_command(getThis(),                                       \
+                                ZEND_NUM_ARGS(),                                 \
+                                return_value,                                    \
+                                strcmp(#class_name, "ValkeyGlideCluster") == 0); \
+    }
+
+#define EVAL_RO_METHOD_IMPL(class_name)                                          \
+    PHP_METHOD(class_name, eval_ro) {                                            \
+        execute_eval_ro_command(getThis(),                                       \
+                                ZEND_NUM_ARGS(),                                 \
+                                return_value,                                    \
+                                strcmp(#class_name, "ValkeyGlideCluster") == 0); \
+    }
+
+#define EVALSHA_RO_METHOD_IMPL(class_name)                                          \
+    PHP_METHOD(class_name, evalsha_ro) {                                            \
+        execute_evalsha_ro_command(getThis(),                                       \
+                                   ZEND_NUM_ARGS(),                                 \
+                                   return_value,                                    \
+                                   strcmp(#class_name, "ValkeyGlideCluster") == 0); \
+    }
+
 #define MULTI_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, multi) {                                              \
         if (execute_multi_command(getThis(),                                     \
@@ -1076,6 +1212,35 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         }                                                                           \
         zval_dtor(return_value);                                                    \
         RETURN_FALSE;                                                               \
+    }
+
+#define SCRIPT_EXISTS_METHOD_IMPL(class_name)                                 \
+    PHP_METHOD(class_name, scriptExists) {                                    \
+        zval* sha1s;                                                          \
+        ZEND_PARSE_PARAMETERS_START(1, 1)                                     \
+        Z_PARAM_ARRAY(sha1s)                                                  \
+        ZEND_PARSE_PARAMETERS_END();                                          \
+        execute_script_exists_command(getThis(), sha1s, return_value, false); \
+    }
+
+#define SCRIPT_SHOW_METHOD_IMPL(class_name)                                          \
+    PHP_METHOD(class_name, scriptShow) {                                             \
+        char*  sha1;                                                                 \
+        size_t sha1_len;                                                             \
+        ZEND_PARSE_PARAMETERS_START(1, 1)                                            \
+        Z_PARAM_STRING(sha1, sha1_len)                                               \
+        ZEND_PARSE_PARAMETERS_END();                                                 \
+        execute_script_show_command(getThis(), sha1, sha1_len, return_value, false); \
+    }
+
+#define SCRIPT_KILL_METHOD_IMPL(class_name)                          \
+    PHP_METHOD(class_name, scriptKill) {                             \
+        execute_script_kill_command(getThis(), return_value, false); \
+    }
+
+#define SCRIPT_FLUSH_METHOD_IMPL(class_name)                          \
+    PHP_METHOD(class_name, scriptFlush) {                             \
+        execute_script_flush_command(getThis(), return_value, false); \
     }
 
 #define DUMP_METHOD_IMPL(class_name)                                            \
@@ -1317,5 +1482,8 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         RETURN_FALSE;                                                             \
     }
 
+/* Function command declarations */
+int  execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+void execute_script_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 #endif /* VALKEY_GLIDE_COMMANDS_COMMON_H */

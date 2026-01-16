@@ -739,26 +739,6 @@ PHP_METHOD(ValkeyGlideCluster, punsubscribe) {
 }
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::eval(string script, [array args, int numkeys) */
-PHP_METHOD(ValkeyGlideCluster, eval) {
-}
-/* }}} */
-
-/* {{{ proto mixed ValkeyGlideCluster::eval_ro(string script, [array args, int numkeys) */
-PHP_METHOD(ValkeyGlideCluster, eval_ro) {
-}
-/* }}} */
-
-/* {{{ proto mixed ValkeyGlideCluster::evalsha(string sha, [array args, int numkeys]) */
-PHP_METHOD(ValkeyGlideCluster, evalsha) {
-}
-/* }}} */
-
-/* {{{ proto mixed ValkeyGlideCluster::evalsha_ro(string sha, [array args, int numkeys]) */
-PHP_METHOD(ValkeyGlideCluster, evalsha_ro) {
-}
-
-/* }}} */
 /* Commands that do not interact with ValkeyGlide, but just report stuff about
  * various options, etc */
 
@@ -853,12 +833,6 @@ PHP_METHOD(ValkeyGlideCluster, pubsub) {
         RETURN_FALSE;
     }
     valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
-}
-/* }}} */
-
-/* {{{ proto mixed ValkeyGlideCluster::script(string key, ...)
- *     proto mixed ValkeyGlideCluster::script(array host_port, ...) */
-PHP_METHOD(ValkeyGlideCluster, script) {
 }
 /* }}} */
 
@@ -964,5 +938,117 @@ CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 COPY_METHOD_IMPL(ValkeyGlideCluster)
+
+/* Script commands */
+
+/* {{{ proto array ValkeyGlideCluster::scriptExists(array sha1s) */
+SCRIPT_EXISTS_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto bool ValkeyGlideCluster::scriptKill() */
+SCRIPT_KILL_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string ValkeyGlideCluster::scriptShow(string sha1) */
+SCRIPT_SHOW_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string ValkeyGlideCluster::scriptFlush([string mode]) */
+SCRIPT_FLUSH_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::script(mixed route, mixed ...$args) */
+SCRIPT_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::fcall(string fn, [array keys], [array args]) */
+FCALL_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::fcall_ro(string fn, [array keys], [array args]) */
+FCALL_RO_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::eval(string script, [array args], [int num_keys]) */
+EVAL_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::evalsha(string sha1, [array args], [int num_keys]) */
+EVALSHA_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::eval_ro(string script, [array args], [int num_keys]) */
+EVAL_RO_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::evalsha_ro(string sha1, [array args], [int num_keys]) */
+EVALSHA_RO_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+/* }}} */
+
+/* Function Commands */
+/* {{{ proto string ValkeyGlideCluster::functionLoad(string code, [bool replace]) */
+PHP_METHOD(ValkeyGlideCluster, functionLoad) {
+    execute_function_load_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+}
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::functionList([string library_name]) */
+PHP_METHOD(ValkeyGlideCluster, functionList) {
+    execute_function_list_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+}
+/* }}} */
+
+/* {{{ proto bool ValkeyGlideCluster::functionFlush() */
+PHP_METHOD(ValkeyGlideCluster, functionFlush) {
+    execute_function_flush_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+}
+/* }}} */
+
+/* {{{ proto bool ValkeyGlideCluster::functionDelete(string library_name) */
+PHP_METHOD(ValkeyGlideCluster, functionDelete) {
+    execute_function_delete_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+}
+/* }}} */
+
+/* {{{ proto string ValkeyGlideCluster::functionDump() */
+PHP_METHOD(ValkeyGlideCluster, functionDump) {
+    execute_function_dump_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+}
+/* }}} */
+
+/* {{{ proto bool ValkeyGlideCluster::functionRestore(string payload) */
+PHP_METHOD(ValkeyGlideCluster, functionRestore) {
+    execute_function_restore_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+}
+/* }}} */
+
+/* {{{ proto bool ValkeyGlideCluster::functionKill() */
+PHP_METHOD(ValkeyGlideCluster, functionKill) {
+    execute_function_kill_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+}
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::functionStats() */
+PHP_METHOD(ValkeyGlideCluster, functionStats) {
+    execute_function_stats_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+}
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::function(string operation, ...$args) */
+PHP_METHOD(ValkeyGlideCluster, function) {
+    execute_function_command(
+        getThis(), ZEND_NUM_ARGS(), return_value, get_valkey_glide_cluster_ce());
+}
+/* }}} */
+
 #endif /* PHP_REDIS_CLUSTER_C */
 /* vim: set tabstop=4 softtabstop=4 expandtab shiftwidth=4: */

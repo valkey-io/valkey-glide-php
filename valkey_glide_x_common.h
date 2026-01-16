@@ -41,8 +41,8 @@ typedef struct _x_count_options_t {
  */
 typedef struct _x_read_options_t {
     long block;     /* BLOCK option value (milliseconds) */
-    int  has_block; /* Whether BLOCK option is set */
     long count;     /* COUNT option value */
+    int  has_block; /* Whether BLOCK option is set */
     int  has_count; /* Whether COUNT option is set */
     int  noack;     /* NOACK flag (for XREADGROUP) */
 } x_read_options_t;
@@ -52,21 +52,21 @@ typedef struct _x_read_options_t {
  */
 typedef struct _x_pending_options_t {
     const char* start;        /* Start ID */
-    size_t      start_len;    /* Start ID length */
     const char* end;          /* End ID */
+    const char* consumer;     /* Consumer name */
+    size_t      start_len;    /* Start ID length */
     size_t      end_len;      /* End ID length */
+    size_t      consumer_len; /* Consumer name length */
     long        count;        /* COUNT option value */
     int         has_count;    /* Whether COUNT option is set */
-    const char* consumer;     /* Consumer name */
-    size_t      consumer_len; /* Consumer name length */
 } x_pending_options_t;
 
 /**
  * Options for XTRIM command
  */
 typedef struct _x_trim_options_t {
-    int  approximate; /* Approximate flag (~) */
     long limit;       /* LIMIT option value */
+    int  approximate; /* Approximate flag (~) */
     int  has_limit;   /* Whether LIMIT option is set */
 } x_trim_options_t;
 
@@ -86,15 +86,15 @@ typedef struct _x_add_options_t {
  */
 typedef struct _x_claim_options_t {
     long idle;           /* IDLE option value */
-    int  has_idle;       /* Whether IDLE option is set */
     long time;           /* TIME option value */
-    int  has_time;       /* Whether TIME option is set */
     long retrycount;     /* RETRYCOUNT option value */
+    long count;          /* COUNT option value */
+    int  has_idle;       /* Whether IDLE option is set */
+    int  has_time;       /* Whether TIME option is set */
     int  has_retrycount; /* Whether RETRYCOUNT option is set */
     int  force;          /* FORCE flag */
     int  justid;         /* JUSTID flag */
     int  has_count;      /* Whether COUNT option is set */
-    long count;          /* COUNT option value */
 } x_claim_options_t;
 
 typedef struct {
@@ -105,76 +105,40 @@ typedef struct {
  * Generic command arguments structure for X commands
  */
 typedef struct _x_command_args_t {
-    /* Common fields */
-    const void* glide_client; /* GlideClient instance */
-    const char* key;          /* Key argument */
-    size_t      key_len;      /* Key argument length */
-
-    /* For XLEN command - no additional fields needed */
-
-    /* For XDEL command */
-    zval* ids;      /* Array of IDs */
-    int   id_count; /* Number of IDs */
-
-    /* For XACK command */
-    const char* group;     /* Group name */
-    size_t      group_len; /* Group name length */
-    /* ids and id_count are reused from XDEL */
-
-    /* For XADD command */
-    const char*     id;           /* ID to add */
-    size_t          id_len;       /* ID length */
-    zval*           field_values; /* Field-value pairs to add */
-    int             fv_count;     /* Number of field-value pairs */
-    x_add_options_t add_opts;     /* XADD options */
-
-    /* For XTRIM command */
-    const char*      strategy;      /* Strategy (MAXLEN, MINID) */
-    size_t           strategy_len;  /* Strategy length */
-    const char*      threshold;     /* Threshold value */
-    size_t           threshold_len; /* Threshold length */
-    x_trim_options_t trim_opts;     /* XTRIM options */
-
-    /* For XRANGE/XREVRANGE commands */
-    const char*       start;      /* Start ID */
-    size_t            start_len;  /* Start ID length */
-    const char*       end;        /* End ID */
-    size_t            end_len;    /* End ID length */
-    x_count_options_t range_opts; /* XRANGE options */
-
-    /* For XPENDING command */
-    /* key, group, and group_len reused from above */
-    x_pending_options_t pending_opts; /* XPENDING options */
-
-    /* For XREAD command */
-    zval* streams; /* Array of stream keys */
-    /* ids reused from above (contains stream IDs) */
-    x_read_options_t read_opts; /* XREAD options */
-
-    /* For XREADGROUP command */
-    /* group and group_len reused from above */
-    const char* consumer;     /* Consumer name */
-    size_t      consumer_len; /* Consumer name length */
-    /* streams and ids reused from above */
-    /* read_opts reused from above */
-
-    /* For XAUTOCLAIM command */
-    /* key, group, group_len, consumer, consumer_len reused from above */
-    long min_idle_time; /* Minimum idle time */
-    /* start and start_len reused from above */
-    x_claim_options_t claim_opts; /* XCLAIM options */
-
-    /* For XINFO command */
-    const char* subcommand;     /* Subcommand (CONSUMERS, GROUPS, STREAM) */
-    size_t      subcommand_len; /* Subcommand length */
-    zval*       args;           /* Additional arguments */
-    int         args_count;     /* Number of additional arguments */
-
-    /* For XGROUP command */
-    /* subcommand, subcommand_len, args, args_count reused from above */
-
-    /* General options */
-    zval* options; /* Raw options array from PHP */
+    const void*         glide_client;   /* GlideClient instance */
+    const char*         key;            /* Key argument */
+    zval*               ids;            /* Array of IDs */
+    const char*         group;          /* Group name */
+    const char*         id;             /* ID to add */
+    zval*               field_values;   /* Field-value pairs to add */
+    const char*         strategy;       /* Strategy (MAXLEN, MINID) */
+    const char*         threshold;      /* Threshold value */
+    const char*         start;          /* Start ID */
+    const char*         end;            /* End ID */
+    zval*               streams;        /* Array of stream keys */
+    const char*         consumer;       /* Consumer name */
+    const char*         subcommand;     /* Subcommand (CONSUMERS, GROUPS, STREAM) */
+    zval*               args;           /* Additional arguments */
+    zval*               options;        /* Raw options array from PHP */
+    size_t              key_len;        /* Key argument length */
+    size_t              group_len;      /* Group name length */
+    size_t              id_len;         /* ID length */
+    size_t              strategy_len;   /* Strategy length */
+    size_t              threshold_len;  /* Threshold length */
+    size_t              start_len;      /* Start ID length */
+    size_t              end_len;        /* End ID length */
+    size_t              consumer_len;   /* Consumer name length */
+    size_t              subcommand_len; /* Subcommand length */
+    long                min_idle_time;  /* Minimum idle time */
+    x_pending_options_t pending_opts;   /* XPENDING options */
+    x_read_options_t    read_opts;      /* XREAD options */
+    x_claim_options_t   claim_opts;     /* XCLAIM options */
+    x_add_options_t     add_opts;       /* XADD options */
+    x_trim_options_t    trim_opts;      /* XTRIM options */
+    x_count_options_t   range_opts;     /* XRANGE options */
+    int                 id_count;       /* Number of IDs */
+    int                 fv_count;       /* Number of field-value pairs */
+    int                 args_count;     /* Number of additional arguments */
 } x_command_args_t;
 
 /* Function pointer types */
@@ -192,8 +156,8 @@ typedef int (*x_simple_arg_preparation_func_t)(x_command_args_t* args,
  * Command definition structure to encapsulate command properties
  */
 typedef struct _x_command_def_t {
-    enum RequestType         cmd_type;     /* ValkeyGlide command type */
     x_arg_preparation_func_t prepare_args; /* Function to prepare arguments */
+    enum RequestType         cmd_type;     /* ValkeyGlide command type */
 } x_command_def_t;
 
 /* Utility functions */

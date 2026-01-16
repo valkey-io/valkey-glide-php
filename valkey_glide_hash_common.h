@@ -43,39 +43,26 @@ typedef enum {
  * Generic hash command arguments structure
  */
 typedef struct _h_command_args_t {
-    /* Core fields */
-    const void* glide_client; /* GlideClient instance */
-    const char* key;          /* Hash key */
-    size_t      key_len;      /* Hash key length */
-
-    /* Single field operations (HGET, HEXISTS, HSTRLEN, HSETNX) */
-    char*  field;     /* Field name */
-    size_t field_len; /* Field name length */
-    char*  value;     /* Field value */
-    size_t value_len; /* Field value length */
-
-    /* Multi-field operations (HDEL, HMGET, HKEYS, HVALS) */
-    zval* fields;      /* Array of field names */
-    int   field_count; /* Number of fields */
-
-    /* Field-value operations (HSET, HMSET) */
-    zval* field_values; /* Associative array or alternating field/value array */
-    int   fv_count;     /* Number of field-value pairs */
-    int   is_array_arg; /* Whether using associative array format */
-
-    /* Increment operations (HINCRBY, HINCRBYFLOAT) */
-    long   increment;  /* Integer increment value */
-    double float_incr; /* Float increment value */
-
-    /* HRANDFIELD specific */
-    long count;      /* Number of fields to return */
-    int  withvalues; /* Whether to return values with fields */
-
-    /* Hash Field Expiration specific */
-    long long expiry; /* Expiration time (seconds/milliseconds/timestamp) - 64-bit for timestamps */
-    expiry_type_t expiry_enum; /* Expiry type enum for fast comparison */
-    const char*   expiry_type; /* Expiry type string: EX, PX, EXAT, PXAT, KEEPTTL, PERSIST */
-    const char*   mode;        /* Mode: NX, XX, GT, LT */
+    const void*   glide_client; /* GlideClient instance */
+    const char*   key;          /* Hash key */
+    char*         field;        /* Field name */
+    char*         value;        /* Field value */
+    zval*         fields;       /* Array of field names */
+    zval*         field_values; /* Associative array or alternating field/value array */
+    const char*   expiry_type;  /* Expiry type string: EX, PX, EXAT, PXAT, KEEPTTL, PERSIST */
+    const char*   mode;         /* Mode: NX, XX, GT, LT */
+    size_t        key_len;      /* Hash key length */
+    size_t        field_len;    /* Field name length */
+    size_t        value_len;    /* Field value length */
+    double        float_incr;   /* Float increment value */
+    long long     expiry;       /* Expiration time (seconds/milliseconds/timestamp) - 64-bit */
+    long          increment;    /* Integer increment value */
+    long          count;        /* Number of fields to return */
+    int           field_count;  /* Number of fields */
+    int           fv_count;     /* Number of field-value pairs */
+    int           is_array_arg; /* Whether using associative array format */
+    int           withvalues;   /* Whether to return values with fields */
+    expiry_type_t expiry_enum;  /* Expiry type enum for fast comparison */
 } h_command_args_t;
 
 // Helper functions for expiry type conversion

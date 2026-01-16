@@ -52,8 +52,8 @@ typedef struct _list_range_options_t {
  */
 typedef struct _list_position_options_t {
     const char* position;     /* Position string (BEFORE/AFTER/LEFT/RIGHT) */
-    size_t      position_len; /* Position string length */
     const char* pivot;        /* Pivot element for LINSERT */
+    size_t      position_len; /* Position string length */
     size_t      pivot_len;    /* Pivot element length */
     long        rank;         /* Rank for LPOS */
     long        count;        /* Count for LPOS */
@@ -68,10 +68,10 @@ typedef struct _list_position_options_t {
  */
 typedef struct _list_move_options_t {
     const char* source_direction;     /* Source direction (LEFT/RIGHT) */
-    size_t      source_direction_len; /* Source direction length */
     const char* dest_direction;       /* Destination direction (LEFT/RIGHT) */
-    size_t      dest_direction_len;   /* Destination direction length */
     const char* dest_key;             /* Destination key */
+    size_t      source_direction_len; /* Source direction length */
+    size_t      dest_direction_len;   /* Destination direction length */
     size_t      dest_key_len;         /* Destination key length */
     double      timeout;              /* Timeout for blocking commands */
     int         has_timeout;          /* Whether timeout is set */
@@ -83,8 +83,8 @@ typedef struct _list_move_options_t {
 typedef struct _list_mpop_options_t {
     const char* direction;     /* Direction (LEFT/RIGHT) */
     size_t      direction_len; /* Direction length */
-    long        count;         /* Number of elements to pop */
     double      timeout;       /* Timeout for blocking version */
+    long        count;         /* Number of elements to pop */
     int         has_count;     /* Whether count is set */
     int         has_timeout;   /* Whether timeout is set */
 } list_mpop_options_t;
@@ -93,40 +93,27 @@ typedef struct _list_mpop_options_t {
  * Generic command arguments structure for list commands
  */
 typedef struct _list_command_args_t {
-    /* Common fields */
-    const void* glide_client; /* GlideClient instance */
-    const char* key;          /* Primary key argument */
-    size_t      key_len;      /* Primary key length */
-
-    /* Multi-key support */
-    zval* keys;      /* Array of keys */
-    int   key_count; /* Number of keys */
-
-    /* Values/elements */
-    zval*       values;      /* Array of values to push/insert */
-    int         value_count; /* Number of values */
-    const char* element;     /* Single element value */
-    size_t      element_len; /* Single element length */
-
-    /* Numeric parameters */
-    long count; /* Count for pop operations */
-    long index; /* Index for LINDEX, LSET */
-    long start; /* Start index for range operations */
-    long end;   /* End index for range operations */
-
-    /* String parameters */
-    const char* value;     /* Single value string */
-    size_t      value_len; /* Single value length */
-
-    /* Options structures */
-    list_blocking_options_t blocking_opts; /* Blocking command options */
-    list_range_options_t    range_opts;    /* Range command options */
+    const void*             glide_client;  /* GlideClient instance */
+    const char*             key;           /* Primary key argument */
+    zval*                   keys;          /* Array of keys */
+    zval*                   values;        /* Array of values to push/insert */
+    const char*             element;       /* Single element value */
+    const char*             value;         /* Single value string */
+    zval*                   options;       /* Raw options array from PHP */
+    size_t                  key_len;       /* Primary key length */
+    size_t                  element_len;   /* Single element length */
+    size_t                  value_len;     /* Single value length */
+    long                    count;         /* Count for pop operations */
+    long                    index;         /* Index for LINDEX, LSET */
+    long                    start;         /* Start index for range operations */
+    long                    end;           /* End index for range operations */
     list_position_options_t position_opts; /* Position command options */
     list_move_options_t     move_opts;     /* Move command options */
     list_mpop_options_t     mpop_opts;     /* MPOP command options */
-
-    /* General options */
-    zval* options; /* Raw options array from PHP */
+    list_range_options_t    range_opts;    /* Range command options */
+    list_blocking_options_t blocking_opts; /* Blocking command options */
+    int                     key_count;     /* Number of keys */
+    int                     value_count;   /* Number of values */
 } list_command_args_t;
 
 /* Function pointer types */

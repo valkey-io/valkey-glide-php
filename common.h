@@ -135,8 +135,8 @@ typedef struct {
 } valkey_glide_tls_advanced_configuration_t;
 
 typedef struct {
-    int                                        connection_timeout; /* In milliseconds. */
     valkey_glide_tls_advanced_configuration_t* tls_config;         /* NULL if not set */
+    int                                        connection_timeout; /* In milliseconds. */
 } valkey_glide_advanced_base_client_configuration_t;
 
 typedef struct {
@@ -145,25 +145,25 @@ typedef struct {
 
 typedef struct {
     valkey_glide_node_address_t*                       addresses;
-    int                                                addresses_count;
-    bool                                               use_tls;
-    valkey_glide_server_credentials_t*                 credentials; /* NULL if not set */
-    valkey_glide_read_from_t                           read_from;
-    int                                                request_timeout;    /* -1 if not set */
+    valkey_glide_server_credentials_t*                 credentials;        /* NULL if not set */
     valkey_glide_backoff_strategy_t*                   reconnect_strategy; /* NULL if not set */
     char*                                              client_name;        /* NULL if not set */
+    char*                                              client_az;          /* NULL if not set */
+    valkey_glide_advanced_base_client_configuration_t* advanced_config;    /* NULL if not set */
+    valkey_glide_read_from_t                           read_from;
+    int                                                addresses_count;
+    int                                                request_timeout;         /* -1 if not set */
     int                                                inflight_requests_limit; /* -1 if not set */
-    char*                                              client_az;       /* NULL if not set */
-    valkey_glide_advanced_base_client_configuration_t* advanced_config; /* NULL if not set */
-    bool                                               lazy_connect;    /* false if not set */
-    int                                                database_id;     /* -1 if not set */
+    int                                                database_id;             /* -1 if not set */
+    bool                                               use_tls;
+    bool                                               lazy_connect; /* false if not set */
 } valkey_glide_base_client_configuration_t;
 
 typedef struct {
     valkey_glide_base_client_configuration_t base;
-    valkey_glide_periodic_checks_status_t    periodic_checks_status;
     valkey_glide_periodic_checks_manual_interval_t*
-         periodic_checks_manual;              /* NULL if using status */
+                                          periodic_checks_manual; /* NULL if using status */
+    valkey_glide_periodic_checks_status_t periodic_checks_status;
     bool refresh_topology_from_initial_nodes; /* false if not set */
 } valkey_glide_cluster_client_configuration_t;
 
@@ -178,22 +178,22 @@ void free_valkey_glide_cluster_client_configuration(
 
 typedef struct {
     zval*     addresses;
-    zend_bool use_tls;
     zval*     credentials;
+    zval*     reconnect_strategy;
+    zval*     advanced_config;
+    zval*     context; /* Stream context for TLS */
+    char*     client_name;
+    char*     client_az;
+    size_t    client_name_len;
+    size_t    client_az_len;
     zend_long read_from; /* PRIMARY by default */
     zend_long request_timeout;
+    zend_long database_id;
+    zend_bool use_tls;
     zend_bool request_timeout_is_null;
-    zval*     reconnect_strategy;
-    char*     client_name;
-    size_t    client_name_len;
-    char*     client_az;
-    size_t    client_az_len;
-    zval*     advanced_config;
     zend_bool lazy_connect;
     zend_bool lazy_connect_is_null;
-    zend_long database_id;
     zend_bool database_id_is_null;
-    zval*     context; /* Stream context for TLS */
 } valkey_glide_php_common_constructor_params_t;
 
 void valkey_glide_init_common_constructor_params(
@@ -218,25 +218,21 @@ typedef int (*z_result_processor_t)(CommandResponse* response, void* output, zva
 
 /* Batch command structure for buffering commands - FFI aligned */
 struct batch_command {
-    enum RequestType     request_type;
     uint8_t**            args;        /* FFI expects uint8_t** */
     uintptr_t*           arg_lengths; /* FFI expects uintptr_t* */
-    uintptr_t            arg_count;   /* FFI expects uintptr_t */
     void*                result_ptr;  /* Pointer to store result */
     z_result_processor_t process_result;
+    uintptr_t            arg_count; /* FFI expects uintptr_t */
+    enum RequestType     request_type;
 };
 
 typedef struct {
-    const void* glide_client; /* Valkey Glide client pointer */
-
-    /* Batch mode tracking */
-    bool is_in_batch_mode;
-    int  batch_type; /* ATOMIC, MULTI, or PIPELINE */
-
-    /* Command buffering */
+    const void*           glide_client; /* Valkey Glide client pointer */
     struct batch_command* buffered_commands;
     size_t                command_count;
     size_t                command_capacity;
+    int                   batch_type; /* ATOMIC, MULTI, or PIPELINE */
+    bool                  is_in_batch_mode;
 
     zend_object std;
 } valkey_glide_object;

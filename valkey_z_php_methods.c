@@ -671,10 +671,6 @@ WAIT_METHOD_IMPL(ValkeyGlide)
 CONFIG_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlide::function(string cmd, ...) */
-FUNCTION_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
 /* {{{ proto ValkeyGlide ValkeyGlide::multi() */
 MULTI_METHOD_IMPL(ValkeyGlide)
 /* }}} */
@@ -689,14 +685,6 @@ DISCARD_METHOD_IMPL(ValkeyGlide)
 
 /* {{{ proto array ValkeyGlide::exec() */
 EXEC_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto mixed ValkeyGlide::fcall(string name, int numkeys, mixed ...args) */
-FCALL_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto mixed ValkeyGlide::fcall_ro(string name, int numkeys, mixed ...args) */
-FCALL_RO_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
 /* {{{ proto string ValkeyGlide::dump(string key) */

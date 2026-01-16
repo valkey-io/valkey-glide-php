@@ -471,8 +471,9 @@ int command_response_to_zval(CommandResponse* response,
             return 0;
         case Int:
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-            VALKEY_LOG_DEBUG_FMT(
-                "response_processing", "CommandResponse is Int: %ld", response->int_value);
+            VALKEY_LOG_DEBUG_FMT("response_processing",
+                                 "CommandResponse is Int: %lld",
+                                 (long long) response->int_value);
 #endif
             ZVAL_LONG(output, response->int_value);
             return 1;
@@ -535,9 +536,11 @@ int command_response_to_zval(CommandResponse* response,
                 }
             } else if (use_associative_array == COMMAND_RESPONSE_ARRAY_ASSOCIATIVE) {
 #if DEBUG_COMMAND_RESPONSE_TO_ZVAL
-                VALKEY_LOG_DEBUG_FMT("response_processing",
-                                     "response->array_value[0]->command_response_type = %d",
-                                     response->array_value[0].response_type);
+                if (response->array_value_len > 0) {
+                    VALKEY_LOG_DEBUG_FMT("response_processing",
+                                         "response->array_value[0]->command_response_type = %d",
+                                         response->array_value[0].response_type);
+                }
 #endif
                 array_init(output);
                 for (int64_t i = 0; i < response->array_value_len; ++i) {

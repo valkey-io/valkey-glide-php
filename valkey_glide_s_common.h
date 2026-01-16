@@ -63,51 +63,35 @@ typedef enum {
  * Generic command arguments structure for S commands
  */
 typedef struct _s_command_args_t {
-    /* Common fields */
-    const void* glide_client; /* GlideClient instance */
-    const char* key;          /* Primary key argument */
-    size_t      key_len;      /* Primary key length */
-
-    /* Multi-key commands */
-    zval* keys;       /* Array of keys */
-    int   keys_count; /* Number of keys */
-
-    /* Member operations */
-    zval*      members;       /* Array of members */
-    int        members_count; /* Number of members */
-    HashTable* members_ht;    /* HashTable for member operations */
-
-    /* Single member operations */
-    const char* member;     /* Single member */
-    size_t      member_len; /* Single member length */
-
-    /* Two-key operations */
-    const char* dst_key;     /* Destination key (SMOVE, SINTERSTORE, etc.) */
-    size_t      dst_key_len; /* Destination key length */
-    const char* src_key;     /* Source key (SMOVE) */
-    size_t      src_key_len; /* Source key length */
-
-    /* Numeric parameters */
-    long count;     /* COUNT parameter */
-    long limit;     /* LIMIT parameter */
-    int  has_count; /* Whether count is specified */
-    int  has_limit; /* Whether limit is specified */
-
-    /* Scan-specific parameters */
-    char** cursor;    /* Cursor pointer for scan operations */
-    zval*  scan_iter; /* Iterator for scan operations */
-
-    const char* pattern;     /* MATCH pattern */
-    size_t      pattern_len; /* Pattern length */
-    const char* type;        /* TYPE filter (SCAN only) */
-    size_t      type_len;    /* Type filter length */
-    int         has_type;    /* Whether type filter is specified */
-
-    /* Output parameters */
-    long*   output_long;       /* For integer outputs */
-    int*    output_int;        /* For boolean outputs */
-    char**  output_string;     /* For string outputs */
-    size_t* output_string_len; /* For string output length */
+    const void* glide_client;      /* GlideClient instance */
+    const char* key;               /* Primary key argument */
+    zval*       keys;              /* Array of keys */
+    zval*       members;           /* Array of members */
+    HashTable*  members_ht;        /* HashTable for member operations */
+    const char* member;            /* Single member */
+    const char* dst_key;           /* Destination key (SMOVE, SINTERSTORE, etc.) */
+    const char* src_key;           /* Source key (SMOVE) */
+    char**      cursor;            /* Cursor pointer for scan operations */
+    zval*       scan_iter;         /* Iterator for scan operations */
+    const char* pattern;           /* MATCH pattern */
+    const char* type;              /* TYPE filter (SCAN only) */
+    long*       output_long;       /* For integer outputs */
+    int*        output_int;        /* For boolean outputs */
+    char**      output_string;     /* For string outputs */
+    size_t*     output_string_len; /* For string output length */
+    size_t      key_len;           /* Primary key length */
+    size_t      member_len;        /* Single member length */
+    size_t      dst_key_len;       /* Destination key length */
+    size_t      src_key_len;       /* Source key length */
+    size_t      pattern_len;       /* Pattern length */
+    size_t      type_len;          /* Type filter length */
+    long        count;             /* COUNT parameter */
+    long        limit;             /* LIMIT parameter */
+    int         keys_count;        /* Number of keys */
+    int         members_count;     /* Number of members */
+    int         has_count;         /* Whether count is specified */
+    int         has_limit;         /* Whether limit is specified */
+    int         has_type;          /* Whether type filter is specified */
 } s_command_args_t;
 
 /**

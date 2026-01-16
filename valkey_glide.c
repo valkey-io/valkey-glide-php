@@ -764,16 +764,108 @@ PHP_METHOD(ValkeyGlide, pubsub) {
     }
     valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
-PHP_METHOD(ValkeyGlide, eval) { /* TODO: Implement */
+
+/* Script commands */
+
+/* {{{ proto array ValkeyGlide::scriptExists(array sha1s) */
+SCRIPT_EXISTS_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto bool ValkeyGlide::scriptKill() */
+SCRIPT_KILL_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string ValkeyGlide::scriptShow(string sha1) */
+SCRIPT_SHOW_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string ValkeyGlide::scriptFlush([string mode]) */
+SCRIPT_FLUSH_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto ValkeyGlide|bool|string|array ValkeyGlide::script(string operation, mixed ...$args) */
+SCRIPT_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::fcall(string fn, [array keys], [array args]) */
+FCALL_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::fcall_ro(string fn, [array keys], [array args]) */
+FCALL_RO_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::eval(string script, [array args], [int num_keys]) */
+EVAL_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::evalsha(string sha1, [array args], [int num_keys]) */
+EVALSHA_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::eval_ro(string script, [array args], [int num_keys]) */
+EVAL_RO_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::evalsha_ro(string sha1, [array args], [int num_keys]) */
+EVALSHA_RO_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* Function commands */
+/* {{{ proto string ValkeyGlide::functionLoad(string code, [bool replace]) */
+PHP_METHOD(ValkeyGlide, functionLoad) {
+    execute_function_load_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
-PHP_METHOD(ValkeyGlide, eval_ro) { /* TODO: Implement */
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::functionList([string library_name]) */
+PHP_METHOD(ValkeyGlide, functionList) {
+    execute_function_list_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
-PHP_METHOD(ValkeyGlide, evalsha) { /* TODO: Implement */
+/* }}} */
+
+/* {{{ proto bool ValkeyGlide::functionFlush() */
+PHP_METHOD(ValkeyGlide, functionFlush) {
+    execute_function_flush_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
-PHP_METHOD(ValkeyGlide, evalsha_ro) { /* TODO: Implement */
+/* }}} */
+
+/* {{{ proto bool ValkeyGlide::functionDelete(string library_name) */
+PHP_METHOD(ValkeyGlide, functionDelete) {
+    execute_function_delete_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
-PHP_METHOD(ValkeyGlide, script) { /* TODO: Implement */
+/* }}} */
+
+/* {{{ proto string ValkeyGlide::functionDump() */
+PHP_METHOD(ValkeyGlide, functionDump) {
+    execute_function_dump_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
 }
+/* }}} */
+
+/* {{{ proto bool ValkeyGlide::functionRestore(string payload) */
+PHP_METHOD(ValkeyGlide, functionRestore) {
+    execute_function_restore_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
+}
+/* }}} */
+
+/* {{{ proto bool ValkeyGlide::functionKill() */
+PHP_METHOD(ValkeyGlide, functionKill) {
+    execute_function_kill_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
+}
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::functionStats() */
+PHP_METHOD(ValkeyGlide, functionStats) {
+    execute_function_stats_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
+}
+/* }}} */
+
+/* {{{ proto ValkeyGlide|bool|string|array ValkeyGlide::function(string operation, mixed ...$args)
+ */
+PHP_METHOD(ValkeyGlide, function) {
+    execute_function_command(getThis(), ZEND_NUM_ARGS(), return_value, valkey_glide_ce);
+}
+/* }}} */
 
 /* ============================================================================
  * Logger PHP Functions - Bridge between PHP stub and C implementation

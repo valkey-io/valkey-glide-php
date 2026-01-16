@@ -664,7 +664,7 @@ class ValkeyGlide
     public function decr(string $key, int $by = 1): ValkeyGlide|int|false;
 
     /**
-     * Decrement a valkey integer by a value
+     * Decrement a Valkey integer by a value
      *
      * @param string $key   The integer key to decrement.
      * @param int    $value How much to decrement the key.
@@ -743,34 +743,26 @@ class ValkeyGlide
     public function echo(string $str): ValkeyGlide|string|false;
 
     /**
-     * Execute a LUA script on the valkey server.
+     * Execute a Lua script on the Valkey server.
      *
      * @see https://valkey.io/commands/eval/
      *
-     * @param string $script   A string containing the LUA script
+     * @param string $script   A string containing the Lua script
      * @param array  $args     An array of arguments to pass to this script
      * @param int    $num_keys How many of the arguments are keys.  This is needed
-     *                         as valkey distinguishes between key name arguments
+     *                         as Valkey distinguishes between key name arguments
      *                         and other data.
      *
-     * @return mixed LUA scripts may return arbitrary data so this method can return
+     * @return mixed Lua scripts may return arbitrary data so this method can return
      *               strings, arrays, nested arrays, etc.
      */
-   /*TODO  public function eval(string $script, array $args = [], int $num_keys = 0): mixed;*/
-
-    /**
-     * This is simply the read-only variant of eval, meaning the underlying script
-     * may not modify data in valkey.
-     *
-     * @see ValkeyGlide::eval_ro()
-     */
-    /* TODO public function eval_ro(string $script_sha, array $args = [], int $num_keys = 0): mixed; */
+    public function eval(string $script, array $args = [], int $num_keys = 0): mixed;
 
     /**
      * Execute a LUA script on the server but instead of sending the script, send
      * the SHA1 hash of the script.
      *
-     * @param string $script_sha The SHA1 hash of the lua code.  Note that the script
+     * @param string $sha1 The SHA1 hash of the lua code.  Note that the script
      *                           must already exist on the server, either having been
      *                           loaded with `SCRIPT LOAD` or having been executed directly
      *                           with `EVAL` first.
@@ -783,15 +775,36 @@ class ValkeyGlide
      * @see ValkeyGlide::eval();
      *
      */
-   /* TODO public function evalsha(string $sha1, array $args = [], int $num_keys = 0): mixed; */
+    public function evalsha(string $sha1, array $args = [], int $num_keys = 0): mixed;
 
     /**
-     * This is simply the read-only variant of evalsha, meaning the underlying script
-     * may not modify data in valkey.
+     * Execute a read-only Lua script on the server.
      *
-     * @see ValkeyGlide::evalsha()
+     * @param string $script   A string containing the LUA script
+     * @param array  $args     An array of arguments to pass to this script
+     * @param int    $num_keys How many of the arguments are keys.
+     *
+     * @return mixed Lua scripts may return arbitrary data so this method can return
+     *               strings, arrays, nested arrays, etc.
+     *
+     * @see https://valkey.io/commands/eval_ro/
+     * @see ValkeyGlide::eval();
      */
-    /* TODO public function evalsha_ro(string $sha1, array $args = [], int $num_keys = 0): mixed; */
+    public function eval_ro(string $script, array $args = [], int $num_keys = 0): mixed;
+
+    /**
+     * Execute a read-only Lua script on the server using SHA1 hash.
+     *
+     * @param string $sha1     The SHA1 hash of the lua code.
+     * @param array  $args     Arguments to send to the script.
+     * @param int    $num_keys The number of arguments that are keys
+     *
+     * @return mixed Returns whatever the specific script does.
+     *
+     * @see https://valkey.io/commands/evalsha_ro/
+     * @see ValkeyGlide::evalsha();
+     */
+    public function evalsha_ro(string $sha1, array $args = [], int $num_keys = 0): mixed;
 
     /**
      * Execute either a MULTI or PIPELINE block and return the array of replies.
@@ -1723,7 +1736,7 @@ class ValkeyGlide
 
     /**
      * Retrieve information about the connected valkey-server.  If no arguments are passed to
-     * this function, valkey will return every info field.  Alternatively you may pass a specific
+     * this function, Valkey will return every info field.  Alternatively you may pass a specific
      * section you want returned (e.g. 'server', or 'memory') to receive only information pertaining
      * to that section.
      *
@@ -1958,7 +1971,7 @@ class ValkeyGlide
     public function mget(array $keys): ValkeyGlide|array|false;
 
     /**
-     * Move a key to a different database on the same valkey instance.
+     * Move a key to a different database on the same Valkey instance.
      *
      * @param string $key The key to move
      * @return ValkeyGlide|bool True if the key was moved
@@ -2086,7 +2099,7 @@ class ValkeyGlide
     public function pfmerge(string $dst, array $srckeys): ValkeyGlide|bool;
 
     /**
-     * PING the valkey server with an optional string argument.
+     * PING the Valkey server with an optional string argument.
      *
      * @see https://valkey.io/commands/ping
      *
@@ -2109,7 +2122,7 @@ class ValkeyGlide
      *
      * NOTE:  That this is shorthand for ValkeyGlide::multi(ValkeyGlide::PIPELINE)
      *
-     * @return ValkeyGlide The valkey object is returned, to facilitate method chaining.
+     * @return ValkeyGlide The Valkey object is returned, to facilitate method chaining.
      *
      * @example
      * $valkey_glide->pipeline()
@@ -2196,7 +2209,7 @@ class ValkeyGlide
     /**
      * Pop one or more elements from the end of a list.
      *
-     * @param string $key   A valkey LIST key name.
+     * @param string $key   A Valkey LIST key name.
      * @param int    $count The maximum number of elements to pop at once.
      *                      NOTE:  The `count` argument requires ValkeyGlide >= 6.2.0
      *
@@ -2568,7 +2581,7 @@ class ValkeyGlide
      * @param string|null $pattern An optional glob-style pattern for matching key names.  If passed as
      *                         NULL, it is the equivalent of sending '*' (match every key).
      *
-     * @param int    $count    A hint to valkey that tells it how many keys to return in a single
+     * @param int    $count    A hint to Valkey that tells it how many keys to return in a single
      *                         call to SCAN.  The larger the number, the longer ValkeyGlide may block
      *                         clients while iterating the key space.
      *
@@ -2624,19 +2637,145 @@ class ValkeyGlide
     public function scard(string $key): ValkeyGlide|int|false;
 
     /**
-     * An administrative command used to interact with LUA scripts stored on the server.
+     * TODO: Provide support for OK string https://github.com/valkey-io/valkey-glide-php/issues/118
+     */
+
+    /**
+     * Check if scripts exist in the script cache by their SHA1 digests.
+     *
+     * @see https://valkey.io/commands/script-exists
+     *
+     * @param array $sha1s Array of SHA1 digests to check
+     *
+     * @return ValkeyGlide|array|false Array of booleans indicating existence
+     */
+    public function scriptExists(array $sha1s): ValkeyGlide|array|false;
+
+    /**
+     * Flush the Lua scripts cache.
+     *
+     * @see https://valkey.io/commands/script-flush
+     *
+     * @param string|null $mode Optional flush mode: "SYNC" or "ASYNC"
+     *
+     * @return bool True on success
+     */
+    public function scriptFlush(?string $mode = null): bool;
+
+    /**
+     * Kill the currently executing Lua script.
+     *
+     * @see https://valkey.io/commands/script-kill
+     *
+     * @return bool True on success
+     */
+    public function scriptKill(): bool;
+
+    /**
+     * Show the source code of a script by its SHA1 digest.
+     *
+     * @see https://valkey.io/commands/script-show
+     *
+     * @param string $sha1 The SHA1 digest of the script
+     *
+     * @return ValkeyGlide|string|false The script source code
+     */
+    public function scriptShow(string $sha1): ValkeyGlide|string|false;
+
+    /**
+     * Execute a generic SCRIPT command.
+     *
+     * This method provides a unified interface for all SCRIPT operations.
+     * It accepts an operation string and variable arguments.
+     *
+     * @param string $operation The SCRIPT operation to execute (FLUSH, KILL, EXISTS, SHOW, LOAD)
+     * @param member $args Variable arguments for the operation
+     *
+     * @return ValkeyGlide|bool|string|array The result depends on the operation
      *
      * @see https://valkey.io/commands/script
-     *
-     * @param string $command The script suboperation to execute.
-     * @param mixed  $args    One or more additional argument
-     *
-     * @return mixed This command returns various things depending on the specific operation executed.
-     *
-     * @example $valkey_glide->script('load', 'return 1');
-     * @example $valkey_glide->script('exists', sha1('return 1'));
      */
-    /* TODO public function script(string $command, mixed ...$args): mixed; */
+    public function script(string $operation, mixed ...$args): ValkeyGlide|bool|string|array;
+
+    /**
+     * Load a function library to Valkey.
+     *
+     * @see https://valkey.io/commands/function-load
+     *
+     * @param string $code The source code implementing the library
+     * @param bool $replace Whether to overwrite existing library with same name
+     *
+     * @return ValkeyGlide|string|false The library name that was loaded
+     */
+    public function functionLoad(string $code, bool $replace = false): ValkeyGlide|string|false;
+
+    /**
+     * List function libraries.
+     *
+     * @param string|null $library_name Optional pattern for matching library names
+     * @see https://valkey.io/commands/function-list
+     *
+     * @return ValkeyGlide|array|false Array of library information
+     */
+    public function functionList(?string $library_name = null): ValkeyGlide|array|false;
+
+    /**
+     * Delete all function libraries.
+     *
+     * @see https://valkey.io/commands/function-flush
+     *
+     * @return ValkeyGlide|bool Returns true on success
+     */
+    public function functionFlush(): ValkeyGlide|bool;
+
+    /**
+     * Delete a function library.
+     *
+     * @see https://valkey.io/commands/function-delete
+     *
+     * @param string $library_name The library name to delete
+     *
+     * @return ValkeyGlide|bool Returns true on success
+     */
+    public function functionDelete(string $library_name): ValkeyGlide|bool;
+
+    /**
+     * Return serialized payload of all loaded libraries.
+     *
+     * @see https://valkey.io/commands/function-dump
+     *
+     * @return ValkeyGlide|string|false The serialized payload
+     */
+    public function functionDump(): ValkeyGlide|string|false;
+
+    /**
+     * Restore libraries from serialized payload.
+     *
+     * @see https://valkey.io/commands/function-restore
+     *
+     * @param string $payload The serialized data from functionDump
+     *
+     * @return ValkeyGlide|bool Returns true on success
+     */
+    public function functionRestore(string $payload): ValkeyGlide|bool;
+
+    /**
+     * Kill currently executing function.
+     *
+     * @see https://valkey.io/commands/function-kill
+     *
+     * @return ValkeyGlide|bool Returns true on success
+     */
+    public function functionKill(): ValkeyGlide|bool;
+
+    /**
+     * Get information about currently running function and available engines.
+     *
+     * @see https://valkey.io/commands/function-stats
+     *
+     * @return ValkeyGlide|array|false Function execution statistics
+     */
+    public function functionStats(): ValkeyGlide|array|false;
 
     /**
      * Select a specific ValkeyGlide database.
@@ -2746,7 +2885,7 @@ class ValkeyGlide
     /**
      * Check whether a given value is the member of a ValkeyGlide SET.
      *
-     * @param string $key   The valkey set to check.
+     * @param string $key   The Valkey set to check.
      * @param mixed  $value The value to test.
      *
      * @return ValkeyGlide|bool True if the member exists and false if not.
@@ -2821,7 +2960,7 @@ class ValkeyGlide
     public function srem(string $key, mixed $value, mixed ...$other_values): ValkeyGlide|int|false;
 
     /**
-     * Scan the members of a valkey SET key.
+     * Scan the members of a Valkey SET key.
      *
      * @see https://valkey.io/commands/sscan
      * @see https://valkey.io/commands/scan
@@ -3503,7 +3642,7 @@ class ValkeyGlide
      *                          MAXLEN - An integer describing the maximum desired length of the stream after the command.
      *                          MINID  - An ID that will become the new minimum ID in the stream, as ValkeyGlide will trim all
      *                                   messages older than this ID.
-     * @param bool   $approx    Whether valkey is allowed to do an approximate trimming of the stream.  This is
+     * @param bool   $approx    Whether Valkey is allowed to do an approximate trimming of the stream.  This is
      *                          more efficient for ValkeyGlide given how streams are stored internally.
      * @param bool   $minid     When set to `true`, users should pass a minimum ID to the `$threshold` argument.
      * @param int    $limit     An optional upper bound on how many entries to trim during the command.

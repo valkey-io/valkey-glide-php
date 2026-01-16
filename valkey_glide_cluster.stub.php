@@ -402,25 +402,7 @@ class ValkeyGlideCluster
      */
     public function echo(mixed $route, string $msg): ValkeyGlideCluster|string|false;
 
-    /**
-     * @see ValkeyGlide::eval
-     */
-   /* TODO public function eval(string $script, array $args = [], int $num_keys = 0): mixed; */
 
-    /**
-     * @see ValkeyGlide::eval_ro
-     */
-    /* TODOpublic function eval_ro(string $script, array $args = [], int $num_keys = 0): mixed; */
-
-    /**
-     * @see ValkeyGlide::evalsha
-     */
-   /* TODO public function evalsha(string $script_sha, array $args = [], int $num_keys = 0): mixed;*/
-
-    /**
-     * @see ValkeyGlide::evalsha_ro
-     */
-    /* TODOpublic function evalsha_ro(string $script_sha, array $args = [], int $num_keys = 0): mixed;*/
 
     /**
      * @see ValkeyGlide::exec()
@@ -1321,6 +1303,106 @@ class ValkeyGlideCluster
      * @see https://valkey.io/commands/zdiff
      */
     public function zdiff(array $keys, ?array $options = null): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::eval
+     */
+    public function eval(string $script, array $args = [], int $num_keys = 0): mixed;
+
+    /**
+     * @see ValkeyGlide::evalsha
+     */
+    public function evalsha(string $sha1, array $args = [], int $num_keys = 0): mixed;
+
+    /**
+     * @see ValkeyGlide::eval_ro
+     */
+    public function eval_ro(string $script, array $args = [], int $num_keys = 0): mixed;
+
+    /**
+     * @see ValkeyGlide::evalsha_ro
+     */
+    public function evalsha_ro(string $sha1, array $args = [], int $num_keys = 0): mixed;
+
+    /**
+     * @see ValkeyGlide::fcall
+     */
+    public function fcall(string $fn, array $keys = [], array $args = []): mixed;
+
+    /**
+     * @see ValkeyGlide::fcall_ro
+     */
+    public function fcall_ro(string $fn, array $keys = [], array $args = []): mixed;
+
+    /**
+     * @see ValkeyGlide::scriptExists
+     */
+    public function scriptExists(array $sha1s): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::scriptFlush
+     */
+    public function scriptFlush(?string $mode = null): bool;
+
+    /**
+     * @see ValkeyGlide::scriptKill
+     */
+    public function scriptKill(): bool;
+
+    /**
+     * @see ValkeyGlide::scriptShow
+     */
+    public function scriptShow(string $sha1): ValkeyGlideCluster|string|false;
+
+    /**
+     * @see ValkeyGlide::functionLoad
+     */
+    public function functionLoad(string $code, bool $replace = false): ValkeyGlideCluster|string|false;
+
+    /**
+     * List function libraries.
+     *
+     * @param string|null $library_name Optional pattern for matching library names
+     * @see https://valkey.io/commands/function-list
+     *
+     * @return ValkeyGlideCluster|array|false Array of library information
+     */
+    public function functionList(?string $library_name = null): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::functionFlush
+     */
+    public function functionFlush(): ValkeyGlideCluster|bool;
+
+    /**
+     * @see ValkeyGlide::functionDelete
+     */
+    public function functionDelete(string $library_name): ValkeyGlideCluster|bool;
+
+    /**
+     * @see ValkeyGlide::functionDump
+     */
+    public function functionDump(): ValkeyGlideCluster|string|false;
+
+    /**
+     * @see ValkeyGlide::functionRestore
+     */
+    public function functionRestore(string $payload): ValkeyGlideCluster|bool;
+
+    /**
+     * @see ValkeyGlide::functionKill
+     */
+    public function functionKill(): ValkeyGlideCluster|bool;
+
+    /**
+     * @see ValkeyGlide::functionStats
+     */
+    public function functionStats(): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::function
+     */
+    public function function(string $operation, mixed ...$args): mixed;
 }
 
 class ValkeyGlideClusterException extends RuntimeException

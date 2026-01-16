@@ -41,88 +41,65 @@ typedef struct _geo_with_options_t {
  * Options for GEORADIUS and GEOSEARCH commands
  */
 typedef struct _geo_radius_options_t {
-    geo_with_options_t with_opts; /* WITH* options */
-
-    long        count;      /* COUNT option */
-    int         any;        /* ANY flag for COUNT option */
-    const char* sort;       /* Sort order (ASC/DESC) */
-    size_t      sort_len;   /* Sort order string length */
-    int         store_dist; /* STOREDIST option (for GEOSEARCHSTORE) */
+    const char*        sort;       /* Sort order (ASC/DESC) */
+    size_t             sort_len;   /* Sort order string length */
+    long               count;      /* COUNT option */
+    int                any;        /* ANY flag for COUNT option */
+    int                store_dist; /* STOREDIST option (for GEOSEARCHSTORE) */
+    geo_with_options_t with_opts;  /* WITH* options */
 } geo_radius_options_t;
 
 /**
  * Unified parameters structure for GEOSEARCH/GEOSEARCHSTORE commands
  */
 typedef struct _geo_search_params_t {
-    /* Basic parameters */
-    const char* key; /* Source key (GEOSEARCH) or destination key (GEOSEARCHSTORE) */
-    size_t      key_len;
-    const char* src_key; /* Source key (GEOSEARCHSTORE only) */
-    size_t      src_key_len;
-
-    /* Position parameters */
-    int         is_from_member; /* 1 if using member, 0 if using coordinates */
-    const char* member;         /* Member name for FROMMEMBER */
-    size_t      member_len;
-    double      longitude; /* Longitude for FROMLONLAT */
-    double      latitude;  /* Latitude for FROMLONLAT */
-
-    /* Shape parameters */
-    int         is_by_radius; /* 1 if using radius, 0 if using box */
-    double      radius;       /* Radius for BYRADIUS */
-    double      width;        /* Width for BYBOX */
-    double      height;       /* Height for BYBOX */
-    const char* unit;         /* Unit (m, km, ft, mi) */
-    size_t      unit_len;
-
-    /* Options */
+    const char*          key;       /* Source key (GEOSEARCH) or destination key (GEOSEARCHSTORE) */
+    const char*          src_key;   /* Source key (GEOSEARCHSTORE only) */
+    const char*          member;    /* Member name for FROMMEMBER */
+    const char*          unit;      /* Unit (m, km, ft, mi) */
+    double               longitude; /* Longitude for FROMLONLAT */
+    double               latitude;  /* Latitude for FROMLONLAT */
+    double               radius;    /* Radius for BYRADIUS */
+    double               width;     /* Width for BYBOX */
+    double               height;    /* Height for BYBOX */
+    size_t               key_len;
+    size_t               src_key_len;
+    size_t               member_len;
+    size_t               unit_len;
     geo_radius_options_t options;
+    int                  is_from_member; /* 1 if using member, 0 if using coordinates */
+    int                  is_by_radius;   /* 1 if using radius, 0 if using box */
 } geo_search_params_t;
 
 /**
  * Common arguments structure for GEO commands
  */
 typedef struct _geo_command_args_t {
-    /* Common fields */
-    const void* glide_client; /* GlideClient instance */
-    const char* key;          /* Key argument */
-    size_t      key_len;      /* Key argument length */
-
-    /* For member-based commands (GEOHASH, GEOPOS) */
-    zval* members;      /* Array of members or NULL */
-    int   member_count; /* Number of members */
-
-    /* Single-member fields (GEODIST) */
-    const char* src_member;     /* Source member (for GEODIST) */
-    size_t      src_member_len; /* Source member length */
-    const char* dst_member;     /* Destination member (for GEODIST) */
-    size_t      dst_member_len; /* Destination member length */
-
-    /* For GEOADD command */
-    zval* geo_args;       /* Array of [lon, lat, member] triplets */
-    int   geo_args_count; /* Number of arguments in geo_args */
-
-    /* For GEORADIUS/GEOSEARCH commands */
-    double      longitude; /* Longitude for center point */
-    double      latitude;  /* Latitude for center point */
-    double      radius;    /* Radius for search */
-    const char* unit;      /* Unit for radius (m, km, ft, mi) */
-    size_t      unit_len;  /* Unit string length */
-
-    /* For GEOSEARCH/GEOSEARCHSTORE */
-    zval*   from;      /* FROMMEMBER or FROMLONLAT */
-    double* by_radius; /* BYRADIUS value */
-    double* by_box;    /* BYBOX values [width, height] */
-
-    /* For GEOSEARCHSTORE */
-    const char* dest;     /* Destination key */
-    size_t      dest_len; /* Destination key length */
-    const char* src;      /* Source key */
-    size_t      src_len;  /* Source key length */
-
-    /* Common options */
-    zval*                options;     /* Options array or NULL */
-    geo_radius_options_t radius_opts; /* Parsed radius options */
+    const void*          glide_client;   /* GlideClient instance */
+    const char*          key;            /* Key argument */
+    zval*                members;        /* Array of members or NULL */
+    const char*          src_member;     /* Source member (for GEODIST) */
+    const char*          dst_member;     /* Destination member (for GEODIST) */
+    zval*                geo_args;       /* Array of [lon, lat, member] triplets */
+    const char*          unit;           /* Unit for radius (m, km, ft, mi) */
+    zval*                from;           /* FROMMEMBER or FROMLONLAT */
+    double*              by_radius;      /* BYRADIUS value */
+    double*              by_box;         /* BYBOX values [width, height] */
+    const char*          dest;           /* Destination key */
+    const char*          src;            /* Source key */
+    zval*                options;        /* Options array or NULL */
+    double               longitude;      /* Longitude for center point */
+    double               latitude;       /* Latitude for center point */
+    double               radius;         /* Radius for search */
+    size_t               key_len;        /* Key argument length */
+    size_t               src_member_len; /* Source member length */
+    size_t               dst_member_len; /* Destination member length */
+    size_t               unit_len;       /* Unit string length */
+    size_t               dest_len;       /* Destination key length */
+    size_t               src_len;        /* Source key length */
+    geo_radius_options_t radius_opts;    /* Parsed radius options */
+    int                  member_count;   /* Number of members */
+    int                  geo_args_count; /* Number of arguments in geo_args */
 } geo_command_args_t;
 
 /* Function pointer type for result processors */
