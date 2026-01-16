@@ -18,13 +18,26 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
     private function buildSubscriberCommand($script, ...$args)
     {
         $extension_path = __DIR__ . '/../modules/valkey_glide.so';
-        $cmd_parts = [
-            PHP_BINARY,
-            '-n',
-            '-d',
-            'extension=' . escapeshellarg($extension_path),
-            escapeshellarg($script)
-        ];
+        
+        if (file_exists($extension_path)) {
+            // Regular tests: load from modules directory
+            $cmd_parts = [
+                PHP_BINARY,
+                '-n',
+                '-d',
+                'extension=' . escapeshellarg($extension_path),
+                escapeshellarg($script)
+            ];
+        } else {
+            // PECL tests: extension installed system-wide
+            $cmd_parts = [
+                PHP_BINARY,
+                '-n',
+                '-d',
+                'extension=valkey_glide',
+                escapeshellarg($script)
+            ];
+        }
         
         foreach ($args as $arg) {
             $cmd_parts[] = is_int($arg) ? $arg : escapeshellarg($arg);
