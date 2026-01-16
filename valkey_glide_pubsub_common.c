@@ -5,6 +5,11 @@
 #include <unistd.h>
 #include <zend_exceptions.h>
 
+// PubSub message type constants (from PushKind enum)
+#define PUBSUB_KIND_MESSAGE 3
+#define PUBSUB_KIND_PMESSAGE 4
+#define PUBSUB_KIND_SMESSAGE 5
+
 // Mutex wrapper functions
 void mutex_init(mutex_t* m) {
 #ifdef _WIN32
@@ -35,6 +40,39 @@ void mutex_destroy(mutex_t* m) {
     DeleteCriticalSection(m);
 #else
     pthread_mutex_destroy(m);
+#endif
+}
+
+// Condition variable wrapper functions
+void cond_init(cond_t* c) {
+#ifdef _WIN32
+    InitializeConditionVariable(c);
+#else
+    pthread_cond_init(c, NULL);
+#endif
+}
+
+void cond_wait(cond_t* c, mutex_t* m) {
+#ifdef _WIN32
+    SleepConditionVariableCS(c, m, INFINITE);
+#else
+    pthread_cond_wait(c, m);
+#endif
+}
+
+void cond_signal(cond_t* c) {
+#ifdef _WIN32
+    WakeConditionVariable(c);
+#else
+    pthread_cond_signal(c);
+#endif
+}
+
+void cond_destroy(cond_t* c) {
+#ifdef _WIN32
+    // No cleanup needed for Windows condition variables
+#else
+    pthread_cond_destroy(c);
 #endif
 }
 
@@ -84,6 +122,7 @@ void cleanup_callback_info(zval* zv) {
         }
 
         mutex_destroy(&info->queue_mutex);
+        cond_destroy(&info->queue_cond);
         zval_ptr_dtor(&info->callback);
         Z_DELREF(info->client_obj);
         efree(info);
@@ -127,7 +166,7 @@ void pubsub_callback_handler(uintptr_t      client_ptr,
     }
 
     // Only handle message types
-    if (kind != 3 && kind != 4 && kind != 5) {
+    if (kind != PUBSUB_KIND_MESSAGE && kind != PUBSUB_KIND_PMESSAGE && kind != PUBSUB_KIND_SMESSAGE) {
         return;
     }
 
@@ -185,6 +224,7 @@ void pubsub_callback_handler(uintptr_t      client_ptr,
         info->queue_head = msg;
     }
     info->queue_tail = msg;
+    cond_signal(&info->queue_cond);
     mutex_unlock(&info->queue_mutex);
 }
 
@@ -207,6 +247,7 @@ void php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* cl
     info->queue_head = NULL;
     info->queue_tail = NULL;
     mutex_init(&info->queue_mutex);
+    cond_init(&info->queue_cond);
     info->subscription_count = 0;
     info->in_subscribe_mode  = false;
 
@@ -229,6 +270,7 @@ void php_unregister_pubsub_callback(uintptr_t client_ptr) {
         pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
         if (info) {
             info->is_active = false;
+            cond_signal(&info->queue_cond);
         }
         // Delete from hashtable - this will call cleanup_callback_info
         zend_hash_str_del(&pubsub_callbacks, client_key, strlen(client_key));
@@ -266,6 +308,9 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
         pubsub_message* msg = NULL;
 
         mutex_lock(&info->queue_mutex);
+        while (!info->queue_head && info->is_active && info->subscription_count > 0) {
+            cond_wait(&info->queue_cond, &info->queue_mutex);
+        }
         if (info->queue_head) {
             msg              = info->queue_head;
             info->queue_head = msg->next;
@@ -314,8 +359,6 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
             if (msg->pattern)
                 efree(msg->pattern);
             efree(msg);
-        } else {
-            usleep(1000);
         }
     }
 
@@ -325,7 +368,6 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
         free_command_result(unsub_result);
     }
 
-    usleep(10000);
     info->in_subscribe_mode = false;
     php_unregister_pubsub_callback(connection);
 }
@@ -594,6 +636,7 @@ void valkey_glide_unsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* con
             if (info->subscription_count <= 0) {
                 info->subscription_count = 0;
                 info->is_active          = false;
+                cond_signal(&info->queue_cond);
             }
         }
     }
@@ -672,6 +715,7 @@ void valkey_glide_punsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* co
             if (info->subscription_count <= 0) {
                 info->subscription_count = 0;
                 info->is_active          = false;
+                cond_signal(&info->queue_cond);
             }
         }
     }

@@ -6,13 +6,15 @@
 #include "common.h"
 #include "valkey_glide_commands_common.h"
 
-// Platform-agnostic mutex
+// Platform-agnostic mutex and condition variable
 #ifdef _WIN32
 #include <windows.h>
 typedef CRITICAL_SECTION mutex_t;
+typedef CONDITION_VARIABLE cond_t;
 #else
 #include <pthread.h>
 typedef pthread_mutex_t mutex_t;
+typedef pthread_cond_t cond_t;
 #endif
 
 // Request type constants
@@ -42,6 +44,7 @@ typedef struct {
     pubsub_message* queue_head;
     pubsub_message* queue_tail;
     mutex_t         queue_mutex;
+    cond_t          queue_cond;
     int             subscription_count;
     bool            in_subscribe_mode;
 } pubsub_callback_info;
@@ -68,6 +71,12 @@ void mutex_init(mutex_t* m);
 void mutex_lock(mutex_t* m);
 void mutex_unlock(mutex_t* m);
 void mutex_destroy(mutex_t* m);
+
+// Condition variable wrapper functions
+void cond_init(cond_t* c);
+void cond_wait(cond_t* c, mutex_t* m);
+void cond_signal(cond_t* c);
+void cond_destroy(cond_t* c);
 
 // Pubsub management functions
 void  init_pubsub_callbacks(void);
