@@ -42,10 +42,12 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $sub_script = __DIR__ . '/scripts/subscriber_message_delivery.php';
 
-        // Start subscriber
+        // Start subscriber - use same PHP invocation as main test runner
+        $extension_path = __DIR__ . '/../modules/valkey_glide.so';
         $cmd = sprintf(
-            '%s %s %s %d %s %s %s %s',
+            '%s -n -d extension=%s %s %s %d %s %s %s %s',
             PHP_BINARY,
+            escapeshellarg($extension_path),
             escapeshellarg($sub_script),
             escapeshellarg($this->getHost()),
             $this->getPort(),
