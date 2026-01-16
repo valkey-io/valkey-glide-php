@@ -402,9 +402,9 @@ static int execute_subscribe_command(const void*       connection,
     ZEND_HASH_FOREACH_END();
 
     char timeout_str[32];
-    snprintf(timeout_str, sizeof(timeout_str), "%lld", (long long) timeout_ms);
+    int timeout_len = snprintf(timeout_str, sizeof(timeout_str), "%lld", (long long) timeout_ms);
     args[item_count]     = (uintptr_t) timeout_str;
-    args_len[item_count] = strlen(timeout_str);
+    args_len[item_count] = timeout_len;
 
     struct CommandResult* result =
         command(connection, 0, subscribe_type, total_args, args, args_len, NULL, 0, 0);
@@ -471,10 +471,8 @@ static void execute_unsubscribe_command(const void*      connection,
         }
         ZEND_HASH_FOREACH_END();
 
-        char timeout_str[32];
-        snprintf(timeout_str, sizeof(timeout_str), "0");
-        args[item_count]     = (uintptr_t) timeout_str;
-        args_len[item_count] = strlen(timeout_str);
+        args[item_count]     = (uintptr_t) "0";
+        args_len[item_count] = 1;
 
         struct CommandResult* result =
             command(connection, 0, unsubscribe_type, total_args, args, args_len, NULL, 0, 0);
@@ -505,10 +503,8 @@ static void execute_unsubscribe_command(const void*      connection,
             }
         }
     } else {
-        char timeout_str[32];
-        snprintf(timeout_str, sizeof(timeout_str), "0");
-        uintptr_t     args[1]     = {(uintptr_t) timeout_str};
-        unsigned long args_len[1] = {strlen(timeout_str)};
+        uintptr_t     args[1]     = {(uintptr_t) "0"};
+        unsigned long args_len[1] = {1};
 
         struct CommandResult* result =
             command(connection, 0, unsubscribe_type, 1, args, args_len, NULL, 0, 0);
