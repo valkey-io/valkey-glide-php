@@ -119,7 +119,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
     public function testPubSubPublish()
     {
-        // Test publish command works
+        // Test publish command works with 0 subscribers
         $channel = 'test_publish_' . uniqid();
 
         $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
@@ -127,7 +127,113 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $pub->close();
 
         $this->assertIsInt($count, 'Publish should return integer subscriber count');
-        $this->assertGTE(0, $count, 'Subscriber count should be >= 0');
+        $this->assertEquals(0, $count, 'Subscriber count should be 0 when no subscribers');
+    }
+
+    public function testPubSubPublishWithTwoSubscribers()
+    {
+        // Test publish returns correct count with 2 subscribers
+        $channel = 'test_publish_multi_' . uniqid();
+        $sync_file1 = tempnam(sys_get_temp_dir(), 'sync1_');
+        $sync_file2 = tempnam(sys_get_temp_dir(), 'sync2_');
+        $result_file1 = tempnam(sys_get_temp_dir(), 'result1_');
+        $result_file2 = tempnam(sys_get_temp_dir(), 'result2_');
+
+        @unlink($sync_file1);
+        @unlink($sync_file2);
+        @unlink($result_file1);
+        @unlink($result_file2);
+
+        $sub_script = __DIR__ . '/scripts/subscriber_message_delivery.php';
+        $message = 'multi_test_' . time();
+
+        // Start first subscriber
+        $cmd1 = $this->buildSubscriberCommand(
+            $sub_script,
+            $this->getHost(),
+            $this->getPort(),
+            $channel,
+            $message,
+            $sync_file1,
+            $result_file1
+        );
+
+        $proc1 = proc_open(
+            $cmd1,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes1
+        );
+
+        // Start second subscriber
+        $cmd2 = $this->buildSubscriberCommand(
+            $sub_script,
+            $this->getHost(),
+            $this->getPort(),
+            $channel,
+            $message,
+            $sync_file2,
+            $result_file2
+        );
+
+        $proc2 = proc_open(
+            $cmd2,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes2
+        );
+
+        // Wait for both subscribers ready
+        $timeout = time() + 5;
+        while ((!file_exists($sync_file1) || !file_exists($sync_file2)) && time() < $timeout) {
+            usleep(100000);
+        }
+
+        $this->assertTrue(file_exists($sync_file1), 'First subscriber should signal ready');
+        $this->assertTrue(file_exists($sync_file2), 'Second subscriber should signal ready');
+
+        // Publish message
+        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $count = $pub->publish($channel, $message);
+        $pub->close();
+
+        $this->assertIsInt($count, 'Publish should return integer subscriber count');
+        $this->assertEquals(2, $count, 'Subscriber count should be 2');
+
+        // Wait for both callbacks
+        $success1 = false;
+        $success2 = false;
+        $timeout = time() + 3;
+        while ((!$success1 || !$success2) && time() < $timeout) {
+            if (file_exists($result_file1)) {
+                $success1 = true;
+            }
+            if (file_exists($result_file2)) {
+                $success2 = true;
+            }
+            if ($success1 && $success2) {
+                break;
+            }
+            usleep(100000);
+        }
+
+        // Cleanup
+        foreach ($pipes1 as $pipe) {
+            @fclose($pipe);
+        }
+        foreach ($pipes2 as $pipe) {
+            @fclose($pipe);
+        }
+        @proc_terminate($proc1);
+        @proc_terminate($proc2);
+        @proc_close($proc1);
+        @proc_close($proc2);
+        @unlink($sync_file1);
+        @unlink($sync_file2);
+        @unlink($result_file1);
+        @unlink($result_file2);
+        @unlink($result_file1 . '.error');
+        @unlink($result_file2 . '.error');
+
+        $this->assertTrue($success1 || $success2, 'At least one subscriber should receive message');
     }
 
     public function testPubSubMessageDelivery()

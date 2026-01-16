@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <zend_exceptions.h>
 
+#include "logger.h"
+
 // PubSub message type constants (from PushKind enum)
 #define PUBSUB_KIND_MESSAGE 3
 #define PUBSUB_KIND_PMESSAGE 4
@@ -442,11 +444,16 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
     efree(args_len);
 
     if (!result || result->command_error) {
+        const char* error_msg = result && result->command_error &&
+                                        result->command_error->command_error_message
+                                    ? result->command_error->command_error_message
+                                    : "Subscribe command failed";
+        VALKEY_LOG_ERROR("subscribe", error_msg);
         if (result)
             free_command_result(result);
         unregister_pubsub_callback(connection);
         php_unregister_pubsub_callback((uintptr_t) connection);
-        zend_throw_exception(zend_ce_exception, "Subscribe command failed", 0);
+        zend_throw_exception(zend_ce_exception, error_msg, 0);
         RETVAL_FALSE;
         return;
     }
@@ -456,6 +463,7 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
     snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
     zval* callback_zv = find_pubsub_callback(client_key);
     if (!callback_zv) {
+        VALKEY_LOG_ERROR("subscribe", "Failed to find pubsub callback after command execution");
         unregister_pubsub_callback(connection);
         RETVAL_FALSE;
         return;
@@ -492,6 +500,7 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
     }
 
     if (!zend_is_callable(callback, 0, NULL)) {
+        VALKEY_LOG_ERROR("psubscribe", "Callback is not callable");
         zend_throw_exception(zend_ce_exception, "Callback must be callable", 0);
         RETURN_FALSE;
     }
@@ -536,11 +545,16 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
     efree(args_len);
 
     if (!result || result->command_error) {
+        const char* error_msg = result && result->command_error &&
+                                        result->command_error->command_error_message
+                                    ? result->command_error->command_error_message
+                                    : "PSubscribe command failed";
+        VALKEY_LOG_ERROR("psubscribe", error_msg);
         if (result)
             free_command_result(result);
         unregister_pubsub_callback(connection);
         php_unregister_pubsub_callback((uintptr_t) connection);
-        zend_throw_exception(zend_ce_exception, "PSubscribe command failed", 0);
+        zend_throw_exception(zend_ce_exception, error_msg, 0);
         RETVAL_FALSE;
         return;
     }
@@ -550,6 +564,7 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
     snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
     zval* callback_zv = find_pubsub_callback(client_key);
     if (!callback_zv) {
+        VALKEY_LOG_ERROR("psubscribe", "Failed to find pubsub callback after command execution");
         unregister_pubsub_callback(connection);
         RETVAL_FALSE;
         return;
@@ -607,8 +622,12 @@ void valkey_glide_unsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* con
         efree(args);
         efree(args_len);
 
-        if (result)
+        if (result) {
+            if (result->command_error && result->command_error->command_error_message) {
+                VALKEY_LOG_ERROR("unsubscribe", result->command_error->command_error_message);
+            }
             free_command_result(result);
+        }
     } else {
         // Unsubscribe from all - just timeout parameter
         char timeout_str[32];
@@ -618,8 +637,12 @@ void valkey_glide_unsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* con
 
         struct CommandResult* result =
             command(connection, 0, REQUEST_TYPE_UNSUBSCRIBE, 1, args, args_len, NULL, 0, 0);
-        if (result)
+        if (result) {
+            if (result->command_error && result->command_error->command_error_message) {
+                VALKEY_LOG_ERROR("unsubscribe", result->command_error->command_error_message);
+            }
             free_command_result(result);
+        }
     }
 
     // Update subscription count
@@ -686,8 +709,12 @@ void valkey_glide_punsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* co
         efree(args);
         efree(args_len);
 
-        if (result)
+        if (result) {
+            if (result->command_error && result->command_error->command_error_message) {
+                VALKEY_LOG_ERROR("punsubscribe", result->command_error->command_error_message);
+            }
             free_command_result(result);
+        }
     } else {
         // Unsubscribe from all patterns - just timeout parameter
         char timeout_str[32];
@@ -697,8 +724,12 @@ void valkey_glide_punsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* co
 
         struct CommandResult* result =
             command(connection, 0, REQUEST_TYPE_PUNSUBSCRIBE, 1, args, args_len, NULL, 0, 0);
-        if (result)
+        if (result) {
+            if (result->command_error && result->command_error->command_error_message) {
+                VALKEY_LOG_ERROR("punsubscribe", result->command_error->command_error_message);
+            }
             free_command_result(result);
+        }
     }
 
     // Update subscription count
@@ -747,13 +778,24 @@ void valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
 
     if (result) {
         if (result->response && !result->command_error) {
-            RETVAL_LONG(1);  // Return number of subscribers (simplified)
+            if (result->response->response_type == Int) {
+                RETVAL_LONG(result->response->int_value);
+            } else {
+                VALKEY_LOG_ERROR("publish", "Unexpected response type from publish command");
+                RETVAL_LONG(0);
+            }
         } else {
-            zend_throw_exception(zend_ce_exception, "Publish failed", 0);
+            const char* error_msg = result->command_error &&
+                                            result->command_error->command_error_message
+                                        ? result->command_error->command_error_message
+                                        : "Publish failed";
+            VALKEY_LOG_ERROR("publish", error_msg);
+            zend_throw_exception(zend_ce_exception, error_msg, 0);
             RETVAL_FALSE;
         }
         free_command_result(result);
     } else {
+        VALKEY_LOG_ERROR("publish", "Publish command failed");
         zend_throw_exception(zend_ce_exception, "Publish command failed", 0);
         RETVAL_FALSE;
     }
