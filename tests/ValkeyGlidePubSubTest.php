@@ -44,7 +44,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         // Start subscriber
         $cmd = sprintf(
-            '%s %s %s %d %s %s %s %s 2>/dev/null',
+            '%s %s %s %d %s %s %s %s',
             PHP_BINARY,
             escapeshellarg($sub_script),
             escapeshellarg($this->getHost()),
@@ -57,7 +57,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $proc = proc_open(
             $cmd,
-            [['pipe', 'r'], ['pipe', 'w'], ['file', '/tmp/subscriber_stderr.log', 'a']],
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
             $pipes
         );
 
@@ -75,20 +75,25 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @unlink($sync_file);
             if (isset($pipes[0]) && is_resource($pipes[0])) @fclose($pipes[0]);
             if (isset($pipes[1]) && is_resource($pipes[1])) @fclose($pipes[1]);
-            @proc_terminate($proc);
-            @proc_close($proc);
+            if (isset($pipes[2]) && is_resource($pipes[2])) @fclose($pipes[2]);
+            if (is_resource($proc)) @proc_terminate($proc);
+            if (is_resource($proc)) @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
         }
 
-        // If sync file doesn't exist, check stderr log
+        // If sync file doesn't exist, check stderr
         if (!file_exists($sync_file)) {
-            $stderr_log = '/tmp/subscriber_stderr.log';
-            $stderr_content = file_exists($stderr_log) ? file_get_contents($stderr_log) : 'No stderr log';
+            $stderr_content = '';
+            if (isset($pipes[2]) && is_resource($pipes[2])) {
+                stream_set_blocking($pipes[2], false);
+                $stderr_content = stream_get_contents($pipes[2]);
+            }
             if (isset($pipes[0]) && is_resource($pipes[0])) @fclose($pipes[0]);
             if (isset($pipes[1]) && is_resource($pipes[1])) @fclose($pipes[1]);
-            @proc_terminate($proc);
-            @proc_close($proc);
-            $this->fail('Subscriber did not start. Stderr: ' . $stderr_content);
+            if (isset($pipes[2]) && is_resource($pipes[2])) @fclose($pipes[2]);
+            if (is_resource($proc)) @proc_terminate($proc);
+            if (is_resource($proc)) @proc_close($proc);
+            $this->fail('Subscriber did not start. Stderr: ' . ($stderr_content ?: 'No stderr output'));
         }
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
@@ -114,8 +119,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         // Cleanup
         if (isset($pipes[0]) && is_resource($pipes[0])) @fclose($pipes[0]);
         if (isset($pipes[1]) && is_resource($pipes[1])) @fclose($pipes[1]);
-        @proc_terminate($proc);
-        @proc_close($proc);
+        if (isset($pipes[2]) && is_resource($pipes[2])) @fclose($pipes[2]);
+        if (is_resource($proc)) @proc_terminate($proc);
+        if (is_resource($proc)) @proc_close($proc);
         @unlink($sync_file);
         @unlink($result_file);
         @unlink($error_file);
