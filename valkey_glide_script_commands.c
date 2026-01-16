@@ -4,6 +4,37 @@
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
 
+// Helper macros for validating CommandResult in script commands
+#define VALIDATE_SCRIPT_RESULT_OR_RETURN_FALSE(result, return_value)       \
+    do {                                                                   \
+        if (!(result) || (result)->command_error || !(result)->response) { \
+            if (result) {                                                  \
+                free_command_result(result);                               \
+            }                                                              \
+            RETURN_FALSE;                                                  \
+        }                                                                  \
+    } while (0)
+
+#define VALIDATE_SCRIPT_RESULT_OR_RETURN_NULL(result, return_value)        \
+    do {                                                                   \
+        if (!(result) || (result)->command_error || !(result)->response) { \
+            if (result) {                                                  \
+                free_command_result(result);                               \
+            }                                                              \
+            RETURN_NULL();                                                 \
+        }                                                                  \
+    } while (0)
+
+#define VALIDATE_SCRIPT_RESULT_NO_RESPONSE_OR_RETURN_FALSE(result, return_value) \
+    do {                                                                         \
+        if (!(result) || (result)->command_error) {                              \
+            if (result) {                                                        \
+                free_command_result(result);                                     \
+            }                                                                    \
+            RETURN_FALSE;                                                        \
+        }                                                                        \
+    } while (0)
+
 /**
  * Helper function to handle CommandResult for boolean script commands (void return)
  */
@@ -143,12 +174,7 @@ static void execute_eval_style_command(const char* cmd_name,
     efree(cmd_args);
     efree(cmd_args_len);
 
-    if (!result || result->command_error) {
-        if (result) {
-            free_command_result(result);
-        }
-        RETURN_FALSE;
-    }
+    VALIDATE_SCRIPT_RESULT_NO_RESPONSE_OR_RETURN_FALSE(result, return_value);
 
     command_response_to_zval(result->response, return_value, 0, false);
     free_command_result(result);
@@ -303,12 +329,7 @@ void execute_script_exists_command(zval* object, zval* sha1s, zval* return_value
     efree(cmd_args);
     efree(cmd_args_len);
 
-    if (!result || result->command_error || !result->response) {
-        if (result) {
-            free_command_result(result);
-        }
-        RETURN_FALSE;
-    }
+    VALIDATE_SCRIPT_RESULT_OR_RETURN_FALSE(result, return_value);
 
     command_response_to_zval(result->response, return_value, 0, false);
     free_command_result(result);
@@ -326,12 +347,7 @@ void execute_script_show_command(
     CommandResult* result =
         execute_command(valkey_glide->glide_client, ScriptShow, 1, cmd_args, cmd_args_len);
 
-    if (!result || result->command_error || !result->response) {
-        if (result) {
-            free_command_result(result);
-        }
-        RETURN_NULL();
-    }
+    VALIDATE_SCRIPT_RESULT_OR_RETURN_NULL(result, return_value);
 
     command_response_to_zval(result->response, return_value, 0, false);
     free_command_result(result);
@@ -344,12 +360,7 @@ void execute_script_kill_command(zval* object, zval* return_value, bool is_clust
 
     CommandResult* result = execute_command(valkey_glide->glide_client, ScriptKill, 0, NULL, NULL);
 
-    if (!result || result->command_error) {
-        if (result) {
-            free_command_result(result);
-        }
-        RETURN_FALSE;
-    }
+    VALIDATE_SCRIPT_RESULT_NO_RESPONSE_OR_RETURN_FALSE(result, return_value);
 
     command_response_to_zval(result->response, return_value, 0, false);
     free_command_result(result);
