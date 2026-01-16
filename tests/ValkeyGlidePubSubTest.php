@@ -93,6 +93,15 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
+        
+        // Check for error file
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+        
         @unlink($sync_file);
         @unlink($result_file);
 
@@ -158,6 +167,15 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
+        
+        // Check for error file
+        $error_file = $unsub_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+        
         @unlink($sync_file);
         @unlink($unsub_file);
 
@@ -223,6 +241,15 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
+        
+        // Check for error file
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+        
         @unlink($sync_file);
         @unlink($result_file);
 
@@ -287,6 +314,15 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
+        
+        // Check for error file
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+        
         @unlink($sync_file);
         @unlink($result_file);
 
@@ -350,6 +386,15 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
+        
+        // Check for error file
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+        
         @unlink($sync_file);
         @unlink($result_file);
 
@@ -411,6 +456,15 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
+        
+        // Check for error file
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+        
         @unlink($sync_file);
         @unlink($result_file);
 
@@ -511,6 +565,15 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
+        
+        // Check for error file
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+        
         @unlink($sync_file);
         @unlink($result_file);
 

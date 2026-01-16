@@ -9,13 +9,18 @@ $channel = $argv[3];
 $expected_msg = $argv[4];
 $sync_file = $argv[5];
 $result_file = $argv[6];
+$error_file = $result_file . '.error';
 
-$sub = new ValkeyGlide([['host' => $host, 'port' => $port]]);
-file_put_contents($sync_file, 'ready');
+try {
+    $sub = new ValkeyGlide([['host' => $host, 'port' => $port]]);
+    file_put_contents($sync_file, 'ready');
 
-$sub->subscribe([$channel], function ($client, $ch, $msg) use ($result_file, $expected_msg, $channel) {
-    if ($msg === $expected_msg) {
-        file_put_contents($result_file, 'SUCCESS');
-    }
-    $client->unsubscribe([$channel]);
-});
+    $sub->subscribe([$channel], function ($client, $ch, $msg) use ($result_file, $expected_msg, $channel) {
+        if ($msg === $expected_msg) {
+            file_put_contents($result_file, 'SUCCESS');
+        }
+        $client->unsubscribe([$channel]);
+    });
+} catch (Exception $e) {
+    file_put_contents($error_file, $e->getMessage() . "\n" . $e->getTraceAsString());
+}
