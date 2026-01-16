@@ -73,8 +73,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             $error = file_get_contents($error_file);
             @unlink($error_file);
             @unlink($sync_file);
-            if (isset($pipes[0])) @fclose($pipes[0]);
-            if (isset($pipes[1])) @fclose($pipes[1]);
+            if (isset($pipes[0]) && is_resource($pipes[0])) @fclose($pipes[0]);
+            if (isset($pipes[1]) && is_resource($pipes[1])) @fclose($pipes[1]);
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
@@ -84,8 +84,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         if (!file_exists($sync_file)) {
             $stderr_log = '/tmp/subscriber_stderr.log';
             $stderr_content = file_exists($stderr_log) ? file_get_contents($stderr_log) : 'No stderr log';
-            if (isset($pipes[0])) @fclose($pipes[0]);
-            if (isset($pipes[1])) @fclose($pipes[1]);
+            if (isset($pipes[0]) && is_resource($pipes[0])) @fclose($pipes[0]);
+            if (isset($pipes[1]) && is_resource($pipes[1])) @fclose($pipes[1]);
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber did not start. Stderr: ' . $stderr_content);
@@ -112,8 +112,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
 
         // Cleanup
-        if (isset($pipes[0])) @fclose($pipes[0]);
-        if (isset($pipes[1])) @fclose($pipes[1]);
+        if (isset($pipes[0]) && is_resource($pipes[0])) @fclose($pipes[0]);
+        if (isset($pipes[1]) && is_resource($pipes[1])) @fclose($pipes[1]);
         @proc_terminate($proc);
         @proc_close($proc);
         @unlink($sync_file);
