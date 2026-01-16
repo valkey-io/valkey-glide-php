@@ -155,9 +155,9 @@ void pubsub_callback_handler(uintptr_t      client_ptr,
     }
 
     char client_key[32];
-    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
+    int  key_len = snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
 
-    zval* callback_zv = zend_hash_str_find(&pubsub_callbacks, client_key, strlen(client_key));
+    zval* callback_zv = zend_hash_str_find(&pubsub_callbacks, client_key, key_len);
     if (!callback_zv) {
         return;
     }
@@ -236,7 +236,7 @@ void php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* cl
     init_pubsub_callbacks();
 
     char client_key[32];
-    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
+    int  key_len = snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
 
     pubsub_callback_info* info = emalloc(sizeof(pubsub_callback_info));
 
@@ -257,7 +257,7 @@ void php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* cl
     // Store the pointer in a zval using ZVAL_PTR
     zval callback_zv;
     ZVAL_PTR(&callback_zv, info);
-    zend_hash_str_update(&pubsub_callbacks, client_key, strlen(client_key), &callback_zv);
+    zend_hash_str_update(&pubsub_callbacks, client_key, key_len, &callback_zv);
 }
 
 // Unregister callback
@@ -266,9 +266,9 @@ void php_unregister_pubsub_callback(uintptr_t client_ptr) {
         return;
 
     char client_key[32];
-    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
+    int  key_len = snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
 
-    zval* callback_zv = zend_hash_str_find(&pubsub_callbacks, client_key, strlen(client_key));
+    zval* callback_zv = zend_hash_str_find(&pubsub_callbacks, client_key, key_len);
     if (callback_zv) {
         pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
         if (info) {
@@ -276,7 +276,7 @@ void php_unregister_pubsub_callback(uintptr_t client_ptr) {
             cond_signal(&info->queue_cond);
         }
         // Delete from hashtable - this will call cleanup_callback_info
-        zend_hash_str_del(&pubsub_callbacks, client_key, strlen(client_key));
+        zend_hash_str_del(&pubsub_callbacks, client_key, key_len);
     }
 }
 
