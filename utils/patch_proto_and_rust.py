@@ -55,7 +55,15 @@ def remove_optional_from_proto(directory):
     return True
 
 def patch_rust_types_rs(rust_types_file):
-    """Patch the Rust types.rs file to fix type mismatches"""
+    """Patch the Rust types.rs file to fix type mismatches between protobuf and Rust code.
+    
+    Fixes several fields that changed from Option<T> to T in protobuf:
+    - tcp_nodelay: Option<bool> -> bool
+    - pubsub_reconciliation_interval_ms: Option<u32> -> u32
+    - jitter_percent: Option<u32> -> u32
+    - refresh_interval_seconds: Option<u32> -> u32
+    - compression_level: Option<i32> -> i32
+    """
     
     if not os.path.exists(rust_types_file):
         log_message(f"Rust types file not found: {rust_types_file}", "ERROR")
@@ -89,7 +97,7 @@ def patch_rust_types_rs(rust_types_file):
             needs_patching = True
             log_message("Applied pubsub_reconciliation_interval_ms patch")
         
-        # Apply jitter_percent patch
+        # Fix jitter_percent: changed from Option<u32> to u32
         jitter_pattern = r'jitter_percent:\s*strategy\.jitter_percent,'
         jitter_replacement = 'jitter_percent: Some(strategy.jitter_percent),'
         if re.search(jitter_pattern, new_content):
@@ -99,7 +107,7 @@ def patch_rust_types_rs(rust_types_file):
             needs_patching = True
             log_message("Applied jitter_percent patch")
         
-        # Apply refresh_interval_seconds patch
+        # Fix refresh_interval_seconds: changed from Option<u32> to u32
         refresh_pattern = r'refresh_interval_seconds,\s*\n\s*}'
         refresh_replacement = 'refresh_interval_seconds: Some(refresh_interval_seconds),\n                }'
         if re.search(refresh_pattern, new_content):
@@ -109,7 +117,7 @@ def patch_rust_types_rs(rust_types_file):
             needs_patching = True
             log_message("Applied refresh_interval_seconds patch")
         
-        # Apply compression_level patch
+        # Fix compression_level: changed from Option<i32> to i32
         compression_pattern = r'compression_level:\s*proto_config\.compression_level,'
         compression_replacement = 'compression_level: Some(proto_config.compression_level),'
         if re.search(compression_pattern, new_content):
@@ -139,15 +147,21 @@ def verify_rust_patch(rust_types_file):
             content = f.read()
         
         # Check for the fixed patterns
+        tcp_nodelay_fixed = 'let tcp_nodelay = value.tcp_nodelay;' in content
+        pubsub_fixed = 'if value.pubsub_reconciliation_interval_ms != 0 { Some(value.pubsub_reconciliation_interval_ms) } else { None }' in content
         jitter_fixed = 'Some(strategy.jitter_percent)' in content
         refresh_fixed = 'refresh_interval_seconds: Some(refresh_interval_seconds)' in content
         compression_fixed = 'Some(proto_config.compression_level)' in content
         
-        if jitter_fixed and refresh_fixed and compression_fixed:
+        if tcp_nodelay_fixed and pubsub_fixed and jitter_fixed and refresh_fixed and compression_fixed:
             log_message("Rust patch verification: SUCCESS")
             return True
         else:
             missing = []
+            if not tcp_nodelay_fixed:
+                missing.append("tcp_nodelay fix")
+            if not pubsub_fixed:
+                missing.append("pubsub_reconciliation_interval_ms fix")
             if not jitter_fixed:
                 missing.append("jitter_percent fix")
             if not refresh_fixed:
@@ -162,7 +176,12 @@ def verify_rust_patch(rust_types_file):
         return False
 
 def main():
-    """Main function to run all patching operations for protobuf and Rust files"""
+    """Main function to run all patching operations.
+    
+    This script patches protobuf files and Rust code to fix type mismatches
+    that occur when protobuf 'optional' fields are removed, causing them to
+    change from Option<T> to T in the generated Rust code.
+    """
     log_message("Starting build-time patching process for protobuf and Rust files")
     
     # Base directory (relative to script location)
