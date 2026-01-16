@@ -375,10 +375,169 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
     php_unregister_pubsub_callback(connection);
 }
 
+// Helper: Execute subscribe command
+static int execute_subscribe_command(const void*       connection,
+                                     zval*             items_array,
+                                     zend_long         timeout_ms,
+                                     enum RequestType  subscribe_type,
+                                     enum RequestType  unsubscribe_type,
+                                     const char*       command_name,
+                                     const char*       error_prefix,
+                                     zval*             return_value) {
+    HashTable* items_ht   = Z_ARRVAL_P(items_array);
+    uint32_t   item_count = zend_hash_num_elements(items_ht);
+
+    uint32_t       total_args = item_count + 1;
+    uintptr_t*     args       = emalloc(total_args * sizeof(uintptr_t));
+    unsigned long* args_len   = emalloc(total_args * sizeof(unsigned long));
+
+    uint32_t i = 0;
+    zval*    item_zv;
+    ZEND_HASH_FOREACH_VAL(items_ht, item_zv) {
+        convert_to_string(item_zv);
+        args[i]     = (uintptr_t) Z_STRVAL_P(item_zv);
+        args_len[i] = Z_STRLEN_P(item_zv);
+        i++;
+    }
+    ZEND_HASH_FOREACH_END();
+
+    char timeout_str[32];
+    snprintf(timeout_str, sizeof(timeout_str), "%lld", (long long) timeout_ms);
+    args[item_count]     = (uintptr_t) timeout_str;
+    args_len[item_count] = strlen(timeout_str);
+
+    struct CommandResult* result =
+        command(connection, 0, subscribe_type, total_args, args, args_len, NULL, 0, 0);
+
+    efree(args);
+    efree(args_len);
+
+    if (!result || result->command_error) {
+        const char* error_msg =
+            result && result->command_error && result->command_error->command_error_message
+                ? result->command_error->command_error_message
+                : error_prefix;
+        VALKEY_LOG_ERROR(command_name, error_msg);
+        if (result)
+            free_command_result(result);
+        unregister_pubsub_callback(connection);
+        php_unregister_pubsub_callback((uintptr_t) connection);
+        zend_throw_exception(zend_ce_exception, error_msg, 0);
+        ZVAL_FALSE(return_value);
+        return 0;
+    }
+    free_command_result(result);
+
+    char client_key[32];
+    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
+    zval* callback_zv = find_pubsub_callback(client_key);
+    if (!callback_zv) {
+        VALKEY_LOG_ERROR(command_name, "Failed to find pubsub callback after command execution");
+        unregister_pubsub_callback(connection);
+        ZVAL_FALSE(return_value);
+        return 0;
+    }
+
+    pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
+    info->subscription_count += item_count;
+
+    subscribe_blocking_loop((uintptr_t) connection, unsubscribe_type);
+    unregister_pubsub_callback(connection);
+
+    ZVAL_TRUE(return_value);
+    return 1;
+}
+
+// Helper: Execute unsubscribe command
+static void execute_unsubscribe_command(const void*      connection,
+                                       zval*            items_array,
+                                       enum RequestType unsubscribe_type,
+                                       const char*      command_name) {
+    if (items_array) {
+        HashTable* items_ht   = Z_ARRVAL_P(items_array);
+        uint32_t   item_count = zend_hash_num_elements(items_ht);
+
+        uint32_t       total_args = item_count + 1;
+        uintptr_t*     args       = emalloc(total_args * sizeof(uintptr_t));
+        unsigned long* args_len   = emalloc(total_args * sizeof(unsigned long));
+
+        uint32_t i = 0;
+        zval*    item_zv;
+        ZEND_HASH_FOREACH_VAL(items_ht, item_zv) {
+            convert_to_string(item_zv);
+            args[i]     = (uintptr_t) Z_STRVAL_P(item_zv);
+            args_len[i] = Z_STRLEN_P(item_zv);
+            i++;
+        }
+        ZEND_HASH_FOREACH_END();
+
+        char timeout_str[32];
+        snprintf(timeout_str, sizeof(timeout_str), "0");
+        args[item_count]     = (uintptr_t) timeout_str;
+        args_len[item_count] = strlen(timeout_str);
+
+        struct CommandResult* result =
+            command(connection, 0, unsubscribe_type, total_args, args, args_len, NULL, 0, 0);
+
+        efree(args);
+        efree(args_len);
+
+        if (result) {
+            if (result->command_error && result->command_error->command_error_message) {
+                VALKEY_LOG_ERROR(command_name, result->command_error->command_error_message);
+            }
+            free_command_result(result);
+        }
+
+        // Update subscription count
+        char client_key[32];
+        snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
+        zval* callback_zv = find_pubsub_callback(client_key);
+        if (callback_zv) {
+            pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
+            if (info) {
+                info->subscription_count -= item_count;
+                if (info->subscription_count <= 0) {
+                    info->subscription_count = 0;
+                    info->is_active          = false;
+                    cond_signal(&info->queue_cond);
+                }
+            }
+        }
+    } else {
+        char timeout_str[32];
+        snprintf(timeout_str, sizeof(timeout_str), "0");
+        uintptr_t     args[1]     = {(uintptr_t) timeout_str};
+        unsigned long args_len[1] = {strlen(timeout_str)};
+
+        struct CommandResult* result =
+            command(connection, 0, unsubscribe_type, 1, args, args_len, NULL, 0, 0);
+        if (result) {
+            if (result->command_error && result->command_error->command_error_message) {
+                VALKEY_LOG_ERROR(command_name, result->command_error->command_error_message);
+            }
+            free_command_result(result);
+        }
+
+        // Update subscription count
+        char client_key[32];
+        snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
+        zval* callback_zv = find_pubsub_callback(client_key);
+        if (callback_zv) {
+            pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
+            if (info) {
+                info->subscription_count = 0;
+                info->is_active          = false;
+                cond_signal(&info->queue_cond);
+            }
+        }
+    }
+}
+
 // Subscribe implementation
 void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection) {
     zval *    channels, *callback;
-    zend_long timeout_ms = 0;  // Default timeout (0 = wait indefinitely)
+    zend_long timeout_ms = 0;
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
     Z_PARAM_ARRAY(channels)
@@ -399,10 +558,8 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
         RETURN_FALSE;
     }
 
-    // Register callback in PHP-side storage
     php_register_pubsub_callback((uintptr_t) connection, callback, ZEND_THIS);
 
-    // Register callback with FFI
     const char* error = register_pubsub_callback(connection, valkey_glide_pubsub_callback);
     if (error) {
         php_unregister_pubsub_callback((uintptr_t) connection);
@@ -410,74 +567,14 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
         RETURN_FALSE;
     }
 
-    // Convert channels array to arguments
-    HashTable* channels_ht   = Z_ARRVAL_P(channels);
-    uint32_t   channel_count = zend_hash_num_elements(channels_ht);
-
-    // For blocking subscribe, we need channels + timeout_ms
-    uint32_t       total_args = channel_count + 1;
-    uintptr_t*     args       = emalloc(total_args * sizeof(uintptr_t));
-    unsigned long* args_len   = emalloc(total_args * sizeof(unsigned long));
-
-    // Add channels
-    uint32_t i = 0;
-    zval*    channel_zv;
-    ZEND_HASH_FOREACH_VAL(channels_ht, channel_zv) {
-        convert_to_string(channel_zv);
-        args[i]     = (uintptr_t) Z_STRVAL_P(channel_zv);
-        args_len[i] = Z_STRLEN_P(channel_zv);
-        i++;
-    }
-    ZEND_HASH_FOREACH_END();
-
-    // Add timeout_ms as string (like Python does)
-    char timeout_str[32];
-    snprintf(timeout_str, sizeof(timeout_str), "%lld", (long long) timeout_ms);
-    args[channel_count]     = (uintptr_t) timeout_str;
-    args_len[channel_count] = strlen(timeout_str);
-
-    // Call FFI command
-    struct CommandResult* result =
-        command(connection, 0, REQUEST_TYPE_SUBSCRIBE, total_args, args, args_len, NULL, 0, 0);
-
-    efree(args);
-    efree(args_len);
-
-    if (!result || result->command_error) {
-        const char* error_msg =
-            result && result->command_error && result->command_error->command_error_message
-                ? result->command_error->command_error_message
-                : "Subscribe command failed";
-        VALKEY_LOG_ERROR("subscribe", error_msg);
-        if (result)
-            free_command_result(result);
-        unregister_pubsub_callback(connection);
-        php_unregister_pubsub_callback((uintptr_t) connection);
-        zend_throw_exception(zend_ce_exception, error_msg, 0);
-        RETVAL_FALSE;
-        return;
-    }
-    free_command_result(result);
-
-    char client_key[32];
-    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
-    zval* callback_zv = find_pubsub_callback(client_key);
-    if (!callback_zv) {
-        VALKEY_LOG_ERROR("subscribe", "Failed to find pubsub callback after command execution");
-        unregister_pubsub_callback(connection);
-        RETVAL_FALSE;
-        return;
-    }
-
-    pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
-    info->subscription_count += channel_count;
-
-    subscribe_blocking_loop((uintptr_t) connection, REQUEST_TYPE_UNSUBSCRIBE);
-
-    // Unregister FFI callback when exiting loop
-    unregister_pubsub_callback(connection);
-
-    RETVAL_TRUE;
+    execute_subscribe_command(connection,
+                              channels,
+                              timeout_ms,
+                              REQUEST_TYPE_SUBSCRIBE,
+                              REQUEST_TYPE_UNSUBSCRIBE,
+                              "subscribe",
+                              "Subscribe command failed",
+                              return_value);
 }
 
 // PSubscribe implementation
@@ -505,10 +602,8 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
         RETURN_FALSE;
     }
 
-    // Register callback in PHP-side storage
     php_register_pubsub_callback((uintptr_t) connection, callback, ZEND_THIS);
 
-    // Register callback with FFI
     const char* error = register_pubsub_callback(connection, valkey_glide_pubsub_callback);
     if (error) {
         php_unregister_pubsub_callback((uintptr_t) connection);
@@ -516,69 +611,14 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
         RETURN_FALSE;
     }
 
-    HashTable* patterns_ht   = Z_ARRVAL_P(patterns);
-    uint32_t   pattern_count = zend_hash_num_elements(patterns_ht);
-
-    uint32_t       total_args = pattern_count + 1;
-    uintptr_t*     args       = emalloc(total_args * sizeof(uintptr_t));
-    unsigned long* args_len   = emalloc(total_args * sizeof(unsigned long));
-
-    uint32_t i = 0;
-    zval*    pattern_zv;
-    ZEND_HASH_FOREACH_VAL(patterns_ht, pattern_zv) {
-        convert_to_string(pattern_zv);
-        args[i]     = (uintptr_t) Z_STRVAL_P(pattern_zv);
-        args_len[i] = Z_STRLEN_P(pattern_zv);
-        i++;
-    }
-    ZEND_HASH_FOREACH_END();
-
-    char timeout_str[32];
-    snprintf(timeout_str, sizeof(timeout_str), "%lld", (long long) timeout_ms);
-    args[pattern_count]     = (uintptr_t) timeout_str;
-    args_len[pattern_count] = strlen(timeout_str);
-
-    struct CommandResult* result =
-        command(connection, 0, REQUEST_TYPE_PSUBSCRIBE, total_args, args, args_len, NULL, 0, 0);
-
-    efree(args);
-    efree(args_len);
-
-    if (!result || result->command_error) {
-        const char* error_msg =
-            result && result->command_error && result->command_error->command_error_message
-                ? result->command_error->command_error_message
-                : "PSubscribe command failed";
-        VALKEY_LOG_ERROR("psubscribe", error_msg);
-        if (result)
-            free_command_result(result);
-        unregister_pubsub_callback(connection);
-        php_unregister_pubsub_callback((uintptr_t) connection);
-        zend_throw_exception(zend_ce_exception, error_msg, 0);
-        RETVAL_FALSE;
-        return;
-    }
-    free_command_result(result);
-
-    char client_key[32];
-    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
-    zval* callback_zv = find_pubsub_callback(client_key);
-    if (!callback_zv) {
-        VALKEY_LOG_ERROR("psubscribe", "Failed to find pubsub callback after command execution");
-        unregister_pubsub_callback(connection);
-        RETVAL_FALSE;
-        return;
-    }
-
-    pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
-    info->subscription_count += pattern_count;
-
-    subscribe_blocking_loop((uintptr_t) connection, REQUEST_TYPE_PUNSUBSCRIBE);
-
-    // Unregister FFI callback when exiting loop
-    unregister_pubsub_callback(connection);
-
-    RETVAL_TRUE;
+    execute_subscribe_command(connection,
+                              patterns,
+                              timeout_ms,
+                              REQUEST_TYPE_PSUBSCRIBE,
+                              REQUEST_TYPE_PUNSUBSCRIBE,
+                              "psubscribe",
+                              "PSubscribe command failed",
+                              return_value);
 }
 
 // Unsubscribe implementation
@@ -590,80 +630,7 @@ void valkey_glide_unsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* con
     Z_PARAM_ARRAY_OR_NULL(channels)
     ZEND_PARSE_PARAMETERS_END();
 
-    // Send UNSUBSCRIBE command to server
-    if (channels) {
-        HashTable* channels_ht   = Z_ARRVAL_P(channels);
-        uint32_t   channel_count = zend_hash_num_elements(channels_ht);
-
-        // For blocking unsubscribe: channels + timeout
-        uint32_t       total_args = channel_count + 1;
-        uintptr_t*     args       = emalloc(total_args * sizeof(uintptr_t));
-        unsigned long* args_len   = emalloc(total_args * sizeof(unsigned long));
-
-        uint32_t i = 0;
-        zval*    channel_zv;
-        ZEND_HASH_FOREACH_VAL(channels_ht, channel_zv) {
-            convert_to_string(channel_zv);
-            args[i]     = (uintptr_t) Z_STRVAL_P(channel_zv);
-            args_len[i] = Z_STRLEN_P(channel_zv);
-            i++;
-        }
-        ZEND_HASH_FOREACH_END();
-
-        // Add timeout (0 = wait indefinitely)
-        char timeout_str[32];
-        snprintf(timeout_str, sizeof(timeout_str), "0");
-        args[channel_count]     = (uintptr_t) timeout_str;
-        args_len[channel_count] = strlen(timeout_str);
-
-        struct CommandResult* result = command(
-            connection, 0, REQUEST_TYPE_UNSUBSCRIBE, total_args, args, args_len, NULL, 0, 0);
-
-        efree(args);
-        efree(args_len);
-
-        if (result) {
-            if (result->command_error && result->command_error->command_error_message) {
-                VALKEY_LOG_ERROR("unsubscribe", result->command_error->command_error_message);
-            }
-            free_command_result(result);
-        }
-    } else {
-        // Unsubscribe from all - just timeout parameter
-        char timeout_str[32];
-        snprintf(timeout_str, sizeof(timeout_str), "0");
-        uintptr_t     args[1]     = {(uintptr_t) timeout_str};
-        unsigned long args_len[1] = {strlen(timeout_str)};
-
-        struct CommandResult* result =
-            command(connection, 0, REQUEST_TYPE_UNSUBSCRIBE, 1, args, args_len, NULL, 0, 0);
-        if (result) {
-            if (result->command_error && result->command_error->command_error_message) {
-                VALKEY_LOG_ERROR("unsubscribe", result->command_error->command_error_message);
-            }
-            free_command_result(result);
-        }
-    }
-
-    // Update subscription count
-    char client_key[32];
-    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
-    zval* callback_zv = find_pubsub_callback(client_key);
-    if (callback_zv) {
-        pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
-        if (info) {
-            if (channels) {
-                info->subscription_count -= zend_hash_num_elements(Z_ARRVAL_P(channels));
-            } else {
-                info->subscription_count = 0;
-            }
-            if (info->subscription_count <= 0) {
-                info->subscription_count = 0;
-                info->is_active          = false;
-                cond_signal(&info->queue_cond);
-            }
-        }
-    }
+    execute_unsubscribe_command(connection, channels, REQUEST_TYPE_UNSUBSCRIBE, "unsubscribe");
 
     RETVAL_TRUE;
 }
@@ -677,80 +644,7 @@ void valkey_glide_punsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* co
     Z_PARAM_ARRAY_OR_NULL(patterns)
     ZEND_PARSE_PARAMETERS_END();
 
-    // Send PUNSUBSCRIBE command to server
-    if (patterns) {
-        HashTable* patterns_ht   = Z_ARRVAL_P(patterns);
-        uint32_t   pattern_count = zend_hash_num_elements(patterns_ht);
-
-        // For blocking punsubscribe: patterns + timeout
-        uint32_t       total_args = pattern_count + 1;
-        uintptr_t*     args       = emalloc(total_args * sizeof(uintptr_t));
-        unsigned long* args_len   = emalloc(total_args * sizeof(unsigned long));
-
-        uint32_t i = 0;
-        zval*    pattern_zv;
-        ZEND_HASH_FOREACH_VAL(patterns_ht, pattern_zv) {
-            convert_to_string(pattern_zv);
-            args[i]     = (uintptr_t) Z_STRVAL_P(pattern_zv);
-            args_len[i] = Z_STRLEN_P(pattern_zv);
-            i++;
-        }
-        ZEND_HASH_FOREACH_END();
-
-        // Add timeout (0 = wait indefinitely)
-        char timeout_str[32];
-        snprintf(timeout_str, sizeof(timeout_str), "0");
-        args[pattern_count]     = (uintptr_t) timeout_str;
-        args_len[pattern_count] = strlen(timeout_str);
-
-        struct CommandResult* result = command(
-            connection, 0, REQUEST_TYPE_PUNSUBSCRIBE, total_args, args, args_len, NULL, 0, 0);
-
-        efree(args);
-        efree(args_len);
-
-        if (result) {
-            if (result->command_error && result->command_error->command_error_message) {
-                VALKEY_LOG_ERROR("punsubscribe", result->command_error->command_error_message);
-            }
-            free_command_result(result);
-        }
-    } else {
-        // Unsubscribe from all patterns - just timeout parameter
-        char timeout_str[32];
-        snprintf(timeout_str, sizeof(timeout_str), "0");
-        uintptr_t     args[1]     = {(uintptr_t) timeout_str};
-        unsigned long args_len[1] = {strlen(timeout_str)};
-
-        struct CommandResult* result =
-            command(connection, 0, REQUEST_TYPE_PUNSUBSCRIBE, 1, args, args_len, NULL, 0, 0);
-        if (result) {
-            if (result->command_error && result->command_error->command_error_message) {
-                VALKEY_LOG_ERROR("punsubscribe", result->command_error->command_error_message);
-            }
-            free_command_result(result);
-        }
-    }
-
-    // Update subscription count
-    char client_key[32];
-    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
-    zval* callback_zv = find_pubsub_callback(client_key);
-    if (callback_zv) {
-        pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
-        if (info) {
-            if (patterns) {
-                info->subscription_count -= zend_hash_num_elements(Z_ARRVAL_P(patterns));
-            } else {
-                info->subscription_count = 0;
-            }
-            if (info->subscription_count <= 0) {
-                info->subscription_count = 0;
-                info->is_active          = false;
-                cond_signal(&info->queue_cond);
-            }
-        }
-    }
+    execute_unsubscribe_command(connection, patterns, REQUEST_TYPE_PUNSUBSCRIBE, "punsubscribe");
 
     RETVAL_TRUE;
 }

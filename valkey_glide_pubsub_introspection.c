@@ -5,6 +5,7 @@
 #include "command_response.h"
 #include "include/glide/command_request.pb-c.h"
 #include "include/glide_bindings.h"
+#include "logger.h"
 #include "php.h"
 #include "valkey_glide_commands_common.h"
 #include "zend_exceptions.h"
@@ -53,8 +54,14 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
             command_response_to_zval(result->response, return_value, 0, false);
             free_command_result(result);
         } else {
+            const char* error_msg =
+                result && result->command_error && result->command_error->command_error_message
+                    ? result->command_error->command_error_message
+                    : "PUBSUB CHANNELS command failed";
+            VALKEY_LOG_ERROR("pubsub_channels", error_msg);
             if (result)
                 free_command_result(result);
+            zend_throw_exception(zend_ce_exception, error_msg, 0);
             RETURN_FALSE;
         }
     } else if (strcasecmp(cmd, "numsub") == 0) {
@@ -98,8 +105,14 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
             command_response_to_zval(result->response, return_value, 0, false);
             free_command_result(result);
         } else {
+            const char* error_msg =
+                result && result->command_error && result->command_error->command_error_message
+                    ? result->command_error->command_error_message
+                    : "PUBSUB NUMSUB command failed";
+            VALKEY_LOG_ERROR("pubsub_numsub", error_msg);
             if (result)
                 free_command_result(result);
+            zend_throw_exception(zend_ce_exception, error_msg, 0);
             RETURN_FALSE;
         }
     } else if (strcasecmp(cmd, "numpat") == 0) {
@@ -119,8 +132,14 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
             command_response_to_zval(result->response, return_value, 0, false);
             free_command_result(result);
         } else {
+            const char* error_msg =
+                result && result->command_error && result->command_error->command_error_message
+                    ? result->command_error->command_error_message
+                    : "PUBSUB NUMPAT command failed";
+            VALKEY_LOG_ERROR("pubsub_numpat", error_msg);
             if (result)
                 free_command_result(result);
+            zend_throw_exception(zend_ce_exception, error_msg, 0);
             RETURN_FALSE;
         }
     } else {
