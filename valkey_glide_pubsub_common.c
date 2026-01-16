@@ -444,10 +444,10 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
     efree(args_len);
 
     if (!result || result->command_error) {
-        const char* error_msg = result && result->command_error &&
-                                        result->command_error->command_error_message
-                                    ? result->command_error->command_error_message
-                                    : "Subscribe command failed";
+        const char* error_msg =
+            result && result->command_error && result->command_error->command_error_message
+                ? result->command_error->command_error_message
+                : "Subscribe command failed";
         VALKEY_LOG_ERROR("subscribe", error_msg);
         if (result)
             free_command_result(result);
@@ -545,10 +545,10 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
     efree(args_len);
 
     if (!result || result->command_error) {
-        const char* error_msg = result && result->command_error &&
-                                        result->command_error->command_error_message
-                                    ? result->command_error->command_error_message
-                                    : "PSubscribe command failed";
+        const char* error_msg =
+            result && result->command_error && result->command_error->command_error_message
+                ? result->command_error->command_error_message
+                : "PSubscribe command failed";
         VALKEY_LOG_ERROR("psubscribe", error_msg);
         if (result)
             free_command_result(result);
@@ -785,10 +785,10 @@ void valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
                 RETVAL_LONG(0);
             }
         } else {
-            const char* error_msg = result->command_error &&
-                                            result->command_error->command_error_message
-                                        ? result->command_error->command_error_message
-                                        : "Publish failed";
+            const char* error_msg =
+                result->command_error && result->command_error->command_error_message
+                    ? result->command_error->command_error_message
+                    : "Publish failed";
             VALKEY_LOG_ERROR("publish", error_msg);
             zend_throw_exception(zend_ce_exception, error_msg, 0);
             RETVAL_FALSE;
