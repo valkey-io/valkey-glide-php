@@ -376,14 +376,14 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
 }
 
 // Helper: Execute subscribe command
-static int execute_subscribe_command(const void*       connection,
-                                     zval*             items_array,
-                                     zend_long         timeout_ms,
-                                     enum RequestType  subscribe_type,
-                                     enum RequestType  unsubscribe_type,
-                                     const char*       command_name,
-                                     const char*       error_prefix,
-                                     zval*             return_value) {
+static int execute_subscribe_command(const void*      connection,
+                                     zval*            items_array,
+                                     zend_long        timeout_ms,
+                                     enum RequestType subscribe_type,
+                                     enum RequestType unsubscribe_type,
+                                     const char*      command_name,
+                                     const char*      error_prefix,
+                                     zval*            return_value) {
     HashTable* items_ht   = Z_ARRVAL_P(items_array);
     uint32_t   item_count = zend_hash_num_elements(items_ht);
 
@@ -402,7 +402,7 @@ static int execute_subscribe_command(const void*       connection,
     ZEND_HASH_FOREACH_END();
 
     char timeout_str[32];
-    int timeout_len = snprintf(timeout_str, sizeof(timeout_str), "%lld", (long long) timeout_ms);
+    int  timeout_len     = snprintf(timeout_str, sizeof(timeout_str), "%lld", (long long) timeout_ms);
     args[item_count]     = (uintptr_t) timeout_str;
     args_len[item_count] = timeout_len;
 
@@ -450,9 +450,9 @@ static int execute_subscribe_command(const void*       connection,
 
 // Helper: Execute unsubscribe command
 static void execute_unsubscribe_command(const void*      connection,
-                                       zval*            items_array,
-                                       enum RequestType unsubscribe_type,
-                                       const char*      command_name) {
+                                        zval*            items_array,
+                                        enum RequestType unsubscribe_type,
+                                        const char*      command_name) {
     if (items_array) {
         HashTable* items_ht   = Z_ARRVAL_P(items_array);
         uint32_t   item_count = zend_hash_num_elements(items_ht);
