@@ -22,4 +22,5 @@ try {
     });
 } catch (Exception $e) {
     file_put_contents($error_file, $e->getMessage() . "\n" . $e->getTraceAsString());
+    file_put_contents($sync_file, 'error');
 }

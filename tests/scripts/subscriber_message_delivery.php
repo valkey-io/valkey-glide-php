@@ -23,4 +23,6 @@ try {
     });
 } catch (Exception $e) {
     file_put_contents($error_file, $e->getMessage() . "\n" . $e->getTraceAsString());
+    // Also create sync file so test doesn't hang
+    file_put_contents($sync_file, 'error');
 }
