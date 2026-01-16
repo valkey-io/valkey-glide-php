@@ -185,9 +185,15 @@ static void split_args_array(zval* args_array, zend_long num_keys, zval* keys_ou
     ZEND_HASH_FOREACH_END();
 }
 
-void execute_eval_command(zval* object, int argc, zval* return_value, bool is_cluster) {
-    char*     script;
-    size_t    script_len;
+// Generic implementation for all eval-style commands
+static void execute_eval_generic(const char* command_name,
+                                 size_t      command_name_len,
+                                 zval*       object,
+                                 int         argc,
+                                 zval*       return_value,
+                                 bool        is_cluster) {
+    char*     first_param;
+    size_t    first_param_len;
     zval*     args_array = NULL;
     zend_long num_keys   = 0;
 
@@ -205,8 +211,8 @@ void execute_eval_command(zval* object, int argc, zval* return_value, bool is_cl
         efree(params);
         RETURN_FALSE;
     }
-    script     = Z_STRVAL(params[0]);
-    script_len = Z_STRLEN(params[0]);
+    first_param     = Z_STRVAL(params[0]);
+    first_param_len = Z_STRLEN(params[0]);
 
     if (argc >= 2 && Z_TYPE(params[1]) == IS_ARRAY) {
         args_array = &params[1];
@@ -229,14 +235,13 @@ void execute_eval_command(zval* object, int argc, zval* return_value, bool is_cl
             argv_array = &args_zval;
         }
     } else if (args_array) {
-        // No keys, all are args
         argv_array = args_array;
     }
 
-    execute_eval_style_command("EVAL",
-                               4,
-                               script,
-                               script_len,
+    execute_eval_style_command(command_name,
+                               command_name_len,
+                               first_param,
+                               first_param_len,
                                keys_array,
                                argv_array,
                                num_keys,
@@ -251,199 +256,23 @@ void execute_eval_command(zval* object, int argc, zval* return_value, bool is_cl
         zval_ptr_dtor(argv_array);
     }
     efree(params);
+}
+
+void execute_eval_command(zval* object, int argc, zval* return_value, bool is_cluster) {
+    execute_eval_generic("EVAL", strlen("EVAL"), object, argc, return_value, is_cluster);
 }
 
 void execute_evalsha_command(zval* object, int argc, zval* return_value, bool is_cluster) {
-    char*     sha1;
-    size_t    sha1_len;
-    zval*     args_array = NULL;
-    zend_long num_keys   = 0;
-
-    if (argc < 1 || argc > 3) {
-        RETURN_FALSE;
-    }
-
-    zval* params = emalloc(sizeof(zval) * argc);
-    if (zend_get_parameters_array_ex(argc, params) == FAILURE) {
-        efree(params);
-        RETURN_FALSE;
-    }
-
-    if (Z_TYPE(params[0]) != IS_STRING) {
-        efree(params);
-        RETURN_FALSE;
-    }
-    sha1     = Z_STRVAL(params[0]);
-    sha1_len = Z_STRLEN(params[0]);
-
-    if (argc >= 2 && Z_TYPE(params[1]) == IS_ARRAY) {
-        args_array = &params[1];
-    }
-    if (argc >= 3 && Z_TYPE(params[2]) == IS_LONG) {
-        num_keys = Z_LVAL(params[2]);
-    }
-
-    // Split args_array into keys and args based on num_keys (PHPRedis compatibility)
-    zval  keys_zval, args_zval;
-    zval* keys_array = NULL;
-    zval* argv_array = NULL;
-
-    if (args_array && num_keys > 0) {
-        ZVAL_UNDEF(&keys_zval);
-        ZVAL_UNDEF(&args_zval);
-        split_args_array(args_array, num_keys, &keys_zval, &args_zval);
-        keys_array = &keys_zval;
-        if (Z_TYPE(args_zval) == IS_ARRAY) {
-            argv_array = &args_zval;
-        }
-    } else if (args_array) {
-        argv_array = args_array;
-    }
-
-    execute_eval_style_command(
-        "EVALSHA", 7, sha1, sha1_len, keys_array, argv_array, num_keys, true, object, return_value);
-
-    if (keys_array && Z_TYPE_P(keys_array) == IS_ARRAY) {
-        zval_ptr_dtor(keys_array);
-    }
-    if (argv_array && argv_array != args_array && Z_TYPE_P(argv_array) == IS_ARRAY) {
-        zval_ptr_dtor(argv_array);
-    }
-    efree(params);
+    execute_eval_generic("EVALSHA", strlen("EVALSHA"), object, argc, return_value, is_cluster);
 }
 
 void execute_eval_ro_command(zval* object, int argc, zval* return_value, bool is_cluster) {
-    char*     script;
-    size_t    script_len;
-    zval*     args_array = NULL;
-    zend_long num_keys   = 0;
-
-    if (argc < 1 || argc > 3) {
-        RETURN_FALSE;
-    }
-
-    zval* params = emalloc(sizeof(zval) * argc);
-    if (zend_get_parameters_array_ex(argc, params) == FAILURE) {
-        efree(params);
-        RETURN_FALSE;
-    }
-
-    if (Z_TYPE(params[0]) != IS_STRING) {
-        efree(params);
-        RETURN_FALSE;
-    }
-    script     = Z_STRVAL(params[0]);
-    script_len = Z_STRLEN(params[0]);
-
-    if (argc >= 2 && Z_TYPE(params[1]) == IS_ARRAY) {
-        args_array = &params[1];
-    }
-    if (argc >= 3 && Z_TYPE(params[2]) == IS_LONG) {
-        num_keys = Z_LVAL(params[2]);
-    }
-
-    // Split args_array into keys and args based on num_keys (PHPRedis compatibility)
-    zval  keys_zval, args_zval;
-    zval* keys_array = NULL;
-    zval* argv_array = NULL;
-
-    if (args_array && num_keys > 0) {
-        ZVAL_UNDEF(&keys_zval);
-        ZVAL_UNDEF(&args_zval);
-        split_args_array(args_array, num_keys, &keys_zval, &args_zval);
-        keys_array = &keys_zval;
-        if (Z_TYPE(args_zval) == IS_ARRAY) {
-            argv_array = &args_zval;
-        }
-    } else if (args_array) {
-        argv_array = args_array;
-    }
-
-    execute_eval_style_command("EVAL_RO",
-                               7,
-                               script,
-                               script_len,
-                               keys_array,
-                               argv_array,
-                               num_keys,
-                               true,
-                               object,
-                               return_value);
-
-    if (keys_array && Z_TYPE_P(keys_array) == IS_ARRAY) {
-        zval_ptr_dtor(keys_array);
-    }
-    if (argv_array && argv_array != args_array && Z_TYPE_P(argv_array) == IS_ARRAY) {
-        zval_ptr_dtor(argv_array);
-    }
-    efree(params);
+    execute_eval_generic("EVAL_RO", strlen("EVAL_RO"), object, argc, return_value, is_cluster);
 }
 
 void execute_evalsha_ro_command(zval* object, int argc, zval* return_value, bool is_cluster) {
-    char*     sha1;
-    size_t    sha1_len;
-    zval*     args_array = NULL;
-    zend_long num_keys   = 0;
-
-    if (argc < 1 || argc > 3) {
-        RETURN_FALSE;
-    }
-
-    zval* params = emalloc(sizeof(zval) * argc);
-    if (zend_get_parameters_array_ex(argc, params) == FAILURE) {
-        efree(params);
-        RETURN_FALSE;
-    }
-
-    if (Z_TYPE(params[0]) != IS_STRING) {
-        efree(params);
-        RETURN_FALSE;
-    }
-    sha1     = Z_STRVAL(params[0]);
-    sha1_len = Z_STRLEN(params[0]);
-
-    if (argc >= 2 && Z_TYPE(params[1]) == IS_ARRAY) {
-        args_array = &params[1];
-    }
-    if (argc >= 3 && Z_TYPE(params[2]) == IS_LONG) {
-        num_keys = Z_LVAL(params[2]);
-    }
-
-    // Split args_array into keys and args based on num_keys (PHPRedis compatibility)
-    zval  keys_zval, args_zval;
-    zval* keys_array = NULL;
-    zval* argv_array = NULL;
-
-    if (args_array && num_keys > 0) {
-        ZVAL_UNDEF(&keys_zval);
-        ZVAL_UNDEF(&args_zval);
-        split_args_array(args_array, num_keys, &keys_zval, &args_zval);
-        keys_array = &keys_zval;
-        if (Z_TYPE(args_zval) == IS_ARRAY) {
-            argv_array = &args_zval;
-        }
-    } else if (args_array) {
-        argv_array = args_array;
-    }
-
-    execute_eval_style_command("EVALSHA_RO",
-                               10,
-                               sha1,
-                               sha1_len,
-                               keys_array,
-                               argv_array,
-                               num_keys,
-                               true,
-                               object,
-                               return_value);
-
-    if (keys_array && Z_TYPE_P(keys_array) == IS_ARRAY) {
-        zval_ptr_dtor(keys_array);
-    }
-    if (argv_array && argv_array != args_array && Z_TYPE_P(argv_array) == IS_ARRAY) {
-        zval_ptr_dtor(argv_array);
-    }
-    efree(params);
+    execute_eval_generic(
+        "EVALSHA_RO", strlen("EVALSHA_RO"), object, argc, return_value, is_cluster);
 }
 
 void execute_script_exists_command(zval* object, zval* sha1s, zval* return_value, bool is_cluster) {
