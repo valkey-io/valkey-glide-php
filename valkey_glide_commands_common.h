@@ -92,7 +92,6 @@ static inline void handle_command_result_or_throw(CommandResult* result,
 
 // Helper that returns false on errors instead of throwing exceptions
 static inline int handle_function_command_result_or_return_false(CommandResult* result,
-                                                                 const char*    command_name,
                                                                  zval*          return_value) {
     if (!result || result->command_error || !result->response) {
         ZVAL_FALSE(return_value);
@@ -254,6 +253,11 @@ void  execute_eval_ro_command(zval* object, int argc, zval* return_value, bool i
 void  execute_evalsha_ro_command(zval* object, int argc, zval* return_value, bool is_cluster);
 int   execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_load_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_function_load_internal(valkey_glide_object* valkey_glide,
+                                   char*                library_code,
+                                   size_t               library_code_len,
+                                   zend_bool            replace,
+                                   zval*                return_value);
 int execute_function_list_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_flush_command(zval*             object,
                                    int               argc,

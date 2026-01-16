@@ -29,22 +29,14 @@ static int handle_function_bool_result(CommandResult* result, zval* return_value
     return status;
 }
 
-int execute_function_load_command(zval*             object,
-                                  int               argc,
-                                  zval*             return_value,
-                                  zend_class_entry* ce) {
-    valkey_glide_object* valkey_glide;
-    char*                library_code = NULL;
-    size_t               library_code_len;
-    zend_bool            replace = 0;
-
-    if (zend_parse_method_parameters(
-            argc, object, "Os|b", &object, ce, &library_code, &library_code_len, &replace) ==
-        FAILURE) {
-        return 0;
-    }
-
-    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+/**
+ * Internal helper for FUNCTION LOAD - shared by functionLoad() and function('LOAD')
+ */
+int execute_function_load_internal(valkey_glide_object* valkey_glide,
+                                   char*                library_code,
+                                   size_t               library_code_len,
+                                   zend_bool            replace,
+                                   zval*                return_value) {
     if (!valkey_glide->glide_client) {
         return 0;
     }
@@ -66,7 +58,28 @@ int execute_function_load_command(zval*             object,
     efree(cmd_args);
     efree(args_len);
 
-    return handle_function_command_result_or_return_false(result, "FunctionLoad", return_value);
+    return handle_function_command_result_or_return_false(result, return_value);
+}
+
+int execute_function_load_command(zval*             object,
+                                  int               argc,
+                                  zval*             return_value,
+                                  zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                library_code = NULL;
+    size_t               library_code_len;
+    zend_bool            replace = 0;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Os|b", &object, ce, &library_code, &library_code_len, &replace) ==
+        FAILURE) {
+        return 0;
+    }
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+
+    return execute_function_load_internal(
+        valkey_glide, library_code, library_code_len, replace, return_value);
 }
 
 int execute_function_list_command(zval*             object,
@@ -98,7 +111,7 @@ int execute_function_list_command(zval*             object,
         result = execute_command(valkey_glide->glide_client, FunctionList, 0, NULL, NULL);
     }
 
-    return handle_function_command_result_or_return_false(result, "FunctionList", return_value);
+    return handle_function_command_result_or_return_false(result, return_value);
 }
 
 int execute_function_flush_command(zval*             object,
@@ -160,7 +173,7 @@ int execute_function_dump_command(zval*             object,
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionDump, 0, NULL, NULL);
-    return handle_function_command_result_or_return_false(result, "FunctionDump", return_value);
+    return handle_function_command_result_or_return_false(result, return_value);
 }
 
 int execute_function_restore_command(zval*             object,
@@ -222,5 +235,5 @@ int execute_function_stats_command(zval*             object,
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, FunctionStats, 0, NULL, NULL);
-    return handle_function_command_result_or_return_false(result, "FunctionStats", return_value);
+    return handle_function_command_result_or_return_false(result, return_value);
 }

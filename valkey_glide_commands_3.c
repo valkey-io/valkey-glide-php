@@ -61,7 +61,7 @@ static int execute_function_list_command_with_args(zval*             object,
         result = execute_command(valkey_glide->glide_client, FunctionList, 0, NULL, NULL);
     }
 
-    return handle_function_command_result_or_return_false(result, "FunctionList", return_value);
+    return handle_function_command_result_or_return_false(result, return_value);
 }
 
 /* Helper functions to reduce code duplication */
@@ -594,26 +594,9 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
                 /* For other types, default to false */
             }
 
-            /* Build command arguments like the original function */
-            unsigned long  arg_count = replace ? 2 : 1;
-            uintptr_t*     cmd_args  = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
-            unsigned long* args_len  = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
-
-            cmd_args[0] = (uintptr_t) library_code;
-            args_len[0] = library_code_len;
-
-            if (replace) {
-                cmd_args[1] = (uintptr_t) "REPLACE";
-                args_len[1] = 7;
-            }
-
-            CommandResult* result = execute_command(
-                valkey_glide->glide_client, FunctionLoad, arg_count, cmd_args, args_len);
-            efree(cmd_args);
-            efree(args_len);
-
-            return handle_function_command_result_or_return_false(
-                result, "FunctionLoad", return_value);
+            /* Use shared internal helper */
+            return execute_function_load_internal(
+                valkey_glide, library_code, library_code_len, replace, return_value);
         } else if (strcasecmp(operation, "DELETE") == 0) {
             /* DELETE expects: library_name */
             if (args_count < 1) {
@@ -790,13 +773,11 @@ static int process_script_operation(valkey_glide_object* valkey_glide,
                 unsigned long  args_len[1] = {mode_len};
                 CommandResult* result =
                     execute_command(valkey_glide->glide_client, ScriptFlush, 1, cmd_args, args_len);
-                return handle_function_command_result_or_return_false(
-                    result, "ScriptFlush", return_value);
+                return handle_function_command_result_or_return_false(result, return_value);
             } else {
                 CommandResult* result =
                     execute_command(valkey_glide->glide_client, ScriptFlush, 0, NULL, NULL);
-                return handle_function_command_result_or_return_false(
-                    result, "ScriptFlush", return_value);
+                return handle_function_command_result_or_return_false(result, return_value);
             }
         } else if (strcasecmp(operation, "LOAD") == 0) {
             if (args_count < 1 || Z_TYPE(z_args[0]) != IS_STRING) {
