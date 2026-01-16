@@ -728,21 +728,19 @@ FCALL_METHOD_IMPL(ValkeyGlide)
 FCALL_RO_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlide::eval(string script, [array keys], [array args], [int num_keys]) */
+/* {{{ proto mixed ValkeyGlide::eval(string script, [array args], [int num_keys]) */
 EVAL_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlide::evalsha(string sha1, [array keys], [array args], [int num_keys]) */
+/* {{{ proto mixed ValkeyGlide::evalsha(string sha1, [array args], [int num_keys]) */
 EVALSHA_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlide::eval_ro(string script, [array keys], [array args], [int num_keys])
- */
+/* {{{ proto mixed ValkeyGlide::eval_ro(string script, [array args], [int num_keys]) */
 EVAL_RO_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlide::evalsha_ro(string sha1, [array keys], [array args], [int num_keys])
- */
+/* {{{ proto mixed ValkeyGlide::evalsha_ro(string sha1, [array args], [int num_keys]) */
 EVALSHA_RO_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 

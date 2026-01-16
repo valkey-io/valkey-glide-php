@@ -927,23 +927,19 @@ FCALL_METHOD_IMPL(ValkeyGlideCluster)
 FCALL_RO_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::eval(string script, [array keys], [array args], [int
- * num_keys]) */
+/* {{{ proto mixed ValkeyGlideCluster::eval(string script, [array args], [int num_keys]) */
 EVAL_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::evalsha(string sha1, [array keys], [array args], [int
- * num_keys]) */
+/* {{{ proto mixed ValkeyGlideCluster::evalsha(string sha1, [array args], [int num_keys]) */
 EVALSHA_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::eval_ro(string script, [array keys], [array args], [int
- * num_keys]) */
+/* {{{ proto mixed ValkeyGlideCluster::eval_ro(string script, [array args], [int num_keys]) */
 EVAL_RO_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto mixed ValkeyGlideCluster::evalsha_ro(string sha1, [array keys], [array args], [int
- * num_keys]) */
+/* {{{ proto mixed ValkeyGlideCluster::evalsha_ro(string sha1, [array args], [int num_keys]) */
 EVALSHA_RO_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 /* }}} */

@@ -795,7 +795,7 @@ class ValkeyGlide
     /**
      * Execute a read-only Lua script on the server using SHA1 hash.
      *
-     * @param string $script     The SHA1 hash of the lua code.
+     * @param string $sha1     The SHA1 hash of the lua code.
      * @param array  $args     Arguments to send to the script.
      * @param int    $num_keys The number of arguments that are keys
      *

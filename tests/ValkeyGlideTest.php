@@ -5301,7 +5301,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // Test eval with KEYS and ARGV
         $script = 'return {KEYS[1], KEYS[2], ARGV[1], ARGV[2]}';
-        $result = $this->valkey_glide->eval($script, ['key1', 'key2'], ['arg1', 'arg2'], 2);
+        $result = $this->valkey_glide->eval($script, ['key1', 'key2', 'arg1', 'arg2'], 2);
         $this->assertEquals(['key1', 'key2', 'arg1', 'arg2'], $result);
 
         // Test eval with Valkey operations
@@ -5310,17 +5310,17 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // Set a value using eval
         $setScript = "return redis.call('SET', KEYS[1], ARGV[1])";
-        $result = $this->valkey_glide->eval($setScript, [$key], [$value], 1);
+        $result = $this->valkey_glide->eval($setScript, [$key, $value], 1);
         $this->assertTrue($result === true || $result === 'OK'); // Can return true or 'OK'
 
         // Get value using eval
         $getScript = "return redis.call('GET', KEYS[1])";
-        $result = $this->valkey_glide->eval($getScript, [$key], [], 1);
+        $result = $this->valkey_glide->eval($getScript, [$key], 1);
         $this->assertEquals($value, $result);
 
         // Test eval with arithmetic
         $mathScript = "return tonumber(ARGV[1]) + tonumber(ARGV[2])";
-        $result = $this->valkey_glide->eval($mathScript, [], ['10', '20'], 0);
+        $result = $this->valkey_glide->eval($mathScript, ['10', '20'], 0);
         $this->assertEquals(30, $result);
 
         // Clean up
@@ -5353,7 +5353,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Test evalsha with keys and args
         $script2 = 'return {KEYS[1], ARGV[1]}';
         $sha2 = $this->valkey_glide->script('LOAD', $script2);
-        $result = $this->valkey_glide->evalsha($sha2, ['mykey'], ['myarg'], 1);
+        $result = $this->valkey_glide->evalsha($sha2, ['mykey', 'myarg'], 1);
         $this->assertEquals(['mykey', 'myarg'], $result);
     }
 
@@ -5372,7 +5372,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->set($key, 'test-value');
 
         $script = "return redis.call('GET', KEYS[1])";
-        $result = $this->valkey_glide->eval_ro($script, [$key], [], 1);
+        $result = $this->valkey_glide->eval_ro($script, [$key], 1);
         $this->assertEquals('test-value', $result);
 
         $this->valkey_glide->del($key);
