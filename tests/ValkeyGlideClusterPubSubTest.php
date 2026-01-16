@@ -15,6 +15,24 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         parent::__construct($host, $port, $auth, $tls);
     }
 
+    private function buildSubscriberCommand($script, ...$args)
+    {
+        $extension_path = __DIR__ . '/../modules/valkey_glide.so';
+        $cmd_parts = [
+            PHP_BINARY,
+            '-n',
+            '-d',
+            'extension=' . escapeshellarg($extension_path),
+            escapeshellarg($script)
+        ];
+        
+        foreach ($args as $arg) {
+            $cmd_parts[] = is_int($arg) ? $arg : escapeshellarg($arg);
+        }
+        
+        return implode(' ', $cmd_parts);
+    }
+
     public function testPubSubPublish()
     {
         // Test publish command works in cluster mode
@@ -39,17 +57,14 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
 
         $sub_script = __DIR__ . '/scripts/subscriber_message_delivery_cluster.php';
 
-        // Start subscriber - use cluster port 7001
-        $cmd = sprintf(
-            '%s %s %s %d %s %s %s %s 2>/dev/null',
-            PHP_BINARY,
-            escapeshellarg($sub_script),
-            escapeshellarg('127.0.0.1'),
+        $cmd = $this->buildSubscriberCommand(
+            $sub_script,
+            '127.0.0.1',
             7001,
-            escapeshellarg($channel),
-            escapeshellarg($message),
-            escapeshellarg($sync_file),
-            escapeshellarg($result_file)
+            $channel,
+            $message,
+            $sync_file,
+            $result_file
         );
 
         $proc = proc_open(
@@ -121,16 +136,13 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
 
         $sub_script = __DIR__ . '/scripts/subscriber_unsubscribe_cluster.php';
 
-        // Start subscriber - use cluster port 7001
-        $cmd = sprintf(
-            '%s %s %s %d %s %s %s 2>/dev/null',
-            PHP_BINARY,
-            escapeshellarg($sub_script),
-            escapeshellarg('127.0.0.1'),
+        $cmd = $this->buildSubscriberCommand(
+            $sub_script,
+            '127.0.0.1',
             7001,
-            escapeshellarg($channel),
-            escapeshellarg($sync_file),
-            escapeshellarg($unsub_file)
+            $channel,
+            $sync_file,
+            $unsub_file
         );
 
         $proc = proc_open(
@@ -199,17 +211,15 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
 
         $sub_script = __DIR__ . '/scripts/subscriber_psubscribe_cluster.php';
 
-        $cmd = sprintf(
-            '%s %s %s %d %s %s %s %s %s 2>/dev/null',
-            PHP_BINARY,
-            escapeshellarg($sub_script),
-            escapeshellarg('127.0.0.1'),
+        $cmd = $this->buildSubscriberCommand(
+            $sub_script,
+            '127.0.0.1',
             7001,
-            escapeshellarg($pattern),
-            escapeshellarg($channel),
-            escapeshellarg($message),
-            escapeshellarg($sync_file),
-            escapeshellarg($result_file)
+            $pattern,
+            $channel,
+            $message,
+            $sync_file,
+            $result_file
         );
 
         $proc = proc_open(

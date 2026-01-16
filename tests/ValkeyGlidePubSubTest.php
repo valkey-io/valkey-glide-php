@@ -15,6 +15,24 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         parent::__construct($host, $port, $auth, $tls);
     }
 
+    private function buildSubscriberCommand($script, ...$args)
+    {
+        $extension_path = __DIR__ . '/../modules/valkey_glide.so';
+        $cmd_parts = [
+            PHP_BINARY,
+            '-n',
+            '-d',
+            'extension=' . escapeshellarg($extension_path),
+            escapeshellarg($script)
+        ];
+        
+        foreach ($args as $arg) {
+            $cmd_parts[] = is_int($arg) ? $arg : escapeshellarg($arg);
+        }
+        
+        return implode(' ', $cmd_parts);
+    }
+
     public function testPubSubPublish()
     {
         // Test publish command works
@@ -42,19 +60,14 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $sub_script = __DIR__ . '/scripts/subscriber_message_delivery.php';
 
-        // Start subscriber - use same PHP invocation as main test runner
-        $extension_path = __DIR__ . '/../modules/valkey_glide.so';
-        $cmd = sprintf(
-            '%s -n -d extension=%s %s %s %d %s %s %s %s',
-            PHP_BINARY,
-            escapeshellarg($extension_path),
-            escapeshellarg($sub_script),
-            escapeshellarg($this->getHost()),
+        $cmd = $this->buildSubscriberCommand(
+            $sub_script,
+            $this->getHost(),
             $this->getPort(),
-            escapeshellarg($channel),
-            escapeshellarg($message),
-            escapeshellarg($sync_file),
-            escapeshellarg($result_file)
+            $channel,
+            $message,
+            $sync_file,
+            $result_file
         );
 
         $proc = proc_open(
@@ -144,16 +157,13 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $sub_script = __DIR__ . '/scripts/subscriber_unsubscribe.php';
 
-        // Start subscriber
-        $cmd = sprintf(
-            '%s %s %s %d %s %s %s 2>/dev/null',
-            PHP_BINARY,
-            escapeshellarg($sub_script),
-            escapeshellarg($this->getHost()),
+        $cmd = $this->buildSubscriberCommand(
+            $sub_script,
+            $this->getHost(),
             $this->getPort(),
-            escapeshellarg($channel),
-            escapeshellarg($sync_file),
-            escapeshellarg($unsub_file)
+            $channel,
+            $sync_file,
+            $unsub_file
         );
 
         $proc = proc_open(
@@ -224,16 +234,14 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $sub_script = __DIR__ . '/scripts/subscriber_partial_unsubscribe.php';
 
-        $cmd = sprintf(
-            '%s %s %s %d %s %s %s %s 2>/dev/null',
-            PHP_BINARY,
-            escapeshellarg($sub_script),
-            escapeshellarg($this->getHost()),
+        $cmd = $this->buildSubscriberCommand(
+            $sub_script,
+            $this->getHost(),
             $this->getPort(),
-            escapeshellarg($channel1),
-            escapeshellarg($channel2),
-            escapeshellarg($sync_file),
-            escapeshellarg($result_file)
+            $channel1,
+            $channel2,
+            $sync_file,
+            $result_file
         );
 
         $proc = proc_open(
@@ -303,15 +311,13 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $sub_script = __DIR__ . '/scripts/subscriber_modal_test.php';
 
-        $cmd = sprintf(
-            '%s %s %s %d %s %s %s 2>/dev/null',
-            PHP_BINARY,
-            escapeshellarg($sub_script),
-            escapeshellarg($this->getHost()),
+        $cmd = $this->buildSubscriberCommand(
+            $sub_script,
+            $this->getHost(),
             $this->getPort(),
-            escapeshellarg($channel),
-            escapeshellarg($sync_file),
-            escapeshellarg($result_file)
+            $channel,
+            $sync_file,
+            $result_file
         );
 
         $proc = proc_open(
@@ -381,15 +387,13 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $sub_script = __DIR__ . '/scripts/subscriber_modal_subscribe_test.php';
 
-        $cmd = sprintf(
-            '%s %s %s %d %s %s %s 2>/dev/null',
-            PHP_BINARY,
-            escapeshellarg($sub_script),
-            escapeshellarg($this->getHost()),
+        $cmd = $this->buildSubscriberCommand(
+            $sub_script,
+            $this->getHost(),
             $this->getPort(),
-            escapeshellarg($channel),
-            escapeshellarg($sync_file),
-            escapeshellarg($result_file)
+            $channel,
+            $sync_file,
+            $result_file
         );
 
         $proc = proc_open(
@@ -460,15 +464,13 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $sub_script = __DIR__ . '/scripts/subscriber_psubscribe.php';
 
-        $cmd = sprintf(
-            '%s %s %s %d %s %s %s 2>/dev/null',
-            PHP_BINARY,
-            escapeshellarg($sub_script),
-            escapeshellarg($this->getHost()),
+        $cmd = $this->buildSubscriberCommand(
+            $sub_script,
+            $this->getHost(),
             $this->getPort(),
-            escapeshellarg($pattern),
-            escapeshellarg($sync_file),
-            escapeshellarg($result_file)
+            $pattern,
+            $sync_file,
+            $result_file
         );
 
         $proc = proc_open(
@@ -562,16 +564,14 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $sub_script = __DIR__ . '/scripts/subscriber_selective_unsubscribe.php';
 
-        $cmd = sprintf(
-            '%s %s %s %d %s %s %s %s 2>/dev/null',
-            PHP_BINARY,
-            escapeshellarg($sub_script),
-            escapeshellarg($this->getHost()),
+        $cmd = $this->buildSubscriberCommand(
+            $sub_script,
+            $this->getHost(),
             $this->getPort(),
-            escapeshellarg($channel1),
-            escapeshellarg($channel2),
-            escapeshellarg($sync_file),
-            escapeshellarg($result_file)
+            $channel1,
+            $channel2,
+            $sync_file,
+            $result_file
         );
 
         $proc = proc_open(
