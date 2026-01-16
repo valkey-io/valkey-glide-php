@@ -9,12 +9,12 @@
 // Platform-agnostic mutex and condition variable
 #ifdef _WIN32
 #include <windows.h>
-typedef CRITICAL_SECTION mutex_t;
+typedef CRITICAL_SECTION    mutex_t;
 typedef CONDITION_VARIABLE cond_t;
 #else
 #include <pthread.h>
 typedef pthread_mutex_t mutex_t;
-typedef pthread_cond_t cond_t;
+typedef pthread_cond_t  cond_t;
 #endif
 
 // Request type constants

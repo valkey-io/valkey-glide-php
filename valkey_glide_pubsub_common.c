@@ -166,7 +166,8 @@ void pubsub_callback_handler(uintptr_t      client_ptr,
     }
 
     // Only handle message types
-    if (kind != PUBSUB_KIND_MESSAGE && kind != PUBSUB_KIND_PMESSAGE && kind != PUBSUB_KIND_SMESSAGE) {
+    if (kind != PUBSUB_KIND_MESSAGE && kind != PUBSUB_KIND_PMESSAGE &&
+        kind != PUBSUB_KIND_SMESSAGE) {
         return;
     }
 
