@@ -38,6 +38,7 @@ int execute_function_load_internal(valkey_glide_object* valkey_glide,
                                    zend_bool            replace,
                                    zval*                return_value) {
     if (!valkey_glide->glide_client) {
+        ZVAL_FALSE(return_value);
         return 0;
     }
 

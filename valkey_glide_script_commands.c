@@ -106,6 +106,10 @@ char* store_script_and_get_hash(const char* script) {
 void execute_script_flush_command(zval* object, zval* return_value, bool is_cluster) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide->glide_client) {
+        ZVAL_FALSE(return_value);
+        return;
+    }
     CommandResult* result = execute_command(valkey_glide->glide_client, ScriptFlush, 0, NULL, NULL);
     handle_script_bool_result(result, return_value);
 }
@@ -124,6 +128,10 @@ static void execute_eval_style_command(const char* cmd_name,
                                        zval*       return_value) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+
+    if (!valkey_glide->glide_client) {
+        RETURN_FALSE;
+    }
 
     int keys_count = keys_array ? zend_hash_num_elements(Z_ARRVAL_P(keys_array)) : 0;
     int args_count = args_array ? zend_hash_num_elements(Z_ARRVAL_P(args_array)) : 0;
@@ -309,6 +317,10 @@ void execute_script_exists_command(zval* object, zval* sha1s, zval* return_value
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
 
+    if (!valkey_glide->glide_client) {
+        RETURN_FALSE;
+    }
+
     int            count        = zend_hash_num_elements(Z_ARRVAL_P(sha1s));
     uintptr_t*     cmd_args     = emalloc(sizeof(uintptr_t) * count);
     unsigned long* cmd_args_len = emalloc(sizeof(unsigned long) * count);
@@ -341,6 +353,10 @@ void execute_script_show_command(
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
 
+    if (!valkey_glide->glide_client) {
+        RETURN_NULL();
+    }
+
     uintptr_t     cmd_args[1]     = {(uintptr_t) sha1};
     unsigned long cmd_args_len[1] = {sha1_len};
 
@@ -357,6 +373,10 @@ void execute_script_show_command(
 void execute_script_kill_command(zval* object, zval* return_value, bool is_cluster) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+
+    if (!valkey_glide->glide_client) {
+        RETURN_FALSE;
+    }
 
     CommandResult* result = execute_command(valkey_glide->glide_client, ScriptKill, 0, NULL, NULL);
 
