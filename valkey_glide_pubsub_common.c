@@ -402,8 +402,8 @@ static int execute_subscribe_command(const void*      connection,
     ZEND_HASH_FOREACH_END();
 
     char timeout_str[32];
-    int  timeout_len     = snprintf(timeout_str, sizeof(timeout_str), "%lld", (long long) timeout_ms);
-    args[item_count]     = (uintptr_t) timeout_str;
+    int  timeout_len = snprintf(timeout_str, sizeof(timeout_str), "%lld", (long long) timeout_ms);
+    args[item_count] = (uintptr_t) timeout_str;
     args_len[item_count] = timeout_len;
 
     struct CommandResult* result =
