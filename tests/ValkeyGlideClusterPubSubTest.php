@@ -18,7 +18,7 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
     private function buildSubscriberCommand($script, ...$args)
     {
         $extension_path = __DIR__ . '/../modules/valkey_glide.so';
-        
+
         if (file_exists($extension_path)) {
             // Regular tests: load from modules directory
             $cmd_parts = [
@@ -38,11 +38,11 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
                 escapeshellarg($script)
             ];
         }
-        
+
         foreach ($args as $arg) {
             $cmd_parts[] = is_int($arg) ? $arg : escapeshellarg($arg);
         }
-        
+
         return implode(' ', $cmd_parts);
     }
 

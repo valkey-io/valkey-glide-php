@@ -18,7 +18,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
     private function buildSubscriberCommand($script, ...$args)
     {
         $extension_path = __DIR__ . '/../modules/valkey_glide.so';
-        
+
         if (file_exists($extension_path)) {
             // Regular tests: load from modules directory
             $cmd_parts = [
@@ -38,11 +38,11 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
                 escapeshellarg($script)
             ];
         }
-        
+
         foreach ($args as $arg) {
             $cmd_parts[] = is_int($arg) ? $arg : escapeshellarg($arg);
         }
-        
+
         return implode(' ', $cmd_parts);
     }
 
@@ -101,11 +101,21 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             $error = file_get_contents($error_file);
             @unlink($error_file);
             @unlink($sync_file);
-            if (isset($pipes[0]) && is_resource($pipes[0])) @fclose($pipes[0]);
-            if (isset($pipes[1]) && is_resource($pipes[1])) @fclose($pipes[1]);
-            if (isset($pipes[2]) && is_resource($pipes[2])) @fclose($pipes[2]);
-            if (is_resource($proc)) @proc_terminate($proc);
-            if (is_resource($proc)) @proc_close($proc);
+            if (isset($pipes[0]) && is_resource($pipes[0])) {
+                @fclose($pipes[0]);
+            }
+            if (isset($pipes[1]) && is_resource($pipes[1])) {
+                @fclose($pipes[1]);
+            }
+            if (isset($pipes[2]) && is_resource($pipes[2])) {
+                @fclose($pipes[2]);
+            }
+            if (is_resource($proc)) {
+                @proc_terminate($proc);
+            }
+            if (is_resource($proc)) {
+                @proc_close($proc);
+            }
             $this->fail('Subscriber script error: ' . $error);
         }
 
@@ -116,11 +126,21 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
                 stream_set_blocking($pipes[2], false);
                 $stderr_content = stream_get_contents($pipes[2]);
             }
-            if (isset($pipes[0]) && is_resource($pipes[0])) @fclose($pipes[0]);
-            if (isset($pipes[1]) && is_resource($pipes[1])) @fclose($pipes[1]);
-            if (isset($pipes[2]) && is_resource($pipes[2])) @fclose($pipes[2]);
-            if (is_resource($proc)) @proc_terminate($proc);
-            if (is_resource($proc)) @proc_close($proc);
+            if (isset($pipes[0]) && is_resource($pipes[0])) {
+                @fclose($pipes[0]);
+            }
+            if (isset($pipes[1]) && is_resource($pipes[1])) {
+                @fclose($pipes[1]);
+            }
+            if (isset($pipes[2]) && is_resource($pipes[2])) {
+                @fclose($pipes[2]);
+            }
+            if (is_resource($proc)) {
+                @proc_terminate($proc);
+            }
+            if (is_resource($proc)) {
+                @proc_close($proc);
+            }
             $this->fail('Subscriber did not start. Stderr: ' . ($stderr_content ?: 'No stderr output'));
         }
 
@@ -145,11 +165,21 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
 
         // Cleanup
-        if (isset($pipes[0]) && is_resource($pipes[0])) @fclose($pipes[0]);
-        if (isset($pipes[1]) && is_resource($pipes[1])) @fclose($pipes[1]);
-        if (isset($pipes[2]) && is_resource($pipes[2])) @fclose($pipes[2]);
-        if (is_resource($proc)) @proc_terminate($proc);
-        if (is_resource($proc)) @proc_close($proc);
+        if (isset($pipes[0]) && is_resource($pipes[0])) {
+            @fclose($pipes[0]);
+        }
+        if (isset($pipes[1]) && is_resource($pipes[1])) {
+            @fclose($pipes[1]);
+        }
+        if (isset($pipes[2]) && is_resource($pipes[2])) {
+            @fclose($pipes[2]);
+        }
+        if (is_resource($proc)) {
+            @proc_terminate($proc);
+        }
+        if (is_resource($proc)) {
+            @proc_close($proc);
+        }
         @unlink($sync_file);
         @unlink($result_file);
         @unlink($error_file);
