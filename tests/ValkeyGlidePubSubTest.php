@@ -57,7 +57,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $proc = proc_open(
             $cmd,
-            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            [['pipe', 'r'], ['pipe', 'w'], ['file', '/tmp/subscriber_stderr.log', 'a']],
             $pipes
         );
 
@@ -65,6 +65,32 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $timeout = time() + 5;
         while (!file_exists($sync_file) && time() < $timeout) {
             usleep(100000);
+        }
+
+        // Check for error file immediately after sync file appears
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            @unlink($sync_file);
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+
+        // If sync file doesn't exist, check stderr log
+        if (!file_exists($sync_file)) {
+            $stderr_log = '/tmp/subscriber_stderr.log';
+            $stderr_content = file_exists($stderr_log) ? file_get_contents($stderr_log) : 'No stderr log';
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber did not start. Stderr: ' . $stderr_content);
         }
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
@@ -93,17 +119,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
-        
-        // Check for error file
-        $error_file = $result_file . '.error';
-        if (file_exists($error_file)) {
-            $error = file_get_contents($error_file);
-            @unlink($error_file);
-            $this->fail('Subscriber script error: ' . $error);
-        }
-        
         @unlink($sync_file);
         @unlink($result_file);
+        @unlink($error_file);
 
         $this->assertTrue($success, 'Message should be delivered to subscriber callback');
     }
@@ -145,6 +163,20 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             usleep(100000);
         }
 
+        // Check for error file immediately
+        $error_file = $unsub_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            @unlink($sync_file);
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+
         // Publish to trigger callback
         $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
         $pub->publish($channel, 'trigger');
@@ -167,17 +199,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
-        
-        // Check for error file
-        $error_file = $unsub_file . '.error';
-        if (file_exists($error_file)) {
-            $error = file_get_contents($error_file);
-            @unlink($error_file);
-            $this->fail('Subscriber script error: ' . $error);
-        }
-        
         @unlink($sync_file);
         @unlink($unsub_file);
+        @unlink($error_file);
 
         $this->assertTrue($success, 'Unsubscribe should be called and break subscribe loop');
     }
@@ -218,6 +242,20 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             usleep(100000);
         }
 
+        // Check for error file immediately
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            @unlink($sync_file);
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
 
         $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
@@ -241,17 +279,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
-        
-        // Check for error file
-        $error_file = $result_file . '.error';
-        if (file_exists($error_file)) {
-            $error = file_get_contents($error_file);
-            @unlink($error_file);
-            $this->fail('Subscriber script error: ' . $error);
-        }
-        
         @unlink($sync_file);
         @unlink($result_file);
+        @unlink($error_file);
 
         $this->assertTrue($success, 'Should receive message on second channel after unsubscribing from first');
     }
@@ -290,6 +320,20 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             usleep(100000);
         }
 
+        // Check for error file immediately
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            @unlink($sync_file);
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
 
         $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
@@ -314,17 +358,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
-        
-        // Check for error file
-        $error_file = $result_file . '.error';
-        if (file_exists($error_file)) {
-            $error = file_get_contents($error_file);
-            @unlink($error_file);
-            $this->fail('Subscriber script error: ' . $error);
-        }
-        
         @unlink($sync_file);
         @unlink($result_file);
+        @unlink($error_file);
 
         $this->assertTrue($success, 'Commands should be blocked during subscribe mode');
     }
@@ -362,6 +398,20 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             usleep(100000);
         }
 
+        // Check for error file immediately
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            @unlink($sync_file);
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
 
         $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
@@ -386,17 +436,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
-        
-        // Check for error file
-        $error_file = $result_file . '.error';
-        if (file_exists($error_file)) {
-            $error = file_get_contents($error_file);
-            @unlink($error_file);
-            $this->fail('Subscriber script error: ' . $error);
-        }
-        
         @unlink($sync_file);
         @unlink($result_file);
+        @unlink($error_file);
 
         $this->assertTrue($success, 'Subscribe should be blocked during subscribe mode');
     }
@@ -435,6 +477,20 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             usleep(100000);
         }
 
+        // Check for error file immediately
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            @unlink($sync_file);
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
 
         $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
@@ -456,17 +512,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
-        
-        // Check for error file
-        $error_file = $result_file . '.error';
-        if (file_exists($error_file)) {
-            $error = file_get_contents($error_file);
-            @unlink($error_file);
-            $this->fail('Subscriber script error: ' . $error);
-        }
-        
         @unlink($sync_file);
         @unlink($result_file);
+        @unlink($error_file);
 
         $this->assertTrue($success, 'Pattern subscribe should receive matching messages');
     }
@@ -532,6 +580,20 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             usleep(100000);
         }
 
+        // Check for error file immediately
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            @unlink($sync_file);
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+
         $this->assertTrue(file_exists($sync_file));
 
         $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
@@ -565,17 +627,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
-        
-        // Check for error file
-        $error_file = $result_file . '.error';
-        if (file_exists($error_file)) {
-            $error = file_get_contents($error_file);
-            @unlink($error_file);
-            $this->fail('Subscriber script error: ' . $error);
-        }
-        
         @unlink($sync_file);
         @unlink($result_file);
+        @unlink($error_file);
 
         $this->assertTrue($success);
     }

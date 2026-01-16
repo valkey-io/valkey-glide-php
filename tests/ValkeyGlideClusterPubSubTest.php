@@ -64,6 +64,20 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             usleep(100000);
         }
 
+        // Check for error file immediately
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            @unlink($sync_file);
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
 
         // Publish message
@@ -88,17 +102,9 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
-        
-        // Check for error file
-        $error_file = $result_file . '.error';
-        if (file_exists($error_file)) {
-            $error = file_get_contents($error_file);
-            @unlink($error_file);
-            $this->fail('Subscriber script error: ' . $error);
-        }
-        
         @unlink($sync_file);
         @unlink($result_file);
+        @unlink($error_file);
 
         $this->assertTrue($success, 'Message should be delivered to subscriber callback in cluster mode');
     }
@@ -139,6 +145,20 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             usleep(100000);
         }
 
+        // Check for error file immediately
+        $error_file = $unsub_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            @unlink($sync_file);
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+
         // Publish to trigger callback
         $this->valkey_glide->publish($channel, 'trigger');
 
@@ -159,17 +179,9 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
-        
-        // Check for error file
-        $error_file = $unsub_file . '.error';
-        if (file_exists($error_file)) {
-            $error = file_get_contents($error_file);
-            @unlink($error_file);
-            $this->fail('Subscriber script error: ' . $error);
-        }
-        
         @unlink($sync_file);
         @unlink($unsub_file);
+        @unlink($error_file);
 
         $this->assertTrue($success, 'Unsubscribe should work in cluster mode');
     }
@@ -211,6 +223,20 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             usleep(100000);
         }
 
+        // Check for error file immediately
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            @unlink($sync_file);
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+
         $this->assertTrue(file_exists($sync_file), 'PSubscriber should signal ready');
 
         $this->valkey_glide->publish($channel, $message);
@@ -230,17 +256,9 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         }
         @proc_terminate($proc);
         @proc_close($proc);
-        
-        // Check for error file
-        $error_file = $result_file . '.error';
-        if (file_exists($error_file)) {
-            $error = file_get_contents($error_file);
-            @unlink($error_file);
-            $this->fail('Subscriber script error: ' . $error);
-        }
-        
         @unlink($sync_file);
         @unlink($result_file);
+        @unlink($error_file);
 
         $this->assertTrue($success, 'Pattern subscription should work in cluster mode');
     }
