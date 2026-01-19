@@ -474,70 +474,76 @@ static void execute_unsubscribe_command(const void*      connection,
         HashTable* items_ht = Z_ARRVAL_P(items_array);
         zval*      item_zv;
 
-        // Update subscription set - only send unsubscribe for channels we're actually subscribed to
         char client_key[32];
         snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
         zval* callback_zv = find_pubsub_callback(client_key);
-        if (callback_zv) {
-            pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
-            if (info) {
-                // Build list of channels that are actually subscribed
-                uint32_t actual_count = 0;
-                ZEND_HASH_FOREACH_VAL(items_ht, item_zv) {
-                    convert_to_string(item_zv);
-                    if (zend_hash_str_exists(info->subscribed_channels, Z_STRVAL_P(item_zv), Z_STRLEN_P(item_zv))) {
-                        actual_count++;
-                    }
-                }
-                ZEND_HASH_FOREACH_END();
-                
-                // Only send unsubscribe command if we have channels to unsubscribe from
-                if (actual_count > 0) {
-                    uint32_t       total_args = actual_count + 1;
-                    uintptr_t*     args       = emalloc(total_args * sizeof(uintptr_t));
-                    unsigned long* args_len   = emalloc(total_args * sizeof(unsigned long));
+        if (!callback_zv) {
+            return;
+        }
 
-                    uint32_t i = 0;
-                    ZEND_HASH_FOREACH_VAL(items_ht, item_zv) {
-                        convert_to_string(item_zv);
-                        if (zend_hash_str_exists(info->subscribed_channels, Z_STRVAL_P(item_zv), Z_STRLEN_P(item_zv))) {
-                            args[i]     = (uintptr_t) Z_STRVAL_P(item_zv);
-                            args_len[i] = Z_STRLEN_P(item_zv);
-                            i++;
-                        }
-                    }
-                    ZEND_HASH_FOREACH_END();
+        pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
+        if (!info) {
+            return;
+        }
 
-                    args[actual_count]     = (uintptr_t) "0";
-                    args_len[actual_count] = 1;
+        // Count channels that are actually subscribed
+        uint32_t actual_count = 0;
+        ZEND_HASH_FOREACH_VAL(items_ht, item_zv) {
+            convert_to_string(item_zv);
+            if (zend_hash_str_exists(
+                    info->subscribed_channels, Z_STRVAL_P(item_zv), Z_STRLEN_P(item_zv))) {
+                actual_count++;
+            }
+        }
+        ZEND_HASH_FOREACH_END();
 
-                    struct CommandResult* result =
-                        command(connection, 0, unsubscribe_type, total_args, args, args_len, NULL, 0, 0);
+        // Only send unsubscribe if we have channels to unsubscribe from
+        if (actual_count > 0) {
+            uint32_t       total_args = actual_count + 1;
+            uintptr_t*     args       = emalloc(total_args * sizeof(uintptr_t));
+            unsigned long* args_len   = emalloc(total_args * sizeof(unsigned long));
 
-                    efree(args);
-                    efree(args_len);
-
-                    if (result) {
-                        if (result->command_error && result->command_error->command_error_message) {
-                            VALKEY_LOG_ERROR(command_name, result->command_error->command_error_message);
-                        }
-                        free_command_result(result);
-                    }
-                }
-                
-                // Remove channels from subscribed set
-                ZEND_HASH_FOREACH_VAL(items_ht, item_zv) {
-                    convert_to_string(item_zv);
-                    zend_hash_str_del(
-                        info->subscribed_channels, Z_STRVAL_P(item_zv), Z_STRLEN_P(item_zv));
-                }
-                ZEND_HASH_FOREACH_END();
-
-                if (zend_hash_num_elements(info->subscribed_channels) == 0) {
-                    info->is_active = false;
-                    cond_signal(&info->queue_cond);
+            uint32_t i = 0;
+            ZEND_HASH_FOREACH_VAL(items_ht, item_zv) {
+                convert_to_string(item_zv);
+                if (zend_hash_str_exists(
+                        info->subscribed_channels, Z_STRVAL_P(item_zv), Z_STRLEN_P(item_zv))) {
+                    args[i]     = (uintptr_t) Z_STRVAL_P(item_zv);
+                    args_len[i] = Z_STRLEN_P(item_zv);
+                    i++;
                 }
             }
+            ZEND_HASH_FOREACH_END();
+
+            args[actual_count]     = (uintptr_t) "0";
+            args_len[actual_count] = 1;
+
+            struct CommandResult* result =
+                command(connection, 0, unsubscribe_type, total_args, args, args_len, NULL, 0, 0);
+
+            efree(args);
+            efree(args_len);
+
+            if (result) {
+                if (result->command_error && result->command_error->command_error_message) {
+                    VALKEY_LOG_ERROR(command_name,
+                                     result->command_error->command_error_message);
+                }
+                free_command_result(result);
+            }
+        }
+
+        // Remove channels from subscribed set
+        ZEND_HASH_FOREACH_VAL(items_ht, item_zv) {
+            convert_to_string(item_zv);
+            zend_hash_str_del(
+                info->subscribed_channels, Z_STRVAL_P(item_zv), Z_STRLEN_P(item_zv));
+        }
+        ZEND_HASH_FOREACH_END();
+
+        if (zend_hash_num_elements(info->subscribed_channels) == 0) {
+            info->is_active = false;
+            cond_signal(&info->queue_cond);
         }
     } else {
         uintptr_t     args[1]     = {(uintptr_t) "0"};
