@@ -45,7 +45,7 @@ typedef struct {
     pubsub_message* queue_tail;
     mutex_t         queue_mutex;
     cond_t          queue_cond;
-    int             subscription_count;
+    HashTable*      subscribed_channels;  // HashTable of subscribed channel/pattern names
     bool            in_subscribe_mode;
 } pubsub_callback_info;
 

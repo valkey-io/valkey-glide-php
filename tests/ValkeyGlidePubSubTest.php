@@ -858,4 +858,80 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $this->assertTrue($success);
     }
+
+    public function testPubSubUnsubscribeNonExistentChannel()
+    {
+        // Test edge case: unsubscribe from channel we never subscribed to
+        // This should not break the subscription loop for other channels
+        $channel1 = 'test_real_' . uniqid();
+        $channel2 = 'test_fake_' . uniqid();
+        $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'result_');
+
+        @unlink($sync_file);
+        @unlink($result_file);
+
+        $sub_script = __DIR__ . '/scripts/subscriber_unsubscribe_nonexistent.php';
+
+        $cmd = $this->buildSubscriberCommand(
+            $sub_script,
+            $this->getHost(),
+            $this->getPort(),
+            $channel1,
+            $channel2,
+            $sync_file,
+            $result_file
+        );
+
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
+
+        $timeout = time() + 5;
+        while (!file_exists($sync_file) && time() < $timeout) {
+            usleep(100000);
+        }
+
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            @unlink($sync_file);
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+
+        $this->assertTrue(file_exists($sync_file));
+
+        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub->publish($channel1, 'test_message');
+        $pub->close();
+
+        $success = false;
+        $timeout = time() + 3;
+        while (!$success && time() < $timeout) {
+            if (file_exists($result_file)) {
+                $success = true;
+                break;
+            }
+            usleep(100000);
+        }
+
+        foreach ($pipes as $pipe) {
+            @fclose($pipe);
+        }
+        @proc_terminate($proc);
+        @proc_close($proc);
+        @unlink($sync_file);
+        @unlink($result_file);
+        @unlink($error_file);
+
+        $this->assertTrue($success, 'Should still receive messages after unsubscribing from non-existent channel');
+    }
 }

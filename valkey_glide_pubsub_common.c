@@ -127,6 +127,12 @@ void cleanup_callback_info(zval* zv) {
         cond_destroy(&info->queue_cond);
         zval_ptr_dtor(&info->callback);
         Z_DELREF(info->client_obj);
+        
+        if (info->subscribed_channels) {
+            zend_hash_destroy(info->subscribed_channels);
+            efree(info->subscribed_channels);
+        }
+        
         efree(info);
     }
 }
@@ -251,7 +257,11 @@ void php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* cl
     info->queue_tail = NULL;
     mutex_init(&info->queue_mutex);
     cond_init(&info->queue_cond);
-    info->subscription_count = 0;
+    
+    // Initialize subscribed channels HashTable
+    info->subscribed_channels = emalloc(sizeof(HashTable));
+    zend_hash_init(info->subscribed_channels, 8, NULL, ZVAL_PTR_DTOR, 0);
+    
     info->in_subscribe_mode  = false;
 
     // Store the pointer in a zval using ZVAL_PTR
@@ -307,11 +317,11 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
     pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
     info->in_subscribe_mode    = true;
 
-    while (info->is_active && info->subscription_count > 0) {
+    while (info->is_active && zend_hash_num_elements(info->subscribed_channels) > 0) {
         pubsub_message* msg = NULL;
 
         mutex_lock(&info->queue_mutex);
-        while (!info->queue_head && info->is_active && info->subscription_count > 0) {
+        while (!info->queue_head && info->is_active && zend_hash_num_elements(info->subscribed_channels) > 0) {
             cond_wait(&info->queue_cond, &info->queue_mutex);
         }
         if (info->queue_head) {
@@ -420,7 +430,6 @@ static int execute_subscribe_command(const void*      connection,
         VALKEY_LOG_ERROR(command_name, error_msg);
         if (result)
             free_command_result(result);
-        unregister_pubsub_callback(connection);
         php_unregister_pubsub_callback((uintptr_t) connection);
         zend_throw_exception(zend_ce_exception, error_msg, 0);
         ZVAL_FALSE(return_value);
@@ -433,16 +442,22 @@ static int execute_subscribe_command(const void*      connection,
     zval* callback_zv = find_pubsub_callback(client_key);
     if (!callback_zv) {
         VALKEY_LOG_ERROR(command_name, "Failed to find pubsub callback after command execution");
-        unregister_pubsub_callback(connection);
         ZVAL_FALSE(return_value);
         return 0;
     }
 
     pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
-    info->subscription_count += item_count;
+    
+    // Add channels to subscribed set
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(items_array), item_zv) {
+        convert_to_string(item_zv);
+        zval dummy;
+        ZVAL_TRUE(&dummy);
+        zend_hash_str_add(info->subscribed_channels, Z_STRVAL_P(item_zv), Z_STRLEN_P(item_zv), &dummy);
+    }
+    ZEND_HASH_FOREACH_END();
 
     subscribe_blocking_loop((uintptr_t) connection, unsubscribe_type);
-    unregister_pubsub_callback(connection);
 
     ZVAL_TRUE(return_value);
     return 1;
@@ -487,17 +502,22 @@ static void execute_unsubscribe_command(const void*      connection,
             free_command_result(result);
         }
 
-        // Update subscription count
+        // Update subscription set
         char client_key[32];
         snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
         zval* callback_zv = find_pubsub_callback(client_key);
         if (callback_zv) {
             pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
             if (info) {
-                info->subscription_count -= item_count;
-                if (info->subscription_count <= 0) {
-                    info->subscription_count = 0;
-                    info->is_active          = false;
+                // Remove channels from subscribed set
+                ZEND_HASH_FOREACH_VAL(items_ht, item_zv) {
+                    convert_to_string(item_zv);
+                    zend_hash_str_del(info->subscribed_channels, Z_STRVAL_P(item_zv), Z_STRLEN_P(item_zv));
+                }
+                ZEND_HASH_FOREACH_END();
+                
+                if (zend_hash_num_elements(info->subscribed_channels) == 0) {
+                    info->is_active = false;
                     cond_signal(&info->queue_cond);
                 }
             }
@@ -515,15 +535,15 @@ static void execute_unsubscribe_command(const void*      connection,
             free_command_result(result);
         }
 
-        // Update subscription count
+        // Update subscription set
         char client_key[32];
         snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
         zval* callback_zv = find_pubsub_callback(client_key);
         if (callback_zv) {
             pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
             if (info) {
-                info->subscription_count = 0;
-                info->is_active          = false;
+                zend_hash_clean(info->subscribed_channels);
+                info->is_active = false;
                 cond_signal(&info->queue_cond);
             }
         }
@@ -555,13 +575,6 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
     }
 
     php_register_pubsub_callback((uintptr_t) connection, callback, ZEND_THIS);
-
-    const char* error = register_pubsub_callback(connection, valkey_glide_pubsub_callback);
-    if (error) {
-        php_unregister_pubsub_callback((uintptr_t) connection);
-        zend_throw_exception(zend_ce_exception, error, 0);
-        RETURN_FALSE;
-    }
 
     execute_subscribe_command(connection,
                               channels,
@@ -599,13 +612,6 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
     }
 
     php_register_pubsub_callback((uintptr_t) connection, callback, ZEND_THIS);
-
-    const char* error = register_pubsub_callback(connection, valkey_glide_pubsub_callback);
-    if (error) {
-        php_unregister_pubsub_callback((uintptr_t) connection);
-        zend_throw_exception(zend_ce_exception, error, 0);
-        RETURN_FALSE;
-    }
 
     execute_subscribe_command(connection,
                               patterns,
