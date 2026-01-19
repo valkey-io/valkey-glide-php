@@ -127,12 +127,12 @@ void cleanup_callback_info(zval* zv) {
         cond_destroy(&info->queue_cond);
         zval_ptr_dtor(&info->callback);
         Z_DELREF(info->client_obj);
-        
+
         if (info->subscribed_channels) {
             zend_hash_destroy(info->subscribed_channels);
             efree(info->subscribed_channels);
         }
-        
+
         efree(info);
     }
 }
@@ -257,12 +257,12 @@ void php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* cl
     info->queue_tail = NULL;
     mutex_init(&info->queue_mutex);
     cond_init(&info->queue_cond);
-    
+
     // Initialize subscribed channels HashTable
     info->subscribed_channels = emalloc(sizeof(HashTable));
     zend_hash_init(info->subscribed_channels, 8, NULL, ZVAL_PTR_DTOR, 0);
-    
-    info->in_subscribe_mode  = false;
+
+    info->in_subscribe_mode = false;
 
     // Store the pointer in a zval using ZVAL_PTR
     zval callback_zv;
@@ -321,7 +321,8 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
         pubsub_message* msg = NULL;
 
         mutex_lock(&info->queue_mutex);
-        while (!info->queue_head && info->is_active && zend_hash_num_elements(info->subscribed_channels) > 0) {
+        while (!info->queue_head && info->is_active &&
+               zend_hash_num_elements(info->subscribed_channels) > 0) {
             cond_wait(&info->queue_cond, &info->queue_mutex);
         }
         if (info->queue_head) {
@@ -447,13 +448,14 @@ static int execute_subscribe_command(const void*      connection,
     }
 
     pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
-    
+
     // Add channels to subscribed set
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(items_array), item_zv) {
         convert_to_string(item_zv);
         zval dummy;
         ZVAL_TRUE(&dummy);
-        zend_hash_str_add(info->subscribed_channels, Z_STRVAL_P(item_zv), Z_STRLEN_P(item_zv), &dummy);
+        zend_hash_str_add(
+            info->subscribed_channels, Z_STRVAL_P(item_zv), Z_STRLEN_P(item_zv), &dummy);
     }
     ZEND_HASH_FOREACH_END();
 
@@ -512,10 +514,11 @@ static void execute_unsubscribe_command(const void*      connection,
                 // Remove channels from subscribed set
                 ZEND_HASH_FOREACH_VAL(items_ht, item_zv) {
                     convert_to_string(item_zv);
-                    zend_hash_str_del(info->subscribed_channels, Z_STRVAL_P(item_zv), Z_STRLEN_P(item_zv));
+                    zend_hash_str_del(
+                        info->subscribed_channels, Z_STRVAL_P(item_zv), Z_STRLEN_P(item_zv));
                 }
                 ZEND_HASH_FOREACH_END();
-                
+
                 if (zend_hash_num_elements(info->subscribed_channels) == 0) {
                     info->is_active = false;
                     cond_signal(&info->queue_cond);

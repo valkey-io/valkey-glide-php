@@ -234,7 +234,8 @@ static const ConnectionResponse* create_base_glide_client(
     client_type.tag = SyncClient;
 
     /* Create the client with pubsub callback registered at creation time */
-    const ConnectionResponse* conn_resp = create_client(request_bytes, len, &client_type, valkey_glide_pubsub_callback);
+    const ConnectionResponse* conn_resp =
+        create_client(request_bytes, len, &client_type, valkey_glide_pubsub_callback);
 
     /* Free the request bytes as they're no longer needed */
     efree(request_bytes);
