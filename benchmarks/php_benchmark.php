@@ -10,7 +10,7 @@ $args = parseArguments();
 $benchResults = [];
 $startedTasksCounter = 0;
 
-function executeCommands(
+function runBenchmarkOperations(
     object $client,
     int $totalCommands,
     int $dataSize,
@@ -66,7 +66,7 @@ function runBenchmark(
     $startedTasksCounter = 0;
     $start = hrtime(true);
     
-    executeCommands($client, $totalCommands, $dataSize, $actionLatencies, $startedTasksCounter);
+    runBenchmarkOperations($client, $totalCommands, $dataSize, $actionLatencies, $startedTasksCounter);
     
     $end = hrtime(true);
     $timeSeconds = ($end - $start) / 1_000_000_000;
