@@ -51,7 +51,7 @@ function runBenchmarkOperations(
     }
 }
 
-function runBenchmark(
+function runBenchmarkSingleProcess(
     object $client,
     int $totalCommands,
     int $dataSize,
@@ -77,6 +77,45 @@ function runBenchmark(
     ];
 }
 
+function runBenchmarkMultiProcess(
+    int $totalCommands,
+    int $numOfConcurrentTasks,
+    int $dataSize,
+    string $host,
+    int $port,
+    bool $useTls,
+    bool $isCluster,
+    string $clientType,
+    int &$startedTasksCounter
+): array {
+    // Note: pcntl_fork() doesn't work with ValkeyGlide due to Tokio runtime limitations
+    // Falling back to single-process sequential execution
+    echo "  Note: Multi-process mode not supported with ValkeyGlide (Tokio runtime limitation)\n";
+    echo "  Running in single-process mode...\n";
+    
+    if ($clientType === 'glide') {
+        $client = $isCluster
+            ? new ValkeyGlideCluster(addresses: [['host' => $host, 'port' => $port]], use_tls: $useTls)
+            : new ValkeyGlide(addresses: [['host' => $host, 'port' => $port]], use_tls: $useTls);
+    } else {
+        if ($isCluster) {
+            $client = new RedisCluster(null, ["{$host}:{$port}"]);
+            if ($useTls) {
+                $client->setOption(Redis::OPT_SSL_CONTEXT, ['verify_peer' => false]);
+            }
+        } else {
+            $client = new Redis();
+            if ($useTls) {
+                $client->connect("tls://{$host}", $port);
+            } else {
+                $client->connect($host, $port);
+            }
+        }
+    }
+    
+    return runBenchmarkSingleProcess($client, $totalCommands, $dataSize, $startedTasksCounter);
+}
+
 function runClients(
     array $clients,
     string $clientName,
@@ -84,13 +123,32 @@ function runClients(
     int $numOfConcurrentTasks,
     int $dataSize,
     bool $isCluster,
+    string $host,
+    int $port,
+    bool $useTls,
     int &$startedTasksCounter
 ): array {
     $now = date('H:i:s');
     echo "Starting {$clientName} data size: {$dataSize} concurrency: {$numOfConcurrentTasks} " .
          "client count: " . count($clients) . " {$now}\n";
     
-    $result = runBenchmark($clients[0], $totalCommands, $dataSize, $startedTasksCounter);
+    // Use multi-process if concurrency > 1
+    if ($numOfConcurrentTasks > 1) {
+        $result = runBenchmarkMultiProcess(
+            $totalCommands,
+            $numOfConcurrentTasks,
+            $dataSize,
+            $host,
+            $port,
+            $useTls,
+            $isCluster,
+            $clientName,
+            $startedTasksCounter
+        );
+    } else {
+        $result = runBenchmarkSingleProcess($clients[0], $totalCommands, $dataSize, $startedTasksCounter);
+    }
+    
     $time = $result['time'];
     $actionLatencies = $result['latencies'];
     
@@ -166,6 +224,9 @@ function main(
             $numOfConcurrentTasks,
             $dataSize,
             $isCluster,
+            $host,
+            $port,
+            $useTls,
             $startedTasksCounter
         );
         $benchResults[] = $result;
@@ -200,6 +261,9 @@ function main(
             $numOfConcurrentTasks,
             $dataSize,
             $isCluster,
+            $host,
+            $port,
+            $useTls,
             $startedTasksCounter
         );
         $benchResults[] = $result;

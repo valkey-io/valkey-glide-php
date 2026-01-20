@@ -111,8 +111,76 @@ Results are saved as JSON with the following structure:
 
 ## Current Limitations
 
-- **Single-process only**: This initial implementation runs sequentially. Multi-process support using `pcntl_fork()` will be added in future versions.
+- **Single-process only**: Multi-process concurrency is not supported due to ValkeyGlide's Tokio runtime incompatibility with `pcntl_fork()`. The benchmark runs sequentially, measuring per-operation latency rather than true concurrent throughput.
 - **No connection pooling**: Each benchmark run uses a single client connection.
+- **phpredis comparison**: Requires phpredis extension to be installed separately.
+
+### Why No Multi-Process Support?
+
+ValkeyGlide uses a Rust core with the Tokio async runtime, which maintains file descriptors and event loops that cannot be safely duplicated across forked processes. This is a fundamental limitation of combining `pcntl_fork()` with async Rust runtimes.
+
+**Impact**: The `--concurrentTasks` parameter controls the number of iterations, not true parallelism. Results show sequential performance characteristics.
+
+### Why PHP is Not Multi-Threaded
+
+PHP **can** be multi-threaded, but most installations are **not** because:
+
+#### Default Build: Non-Thread-Safe (NTS)
+
+```bash
+# Check your PHP build
+php -v
+# Output: PHP 8.3.x (cli) (built: ...) (NTS)
+                                          ^^^
+                                    Non-Thread-Safe
+```
+
+**Two PHP builds exist:**
+- **NTS (Non-Thread-Safe)**: Default, faster, single-threaded
+- **ZTS (Zend Thread Safe)**: Optional, slower, supports threading via `pthreads` extension
+
+#### Historical Design
+
+PHP was designed for Apache's prefork MPM (multi-process, not multi-threaded):
+- Each request = separate process
+- No shared memory between requests
+- Simple, stable, but resource-heavy
+- "Share nothing" architecture
+
+#### Extension Compatibility
+
+Many popular PHP extensions are not thread-safe. If one extension isn't thread-safe, the entire PHP build must be NTS.
+
+#### Threading Options and Their Limitations
+
+**Option 1: pthreads/parallel extensions**
+- Requires recompiling PHP with `--enable-zts`
+- Not available in standard distributions
+- ValkeyGlide extension built for NTS
+
+**Option 2: pcntl_fork() (multi-process)**
+- Works for pure PHP code
+- **Breaks with ValkeyGlide**: Rust/Tokio runtime maintains file descriptors and event loops that become corrupted when forked
+- Results in "Bad file descriptor" panics
+
+**Option 3: PHP Fibers (8.1+)**
+- Cooperative, not parallel (still single-threaded)
+- No true concurrency
+
+#### Comparison with Python/Node.js
+
+**Python**: Uses threading with GIL (Global Interpreter Lock). Allows concurrent I/O operations even though only one thread executes Python code at a time.
+
+**Node.js**: Single-threaded event loop with native async/await. Handles concurrency through non-blocking I/O.
+
+**PHP**: No native async/await (Fibers are cooperative), no safe threading without ZTS, fork breaks Rust runtime. Result: Sequential execution only.
+
+#### Why This Matters for Benchmarks
+
+- **Python/Node.js benchmarks**: Measure true concurrent throughput (multiple operations running simultaneously)
+- **PHP benchmark**: Measures sequential latency (operations run one after another)
+- Both are valid metrics, but they measure different characteristics
+- PHP results reflect typical PHP usage pattern (one request = one process)
 
 ## Future Enhancements
 
