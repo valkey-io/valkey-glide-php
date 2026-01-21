@@ -117,6 +117,3 @@ Results are saved as JSON with the following structure:
 - **No connection pooling**: Each benchmark run uses a single client connection.
 - **phpredis comparison**: Requires phpredis extension to be installed separately.
 
-## Future Enhancements
-- Pipeline/batch operation benchmarks
-- Memory usage profiling

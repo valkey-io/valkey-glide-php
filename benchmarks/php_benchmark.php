@@ -8,20 +8,20 @@ require_once __DIR__ . '/utils.php';
 
 $args = parseArguments();
 $benchResults = [];
-$startedTasksCounter = 0;
+$startedOperationsCounter = 0;
 
 function runBenchmarkOperations(
     object $client,
     int $totalCommands,
     int $dataSize,
     array &$actionLatencies,
-    int &$startedTasksCounter
+    int &$startedOperationsCounter
 ): void {
     $value = generateValue($dataSize);
     $lastLoggedAt = 0;
     
-    while ($startedTasksCounter < $totalCommands) {
-        $startedTasksCounter++;
+    while ($startedOperationsCounter < $totalCommands) {
+        $startedOperationsCounter++;
         $action = chooseAction();
         
         $start = hrtime(true);
@@ -39,14 +39,14 @@ function runBenchmarkOperations(
         }
         
         $end = hrtime(true);
-        $latencyMs = ($end - $start) / 1_000_000;
-        $actionLatencies[$action->value][] = round($latencyMs, 3);
+        $latencyMs = ($end - $start) / 1_000_000;  // Convert nanoseconds to milliseconds
+        $actionLatencies[$action->value][] = $latencyMs;  // Store full precision for accurate statistics
         
         // Log progress every 100,000 iterations
-        if ($startedTasksCounter - $lastLoggedAt >= 100000) {
-            $progress = round(($startedTasksCounter / $totalCommands) * 100, 1);
-            echo "  Progress: {$startedTasksCounter}/{$totalCommands} ({$progress}%)\n";
-            $lastLoggedAt = $startedTasksCounter;
+        if ($startedOperationsCounter - $lastLoggedAt >= 100000) {
+            $progress = round(($startedOperationsCounter / $totalCommands) * 100, 1);
+            echo "  Progress: {$startedOperationsCounter}/{$totalCommands} ({$progress}%)\n";
+            $lastLoggedAt = $startedOperationsCounter;
         }
     }
 }
@@ -55,7 +55,7 @@ function runBenchmarkSingleProcess(
     object $client,
     int $totalCommands,
     int $dataSize,
-    int &$startedTasksCounter
+    int &$startedOperationsCounter
 ): array {
     $actionLatencies = [
         ChosenAction::GET_NON_EXISTING->value => [],
@@ -63,10 +63,10 @@ function runBenchmarkSingleProcess(
         ChosenAction::SET->value => [],
     ];
     
-    $startedTasksCounter = 0;
+    $startedOperationsCounter = 0;
     $start = hrtime(true);
     
-    runBenchmarkOperations($client, $totalCommands, $dataSize, $actionLatencies, $startedTasksCounter);
+    runBenchmarkOperations($client, $totalCommands, $dataSize, $actionLatencies, $startedOperationsCounter);
     
     $end = hrtime(true);
     $timeSeconds = ($end - $start) / 1_000_000_000;
@@ -77,7 +77,7 @@ function runBenchmarkSingleProcess(
     ];
 }
 
-function runBenchmarkMultiProcess(
+function runBenchmarkSequential(
     int $totalCommands,
     int $iterationMultiplier,
     int $dataSize,
@@ -86,12 +86,11 @@ function runBenchmarkMultiProcess(
     bool $useTls,
     bool $isCluster,
     string $clientType,
-    int &$startedTasksCounter
+    int &$startedOperationsCounter
 ): array {
-    // Note: pcntl_fork() doesn't work with ValkeyGlide due to Tokio runtime limitations
-    // Falling back to single-process sequential execution
-    echo "  Note: Multi-process mode not supported with ValkeyGlide (Tokio runtime limitation)\n";
-    echo "  Running in single-process mode...\n";
+    // Note: PHP benchmark runs sequentially due to ValkeyGlide's Tokio runtime limitation
+    // (pcntl_fork() is incompatible with async Rust runtimes)
+    echo "  Running sequential benchmark...\n";
     
     if ($clientType === 'glide') {
         $client = $isCluster
@@ -113,7 +112,7 @@ function runBenchmarkMultiProcess(
         }
     }
     
-    return runBenchmarkSingleProcess($client, $totalCommands, $dataSize, $startedTasksCounter);
+    return runBenchmarkSingleProcess($client, $totalCommands, $dataSize, $startedOperationsCounter);
 }
 
 function runClients(
@@ -126,15 +125,15 @@ function runClients(
     string $host,
     int $port,
     bool $useTls,
-    int &$startedTasksCounter
+    int &$startedOperationsCounter
 ): array {
     $now = date('H:i:s');
     echo "Starting {$clientName} data size: {$dataSize} iteration level: {$iterationMultiplier} " .
          "client count: " . count($clients) . " {$now}\n";
     
-    // Use multi-process if iteration level > 1
+    // Run sequential benchmark (iteration level > 1 uses more iterations)
     if ($iterationMultiplier > 1) {
-        $result = runBenchmarkMultiProcess(
+        $result = runBenchmarkSequential(
             $totalCommands,
             $iterationMultiplier,
             $dataSize,
@@ -143,16 +142,16 @@ function runClients(
             $useTls,
             $isCluster,
             $clientName,
-            $startedTasksCounter
+            $startedOperationsCounter
         );
     } else {
-        $result = runBenchmarkSingleProcess($clients[0], $totalCommands, $dataSize, $startedTasksCounter);
+        $result = runBenchmarkSingleProcess($clients[0], $totalCommands, $dataSize, $startedOperationsCounter);
     }
     
     $time = $result['time'];
     $actionLatencies = $result['latencies'];
     
-    $tps = (int)($startedTasksCounter / $time);
+    $tps = (int)($startedOperationsCounter / $time);
     
     $getNonExistingResults = latencyResults('get_non_existing', $actionLatencies[ChosenAction::GET_NON_EXISTING->value]);
     $getExistingResults = latencyResults('get_existing', $actionLatencies[ChosenAction::GET_EXISTING->value]);
@@ -161,7 +160,7 @@ function runClients(
     return array_merge(
         [
             'client' => $clientName,
-            'num_of_tasks' => $iterationMultiplier,
+            'num_of_tasks' => $iterationMultiplier,  // Note: iteration level, not actual concurrency (PHP runs sequentially)
             'data_size' => $dataSize,
             'tps' => $tps,
             'client_count' => count($clients),
@@ -193,7 +192,7 @@ function main(
     bool $isCluster,
     int $port,
     array &$benchResults,
-    int &$startedTasksCounter
+    int &$startedOperationsCounter
 ): void {
     // Run phpredis benchmark
     if ($clientsToRun === 'all' || $clientsToRun === 'phpredis') {
@@ -227,7 +226,7 @@ function main(
             $host,
             $port,
             $useTls,
-            $startedTasksCounter
+            $startedOperationsCounter
         );
         $benchResults[] = $result;
         
@@ -264,7 +263,7 @@ function main(
             $host,
             $port,
             $useTls,
-            $startedTasksCounter
+            $startedOperationsCounter
         );
         $benchResults[] = $result;
         
@@ -309,7 +308,7 @@ foreach ($productOfArguments as [$dataSize, $iterationMultiplier, $numberOfClien
         $isCluster,
         $port,
         $benchResults,
-        $startedTasksCounter
+        $startedOperationsCounter
     );
 }
 
