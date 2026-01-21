@@ -599,7 +599,7 @@ PHP_METHOD(ValkeyGlide, __construct) {
         if (common_params.database_id < 0) {
             const char* error_message = "Database ID must be non-negative.";
             VALKEY_LOG_ERROR("php_construct", error_message);
-            zend_throw_exception(valkey_glide_exception_ce, error_message, 0);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
             return;
         }
     }
@@ -609,7 +609,7 @@ PHP_METHOD(ValkeyGlide, __construct) {
         zend_hash_num_elements(Z_ARRVAL_P(common_params.addresses)) == 0) {
         const char* error_message = "Addresses array cannot be empty";
         VALKEY_LOG_ERROR("php_construct", error_message);
-        zend_throw_exception(valkey_glide_exception_ce, error_message, 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
         return;
     }
 
@@ -625,7 +625,8 @@ PHP_METHOD(ValkeyGlide, __construct) {
 
     if (conn_resp->connection_error_message) {
         VALKEY_LOG_ERROR("php_construct", conn_resp->connection_error_message);
-        zend_throw_exception(valkey_glide_exception_ce, conn_resp->connection_error_message, 0);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), conn_resp->connection_error_message, 0);
     } else {
         VALKEY_LOG_INFO("php_construct", "ValkeyGlide client created successfully");
         valkey_glide->glide_client = conn_resp->conn_ptr;
