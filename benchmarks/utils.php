@@ -34,7 +34,7 @@ function parseArguments(): array
         'dataSize::',
         'clients::',
         'host::',
-        'clientCount::',
+
         'tls',
         'clusterModeEnabled',
         'port::',
@@ -46,7 +46,6 @@ function parseArguments(): array
         'dataSize' => (int)($options['dataSize'] ?? DEFAULT_DATA_SIZE),
         'clients' => $options['clients'] ?? 'all',
         'host' => $options['host'] ?? DEFAULT_HOST,
-        'clientCount' => isset($options['clientCount']) ? explode(',', $options['clientCount']) : ['1'],
         'tls' => isset($options['tls']),
         'clusterModeEnabled' => isset($options['clusterModeEnabled']),
         'port' => (int)($options['port'] ?? DEFAULT_PORT),

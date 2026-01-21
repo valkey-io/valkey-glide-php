@@ -8,7 +8,6 @@ require_once __DIR__ . '/utils.php';
 
 $args = parseArguments();
 $benchResults = [];
-$startedOperationsCounter = 0;
 
 function runBenchmarkOperations(
     object $client,
@@ -54,8 +53,7 @@ function runBenchmarkOperations(
 function runBenchmarkSingleProcess(
     object $client,
     int $totalCommands,
-    int $dataSize,
-    int &$startedOperationsCounter
+    int $dataSize
 ): array {
     $actionLatencies = [
         ChosenAction::GET_NON_EXISTING->value => [],
@@ -74,6 +72,7 @@ function runBenchmarkSingleProcess(
     return [
         'time' => $timeSeconds,
         'latencies' => $actionLatencies,
+        'operations_completed' => $startedOperationsCounter,
     ];
 }
 
@@ -85,8 +84,7 @@ function runBenchmarkSequential(
     int $port,
     bool $useTls,
     bool $isCluster,
-    string $clientType,
-    int &$startedOperationsCounter
+    string $clientType
 ): array {
     // Note: PHP benchmark runs sequentially due to ValkeyGlide's Tokio runtime limitation
     // (pcntl_fork() is incompatible with async Rust runtimes)
@@ -112,11 +110,11 @@ function runBenchmarkSequential(
         }
     }
     
-    return runBenchmarkSingleProcess($client, $totalCommands, $dataSize, $startedOperationsCounter);
+    return runBenchmarkSingleProcess($client, $totalCommands, $dataSize);
 }
 
-function runClients(
-    array $clients,
+function runClient(
+    object $client,
     string $clientName,
     int $totalCommands,
     int $iterationMultiplier,
@@ -124,12 +122,10 @@ function runClients(
     bool $isCluster,
     string $host,
     int $port,
-    bool $useTls,
-    int &$startedOperationsCounter
+    bool $useTls
 ): array {
     $now = date('H:i:s');
-    echo "Starting {$clientName} data size: {$dataSize} iteration level: {$iterationMultiplier} " .
-         "client count: " . count($clients) . " {$now}\n";
+    echo "Starting {$clientName} data size: {$dataSize} iteration level: {$iterationMultiplier} {$now}\n";
     
     // Run sequential benchmark (iteration level > 1 uses more iterations)
     if ($iterationMultiplier > 1) {
@@ -141,17 +137,17 @@ function runClients(
             $port,
             $useTls,
             $isCluster,
-            $clientName,
-            $startedOperationsCounter
+            $clientName
         );
     } else {
-        $result = runBenchmarkSingleProcess($clients[0], $totalCommands, $dataSize, $startedOperationsCounter);
+        $result = runBenchmarkSingleProcess($client, $totalCommands, $dataSize);
     }
     
     $time = $result['time'];
     $actionLatencies = $result['latencies'];
+    $operationsCompleted = $result['operations_completed'];
     
-    $tps = (int)($startedOperationsCounter / $time);
+    $tps = (int)($operationsCompleted / $time);
     
     $getNonExistingResults = latencyResults('get_non_existing', $actionLatencies[ChosenAction::GET_NON_EXISTING->value]);
     $getExistingResults = latencyResults('get_existing', $actionLatencies[ChosenAction::GET_EXISTING->value]);
@@ -163,7 +159,7 @@ function runClients(
             'num_of_tasks' => $iterationMultiplier,  // Note: iteration level, not actual concurrency (PHP runs sequentially)
             'data_size' => $dataSize,
             'tps' => $tps,
-            'client_count' => count($clients),
+            'client_count' => 1,
             'is_cluster' => $isCluster,
         ],
         $getExistingResults,
@@ -172,52 +168,35 @@ function runClients(
     );
 }
 
-function createClients(int $clientCount, callable $createAction): array
-{
-    $clients = [];
-    for ($i = 0; $i < $clientCount; $i++) {
-        $clients[] = $createAction();
-    }
-    return $clients;
-}
-
 function main(
     int $totalCommands,
     int $iterationMultiplier,
     int $dataSize,
     string $clientsToRun,
     string $host,
-    int $clientCount,
     bool $useTls,
     bool $isCluster,
     int $port,
-    array &$benchResults,
-    int &$startedOperationsCounter
+    array &$benchResults
 ): void {
     // Run phpredis benchmark
     if ($clientsToRun === 'all' || $clientsToRun === 'phpredis') {
         if ($isCluster) {
-            $clients = createClients($clientCount, function () use ($host, $port, $useTls) {
-                $client = new RedisCluster(null, ["{$host}:{$port}"]);
-                if ($useTls) {
-                    $client->setOption(Redis::OPT_SSL_CONTEXT, ['verify_peer' => false]);
-                }
-                return $client;
-            });
+            $client = new RedisCluster(null, ["{$host}:{$port}"]);
+            if ($useTls) {
+                $client->setOption(Redis::OPT_SSL_CONTEXT, ['verify_peer' => false]);
+            }
         } else {
-            $clients = createClients($clientCount, function () use ($host, $port, $useTls) {
-                $client = new Redis();
-                if ($useTls) {
-                    $client->connect("tls://{$host}", $port);
-                } else {
-                    $client->connect($host, $port);
-                }
-                return $client;
-            });
+            $client = new Redis();
+            if ($useTls) {
+                $client->connect("tls://{$host}", $port);
+            } else {
+                $client->connect($host, $port);
+            }
         }
         
-        $result = runClients(
-            $clients,
+        $result = runClient(
+            $client,
             'phpredis',
             $totalCommands,
             $iterationMultiplier,
@@ -225,36 +204,28 @@ function main(
             $isCluster,
             $host,
             $port,
-            $useTls,
-            $startedOperationsCounter
+            $useTls
         );
         $benchResults[] = $result;
-        
-        foreach ($clients as $client) {
-            $client->close();
-        }
+        $client->close();
     }
     
     // Run ValkeyGlide benchmark
     if ($clientsToRun === 'all' || $clientsToRun === 'glide') {
         if ($isCluster) {
-            $clients = createClients($clientCount, function () use ($host, $port, $useTls) {
-                return new ValkeyGlideCluster(
-                    addresses: [['host' => $host, 'port' => $port]],
-                    use_tls: $useTls
-                );
-            });
+            $client = new ValkeyGlideCluster(
+                addresses: [['host' => $host, 'port' => $port]],
+                use_tls: $useTls
+            );
         } else {
-            $clients = createClients($clientCount, function () use ($host, $port, $useTls) {
-                return new ValkeyGlide(
-                    addresses: [['host' => $host, 'port' => $port]],
-                    use_tls: $useTls
-                );
-            });
+            $client = new ValkeyGlide(
+                addresses: [['host' => $host, 'port' => $port]],
+                use_tls: $useTls
+            );
         }
         
-        $result = runClients(
-            $clients,
+        $result = runClient(
+            $client,
             'glide',
             $totalCommands,
             $iterationMultiplier,
@@ -262,14 +233,10 @@ function main(
             $isCluster,
             $host,
             $port,
-            $useTls,
-            $startedOperationsCounter
+            $useTls
         );
         $benchResults[] = $result;
-        
-        foreach ($clients as $client) {
-            $client->close();
-        }
+        $client->close();
     }
 }
 
@@ -277,7 +244,6 @@ function main(
 $iterationLevels = $args['iterationLevel'];
 $dataSize = $args['dataSize'];
 $clientsToRun = $args['clients'];
-$clientCount = $args['clientCount'];
 $host = $args['host'];
 $useTls = $args['tls'];
 $port = $args['port'];
@@ -285,16 +251,11 @@ $isCluster = $args['clusterModeEnabled'];
 
 $productOfArguments = [];
 foreach ($iterationLevels as $iterationLevel) {
-    foreach ($clientCount as $numClients) {
-        $iterationLevel = (int)$iterationLevel;
-        $numClients = (int)$numClients;
-        if ($numClients <= $iterationLevel) {
-            $productOfArguments[] = [$dataSize, $iterationLevel, $numClients];
-        }
-    }
+    $iterationLevel = (int)$iterationLevel;
+    $productOfArguments[] = [$dataSize, $iterationLevel];
 }
 
-foreach ($productOfArguments as [$dataSize, $iterationMultiplier, $numberOfClients]) {
+foreach ($productOfArguments as [$dataSize, $iterationMultiplier]) {
     $totalIterations = numberOfIterations($iterationMultiplier);
     
     main(
@@ -303,12 +264,10 @@ foreach ($productOfArguments as [$dataSize, $iterationMultiplier, $numberOfClien
         $dataSize,
         $clientsToRun,
         $host,
-        $numberOfClients,
         $useTls,
         $isCluster,
         $port,
-        $benchResults,
-        $startedOperationsCounter
+        $benchResults
     );
 }
 

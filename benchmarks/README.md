@@ -24,7 +24,6 @@ php php_benchmark.php
 - `--clients` - Which clients to run: `all`, `glide`, or `phpredis` (default: `all`)
 - `--host` - Server hostname (default: `localhost`)
 - `--port` - Server port (default: `6379`)
-- `--clientCount` - Comma-separated list of client counts (default: `1`)
 - `--iterationLevel` - Iteration scale levels (default: `1,10,100,1000`)
   - Controls the number of operations: `level × 10,000`
   - `1` = 100K operations, `10` = 100K operations, `100` = 1M operations, `1000` = 5M operations
