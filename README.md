@@ -289,6 +289,7 @@ $client->close();
 ```
 
 **Requirements:**
+
 - PHP 8.3 or higher (required for `class_alias()` support with internal classes)
 
 ### With IAM Authentication for AWS ElastiCache
