@@ -280,13 +280,16 @@ $value = $client->get('foo');
 
 // Exceptions are also aliased
 try {
-    $client->get('key', 'invalid_arg');
+    // Operations that may fail
 } catch (RedisException $e) {
     echo "Caught RedisException: " . $e->getMessage() . "\n";
 }
 
 $client->close();
 ```
+
+**Requirements:**
+- PHP 8.3 or higher (required for `class_alias()` support with internal classes)
 
 ### With IAM Authentication for AWS ElastiCache
 

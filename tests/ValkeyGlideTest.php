@@ -8073,13 +8073,18 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
     public function testPHPRedisAliases()
     {
+        if (PHP_VERSION_ID < 80300) {
+            $this->markTestSkipped('PHPRedis aliases require PHP 8.3+');
+            return;
+        }
+
         require_once __DIR__ . "/../phpredis_aliases.php";
 
         $this->assertTrue(class_exists('Redis'), 'Redis class alias should exist');
         $this->assertTrue(class_exists('RedisCluster'), 'RedisCluster class alias should exist');
         $this->assertTrue(class_exists('RedisException'), 'RedisException class alias should exist');
 
-        $redis = new Redis([$this->getAddress()]);
+        $redis = new Redis([['host' => $this->getHost(), 'port' => $this->getPort()]]);
         $this->assertInstanceOf(Redis::class, $redis);
         $this->assertInstanceOf(ValkeyGlide::class, $redis);
 

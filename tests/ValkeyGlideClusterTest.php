@@ -1495,11 +1495,16 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testPHPRedisClusterAlias()
     {
+        if (PHP_VERSION_ID < 80300) {
+            $this->markTestSkipped('PHPRedis aliases require PHP 8.3+');
+            return;
+        }
+
         require_once __DIR__ . "/../phpredis_aliases.php";
 
         $this->assertTrue(class_exists('RedisCluster'), 'RedisCluster class alias should exist');
 
-        $cluster = new RedisCluster([$this->getAddress()]);
+        $cluster = new RedisCluster([['host' => $this->getHost(), 'port' => $this->getPort()]]);
         $this->assertInstanceOf(RedisCluster::class, $cluster);
         $this->assertInstanceOf(ValkeyGlideCluster::class, $cluster);
 
