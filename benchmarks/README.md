@@ -14,7 +14,7 @@ This directory contains benchmark scripts for comparing Valkey GLIDE PHP client 
 ### Basic Usage
 
 ```bash
-php php_benchmark.php
+php run.php
 ```
 
 ### Command-line Options
@@ -34,32 +34,32 @@ php php_benchmark.php
 
 **Standalone server:**
 ```bash
-php php_benchmark.php --host=localhost --port=6379
+php run.php --host=localhost --port=6379
 ```
 
 **Cluster mode:**
 ```bash
-php php_benchmark.php --host=localhost --port=7001 --clusterModeEnabled
+php run.php --host=localhost --port=7001 --clusterModeEnabled
 ```
 
 **With TLS:**
 ```bash
-php php_benchmark.php --host=localhost --port=6379 --tls
+php run.php --host=localhost --port=6379 --tls
 ```
 
 **Custom data size and iterations:**
 ```bash
-php php_benchmark.php --dataSize=1000 --iterations=100000,1000000
+php run.php --dataSize=1000 --iterations=100000,1000000
 ```
 
 **Only test Valkey GLIDE:**
 ```bash
-php php_benchmark.php --clients=glide
+php run.php --clients=glide
 ```
 
 **Quick test (low iterations):**
 ```bash
-php php_benchmark.php --iterations=100000
+php run.php --iterations=100000
 ```
 
 ## Benchmark Methodology
