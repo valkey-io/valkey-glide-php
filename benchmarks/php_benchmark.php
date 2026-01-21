@@ -275,7 +275,7 @@ function main(
 }
 
 // Main execution
-$iterations = $args['iterations'];
+$iterationLevels = $args['iterationLevel'];
 $dataSize = $args['dataSize'];
 $clientsToRun = $args['clients'];
 $clientCount = $args['clientCount'];
@@ -285,7 +285,7 @@ $port = $args['port'];
 $isCluster = $args['clusterModeEnabled'];
 
 $productOfArguments = [];
-foreach ($iterations as $iterationLevel) {
+foreach ($iterationLevels as $iterationLevel) {
     foreach ($clientCount as $numClients) {
         $iterationLevel = (int)$iterationLevel;
         $numClients = (int)$numClients;

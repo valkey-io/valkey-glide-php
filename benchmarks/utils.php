@@ -17,8 +17,8 @@ const ITERATIONS_MULTIPLIER = 10000; // Iterations per concurrency level
 const MAX_ITERATIONS = 5000000;     // Maximum iterations cap
 
 // Default benchmark configuration
-const DEFAULT_DATA_SIZE = 100;      // Default value size in bytes
-const DEFAULT_ITERATIONS = ['1', '10', '100', '1000'];
+const DEFAULT_DATA_SIZE = 100;           // Default value size in bytes
+const DEFAULT_ITERATION_LEVELS = ['1', '10', '100', '1000'];
 
 enum ChosenAction: int
 {
@@ -38,7 +38,7 @@ function parseArguments(): array
         'tls',
         'clusterModeEnabled',
         'port::',
-        'iterations::',
+        'iterationLevel::',
     ]);
 
     return [
@@ -50,7 +50,7 @@ function parseArguments(): array
         'tls' => isset($options['tls']),
         'clusterModeEnabled' => isset($options['clusterModeEnabled']),
         'port' => (int)($options['port'] ?? DEFAULT_PORT),
-        'iterations' => isset($options['iterations']) ? explode(',', $options['iterations']) : DEFAULT_ITERATIONS,
+        'iterationLevel' => isset($options['iterationLevel']) ? explode(',', $options['iterationLevel']) : DEFAULT_ITERATION_LEVELS,
     ];
 }
 
