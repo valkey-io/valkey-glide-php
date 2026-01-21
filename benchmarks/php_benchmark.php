@@ -196,7 +196,7 @@ function main(
     int &$startedTasksCounter
 ): void {
     // Run phpredis benchmark
-    if ($clientsToRun === 'all') {
+    if ($clientsToRun === 'all' || $clientsToRun === 'phpredis') {
         if ($isCluster) {
             $clients = createClients($clientCount, function () use ($host, $port, $useTls) {
                 $client = new RedisCluster(null, ["{$host}:{$port}"]);

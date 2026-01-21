@@ -135,40 +135,41 @@ function generateMarkdownReport(array $benchResults): string
     $md = "# PHP Benchmark Results\n\n";
     $md .= "Generated: " . date('Y-m-d H:i:s') . "\n\n";
     
-    // Group by client
-    $groupedResults = [];
+    // Group by concurrency level
+    $groupedByConcurrency = [];
     foreach ($benchResults as $result) {
-        $client = $result['client'];
-        if (!isset($groupedResults[$client])) {
-            $groupedResults[$client] = [];
+        $concurrency = $result['num_of_tasks'];
+        if (!isset($groupedByConcurrency[$concurrency])) {
+            $groupedByConcurrency[$concurrency] = [];
         }
-        $groupedResults[$client][] = $result;
+        $groupedByConcurrency[$concurrency][] = $result;
     }
     
-    foreach ($groupedResults as $client => $results) {
-        $md .= "## Client: {$client}\n\n";
+    ksort($groupedByConcurrency);
+    
+    foreach ($groupedByConcurrency as $concurrency => $results) {
+        $md .= "## Concurrency: {$concurrency}\n\n";
         
-        // Summary table
-        $md .= "### Performance Summary\n\n";
-        $md .= "| Concurrency | Data Size | TPS     | Client Count | Cluster |\n";
-        $md .= "|-------------|-----------|---------|--------------|----------|\n";
+        // Performance comparison table
+        $md .= "### Performance Comparison\n\n";
+        $md .= "| Client    | TPS     | GET Existing P50 | GET Non-Existing P50 | SET P50 |\n";
+        $md .= "|-----------|---------|------------------|----------------------|---------|\n";
         
         foreach ($results as $result) {
-            $cluster = $result['is_cluster'] ? 'Yes' : 'No';
             $md .= sprintf(
-                "| %-11d | %-9d | %-7s | %-12d | %-8s |\n",
-                $result['num_of_tasks'],
-                $result['data_size'],
-                number_format($result['tps']),
-                $result['client_count'],
-                $cluster
+                "| %-9s | %-7s | %-16s | %-20s | %-7s |\n",
+                $result['client'],
+                str_pad(number_format($result['tps']), 7, ' ', STR_PAD_LEFT),
+                str_pad($result['get_existing_p50_latency'] . 'ms', 16, ' ', STR_PAD_LEFT),
+                str_pad($result['get_non_existing_p50_latency'] . 'ms', 20, ' ', STR_PAD_LEFT),
+                str_pad($result['set_p50_latency'] . 'ms', 7, ' ', STR_PAD_LEFT)
             );
         }
         
-        $md .= "\n### Latency Details\n\n";
+        $md .= "\n### Detailed Latency Metrics\n\n";
         
         foreach ($results as $result) {
-            $md .= "#### Concurrency: {$result['num_of_tasks']}, Data Size: {$result['data_size']} bytes\n\n";
+            $md .= "#### Client: {$result['client']}\n\n";
             
             // GET Existing
             $md .= "**GET (Existing Key)**\n\n";
@@ -200,6 +201,8 @@ function generateMarkdownReport(array $benchResults): string
             $md .= sprintf("| %-7s | %-10s |\n", "Average", $result['set_average_latency']);
             $md .= sprintf("| %-7s | %-10s |\n\n", "Std Dev", $result['set_std_dev']);
         }
+        
+        $md .= "---\n\n";
     }
     
     return $md;
