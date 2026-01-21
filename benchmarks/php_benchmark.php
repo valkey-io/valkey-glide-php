@@ -13,16 +13,17 @@ enum ClientType: string
     case ALL = 'all';
 }
 
-$args = parseArguments();
-$benchResults = [];
-
 function runBenchmarkOperations(
     object $client,
     int $totalCommands,
-    int $dataSize,
-    array &$actionLatencies,
-    int &$startedOperationsCounter
-): void {
+    int $dataSize
+): array {
+    $actionLatencies = [
+        ChosenAction::GET_NON_EXISTING->value => [],
+        ChosenAction::GET_EXISTING->value => [],
+        ChosenAction::SET->value => [],
+    ];
+    $startedOperationsCounter = 0;
     $value = generateValue($dataSize);
     $lastLoggedAt = 0;
     
@@ -55,6 +56,11 @@ function runBenchmarkOperations(
             $lastLoggedAt = $startedOperationsCounter;
         }
     }
+    
+    return [
+        'latencies' => $actionLatencies,
+        'operations_completed' => $startedOperationsCounter,
+    ];
 }
 
 function runBenchmarkSingleProcess(
@@ -62,24 +68,17 @@ function runBenchmarkSingleProcess(
     int $totalCommands,
     int $dataSize
 ): array {
-    $actionLatencies = [
-        ChosenAction::GET_NON_EXISTING->value => [],
-        ChosenAction::GET_EXISTING->value => [],
-        ChosenAction::SET->value => [],
-    ];
-    
-    $startedOperationsCounter = 0;
     $start = hrtime(true);
     
-    runBenchmarkOperations($client, $totalCommands, $dataSize, $actionLatencies, $startedOperationsCounter);
+    $result = runBenchmarkOperations($client, $totalCommands, $dataSize);
     
     $end = hrtime(true);
     $timeSeconds = ($end - $start) / 1_000_000_000;
     
     return [
         'time' => $timeSeconds,
-        'latencies' => $actionLatencies,
-        'operations_completed' => $startedOperationsCounter,
+        'latencies' => $result['latencies'],
+        'operations_completed' => $result['operations_completed'],
     ];
 }
 
@@ -263,6 +262,9 @@ function main(
 }
 
 // Main execution
+$args = parseArguments();
+$benchResults = [];
+
 $iterationsList = $args['iterations'];
 $dataSize = $args['dataSize'];
 $clientsToRun = ClientType::tryFrom($args['clients']);
