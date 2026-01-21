@@ -271,7 +271,11 @@ function main(
 // Main execution
 $iterationLevels = $args['iterationLevel'];
 $dataSize = $args['dataSize'];
-$clientsToRun = ClientType::from($args['clients']);
+$clientsToRun = ClientType::tryFrom($args['clients']);
+if ($clientsToRun === null) {
+    echo "Error: Invalid client type '{$args['clients']}'. Valid options: all, glide, phpredis\n";
+    exit(1);
+}
 $host = $args['host'];
 $useTls = $args['tls'];
 $port = $args['port'];
