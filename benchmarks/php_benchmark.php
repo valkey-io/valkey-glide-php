@@ -79,7 +79,7 @@ function runBenchmarkSingleProcess(
 
 function runBenchmarkMultiProcess(
     int $totalCommands,
-    int $numOfConcurrentTasks,
+    int $iterationMultiplier,
     int $dataSize,
     string $host,
     int $port,
@@ -120,7 +120,7 @@ function runClients(
     array $clients,
     string $clientName,
     int $totalCommands,
-    int $numOfConcurrentTasks,
+    int $iterationMultiplier,
     int $dataSize,
     bool $isCluster,
     string $host,
@@ -129,14 +129,14 @@ function runClients(
     int &$startedTasksCounter
 ): array {
     $now = date('H:i:s');
-    echo "Starting {$clientName} data size: {$dataSize} concurrency: {$numOfConcurrentTasks} " .
+    echo "Starting {$clientName} data size: {$dataSize} iteration level: {$iterationMultiplier} " .
          "client count: " . count($clients) . " {$now}\n";
     
-    // Use multi-process if concurrency > 1
-    if ($numOfConcurrentTasks > 1) {
+    // Use multi-process if iteration level > 1
+    if ($iterationMultiplier > 1) {
         $result = runBenchmarkMultiProcess(
             $totalCommands,
-            $numOfConcurrentTasks,
+            $iterationMultiplier,
             $dataSize,
             $host,
             $port,
@@ -161,7 +161,7 @@ function runClients(
     return array_merge(
         [
             'client' => $clientName,
-            'num_of_tasks' => $numOfConcurrentTasks,
+            'num_of_tasks' => $iterationMultiplier,
             'data_size' => $dataSize,
             'tps' => $tps,
             'client_count' => count($clients),
@@ -184,7 +184,7 @@ function createClients(int $clientCount, callable $createAction): array
 
 function main(
     int $totalCommands,
-    int $numOfConcurrentTasks,
+    int $iterationMultiplier,
     int $dataSize,
     string $clientsToRun,
     string $host,
@@ -221,7 +221,7 @@ function main(
             $clients,
             'phpredis',
             $totalCommands,
-            $numOfConcurrentTasks,
+            $iterationMultiplier,
             $dataSize,
             $isCluster,
             $host,
@@ -258,7 +258,7 @@ function main(
             $clients,
             'glide',
             $totalCommands,
-            $numOfConcurrentTasks,
+            $iterationMultiplier,
             $dataSize,
             $isCluster,
             $host,
@@ -275,7 +275,7 @@ function main(
 }
 
 // Main execution
-$concurrentTasks = $args['concurrentTasks'];
+$iterations = $args['iterations'];
 $dataSize = $args['dataSize'];
 $clientsToRun = $args['clients'];
 $clientCount = $args['clientCount'];
@@ -285,22 +285,22 @@ $port = $args['port'];
 $isCluster = $args['clusterModeEnabled'];
 
 $productOfArguments = [];
-foreach ($concurrentTasks as $numTasks) {
+foreach ($iterations as $iterationLevel) {
     foreach ($clientCount as $numClients) {
-        $numTasks = (int)$numTasks;
+        $iterationLevel = (int)$iterationLevel;
         $numClients = (int)$numClients;
-        if ($numClients <= $numTasks) {
-            $productOfArguments[] = [$dataSize, $numTasks, $numClients];
+        if ($numClients <= $iterationLevel) {
+            $productOfArguments[] = [$dataSize, $iterationLevel, $numClients];
         }
     }
 }
 
-foreach ($productOfArguments as [$dataSize, $numOfConcurrentTasks, $numberOfClients]) {
-    $iterations = $args['minimal'] ? 1000 : numberOfIterations($numOfConcurrentTasks);
+foreach ($productOfArguments as [$dataSize, $iterationMultiplier, $numberOfClients]) {
+    $totalIterations = $args['minimal'] ? 1000 : numberOfIterations($iterationMultiplier);
     
     main(
-        $iterations,
-        $numOfConcurrentTasks,
+        $totalIterations,
+        $iterationMultiplier,
         $dataSize,
         $clientsToRun,
         $host,

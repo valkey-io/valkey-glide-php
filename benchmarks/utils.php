@@ -18,7 +18,7 @@ const MAX_ITERATIONS = 5000000;     // Maximum iterations cap
 
 // Default benchmark configuration
 const DEFAULT_DATA_SIZE = 100;      // Default value size in bytes
-const DEFAULT_CONCURRENT_TASKS = ['1', '10', '100', '1000'];
+const DEFAULT_ITERATIONS = ['1', '10', '100', '1000'];
 
 enum ChosenAction: int
 {
@@ -39,7 +39,7 @@ function parseArguments(): array
         'clusterModeEnabled',
         'port::',
         'minimal',
-        'concurrentTasks::',
+        'iterations::',
     ]);
 
     return [
@@ -52,7 +52,7 @@ function parseArguments(): array
         'clusterModeEnabled' => isset($options['clusterModeEnabled']),
         'port' => (int)($options['port'] ?? DEFAULT_PORT),
         'minimal' => isset($options['minimal']),
-        'concurrentTasks' => isset($options['concurrentTasks']) ? explode(',', $options['concurrentTasks']) : DEFAULT_CONCURRENT_TASKS,
+        'iterations' => isset($options['iterations']) ? explode(',', $options['iterations']) : DEFAULT_ITERATIONS,
     ];
 }
 
@@ -126,9 +126,9 @@ function latencyResults(string $prefix, array $latencies): array
     ];
 }
 
-function numberOfIterations(int $numOfConcurrentTasks): int
+function numberOfIterations(int $iterationMultiplier): int
 {
-    return min(max(MIN_ITERATIONS, $numOfConcurrentTasks * ITERATIONS_MULTIPLIER), MAX_ITERATIONS);
+    return min(max(MIN_ITERATIONS, $iterationMultiplier * ITERATIONS_MULTIPLIER), MAX_ITERATIONS);
 }
 
 function processResults(array $benchResults, string $resultsFile): void
