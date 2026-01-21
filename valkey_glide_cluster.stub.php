@@ -1404,7 +1404,3 @@ class ValkeyGlideCluster
      */
     public function function(string $operation, mixed ...$args): mixed;
 }
-
-class ValkeyGlideClusterException extends RuntimeException
-{
-}

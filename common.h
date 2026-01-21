@@ -261,11 +261,5 @@ zend_class_entry* get_valkey_glide_ce(void);
 zend_class_entry* get_valkey_glide_exception_ce(void);
 
 zend_class_entry* get_valkey_glide_cluster_ce(void);
-zend_class_entry* get_valkey_glide_cluster_exception_ce(void);
-
-/* Helper function to get the appropriate exception class based on client type */
-static inline zend_class_entry* get_exception_ce_for_client_type(bool is_cluster) {
-    return is_cluster ? get_valkey_glide_cluster_exception_ce() : get_valkey_glide_exception_ce();
-}
 
 #endif  // VALKEY_GLIDE

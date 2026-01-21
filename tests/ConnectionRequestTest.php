@@ -514,8 +514,8 @@ class ConnectionRequestTest extends \TestSuite
 
         try {
             ClientConstructorMock::simulate_cluster_constructor(advanced_config: $advanced_config);
-            $this->assertTrue(false, 'Expected ValkeyGlideClusterException was not thrown');
-        } catch (ValkeyGlideClusterException $e) {
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
             $this->assertEquals($expected_msg, $e->getMessage());
         }
     }
@@ -588,8 +588,8 @@ class ConnectionRequestTest extends \TestSuite
 
         try {
             ClientConstructorMock::simulate_cluster_constructor(use_tls: true, context: $stream_context);
-            $this->assertTrue(false, 'Expected ValkeyGlideClusterException was not thrown');
-        } catch (ValkeyGlideClusterException $e) {
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
             $this->assertStringContains($expected_msg, $e->getMessage());
         }
     }
@@ -609,8 +609,8 @@ class ConnectionRequestTest extends \TestSuite
 
         try {
             ClientConstructorMock::simulate_cluster_constructor(advanced_config: $advanced_config, context: $stream_context);
-            $this->assertTrue(false, 'Expected ValkeyGlideClusterException was not thrown');
-        } catch (ValkeyGlideClusterException $e) {
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
             $this->assertStringContains($expected_msg, $e->getMessage());
         }
     }

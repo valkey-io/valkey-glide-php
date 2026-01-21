@@ -67,7 +67,7 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     if (!common_params.database_id_is_null && common_params.database_id < 0) {
         const char* error_message = "Database ID must be non-negative.";
         VALKEY_LOG_ERROR("cluster_construct", error_message);
-        zend_throw_exception(get_valkey_glide_cluster_exception_ce(), error_message, 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
         return;
     }
 
@@ -101,7 +101,7 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     if (conn_resp->connection_error_message) {
         VALKEY_LOG_ERROR("cluster_construct", conn_resp->connection_error_message);
         zend_throw_exception(
-            get_valkey_glide_cluster_exception_ce(), conn_resp->connection_error_message, 0);
+            get_valkey_glide_exception_ce(), conn_resp->connection_error_message, 0);
     } else {
         VALKEY_LOG_INFO("cluster_construct", "ValkeyGlide cluster client created successfully");
         valkey_glide->glide_client = conn_resp->conn_ptr;
