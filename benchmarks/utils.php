@@ -13,12 +13,11 @@ const SIZE_SET_KEYSPACE = 3000000; // 3 million
 
 // Iteration scaling constants
 const MIN_ITERATIONS = 100000;      // Minimum iterations for statistical significance
-const ITERATIONS_MULTIPLIER = 10000; // Iterations per concurrency level
 const MAX_ITERATIONS = 5000000;     // Maximum iterations cap
 
 // Default benchmark configuration
 const DEFAULT_DATA_SIZE = 100;           // Default value size in bytes
-const DEFAULT_ITERATION_LEVELS = ['1', '10', '100', '1000'];
+const DEFAULT_ITERATIONS = ['100000', '100000', '1000000', '5000000'];
 
 enum ChosenAction: int
 {
@@ -38,7 +37,7 @@ function parseArguments(): array
         'tls',
         'clusterModeEnabled',
         'port::',
-        'iterationLevel::',
+        'iterations::',
     ]);
 
     return [
@@ -49,7 +48,7 @@ function parseArguments(): array
         'tls' => isset($options['tls']),
         'clusterModeEnabled' => isset($options['clusterModeEnabled']),
         'port' => (int)($options['port'] ?? DEFAULT_PORT),
-        'iterationLevel' => isset($options['iterationLevel']) ? explode(',', $options['iterationLevel']) : DEFAULT_ITERATION_LEVELS,
+        'iterations' => isset($options['iterations']) ? explode(',', $options['iterations']) : DEFAULT_ITERATIONS,
     ];
 }
 
@@ -123,9 +122,9 @@ function latencyResults(string $prefix, array $latencies): array
     ];
 }
 
-function numberOfIterations(int $iterationMultiplier): int
+function validateIterations(int $iterations): int
 {
-    return min(max(MIN_ITERATIONS, $iterationMultiplier * ITERATIONS_MULTIPLIER), MAX_ITERATIONS);
+    return min(max(MIN_ITERATIONS, $iterations), MAX_ITERATIONS);
 }
 
 function processResults(array $benchResults, string $resultsFile): void

@@ -24,9 +24,9 @@ php php_benchmark.php
 - `--clients` - Which clients to run: `all`, `glide`, or `phpredis` (default: `all`)
 - `--host` - Server hostname (default: `localhost`)
 - `--port` - Server port (default: `6379`)
-- `--iterationLevel` - Iteration scale levels (default: `1,10,100,1000`)
-  - Controls the number of operations: `level × 10,000`
-  - `1` = 100K operations, `10` = 100K operations, `100` = 1M operations, `1000` = 5M operations
+- `--iterations` - Number of operations to run (default: `100000,100000,1000000,5000000`)
+  - Accepts comma-separated values for multiple runs
+  - Min: 100,000 operations, Max: 5,000,000 operations
 - `--tls` - Enable TLS connection
 - `--clusterModeEnabled` - Benchmark cluster mode
 
@@ -47,9 +47,9 @@ php php_benchmark.php --host=localhost --port=7001 --clusterModeEnabled
 php php_benchmark.php --host=localhost --port=6379 --tls
 ```
 
-**Custom data size and concurrency:**
+**Custom data size and iterations:**
 ```bash
-php php_benchmark.php --dataSize=1000 --iterationLevel=1,10,100
+php php_benchmark.php --dataSize=1000 --iterations=100000,1000000
 ```
 
 **Only test Valkey GLIDE:**
@@ -59,7 +59,7 @@ php php_benchmark.php --clients=glide
 
 **Quick test (low iterations):**
 ```bash
-php php_benchmark.php --iterationLevel=1
+php php_benchmark.php --iterations=100000
 ```
 
 ## Benchmark Methodology

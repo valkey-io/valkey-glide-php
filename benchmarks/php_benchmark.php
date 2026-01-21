@@ -85,7 +85,6 @@ function runBenchmarkSingleProcess(
 
 function runBenchmarkSequential(
     int $totalCommands,
-    int $iterationMultiplier,
     int $dataSize,
     string $host,
     int $port,
@@ -137,7 +136,6 @@ function runClient(
     object $client,
     ClientType $clientType,
     int $totalCommands,
-    int $iterationMultiplier,
     int $dataSize,
     bool $isCluster,
     string $host,
@@ -146,13 +144,12 @@ function runClient(
 ): array {
     $clientName = $clientType->value;
     $now = date('H:i:s');
-    echo "Starting {$clientName} data size: {$dataSize} iteration level: {$iterationMultiplier} {$now}\n";
+    echo "Starting {$clientName} | data size: {$dataSize} bytes | iterations: {$totalCommands} | {$now}\n";
     
-    // Run sequential benchmark (iteration level > 1 uses more iterations)
-    if ($iterationMultiplier > 1) {
+    // Run sequential benchmark for larger workloads
+    if ($totalCommands > MIN_ITERATIONS) {
         $result = runBenchmarkSequential(
             $totalCommands,
-            $iterationMultiplier,
             $dataSize,
             $host,
             $port,
@@ -177,7 +174,7 @@ function runClient(
     return array_merge(
         [
             'client' => $clientName,
-            'num_of_tasks' => $iterationMultiplier,  // Note: iteration level, not actual concurrency (PHP runs sequentially)
+            'num_of_tasks' => 1,  // PHP runs sequentially (no concurrency)
             'data_size' => $dataSize,
             'tps' => $tps,
             'client_count' => 1,
@@ -191,7 +188,6 @@ function runClient(
 
 function main(
     int $totalCommands,
-    int $iterationMultiplier,
     int $dataSize,
     ClientType $clientsToRun,
     string $host,
@@ -223,7 +219,6 @@ function main(
             $client,
             ClientType::PHPREDIS,
             $totalCommands,
-            $iterationMultiplier,
             $dataSize,
             $isCluster,
             $host,
@@ -256,7 +251,6 @@ function main(
             $client,
             ClientType::GLIDE,
             $totalCommands,
-            $iterationMultiplier,
             $dataSize,
             $isCluster,
             $host,
@@ -269,7 +263,7 @@ function main(
 }
 
 // Main execution
-$iterationLevels = $args['iterationLevel'];
+$iterationsList = $args['iterations'];
 $dataSize = $args['dataSize'];
 $clientsToRun = ClientType::tryFrom($args['clients']);
 if ($clientsToRun === null) {
@@ -282,17 +276,14 @@ $port = $args['port'];
 $isCluster = $args['clusterModeEnabled'];
 
 $productOfArguments = [];
-foreach ($iterationLevels as $iterationLevel) {
-    $iterationLevel = (int)$iterationLevel;
-    $productOfArguments[] = [$dataSize, $iterationLevel];
+foreach ($iterationsList as $iterations) {
+    $iterations = validateIterations((int)$iterations);
+    $productOfArguments[] = [$dataSize, $iterations];
 }
 
-foreach ($productOfArguments as [$dataSize, $iterationMultiplier]) {
-    $totalIterations = numberOfIterations($iterationMultiplier);
-    
+foreach ($productOfArguments as [$dataSize, $totalIterations]) {
     main(
         $totalIterations,
-        $iterationMultiplier,
         $dataSize,
         $clientsToRun,
         $host,
