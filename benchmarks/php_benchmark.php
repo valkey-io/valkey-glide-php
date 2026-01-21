@@ -296,7 +296,7 @@ foreach ($iterations as $iterationLevel) {
 }
 
 foreach ($productOfArguments as [$dataSize, $iterationMultiplier, $numberOfClients]) {
-    $totalIterations = $args['minimal'] ? 1000 : numberOfIterations($iterationMultiplier);
+    $totalIterations = numberOfIterations($iterationMultiplier);
     
     main(
         $totalIterations,

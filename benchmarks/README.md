@@ -31,7 +31,6 @@ php php_benchmark.php
   - **Note**: PHP benchmark runs sequentially (no true concurrency)
 - `--tls` - Enable TLS connection
 - `--clusterModeEnabled` - Benchmark cluster mode
-- `--minimal` - Run minimal benchmark (1000 iterations)
 
 ### Examples
 
@@ -60,16 +59,16 @@ php php_benchmark.php --dataSize=1000 --iterations=1,10,100
 php php_benchmark.php --clients=glide
 ```
 
-**Minimal benchmark:**
+**Quick test (low iterations):**
 ```bash
-php php_benchmark.php --minimal
+php php_benchmark.php --iterations=1
 ```
 
 ## Benchmark Methodology
 
 The benchmark tests three operations with weighted probabilities:
 - **GET (existing key)**: 64% - Retrieve keys from a 3M key set
-- **GET (non-existing key)**: 16% - Query keys that don't exist (3M-3.75M range)
+- **GET (non-existing key)**: 16% - Query keys that don't exist (3M-3.75M range, outside SET keyspace to guarantee cache misses)
 - **SET**: 20% - Write to the 3M key set
 
 ### Metrics Collected

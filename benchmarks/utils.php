@@ -38,7 +38,6 @@ function parseArguments(): array
         'tls',
         'clusterModeEnabled',
         'port::',
-        'minimal',
         'iterations::',
     ]);
 
@@ -51,7 +50,6 @@ function parseArguments(): array
         'tls' => isset($options['tls']),
         'clusterModeEnabled' => isset($options['clusterModeEnabled']),
         'port' => (int)($options['port'] ?? DEFAULT_PORT),
-        'minimal' => isset($options['minimal']),
         'iterations' => isset($options['iterations']) ? explode(',', $options['iterations']) : DEFAULT_ITERATIONS,
     ];
 }
