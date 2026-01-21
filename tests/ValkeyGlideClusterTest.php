@@ -1492,4 +1492,23 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             }
         }
     }
+
+    public function testPHPRedisClusterAlias()
+    {
+        require_once __DIR__ . "/../phpredis_aliases.php";
+        
+        $this->assertTrue(class_exists('RedisCluster'), 'RedisCluster class alias should exist');
+        
+        $cluster = new RedisCluster([$this->getAddress()]);
+        $this->assertInstanceOf(RedisCluster::class, $cluster);
+        $this->assertInstanceOf(ValkeyGlideCluster::class, $cluster);
+        
+        $result = $cluster->set('phpredis_cluster_alias_test', 'value');
+        $this->assertTrue($result);
+        
+        $value = $cluster->get('phpredis_cluster_alias_test');
+        $this->assertEquals('value', $value);
+        
+        $cluster->del(['phpredis_cluster_alias_test']);
+    }
 }

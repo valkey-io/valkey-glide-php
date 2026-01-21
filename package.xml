@@ -93,6 +93,13 @@ Requirements:
    <file name="valkey_glide_pubsub_common.h" role="src" />
    <file name="valkey_glide_pubsub_introspection.c" role="src" />
    <file name="valkey_glide_pubsub_introspection.h" role="src" />
+   <file name="phpredis_aliases.php" role="php" />
+   <file name="OpenTelemetryConfig.php" role="php" />
+   <file name="OpenTelemetryConfigBuilder.php" role="php" />
+   <file name="TracesConfig.php" role="php" />
+   <file name="TracesConfigBuilder.php" role="php" />
+   <file name="MetricsConfig.php" role="php" />
+   <file name="MetricsConfigBuilder.php" role="php" />
    <dir name="src">
     <file name="client_constructor_mock.c" role="src" />
     <file name="client_constructor_mock.stub.php" role="src" />

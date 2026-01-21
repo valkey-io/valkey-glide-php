@@ -8070,4 +8070,34 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         // Clean up
         $this->valkey_glide->function('DELETE', $libName);
     }
+
+    public function testPHPRedisAliases()
+    {
+        require_once __DIR__ . "/../phpredis_aliases.php";
+        
+        $this->assertTrue(class_exists('Redis'), 'Redis class alias should exist');
+        $this->assertTrue(class_exists('RedisCluster'), 'RedisCluster class alias should exist');
+        $this->assertTrue(class_exists('RedisException'), 'RedisException class alias should exist');
+        
+        $redis = new Redis([$this->getAddress()]);
+        $this->assertInstanceOf(Redis::class, $redis);
+        $this->assertInstanceOf(ValkeyGlide::class, $redis);
+        
+        $result = $redis->set('phpredis_alias_test', 'value');
+        $this->assertTrue($result);
+        
+        $value = $redis->get('phpredis_alias_test');
+        $this->assertEquals('value', $value);
+        
+        $redis->del(['phpredis_alias_test']);
+        
+        try {
+            $badRedis = new Redis([['host' => 'localhost', 'port' => 9999]]);
+            $badRedis->ping();
+            $this->fail('Expected RedisException to be thrown');
+        } catch (RedisException $e) {
+            $this->assertInstanceOf(RedisException::class, $e);
+            $this->assertInstanceOf(ValkeyGlideException::class, $e);
+        }
+    }
 }

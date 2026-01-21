@@ -30,7 +30,15 @@
         "psr-4": {
             "ValkeyGlide\\": "src/",
             "ValkeyGlide\\OpenTelemetry\\": "./"
-        }
+        },
+        "files": [
+            "OpenTelemetryConfig.php",
+            "OpenTelemetryConfigBuilder.php",
+            "TracesConfig.php",
+            "TracesConfigBuilder.php",
+            "MetricsConfig.php",
+            "MetricsConfigBuilder.php"
+        ]
     },
     "scripts": {
         "lint": [

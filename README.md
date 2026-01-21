@@ -262,6 +262,32 @@ echo "PING result: " . $pingResult . "\n";
 $client->close();
 ```
 
+### PHPRedis-Compatible Class Names
+
+For easier migration from PHPRedis, you can use PHPRedis-compatible class names:
+
+```php
+// Load the PHPRedis compatibility aliases
+require_once 'vendor/valkey-io/valkey-glide-php/phpredis_aliases.php';
+
+// Now you can use Redis instead of ValkeyGlide
+$client = new Redis(
+    addresses: [['host' => 'localhost', 'port' => 6379]]
+);
+
+$client->set('foo', 'bar');
+$value = $client->get('foo');
+
+// Exceptions are also aliased
+try {
+    $client->get('key', 'invalid_arg');
+} catch (RedisException $e) {
+    echo "Caught RedisException: " . $e->getMessage() . "\n";
+}
+
+$client->close();
+```
+
 ### With IAM Authentication for AWS ElastiCache
 
 ```php
