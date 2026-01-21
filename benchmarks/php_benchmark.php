@@ -91,19 +91,32 @@ function runBenchmarkSequential(
     echo "  Running sequential benchmark...\n";
     
     if ($clientType === 'glide') {
+        // Disable certificate validation for benchmarking (self-signed certs, local testing)
+        $advancedConfig = $useTls ? ['tls_config' => ['use_insecure_tls' => true]] : null;
         $client = $isCluster
-            ? new ValkeyGlideCluster(addresses: [['host' => $host, 'port' => $port]], use_tls: $useTls)
-            : new ValkeyGlide(addresses: [['host' => $host, 'port' => $port]], use_tls: $useTls);
+            ? new ValkeyGlideCluster(
+                addresses: [['host' => $host, 'port' => $port]], 
+                use_tls: $useTls,
+                advanced_config: $advancedConfig
+            )
+            : new ValkeyGlide(
+                addresses: [['host' => $host, 'port' => $port]], 
+                use_tls: $useTls,
+                advanced_config: $advancedConfig
+            );
     } else {
         if ($isCluster) {
             $client = new RedisCluster(null, ["{$host}:{$port}"]);
             if ($useTls) {
+                // Disable certificate validation for benchmarking (self-signed certs, local testing)
                 $client->setOption(Redis::OPT_SSL_CONTEXT, ['verify_peer' => false]);
             }
         } else {
             $client = new Redis();
             if ($useTls) {
-                $client->connect("tls://{$host}", $port);
+                $client->connect($host, $port);
+                // Disable certificate validation for benchmarking (self-signed certs, local testing)
+                $client->setOption(Redis::OPT_SSL_CONTEXT, ['verify_peer' => false]);
             } else {
                 $client->connect($host, $port);
             }
@@ -184,12 +197,15 @@ function main(
         if ($isCluster) {
             $client = new RedisCluster(null, ["{$host}:{$port}"]);
             if ($useTls) {
+                // Disable certificate validation for benchmarking (self-signed certs, local testing)
                 $client->setOption(Redis::OPT_SSL_CONTEXT, ['verify_peer' => false]);
             }
         } else {
             $client = new Redis();
             if ($useTls) {
-                $client->connect("tls://{$host}", $port);
+                $client->connect($host, $port);
+                // Disable certificate validation for benchmarking (self-signed certs, local testing)
+                $client->setOption(Redis::OPT_SSL_CONTEXT, ['verify_peer' => false]);
             } else {
                 $client->connect($host, $port);
             }
@@ -212,15 +228,19 @@ function main(
     
     // Run ValkeyGlide benchmark
     if ($clientsToRun === 'all' || $clientsToRun === 'glide') {
+        // Disable certificate validation for benchmarking (self-signed certs, local testing)
+        $advancedConfig = $useTls ? ['tls_config' => ['use_insecure_tls' => true]] : null;
         if ($isCluster) {
             $client = new ValkeyGlideCluster(
                 addresses: [['host' => $host, 'port' => $port]],
-                use_tls: $useTls
+                use_tls: $useTls,
+                advanced_config: $advancedConfig
             );
         } else {
             $client = new ValkeyGlide(
                 addresses: [['host' => $host, 'port' => $port]],
-                use_tls: $useTls
+                use_tls: $useTls,
+                advanced_config: $advancedConfig
             );
         }
         
