@@ -4,11 +4,21 @@
  * Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0
  */
 
-const PORT = 6379;
+const DEFAULT_PORT = 6379;
+const DEFAULT_HOST = 'localhost';
 const PROB_GET = 0.8;
 const PROB_GET_EXISTING_KEY = 0.8;
 const SIZE_GET_KEYSPACE = 3750000; // 3.75 million
 const SIZE_SET_KEYSPACE = 3000000; // 3 million
+
+// Iteration scaling constants
+const MIN_ITERATIONS = 100000;      // Minimum iterations for statistical significance
+const ITERATIONS_MULTIPLIER = 10000; // Iterations per concurrency level
+const MAX_ITERATIONS = 5000000;     // Maximum iterations cap
+
+// Default benchmark configuration
+const DEFAULT_DATA_SIZE = 100;      // Default value size in bytes
+const DEFAULT_CONCURRENT_TASKS = ['1', '10', '100', '1000'];
 
 enum ChosenAction: int
 {
@@ -34,15 +44,15 @@ function parseArguments(): array
 
     return [
         'resultsFile' => $options['resultsFile'] ?? __DIR__ . '/../results/php-results.json',
-        'dataSize' => (int)($options['dataSize'] ?? 100),
+        'dataSize' => (int)($options['dataSize'] ?? DEFAULT_DATA_SIZE),
         'clients' => $options['clients'] ?? 'all',
-        'host' => $options['host'] ?? 'localhost',
+        'host' => $options['host'] ?? DEFAULT_HOST,
         'clientCount' => isset($options['clientCount']) ? explode(',', $options['clientCount']) : ['1'],
         'tls' => isset($options['tls']),
         'clusterModeEnabled' => isset($options['clusterModeEnabled']),
-        'port' => (int)($options['port'] ?? PORT),
+        'port' => (int)($options['port'] ?? DEFAULT_PORT),
         'minimal' => isset($options['minimal']),
-        'concurrentTasks' => isset($options['concurrentTasks']) ? explode(',', $options['concurrentTasks']) : ['1', '10', '100', '1000'],
+        'concurrentTasks' => isset($options['concurrentTasks']) ? explode(',', $options['concurrentTasks']) : DEFAULT_CONCURRENT_TASKS,
     ];
 }
 
@@ -63,10 +73,12 @@ function generateKeyGet(): string
 
 function chooseAction(): ChosenAction
 {
-    if ((mt_rand() / mt_getrandmax()) > PROB_GET) {
+    $random = mt_rand() / mt_getrandmax();
+    
+    if ($random > PROB_GET) {
         return ChosenAction::SET;
     }
-    if ((mt_rand() / mt_getrandmax()) > PROB_GET_EXISTING_KEY) {
+    if ($random > PROB_GET_EXISTING_KEY) {
         return ChosenAction::GET_NON_EXISTING;
     }
     return ChosenAction::GET_EXISTING;
@@ -116,7 +128,7 @@ function latencyResults(string $prefix, array $latencies): array
 
 function numberOfIterations(int $numOfConcurrentTasks): int
 {
-    return min(max(100000, $numOfConcurrentTasks * 10000), 5000000);
+    return min(max(MIN_ITERATIONS, $numOfConcurrentTasks * ITERATIONS_MULTIPLIER), MAX_ITERATIONS);
 }
 
 function processResults(array $benchResults, string $resultsFile): void
