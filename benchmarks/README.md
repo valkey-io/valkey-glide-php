@@ -27,7 +27,6 @@ php php_benchmark.php
 - `--iterationLevel` - Iteration scale levels (default: `1,10,100,1000`)
   - Controls the number of operations: `level × 10,000`
   - `1` = 100K operations, `10` = 100K operations, `100` = 1M operations, `1000` = 5M operations
-  - **Note**: PHP benchmark runs sequentially (no true concurrency)
 - `--tls` - Enable TLS connection
 - `--clusterModeEnabled` - Benchmark cluster mode
 
