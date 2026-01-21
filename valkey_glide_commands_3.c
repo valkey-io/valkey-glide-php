@@ -1125,18 +1125,20 @@ static int execute_fcall_command_internal(zval*                object,
     }
 
     if (!result) {
-        zend_throw_exception(zend_ce_exception, "FCall: Failed to execute command", 0);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "FCall: Failed to execute command", 0);
         return 0;
     }
 
     if (result->command_error) {
-        zend_throw_exception(zend_ce_exception, result->command_error->command_error_message, 0);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
         free_command_result(result);
         return 0;
     }
 
     if (!result->response) {
-        zend_throw_exception(zend_ce_exception, "FCall: No response received", 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), "FCall: No response received", 0);
         free_command_result(result);
         return 0;
     }

@@ -61,13 +61,14 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
             VALKEY_LOG_ERROR("pubsub_channels", error_msg);
             if (result)
                 free_command_result(result);
-            zend_throw_exception(zend_ce_exception, error_msg, 0);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
             RETURN_FALSE;
         }
     } else if (strcasecmp(cmd, "numsub") == 0) {
         // PUBSUB NUMSUB [channel ...]
         if (!arg || Z_TYPE_P(arg) != IS_ARRAY) {
-            zend_throw_exception(zend_ce_exception, "NUMSUB requires array of channels", 0);
+            zend_throw_exception(
+                get_valkey_glide_exception_ce(), "NUMSUB requires array of channels", 0);
             RETURN_FALSE;
         }
 
@@ -112,7 +113,7 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
             VALKEY_LOG_ERROR("pubsub_numsub", error_msg);
             if (result)
                 free_command_result(result);
-            zend_throw_exception(zend_ce_exception, error_msg, 0);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
             RETURN_FALSE;
         }
     } else if (strcasecmp(cmd, "numpat") == 0) {
@@ -139,11 +140,11 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
             VALKEY_LOG_ERROR("pubsub_numpat", error_msg);
             if (result)
                 free_command_result(result);
-            zend_throw_exception(zend_ce_exception, error_msg, 0);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
             RETURN_FALSE;
         }
     } else {
-        zend_throw_exception(zend_ce_exception, "Invalid PUBSUB subcommand", 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Invalid PUBSUB subcommand", 0);
         RETURN_FALSE;
     }
 }

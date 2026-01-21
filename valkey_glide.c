@@ -695,7 +695,7 @@ PHP_METHOD(ValkeyGlide, subscribe) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     if (!valkey_glide->glide_client) {
-        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Client not connected", 0);
         RETURN_FALSE;
     }
     valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
@@ -705,7 +705,7 @@ PHP_METHOD(ValkeyGlide, psubscribe) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     if (!valkey_glide->glide_client) {
-        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Client not connected", 0);
         RETURN_FALSE;
     }
     valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
@@ -715,7 +715,7 @@ PHP_METHOD(ValkeyGlide, unsubscribe) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     if (!valkey_glide->glide_client) {
-        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Client not connected", 0);
         RETURN_FALSE;
     }
     valkey_glide_unsubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
@@ -725,7 +725,7 @@ PHP_METHOD(ValkeyGlide, punsubscribe) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     if (!valkey_glide->glide_client) {
-        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Client not connected", 0);
         RETURN_FALSE;
     }
     valkey_glide_punsubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
@@ -736,7 +736,7 @@ PHP_METHOD(ValkeyGlide, publish) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     if (!valkey_glide->glide_client) {
-        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Client not connected", 0);
         RETURN_FALSE;
     }
     valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
@@ -746,7 +746,7 @@ PHP_METHOD(ValkeyGlide, pubsub) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
     if (!valkey_glide->glide_client) {
-        zend_throw_exception(zend_ce_exception, "Client not connected", 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Client not connected", 0);
         RETURN_FALSE;
     }
     valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);

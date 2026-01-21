@@ -69,19 +69,20 @@ static inline void handle_command_result_or_throw(CommandResult* result,
     if (!result) {
         char* error_msg;
         spprintf(&error_msg, 0, "%s: Failed to execute command", command_name);
-        zend_throw_exception(zend_ce_exception, error_msg, 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
         efree(error_msg);
         return;
     }
     if (result->command_error) {
-        zend_throw_exception(zend_ce_exception, result->command_error->command_error_message, 0);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
         free_command_result(result);
         return;
     }
     if (!result->response) {
         char* error_msg = emalloc(strlen(command_name) + 25);
         sprintf(error_msg, "%s: No response received", command_name);
-        zend_throw_exception(zend_ce_exception, error_msg, 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
         efree(error_msg);
         free_command_result(result);
         return;

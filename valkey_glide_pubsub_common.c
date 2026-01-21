@@ -432,7 +432,7 @@ static int execute_subscribe_command(const void*      connection,
         if (result)
             free_command_result(result);
         php_unregister_pubsub_callback((uintptr_t) connection);
-        zend_throw_exception(zend_ce_exception, error_msg, 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
         ZVAL_FALSE(return_value);
         return 0;
     }
@@ -566,14 +566,14 @@ void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conne
     ZEND_PARSE_PARAMETERS_END();
 
     if (is_client_in_subscribe_mode((uintptr_t) connection)) {
-        zend_throw_exception(zend_ce_exception,
+        zend_throw_exception(get_valkey_glide_exception_ce(),
                              "Client is in subscribe mode. Only unsubscribe commands are allowed.",
                              0);
         RETURN_FALSE;
     }
 
     if (!zend_is_callable(callback, 0, NULL)) {
-        zend_throw_exception(zend_ce_exception, "Callback must be callable", 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Callback must be callable", 0);
         RETURN_FALSE;
     }
 
@@ -602,7 +602,7 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
     ZEND_PARSE_PARAMETERS_END();
 
     if (is_client_in_subscribe_mode((uintptr_t) connection)) {
-        zend_throw_exception(zend_ce_exception,
+        zend_throw_exception(get_valkey_glide_exception_ce(),
                              "Client is in subscribe mode. Only unsubscribe commands are allowed.",
                              0);
         RETURN_FALSE;
@@ -610,7 +610,7 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
 
     if (!zend_is_callable(callback, 0, NULL)) {
         VALKEY_LOG_ERROR("psubscribe", "Callback is not callable");
-        zend_throw_exception(zend_ce_exception, "Callback must be callable", 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Callback must be callable", 0);
         RETURN_FALSE;
     }
 
@@ -689,13 +689,13 @@ void valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
                     ? result->command_error->command_error_message
                     : "Publish failed";
             VALKEY_LOG_ERROR("publish", error_msg);
-            zend_throw_exception(zend_ce_exception, error_msg, 0);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
             RETVAL_FALSE;
         }
         free_command_result(result);
     } else {
         VALKEY_LOG_ERROR("publish", "Publish command failed");
-        zend_throw_exception(zend_ce_exception, "Publish command failed", 0);
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Publish command failed", 0);
         RETVAL_FALSE;
     }
 }
