@@ -6,6 +6,13 @@
 
 require_once __DIR__ . '/utils.php';
 
+enum ClientType: string
+{
+    case GLIDE = 'glide';
+    case PHPREDIS = 'phpredis';
+    case ALL = 'all';
+}
+
 $args = parseArguments();
 $benchResults = [];
 
@@ -84,13 +91,13 @@ function runBenchmarkSequential(
     int $port,
     bool $useTls,
     bool $isCluster,
-    string $clientType
+    ClientType $clientType
 ): array {
     // Note: PHP benchmark runs sequentially due to ValkeyGlide's Tokio runtime limitation
     // (pcntl_fork() is incompatible with async Rust runtimes)
     echo "  Running sequential benchmark...\n";
     
-    if ($clientType === 'glide') {
+    if ($clientType === ClientType::GLIDE) {
         // Disable certificate validation for benchmarking (self-signed certs, local testing)
         $advancedConfig = $useTls ? ['tls_config' => ['use_insecure_tls' => true]] : null;
         $client = $isCluster
@@ -128,7 +135,7 @@ function runBenchmarkSequential(
 
 function runClient(
     object $client,
-    string $clientName,
+    ClientType $clientType,
     int $totalCommands,
     int $iterationMultiplier,
     int $dataSize,
@@ -137,6 +144,7 @@ function runClient(
     int $port,
     bool $useTls
 ): array {
+    $clientName = $clientType->value;
     $now = date('H:i:s');
     echo "Starting {$clientName} data size: {$dataSize} iteration level: {$iterationMultiplier} {$now}\n";
     
@@ -150,7 +158,7 @@ function runClient(
             $port,
             $useTls,
             $isCluster,
-            $clientName
+            $clientType
         );
     } else {
         $result = runBenchmarkSingleProcess($client, $totalCommands, $dataSize);
@@ -185,7 +193,7 @@ function main(
     int $totalCommands,
     int $iterationMultiplier,
     int $dataSize,
-    string $clientsToRun,
+    ClientType $clientsToRun,
     string $host,
     bool $useTls,
     bool $isCluster,
@@ -193,7 +201,7 @@ function main(
     array &$benchResults
 ): void {
     // Run phpredis benchmark
-    if ($clientsToRun === 'all' || $clientsToRun === 'phpredis') {
+    if ($clientsToRun === ClientType::ALL || $clientsToRun === ClientType::PHPREDIS) {
         if ($isCluster) {
             $client = new RedisCluster(null, ["{$host}:{$port}"]);
             if ($useTls) {
@@ -213,7 +221,7 @@ function main(
         
         $result = runClient(
             $client,
-            'phpredis',
+            ClientType::PHPREDIS,
             $totalCommands,
             $iterationMultiplier,
             $dataSize,
@@ -227,7 +235,7 @@ function main(
     }
     
     // Run ValkeyGlide benchmark
-    if ($clientsToRun === 'all' || $clientsToRun === 'glide') {
+    if ($clientsToRun === ClientType::ALL || $clientsToRun === ClientType::GLIDE) {
         // Disable certificate validation for benchmarking (self-signed certs, local testing)
         $advancedConfig = $useTls ? ['tls_config' => ['use_insecure_tls' => true]] : null;
         if ($isCluster) {
@@ -246,7 +254,7 @@ function main(
         
         $result = runClient(
             $client,
-            'glide',
+            ClientType::GLIDE,
             $totalCommands,
             $iterationMultiplier,
             $dataSize,
@@ -263,7 +271,7 @@ function main(
 // Main execution
 $iterationLevels = $args['iterationLevel'];
 $dataSize = $args['dataSize'];
-$clientsToRun = $args['clients'];
+$clientsToRun = ClientType::from($args['clients']);
 $host = $args['host'];
 $useTls = $args['tls'];
 $port = $args['port'];
