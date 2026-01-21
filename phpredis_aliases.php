@@ -8,13 +8,13 @@ declare(strict_types=1);
 
 /**
  * PHPRedis Compatibility Aliases
- * 
+ *
  * This file provides class aliases to make Valkey Glide compatible with PHPRedis class names.
- * 
+ *
  * Usage:
  *   require_once 'phpredis_aliases.php';
  *   $redis = new Redis(); // Uses ValkeyGlide
- * 
+ *
  * Note: This will fail if PHPRedis is already loaded.
  */
 
