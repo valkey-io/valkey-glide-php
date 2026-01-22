@@ -19,20 +19,60 @@ function prePopulateDatabase(object $client, int $dataSize): void
     echo "  (This may take several minutes on first run)\n";
     $value = generateValue($dataSize);
     $start = hrtime(true);
-    
+
     for ($i = 1; $i <= SIZE_SET_KEYSPACE; $i++) {
         $client->set((string)$i, $value);
-        
+
         if ($i % 100_000 === 0) {
             $elapsed = (hrtime(true) - $start) / 1_000_000_000;
             $rate = (int)($i / $elapsed);
-            echo "  Progress: " . number_format($i) . "/" . number_format(SIZE_SET_KEYSPACE) . 
+            echo "  Progress: " . number_format($i) . "/" . number_format(SIZE_SET_KEYSPACE) .
                  " (" . number_format($rate) . " keys/sec)\n";
         }
     }
-    
+
     $elapsed = (hrtime(true) - $start) / 1_000_000_000;
     echo "Pre-population completed in " . round($elapsed, 2) . " seconds\n\n";
+}
+
+function createClient(
+    ClientType $clientType,
+    string $host,
+    int $port,
+    bool $useTls,
+    bool $isCluster
+): object {
+    if ($clientType === ClientType::GLIDE) {
+        $advancedConfig = $useTls ? ['tls_config' => ['use_insecure_tls' => true]] : null;
+        return $isCluster
+            ? new ValkeyGlideCluster(
+                addresses: [['host' => $host, 'port' => $port]],
+                use_tls: $useTls,
+                advanced_config: $advancedConfig
+            )
+            : new ValkeyGlide(
+                addresses: [['host' => $host, 'port' => $port]],
+                use_tls: $useTls,
+                advanced_config: $advancedConfig
+            );
+    } else {
+        if ($isCluster) {
+            $client = new RedisCluster(null, ["{$host}:{$port}"]);
+            if ($useTls) {
+                $client->setOption(Redis::OPT_SSL_CONTEXT, ['verify_peer' => false]);
+            }
+            return $client;
+        } else {
+            $client = new Redis();
+            if ($useTls) {
+                $client->connect($host, $port);
+                $client->setOption(Redis::OPT_SSL_CONTEXT, ['verify_peer' => false]);
+            } else {
+                $client->connect($host, $port);
+            }
+            return $client;
+        }
+    }
 }
 
 function runBenchmarkOperations(
@@ -48,13 +88,13 @@ function runBenchmarkOperations(
     $startedOperationsCounter = 0;
     $value = generateValue($dataSize);
     $lastLoggedAt = 0;
-    
+
     while ($startedOperationsCounter < $totalCommands) {
         $startedOperationsCounter++;
         $action = chooseAction();
-        
+
         $start = hrtime(true);
-        
+
         switch ($action) {
             case ChosenAction::GET_EXISTING:
                 $client->get(generateKeySet());
@@ -66,11 +106,11 @@ function runBenchmarkOperations(
                 $client->set(generateKeySet(), $value);
                 break;
         }
-        
+
         $end = hrtime(true);
         $latencyMs = ($end - $start) / 1_000_000;  // Convert nanoseconds to milliseconds
         $actionLatencies[$action->value][] = $latencyMs;  // Store full precision for accurate statistics
-        
+
         // Log progress every 100,000 iterations
         if ($startedOperationsCounter - $lastLoggedAt >= 100_000) {
             $progress = round(($startedOperationsCounter / $totalCommands) * 100, 1);
@@ -78,7 +118,7 @@ function runBenchmarkOperations(
             $lastLoggedAt = $startedOperationsCounter;
         }
     }
-    
+
     return [
         'latencies' => $actionLatencies,
         'operations_completed' => $startedOperationsCounter,
@@ -91,12 +131,12 @@ function runBenchmarkProcess(
     int $dataSize
 ): array {
     $start = hrtime(true);
-    
+
     $result = runBenchmarkOperations($client, $totalCommands, $dataSize);
-    
+
     $end = hrtime(true);
     $timeSeconds = ($end - $start) / 1_000_000_000;
-    
+
     return [
         'time' => $timeSeconds,
         'latencies' => $result['latencies'],
@@ -113,42 +153,15 @@ function runBenchmarkSequential(
     bool $isCluster,
     ClientType $clientType
 ): array {
-    if ($clientType === ClientType::GLIDE) {
-        // Disable certificate validation for benchmarking (self-signed certs, local testing)
-        $advancedConfig = $useTls ? ['tls_config' => ['use_insecure_tls' => true]] : null;
-        $client = $isCluster
-            ? new ValkeyGlideCluster(
-                addresses: [['host' => $host, 'port' => $port]], 
-                use_tls: $useTls,
-                advanced_config: $advancedConfig
-            )
-            : new ValkeyGlide(
-                addresses: [['host' => $host, 'port' => $port]], 
-                use_tls: $useTls,
-                advanced_config: $advancedConfig
-            );
-    } else {
-        if ($isCluster) {
-            $client = new RedisCluster(null, ["{$host}:{$port}"]);
-            if ($useTls) {
-                // Disable certificate validation for benchmarking (self-signed certs, local testing)
-                $client->setOption(Redis::OPT_SSL_CONTEXT, ['verify_peer' => false]);
-            }
-        } else {
-            $client = new Redis();
-            if ($useTls) {
-                $client->connect($host, $port);
-                // Disable certificate validation for benchmarking (self-signed certs, local testing)
-                $client->setOption(Redis::OPT_SSL_CONTEXT, ['verify_peer' => false]);
-            } else {
-                $client->connect($host, $port);
-            }
-        }
-    }
-    
-    prePopulateDatabase($client, $dataSize);
-    
-    return runBenchmarkProcess($client, $totalCommands, $dataSize);
+    // Note: PHP benchmark runs sequentially due to ValkeyGlide's Tokio runtime limitation
+    // (pcntl_fork() is incompatible with async Rust runtimes)
+    echo "  Running sequential benchmark...\n";
+
+    $client = createClient($clientType, $host, $port, $useTls, $isCluster);
+    $result = runBenchmarkProcess($client, $totalCommands, $dataSize);
+    $client->close();
+
+    return $result;
 }
 
 function runClient(
@@ -158,12 +171,19 @@ function runClient(
     bool $isCluster,
     string $host,
     int $port,
-    bool $useTls
+    bool $useTls,
+    bool $skipPrePopulation = false
 ): array {
     $clientName = $clientType->value;
     $now = date('H:i:s');
     echo "Starting {$clientName} | data size: {$dataSize} bytes | iterations: {$totalCommands} | {$now}\n";
-    
+
+    if (!$skipPrePopulation) {
+        $tempClient = createClient($clientType, $host, $port, $useTls, $isCluster);
+        prePopulateDatabase($tempClient, $dataSize);
+        $tempClient->close();
+    }
+
     $result = runBenchmarkSequential(
         $totalCommands,
         $dataSize,
@@ -173,17 +193,17 @@ function runClient(
         $isCluster,
         $clientType
     );
-    
+
     $time = $result['time'];
     $actionLatencies = $result['latencies'];
     $operationsCompleted = $result['operations_completed'];
-    
+
     $tps = (int)($operationsCompleted / $time);
-    
+
     $getNonExistingResults = latencyResults('get_non_existing', $actionLatencies[ChosenAction::GET_NON_EXISTING->value]);
     $getExistingResults = latencyResults('get_existing', $actionLatencies[ChosenAction::GET_EXISTING->value]);
     $setResults = latencyResults('set', $actionLatencies[ChosenAction::SET->value]);
-    
+
     return array_merge(
         [
             'client' => $clientName,
@@ -218,13 +238,15 @@ function main(
             $isCluster,
             $host,
             $port,
-            $useTls
+            $useTls,
+            false  // skipPrePopulation = false (DO pre-populate)
         );
         $benchResults[] = $result;
     }
-    
+
     // Run ValkeyGlide benchmark
     if ($clientsToRun === ClientType::ALL || $clientsToRun === ClientType::GLIDE) {
+        $skipPrePopulation = $clientsToRun === ClientType::ALL;  // Skip if phpredis already pre-populated
         $result = runClient(
             ClientType::GLIDE,
             $totalCommands,
@@ -232,7 +254,8 @@ function main(
             $isCluster,
             $host,
             $port,
-            $useTls
+            $useTls,
+            $skipPrePopulation
         );
         $benchResults[] = $result;
     }

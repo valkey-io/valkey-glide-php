@@ -70,7 +70,7 @@ function generateKeyGet(): string
 function chooseAction(): ChosenAction
 {
     $random = mt_rand() / mt_getrandmax();
-    
+
     if ($random > PROB_GET) {
         return ChosenAction::SET;
     }
@@ -131,7 +131,7 @@ function processResults(array $benchResults, string $resultsFile): void
 {
     // Write JSON results
     file_put_contents($resultsFile, json_encode($benchResults, JSON_PRETTY_PRINT));
-    
+
     // Write Markdown results
     $mdFile = str_replace('.json', '.md', $resultsFile);
     $markdown = generateMarkdownReport($benchResults);
@@ -142,7 +142,7 @@ function generateMarkdownReport(array $benchResults): string
 {
     $md = "# PHP Benchmark Results\n\n";
     $md .= "Generated: " . date('Y-m-d H:i:s') . "\n\n";
-    
+
     // Group by concurrency level
     $groupedByConcurrency = [];
     foreach ($benchResults as $result) {
@@ -152,17 +152,17 @@ function generateMarkdownReport(array $benchResults): string
         }
         $groupedByConcurrency[$concurrency][] = $result;
     }
-    
+
     ksort($groupedByConcurrency);
-    
+
     foreach ($groupedByConcurrency as $concurrency => $results) {
         $md .= "## Concurrency: {$concurrency}\n\n";
-        
+
         // Performance comparison table
         $md .= "### Performance Comparison\n\n";
         $md .= "| Client    | TPS     | GET Existing P50 | GET Non-Existing P50 | SET P50 |\n";
         $md .= "|-----------|---------|------------------|----------------------|---------|\n";
-        
+
         foreach ($results as $result) {
             $md .= sprintf(
                 "| %-9s | %-7s | %-16s | %-20s | %-7s |\n",
@@ -173,12 +173,12 @@ function generateMarkdownReport(array $benchResults): string
                 str_pad($result['set_p50_latency'] . 'ms', 7, ' ', STR_PAD_LEFT)
             );
         }
-        
+
         $md .= "\n### Detailed Latency Metrics\n\n";
-        
+
         foreach ($results as $result) {
             $md .= "#### Client: {$result['client']}\n\n";
-            
+
             // GET Existing
             $md .= "**GET (Existing Key)**\n\n";
             $md .= "| Metric  | Value (ms) |\n";
@@ -188,7 +188,7 @@ function generateMarkdownReport(array $benchResults): string
             $md .= sprintf("| %-7s | %-10s |\n", "P99", $result['get_existing_p99_latency']);
             $md .= sprintf("| %-7s | %-10s |\n", "Average", $result['get_existing_average_latency']);
             $md .= sprintf("| %-7s | %-10s |\n\n", "Std Dev", $result['get_existing_std_dev']);
-            
+
             // GET Non-Existing
             $md .= "**GET (Non-Existing Key)**\n\n";
             $md .= "| Metric  | Value (ms) |\n";
@@ -198,7 +198,7 @@ function generateMarkdownReport(array $benchResults): string
             $md .= sprintf("| %-7s | %-10s |\n", "P99", $result['get_non_existing_p99_latency']);
             $md .= sprintf("| %-7s | %-10s |\n", "Average", $result['get_non_existing_average_latency']);
             $md .= sprintf("| %-7s | %-10s |\n\n", "Std Dev", $result['get_non_existing_std_dev']);
-            
+
             // SET
             $md .= "**SET**\n\n";
             $md .= "| Metric  | Value (ms) |\n";
@@ -209,9 +209,9 @@ function generateMarkdownReport(array $benchResults): string
             $md .= sprintf("| %-7s | %-10s |\n", "Average", $result['set_average_latency']);
             $md .= sprintf("| %-7s | %-10s |\n\n", "Std Dev", $result['set_std_dev']);
         }
-        
+
         $md .= "---\n\n";
     }
-    
+
     return $md;
 }
