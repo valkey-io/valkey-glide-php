@@ -8,16 +8,16 @@ const DEFAULT_PORT = 6379;
 const DEFAULT_HOST = 'localhost';
 const PROB_GET = 0.8;
 const PROB_GET_EXISTING_KEY = 0.8;
-const SIZE_GET_KEYSPACE = 3750000; // 3.75 million
-const SIZE_SET_KEYSPACE = 3000000; // 3 million
+const SIZE_GET_KEYSPACE = 3_750_000; // 3.75 million
+const SIZE_SET_KEYSPACE = 3_000_000; // 3 million
 
 // Iteration scaling constants
-const MIN_ITERATIONS = 100000;      // Minimum iterations for statistical significance
-const MAX_ITERATIONS = 5000000;     // Maximum iterations cap
+const MIN_ITERATIONS = 100_000;      // Minimum iterations for statistical significance
+const MAX_ITERATIONS = 5_000_000;     // Maximum iterations cap
 
 // Default benchmark configuration
 const DEFAULT_DATA_SIZE = 100;           // Default value size in bytes
-const DEFAULT_ITERATIONS = ['100000', '100000', '1000000', '5000000'];
+const DEFAULT_ITERATIONS = ['100_000', '100_000', '1_000_000', '5_000_000'];
 
 enum ChosenAction: int
 {

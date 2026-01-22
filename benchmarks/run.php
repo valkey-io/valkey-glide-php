@@ -50,7 +50,7 @@ function runBenchmarkOperations(
         $actionLatencies[$action->value][] = $latencyMs;  // Store full precision for accurate statistics
         
         // Log progress every 100,000 iterations
-        if ($startedOperationsCounter - $lastLoggedAt >= 100000) {
+        if ($startedOperationsCounter - $lastLoggedAt >= 100_000) {
             $progress = round(($startedOperationsCounter / $totalCommands) * 100, 1);
             echo "  Progress: {$startedOperationsCounter}/{$totalCommands} ({$progress}%)\n";
             $lastLoggedAt = $startedOperationsCounter;

@@ -24,7 +24,7 @@ php run.php
 - `--clients` - Which clients to run: `all`, `glide`, or `phpredis` (default: `all`)
 - `--host` - Server hostname (default: `localhost`)
 - `--port` - Server port (default: `6379`)
-- `--iterations` - Number of operations to run (default: `100000,100000,1000000,5000000`)
+- `--iterations` - Number of operations to run (default: `100_000,100_000,1_000_000,5_000_000`)
   - Accepts comma-separated values for multiple runs
   - Min: 100,000 operations, Max: 5,000,000 operations
 - `--tls` - Enable TLS connection
