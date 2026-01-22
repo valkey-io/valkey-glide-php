@@ -111,6 +111,8 @@ Results are saved as JSON with the following structure:
 ]
 ```
 
+**Note:** The JSON output format is standardized across all GLIDE language implementations (PHP, Python, Node.js, Rust, Go, Java) to enable cross-language performance comparisons. Fields like `num_of_tasks` and `client_count` are maintained for consistency even though PHP always uses single-process execution.
+
 ## Current Limitations
 
 - **Single-process only**: Multi-process concurrency is not supported due to ValkeyGlide's Tokio runtime incompatibility with `pcntl_fork()`. The benchmark runs sequentially, measuring per-operation latency rather than true concurrent throughput.
