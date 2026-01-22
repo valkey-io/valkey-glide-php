@@ -122,7 +122,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         // Test publish command works with 0 subscribers
         $channel = 'test_publish_' . uniqid();
 
-        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
         $count = $pub->publish($channel, 'test_message');
         $pub->close();
 
@@ -191,7 +192,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertTrue(file_exists($sync_file2), 'Second subscriber should signal ready');
 
         // Publish message
-        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
         $count = $pub->publish($channel, $message);
         $pub->close();
 
@@ -324,7 +326,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
 
         // Publish message
-        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
         $count = $pub->publish($channel, $message);
         $pub->close();
 
@@ -413,7 +416,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         }
 
         // Publish to trigger callback
-        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
         $pub->publish($channel, 'trigger');
         $pub->close();
 
@@ -491,7 +495,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
 
-        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
         $pub->publish($channel1, 'msg1');
         usleep(100000);
         $pub->publish($channel2, 'msg2');
@@ -567,7 +572,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
 
-        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
         $pub->publish($channel, 'trigger');
         $pub->close();
 
@@ -643,7 +649,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
 
-        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
         $pub->publish($channel, 'trigger');
         $pub->close();
 
@@ -720,7 +727,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
 
-        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
         $pub->publish($channel, 'pattern_message');
         $pub->close();
 
@@ -821,7 +829,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $this->assertTrue(file_exists($sync_file));
 
-        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
         $pub->publish($channel1, 'bing');
         usleep(200000);
         $pub->publish($channel1, 'should_not_receive');
@@ -909,7 +918,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $this->assertTrue(file_exists($sync_file));
 
-        $pub = new ValkeyGlide([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
         $pub->publish($channel1, 'test_message');
         $pub->close();
 

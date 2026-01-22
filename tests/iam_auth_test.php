@@ -76,7 +76,8 @@ class IamAuthTest
         try {
             $config = TEST_CONFIG['elasticache'];
 
-            $client = new ValkeyGlide(
+            $client = new ValkeyGlide();
+            $client->connect(
                 addresses: [
                     ['host' => $config['endpoint'], 'port' => $config['port']]
                 ],
@@ -119,7 +120,8 @@ class IamAuthTest
         try {
             $config = TEST_CONFIG['memorydb'];
 
-            $client = new ValkeyGlide(
+            $client = new ValkeyGlide();
+            $client->connect(
                 addresses: [
                     ['host' => $config['endpoint'], 'port' => $config['port']]
                 ],
@@ -191,7 +193,8 @@ class IamAuthTest
         try {
             $config = TEST_CONFIG['elasticache'];
 
-            $client = new ValkeyGlide(
+            $client = new ValkeyGlide();
+            $client->connect(
                 addresses: [
                     ['host' => $config['endpoint'], 'port' => $config['port']]
                 ],
@@ -229,7 +232,8 @@ class IamAuthTest
             $config = TEST_CONFIG['elasticache'];
 
             // This should throw an exception
-            $client = new ValkeyGlide(
+            $client = new ValkeyGlide();
+            $client->connect(
                 addresses: [
                     ['host' => $config['endpoint'], 'port' => $config['port']]
                 ],
@@ -265,7 +269,8 @@ class IamAuthTest
             $config = TEST_CONFIG['elasticache'];
 
             // This should throw an exception for invalid interval
-            $client = new ValkeyGlide(
+            $client = new ValkeyGlide();
+            $client->connect(
                 addresses: [
                     ['host' => $config['endpoint'], 'port' => $config['port']]
                 ],

@@ -84,7 +84,8 @@ $result_file = $argv[6];
 $error_file = $result_file . '.error';
 
 try {
-    $client = new ValkeyGlide([['host' => $host, 'port' => $port]]);
+    $client = new ValkeyGlide();
+    $subscriber->connect(addresses: [['host' => $host, 'port' => $port]]);
     file_put_contents($sync_file, 'ready');
 
     $received = [];

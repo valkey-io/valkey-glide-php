@@ -11,7 +11,8 @@ $sync_file = $argv[5];
 $result_file = $argv[6];
 
 try {
-    $client = new ValkeyGlide([['host' => $host, 'port' => (int)$port]]);
+    $client = new ValkeyGlide();
+    $subscriber->connect(addresses: [['host' => $host, 'port' => (int)$port]]);
     file_put_contents($sync_file, 'ready');
 
     $client->subscribe([$real_channel], function ($client, $channel, $message) use ($fake_channel, $real_channel, $result_file, $sync_file) {

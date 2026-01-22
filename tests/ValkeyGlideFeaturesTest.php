@@ -24,7 +24,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         // such as use_tls and advanced_config.
         if (!$this->getTLS()) {
             // Test creating ValkeyGlide with basic configuration
-            $valkey_glide = new ValkeyGlide([
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: [
                 ['host' => $this->getHost(), 'port' => $this->getPort()]
             ]);
 
@@ -44,12 +45,14 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         ];
 
         if (!$this->getTLS()) {
-            $valkey_glide = new ValkeyGlide($addresses);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses);
         } else {
             $advancedConfig = [
                 'tls_config' => ['use_insecure_tls' => true]
             ];
-            $valkey_glide = new ValkeyGlide($addresses, use_tls: true, advanced_config: $advancedConfig);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: true, advanced_config: $advancedConfig);
         }
         $this->assertTrue($valkey_glide->ping());
         $valkey_glide?->close();
@@ -65,7 +68,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         ];
 
         if (!$this->getTLS()) {
-            $valkey_glide = new ValkeyGlide($addresses);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses);
             $this->assertTrue($valkey_glide->ping());
             $valkey_glide->close();
         }
@@ -79,7 +83,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
                 ['host' => $this->getHost(), 'port' => $this->getPort()]
             ];
 
-            $valkey_glide = new ValkeyGlide($addresses, false); // use_tls = false
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: false); // use_tls = false
             $this->assertTrue($valkey_glide->ping());
             $valkey_glide->close();
         }
@@ -97,7 +102,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
                 'tls_config' => ['use_insecure_tls' => true],
                 'connection_timeout' => 60000,
             ];
-            $valkey_glide = new ValkeyGlide($addresses, use_tls: true, advanced_config: $advancedConfig);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: true, advanced_config: $advancedConfig);
             $this->assertTrue($valkey_glide->ping());
             $valkey_glide->close();
         }
@@ -122,24 +128,28 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             }
 
             if (!$this->getTLS()) {
-                $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), $credentials);
+                $valkey_glide = new ValkeyGlide();
+                $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), credentials: $credentials);
             } else {
                 $advancedConfig = [
                     'tls_config' => ['use_insecure_tls' => true]
                 ];
-                $valkey_glide = new ValkeyGlide($addresses, use_tls: true, credentials: $credentials, advanced_config: $advancedConfig);
+                $valkey_glide = new ValkeyGlide();
+                $valkey_glide->connect(addresses: $addresses, use_tls: true, credentials: $credentials, advanced_config: $advancedConfig);
             }
             $this->assertTrue($valkey_glide->ping());
             $valkey_glide->close();
         } else {
             // Test with null credentials when no auth is configured
             if (!$this->getTLS()) {
-                $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null);
+                $valkey_glide = new ValkeyGlide();
+                $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), credentials: null);
             } else {
                 $advancedConfig = [
                     'tls_config' => ['use_insecure_tls' => true]
                 ];
-                $valkey_glide = new ValkeyGlide($addresses, use_tls: true, credentials: null, advanced_config: $advancedConfig);
+                $valkey_glide = new ValkeyGlide();
+                $valkey_glide->connect(addresses: $addresses, use_tls: true, credentials: null, advanced_config: $advancedConfig);
             }
             $this->assertTrue($valkey_glide->ping());
             $valkey_glide->close();
@@ -161,12 +171,14 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         try {
             $credentials = ['username' => 'invalid_user', 'password' => 'invalid_password'];
             if (!$this->getTLS()) {
-                $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), $credentials);
+                $valkey_glide = new ValkeyGlide();
+                $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), credentials: $credentials);
             } else {
                 $advancedConfig = [
                     'tls_config' => ['use_insecure_tls' => true]
                 ];
-                $valkey_glide = new ValkeyGlide($addresses, use_tls: true, credentials: $credentials, advanced_config: $advancedConfig);
+                $valkey_glide = new ValkeyGlide();
+                $valkey_glide->connect(addresses: $addresses, use_tls: true, credentials: $credentials, advanced_config: $advancedConfig);
             }
             $this->fail("Should throw an exception when running commands with invalid authentication");
         } catch (Exception $e) {
@@ -188,7 +200,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
 
         if (!$this->getTLS()) {
-            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PRIMARY);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_PRIMARY);
             $this->assertTrue($valkey_glide->ping());
             $valkey_glide->close();
         }
@@ -205,7 +218,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
 
         if (!$this->getTLS()) {
-            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PREFER_REPLICA);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_PREFER_REPLICA);
             $this->assertTrue($valkey_glide->ping());
             $valkey_glide->close();
         }
@@ -219,12 +233,14 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         ];
 
         if (!$this->getTLS()) {
-            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PRIMARY, 5000); // 5 seconds.
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_PRIMARY, request_timeout: 5000); // 5 seconds.
         } else {
             $advancedConfig = [
                 'tls_config' => ['use_insecure_tls' => true]
             ];
-            $valkey_glide = new ValkeyGlide($addresses, use_tls: true, read_from: ValkeyGlide::READ_FROM_PRIMARY, request_timeout: 5000, advanced_config: $advancedConfig);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: true, read_from: ValkeyGlide::READ_FROM_PRIMARY, request_timeout: 5000, advanced_config: $advancedConfig);
         }
         $this->assertTrue($valkey_glide->ping());
         // Clean up
@@ -239,12 +255,14 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         ];
 
         if (!$this->getTLS()) {
-            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PRIMARY, 10); // 10 milliseconds.
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_PRIMARY, request_timeout: 10); // 10 milliseconds.
         } else {
             $advancedConfig = [
                 'tls_config' => ['use_insecure_tls' => true]
             ];
-            $valkey_glide = new ValkeyGlide($addresses, use_tls: true, read_from: ValkeyGlide::READ_FROM_PRIMARY, request_timeout: 10, advanced_config: $advancedConfig);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: true, read_from: ValkeyGlide::READ_FROM_PRIMARY, request_timeout: 10, advanced_config: $advancedConfig);
         }
         $res = $valkey_glide->rawcommand("DEBUG", "SLEEP", "2");
 
@@ -271,12 +289,14 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         ];
 
         if (!$this->getTLS()) {
-            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PRIMARY, 5000, $reconnectStrategy);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_PRIMARY, request_timeout: 5000, reconnect_strategy: $reconnectStrategy);
         } else {
             $advancedConfig = [
                 'tls_config' => ['use_insecure_tls' => true]
             ];
-            $valkey_glide = new ValkeyGlide($addresses, use_tls: true, reconnect_strategy: $reconnectStrategy, advanced_config: $advancedConfig);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: true, reconnect_strategy: $reconnectStrategy, advanced_config: $advancedConfig);
         }
         $this->assertTrue($valkey_glide->ping());
         $valkey_glide->close();
@@ -291,12 +311,14 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         // Test with database 0 (default)
         if (!$this->getTLS()) {
-            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PRIMARY, null, null, 0);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_PRIMARY, database_id: 0);
         } else {
             $advancedConfig = [
                 'tls_config' => ['use_insecure_tls' => true]
             ];
-            $valkey_glide = new ValkeyGlide($addresses, use_tls: true, database_id: 0, advanced_config: $advancedConfig);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: true, database_id: 0, advanced_config: $advancedConfig);
         }
         $this->assertTrue($valkey_glide->ping());
         $this->assertStringContains("db=0", $valkey_glide->client("info"));
@@ -304,12 +326,14 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         // Test with database 1
         if (!$this->getTLS()) {
-            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PRIMARY, null, null, 1);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_PRIMARY, database_id: 1);
         } else {
             $advancedConfig = [
                 'tls_config' => ['use_insecure_tls' => true]
             ];
-            $valkey_glide = new ValkeyGlide($addresses, use_tls: true, database_id: 1, advanced_config: $advancedConfig);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: true, database_id: 1, advanced_config: $advancedConfig);
         }
         $this->assertTrue($valkey_glide->ping());
         $this->assertStringContains("db=1", $valkey_glide->client("info"));
@@ -325,12 +349,14 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         $clientName = 'test-client-' . uniqid();
         if (!$this->getTLS()) {
-            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PRIMARY, null, null, null, $clientName);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_PRIMARY, client_name: $clientName);
         } else {
             $advancedConfig = [
                 'tls_config' => ['use_insecure_tls' => true]
             ];
-            $valkey_glide = new ValkeyGlide($addresses, use_tls: true, client_name: $clientName, advanced_config: $advancedConfig);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: true, client_name: $clientName, advanced_config: $advancedConfig);
         }
 
         $this->assertTrue($valkey_glide->ping());
@@ -351,14 +377,16 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
                 'connection_timeout' => 5000,
                 'socket_timeout' => 3000
             ];
-            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PRIMARY, null, null, null, null, null, $advancedConfig);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_PRIMARY, advanced_config: $advancedConfig);
         } else {
             $advancedConfig = [
                 'tls_config' => ['use_insecure_tls' => true],
                 'connection_timeout' => 5000,
                 'socket_timeout' => 3000
             ];
-            $valkey_glide = new ValkeyGlide($addresses, use_tls: true, advanced_config: $advancedConfig);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: true, advanced_config: $advancedConfig);
         }
         $this->assertTrue($valkey_glide->ping());
         $valkey_glide->close();
@@ -377,22 +405,26 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         try {
             if (!$this->getTLS()) {
                 // Create monitoring connection without lazy connection.
-                $valkey_glide_monitoring = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PRIMARY, null, null, null, null, null, null, true);
+                $valkey_glide_monitoring = new ValkeyGlide();
+                $valkey_glide_monitoring->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_PRIMARY, lazy_connect: true);
                 $clients = $valkey_glide_monitoring->client('list');
                 $client_count = count($clients);
 
                 // Create the lazy connection.
-                $valkey_glide_lazy = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PRIMARY, null, null, null, null, null, null, true);
+                $valkey_glide_lazy = new ValkeyGlide();
+                $valkey_glide_lazy->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_PRIMARY, lazy_connect: true);
             } else {
                 $advancedConfig = [
                     'tls_config' => ['use_insecure_tls' => true]
                 ];
-                $valkey_glide_monitoring = new ValkeyGlide($addresses, use_tls: true, advanced_config: $advancedConfig, lazy_connect: false);
+                $valkey_glide_monitoring = new ValkeyGlide();
+                $valkey_glide_monitoring->connect(addresses: $addresses, use_tls: true, advanced_config: $advancedConfig, lazy_connect: false);
                 $clients = $valkey_glide_monitoring->client('list');
                 $client_count = count($clients);
 
                 // Create the lazy connection.
-                $valkey_glide_lazy = new ValkeyGlide($addresses, use_tls: true, advanced_config: $advancedConfig, lazy_connect: true);
+                $valkey_glide_lazy = new ValkeyGlide();
+                $valkey_glide_lazy->connect(addresses: $addresses, use_tls: true, advanced_config: $advancedConfig, lazy_connect: true);
             }
 
             // The count should not change after creating the lazy connection.
@@ -445,18 +477,19 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         }
 
 
-        $valkey_glide = new ValkeyGlide(
-            $addresses,                                    // addresses
-            $this->getTLS(),                                         // use_tls
-            $credentials,                                  // credentials
-            ValkeyGlide::READ_FROM_PRIMARY,               // read_from
-            3000,                                          // request_timeout
-            $reconnectStrategy,                            // reconnect_strategy
-            0,                                             // database_id
-            'comprehensive-test-client',                   // client_name
-            'test-az',                                     // client_az
-            $advancedConfig,                               // advanced_config
-            false                                          // lazy_connect
+        $valkey_glide = new ValkeyGlide();
+        $valkey_glide->connect(
+            addresses: $addresses,
+            use_tls: $this->getTLS(),
+            credentials: $credentials,
+            read_from: ValkeyGlide::READ_FROM_PRIMARY,
+            request_timeout: 3000,
+            reconnect_strategy: $reconnectStrategy,
+            database_id: 0,
+            client_name: 'comprehensive-test-client',
+            client_az: 'test-az',
+            advanced_config: $advancedConfig,
+            lazy_connect: false
         );
 
         $this->assertTrue($valkey_glide->ping());
@@ -472,24 +505,28 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         // Test READ_FROM_AZ_AFFINITY
         if (!$this->getTLS()) {
-            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_AZ_AFFINITY);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY);
         } else {
             $advancedConfig = [
                 'tls_config' => ['use_insecure_tls' => true]
             ];
-            $valkey_glide = new ValkeyGlide($addresses, use_tls: true, read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY, advanced_config: $advancedConfig);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: true, read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY, advanced_config: $advancedConfig);
         }
         $this->assertTrue($valkey_glide->ping());
         $valkey_glide->close();
 
         // Test READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY
         if (!$this->getTLS()) {
-            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY);
         } else {
             $advancedConfig = [
                 'tls_config' => ['use_insecure_tls' => true]
             ];
-            $valkey_glide = new ValkeyGlide($addresses, use_tls: true, read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY, advanced_config: $advancedConfig);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: true, read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY, advanced_config: $advancedConfig);
         }
         $this->assertTrue($valkey_glide->ping());
         $valkey_glide->close();
@@ -510,12 +547,14 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             'max_delay' => 10000
         ];
         if (!$this->getTLS()) {
-            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PRIMARY, null, $complexStrategy);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_PRIMARY, request_timeout: null, reconnect_strategy: $complexStrategy);
         } else {
             $advanced_config = [
                 'tls_config' => ['use_insecure_tls' => true]
             ];
-            $valkey_glide = new ValkeyGlide($addresses, use_tls: true, reconnect_strategy: $complexStrategy, advanced_config: $advanced_config);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: true, reconnect_strategy: $complexStrategy, advanced_config: $advanced_config);
         }
         $this->assertTrue($valkey_glide->ping());
         $valkey_glide->close();
@@ -529,12 +568,14 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         ];
 
         if (!$this->getTLS()) {
-            $valkey_glide = new ValkeyGlide($addresses, $this->getTLS(), null, ValkeyGlide::READ_FROM_PRIMARY, 5000);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_PRIMARY, request_timeout: 5000);
         } else {
             $advanced_config = [
                 'tls_config' => ['use_insecure_tls' => true]
             ];
-            $valkey_glide = new ValkeyGlide($addresses, use_tls: true, read_from:ValkeyGlide::READ_FROM_PRIMARY, request_timeout: 5000, advanced_config: $advanced_config);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses, use_tls: true, read_from:ValkeyGlide::READ_FROM_PRIMARY, request_timeout: 5000, advanced_config: $advanced_config);
         }
 
         // Test ping
@@ -564,23 +605,25 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         if (!$this->getTLS()) {
             // Test with minimal parameters (addresses only)
-            $valkey_glide = new ValkeyGlide($addresses);
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(addresses: $addresses);
             $this->assertTrue($valkey_glide->ping());
             $valkey_glide->close();
 
             // Test with explicit defaults
-            $valkey_glide = new ValkeyGlide(
-                $addresses,                           // addresses
-                false,                               // use_tls (default)
-                null,                                // credentials (default)
-                ValkeyGlide::READ_FROM_PRIMARY,     // read_from (default)
-                null,                                // request_timeout (default)
-                null,                                // reconnect_strategy (default)
-                null,                                // database_id (default)
-                null,                                // client_name (default)
-                null,                                // client_az (default)
-                null,                                // advanced_config (default)
-                null                                 // lazy_connect (default)
+            $valkey_glide = new ValkeyGlide();
+            $valkey_glide->connect(
+                addresses: $addresses,
+                use_tls: false,
+                credentials: null,
+                read_from: ValkeyGlide::READ_FROM_PRIMARY,
+                request_timeout: null,
+                reconnect_strategy: null,
+                database_id: null,
+                client_name: null,
+                client_az: null,
+                advanced_config: null,
+                lazy_connect: null
             );
             $this->assertTrue($valkey_glide->ping());
             $valkey_glide->close();
@@ -786,12 +829,14 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
             // Create ValkeyGlide client (may trigger internal logging)
             if (!$this->getTLS()) {
-                $valkey_glide = new ValkeyGlide($addresses);
+                $valkey_glide = new ValkeyGlide();
+                $valkey_glide->connect(addresses: $addresses);
             } else {
                 $advancedConfig = [
                     'tls_config' => ['use_insecure_tls' => true]
                 ];
-                $valkey_glide = new ValkeyGlide($addresses, use_tls: true, advanced_config: $advancedConfig);
+                $valkey_glide = new ValkeyGlide();
+                $valkey_glide->connect(addresses: $addresses, use_tls: true, advanced_config: $advancedConfig);
             }
 
             // Verify connection works
@@ -918,7 +963,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
 
         // Create client with OpenTelemetry configuration
-        $client = new ValkeyGlide(
+        $client = new ValkeyGlide();
+        $client->connect(
             addresses: [
                 ['host' => 'localhost', 'port' => 6379]
             ],
@@ -1003,7 +1049,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             ->flushIntervalMs(100)
             ->build();
 
-        $client = new ValkeyGlide(
+        $client = new ValkeyGlide();
+        $client->connect(
             addresses: [
                 ['host' => 'localhost', 'port' => 6379]
             ],
@@ -1049,7 +1096,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         ];
 
         try {
-            $client = new ValkeyGlide(
+            $client = new ValkeyGlide();
+            $client->connect(
                 addresses: [
                     ['host' => 'localhost', 'port' => 6379]
                 ],
@@ -1078,7 +1126,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     public function testOtelWithoutConfiguration()
     {
         // Test that client works normally without OpenTelemetry configuration
-        $client = new ValkeyGlide(
+        $client = new ValkeyGlide();
+        $client->connect(
             addresses: [
                 ['host' => 'localhost', 'port' => 6379]
             ],
@@ -1130,7 +1179,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             ->flushIntervalMs(100)
             ->build();
 
-        $client = new ValkeyGlide(
+        $client = new ValkeyGlide();
+        $client->connect(
             addresses: [
                 ['host' => 'localhost', 'port' => 6379]
             ],
