@@ -331,32 +331,44 @@ class ValkeyGlide
     public function __construct();
 
     /**
-     * Connect to a Valkey server.
+     * Establishes connection to a Valkey server.
      *
-     * Supports both PHPRedis-compatible and ValkeyGlide connection styles.
+     * Supports both PHPRedis-compatible (host/port) and ValkeyGlide-style (addresses array) parameters.
+     * All parameters are optional and nullable. Use named parameters to specify only what you need.
      *
-     * PHPRedis-style parameters:
-     * @param string|null $host Hostname (PHPRedis parameter)
-     * @param int $port Port number (PHPRedis parameter)
-     * @param float $timeout Connection timeout in seconds (PHPRedis parameter)
-     * @param string|null $persistent_id Persistent connection ID (PHPRedis parameter, not implemented)
-     * @param int $retry_interval Retry interval in milliseconds (PHPRedis parameter, not implemented)
-     * @param float $read_timeout Read timeout in seconds (PHPRedis parameter, not implemented)
+     * @param string|null $host Hostname (PHPRedis-style, conflicts with $addresses)
+     * @param int|null $port Port number (default: 6379, used with $host)
+     * @param float|null $timeout Connection timeout in seconds (PHPRedis-style, conflicts with $request_timeout)
+     * @param string|null $persistent_id Persistent connection ID (not implemented)
+     * @param int|null $retry_interval Retry interval in milliseconds (not implemented)
+     * @param float|null $read_timeout Read timeout in seconds (not implemented)
+     * @param array|null $addresses Server addresses array: [['host' => 'x', 'port' => y], ...] (ValkeyGlide-style)
+     * @param bool|null $use_tls Enable TLS/SSL (default: false)
+     * @param array|null $credentials Authentication: ['username' => 'x', 'password' => 'y'] or IAM config
+     * @param int|null $read_from Read strategy: READ_FROM_PRIMARY, READ_FROM_PREFER_REPLICA, etc. (default: READ_FROM_PRIMARY)
+     * @param int|null $request_timeout Request timeout in milliseconds
+     * @param array|null $reconnect_strategy Reconnection configuration
+     * @param int|null $database_id Database number (0-15 for standalone)
+     * @param string|null $client_name Client identifier for debugging
+     * @param string|null $client_az Availability zone for routing
+     * @param array|null $advanced_config Advanced TLS/connection settings
+     * @param bool|null $lazy_connect Defer connection until first command (default: false)
+     * @param resource|null $context Stream context for TLS configuration
+     * @return bool True on successful connection, false on failure
      *
-     * ValkeyGlide-style parameters:
-     * @param array|null $addresses Server addresses (ValkeyGlide parameter)
-     * @param bool $use_tls Enable TLS (ValkeyGlide parameter)
-     * @param array|null $credentials Authentication credentials (ValkeyGlide parameter)
-     * @param int $read_from Read strategy (ValkeyGlide parameter)
-     * @param int|null $request_timeout Request timeout in milliseconds (ValkeyGlide parameter)
-     * @param array|null $reconnect_strategy Reconnection strategy (ValkeyGlide parameter)
-     * @param int|null $database_id Database number (ValkeyGlide parameter)
-     * @param string|null $client_name Client identifier (ValkeyGlide parameter)
-     * @param string|null $client_az Availability zone (ValkeyGlide parameter)
-     * @param array|null $advanced_config Advanced TLS/connection config (ValkeyGlide parameter)
-     * @param bool|null $lazy_connect Defer connection until first command (ValkeyGlide parameter)
-     * @param resource|null $context Stream context for TLS (ValkeyGlide parameter)
-     * @return bool True on success
+     * @throws ValkeyGlideException If conflicting parameters are specified or connection fails
+     *
+     * @example PHPRedis-style connection
+     * $client = new ValkeyGlide();
+     * $client->connect('localhost', 6379, 2.5);
+     *
+     * @example ValkeyGlide-style connection
+     * $client = new ValkeyGlide();
+     * $client->connect(addresses: [['host' => 'localhost', 'port' => 6379]], use_tls: true);
+     *
+     * @example Default connection
+     * $client = new ValkeyGlide();
+     * $client->connect();  // Connects to localhost:6379
      */
     public function connect(
         ?string $host = null,
