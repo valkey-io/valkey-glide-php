@@ -79,7 +79,7 @@ function chooseAction(): ChosenAction
         }
         return ChosenAction::GET_NON_EXISTING;
     }
-    
+
     return ChosenAction::SET;
 }
 

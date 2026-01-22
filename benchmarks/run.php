@@ -170,10 +170,6 @@ function runBenchmarkSequential(
     bool $isCluster,
     ClientType $clientType
 ): array {
-    // Note: PHP benchmark runs sequentially due to ValkeyGlide's Tokio runtime limitation
-    // (pcntl_fork() is incompatible with async Rust runtimes)
-    echo "  Running sequential benchmark...\n";
-
     $client = createClient($clientType, $host, $port, $useTls, $isCluster);
     $result = runBenchmarkProcess($client, $totalCommands, $dataSize);
     $client->close();
