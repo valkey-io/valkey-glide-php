@@ -71,13 +71,16 @@ function chooseAction(): ChosenAction
 {
     $random = mt_rand() / mt_getrandmax();
 
-    if ($random > PROB_GET) {
-        return ChosenAction::SET;
-    }
-    if ($random > PROB_GET_EXISTING_KEY) {
+    if ($random < PROB_GET) {
+        // Within GET operations, decide existing vs non-existing
+        $getTypeRandom = mt_rand() / mt_getrandmax();
+        if ($getTypeRandom < PROB_GET_EXISTING_KEY) {
+            return ChosenAction::GET_EXISTING;
+        }
         return ChosenAction::GET_NON_EXISTING;
     }
-    return ChosenAction::GET_EXISTING;
+    
+    return ChosenAction::SET;
 }
 
 function calculatePercentile(array $values, float $percentile): float
