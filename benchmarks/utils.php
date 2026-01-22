@@ -6,8 +6,9 @@
 
 const DEFAULT_PORT = 6379;
 const DEFAULT_HOST = 'localhost';
-const PROB_GET = 0.8;
-const PROB_GET_EXISTING_KEY = 0.8;
+const PROB_GET_EXISTING = 0.64;
+const PROB_GET_NON_EXISTING = 0.16;
+const PROB_GET_TOTAL = PROB_GET_EXISTING + PROB_GET_NON_EXISTING;
 const SIZE_GET_KEYSPACE = 3_750_000; // 3.75 million
 const SIZE_SET_KEYSPACE = 3_000_000; // 3 million
 
@@ -71,16 +72,13 @@ function chooseAction(): ChosenAction
 {
     $random = mt_rand() / mt_getrandmax();
 
-    if ($random < PROB_GET) {
-        // Within GET operations, decide existing vs non-existing
-        $getTypeRandom = mt_rand() / mt_getrandmax();
-        if ($getTypeRandom < PROB_GET_EXISTING_KEY) {
-            return ChosenAction::GET_EXISTING;
-        }
+    if ($random > PROB_GET_TOTAL) {
+        return ChosenAction::SET;
+    } elseif ($random > PROB_GET_EXISTING) {
         return ChosenAction::GET_NON_EXISTING;
+    } else {
+        return ChosenAction::GET_EXISTING;
     }
-
-    return ChosenAction::SET;
 }
 
 function calculatePercentile(array $values, float $percentile): float
