@@ -569,38 +569,102 @@ PHP_MINFO_FUNCTION(redis)
    ?int $database_id, ?string $client_name, ?int $inflight_requests_limit, ?string $client_az,
    ?array $advanced_config, ?bool $lazy_connect, ?array $context) Public constructor */
 PHP_METHOD(ValkeyGlide, __construct) {
-    valkey_glide_php_common_constructor_params_t common_params;
-    valkey_glide_init_common_constructor_params(&common_params);
     valkey_glide_object* valkey_glide;
 
-    ZEND_PARSE_PARAMETERS_START(1, 12)
-    Z_PARAM_ARRAY(common_params.addresses)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_BOOL(common_params.use_tls)
-    Z_PARAM_ARRAY_OR_NULL(common_params.credentials)
-    Z_PARAM_LONG(common_params.read_from)
-    Z_PARAM_LONG_OR_NULL(common_params.request_timeout, common_params.request_timeout_is_null)
-    Z_PARAM_ARRAY_OR_NULL(common_params.reconnect_strategy)
-    Z_PARAM_LONG_OR_NULL(common_params.database_id, common_params.database_id_is_null)
-    Z_PARAM_STRING_OR_NULL(common_params.client_name, common_params.client_name_len)
-    Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
-    Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
-    Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
-    Z_PARAM_RESOURCE_EX(
-        common_params.context, 1, 0) /* Use Z_PARAM_RESOURCE_OR_NULL with PHP 8.5+ */
+    ZEND_PARSE_PARAMETERS_START(0, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
-    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    valkey_glide               = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    valkey_glide->is_connected = false;
 
-    VALKEY_LOG_DEBUG("php_construct", "Starting ValkeyGlide construction");
+    VALKEY_LOG_DEBUG("php_construct", "ValkeyGlide object created (not connected)");
+}
+/* }}} */
+
+/* {{{ Internal function to perform the actual connection */
+static int valkey_glide_connect_internal(valkey_glide_object* valkey_glide,
+                                         zval*                addresses,
+                                         zend_bool            use_tls,
+                                         zval*                credentials,
+                                         zend_long            read_from,
+                                         zval*                request_timeout_zval,
+                                         zval*                reconnect_strategy,
+                                         zval*                database_id_zval,
+                                         char*                client_name,
+                                         size_t               client_name_len,
+                                         char*                client_az,
+                                         size_t               client_az_len,
+                                         zval*                advanced_config,
+                                         zval*                lazy_connect_zval,
+                                         zval*                context) {
+    valkey_glide_php_common_constructor_params_t common_params;
+    valkey_glide_init_common_constructor_params(&common_params);
+
+    /* Check if already connected */
+    if (valkey_glide->is_connected) {
+        const char* error_message = "Client is already connected";
+        VALKEY_LOG_ERROR("connect_internal", error_message);
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+        return FAILURE;
+    }
+
+    VALKEY_LOG_DEBUG("connect_internal", "Starting ValkeyGlide connection");
+
+    /* Set parameters */
+    common_params.addresses   = addresses;
+    common_params.use_tls     = use_tls;
+    common_params.credentials = credentials;
+    common_params.read_from   = read_from;
+
+    if (request_timeout_zval != NULL && Z_TYPE_P(request_timeout_zval) != IS_NULL) {
+        common_params.request_timeout         = Z_LVAL_P(request_timeout_zval);
+        common_params.request_timeout_is_null = false;
+    }
+
+    common_params.reconnect_strategy = reconnect_strategy;
+
+    if (database_id_zval != NULL && Z_TYPE_P(database_id_zval) != IS_NULL) {
+        common_params.database_id         = Z_LVAL_P(database_id_zval);
+        common_params.database_id_is_null = false;
+    }
+
+    common_params.client_name     = client_name;
+    common_params.client_name_len = client_name_len;
+    common_params.client_az       = client_az;
+    common_params.client_az_len   = client_az_len;
+    common_params.advanced_config = advanced_config;
+
+    if (lazy_connect_zval != NULL && Z_TYPE_P(lazy_connect_zval) != IS_NULL) {
+        common_params.lazy_connect         = Z_TYPE_P(lazy_connect_zval) == IS_TRUE;
+        common_params.lazy_connect_is_null = false;
+    }
+
+    common_params.context = context;
+
+    /* Default to localhost:6379 if no addresses provided */
+    zval      addresses_array;
+    zend_bool created_addresses = false;
+    if (common_params.addresses == NULL) {
+        array_init(&addresses_array);
+        zval address_entry;
+        array_init(&address_entry);
+        add_assoc_string(&address_entry, "host", "localhost");
+        add_assoc_long(&address_entry, "port", 6379);
+        add_next_index_zval(&addresses_array, &address_entry);
+        common_params.addresses = &addresses_array;
+        created_addresses       = true;
+    }
 
     /* Validate database_id range early */
     if (!common_params.database_id_is_null) {
         if (common_params.database_id < 0) {
             const char* error_message = "Database ID must be non-negative.";
-            VALKEY_LOG_ERROR("php_construct", error_message);
+            VALKEY_LOG_ERROR("connect_internal", error_message);
             zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
-            return;
+            if (created_addresses) {
+                zval_ptr_dtor(&addresses_array);
+            }
+            return FAILURE;
         }
     }
 
@@ -608,9 +672,12 @@ PHP_METHOD(ValkeyGlide, __construct) {
     if (!common_params.addresses ||
         zend_hash_num_elements(Z_ARRVAL_P(common_params.addresses)) == 0) {
         const char* error_message = "Addresses array cannot be empty";
-        VALKEY_LOG_ERROR("php_construct", error_message);
+        VALKEY_LOG_ERROR("connect_internal", error_message);
         zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
-        return;
+        if (created_addresses) {
+            zval_ptr_dtor(&addresses_array);
+        }
+        return FAILURE;
     }
 
     /* Build client configuration from individual parameters */
@@ -623,19 +690,217 @@ PHP_METHOD(ValkeyGlide, __construct) {
     /* Issue the connection request. */
     const ConnectionResponse* conn_resp = create_glide_client(&client_config);
 
+    /* Clean up temporary addresses array if we created it */
+    if (created_addresses) {
+        zval_ptr_dtor(&addresses_array);
+    }
+
     if (conn_resp->connection_error_message) {
-        VALKEY_LOG_ERROR("php_construct", conn_resp->connection_error_message);
+        VALKEY_LOG_ERROR("connect_internal", conn_resp->connection_error_message);
         zend_throw_exception(
             get_valkey_glide_exception_ce(), conn_resp->connection_error_message, 0);
+        free_connection_response((ConnectionResponse*) conn_resp);
+        valkey_glide_cleanup_client_config(&client_config);
+        return FAILURE;
     } else {
-        VALKEY_LOG_INFO("php_construct", "ValkeyGlide client created successfully");
+        VALKEY_LOG_INFO("connect_internal", "ValkeyGlide client connected successfully");
         valkey_glide->glide_client = conn_resp->conn_ptr;
+        valkey_glide->is_connected = true;
     }
 
     free_connection_response((ConnectionResponse*) conn_resp);
 
     /* Clean up temporary configuration structures */
     valkey_glide_cleanup_client_config(&client_config);
+
+    return SUCCESS;
+}
+/* }}} */
+
+/* {{{ proto bool ValkeyGlide::connect_impl(?array $addresses, bool $use_tls,
+   ?array $credentials, int $read_from, ?int $request_timeout,
+   ?array $reconnect_strategy, ?int $database_id, ?string $client_name,
+   ?string $client_az, ?array $advanced_config, ?bool $lazy_connect, ?resource $context)
+   Internal connection implementation */
+PHP_METHOD(ValkeyGlide, connect_impl) {
+    valkey_glide_object* valkey_glide;
+    zval*                addresses            = NULL;
+    zend_bool            use_tls              = 0;
+    zval*                credentials          = NULL;
+    zend_long            read_from            = VALKEY_GLIDE_READ_FROM_PRIMARY;
+    zval*                request_timeout_zval = NULL;
+    zval*                reconnect_strategy   = NULL;
+    zval*                database_id_zval     = NULL;
+    char*                client_name          = NULL;
+    size_t               client_name_len      = 0;
+    char*                client_az            = NULL;
+    size_t               client_az_len        = 0;
+    zval*                advanced_config      = NULL;
+    zval*                lazy_connect_zval    = NULL;
+    zval*                context              = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(0, 12)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_ARRAY_OR_NULL(addresses)
+    Z_PARAM_BOOL(use_tls)
+    Z_PARAM_ARRAY_OR_NULL(credentials)
+    Z_PARAM_LONG(read_from)
+    Z_PARAM_ZVAL_OR_NULL(request_timeout_zval)
+    Z_PARAM_ARRAY_OR_NULL(reconnect_strategy)
+    Z_PARAM_ZVAL_OR_NULL(database_id_zval)
+    Z_PARAM_STRING_OR_NULL(client_name, client_name_len)
+    Z_PARAM_STRING_OR_NULL(client_az, client_az_len)
+    Z_PARAM_ARRAY_OR_NULL(advanced_config)
+    Z_PARAM_ZVAL_OR_NULL(lazy_connect_zval)
+    Z_PARAM_RESOURCE_OR_NULL(context)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+
+    if (valkey_glide_connect_internal(valkey_glide,
+                                      addresses,
+                                      use_tls,
+                                      credentials,
+                                      read_from,
+                                      request_timeout_zval,
+                                      reconnect_strategy,
+                                      database_id_zval,
+                                      client_name,
+                                      client_name_len,
+                                      client_az,
+                                      client_az_len,
+                                      advanced_config,
+                                      lazy_connect_zval,
+                                      context) == SUCCESS) {
+        RETURN_TRUE;
+    } else {
+        RETURN_FALSE;
+    }
+}
+/* }}} */
+
+/* {{{ proto bool ValkeyGlide::connect(?string $host, int $port, float $timeout,
+   ?string $persistent_id, int $retry_interval, float $read_timeout,
+   ?array $addresses, bool $use_tls, ?array $credentials, int $read_from,
+   ?int $request_timeout, ?array $reconnect_strategy, ?int $database_id,
+   ?string $client_name, ?string $client_az, ?array $advanced_config,
+   ?bool $lazy_connect, ?resource $context)
+   Connect to Valkey server */
+PHP_METHOD(ValkeyGlide, connect) {
+    char*     host                 = NULL;
+    size_t    host_len             = 0;
+    zend_long port                 = 6379;
+    double    timeout              = 0.0;
+    char*     persistent_id        = NULL;
+    size_t    persistent_id_len    = 0;
+    zend_long retry_interval       = 0;
+    double    read_timeout         = 0.0;
+    zval*     addresses            = NULL;
+    zend_bool use_tls              = 0;
+    zval*     credentials          = NULL;
+    zend_long read_from            = VALKEY_GLIDE_READ_FROM_PRIMARY;
+    zval*     request_timeout_zval = NULL;
+    zval*     reconnect_strategy   = NULL;
+    zval*     database_id_zval     = NULL;
+    char*     client_name          = NULL;
+    size_t    client_name_len      = 0;
+    char*     client_az            = NULL;
+    size_t    client_az_len        = 0;
+    zval*     advanced_config      = NULL;
+    zval*     lazy_connect_zval    = NULL;
+    zval*     context              = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(0, 18)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_STRING_OR_NULL(host, host_len)
+    Z_PARAM_LONG(port)
+    Z_PARAM_DOUBLE(timeout)
+    Z_PARAM_STRING_OR_NULL(persistent_id, persistent_id_len)
+    Z_PARAM_LONG(retry_interval)
+    Z_PARAM_DOUBLE(read_timeout)
+    Z_PARAM_ARRAY_OR_NULL(addresses)
+    Z_PARAM_BOOL(use_tls)
+    Z_PARAM_ARRAY_OR_NULL(credentials)
+    Z_PARAM_LONG(read_from)
+    Z_PARAM_ZVAL_OR_NULL(request_timeout_zval)
+    Z_PARAM_ARRAY_OR_NULL(reconnect_strategy)
+    Z_PARAM_ZVAL_OR_NULL(database_id_zval)
+    Z_PARAM_STRING_OR_NULL(client_name, client_name_len)
+    Z_PARAM_STRING_OR_NULL(client_az, client_az_len)
+    Z_PARAM_ARRAY_OR_NULL(advanced_config)
+    Z_PARAM_ZVAL_OR_NULL(lazy_connect_zval)
+    Z_PARAM_RESOURCE_OR_NULL(context)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
+
+    /* Validate conflicting parameters */
+    if (host != NULL && addresses != NULL) {
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "Cannot specify both 'host' (PHPRedis parameter) and 'addresses' "
+                             "(ValkeyGlide parameter)",
+                             0);
+        RETURN_FALSE;
+    }
+
+    if (timeout > 0.0 && request_timeout_zval != NULL &&
+        Z_TYPE_P(request_timeout_zval) != IS_NULL) {
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "Cannot specify both 'timeout' (PHPRedis parameter) and "
+                             "'request_timeout' (ValkeyGlide parameter)",
+                             0);
+        RETURN_FALSE;
+    }
+
+    /* Build addresses array from PHPRedis-style host/port if provided */
+    zval addresses_to_pass;
+    if (host != NULL) {
+        array_init(&addresses_to_pass);
+        zval address_entry;
+        array_init(&address_entry);
+        add_assoc_string(&address_entry, "host", host);
+        add_assoc_long(&address_entry, "port", port);
+        add_next_index_zval(&addresses_to_pass, &address_entry);
+        addresses = &addresses_to_pass;
+    }
+
+    /* Convert PHPRedis timeout to ValkeyGlide request_timeout if provided */
+    zval converted_request_timeout;
+    if (timeout > 0.0 &&
+        (request_timeout_zval == NULL || Z_TYPE_P(request_timeout_zval) == IS_NULL)) {
+        ZVAL_LONG(&converted_request_timeout, (zend_long) (timeout * 1000));
+        request_timeout_zval = &converted_request_timeout;
+    }
+
+    /* Get the client object */
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+
+    /* Call internal connection function */
+    int result = valkey_glide_connect_internal(valkey_glide,
+                                               addresses,
+                                               use_tls,
+                                               credentials,
+                                               read_from,
+                                               request_timeout_zval,
+                                               reconnect_strategy,
+                                               database_id_zval,
+                                               client_name,
+                                               client_name_len,
+                                               client_az,
+                                               client_az_len,
+                                               advanced_config,
+                                               lazy_connect_zval,
+                                               context);
+
+    /* Clean up temporary addresses array if we created it */
+    if (host != NULL) {
+        zval_ptr_dtor(&addresses_to_pass);
+    }
+
+    if (result == SUCCESS) {
+        RETURN_TRUE;
+    } else {
+        RETURN_FALSE;
+    }
 }
 /* }}} */
 

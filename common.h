@@ -17,6 +17,17 @@
 #define VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(class_entry, z) \
     VALKEY_GLIDE_PHP_GET_OBJECT(class_entry, Z_OBJ_P(z))
 
+/* Check if client is connected (for ValkeyGlide standalone only) */
+#define VALKEY_GLIDE_CHECK_CONNECTED(obj)                                          \
+    do {                                                                           \
+        if (!(obj)->is_connected) {                                                \
+            zend_throw_exception(get_valkey_glide_exception_ce(),                  \
+                                 "Client is not connected. Call connect() first.", \
+                                 0);                                               \
+            return;                                                                \
+        }                                                                          \
+    } while (0)
+
 /* NULL check so Eclipse doesn't go crazy */
 #ifndef NULL
 #define NULL ((void*) 0)
@@ -233,6 +244,7 @@ typedef struct {
     size_t                command_capacity;
     int                   batch_type; /* ATOMIC, MULTI, or PIPELINE */
     bool                  is_in_batch_mode;
+    bool                  is_connected; /* Connection state flag */
 
     zend_object std;
 } valkey_glide_object;

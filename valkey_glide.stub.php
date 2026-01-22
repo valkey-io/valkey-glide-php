@@ -328,8 +328,27 @@ class ValkeyGlide
      * @param bool|null $lazy_connect           Whether to use lazy connection.
      * @param resource|null $context            Stream context for the connection.
      */
-    public function __construct(
-        array $addresses,
+    public function __construct();
+
+    /**
+     * Internal connection implementation with ValkeyGlide parameters.
+     *
+     * @param array|null $addresses Server addresses
+     * @param bool $use_tls Enable TLS
+     * @param array|null $credentials Authentication credentials
+     * @param int $read_from Read strategy
+     * @param int|null $request_timeout Request timeout in milliseconds
+     * @param array|null $reconnect_strategy Reconnection strategy
+     * @param int|null $database_id Database number
+     * @param string|null $client_name Client identifier
+     * @param string|null $client_az Availability zone
+     * @param array|null $advanced_config Advanced TLS/connection config
+     * @param bool|null $lazy_connect Defer connection until first command
+     * @param resource|null $context Stream context for TLS
+     * @return bool True on success
+     */
+    private function connect_impl(
+        ?array $addresses = null,
         bool $use_tls = false,
         ?array $credentials = null,
         int $read_from = ValkeyGlide::READ_FROM_PRIMARY,
@@ -341,7 +360,56 @@ class ValkeyGlide
         ?array $advanced_config = null,
         ?bool $lazy_connect = null,
         ?resource $context = null,
-    );
+    ): bool;
+
+    /**
+     * Connect to a Valkey server.
+     *
+     * Supports both PHPRedis-compatible and ValkeyGlide connection styles.
+     *
+     * PHPRedis-style parameters:
+     * @param string|null $host Hostname (PHPRedis parameter)
+     * @param int $port Port number (PHPRedis parameter)
+     * @param float $timeout Connection timeout in seconds (PHPRedis parameter)
+     * @param string|null $persistent_id Persistent connection ID (PHPRedis parameter, not implemented)
+     * @param int $retry_interval Retry interval in milliseconds (PHPRedis parameter, not implemented)
+     * @param float $read_timeout Read timeout in seconds (PHPRedis parameter, not implemented)
+     *
+     * ValkeyGlide-style parameters:
+     * @param array|null $addresses Server addresses (ValkeyGlide parameter)
+     * @param bool $use_tls Enable TLS (ValkeyGlide parameter)
+     * @param array|null $credentials Authentication credentials (ValkeyGlide parameter)
+     * @param int $read_from Read strategy (ValkeyGlide parameter)
+     * @param int|null $request_timeout Request timeout in milliseconds (ValkeyGlide parameter)
+     * @param array|null $reconnect_strategy Reconnection strategy (ValkeyGlide parameter)
+     * @param int|null $database_id Database number (ValkeyGlide parameter)
+     * @param string|null $client_name Client identifier (ValkeyGlide parameter)
+     * @param string|null $client_az Availability zone (ValkeyGlide parameter)
+     * @param array|null $advanced_config Advanced TLS/connection config (ValkeyGlide parameter)
+     * @param bool|null $lazy_connect Defer connection until first command (ValkeyGlide parameter)
+     * @param resource|null $context Stream context for TLS (ValkeyGlide parameter)
+     * @return bool True on success
+     */
+    public function connect(
+        ?string $host = null,
+        int $port = 6379,
+        float $timeout = 0.0,
+        ?string $persistent_id = null,
+        int $retry_interval = 0,
+        float $read_timeout = 0.0,
+        ?array $addresses = null,
+        bool $use_tls = false,
+        ?array $credentials = null,
+        int $read_from = ValkeyGlide::READ_FROM_PRIMARY,
+        ?int $request_timeout = null,
+        ?array $reconnect_strategy = null,
+        ?int $database_id = null,
+        ?string $client_name = null,
+        ?string $client_az = null,
+        ?array $advanced_config = null,
+        ?bool $lazy_connect = null,
+        ?resource $context = null,
+    ): bool;
 
     public function __destruct();
 
