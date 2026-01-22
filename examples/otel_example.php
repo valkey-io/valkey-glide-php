@@ -30,7 +30,8 @@ try {
         ->build();
 
     // Create ValkeyGlide client with configuration
-    $client = new ValkeyGlide(
+    $client = new ValkeyGlide();
+    $client->connect(
         addresses: [
             ['host' => 'localhost', 'port' => 6379]
         ],
