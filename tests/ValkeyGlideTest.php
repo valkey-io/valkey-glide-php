@@ -8085,8 +8085,8 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->assertTrue(class_exists('RedisException'), 'RedisException class alias should exist');
 
         $redis = new Redis([['host' => $this->getHost(), 'port' => $this->getPort()]]);
-        $this->assertInstanceOf(Redis::class, $redis);
-        $this->assertInstanceOf(ValkeyGlide::class, $redis);
+        $this->assertTrue($redis instanceof Redis, 'Instance should be Redis');
+        $this->assertTrue($redis instanceof ValkeyGlide, 'Instance should be ValkeyGlide');
 
         $result = $redis->set('phpredis_alias_test', 'value');
         $this->assertTrue($result);
@@ -8101,8 +8101,8 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $badRedis->ping();
             $this->fail('Expected RedisException to be thrown');
         } catch (RedisException $e) {
-            $this->assertInstanceOf(RedisException::class, $e);
-            $this->assertInstanceOf(ValkeyGlideException::class, $e);
+            $this->assertTrue($e instanceof RedisException, 'Exception should be RedisException');
+            $this->assertTrue($e instanceof ValkeyGlideException, 'Exception should be ValkeyGlideException');
         }
     }
 }
