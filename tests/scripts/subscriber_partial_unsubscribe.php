@@ -88,7 +88,7 @@ try {
     $subscriber->connect(addresses: [['host' => $host, 'port' => $port]]);
     file_put_contents($sync_file, 'ready');
 
-    $sub->subscribe([$channel1, $channel2], function ($client, $ch, $msg) use ($result_file, $channel1, $channel2) {
+    $subscriber->subscribe([$channel1, $channel2], function ($client, $ch, $msg) use ($result_file, $channel1, $channel2) {
         if ($ch === $channel1) {
             // Unsubscribe from channel1 only - should NOT break loop
             $client->unsubscribe([$channel1]);
