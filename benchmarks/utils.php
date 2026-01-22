@@ -17,7 +17,7 @@ const MAX_ITERATIONS = 5_000_000;     // Maximum iterations cap
 
 // Default benchmark configuration
 const DEFAULT_DATA_SIZE = 100;           // Default value size in bytes
-const DEFAULT_ITERATIONS = ['100_000', '100_000', '1_000_000', '5_000_000'];
+const DEFAULT_ITERATIONS = ['100_000', '1_000_000', '5_000_000'];
 
 enum ChosenAction: int
 {

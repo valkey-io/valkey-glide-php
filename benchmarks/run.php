@@ -6,6 +6,23 @@
 
 require_once __DIR__ . '/utils.php';
 
+// Progress reporting constants
+const PROGRESS_REPORT_INTERVAL = 100_000;  // Report progress every N operations
+
+// Time conversion constants
+const NANOSECONDS_TO_MILLISECONDS = 1_000_000;
+const NANOSECONDS_TO_SECONDS = 1_000_000_000;
+
+function convertNanosecsToSecs(int $nanoseconds): float
+{
+    return $nanoseconds / NANOSECONDS_TO_SECONDS;
+}
+
+function convertNanosecsToMillisecs(int $nanoseconds): float
+{
+    return $nanoseconds / NANOSECONDS_TO_MILLISECONDS;
+}
+
 enum ClientType: string
 {
     case GLIDE = 'glide';
@@ -23,15 +40,15 @@ function prePopulateDatabase(object $client, int $dataSize): void
     for ($i = 1; $i <= SIZE_SET_KEYSPACE; $i++) {
         $client->set((string)$i, $value);
 
-        if ($i % 100_000 === 0) {
-            $elapsed = (hrtime(true) - $start) / 1_000_000_000;
+        if ($i % PROGRESS_REPORT_INTERVAL === 0) {
+            $elapsed = convertNanosecsToSecs(hrtime(true) - $start);
             $rate = (int)($i / $elapsed);
             echo "  Progress: " . number_format($i) . "/" . number_format(SIZE_SET_KEYSPACE) .
                  " (" . number_format($rate) . " keys/sec)\n";
         }
     }
 
-    $elapsed = (hrtime(true) - $start) / 1_000_000_000;
+    $elapsed = convertNanosecsToSecs(hrtime(true) - $start);
     echo "Pre-population completed in " . round($elapsed, 2) . " seconds\n\n";
 }
 
@@ -108,11 +125,11 @@ function runBenchmarkOperations(
         }
 
         $end = hrtime(true);
-        $latencyMs = ($end - $start) / 1_000_000;  // Convert nanoseconds to milliseconds
+        $latencyMs = convertNanosecsToMillisecs($end - $start);  // Convert nanoseconds to milliseconds
         $actionLatencies[$action->value][] = $latencyMs;  // Store full precision for accurate statistics
 
         // Log progress every 100,000 iterations
-        if ($startedOperationsCounter - $lastLoggedAt >= 100_000) {
+        if ($startedOperationsCounter - $lastLoggedAt >= PROGRESS_REPORT_INTERVAL) {
             $progress = round(($startedOperationsCounter / $totalCommands) * 100, 1);
             echo "  Progress: {$startedOperationsCounter}/{$totalCommands} ({$progress}%)\n";
             $lastLoggedAt = $startedOperationsCounter;
@@ -135,7 +152,7 @@ function runBenchmarkProcess(
     $result = runBenchmarkOperations($client, $totalCommands, $dataSize);
 
     $end = hrtime(true);
-    $timeSeconds = ($end - $start) / 1_000_000_000;
+    $timeSeconds = convertNanosecsToSecs($end - $start);
 
     return [
         'time' => $timeSeconds,
