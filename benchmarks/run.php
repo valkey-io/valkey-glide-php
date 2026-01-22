@@ -132,7 +132,6 @@ function runBenchmarkSequential(
 }
 
 function runClient(
-    object $client,
     ClientType $clientType,
     int $totalCommands,
     int $dataSize,
@@ -145,20 +144,15 @@ function runClient(
     $now = date('H:i:s');
     echo "Starting {$clientName} | data size: {$dataSize} bytes | iterations: {$totalCommands} | {$now}\n";
     
-    // Run sequential benchmark for larger workloads
-    if ($totalCommands > MIN_ITERATIONS) {
-        $result = runBenchmarkSequential(
-            $totalCommands,
-            $dataSize,
-            $host,
-            $port,
-            $useTls,
-            $isCluster,
-            $clientType
-        );
-    } else {
-        $result = runBenchmarkSingleProcess($client, $totalCommands, $dataSize);
-    }
+    $result = runBenchmarkSequential(
+        $totalCommands,
+        $dataSize,
+        $host,
+        $port,
+        $useTls,
+        $isCluster,
+        $clientType
+    );
     
     $time = $result['time'];
     $actionLatencies = $result['latencies'];
@@ -197,25 +191,7 @@ function main(
 ): void {
     // Run phpredis benchmark
     if ($clientsToRun === ClientType::ALL || $clientsToRun === ClientType::PHPREDIS) {
-        if ($isCluster) {
-            $client = new RedisCluster(null, ["{$host}:{$port}"]);
-            if ($useTls) {
-                // Disable certificate validation for benchmarking (self-signed certs, local testing)
-                $client->setOption(Redis::OPT_SSL_CONTEXT, ['verify_peer' => false]);
-            }
-        } else {
-            $client = new Redis();
-            if ($useTls) {
-                $client->connect($host, $port);
-                // Disable certificate validation for benchmarking (self-signed certs, local testing)
-                $client->setOption(Redis::OPT_SSL_CONTEXT, ['verify_peer' => false]);
-            } else {
-                $client->connect($host, $port);
-            }
-        }
-        
         $result = runClient(
-            $client,
             ClientType::PHPREDIS,
             $totalCommands,
             $dataSize,
@@ -225,29 +201,11 @@ function main(
             $useTls
         );
         $benchResults[] = $result;
-        $client->close();
     }
     
     // Run ValkeyGlide benchmark
     if ($clientsToRun === ClientType::ALL || $clientsToRun === ClientType::GLIDE) {
-        // Disable certificate validation for benchmarking (self-signed certs, local testing)
-        $advancedConfig = $useTls ? ['tls_config' => ['use_insecure_tls' => true]] : null;
-        if ($isCluster) {
-            $client = new ValkeyGlideCluster(
-                addresses: [['host' => $host, 'port' => $port]],
-                use_tls: $useTls,
-                advanced_config: $advancedConfig
-            );
-        } else {
-            $client = new ValkeyGlide(
-                addresses: [['host' => $host, 'port' => $port]],
-                use_tls: $useTls,
-                advanced_config: $advancedConfig
-            );
-        }
-        
         $result = runClient(
-            $client,
             ClientType::GLIDE,
             $totalCommands,
             $dataSize,
@@ -257,7 +215,6 @@ function main(
             $useTls
         );
         $benchResults[] = $result;
-        $client->close();
     }
 }
 
