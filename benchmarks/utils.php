@@ -124,7 +124,17 @@ function latencyResults(string $prefix, array $latencies): array
 
 function validateIterations(int $iterations): int
 {
-    return min(max(MIN_ITERATIONS, $iterations), MAX_ITERATIONS);
+    if ($iterations < MIN_ITERATIONS) {
+        echo "Error: Iterations must be at least " . number_format(MIN_ITERATIONS) . "\n";
+        exit(1);
+    }
+
+    if ($iterations > MAX_ITERATIONS) {
+        echo "Error: Iterations must not exceed " . number_format(MAX_ITERATIONS) . "\n";
+        exit(1);
+    }
+
+    return $iterations;
 }
 
 function processResults(array $benchResults, string $resultsFile): void
