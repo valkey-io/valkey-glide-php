@@ -1515,5 +1515,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals('value', $value);
 
         $cluster->del(['phpredis_cluster_alias_test']);
+
+        try {
+            $badCluster = new RedisCluster([['host' => 'localhost', 'port' => 9999]]);
+            $badCluster->ping();
+            $this->fail('Expected RedisException to be thrown');
+        } catch (RedisException $e) {
+            $this->assertTrue($e instanceof RedisException, 'Exception should be RedisException');
+            $this->assertTrue($e instanceof ValkeyGlideException, 'Exception should be ValkeyGlideException');
+        }
     }
 }
