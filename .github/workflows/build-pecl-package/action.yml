@@ -95,6 +95,15 @@ runs:
           fi
         done
 
+        # Copy root-level PHP files (excluding stub files and test files)
+        echo "=== Copying root-level PHP files ==="
+        for file in *.php; do
+          if [[ -f "$file" && "$file" != *~ && "$file" != *.stub.php ]]; then
+            echo "Copying $file"
+            cp "$file" "$PACKAGE_DIR/"
+          fi
+        done
+
         # Copy src directory
         echo "=== Copying src directory ==="
         mkdir -p "$PACKAGE_DIR/src"
