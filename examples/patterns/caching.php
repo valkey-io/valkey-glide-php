@@ -133,7 +133,8 @@ class CacheManager
 
 $client = null;
 try {
-    $client = new ValkeyGlide($addresses, false, null, 0, 5000);
+    $client = new ValkeyGlide();
+    $client->connect(addresses: $addresses, use_tls: false, request_timeout: 5000);
     echo "✅ Connected to Valkey server\n\n";
 
     // Initialize our components

@@ -244,9 +244,8 @@ php -r "if (extension_loaded('valkey_glide')) echo 'SUCCESS: Extension loaded!';
 
 ```php
 // Create ValkeyGlide client
-$client = new ValkeyGlide(
-    addresses: [['host' => 'localhost', 'port' => 6379]]
-);
+$client = new ValkeyGlide();
+$client->connect(addresses: [['host' => 'localhost', 'port' => 6379]]);
 
 // Basic operations
 $setResult = $client->set('foo', 'bar');
@@ -296,7 +295,8 @@ $client->close();
 
 ```php
 // Create ValkeyGlide client with IAM authentication.
-$client = new ValkeyGlide(
+$client = new ValkeyGlide();
+$client->connect(
     addresses: [['host' => 'my-cluster.xxxxx.use1.cache.amazonaws.com', 'port' => 6379]],
     use_tls: true,  // REQUIRED for IAM authentication
     credentials: [
@@ -322,14 +322,16 @@ $client->close();
 
 ```php
 // Create ValkeyGlide client with TLS configuration
-$client = new ValkeyGlide(
+$client = new ValkeyGlide();
+$client->connect(
     addresses: [['host' => 'localhost', 'port' => 6379]],
     use_tls: true
     advanced_config: ['tls_config' => ['root_certs' => $root_certs_data]]
 );
 
 // Create ValkeyGlide client with TLS stream context
-$client = new ValkeyGlide(
+$client = new ValkeyGlide();
+$client->connect(
     addresses: [['host' => 'localhost', 'port' => 6379]],
     context: stream_context_create(['ssl' => 'ca-cert.pem'])   
 )

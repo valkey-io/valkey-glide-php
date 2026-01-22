@@ -37,13 +37,12 @@ echo "📡 Connecting to Valkey server at {$host}:{$port}\n";
 $client = null;
 try {
     // Create Valkey GLIDE client
-    $client = new ValkeyGlide(
-        $addresses,                // Server addresses
+    $client = new ValkeyGlide();
+    $client->connect(addresses: $addresses,                // Server addresses
         $use_tls,                 // Use TLS
         $password ? ['password' => $password] : null, // Credentials
         0,                        // Read from PRIMARY (0)
-        5000                      // Request timeout (5 seconds)
-    );
+        5000                      // Request timeout (5 seconds));
 
     echo "✅ Connected successfully!\n\n";
 
