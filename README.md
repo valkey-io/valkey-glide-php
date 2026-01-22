@@ -270,9 +270,8 @@ For easier migration from PHPRedis, you can use PHPRedis-compatible class names:
 require_once 'vendor/valkey-io/valkey-glide-php/phpredis_aliases.php';
 
 // Now you can use Redis instead of ValkeyGlide
-$client = new Redis(
-    addresses: [['host' => 'localhost', 'port' => 6379]]
-);
+$client = new Redis();
+$client->connect(addresses: [['host' => 'localhost', 'port' => 6379]]);
 
 $client->set('foo', 'bar');
 $value = $client->get('foo');
@@ -325,7 +324,7 @@ $client->close();
 $client = new ValkeyGlide();
 $client->connect(
     addresses: [['host' => 'localhost', 'port' => 6379]],
-    use_tls: true
+    use_tls: true,
     advanced_config: ['tls_config' => ['root_certs' => $root_certs_data]]
 );
 
