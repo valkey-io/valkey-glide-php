@@ -65,9 +65,11 @@ php run.php --iterations=100000
 ## Benchmark Methodology
 
 The benchmark tests three operations with weighted probabilities:
-- **GET (existing key)**: 64% - Retrieve keys from a 3M key set
-- **GET (non-existing key)**: 16% - Query keys that don't exist (3M-3.75M range, outside SET keyspace to guarantee cache misses)
-- **SET**: 20% - Write to the 3M key set
+- **GET (existing key)**: 64% - Retrieve keys that exist in the database
+- **GET (non-existing key)**: 16% - Query keys that don't exist (guaranteed cache misses)
+- **SET**: 20% - Write operations
+
+The database is pre-populated with 3 million keys before benchmarking to ensure GET operations hit realistic data.
 
 ### Metrics Collected
 
