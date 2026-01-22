@@ -63,7 +63,7 @@ function runBenchmarkOperations(
     ];
 }
 
-function runBenchmarkSingleProcess(
+function runBenchmarkProcess(
     object $client,
     int $totalCommands,
     int $dataSize
@@ -91,10 +91,6 @@ function runBenchmarkSequential(
     bool $isCluster,
     ClientType $clientType
 ): array {
-    // Note: PHP benchmark runs sequentially due to ValkeyGlide's Tokio runtime limitation
-    // (pcntl_fork() is incompatible with async Rust runtimes)
-    echo "  Running sequential benchmark...\n";
-    
     if ($clientType === ClientType::GLIDE) {
         // Disable certificate validation for benchmarking (self-signed certs, local testing)
         $advancedConfig = $useTls ? ['tls_config' => ['use_insecure_tls' => true]] : null;
@@ -128,7 +124,7 @@ function runBenchmarkSequential(
         }
     }
     
-    return runBenchmarkSingleProcess($client, $totalCommands, $dataSize);
+    return runBenchmarkProcess($client, $totalCommands, $dataSize);
 }
 
 function runClient(
