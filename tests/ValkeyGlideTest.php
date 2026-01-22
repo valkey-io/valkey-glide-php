@@ -8089,7 +8089,8 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->assertTrue(class_exists('RedisCluster'), 'RedisCluster class alias should exist');
         $this->assertTrue(class_exists('RedisException'), 'RedisException class alias should exist');
 
-        $redis = new Redis([['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $redis = new Redis();
+        $redis->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
         $this->assertTrue($redis instanceof Redis, 'Instance should be Redis');
         $this->assertTrue($redis instanceof ValkeyGlide, 'Instance should be ValkeyGlide');
 
