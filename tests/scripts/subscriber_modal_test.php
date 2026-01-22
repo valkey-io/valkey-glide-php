@@ -83,7 +83,7 @@ $error_file = $result_file . '.error';
 
 try {
     $client = new ValkeyGlide();
-    $subscriber->connect(addresses: [['host' => $host, 'port' => $port]]);
+    $client->connect(addresses: [['host' => $host, 'port' => $port]]);
 
     // Test command before subscribe - should work
     try {
