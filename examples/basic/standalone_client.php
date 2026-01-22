@@ -38,11 +38,13 @@ $client = null;
 try {
     // Create Valkey GLIDE client
     $client = new ValkeyGlide();
-    $client->connect(addresses: $addresses,                // Server addresses
-        $use_tls,                 // Use TLS
-        $password ? ['password' => $password] : null, // Credentials
-        0,                        // Read from PRIMARY (0)
-        5000                      // Request timeout (5 seconds));
+    $client->connect(
+        addresses: $addresses,
+        use_tls: $use_tls,
+        credentials: $password ? ['password' => $password] : null,
+        read_from: 0,
+        request_timeout: 5000
+    );
 
     echo "✅ Connected successfully!\n\n";
 

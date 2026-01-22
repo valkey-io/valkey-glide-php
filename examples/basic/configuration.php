@@ -76,18 +76,19 @@ $lazy_connect = false; // Whether to connect lazily
 try {
     echo "Creating advanced standalone client...\n";
     $advancedClient = new ValkeyGlide();
-    $advancedClient->connect(addresses: $standaloneAddresses,
-        $use_tls,
-        $credentials,
-        $read_from,
-        $request_timeout,
-        $reconnect_strategy,
-        $database_id,
-        $client_name,
-        $inflight_requests_limit,
-        $client_az,
-        $advanced_config,
-        $lazy_connect);
+    $advancedClient->connect(
+        addresses: $standaloneAddresses,
+        use_tls: $use_tls,
+        credentials: $credentials,
+        read_from: $read_from,
+        request_timeout: $request_timeout,
+        reconnect_strategy: $reconnect_strategy,
+        database_id: $database_id,
+        client_name: $client_name,
+        client_az: $client_az,
+        advanced_config: $advanced_config,
+        lazy_connect: $lazy_connect
+    );
 
     echo "✅ Advanced standalone client created successfully\n";
 
@@ -158,14 +159,16 @@ $authAddresses = [['host' => 'localhost', 'port' => 6379]];
 echo "Creating client with authentication (will fail if no auth configured)...\n";
 try {
     $authClient = new ValkeyGlide();
-    $authClient->connect(addresses: $authAddresses,
-        false,                    // use_tls
-        [                         // credentials
+    $authClient->connect(
+        addresses: $authAddresses,
+        use_tls: false,
+        credentials: [
             'username' => 'default',
             'password' => 'your-password-here'
         ],
-        0,                        // read_from
-        5000                      // request_timeout);
+        read_from: 0,
+        request_timeout: 5000
+    );
 
     echo "✅ Authenticated client created\n";
     $authClient->ping();
@@ -177,11 +180,13 @@ try {
 // Password-only authentication (older Redis/Valkey style)
 try {
     $passwordClient = new ValkeyGlide();
-    $passwordClient->connect(addresses: $authAddresses,
-        false,                    // use_tls
-        ['password' => 'your-password-here'], // password only
-        0,                        // read_from
-        5000                      // request_timeout);
+    $passwordClient->connect(
+        addresses: $authAddresses,
+        use_tls: false,
+        credentials: ['password' => 'your-password-here'],
+        read_from: 0,
+        request_timeout: 5000
+    );
 
     echo "✅ Password-only client created\n";
     $passwordClient->close();
@@ -200,19 +205,21 @@ echo "-------------------------------------------\n";
 echo "Creating client with IAM authentication for ElastiCache...\n";
 try {
     $iamClient = new ValkeyGlide();
-    $iamClient->connect(addresses: [['host' => 'my-cluster.xxxxx.use1.cache.amazonaws.com', 'port' => 6379]],
-        true,                     // use_tls (REQUIRED for IAM)
-        [                         // credentials
-            'username' => 'my-iam-user',  // REQUIRED for IAM
+    $iamClient->connect(
+        addresses: [['host' => 'my-cluster.xxxxx.use1.cache.amazonaws.com', 'port' => 6379]],
+        use_tls: true,
+        credentials: [
+            'username' => 'my-iam-user',
             'iamConfig' => [
                 ValkeyGlide::IAM_CONFIG_CLUSTER_NAME => 'my-cluster',
                 ValkeyGlide::IAM_CONFIG_REGION => 'us-east-1',
                 ValkeyGlide::IAM_CONFIG_SERVICE => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
-                ValkeyGlide::IAM_CONFIG_REFRESH_INTERVAL => 300  // Optional
+                ValkeyGlide::IAM_CONFIG_REFRESH_INTERVAL => 300
             ]
         ],
-        0,                        // read_from
-        5000                      // request_timeout);
+        read_from: 0,
+        request_timeout: 5000
+    );
 
     echo "✅ IAM ElastiCache client created\n";
     $iamClient->ping();
@@ -225,17 +232,19 @@ try {
 echo "Creating client with IAM authentication for MemoryDB...\n";
 try {
     $memorydbClient = new ValkeyGlide();
-    $memorydbClient->connect(addresses: [['host' => 'clustercfg.my-memorydb.xxxxx.memorydb.us-east-1.amazonaws.com', 'port' => 6379]],
-        true,                     // use_tls (REQUIRED for IAM)
-        [                         // credentials
+    $memorydbClient->connect(
+        addresses: [['host' => 'clustercfg.my-memorydb.xxxxx.memorydb.us-east-1.amazonaws.com', 'port' => 6379]],
+        use_tls: true,
+        credentials: [
             'username' => 'my-iam-user',
             'iamConfig' => [
                 ValkeyGlide::IAM_CONFIG_CLUSTER_NAME => 'my-memorydb',
                 ValkeyGlide::IAM_CONFIG_REGION => 'us-east-1',
                 ValkeyGlide::IAM_CONFIG_SERVICE => ValkeyGlide::IAM_SERVICE_MEMORYDB,
-                ValkeyGlide::IAM_CONFIG_REFRESH_INTERVAL => 120  // Refresh every 2 minutes
+                ValkeyGlide::IAM_CONFIG_REFRESH_INTERVAL => 120
             ]
-        ]);
+        ]
+    );
 
     echo "✅ IAM MemoryDB client created\n";
     $memorydbClient->ping();
@@ -264,11 +273,13 @@ $tlsAddresses = [['host' => 'localhost', 'port' => 6380]]; // Common TLS port
 echo "Creating client with TLS (will fail if no TLS server)...\n";
 try {
     $tlsClient = new ValkeyGlide();
-    $tlsClient->connect($tlsAddresses,
-        true,                     // use_tls = true
-        null,                     // credentials
-        0,                        // read_from
-        5000                      // request_timeout);
+    $tlsClient->connect(
+        addresses: $tlsAddresses,
+        use_tls: true,
+        credentials: null,
+        read_from: 0,
+        request_timeout: 5000
+    );
 
     echo "✅ TLS client created\n";
     $tlsClient->ping();
@@ -296,11 +307,13 @@ foreach ($readPreferences as $readFrom => $description) {
 
     try {
         $readClient = new ValkeyGlide();
-    $readClient->connect(addresses: $standaloneAddresses,
-            false,                // use_tls
-            null,                 // credentials
-            $readFrom,            // read_from preference
-            2000                  // request_timeout);
+        $readClient->connect(
+            addresses: $standaloneAddresses,
+            use_tls: false,
+            credentials: null,
+            read_from: $readFrom,
+            request_timeout: 2000
+        );
 
         echo "  ✅ Client created with read preference {$readFrom}\n";
         $readClient->close();
@@ -328,11 +341,13 @@ foreach ($timeoutExamples as $timeout => $description) {
 
     try {
         $timeoutClient = new ValkeyGlide();
-    $timeoutClient->connect(addresses: $standaloneAddresses,
-            false,                // use_tls
-            null,                 // credentials
-            0,                    // read_from
-            $timeout              // request_timeout);
+        $timeoutClient->connect(
+            addresses: $standaloneAddresses,
+            use_tls: false,
+            credentials: null,
+            read_from: 0,
+            request_timeout: $timeout
+        );
 
         echo "  ✅ Client created with {$timeout}ms timeout\n";
 
@@ -381,12 +396,14 @@ foreach ($reconnectStrategies as $name => $strategy) {
 
     try {
         $reconnectClient = new ValkeyGlide();
-    $reconnectClient->connect(addresses: $standaloneAddresses,
-            false,                // use_tls
-            null,                 // credentials
-            0,                    // read_from
-            5000,                 // request_timeout
-            $strategy             // reconnect_strategy);
+        $reconnectClient->connect(
+            addresses: $standaloneAddresses,
+            use_tls: false,
+            credentials: null,
+            read_from: 0,
+            request_timeout: 5000,
+            reconnect_strategy: $strategy
+        );
 
         echo "  ✅ Client created with '{$name}' reconnection strategy\n";
         $reconnectClient->close();
@@ -428,13 +445,15 @@ $envDatabase = (int)$envConfig['VALKEY_DATABASE'];
 try {
     echo "\nCreating client from environment configuration...\n";
     $envClient = new ValkeyGlide();
-    $envClient->connect($envAddresses,
-        $envUseTls,
-        $envCredentials,
-        0,                        // read_from
-        $envTimeout,              // request_timeout
-        null,                     // reconnect_strategy (default)
-        $envDatabase              // database_id);
+    $envClient->connect(
+        addresses: $envAddresses,
+        use_tls: $envUseTls,
+        credentials: $envCredentials,
+        read_from: 0,
+        request_timeout: $envTimeout,
+        reconnect_strategy: null,
+        database_id: $envDatabase
+    );
 
     echo "✅ Environment-based client created successfully\n";
     $envClient->ping();
