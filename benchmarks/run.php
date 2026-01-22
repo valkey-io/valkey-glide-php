@@ -13,6 +13,28 @@ enum ClientType: string
     case ALL = 'all';
 }
 
+function prePopulateDatabase(object $client, int $dataSize): void
+{
+    echo "Pre-populating database with " . number_format(SIZE_SET_KEYSPACE) . " keys...\n";
+    echo "  (This may take several minutes on first run)\n";
+    $value = generateValue($dataSize);
+    $start = hrtime(true);
+    
+    for ($i = 1; $i <= SIZE_SET_KEYSPACE; $i++) {
+        $client->set((string)$i, $value);
+        
+        if ($i % 100_000 === 0) {
+            $elapsed = (hrtime(true) - $start) / 1_000_000_000;
+            $rate = (int)($i / $elapsed);
+            echo "  Progress: " . number_format($i) . "/" . number_format(SIZE_SET_KEYSPACE) . 
+                 " (" . number_format($rate) . " keys/sec)\n";
+        }
+    }
+    
+    $elapsed = (hrtime(true) - $start) / 1_000_000_000;
+    echo "Pre-population completed in " . round($elapsed, 2) . " seconds\n\n";
+}
+
 function runBenchmarkOperations(
     object $client,
     int $totalCommands,
@@ -123,6 +145,8 @@ function runBenchmarkSequential(
             }
         }
     }
+    
+    prePopulateDatabase($client, $dataSize);
     
     return runBenchmarkProcess($client, $totalCommands, $dataSize);
 }

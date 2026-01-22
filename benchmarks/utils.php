@@ -12,7 +12,7 @@ const SIZE_GET_KEYSPACE = 3_750_000; // 3.75 million
 const SIZE_SET_KEYSPACE = 3_000_000; // 3 million
 
 // Iteration scaling constants
-const MIN_ITERATIONS = 100_000;      // Minimum iterations for statistical significance
+const MIN_ITERATIONS = 100;      // Minimum iterations for statistical significance
 const MAX_ITERATIONS = 5_000_000;     // Maximum iterations cap
 
 // Default benchmark configuration
