@@ -8103,7 +8103,8 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $redis->del(['phpredis_alias_test']);
 
         try {
-            $badRedis = new Redis([['host' => 'localhost', 'port' => 9999]]);
+            $badRedis = new Redis();
+            $badRedis->connect(addresses: [['host' => 'localhost', 'port' => 9999]]);
             $badRedis->ping();
             $this->fail('Expected RedisException to be thrown');
         } catch (RedisException $e) {
