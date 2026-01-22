@@ -103,7 +103,8 @@ while (!file_exists($sync_file)) {
 }
 
 try {
-    $publisher = new ValkeyGlide([['host' => $host, 'port' => $port]]);
+    $publisher = new ValkeyGlide();
+    $publisher->connect(addresses: [['host' => $host, 'port' => $port]]);
     $count = $publisher->publish($channel, $message);
     $publisher->close();
     exit(0);

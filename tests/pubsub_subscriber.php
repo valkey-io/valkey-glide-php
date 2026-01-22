@@ -94,7 +94,8 @@ $result_file = $argv[6];
 $done_file = $argc > 7 ? $argv[7] : null;
 
 try {
-    $subscriber = new ValkeyGlide([['host' => $host, 'port' => $port]]);
+    $subscriber = new ValkeyGlide();
+    $subscriber->connect(addresses: [['host' => $host, 'port' => $port]]);
 
     // Signal ready
     file_put_contents($sync_file, 'ready');

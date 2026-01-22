@@ -12,11 +12,13 @@ class UpdateConnectionPasswordTest extends TestSuite
     private function createClient($password = null)
     {
         $credentials = $password ? ['password' => $password] : null;
-        return new ValkeyGlide(
-            [['host' => '127.0.0.1', 'port' => 6379]],
-            false,
-            $credentials
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6379]],
+            use_tls: false,
+            credentials: $credentials
         );
+        return $client;
     }
 
     private function createClusterClient($password = null)
