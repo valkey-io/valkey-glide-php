@@ -4,7 +4,16 @@
  * Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0
  */
 
+declare(strict_types=1);
+
+namespace ValkeyGlide\Benchmarks;
+
 require_once __DIR__ . '/utils.php';
+
+use ValkeyGlide;
+use ValkeyGlideCluster;
+use Redis;
+use RedisCluster;
 
 // Progress reporting constants
 const PROGRESS_REPORT_INTERVAL = 100_000;  // Report progress every N operations
