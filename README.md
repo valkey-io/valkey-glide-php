@@ -265,6 +265,8 @@ $client->close();
 
 For easier migration from PHPRedis, you can use PHPRedis-compatible class names:
 
+**Standalone:**
+
 ```php
 // Load the PHPRedis compatibility aliases
 require_once 'vendor/valkey-io/valkey-glide-php/phpredis_aliases.php';
@@ -284,6 +286,26 @@ try {
 }
 
 $client->close();
+```
+
+**Cluster:**
+
+```php
+// Load the PHPRedis compatibility aliases
+require_once 'vendor/valkey-io/valkey-glide-php/phpredis_aliases.php';
+
+// Now you can use RedisCluster instead of ValkeyGlideCluster
+$cluster = new RedisCluster(
+    addresses: [
+        ['host' => 'localhost', 'port' => 7001],
+        ['host' => 'localhost', 'port' => 7002]
+    ]
+);
+
+$cluster->set('foo', 'bar');
+$value = $cluster->get('foo');
+
+$cluster->close();
 ```
 
 **Requirements:**
