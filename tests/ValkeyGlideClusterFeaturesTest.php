@@ -520,17 +520,17 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $advancedConfig = ['connection_timeout' => 5000];
 
         $valkey_glide = new ValkeyGlideCluster(
-            $addresses,                                     // addresses
-            false,                                          // use_tls
-            $credentials,                                   // credentials
-            ValkeyGlide::READ_FROM_PRIMARY,                // read_from
-            3000,                                           // request_timeout
-            $reconnectStrategy,                             // reconnect_strategy
-            $clientName,                                    // client_name
-            ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS, // periodic_checks
-            'us-west-2a',                                   // client_az
-            $advancedConfig,                                // advanced_config
-            false                                           // lazy_connect
+            addresses: $addresses,
+            use_tls: false,
+            credentials: $credentials,
+            read_from: ValkeyGlide::READ_FROM_PRIMARY,
+            request_timeout: 3000,
+            reconnect_strategy: $reconnectStrategy,
+            client_name: $clientName,
+            periodic_checks: ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS,
+            client_az: 'us-west-2a',
+            advanced_config: $advancedConfig,
+            lazy_connect: false
         );
 
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
