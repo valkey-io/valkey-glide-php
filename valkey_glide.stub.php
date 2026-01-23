@@ -292,43 +292,18 @@ class ValkeyGlide
     public const PIPELINE = UNKNOWN;
 
     /**
-     * Create a new ValkeyGlide instance with the provided configuration.
+     * Create a new ValkeyGlide instance.
      *
-     * @param array $addresses                  Array of server addresses [['host' => 'localhost', 'port' => 6379], ...].
-     * @param bool $use_tls                     Whether to use TLS encryption.
-     * @param array|null $credentials           Authentication credentials. Can be either:
-     *                                          - Password auth: ['password' => 'xxx', 'username' => 'yyy']
-     *                                          - IAM auth: ['username' => 'yyy', 'iamConfig' => [
-     *                                              ValkeyGlide::IAM_CONFIG_CLUSTER_NAME => 'my-cluster',
-     *                                              ValkeyGlide::IAM_CONFIG_REGION => 'us-east-1',
-     *                                              ValkeyGlide::IAM_CONFIG_SERVICE => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
-     *                                              ValkeyGlide::IAM_CONFIG_REFRESH_INTERVAL => 300 // optional, defaults to 300
-     *                                            ]]
-     *                                          Note: username is REQUIRED for IAM authentication.
-     * @param int $read_from                    Read strategy for the client.
-     * @param int|null $request_timeout         Request timeout in milliseconds.
-     * @param array|null $reconnect_strategy    Reconnection strategy ['num_of_retries' => 3, 'factor' => 2,
-     *                                          'exponent_base' => 10, 'jitter_percent' => 15].
-     * @param int|null $database_id             Database ID to select (0 or higher)
-     * @param string|null $client_name          Client name identifier.
-     * @param string|null $client_az            Client availability zone.
-     * @param array|null $advanced_config       Advanced configuration ['connection_timeout' => 5000,
-     *                                          'tls_config' => ['use_insecure_tls' => false],
-     *                                          'otel' => OpenTelemetryConfig::builder()
-     *                                                      ->traces(TracesConfig::builder()
-     *                                                        ->endpoint('grpc://localhost:4317')
-     *                                                        ->samplePercentage(1)
-     *                                                        ->build())
-     *                                                      ->metrics(MetricsConfig::builder()
-     *                                                        ->endpoint('grpc://localhost:4317')
-     *                                                        ->build())
-     *                                                      ->flushIntervalMs(5000)
-     *                                                      ->build()].
-     *                                          connection_timeout is in milliseconds.
-     * @param bool|null $lazy_connect           Whether to use lazy connection.
-     * @param resource|null $context            Stream context for the connection.
+     * The constructor creates an unconnected client instance.
+     * Use the connect() method to establish a connection to the Valkey server.
+     *
+     * @example
+     * $client = new ValkeyGlide();
+     * $client->connect(addresses: [['host' => 'localhost', 'port' => 6379]]);
      */
-    public function __construct();
+    public function __construct()
+    {
+    }
 
     /**
      * Establishes connection to a Valkey server.
