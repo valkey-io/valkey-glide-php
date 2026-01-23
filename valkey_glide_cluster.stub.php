@@ -231,7 +231,7 @@ class ValkeyGlideCluster
         ?float $read_timeout = null,
         ?bool $persistent = null,
         mixed $auth = null,
-        ?array $context = null,
+        resource|array|null $context = null,
         ?array $addresses = null,
         ?bool $use_tls = null,
         ?array $credentials = null,

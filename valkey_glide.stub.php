@@ -358,7 +358,7 @@ class ValkeyGlide
         ?string $client_az = null,
         ?array $advanced_config = null,
         ?bool $lazy_connect = null,
-        ?resource $context = null,
+        resource|array|null $context = null,
     ): bool;
 
     public function __destruct();
