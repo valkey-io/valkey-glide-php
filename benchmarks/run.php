@@ -61,17 +61,21 @@ function createClient(
 ): object {
     if ($clientType === ClientType::GLIDE) {
         $advancedConfig = $useTls ? ['tls_config' => ['use_insecure_tls' => true]] : null;
-        return $isCluster
-            ? new ValkeyGlideCluster(
-                addresses: [['host' => $host, 'port' => $port]],
-                use_tls: $useTls,
-                advanced_config: $advancedConfig
-            )
-            : new ValkeyGlide(
+        if ($isCluster) {
+            return new ValkeyGlideCluster(
                 addresses: [['host' => $host, 'port' => $port]],
                 use_tls: $useTls,
                 advanced_config: $advancedConfig
             );
+        } else {
+            $client = new ValkeyGlide();
+            $client->connect(
+                addresses: [['host' => $host, 'port' => $port]],
+                use_tls: $useTls,
+                advanced_config: $advancedConfig
+            );
+            return $client;
+        }
     } else {
         if ($isCluster) {
             $client = new RedisCluster(null, ["{$host}:{$port}"]);
