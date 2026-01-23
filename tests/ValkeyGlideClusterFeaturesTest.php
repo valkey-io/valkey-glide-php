@@ -575,18 +575,18 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         // Test that constructor accepts all 12 parameters including database_id
         try {
             $valkey_glide = new ValkeyGlideCluster(
-                $addresses,                          // addresses
-                false,                               // use_tls
-                null,                                // credentials
-                ValkeyGlide::READ_FROM_PRIMARY,     // read_from
-                null,                                // request_timeout
-                null,                                // reconnect_strategy
-                null,                                // client_name
-                null,                                // periodic_checks
-                null,                                // client_az
-                null,                                // advanced_config
-                null,                                // lazy_connect
-                0                                    // database_id
+                addresses: $addresses,
+                use_tls: false,
+                credentials: null,
+                read_from: ValkeyGlide::READ_FROM_PRIMARY,
+                request_timeout: null,
+                reconnect_strategy: null,
+                client_name: null,
+                periodic_checks: null,
+                client_az: null,
+                advanced_config: null,
+                lazy_connect: null,
+                database_id: 0
             );
 
             $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
@@ -640,17 +640,17 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         try {
             // Test with 11 parameters (without database_id) - should still work
             $valkey_glide = new ValkeyGlideCluster(
-                $addresses,                          // addresses
-                false,                               // use_tls
-                null,                                // credentials
-                ValkeyGlide::READ_FROM_PRIMARY,     // read_from
-                null,                                // request_timeout
-                null,                                // reconnect_strategy
-                null,                                // client_name
-                null,                                // periodic_checks
-                null,                                // client_az
-                null,                                // advanced_config
-                null                                 // lazy_connect
+                addresses: $addresses,
+                use_tls: false,
+                credentials: null,
+                read_from: ValkeyGlide::READ_FROM_PRIMARY,
+                request_timeout: null,
+                reconnect_strategy: null,
+                client_name: null,
+                periodic_checks: null,
+                client_az: null,
+                advanced_config: null,
+                lazy_connect: null
                 // database_id omitted - should default to null/0
             );
 
@@ -674,20 +674,20 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         // Test with too many parameters (14) - should fail
         try {
             $client = new ValkeyGlideCluster(
-                $addresses,                          // 1
-                false,                               // 2
-                null,                                // 3
-                ValkeyGlide::READ_FROM_PRIMARY,     // 4
-                null,                                // 5
-                null,                                // 6
-                null,                                // 7
-                null,                                // 8
-                null,                                // 9
-                null,                                // 10
-                null,                                // 11
-                0,                                   // 12 - database_id
-                null,                                // 13 - context
-                'extra_param'                        // 14 - should cause error
+                addresses: $addresses,
+                use_tls: false,
+                credentials: null,
+                read_from: ValkeyGlide::READ_FROM_PRIMARY,
+                request_timeout: null,
+                reconnect_strategy: null,
+                client_name: null,
+                periodic_checks: null,
+                client_az: null,
+                advanced_config: null,
+                lazy_connect: null,
+                database_id: 0,
+                context: null,
+                extra_param: 'extra_param'           // should cause error
             );
 
             $this->fail('Expected ArgumentCountError for too many parameters');
