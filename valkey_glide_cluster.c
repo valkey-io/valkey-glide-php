@@ -158,9 +158,8 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
 
     /* Check if PHPRedis-style parameters are used */
-    zend_bool using_phpredis_style =
-        (name != NULL || seeds != NULL || !timeout_is_null || !read_timeout_is_null ||
-         !persistent_is_null || auth != NULL || phpredis_context != NULL);
+    zend_bool using_phpredis_style = (name != NULL || seeds != NULL || !timeout_is_null ||
+                                      !read_timeout_is_null || !persistent_is_null || auth != NULL);
 
     /* Detect conflicting parameters */
     if (using_phpredis_style && addresses != NULL) {
@@ -181,23 +180,23 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
         if (seeds != NULL) {
             addresses = seeds;
         }
-        if (!timeout_is_null) {
-            request_timeout         = (zend_long) (timeout * 1000);
-            request_timeout_is_null = 0;
-        } else if (!read_timeout_is_null) {
+        /* Map read_timeout to request_timeout (convert seconds to milliseconds) */
+        if (!read_timeout_is_null) {
             request_timeout         = (zend_long) (read_timeout * 1000);
             request_timeout_is_null = 0;
         }
         if (auth != NULL) {
             credentials = auth;
         }
-        if (phpredis_context != NULL) {
-            common_params.context = phpredis_context;
-        }
         /* Set default read_from if using PHPRedis style */
         if (read_from == 0) {
             read_from = VALKEY_GLIDE_READ_FROM_PREFER_REPLICA;
         }
+    }
+
+    /* Handle context (shared between PHPRedis and ValkeyGlide) */
+    if (phpredis_context != NULL) {
+        common_params.context = phpredis_context;
     }
 
     /* Populate common_params */
