@@ -502,6 +502,40 @@ echo "   PHPRedis style:  \$client->connect('localhost', 6379)\n";
 echo "   ValkeyGlide style: \$client->connect(addresses: [['host' => 'localhost', 'port' => 6379]])\n";
 echo "   Both styles are supported for easy migration!\n";
 
+echo "\n\n PHPRedis-Style Cluster Connection Examples:\n";
+echo "==============================================\n";
+
+// Example 1: Simple PHPRedis-style cluster connection
+echo "\n1. Simple cluster connection (PHPRedis-compatible):\n";
+try {
+    $clusterClient = new ValkeyGlideCluster(
+        seeds: [['host' => 'localhost', 'port' => 7001]]
+    );
+    echo "   Connected to cluster successfully!\n";
+    $clusterClient->close();
+} catch (Exception $e) {
+    echo "   Failed: " . $e->getMessage() . "\n";
+}
+
+// Example 2: Cluster with read_timeout
+echo "\n2. Cluster with read timeout (PHPRedis-compatible):\n";
+try {
+    $clusterClient = new ValkeyGlideCluster(
+        seeds: [['host' => 'localhost', 'port' => 7001]],
+        read_timeout: 2.5
+    );
+    echo "   Connected with 2.5s read timeout!\n";
+    $clusterClient->close();
+} catch (Exception $e) {
+    echo "   Failed: " . $e->getMessage() . "\n";
+}
+
+// Example 3: Cluster style comparison
+echo "\n3. Cluster style comparison:\n";
+echo "   PHPRedis style:  new ValkeyGlideCluster(seeds: [['host' => 'localhost', 'port' => 7001]])\n";
+echo "   ValkeyGlide style: new ValkeyGlideCluster(addresses: [['host' => 'localhost', 'port' => 7001]])\n";
+echo "   Both styles are supported for easy migration!\n";
+
 echo "\n Configuration Best Practices:\n";
 echo "-------------------------------\n";
 echo "1. Use environment variables for deployment flexibility\n";
