@@ -136,21 +136,160 @@ class PHPRedisStyleConnectionTest extends TestSuite
     }
 
     /**
-     * Test default port is used when not specified
+     * Test ValkeyGlideCluster with PHPRedis RedisCluster-style seeds parameter
      */
-    public function testDefaultPort()
+    public function testClusterConnectWithSeeds()
     {
-        if ($this->getPort() != 6379) {
-            $this->markTestSkipped('Test requires default port 6379');
+        $seeds = [
+            ['host' => '127.0.0.1', 'port' => 7001],
+            ['host' => '127.0.0.1', 'port' => 7002],
+        ];
+
+        $cluster = new ValkeyGlideCluster(name: null, seeds: $seeds);
+
+        $pingResult = $cluster->ping();
+        $this->assertEquals('PONG', $pingResult, 'Cluster PING should return PONG');
+
+        $cluster->close();
+    }
+
+    /**
+     * Test ValkeyGlideCluster with timeout parameter
+     */
+    public function testClusterConnectWithTimeout()
+    {
+        $seeds = [['host' => '127.0.0.1', 'port' => 7001]];
+
+        $cluster = new ValkeyGlideCluster(name: null, seeds: $seeds, timeout: 2.5);
+
+        $cluster->set('cluster_timeout_test', 'value');
+        $value = $cluster->get('cluster_timeout_test');
+        $this->assertEquals('value', $value);
+
+        $cluster->del(['cluster_timeout_test']);
+        $cluster->close();
+    }
+
+    /**
+     * Test ValkeyGlideCluster with auth parameter (string password)
+     */
+    public function testClusterConnectWithStringAuth()
+    {
+        if (!$this->getAuth()) {
+            $this->markTestSkipped('Test requires authentication');
             return;
         }
 
-        $client = new ValkeyGlide();
-        $result = $client->connect($this->getHost());
+        $seeds = [['host' => '127.0.0.1', 'port' => 7001]];
+        $password = is_array($this->getAuth()) ? $this->getAuth()['password'] : $this->getAuth();
 
-        $this->assertTrue($result, 'connect() with default port should work');
+        $cluster = new ValkeyGlideCluster(name: null, seeds: $seeds, auth: $password);
 
-        $client->ping();
-        $client->close();
+        $pingResult = $cluster->ping();
+        $this->assertEquals('PONG', $pingResult);
+
+        $cluster->close();
+    }
+
+    /**
+     * Test ValkeyGlideCluster with auth parameter (array with username and password)
+     */
+    public function testClusterConnectWithArrayAuth()
+    {
+        if (!$this->getAuth() || !is_array($this->getAuth())) {
+            $this->markTestSkipped('Test requires array authentication');
+            return;
+        }
+
+        $seeds = [['host' => '127.0.0.1', 'port' => 7001]];
+        $auth = [$this->getAuth()['username'], $this->getAuth()['password']];
+
+        $cluster = new ValkeyGlideCluster(name: null, seeds: $seeds, auth: $auth);
+
+        $pingResult = $cluster->ping();
+        $this->assertEquals('PONG', $pingResult);
+
+        $cluster->close();
+    }
+
+    /**
+     * Test ValkeyGlideCluster with ValkeyGlide-style addresses parameter
+     */
+    public function testClusterConnectWithAddresses()
+    {
+        $addresses = [
+            ['host' => '127.0.0.1', 'port' => 7001],
+            ['host' => '127.0.0.1', 'port' => 7002],
+        ];
+
+        $cluster = new ValkeyGlideCluster(addresses: $addresses);
+
+        $cluster->set('cluster_addresses_test', 'works');
+        $value = $cluster->get('cluster_addresses_test');
+        $this->assertEquals('works', $value);
+
+        $cluster->del(['cluster_addresses_test']);
+        $cluster->close();
+    }
+
+    /**
+     * Test ValkeyGlideCluster mixing PHPRedis and ValkeyGlide parameters fails
+     */
+    public function testClusterMixedParametersFails()
+    {
+        try {
+            $cluster = new ValkeyGlideCluster(
+                seeds: [['host' => '127.0.0.1', 'port' => 7001]],
+                addresses: [['host' => '127.0.0.1', 'port' => 7002]]
+            );
+            $this->fail('Should throw exception for conflicting parameters');
+        } catch (Exception $e) {
+            $this->assertStringContainsString('Cannot specify both', $e->getMessage());
+        }
+    }
+
+    /**
+     * Test ValkeyGlideCluster with ValkeyGlide-style credentials parameter
+     */
+    public function testClusterConnectWithCredentials()
+    {
+        if (!$this->getAuth()) {
+            $this->markTestSkipped('Test requires authentication');
+            return;
+        }
+
+        $addresses = [['host' => '127.0.0.1', 'port' => 7001]];
+        $credentials = is_array($this->getAuth()) ? $this->getAuth() : ['password' => $this->getAuth()];
+
+        $cluster = new ValkeyGlideCluster(addresses: $addresses, credentials: $credentials);
+
+        $pingResult = $cluster->ping();
+        $this->assertEquals('PONG', $pingResult);
+
+        $cluster->close();
+    }
+
+    /**
+     * Test RedisCluster alias works with PHPRedis-style connection
+     */
+    public function testRedisClusterAliasConnection()
+    {
+        if (!class_exists('RedisCluster')) {
+            $this->markTestSkipped('RedisCluster alias not available');
+            return;
+        }
+
+        $seeds = [['host' => '127.0.0.1', 'port' => 7001]];
+        $cluster = new RedisCluster(name: null, seeds: $seeds);
+
+        $pingResult = $cluster->ping();
+        $this->assertEquals('PONG', $pingResult);
+
+        $cluster->set('alias_cluster_test', 'value');
+        $value = $cluster->get('alias_cluster_test');
+        $this->assertEquals('value', $value);
+
+        $cluster->del(['alias_cluster_test']);
+        $cluster->close();
     }
 }
