@@ -1504,7 +1504,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $this->assertTrue(class_exists('RedisCluster'), 'RedisCluster class alias should exist');
 
-        $cluster = new RedisCluster([['host' => '127.0.0.1', 'port' => 7001]]);
+        $cluster = new RedisCluster(addresses: [['host' => '127.0.0.1', 'port' => 7001]]);
         $this->assertTrue($cluster instanceof RedisCluster, 'Instance should be RedisCluster');
         $this->assertTrue($cluster instanceof ValkeyGlideCluster, 'Instance should be ValkeyGlideCluster');
 
