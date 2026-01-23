@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace ValkeyGlide\Benchmarks;
 
+// phpcs:disable PSR1.Files.SideEffects
 require_once __DIR__ . '/utils.php';
 
 use ValkeyGlide;
