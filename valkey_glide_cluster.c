@@ -175,7 +175,7 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     Z_PARAM_DOUBLE_OR_NULL(read_timeout, read_timeout_is_null)
     Z_PARAM_BOOL_OR_NULL(persistent, persistent_is_null)
     Z_PARAM_ZVAL_OR_NULL(auth)
-    Z_PARAM_ARRAY_OR_NULL(phpredis_context)
+    Z_PARAM_ZVAL_OR_NULL(phpredis_context)
     Z_PARAM_ARRAY_OR_NULL(addresses)
     Z_PARAM_BOOL_OR_NULL(use_tls, use_tls_is_null)
     Z_PARAM_ARRAY_OR_NULL(credentials)

@@ -763,7 +763,7 @@ PHP_METHOD(ValkeyGlide, connect) {
     Z_PARAM_STRING_OR_NULL(client_az, client_az_len)
     Z_PARAM_ARRAY_OR_NULL(advanced_config)
     Z_PARAM_ZVAL_OR_NULL(lazy_connect_zval)
-    Z_PARAM_RESOURCE_OR_NULL(context)
+    Z_PARAM_ZVAL_OR_NULL(context)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* Apply defaults for nullable parameters */
@@ -795,7 +795,7 @@ PHP_METHOD(ValkeyGlide, connect) {
         RETURN_FALSE;
     }
 
-    /* Build addresses array from PHPRedis-style host/port if provided */
+    /* Build addresses array host/port if provided */
     zval addresses_to_pass;
     if (host != NULL) {
         array_init(&addresses_to_pass);
@@ -807,7 +807,7 @@ PHP_METHOD(ValkeyGlide, connect) {
         addresses = &addresses_to_pass;
     }
 
-    /* Convert PHPRedis timeout to ValkeyGlide request_timeout if provided */
+    /* Convert timeout to ValkeyGlide request_timeout if provided */
     zval converted_request_timeout;
     if (timeout > 0.0 &&
         (request_timeout_zval == NULL || Z_TYPE_P(request_timeout_zval) == IS_NULL)) {
@@ -1217,7 +1217,22 @@ PHP_FUNCTION(valkey_glide_logger_get_level) {
  */
 static HashTable* _get_stream_context_ssl_options_ht(
     valkey_glide_php_common_constructor_params_t* params) {
-    if (!params->context || Z_TYPE_P(params->context) != IS_RESOURCE)
+    if (!params->context)
+        return NULL;
+
+    // Handle array context
+    if (Z_TYPE_P(params->context) == IS_ARRAY) {
+        // Return the 'ssl' sub-array if it exists
+        zval* ssl_options =
+            zend_hash_str_find(Z_ARRVAL_P(params->context), "ssl", sizeof("ssl") - 1);
+        if (ssl_options && Z_TYPE_P(ssl_options) == IS_ARRAY) {
+            return Z_ARRVAL_P(ssl_options);
+        }
+        return NULL;
+    }
+
+    // Handle resource context (stream_context_create)
+    if (Z_TYPE_P(params->context) != IS_RESOURCE)
         return NULL;
 
     void* resource =
