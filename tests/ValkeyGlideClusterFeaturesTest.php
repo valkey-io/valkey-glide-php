@@ -102,7 +102,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $valkey_glide = new ValkeyGlideCluster(
             addresses: [['host' => '127.0.0.1', 'port' => 5001]],
             use_tls: false,
-            ['username' => '', 'password' => 'dummy_password'] // password credentials
+            credentials: ['username' => '', 'password' => 'dummy_password'] // password credentials
         );
 
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
