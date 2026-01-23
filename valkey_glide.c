@@ -108,9 +108,6 @@ zend_object* create_valkey_glide_object(zend_class_entry* ce) {
     zend_object_std_init(&valkey_glide->std, ce);
     object_properties_init(&valkey_glide->std, ce);
 
-    /* Initialize connection state */
-    valkey_glide->is_connected = false;
-
     memcpy(&valkey_glide_object_handlers,
            zend_get_std_object_handlers(),
            sizeof(valkey_glide_object_handlers));
@@ -599,7 +596,7 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     valkey_glide_init_common_constructor_params(&common_params);
 
     /* Check if already connected */
-    if (valkey_glide->is_connected) {
+    if (valkey_glide->glide_client != NULL) {
         const char* error_message = "Client is already connected";
         VALKEY_LOG_ERROR("valkey_glide_create_connection", error_message);
         zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
@@ -704,7 +701,6 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
         VALKEY_LOG_INFO("valkey_glide_create_connection",
                         "ValkeyGlide client connected successfully");
         valkey_glide->glide_client = conn_resp->conn_ptr;
-        valkey_glide->is_connected = true;
     }
 
     free_connection_response((ConnectionResponse*) conn_resp);
