@@ -294,8 +294,6 @@ jobs:
           echo "=== Step 1: Cleaning previous builds ==="
           rm -rf ./modules/ ./libs/ ./.libs/ ./tmp-php.ini ./asan_logs/
           find . -name "*.lo" -o -name "*.o" -o -name "*.la" | xargs rm -f 2>/dev/null || true
-          # Remove arginfo files to force regeneration from stubs
-          rm -f valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h valkey_glide_legacy_arginfo.h valkey_glide_cluster_legacy_arginfo.h logger_arginfo.h logger_legacy_arginfo.h cluster_scan_cursor_arginfo.h cluster_scan_cursor_legacy_arginfo.h src/client_constructor_mock_arginfo.h src/client_constructor_mock_legacy_arginfo.h
 
           # Step 2: Initialize PHP extension build system
           echo "=== Step 2: Initializing PHP extension build system ==="
@@ -513,8 +511,6 @@ jobs:
           echo "=== Step 1: Cleaning previous builds ==="
           rm -rf ./modules/ ./libs/ ./.libs/ ./tmp-php.ini ./valgrind_logs/
           find . -name "*.lo" -o -name "*.o" -o -name "*.la" | xargs rm -f 2>/dev/null || true
-          # Remove arginfo files to force regeneration from stubs
-          rm -f valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h valkey_glide_legacy_arginfo.h valkey_glide_cluster_legacy_arginfo.h logger_arginfo.h logger_legacy_arginfo.h cluster_scan_cursor_arginfo.h cluster_scan_cursor_legacy_arginfo.h src/client_constructor_mock_arginfo.h src/client_constructor_mock_legacy_arginfo.h
 
           # Step 2: Initialize PHP extension build system
           echo "=== Step 2: Initializing PHP extension build system ==="
