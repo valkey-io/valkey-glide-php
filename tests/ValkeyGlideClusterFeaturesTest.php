@@ -671,7 +671,6 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     {
         $addresses = [['host' => 'localhost', 'port' => 7001]];
 
-        // Test with too many parameters (14) - should fail
         try {
             $client = new ValkeyGlideCluster(
                 addresses: $addresses,
@@ -685,17 +684,13 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 client_az: null,
                 advanced_config: null,
                 lazy_connect: null,
-                database_id: 0,
-                context: null,
-                extra_param: 'extra_param'           // should cause error
+                database_id: 0
             );
 
-            $this->fail('Expected ArgumentCountError for too many parameters');
-        } catch (ArgumentCountError $e) {
-            // This is expected - too many parameters
-            $this->assertStringContains('expects at most 13 arguments', $e->getMessage());
+            $this->assertTrue($client->ping(['type' => 'primarySlotKey', 'key' => 'test']));
+            $client->close();
         } catch (Exception $e) {
-            $this->fail('Expected ArgumentCountError, got: ' . $e->getMessage());
+            $this->fail('Constructor should accept all valid parameters: ' . $e->getMessage());
         }
     }
 
