@@ -697,7 +697,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             );
             $this->fail('Should throw exception for conflicting parameters');
         } catch (Exception $e) {
-            $this->assertStringContainsString('Cannot specify both', $e->getMessage());
+            $this->assertStringContains('Cannot specify both', $e->getMessage(), 'Exception should mention parameter conflict');
         }
     }
 
