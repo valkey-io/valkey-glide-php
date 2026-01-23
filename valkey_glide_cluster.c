@@ -95,6 +95,41 @@ static int valkey_glide_cluster_create_connection(
     return SUCCESS;
 }
 
+/**
+ * Maps PHPRedis-style constructor parameters to ValkeyGlide-style parameters.
+ * Modifies the provided parameters in place.
+ */
+static void map_phpredis_to_valkey_params(zval**     addresses,
+                                          zval*      seeds,
+                                          zend_long* request_timeout,
+                                          zend_bool* request_timeout_is_null,
+                                          double     read_timeout,
+                                          zend_bool  read_timeout_is_null,
+                                          zval**     credentials,
+                                          zval*      auth,
+                                          zend_long* read_from) {
+    /* Map seeds to addresses */
+    if (seeds != NULL) {
+        *addresses = seeds;
+    }
+
+    /* Map read_timeout to request_timeout (convert seconds to milliseconds) */
+    if (!read_timeout_is_null) {
+        *request_timeout         = (zend_long) (read_timeout * 1000);
+        *request_timeout_is_null = 0;
+    }
+
+    /* Map auth to credentials */
+    if (auth != NULL) {
+        *credentials = auth;
+    }
+
+    /* Set default read_from for cluster if not specified */
+    if (*read_from == 0) {
+        *read_from = VALKEY_GLIDE_READ_FROM_PREFER_REPLICA;
+    }
+}
+
 PHP_METHOD(ValkeyGlideCluster, __construct) {
     char*     name                    = NULL;
     size_t    name_len                = 0;
@@ -177,21 +212,15 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
 
     /* Map PHPRedis parameters to ValkeyGlide parameters */
     if (using_phpredis_style) {
-        if (seeds != NULL) {
-            addresses = seeds;
-        }
-        /* Map read_timeout to request_timeout (convert seconds to milliseconds) */
-        if (!read_timeout_is_null) {
-            request_timeout         = (zend_long) (read_timeout * 1000);
-            request_timeout_is_null = 0;
-        }
-        if (auth != NULL) {
-            credentials = auth;
-        }
-        /* Set default read_from if using PHPRedis style */
-        if (read_from == 0) {
-            read_from = VALKEY_GLIDE_READ_FROM_PREFER_REPLICA;
-        }
+        map_phpredis_to_valkey_params(&addresses,
+                                      seeds,
+                                      &request_timeout,
+                                      &request_timeout_is_null,
+                                      read_timeout,
+                                      read_timeout_is_null,
+                                      &credentials,
+                                      auth,
+                                      &read_from);
     }
 
     /* Handle context (shared between PHPRedis and ValkeyGlide) */
