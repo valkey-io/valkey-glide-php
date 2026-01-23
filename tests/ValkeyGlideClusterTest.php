@@ -317,10 +317,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
                 reconnect_strategy: null,
                 client_name: null,
                 periodic_checks: null,
-                null, // client_az
-                null, // advanced_config
-                null, // lazy_connect
-                0     // database_id - enable multi-database support
+                client_az: null,
+                advanced_config: null,
+                lazy_connect: null,
+                database_id: 0 // enable multi-database support
             );
         } catch (Exception $ex) {
             TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());
