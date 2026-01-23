@@ -151,6 +151,12 @@ runs:
             fi
         fi
 
+    - name: Clean arginfo files
+      shell: bash
+      run: |
+        echo "=== Removing old arginfo files to force regeneration ==="
+        rm -f valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h valkey_glide_legacy_arginfo.h valkey_glide_cluster_legacy_arginfo.h logger_arginfo.h logger_legacy_arginfo.h cluster_scan_cursor_arginfo.h cluster_scan_cursor_legacy_arginfo.h src/client_constructor_mock_arginfo.h src/client_constructor_mock_legacy_arginfo.h
+
     - name: Initialize PHP extension build system
       shell: bash
       run: |
