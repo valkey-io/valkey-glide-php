@@ -13,7 +13,7 @@ ini_set('display_errors', 1);
 
 // Check if extension is loaded
 if (!extension_loaded('valkey_glide')) {
-    echo "❌ Valkey GLIDE extension is not loaded!\n";
+    echo "Valkey GLIDE extension is not loaded!\n";
     echo "Please install and enable the valkey_glide extension.\n";
     exit(1);
 }
@@ -46,7 +46,7 @@ try {
         request_timeout: 5000
     );
 
-    echo "✅ Connected successfully!\n\n";
+    echo "Connected successfully!\n\n";
 
     // Test connection with PING
     echo "🏓 Testing connection...\n";
@@ -169,9 +169,9 @@ try {
     $deletedCount = $client->del($keysToDelete);
     echo "Deleted {$deletedCount} keys\n";
 
-    echo "\n✅ Example completed successfully!\n";
+    echo "\nExample completed successfully!\n";
 } catch (Exception $e) {
-    echo "❌ Error: " . $e->getMessage() . "\n";
+    echo "Error: " . $e->getMessage() . "\n";
     echo "Error details: " . $e->getTraceAsString() . "\n";
     exit(1);
 } finally {

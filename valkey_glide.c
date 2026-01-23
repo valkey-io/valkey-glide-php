@@ -108,6 +108,9 @@ zend_object* create_valkey_glide_object(zend_class_entry* ce) {
     zend_object_std_init(&valkey_glide->std, ce);
     object_properties_init(&valkey_glide->std, ce);
 
+    /* Initialize connection state */
+    valkey_glide->is_connected = false;
+
     memcpy(&valkey_glide_object_handlers,
            zend_get_std_object_handlers(),
            sizeof(valkey_glide_object_handlers));
@@ -569,15 +572,8 @@ PHP_MINFO_FUNCTION(redis)
     Creates a ValkeyGlide client instance. Use connect() to establish server connection.
  */
 PHP_METHOD(ValkeyGlide, __construct) {
-    valkey_glide_object* valkey_glide;
-
     ZEND_PARSE_PARAMETERS_START(0, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
-
-    valkey_glide               = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
-    valkey_glide->is_connected = false;
-
-    VALKEY_LOG_DEBUG("php_construct", "ValkeyGlide client instance created");
 }
 /* }}} */
 

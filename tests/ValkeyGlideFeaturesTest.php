@@ -631,6 +631,77 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     }
 
     // ===================================================================
+    // PHPREDIS-STYLE CONNECTION TESTS
+    // ===================================================================
+
+    public function testPHPRedisStyleHostPort()
+    {
+        // Test PHPRedis-compatible connection with host and port
+        if ($this->getTLS()) {
+            $this->markTestSkipped('PHPRedis-style connection test requires non-TLS');
+            return;
+        }
+
+        $client = new ValkeyGlide();
+        $result = $client->connect($this->getHost(), $this->getPort());
+
+        $this->assertTrue($result, 'connect() should return true');
+        $this->assertTrue($client->ping(), 'PING should work after connection');
+
+        // Test basic operations
+        $client->set('phpredis_test', 'value');
+        $value = $client->get('phpredis_test');
+        $this->assertEquals('value', $value);
+
+        $client->del(['phpredis_test']);
+        $client->close();
+    }
+
+    public function testPHPRedisStyleWithTimeout()
+    {
+        // Test PHPRedis-compatible connection with timeout parameter
+        if ($this->getTLS()) {
+            $this->markTestSkipped('PHPRedis-style connection test requires non-TLS');
+            return;
+        }
+
+        $client = new ValkeyGlide();
+        $result = $client->connect($this->getHost(), $this->getPort(), 2.5);
+
+        $this->assertTrue($result, 'connect() with timeout should return true');
+
+        // Verify timeout is applied by doing operations
+        $client->set('timeout_test', 'value');
+        $value = $client->get('timeout_test');
+        $this->assertEquals('value', $value);
+
+        $client->del(['timeout_test']);
+        $client->close();
+    }
+
+    public function testPHPRedisStyleConflictDetection()
+    {
+        // Test that mixing PHPRedis and ValkeyGlide parameters is detected
+        if ($this->getTLS()) {
+            $this->markTestSkipped('Parameter conflict test requires non-TLS');
+            return;
+        }
+
+        $client = new ValkeyGlide();
+
+        try {
+            // Try to specify both host and addresses - should fail
+            $client->connect(
+                $this->getHost(),
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]
+            );
+            $this->fail('Should throw exception for conflicting parameters');
+        } catch (Exception $e) {
+            $this->assertStringContainsString('Cannot specify both', $e->getMessage());
+        }
+    }
+
+    // ===================================================================
     // LOGGER TESTS - Multi-level logging system integration tests
     // ===================================================================
 

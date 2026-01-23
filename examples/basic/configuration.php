@@ -13,7 +13,7 @@ ini_set('display_errors', 1);
 
 // Check if extension is loaded
 if (!extension_loaded('valkey_glide')) {
-    echo "❌ Valkey GLIDE extension is not loaded!\n";
+    echo "Valkey GLIDE extension is not loaded!\n";
     exit(1);
 }
 
@@ -35,11 +35,11 @@ try {
     echo "Creating client with minimal configuration...\n";
     $basicClient = new ValkeyGlide();
     $basicClient->connect(addresses: $basicAddresses);
-    echo "✅ Basic client created successfully\n";
+    echo "Basic client created successfully\n";
     $basicClient->ping();
     $basicClient->close();
 } catch (Exception $e) {
-    echo "❌ Basic client failed: " . $e->getMessage() . "\n";
+    echo "Basic client failed: " . $e->getMessage() . "\n";
 }
 echo "\n";
 
@@ -90,16 +90,12 @@ try {
         lazy_connect: $lazy_connect
     );
 
-    echo "✅ Advanced standalone client created successfully\n";
-
-    // Show client info
-    $info = $advancedClient->client_info();
-    echo "Client info: " . json_encode($info) . "\n";
+    echo "Advanced standalone client created successfully\n";
 
     $advancedClient->ping();
     $advancedClient->close();
 } catch (Exception $e) {
-    echo "❌ Advanced standalone client failed: " . $e->getMessage() . "\n";
+    echo "Advanced standalone client failed: " . $e->getMessage() . "\n";
 }
 echo "\n";
 
@@ -139,11 +135,11 @@ try {
         false                     // lazy_connect
     );
 
-    echo "✅ Cluster client created successfully\n";
+    echo "Cluster client created successfully\n";
     $clusterClient->ping();
     $clusterClient->close();
 } catch (Exception $e) {
-    echo "❌ Cluster client failed (this is expected if no cluster is running): " . $e->getMessage() . "\n";
+    echo "Cluster client failed (this is expected if no cluster is running): " . $e->getMessage() . "\n";
 }
 echo "\n";
 
@@ -170,11 +166,11 @@ try {
         request_timeout: 5000
     );
 
-    echo "✅ Authenticated client created\n";
+    echo "Authenticated client created\n";
     $authClient->ping();
     $authClient->close();
 } catch (Exception $e) {
-    echo "❌ Authentication failed (expected): " . $e->getMessage() . "\n";
+    echo "Authentication failed (expected): " . $e->getMessage() . "\n";
 }
 
 // Password-only authentication (older Redis/Valkey style)
@@ -188,10 +184,10 @@ try {
         request_timeout: 5000
     );
 
-    echo "✅ Password-only client created\n";
+    echo "Password-only client created\n";
     $passwordClient->close();
 } catch (Exception $e) {
-    echo "❌ Password authentication failed (expected): " . $e->getMessage() . "\n";
+    echo "Password authentication failed (expected): " . $e->getMessage() . "\n";
 }
 echo "\n";
 
@@ -221,11 +217,11 @@ try {
         request_timeout: 5000
     );
 
-    echo "✅ IAM ElastiCache client created\n";
+    echo "IAM ElastiCache client created\n";
     $iamClient->ping();
     $iamClient->close();
 } catch (Exception $e) {
-    echo "❌ IAM ElastiCache authentication failed (expected if not on AWS): " . $e->getMessage() . "\n";
+    echo "IAM ElastiCache authentication failed (expected if not on AWS): " . $e->getMessage() . "\n";
 }
 
 // IAM authentication for AWS MemoryDB
@@ -246,11 +242,11 @@ try {
         ]
     );
 
-    echo "✅ IAM MemoryDB client created\n";
+    echo "IAM MemoryDB client created\n";
     $memorydbClient->ping();
     $memorydbClient->close();
 } catch (Exception $e) {
-    echo "❌ IAM MemoryDB authentication failed (expected if not on AWS): " . $e->getMessage() . "\n";
+    echo "IAM MemoryDB authentication failed (expected if not on AWS): " . $e->getMessage() . "\n";
 }
 
 echo "\nℹ️  IAM Authentication Notes:\n";
@@ -281,11 +277,11 @@ try {
         request_timeout: 5000
     );
 
-    echo "✅ TLS client created\n";
+    echo "TLS client created\n";
     $tlsClient->ping();
     $tlsClient->close();
 } catch (Exception $e) {
-    echo "❌ TLS connection failed (expected): " . $e->getMessage() . "\n";
+    echo "TLS connection failed (expected): " . $e->getMessage() . "\n";
 }
 echo "\n";
 
@@ -315,10 +311,10 @@ foreach ($readPreferences as $readFrom => $description) {
             request_timeout: 2000
         );
 
-        echo "  ✅ Client created with read preference {$readFrom}\n";
+        echo "  Client created with read preference {$readFrom}\n";
         $readClient->close();
     } catch (Exception $e) {
-        echo "  ❌ Read preference {$readFrom} failed: " . $e->getMessage() . "\n";
+        echo "  Read preference {$readFrom} failed: " . $e->getMessage() . "\n";
     }
 }
 echo "\n";
@@ -349,17 +345,17 @@ foreach ($timeoutExamples as $timeout => $description) {
             request_timeout: $timeout
         );
 
-        echo "  ✅ Client created with {$timeout}ms timeout\n";
+        echo "  Client created with {$timeout}ms timeout\n";
 
         // Test with a quick operation
         $start = microtime(true);
         $timeoutClient->ping();
         $duration = (microtime(true) - $start) * 1000;
-        echo "  PING took {$duration:.2f}ms\n";
+        echo "  PING took " . number_format($duration, 2) . "ms\n";
 
         $timeoutClient->close();
     } catch (Exception $e) {
-        echo "  ❌ Timeout {$timeout} failed: " . $e->getMessage() . "\n";
+        echo "  Timeout {$timeout} failed: " . $e->getMessage() . "\n";
     }
 }
 echo "\n";
@@ -405,10 +401,10 @@ foreach ($reconnectStrategies as $name => $strategy) {
             reconnect_strategy: $strategy
         );
 
-        echo "  ✅ Client created with '{$name}' reconnection strategy\n";
+        echo "  Client created with '{$name}' reconnection strategy\n";
         $reconnectClient->close();
     } catch (Exception $e) {
-        echo "  ❌ Strategy '{$name}' failed: " . $e->getMessage() . "\n";
+        echo "  Strategy '{$name}' failed: " . $e->getMessage() . "\n";
     }
     echo "\n";
 }
@@ -455,12 +451,57 @@ try {
         database_id: $envDatabase
     );
 
-    echo "✅ Environment-based client created successfully\n";
+    echo "Environment-based client created successfully\n";
     $envClient->ping();
     $envClient->close();
 } catch (Exception $e) {
-    echo "❌ Environment-based client failed: " . $e->getMessage() . "\n";
+    echo "Environment-based client failed: " . $e->getMessage() . "\n";
 }
+
+// =============================================================================
+// PHPREDIS-STYLE CONNECTION EXAMPLES
+// =============================================================================
+echo "\n🔌 PHPRedis-Style Connection Examples:\n";
+echo "-------------------------------------\n";
+
+// Example 1: Simple host/port connection
+echo "1. Simple host/port (PHPRedis-compatible):\n";
+try {
+    $phpredisClient = new ValkeyGlide();
+    $result = $phpredisClient->connect($envConfig['VALKEY_HOST'], (int)$envConfig['VALKEY_PORT']);
+    
+    if ($result) {
+        echo "   Connected using connect(host, port)\n";
+        $phpredisClient->set('phpredis_test', 'works');
+        echo "   Operations successful\n";
+        $phpredisClient->del(['phpredis_test']);
+        $phpredisClient->close();
+    }
+} catch (Exception $e) {
+    echo "   Failed: " . $e->getMessage() . "\n";
+}
+
+// Example 2: Connection with timeout
+echo "\n2. Connection with timeout (PHPRedis-compatible):\n";
+try {
+    $phpredisClient = new ValkeyGlide();
+    $result = $phpredisClient->connect($envConfig['VALKEY_HOST'], (int)$envConfig['VALKEY_PORT'], 2.5);
+    
+    if ($result) {
+        echo "   Connected with 2.5s timeout\n";
+        $phpredisClient->ping();
+        echo "   PING successful\n";
+        $phpredisClient->close();
+    }
+} catch (Exception $e) {
+    echo "   Failed: " . $e->getMessage() . "\n";
+}
+
+// Example 3: Comparison - ValkeyGlide style vs PHPRedis style
+echo "\n3. Style comparison:\n";
+echo "   PHPRedis style:  \$client->connect('localhost', 6379)\n";
+echo "   ValkeyGlide style: \$client->connect(addresses: [['host' => 'localhost', 'port' => 6379]])\n";
+echo "   Both styles are supported for easy migration!\n";
 
 echo "\n📚 Configuration Best Practices:\n";
 echo "-------------------------------\n";
@@ -474,4 +515,4 @@ echo "7. Consider read preferences when using replicas\n";
 echo "8. Limit in-flight requests to prevent memory issues\n";
 echo "9. Use lazy connection for applications with conditional Redis usage\n";
 
-echo "\n✅ Configuration examples completed!\n";
+echo "\nConfiguration examples completed!\n";

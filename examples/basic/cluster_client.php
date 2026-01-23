@@ -13,7 +13,7 @@ ini_set('display_errors', 1);
 
 // Check if extension is loaded
 if (!extension_loaded('valkey_glide')) {
-    echo "❌ Valkey GLIDE extension is not loaded!\n";
+    echo "Valkey GLIDE extension is not loaded!\n";
     echo "Please install and enable the valkey_glide extension.\n";
     exit(1);
 }
@@ -52,7 +52,7 @@ try {
         5000                     // Request timeout (5 seconds)
     );
 
-    echo "✅ Connected to cluster successfully!\n\n";
+    echo "Connected to cluster successfully!\n\n";
 
     // Test connection with PING
     echo "🏓 Testing cluster connection...\n";
@@ -177,15 +177,15 @@ try {
             'cross:key1' => 'value1',
             'cross:key2' => 'value2'
         ]);
-        echo "✅ MSET across different slots succeeded\n";
+        echo "MSET across different slots succeeded\n";
     } catch (Exception $e) {
-        echo "❌ MSET failed (expected in cluster): " . $e->getMessage() . "\n";
+        echo "MSET failed (expected in cluster): " . $e->getMessage() . "\n";
 
         // Alternative: Set keys individually
         echo "Setting keys individually instead...\n";
         $client->set('cross:key1', 'value1');
         $client->set('cross:key2', 'value2');
-        echo "✅ Individual SET operations successful\n";
+        echo "Individual SET operations successful\n";
     }
     echo "\n";
 
@@ -227,9 +227,9 @@ try {
     }
     echo "Deleted {$deletedCount} keys\n";
 
-    echo "\n✅ Cluster example completed successfully!\n";
+    echo "\nCluster example completed successfully!\n";
 } catch (Exception $e) {
-    echo "❌ Error: " . $e->getMessage() . "\n";
+    echo "Error: " . $e->getMessage() . "\n";
     echo "Error details: " . $e->getTraceAsString() . "\n";
 
     // Common cluster connection issues

@@ -13,7 +13,7 @@ ini_set('display_errors', 1);
 
 // Check if extension is loaded
 if (!extension_loaded('valkey_glide')) {
-    echo "❌ Valkey GLIDE extension is not loaded!\n";
+    echo "Valkey GLIDE extension is not loaded!\n";
     exit(1);
 }
 
@@ -91,11 +91,11 @@ class CacheManager
         // Try to get from cache first
         $cached = $this->client->get($key);
         if ($cached !== null) {
-            echo "    ✅ Cache HIT for key: {$key}\n";
+            echo "    Cache HIT for key: {$key}\n";
             return json_decode($cached, true);
         }
 
-        echo "    ❌ Cache MISS for key: {$key}\n";
+        echo "    Cache MISS for key: {$key}\n";
 
         // If callback provided, execute it and cache the result
         if ($callback && is_callable($callback)) {
@@ -135,7 +135,7 @@ $client = null;
 try {
     $client = new ValkeyGlide();
     $client->connect(addresses: $addresses, use_tls: false, request_timeout: 5000);
-    echo "✅ Connected to Valkey server\n\n";
+    echo "Connected to Valkey server\n\n";
 
     // Initialize our components
     $database = new MockDatabase();
@@ -177,7 +177,7 @@ try {
             // Then update cache
             $updatedUser = $database->getUser($userId);
             $cache->set($cacheKey, $updatedUser);
-            echo "   ✅ Write-through completed for user {$userId}\n";
+            echo "   Write-through completed for user {$userId}\n";
             return $updatedUser;
         }
 
@@ -344,7 +344,7 @@ try {
     $lazyUser = getLazyWarmed($cache, $database, 1);
     echo "   Retrieved user: {$lazyUser['name']}\n\n";
 } catch (Exception $e) {
-    echo "❌ Error: " . $e->getMessage() . "\n";
+    echo "Error: " . $e->getMessage() . "\n";
     exit(1);
 } finally {
     if ($client) {
