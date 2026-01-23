@@ -18,7 +18,7 @@ if (!extension_loaded('valkey_glide')) {
     exit(1);
 }
 
-echo "🚀 Valkey GLIDE PHP - Cluster Client Example\n";
+echo " Valkey GLIDE PHP - Cluster Client Example\n";
 echo "===========================================\n\n";
 
 // Configuration - can be customized via environment variables
@@ -55,12 +55,12 @@ try {
     echo "Connected to cluster successfully!\n\n";
 
     // Test connection with PING
-    echo "🏓 Testing cluster connection...\n";
+    echo " Testing cluster connection...\n";
     $pong = $client->ping();
     echo "PING response: {$pong}\n\n";
 
     // Cluster-specific operations
-    echo "🌐 Cluster Information:\n";
+    echo " Cluster Information:\n";
     echo "----------------------\n";
 
 
@@ -168,7 +168,7 @@ try {
     echo "\n";
 
     // Cross-slot operations (might fail in strict cluster mode)
-    echo "⚠️  Cross-slot Operations:\n";
+    echo "  Cross-slot Operations:\n";
     echo "-------------------------\n";
 
     try {
@@ -190,7 +190,7 @@ try {
     echo "\n";
 
     // Cluster-aware patterns
-    echo "🔧 Recommended Cluster Patterns:\n";
+    echo " Recommended Cluster Patterns:\n";
     echo "-------------------------------\n";
 
     // Pattern 1: User-specific operations with hash tags
@@ -244,11 +244,11 @@ try {
     // Always close the connection
     if ($client) {
         $client->close();
-        echo "🔌 Cluster connection closed.\n";
+        echo " Cluster connection closed.\n";
     }
 }
 
-echo "\n📚 Next Steps:\n";
+echo "\n Next Steps:\n";
 echo "- Learn about configuration options: php basic/configuration.php\n";
 echo "- Try advanced cluster features in the advanced/ directory\n";
 echo "- Explore data structure examples optimized for cluster mode\n";

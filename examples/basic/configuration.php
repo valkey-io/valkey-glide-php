@@ -17,13 +17,13 @@ if (!extension_loaded('valkey_glide')) {
     exit(1);
 }
 
-echo "🚀 Valkey GLIDE PHP - Configuration Examples\n";
+echo " Valkey GLIDE PHP - Configuration Examples\n";
 echo "==========================================\n\n";
 
 // =============================================================================
 // BASIC CONFIGURATION
 // =============================================================================
-echo "📋 Basic Configuration:\n";
+echo " Basic Configuration:\n";
 echo "----------------------\n";
 
 // Minimal configuration - just host and port
@@ -46,7 +46,7 @@ echo "\n";
 // =============================================================================
 // ADVANCED STANDALONE CONFIGURATION
 // =============================================================================
-echo "🔧 Advanced Standalone Configuration:\n";
+echo " Advanced Standalone Configuration:\n";
 echo "------------------------------------\n";
 
 $standaloneAddresses = [
@@ -102,7 +102,7 @@ echo "\n";
 // =============================================================================
 // CLUSTER CONFIGURATION
 // =============================================================================
-echo "🌐 Cluster Configuration:\n";
+echo " Cluster Configuration:\n";
 echo "------------------------\n";
 
 $clusterAddresses = [
@@ -146,7 +146,7 @@ echo "\n";
 // =============================================================================
 // CONFIGURATION WITH AUTHENTICATION
 // =============================================================================
-echo "🔐 Authentication Configuration:\n";
+echo " Authentication Configuration:\n";
 echo "-------------------------------\n";
 
 // Example with username/password (for servers that support ACL)
@@ -194,7 +194,7 @@ echo "\n";
 // =============================================================================
 // IAM AUTHENTICATION (AWS ElastiCache/MemoryDB)
 // =============================================================================
-echo "☁️  IAM Authentication Configuration (AWS):\n";
+echo "  IAM Authentication Configuration (AWS):\n";
 echo "-------------------------------------------\n";
 
 // IAM authentication for AWS ElastiCache
@@ -249,7 +249,7 @@ try {
     echo "IAM MemoryDB authentication failed (expected if not on AWS): " . $e->getMessage() . "\n";
 }
 
-echo "\nℹ️  IAM Authentication Notes:\n";
+echo "\n  IAM Authentication Notes:\n";
 echo "  - Requires TLS to be enabled (use_tls: true)\n";
 echo "  - Username is REQUIRED for IAM authentication\n";
 echo "  - AWS credentials must be configured (IAM role, env vars, or credentials file)\n";
@@ -261,7 +261,7 @@ echo "\n";
 // =============================================================================
 // TLS CONFIGURATION
 // =============================================================================
-echo "🔒 TLS Configuration:\n";
+echo " TLS Configuration:\n";
 echo "--------------------\n";
 
 $tlsAddresses = [['host' => 'localhost', 'port' => 6380]]; // Common TLS port
@@ -288,7 +288,7 @@ echo "\n";
 // =============================================================================
 // READ PREFERENCE EXAMPLES
 // =============================================================================
-echo "📖 Read Preference Configuration:\n";
+echo " Read Preference Configuration:\n";
 echo "--------------------------------\n";
 
 // Read preferences for replica reads
@@ -322,7 +322,7 @@ echo "\n";
 // =============================================================================
 // TIMEOUT CONFIGURATION
 // =============================================================================
-echo "⏱️  Timeout Configuration Examples:\n";
+echo "  Timeout Configuration Examples:\n";
 echo "----------------------------------\n";
 
 $timeoutExamples = [
@@ -363,7 +363,7 @@ echo "\n";
 // =============================================================================
 // RECONNECTION STRATEGY
 // =============================================================================
-echo "🔄 Reconnection Strategy Examples:\n";
+echo " Reconnection Strategy Examples:\n";
 echo "----------------------------------\n";
 
 $reconnectStrategies = [
@@ -412,7 +412,7 @@ foreach ($reconnectStrategies as $name => $strategy) {
 // =============================================================================
 // ENVIRONMENT-BASED CONFIGURATION
 // =============================================================================
-echo "🌍 Environment-based Configuration:\n";
+echo " Environment-based Configuration:\n";
 echo "----------------------------------\n";
 
 echo "Configuration via environment variables:\n";
@@ -461,7 +461,7 @@ try {
 // =============================================================================
 // PHPREDIS-STYLE CONNECTION EXAMPLES
 // =============================================================================
-echo "\n🔌 PHPRedis-Style Connection Examples:\n";
+echo "\n PHPRedis-Style Connection Examples:\n";
 echo "-------------------------------------\n";
 
 // Example 1: Simple host/port connection
@@ -503,7 +503,7 @@ echo "   PHPRedis style:  \$client->connect('localhost', 6379)\n";
 echo "   ValkeyGlide style: \$client->connect(addresses: [['host' => 'localhost', 'port' => 6379]])\n";
 echo "   Both styles are supported for easy migration!\n";
 
-echo "\n📚 Configuration Best Practices:\n";
+echo "\n Configuration Best Practices:\n";
 echo "-------------------------------\n";
 echo "1. Use environment variables for deployment flexibility\n";
 echo "2. Set appropriate timeouts based on your network latency\n";

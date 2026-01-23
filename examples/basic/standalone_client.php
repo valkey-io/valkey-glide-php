@@ -18,7 +18,7 @@ if (!extension_loaded('valkey_glide')) {
     exit(1);
 }
 
-echo "🚀 Valkey GLIDE PHP - Standalone Client Example\n";
+echo " Valkey GLIDE PHP - Standalone Client Example\n";
 echo "===============================================\n\n";
 
 // Configuration - can be customized via environment variables
@@ -49,7 +49,7 @@ try {
     echo "Connected successfully!\n\n";
 
     // Test connection with PING
-    echo "🏓 Testing connection...\n";
+    echo " Testing connection...\n";
     $pong = $client->ping();
     echo "PING response: {$pong}\n\n";
 
@@ -147,7 +147,7 @@ try {
     echo "\n";
 
     // Server information
-    echo "ℹ️  Server Information:\n";
+    echo "  Server Information:\n";
     echo "----------------------\n";
 
     // Get server info
@@ -178,11 +178,11 @@ try {
     // Always close the connection
     if ($client) {
         $client->close();
-        echo "🔌 Connection closed.\n";
+        echo " Connection closed.\n";
     }
 }
 
-echo "\n📚 Next Steps:\n";
+echo "\n Next Steps:\n";
 echo "- Try the cluster client example: php basic/cluster_client.php\n";
 echo "- Explore configuration options: php basic/configuration.php\n";
 echo "- Check out data structure examples in the data_structures/ directory\n";

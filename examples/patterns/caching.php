@@ -17,7 +17,7 @@ if (!extension_loaded('valkey_glide')) {
     exit(1);
 }
 
-echo "🚀 Valkey GLIDE PHP - Caching Patterns Example\n";
+echo " Valkey GLIDE PHP - Caching Patterns Example\n";
 echo "=============================================\n\n";
 
 // Configuration
@@ -219,7 +219,7 @@ try {
         $user = $cache->get($shortTermKey);
 
         if ($user !== null) {
-            echo "   🚀 L1 Cache HIT (short-term)\n";
+            echo "    L1 Cache HIT (short-term)\n";
             return $user;
         }
 
@@ -228,7 +228,7 @@ try {
         $user = $cache->get($longTermKey);
 
         if ($user !== null) {
-            echo "   🔄 L2 Cache HIT (long-term) - promoting to L1\n";
+            echo "    L2 Cache HIT (long-term) - promoting to L1\n";
             $cache->set($shortTermKey, $user, 30); // Promote to L1
             return $user;
         }
@@ -349,11 +349,11 @@ try {
 } finally {
     if ($client) {
         $client->close();
-        echo "🔌 Connection closed.\n";
+        echo " Connection closed.\n";
     }
 }
 
-echo "\n📚 Caching Best Practices Summary:\n";
+echo "\n Caching Best Practices Summary:\n";
 echo "---------------------------------\n";
 echo "• Use cache-aside for read-heavy workloads\n";
 echo "• Implement write-through for consistency requirements\n";
