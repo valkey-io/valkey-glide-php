@@ -35,8 +35,8 @@ class UpdateConnectionPasswordTest extends TestSuite
             periodic_checks: null,
             client_az: null,
             advanced_config: null,
-            null,
-            0
+            lazy_connect: null,
+            database_id: 0
         );
     }
 
