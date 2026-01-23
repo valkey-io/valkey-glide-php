@@ -119,10 +119,8 @@ Results are saved as JSON with the following structure:
 ]
 ```
 
-
 ## Current Limitations
 
 - **Single-process only**: Multi-process concurrency is not supported due to ValkeyGlide's Tokio runtime incompatibility with `pcntl_fork()`. The benchmark runs sequentially, measuring per-operation latency rather than true concurrent throughput.
 - **No connection pooling**: Each benchmark run uses a single client connection.
 - **phpredis comparison**: Requires phpredis extension to be installed separately.
-
