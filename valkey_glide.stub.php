@@ -327,7 +327,7 @@ class ValkeyGlide
      * @param string|null $client_az Availability zone for routing
      * @param array|null $advanced_config Advanced TLS/connection settings
      * @param bool|null $lazy_connect Defer connection until first command (default: false)
-     * @param resource|null $context Stream context for TLS configuration
+     * @param resource|array|null $context Stream context resource or array for TLS configuration
      * @return bool True on successful connection, false on failure
      *
      * @throws ValkeyGlideException If conflicting parameters are specified or connection fails

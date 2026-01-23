@@ -180,7 +180,7 @@ class ValkeyGlideCluster
      * @param float|null $read_timeout          Read timeout in seconds.
      * @param bool|null $persistent             Persistent connection (not supported).
      * @param mixed $auth                       Authentication - string (password) or array ['user', 'pass'].
-     * @param array|null $context               Stream context array.
+     * @param resource|array|null $context      Stream context resource or array.
      *
      * ValkeyGlide-style parameters (positions 7-18):
      * @param array|null $addresses             Array of server addresses [['host' => '127.0.0.1', 'port' => 7001], ...].
