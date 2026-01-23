@@ -36,39 +36,17 @@
  */
 
 /* Create a ValkeyGlideCluster Object */
-PHP_METHOD(ValkeyGlideCluster, __construct) {
-    zend_long                                    periodic_checks         = 0;
-    zend_bool                                    periodic_checks_is_null = 1;
-    valkey_glide_php_common_constructor_params_t common_params;
-    valkey_glide_init_common_constructor_params(&common_params);
-    valkey_glide_object* valkey_glide;
-
-    ZEND_PARSE_PARAMETERS_START(1, 13)
-    Z_PARAM_ARRAY(common_params.addresses)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_BOOL(common_params.use_tls)
-    Z_PARAM_ARRAY_OR_NULL(common_params.credentials)
-    Z_PARAM_LONG(common_params.read_from)
-    Z_PARAM_LONG_OR_NULL(common_params.request_timeout, common_params.request_timeout_is_null)
-    Z_PARAM_ARRAY_OR_NULL(common_params.reconnect_strategy)
-    Z_PARAM_STRING_OR_NULL(common_params.client_name, common_params.client_name_len)
-    Z_PARAM_LONG_OR_NULL(periodic_checks, periodic_checks_is_null)
-    Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
-    Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
-    Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
-    Z_PARAM_LONG_OR_NULL(common_params.database_id, common_params.database_id_is_null)
-    Z_PARAM_RESOURCE_EX(
-        common_params.context, 1, 0) /* Use Z_PARAM_RESOURCE_OR_NULL with PHP 8.5+ */
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
-
-    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
-
+static int valkey_glide_cluster_create_connection(
+    valkey_glide_object*                         valkey_glide,
+    valkey_glide_php_common_constructor_params_t common_params,
+    zend_long                                    periodic_checks,
+    zend_bool                                    periodic_checks_is_null) {
     /* Validate database_id range early */
     if (!common_params.database_id_is_null && common_params.database_id < 0) {
         const char* error_message = "Database ID must be non-negative.";
         VALKEY_LOG_ERROR("cluster_construct", error_message);
         zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
-        return;
+        return FAILURE;
     }
 
     /* Build cluster client configuration from individual parameters */
@@ -102,6 +80,9 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
         VALKEY_LOG_ERROR("cluster_construct", conn_resp->connection_error_message);
         zend_throw_exception(
             get_valkey_glide_exception_ce(), conn_resp->connection_error_message, 0);
+        free_connection_response((ConnectionResponse*) conn_resp);
+        valkey_glide_cleanup_client_config(&client_config.base);
+        return FAILURE;
     } else {
         VALKEY_LOG_INFO("cluster_construct", "ValkeyGlide cluster client created successfully");
         valkey_glide->glide_client = conn_resp->conn_ptr;
@@ -111,6 +92,135 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
 
     /* Clean up temporary configuration structures */
     valkey_glide_cleanup_client_config(&client_config.base);
+    return SUCCESS;
+}
+
+PHP_METHOD(ValkeyGlideCluster, __construct) {
+    char*     name                    = NULL;
+    size_t    name_len                = 0;
+    zval*     seeds                   = NULL;
+    double    timeout                 = 0.0;
+    zend_bool timeout_is_null         = 1;
+    double    read_timeout            = 0.0;
+    zend_bool read_timeout_is_null    = 1;
+    zend_bool persistent              = 0;
+    zend_bool persistent_is_null      = 1;
+    zval*     auth                    = NULL;
+    zval*     phpredis_context        = NULL;
+    zval*     addresses               = NULL;
+    zend_bool use_tls                 = 0;
+    zend_bool use_tls_is_null         = 1;
+    zval*     credentials             = NULL;
+    zend_long read_from               = 0;
+    zend_bool read_from_is_null       = 1;
+    zend_long request_timeout         = 0;
+    zend_bool request_timeout_is_null = 1;
+    zval*     reconnect_strategy      = NULL;
+    char*     client_name             = NULL;
+    size_t    client_name_len         = 0;
+    zend_long periodic_checks         = 0;
+    zend_bool periodic_checks_is_null = 1;
+    char*     client_az               = NULL;
+    size_t    client_az_len           = 0;
+    zval*     advanced_config         = NULL;
+    zend_bool lazy_connect            = 0;
+    zend_bool lazy_connect_is_null    = 1;
+    zend_long database_id             = 0;
+    zend_bool database_id_is_null     = 1;
+
+    valkey_glide_php_common_constructor_params_t common_params;
+    valkey_glide_init_common_constructor_params(&common_params);
+    valkey_glide_object* valkey_glide;
+
+    ZEND_PARSE_PARAMETERS_START(0, 19)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_STRING_OR_NULL(name, name_len)
+    Z_PARAM_ARRAY_OR_NULL(seeds)
+    Z_PARAM_DOUBLE_OR_NULL(timeout, timeout_is_null)
+    Z_PARAM_DOUBLE_OR_NULL(read_timeout, read_timeout_is_null)
+    Z_PARAM_BOOL_OR_NULL(persistent, persistent_is_null)
+    Z_PARAM_ZVAL_OR_NULL(auth)
+    Z_PARAM_ARRAY_OR_NULL(phpredis_context)
+    Z_PARAM_ARRAY_OR_NULL(addresses)
+    Z_PARAM_BOOL_OR_NULL(use_tls, use_tls_is_null)
+    Z_PARAM_ARRAY_OR_NULL(credentials)
+    Z_PARAM_LONG_OR_NULL(read_from, read_from_is_null)
+    Z_PARAM_LONG_OR_NULL(request_timeout, request_timeout_is_null)
+    Z_PARAM_ARRAY_OR_NULL(reconnect_strategy)
+    Z_PARAM_STRING_OR_NULL(client_name, client_name_len)
+    Z_PARAM_LONG_OR_NULL(periodic_checks, periodic_checks_is_null)
+    Z_PARAM_STRING_OR_NULL(client_az, client_az_len)
+    Z_PARAM_ARRAY_OR_NULL(advanced_config)
+    Z_PARAM_BOOL_OR_NULL(lazy_connect, lazy_connect_is_null)
+    Z_PARAM_LONG_OR_NULL(database_id, database_id_is_null)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+
+    /* Check if PHPRedis-style parameters are used */
+    zend_bool using_phpredis_style =
+        (name != NULL || seeds != NULL || !timeout_is_null || !read_timeout_is_null ||
+         !persistent_is_null || auth != NULL || phpredis_context != NULL);
+
+    /* Detect conflicting parameters */
+    if (using_phpredis_style && addresses != NULL) {
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "Cannot specify both PHPRedis-style and ValkeyGlide-style parameters",
+                             0);
+        return;
+    }
+    if (!timeout_is_null && !request_timeout_is_null) {
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "Cannot specify both 'timeout' and 'request_timeout'",
+                             0);
+        return;
+    }
+
+    /* Map PHPRedis parameters to ValkeyGlide parameters */
+    if (using_phpredis_style) {
+        if (seeds != NULL) {
+            addresses = seeds;
+        }
+        if (!timeout_is_null) {
+            request_timeout         = (zend_long) (timeout * 1000);
+            request_timeout_is_null = 0;
+        } else if (!read_timeout_is_null) {
+            request_timeout         = (zend_long) (read_timeout * 1000);
+            request_timeout_is_null = 0;
+        }
+        if (auth != NULL) {
+            credentials = auth;
+        }
+        if (phpredis_context != NULL) {
+            common_params.context = phpredis_context;
+        }
+        /* Set default read_from if using PHPRedis style */
+        if (read_from == 0) {
+            read_from = VALKEY_GLIDE_READ_FROM_PREFER_REPLICA;
+        }
+    }
+
+    /* Populate common_params */
+    common_params.addresses               = addresses;
+    common_params.use_tls                 = use_tls;
+    common_params.credentials             = credentials;
+    common_params.read_from               = read_from;
+    common_params.request_timeout         = request_timeout;
+    common_params.request_timeout_is_null = request_timeout_is_null;
+    common_params.reconnect_strategy      = reconnect_strategy;
+    common_params.client_name             = client_name;
+    common_params.client_name_len         = client_name_len;
+    common_params.client_az               = client_az;
+    common_params.client_az_len           = client_az_len;
+    common_params.advanced_config         = advanced_config;
+    common_params.lazy_connect            = lazy_connect;
+    common_params.lazy_connect_is_null    = lazy_connect_is_null;
+    common_params.database_id             = database_id;
+    common_params.database_id_is_null     = database_id_is_null;
+
+    /* Call helper function to create cluster connection */
+    valkey_glide_cluster_create_connection(
+        valkey_glide, common_params, periodic_checks, periodic_checks_is_null);
 }
 
 static zend_function_entry valkey_glide_cluster_methods[] = {

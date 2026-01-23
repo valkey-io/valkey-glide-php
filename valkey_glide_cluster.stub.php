@@ -171,9 +171,20 @@ class ValkeyGlideCluster
 
     /**
      * Create a new ValkeyGlideCluster instance with the provided configuration.
+     * Supports both PHPRedis RedisCluster-style and ValkeyGlide-style parameters.
      *
-     * @param array $addresses                  Array of server addresses [['host' => '127.0.0.1', 'port' => 7001], ...].
-     * @param bool $use_tls                     Whether to use TLS encryption.
+     * PHPRedis RedisCluster-style parameters (positions 0-6):
+     * @param string|null $name                 Cluster name (not used, for compatibility only).
+     * @param array|null $seeds                 Seed nodes array [['host' => 'x', 'port' => y], ...].
+     * @param float|null $timeout               Connection timeout in seconds.
+     * @param float|null $read_timeout          Read timeout in seconds.
+     * @param bool|null $persistent             Persistent connection (not supported).
+     * @param mixed $auth                       Authentication - string (password) or array ['user', 'pass'].
+     * @param array|null $context               Stream context array.
+     *
+     * ValkeyGlide-style parameters (positions 7-18):
+     * @param array|null $addresses             Array of server addresses [['host' => '127.0.0.1', 'port' => 7001], ...].
+     * @param bool|null $use_tls                Whether to use TLS encryption.
      * @param array|null $credentials           Authentication credentials. Can be either:
      *                                          - Password auth: ['password' => 'xxx', 'username' => 'yyy']
      *                                          - IAM auth: ['username' => 'yyy', 'iamConfig' => [
@@ -183,7 +194,7 @@ class ValkeyGlideCluster
      *                                              ValkeyGlide::IAM_CONFIG_REFRESH_INTERVAL => 300 // optional, defaults to 300
      *                                            ]]
      *                                          Note: username is REQUIRED for IAM authentication.
-     * @param int $read_from                    Read strategy for the client.
+     * @param int|null $read_from               Read strategy for the client.
      * @param int|null $request_timeout         Request timeout in milliseconds.
      * @param array|null $reconnect_strategy    Reconnection strategy ['num_of_retries' => 3, 'factor' => 2,
      *                                          'exponent_base' => 10, 'jitter_percent' => 15].
@@ -210,22 +221,29 @@ class ValkeyGlideCluster
      *                                          and within the range supported by the server configuration.
      *                                          For cluster mode, requires Valkey 9.0+ with cluster-databases > 1.
      *                                          If not specified, defaults to database 0.
-     * @param resource|null $context            Stream context for the connection.
+     *
+     * Note: Cannot mix PHPRedis-style and ValkeyGlide-style parameters.
      */
     public function __construct(
-        array $addresses,
-        bool $use_tls = false,
+        ?string $name = null,
+        ?array $seeds = null,
+        ?float $timeout = null,
+        ?float $read_timeout = null,
+        ?bool $persistent = null,
+        mixed $auth = null,
+        ?array $context = null,
+        ?array $addresses = null,
+        ?bool $use_tls = null,
         ?array $credentials = null,
-        int $read_from = ValkeyGlide::READ_FROM_PREFER_REPLICA,
+        ?int $read_from = null,
         ?int $request_timeout = null,
         ?array $reconnect_strategy = null,
         ?string $client_name = null,
-        ?int $periodic_checks = ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS,
+        ?int $periodic_checks = null,
         ?string $client_az = null,
         ?array $advanced_config = null,
         ?bool $lazy_connect = null,
         ?int $database_id = null,
-        ?resource $context = null,
     ) {
     }
 

@@ -121,10 +121,10 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest
     {
         try {
             return new ValkeyGlideCluster(
-                [['host' => '127.0.0.1', 'port' => 7001]], // addresses array format
-                false, // use_tls
-                $this->getAuth(), // credentials
-                ValkeyGlide::READ_FROM_PRIMARY // read_from
+                addresses: [['host' => '127.0.0.1', 'port' => 7001]],
+                use_tls: false,
+                credentials: $this->getAuth(),
+                read_from: ValkeyGlide::READ_FROM_PRIMARY
             );
         } catch (Exception $ex) {
             TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());

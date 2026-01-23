@@ -309,14 +309,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         try {
             return new ValkeyGlideCluster(
-                [['host' => '127.0.0.1', 'port' => 7001]], // addresses array format
-                false, // use_tls
-                $this->getAuth(), // credentials
-                ValkeyGlide::READ_FROM_PRIMARY, // read_from
-                null, // request_timeout
-                null, // reconnect_strategy
-                null, // client_name
-                null, // periodic_checks
+                addresses: [['host' => '127.0.0.1', 'port' => 7001]],
+                use_tls: false,
+                credentials: $this->getAuth(),
+                read_from: ValkeyGlide::READ_FROM_PRIMARY,
+                request_timeout: null,
+                reconnect_strategy: null,
+                client_name: null,
+                periodic_checks: null,
                 null, // client_az
                 null, // advanced_config
                 null, // lazy_connect

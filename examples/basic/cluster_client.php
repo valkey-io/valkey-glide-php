@@ -45,11 +45,11 @@ $client = null;
 try {
     // Create Valkey GLIDE cluster client
     $client = new ValkeyGlideCluster(
-        $addresses,               // Cluster node addresses
-        $use_tls,                // Use TLS
-        $password ? ['password' => $password] : null, // Credentials
-        0,                       // Read from PRIMARY (0)
-        5000                     // Request timeout (5 seconds)
+        addresses: $addresses,
+        use_tls: $use_tls,
+        credentials: $password ? ['password' => $password] : null,
+        read_from: 0,
+        request_timeout: 5000
     );
 
     echo "Connected to cluster successfully!\n\n";

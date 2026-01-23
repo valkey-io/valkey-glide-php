@@ -43,7 +43,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             ['host' => '127.0.0.1', 'port' => 7003]
         ];
 
-        $valkey_glide = new ValkeyGlideCluster($addresses, false, $this->getAuth());
+        $valkey_glide = new ValkeyGlideCluster(addresses: $addresses, use_tls: false, credentials: $this->getAuth());
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
         $valkey_glide->close();
     }
@@ -120,7 +120,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $valkey_glide = null;
         try {
             $credentials = ['username' => 'invalid_user', 'password' => 'invalid_password'];
-            $valkey_glide = new ValkeyGlideCluster($addresses, false, $credentials);
+            $valkey_glide = new ValkeyGlideCluster(addresses: $addresses, use_tls: false, credentials: $credentials);
             $this->fail("Should throw an exception when running commands with invalid authentication");
         } catch (Exception $e) {
             $this->assertStringContains("WRONGPASS", $e->getMessage(), "Exception should indicate authentication failure");

@@ -114,25 +114,24 @@ $clusterAddresses = [
 try {
     echo "Creating cluster client with advanced options...\n";
     $clusterClient = new ValkeyGlideCluster(
-        $clusterAddresses,
-        false,                    // use_tls
-        null,                     // credentials
-        0,                        // read_from (PRIMARY)
-        3000,                     // request_timeout
-        [                         // reconnect_strategy
+        addresses: $clusterAddresses,
+        use_tls: false,
+        credentials: null,
+        read_from: 0,
+        request_timeout: 3000,
+        reconnect_strategy: [
             'num_of_retries' => 5,
             'factor' => 1.5,
             'exponent_base' => 2
         ],
-        null,                     // database_id (not used in cluster)
-        'cluster-example-client', // client_name
-        500,                      // inflight_requests_limit
-        null,                     // client_az
-        [                         // advanced_config
+        client_name: 'cluster-example-client',
+        periodic_checks: 500,
+        client_az: null,
+        advanced_config: [
             'connection_timeout' => 10000,
             'socket_timeout' => 5000
         ],
-        false                     // lazy_connect
+        lazy_connect: false
     );
 
     echo "Cluster client created successfully\n";

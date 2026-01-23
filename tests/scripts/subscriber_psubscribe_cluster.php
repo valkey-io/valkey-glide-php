@@ -82,7 +82,7 @@ $result_file = $argv[7];
 $error_file = $result_file . '.error';
 
 try {
-    $client = new ValkeyGlideCluster([['host' => $host, 'port' => $port]]);
+    $client = new ValkeyGlideCluster(addresses: [['host' => $host, 'port' => $port]]);
 
     file_put_contents($sync_file, '1');
 
