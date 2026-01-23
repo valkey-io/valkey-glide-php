@@ -1517,7 +1517,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $cluster->del(['phpredis_cluster_alias_test']);
 
         try {
-            $badCluster = new RedisCluster([['host' => 'localhost', 'port' => 9999]]);
+            $badCluster = new RedisCluster(addresses: [['host' => 'localhost', 'port' => 9999]]);
             $badCluster->ping();
             $this->fail('Expected RedisException to be thrown');
         } catch (RedisException $e) {
