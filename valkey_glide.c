@@ -699,8 +699,7 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
         return FAILURE;
     }
 
-    VALKEY_LOG_INFO("valkey_glide_create_connection",
-                    "ValkeyGlide client connected successfully");
+    VALKEY_LOG_INFO("valkey_glide_create_connection", "ValkeyGlide client connected successfully");
     valkey_glide->glide_client = conn_resp->conn_ptr;
 
     free_connection_response((ConnectionResponse*) conn_resp);

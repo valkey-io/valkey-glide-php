@@ -153,7 +153,8 @@ $opt = getopt('', ['host:', 'port:', 'class:', 'test:', 'nocolors', 'user:', 'au
 /* The test class(es) we want to run */
 $default_classes = 'connectionrequest,valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,';
 $default_classes .= 'valkeyglidepubsub,valkeyglideclusterpubsub,valkeyglideclusterfeatures,';
-$default_classes .= 'valkeyglideclientbatch,valkeyglideclusterbatch,updateconnectionpassword';
+$default_classes .= 'valkeyglideclientbatch,valkeyglideclusterbatch,updateconnectionpassword,';
+$default_classes .= 'phpredisstyleconnection';
 $classes = getClassArray($opt['class'] ?? $default_classes);
 
 $colorize = !isset($opt['nocolors']);
