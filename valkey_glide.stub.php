@@ -308,12 +308,11 @@ class ValkeyGlide
     /**
      * Establishes connection to a Valkey server.
      *
-     * Supports both PHPRedis-compatible (host/port) and ValkeyGlide-style (addresses array) parameters.
      * All parameters are optional and nullable. Use named parameters to specify only what you need.
      *
-     * @param string|null $host Hostname (PHPRedis-style, conflicts with $addresses)
+     * @param string|null $host Hostname
      * @param int|null $port Port number (default: 6379, used with $host)
-     * @param float|null $timeout Connection timeout in seconds (PHPRedis-style, conflicts with $request_timeout)
+     * @param float|null $timeout Connection timeout in seconds
      * @param string|null $persistent_id Persistent connection ID (not implemented)
      * @param int|null $retry_interval Retry interval in milliseconds (not implemented)
      * @param float|null $read_timeout Read timeout in seconds (not implemented)
@@ -333,11 +332,7 @@ class ValkeyGlide
      *
      * @throws ValkeyGlideException If conflicting parameters are specified or connection fails
      *
-     * @example PHPRedis-style connection
-     * $client = new ValkeyGlide();
-     * $client->connect('localhost', 6379, 2.5);
-     *
-     * @example ValkeyGlide-style connection
+     * @example Connect with parameters
      * $client = new ValkeyGlide();
      * $client->connect(addresses: [['host' => 'localhost', 'port' => 6379]], use_tls: true);
      *
