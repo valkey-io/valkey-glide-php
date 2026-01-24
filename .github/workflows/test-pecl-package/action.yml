@@ -232,7 +232,7 @@ runs:
         echo "Rust version: $(rustc --version 2>/dev/null || echo 'NOT FOUND')"
 
         echo "=== Checking PECL version and functionality ==="
-        pecl version || echo "PECL version command failed"
+        # pecl version || echo "PECL version command failed"
 
         # Install the package using PECL (this tests the real user experience)
         # Use all available CPU cores for compilation
