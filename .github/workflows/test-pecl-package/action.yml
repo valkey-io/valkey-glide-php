@@ -99,7 +99,7 @@ runs:
         # Check if version contains 'rc' (case-insensitive)
         if echo "$VERSION" | grep -qi "rc"; then
           echo "is-rc=true" >> $GITHUB_OUTPUT
-          echo "⚠️  Release candidate detected - PECL installation test will be skipped"
+          echo "Release candidate detected - PECL installation test will be skipped"
         else
           echo "is-rc=false" >> $GITHUB_OUTPUT
           echo "✓ Stable version detected - PECL installation test will run"
