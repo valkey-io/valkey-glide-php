@@ -4,6 +4,10 @@
  * Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0
  */
 
+declare(strict_types=1);
+
+namespace ValkeyGlide\Benchmarks;
+
 const DEFAULT_PORT = 6379;
 const DEFAULT_HOST = 'localhost';
 const PROB_GET_EXISTING = 0.64;

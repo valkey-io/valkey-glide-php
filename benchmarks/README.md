@@ -33,31 +33,37 @@ php run.php
 ### Examples
 
 **Standalone server:**
+
 ```bash
 php run.php --host=localhost --port=6379
 ```
 
 **Cluster mode:**
+
 ```bash
 php run.php --host=localhost --port=7001 --clusterModeEnabled
 ```
 
 **With TLS:**
+
 ```bash
 php run.php --host=localhost --port=6379 --tls
 ```
 
 **Custom data size and iterations:**
+
 ```bash
 php run.php --dataSize=1000 --iterations=100000,1000000
 ```
 
 **Only test Valkey GLIDE:**
+
 ```bash
 php run.php --clients=glide
 ```
 
 **Quick test (low iterations):**
+
 ```bash
 php run.php --iterations=100000
 ```
@@ -65,6 +71,7 @@ php run.php --iterations=100000
 ## Benchmark Methodology
 
 The benchmark tests three operations with weighted probabilities:
+
 - **GET (existing key)**: 64% - Retrieve keys that exist in the database
 - **GET (non-existing key)**: 16% - Query keys that don't exist (guaranteed cache misses)
 - **SET**: 20% - Write operations
@@ -74,6 +81,7 @@ The database is pre-populated with 3 million keys before benchmarking to ensure 
 ### Metrics Collected
 
 For each operation type:
+
 - P50, P90, P99 latency (milliseconds)
 - Average latency (milliseconds)
 - Standard deviation (milliseconds)
@@ -111,11 +119,8 @@ Results are saved as JSON with the following structure:
 ]
 ```
 
-**Note:** The JSON output format is standardized across all GLIDE language implementations (PHP, Python, Node.js, Rust, Go, Java) to enable cross-language performance comparisons. Fields like `num_of_tasks` and `client_count` are maintained for consistency even though PHP always uses single-process execution.
-
 ## Current Limitations
 
 - **Single-process only**: Multi-process concurrency is not supported due to ValkeyGlide's Tokio runtime incompatibility with `pcntl_fork()`. The benchmark runs sequentially, measuring per-operation latency rather than true concurrent throughput.
 - **No connection pooling**: Each benchmark run uses a single client connection.
 - **phpredis comparison**: Requires phpredis extension to be installed separately.
-

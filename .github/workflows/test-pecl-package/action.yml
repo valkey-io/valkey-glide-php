@@ -67,6 +67,7 @@ runs:
 
     - name: Determine package info
       shell: bash
+      id: package-info
       env:
         SKIP_CREATION: ${{ inputs.skip-package-creation }}
         PACKAGE_PATH: ${{ inputs.package-path }}
@@ -95,7 +96,17 @@ runs:
         echo "Package directory: $PACKAGE_DIR"
         echo "Version: $VERSION"
 
+        # Check if version contains 'rc' (case-insensitive)
+        if echo "$VERSION" | grep -qi "rc"; then
+          echo "is-rc=true" >> $GITHUB_OUTPUT
+          echo "Release candidate detected - PECL installation test will be skipped"
+        else
+          echo "is-rc=false" >> $GITHUB_OUTPUT
+          echo "✓ Stable version detected - PECL installation test will run"
+        fi
+
     - name: Setup PHP
+      if: steps.package-info.outputs.is-rc != 'true'
       uses: shivammathur/setup-php@v2
       with:
         php-version: ${{ inputs.php-version }}
@@ -103,6 +114,7 @@ runs:
         tools: none
 
     - name: Install system dependencies
+      if: steps.package-info.outputs.is-rc != 'true'
       shell: bash
       env:
         PHP_VER: ${{ inputs.php-version }}
@@ -124,6 +136,7 @@ runs:
             libprotobuf-c1
 
     - name: Install shared dependencies
+      if: steps.package-info.outputs.is-rc != 'true'
       uses: ./.github/workflows/install-shared-dependencies
       with:
         os: ubuntu
@@ -132,6 +145,7 @@ runs:
         github-token: ${{ inputs.github-token || github.token }}
 
     - name: Install cbindgen
+      if: steps.package-info.outputs.is-rc != 'true'
       shell: bash
       run: |
         if [ -f "$HOME/.cargo/bin/cbindgen" ]; then
@@ -142,6 +156,7 @@ runs:
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
     - name: Setup sccache for cross-user Rust caching
+      if: steps.package-info.outputs.is-rc != 'true'
       shell: bash
       run: |
         echo "=== Setting up sccache for cross-user Rust compilation caching ==="
@@ -167,6 +182,7 @@ runs:
         echo "sccache setup complete"
 
     - name: Setup Cargo cache for root user
+      if: steps.package-info.outputs.is-rc != 'true'
       shell: bash
       run: |
         echo "=== Setting up Cargo cache for root user ==="
@@ -205,6 +221,7 @@ runs:
         echo "Shared compilation cache setup complete"
 
     - name: Test PECL installation
+      if: steps.package-info.outputs.is-rc != 'true'
       shell: bash
       run: |
         echo "=== Testing PECL-style installation ==="
@@ -344,6 +361,7 @@ runs:
         fi
 
     - name: Verify PECL installation
+      if: steps.package-info.outputs.is-rc != 'true'
       shell: bash
       run: |
         echo "=== Checking PHP extension directory ==="
@@ -363,6 +381,7 @@ runs:
         php -d extension=valkey_glide -r "if (extension_loaded('valkey_glide')) { echo 'SUCCESS: Extension loaded and functional!'; } else { echo 'ERROR: Extension not functional'; }"
 
     - name: Install PHP dependencies
+      if: steps.package-info.outputs.is-rc != 'true'
       shell: bash
       run: |
         echo "=== Installing PHP dependencies ==="
@@ -370,6 +389,7 @@ runs:
         echo "Composer install completed"
 
     - name: Run PHP Extension Tests
+      if: steps.package-info.outputs.is-rc != 'true'
       uses: ./.github/workflows/run-php-tests
       with:
         extension-path: valkey_glide
