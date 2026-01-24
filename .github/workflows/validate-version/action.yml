@@ -85,6 +85,13 @@ runs:
         echo ""
         echo "=== Validating package.xml versions ==="
 
+        # Skip validation for release candidate versions
+        if [[ "$EXPECTED_VERSION" == *"rc"* ]]; then
+          echo "SKIPPED: Version contains 'rc' (release candidate) - package.xml validation skipped"
+          echo "Release candidate versions are not published to PECL"
+          exit 0
+        fi
+
         # Extract release version from package.xml (first occurrence only - main version, not changelog)
         RELEASE_VERSION=$(grep -o '<release>[^<]*</release>' package.xml | head -1 | sed 's/<[^>]*>//g')
         echo "Release version in package.xml: $RELEASE_VERSION"
