@@ -269,11 +269,22 @@ For easier migration from PHPRedis, you can use PHPRedis-compatible class names:
 
 ```php
 // Load the PHPRedis compatibility aliases
-require_once 'vendor/valkey-io/valkey-glide-php/phpredis_aliases.php';
+
+// For Composer installations:
+require_once __DIR__ . '/vendor/valkey-io/valkey-glide-php/phpredis_aliases.php';
+
+// For PECL/PIE installations, find the file location:
+// Option 1: Check PECL data directory
+//   pecl config-get data_dir
+//   Then: require_once '/path/to/pecl/data/valkey_glide/phpredis_aliases.php';
+//
+// Option 2: Add to include_path in php.ini and use:
+//   require_once 'phpredis_aliases.php';
 
 // Now you can use Redis instead of ValkeyGlide
-$client = new Redis();
-$client->connect(addresses: [['host' => 'localhost', 'port' => 6379]]);
+$client = new Redis(
+    addresses: [['host' => 'localhost', 'port' => 6379]]
+);
 
 $client->set('foo', 'bar');
 $value = $client->get('foo');
@@ -291,8 +302,9 @@ $client->close();
 **Cluster:**
 
 ```php
-// Load the PHPRedis compatibility aliases
-require_once 'vendor/valkey-io/valkey-glide-php/phpredis_aliases.php';
+// Load the PHPRedis compatibility aliases (same as above)
+require_once __DIR__ . '/vendor/valkey-io/valkey-glide-php/phpredis_aliases.php';  // Composer
+// Or for PECL/PIE: require_once '/path/to/pecl/data/valkey_glide/phpredis_aliases.php';
 
 // Now you can use RedisCluster instead of ValkeyGlideCluster
 $cluster = new RedisCluster(
@@ -311,6 +323,17 @@ $cluster->close();
 **Requirements:**
 
 - PHP 8.3 or higher (required for `class_alias()` support with internal classes)
+
+**Installation paths:**
+
+- **Composer**: `vendor/valkey-io/valkey-glide-php/phpredis_aliases.php`
+- **PECL/pie**: The file is installed with the extension. Find it with:
+  ```bash
+  # Check PECL data directory
+  pecl config-get data_dir
+  # Or search in PHP include path
+  php -r "echo ini_get('include_path');"
+  ```
 
 ### With IAM Authentication for AWS ElastiCache
 

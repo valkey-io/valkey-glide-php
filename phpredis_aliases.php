@@ -11,9 +11,16 @@ declare(strict_types=1);
  *
  * This file provides class aliases to make Valkey Glide compatible with PHPRedis class names.
  *
+ * Installation Paths:
+ *   - Composer: vendor/valkey-io/valkey-glide-php/phpredis_aliases.php
+ *   - PECL/pie: Check with `pecl config-get data_dir` or `pecl list-files valkey_glide`
+ *
  * Usage:
- *   require_once 'phpredis_aliases.php';
- *   $redis = new Redis(); // Uses ValkeyGlide
+ *   require_once 'phpredis_aliases.php';  // If in include_path
+ *   // Or with full path:
+ *   require_once __DIR__ . '/vendor/valkey-io/valkey-glide-php/phpredis_aliases.php';
+ *
+ *   $redis = new Redis([['host' => 'localhost', 'port' => 6379]]);
  *
  * Requirements:
  *   - PHP 8.3 or higher (class_alias support for internal classes)
