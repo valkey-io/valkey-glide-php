@@ -8083,7 +8083,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             return;
         }
 
-        require_once __DIR__ . "/../phpredis_aliases.php";
+        ValkeyGlide::registerPHPRedisAliases();
 
         $this->assertTrue(class_exists('Redis'), 'Redis class alias should exist');
         $this->assertTrue(class_exists('RedisCluster'), 'RedisCluster class alias should exist');

@@ -1500,7 +1500,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             return;
         }
 
-        require_once __DIR__ . "/../phpredis_aliases.php";
+        ValkeyGlide::registerPHPRedisAliases();
 
         $this->assertTrue(class_exists('RedisCluster'), 'RedisCluster class alias should exist');
 
