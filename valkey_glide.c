@@ -574,6 +574,71 @@ PHP_METHOD(ValkeyGlide, __construct) {
 }
 /* }}} */
 
+/* {{{ Register PHPRedis compatibility aliases */
+PHP_METHOD(ValkeyGlide, registerPHPRedisAliases) {
+    ZEND_PARSE_PARAMETERS_START(0, 0)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
+
+    // Check PHP version (requires 8.3+)
+    if (PHP_VERSION_ID < 80300) {
+        php_error_docref(
+            NULL,
+            E_WARNING,
+            "PHPRedis compatibility aliases require PHP 8.3 or higher. Current version: %s",
+            PHP_VERSION);
+        RETURN_FALSE;
+    }
+
+    // Check if Redis class already exists
+    if (zend_hash_str_exists(CG(class_table), "redis", sizeof("redis") - 1)) {
+        php_error_docref(
+            NULL,
+            E_WARNING,
+            "Redis class already exists. Cannot create PHPRedis compatibility aliases. "
+            "PHPRedis may already be installed.");
+        RETURN_FALSE;
+    }
+
+    // Get the ValkeyGlide class entry
+    zend_class_entry* valkey_glide_ce = Z_OBJCE_P(ZEND_THIS);
+    if (!valkey_glide_ce) {
+        valkey_glide_ce =
+            zend_hash_str_find_ptr(CG(class_table), "valkeyglide", sizeof("valkeyglide") - 1);
+    }
+
+    // Get ValkeyGlideCluster class entry
+    zend_class_entry* valkey_glide_cluster_ce = zend_hash_str_find_ptr(
+        CG(class_table), "valkeyglidecluster", sizeof("valkeyglidecluster") - 1);
+
+    // Get ValkeyGlideException class entry
+    zend_class_entry* valkey_glide_exception_ce = zend_hash_str_find_ptr(
+        CG(class_table), "valkeyglideexception", sizeof("valkeyglideexception") - 1);
+
+    if (!valkey_glide_ce || !valkey_glide_cluster_ce || !valkey_glide_exception_ce) {
+        php_error_docref(NULL, E_WARNING, "Failed to find Valkey GLIDE classes");
+        RETURN_FALSE;
+    }
+
+    // Register class aliases
+    if (zend_register_class_alias_ex("Redis", sizeof("Redis") - 1, valkey_glide_ce, 0) != SUCCESS) {
+        RETURN_FALSE;
+    }
+
+    if (zend_register_class_alias_ex(
+            "RedisCluster", sizeof("RedisCluster") - 1, valkey_glide_cluster_ce, 0) != SUCCESS) {
+        RETURN_FALSE;
+    }
+
+    if (zend_register_class_alias_ex(
+            "RedisException", sizeof("RedisException") - 1, valkey_glide_exception_ce, 0) !=
+        SUCCESS) {
+        RETURN_FALSE;
+    }
+
+    RETURN_TRUE;
+}
+/* }}} */
+
 /* {{{ Creates and establishes connection to Valkey server.
     Validates parameters, builds configuration, and initializes the client connection.
     Returns SUCCESS on successful connection, FAILURE otherwise. */

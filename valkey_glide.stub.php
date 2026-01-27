@@ -292,6 +292,24 @@ class ValkeyGlide
     public const PIPELINE = UNKNOWN;
 
     /**
+     * Register PHPRedis compatibility aliases.
+     *
+     * Creates class aliases to make Valkey GLIDE compatible with PHPRedis:
+     * - Redis -> ValkeyGlide
+     * - RedisCluster -> ValkeyGlideCluster
+     * - RedisException -> ValkeyGlideException
+     *
+     * @return bool True on success, false if aliases already exist
+     *
+     * @example
+     * ValkeyGlide::registerPHPRedisAliases();
+     * $redis = new Redis(); // Now works!
+     */
+    public static function registerPHPRedisAliases(): bool
+    {
+    }
+
+    /**
      * Create a new ValkeyGlide instance.
      *
      * The constructor creates an unconnected client instance.
