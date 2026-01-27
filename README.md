@@ -268,8 +268,8 @@ For easier migration from PHPRedis, you can use PHPRedis-compatible class names:
 **Standalone:**
 
 ```php
-// Load the PHPRedis compatibility aliases
-require_once 'vendor/valkey-io/valkey-glide-php/phpredis_aliases.php';
+// Register PHPRedis compatibility aliases
+ValkeyGlide::registerPHPRedisAliases();
 
 // Now you can use Redis instead of ValkeyGlide
 $client = new Redis();
@@ -291,8 +291,8 @@ $client->close();
 **Cluster:**
 
 ```php
-// Load the PHPRedis compatibility aliases
-require_once 'vendor/valkey-io/valkey-glide-php/phpredis_aliases.php';
+// Register PHPRedis compatibility aliases
+ValkeyGlide::registerPHPRedisAliases();
 
 // Now you can use RedisCluster instead of ValkeyGlideCluster
 $cluster = new RedisCluster(
