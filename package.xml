@@ -12,19 +12,19 @@ Note: After installation, add "extension=valkey_glide" to your php.ini file.</de
   <email>noreply@valkey.io</email>
   <active>yes</active>
  </lead>
- <date>2025-11-27</date>
+ <date>2025-01-26</date>
  <time>18:25:00</time>
  <version>
-  <release>0.10.0</release>
-  <api>0.10.0</api>
+  <release>1.0.0</release>
+  <api>1.0.0</api>
  </version>
  <stability>
-  <release>beta</release>
-  <api>beta</api>
+  <release>stable</release>
+  <api>stable</api>
  </stability>
  <license uri="https://www.apache.org/licenses/LICENSE-2.0">Apache-2.0</license>
  <notes>
-Release 0.10.0 of Valkey GLIDE PHP extension.
+Release 1.0.0 of Valkey GLIDE PHP extension.
 
 New Features:
 - OpenTelemetry support for observability
@@ -141,13 +141,20 @@ Requirements:
    </stability>
    <license uri="https://www.apache.org/licenses/LICENSE-2.0">Apache-2.0</license>
    <notes>
-Release 0.10.0 with new features:
-- OpenTelemetry support for observability
-- Logging capabilities
-- IAM authentication support for ElastiCache and MemoryDB
-- Refresh topology configuration
-- Multi-Database Support for Cluster Mode (Valkey 9.0+)
-- Password API updates
+Release 1.0.0 with new features:
+- Fix mac development instructions
+- bump valkey-glide submodule for root_certs support
+- Add release automation workflows and version management
+- Update and improve linting infrastructure
+- test-modules job queuing indefinitely
+- Add TLS support for secure connections
+- add markdown linting support for developers
+- perf: optimize struct member ordering to reduce padding
+- Add script and function commands
+- Pub/Sub Implementation
+- Add aliases to PHPRedis-compatible class names
+- Add connect method for ValkeyGlide client
+- Add benchmarks
    </notes>
   </release>
   <release>
