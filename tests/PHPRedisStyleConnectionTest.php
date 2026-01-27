@@ -185,7 +185,7 @@ class PHPRedisStyleConnectionTest extends TestSuite
             return;
         }
 
-        require_once __DIR__ . '/../phpredis_aliases.php';
+        ValkeyGlide::registerPHPRedisAliases();
 
         $this->assertTrue(class_exists('Redis'), 'Redis class alias should exist');
         $this->assertTrue(class_exists('RedisException'), 'RedisException class alias should exist');
@@ -378,7 +378,7 @@ class PHPRedisStyleConnectionTest extends TestSuite
             return;
         }
 
-        require_once __DIR__ . '/../phpredis_aliases.php';
+        ValkeyGlide::registerPHPRedisAliases();
 
         $this->assertTrue(class_exists('RedisCluster'), 'RedisCluster class alias should exist');
         $this->assertTrue(class_exists('RedisException'), 'RedisException class alias should exist');
