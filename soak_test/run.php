@@ -40,9 +40,12 @@ class SoakTest
     public function __construct(bool $isCluster = false, string $host = 'localhost', int $port = 6379)
     {
         // Create client
-        $this->client = $isCluster
-            ? new ValkeyGlideCluster(addresses: [['host' => $host, 'port' => $port]])
-            : new ValkeyGlide(addresses: [['host' => $host, 'port' => $port]]);
+        if ($isCluster) {
+            $this->client = new ValkeyGlideCluster(addresses: [['host' => $host, 'port' => $port]]);
+        } else {
+            $this->client = new ValkeyGlide();
+            $this->client->connect(addresses: [['host' => $host, 'port' => $port]]);
+        }
 
         $this->startTime = time();
     }
@@ -285,14 +288,14 @@ class SoakTest
         echo "Operations/sec: " . number_format($opsPerSec, 2) . "\n";
         echo "Errors: {$this->stats['errors']} (" . number_format($errorRate, 2) . "%)\n";
         echo "Memory: " . number_format($memoryMB, 2) . " MB\n";
-        
+
         echo "\nCommand Distribution:\n";
         arsort($this->stats['command_counts']);
         foreach ($this->stats['command_counts'] as $cmd => $count) {
             $pct = ($count / max($this->stats['total_operations'], 1)) * 100;
             echo "  {$cmd}: " . number_format($count) . " (" . number_format($pct, 2) . "%)\n";
         }
-        
+
         echo "======================\n\n";
     }
 
