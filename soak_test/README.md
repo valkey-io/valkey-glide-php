@@ -119,24 +119,6 @@ At test completion, a comprehensive report includes:
 - Error types (if any errors occurred)
 - Total runtime and throughput
 
-## Key Metrics to Monitor
-
-### 1. Memory Usage
-- **Expected**: Stable memory consumption
-- **Warning**: Continuous growth indicates memory leak
-- **Threshold**: Alert if exceeds 500MB
-
-### 2. Error Rate
-- **Expected**: 0% or near 0%
-- **Warning**: Any sustained error rate indicates issues
-
-### 3. Operations/sec (Throughput)
-- **Expected**: Consistent rate throughout test
-- **Warning**: Degradation over time indicates performance issues
-
-### 4. Connection Stability
-- **Expected**: No connection drops
-- **Warning**: Connection errors indicate network or server issues
 
 ## Configuration
 
