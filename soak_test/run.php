@@ -315,6 +315,17 @@ class SoakTest
         }
     }
 
+    /**
+     * Calculate CPU usage since test start using getrusage()
+     *
+     * getrusage() returns resource usage statistics from the OS:
+     * - ru_utime.tv_sec/tv_usec: User CPU time (application code execution)
+     * - ru_stime.tv_sec/tv_usec: System CPU time (kernel operations, I/O, syscalls)
+     *
+     * Time is split into seconds (tv_sec) and microseconds (tv_usec) for precision.
+     *
+     * @return array ['user' => float, 'system' => float, 'total' => float] in seconds
+     */
     private function getCpuUsage(): array
     {
         $current = getrusage();
@@ -342,7 +353,7 @@ class SoakTest
         $errorRate = $this->stats['errors'] / max($this->stats['total_operations'], 1) * 100;
         $memoryMB = memory_get_usage(true) / 1024 / 1024;
         $cpu = $this->getCpuUsage();
-        $cpuPercent = ($cpu['total'] / $elapsed) * 100;
+        $cpuPercent = ($cpu['total'] / $elapsed) * 100;  // CPU time / wall clock time = utilization %
 
         echo "\n=== Progress Report ===\n";
         echo "Elapsed: {$hours}h {$minutes}m\n";
