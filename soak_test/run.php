@@ -13,7 +13,7 @@
 // Configuration
 const TEST_DURATION_HOURS = 24;  // Default duration
 const OPERATIONS_PER_CYCLE = 1000;
-const REPORT_INTERVAL_SECONDS = 300;  // Report every 5 minutes
+const REPORT_INTERVAL_SECONDS = 120;  // Report every 2 minutes
 const MEMORY_CHECK_INTERVAL = 100;
 
 // Command weights (probability distribution)
@@ -30,6 +30,7 @@ class SoakTest
 {
     private object $client;
     private int $startTime;
+    private array $startRusage;
     private array $stats = [
         'total_operations' => 0,
         'errors' => 0,
@@ -47,7 +48,9 @@ class SoakTest
             $this->client->connect(addresses: [['host' => $host, 'port' => $port]]);
         }
 
+        $this->prePopulate();
         $this->startTime = time();
+        $this->startRusage = getrusage();
     }
 
     public function run(int|float $durationHours): void
@@ -262,6 +265,46 @@ class SoakTest
             ($this->stats['command_counts'][$command] ?? 0) + 1;
     }
 
+    private function prePopulate(): void
+    {
+        echo "Pre-populating keys for consistent cache hit rates...\n";
+
+        // String keys
+        for ($i = 1; $i <= 10000; $i++) {
+            $this->client->set("soak:string:{$i}", "value_" . time());
+        }
+
+        // Hash keys
+        for ($i = 1; $i <= 5000; $i++) {
+            for ($j = 1; $j <= 10; $j++) {
+                $this->client->hset("soak:hash:{$i}", "field_{$j}", "value");
+            }
+        }
+
+        // List keys
+        for ($i = 1; $i <= 3000; $i++) {
+            $this->client->lpush("soak:list:{$i}", ["item_1", "item_2", "item_3"]);
+        }
+
+        // Set keys
+        for ($i = 1; $i <= 2000; $i++) {
+            for ($j = 1; $j <= 10; $j++) {
+                $this->client->sadd("soak:set:{$i}", "member_{$j}");
+            }
+        }
+
+        // Sorted set keys
+        for ($i = 1; $i <= 2000; $i++) {
+            $members = [];
+            for ($j = 1; $j <= 10; $j++) {
+                $members["member_{$j}"] = (float)$j;
+            }
+            $this->client->zadd("soak:zset:{$i}", $members);
+        }
+
+        echo "Pre-population complete.\n\n";
+    }
+
     private function checkMemory(): void
     {
         $memoryMB = memory_get_usage(true) / 1024 / 1024;
@@ -270,6 +313,23 @@ class SoakTest
         if ($memoryMB > 500) {
             error_log("WARNING: High memory usage: {$memoryMB} MB");
         }
+    }
+
+    private function getCpuUsage(): array
+    {
+        $current = getrusage();
+
+        $userTime = ($current['ru_utime.tv_sec'] - $this->startRusage['ru_utime.tv_sec']) +
+                    (($current['ru_utime.tv_usec'] - $this->startRusage['ru_utime.tv_usec']) / 1000000);
+
+        $systemTime = ($current['ru_stime.tv_sec'] - $this->startRusage['ru_stime.tv_sec']) +
+                      (($current['ru_stime.tv_usec'] - $this->startRusage['ru_stime.tv_usec']) / 1000000);
+
+        return [
+            'user' => $userTime,
+            'system' => $systemTime,
+            'total' => $userTime + $systemTime
+        ];
     }
 
     private function reportProgress(): void
@@ -281,6 +341,8 @@ class SoakTest
         $opsPerSec = $this->stats['total_operations'] / $elapsed;
         $errorRate = $this->stats['errors'] / max($this->stats['total_operations'], 1) * 100;
         $memoryMB = memory_get_usage(true) / 1024 / 1024;
+        $cpu = $this->getCpuUsage();
+        $cpuPercent = ($cpu['total'] / $elapsed) * 100;
 
         echo "\n=== Progress Report ===\n";
         echo "Elapsed: {$hours}h {$minutes}m\n";
@@ -288,6 +350,7 @@ class SoakTest
         echo "Operations/sec: " . number_format($opsPerSec, 2) . "\n";
         echo "Errors: {$this->stats['errors']} (" . number_format($errorRate, 2) . "%)\n";
         echo "Memory: " . number_format($memoryMB, 2) . " MB\n";
+        echo "CPU: " . number_format($cpuPercent, 2) . "% (User: " . number_format($cpu['user'], 2) . "s, System: " . number_format($cpu['system'], 2) . "s)\n";
 
         echo "\nCommand Distribution:\n";
         arsort($this->stats['command_counts']);
