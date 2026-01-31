@@ -423,11 +423,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
                                        ? get_valkey_glide_cluster_ce()            \
                                        : get_valkey_glide_ce())) {                \
-            valkey_glide_object* vg =                                             \
-                VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis()); \
-            if (vg) {                                                             \
-                APPLY_REPLY_LITERAL(vg, return_value);                            \
-            }                                                                     \
+            APPLY_REPLY_LITERAL(return_value);                                    \
             return;                                                               \
         }                                                                         \
         zval_dtor(return_value);                                                  \
@@ -541,11 +537,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
                                   strcmp(#class_name, "ValkeyGlideCluster") == 0  \
                                       ? get_valkey_glide_cluster_ce()             \
                                       : get_valkey_glide_ce())) {                 \
-            valkey_glide_object* vg =                                             \
-                VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis()); \
-            if (vg) {                                                             \
-                APPLY_REPLY_LITERAL(vg, return_value);                            \
-            }                                                                     \
+            APPLY_REPLY_LITERAL(return_value);                                    \
             return;                                                               \
         }                                                                         \
         zval_dtor(return_value);                                                  \
@@ -560,11 +552,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
                                        ? get_valkey_glide_cluster_ce()            \
                                        : get_valkey_glide_ce())) {                \
-            valkey_glide_object* vg =                                             \
-                VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis()); \
-            if (vg) {                                                             \
-                APPLY_REPLY_LITERAL(vg, return_value);                            \
-            }                                                                     \
+            APPLY_REPLY_LITERAL(return_value);                                    \
             return;                                                               \
         }                                                                         \
         zval_dtor(return_value);                                                  \
@@ -621,11 +609,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
                                 strcmp(#class_name, "ValkeyGlideCluster") == 0    \
                                     ? get_valkey_glide_cluster_ce()               \
                                     : get_valkey_glide_ce())) {                   \
-            valkey_glide_object* vg =                                             \
-                VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis()); \
-            if (vg) {                                                             \
-                APPLY_REPLY_LITERAL(vg, return_value);                            \
-            }                                                                     \
+            APPLY_REPLY_LITERAL(return_value);                                    \
             return;                                                               \
         }                                                                         \
         zval_dtor(return_value);                                                  \
@@ -682,11 +666,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
                                         ? get_valkey_glide_cluster_ce()            \
                                         : get_valkey_glide_ce())) {                \
-            valkey_glide_object* vg =                                              \
-                VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());  \
-            if (vg) {                                                              \
-                APPLY_REPLY_LITERAL(vg, return_value);                             \
-            }                                                                      \
+            APPLY_REPLY_LITERAL(return_value);                                     \
             return;                                                                \
         }                                                                          \
         zval_dtor(return_value);                                                   \
@@ -701,11 +681,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
                                          ? get_valkey_glide_cluster_ce()            \
                                          : get_valkey_glide_ce())) {                \
-            valkey_glide_object* vg =                                               \
-                VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());   \
-            if (vg) {                                                               \
-                APPLY_REPLY_LITERAL(vg, return_value);                              \
-            }                                                                       \
+            APPLY_REPLY_LITERAL(return_value);                                      \
             return;                                                                 \
         }                                                                           \
         zval_dtor(return_value);                                                    \
@@ -903,11 +879,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
                                        ? get_valkey_glide_cluster_ce()            \
                                        : get_valkey_glide_ce())) {                \
-            valkey_glide_object* vg =                                             \
-                VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis()); \
-            if (vg) {                                                             \
-                APPLY_REPLY_LITERAL(vg, return_value);                            \
-            }                                                                     \
+            APPLY_REPLY_LITERAL(return_value);                                    \
             return;                                                               \
         }                                                                         \
         zval_dtor(return_value);                                                  \
@@ -1090,11 +1062,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
                                        ? get_valkey_glide_cluster_ce()            \
                                        : get_valkey_glide_ce())) {                \
-            valkey_glide_object* vg =                                             \
-                VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis()); \
-            if (vg) {                                                             \
-                APPLY_REPLY_LITERAL(vg, return_value);                            \
-            }                                                                     \
+            APPLY_REPLY_LITERAL(return_value);                                    \
             return;                                                               \
         }                                                                         \
         zval_dtor(return_value);                                                  \
@@ -1292,11 +1260,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
                                         ? get_valkey_glide_cluster_ce()            \
                                         : get_valkey_glide_ce())) {                \
-            valkey_glide_object* vg =                                              \
-                VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());  \
-            if (vg) {                                                              \
-                APPLY_REPLY_LITERAL(vg, return_value);                             \
-            }                                                                      \
+            APPLY_REPLY_LITERAL(return_value);                                     \
             return;                                                                \
         }                                                                          \
         zval_dtor(return_value);                                                   \
@@ -1409,11 +1373,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
                                  strcmp(#class_name, "ValkeyGlideCluster") == 0   \
                                      ? get_valkey_glide_cluster_ce()              \
                                      : get_valkey_glide_ce())) {                  \
-            valkey_glide_object* vg =                                             \
-                VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis()); \
-            if (vg) {                                                             \
-                APPLY_REPLY_LITERAL(vg, return_value);                            \
-            }                                                                     \
+            APPLY_REPLY_LITERAL(return_value);                                    \
             return;                                                               \
         }                                                                         \
         zval_dtor(return_value);                                                  \
@@ -1523,15 +1483,18 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 int  execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 void execute_script_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 /* Helper macro to convert true to "OK" string if OPT_REPLY_LITERAL is enabled
- * This should be called after a command that returns Ok responses when reply_literal matters
- * Usage: APPLY_REPLY_LITERAL(valkey_glide, return_value);
+ * This macro fetches the valkey_glide object internally and applies the transformation.
+ * Usage: APPLY_REPLY_LITERAL(return_value);
  */
-#define APPLY_REPLY_LITERAL(vg, rv)                           \
-    do {                                                      \
-        if ((vg)->reply_literal && Z_TYPE_P(rv) == IS_TRUE) { \
-            zval_dtor(rv);                                    \
-            ZVAL_STRING(rv, "OK");                            \
-        }                                                     \
+#define APPLY_REPLY_LITERAL(rv)                                                   \
+    do {                                                                          \
+        valkey_glide_object* _valkey_glide =                                      \
+            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());     \
+        if (_valkey_glide && _valkey_glide->opt_reply_literal &&                  \
+            Z_TYPE_P(rv) == IS_TRUE) {                                            \
+            zval_dtor(rv);                                                        \
+            ZVAL_STRING(rv, "OK");                                                \
+        }                                                                         \
     } while (0)
 
 /* Option methods - matching PHPRedis setOption/getOption API */
@@ -1553,7 +1516,7 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
                                                                               \
         switch (option) {                                                     \
             case VALKEY_GLIDE_OPT_REPLY_LITERAL:                              \
-                valkey_glide->reply_literal = zval_is_true(value);            \
+                valkey_glide->opt_reply_literal = zval_is_true(value);        \
                 RETURN_TRUE;                                                  \
             default:                                                          \
                 RETURN_FALSE;                                                 \
@@ -1576,7 +1539,7 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
                                                                               \
         switch (option) {                                                     \
             case VALKEY_GLIDE_OPT_REPLY_LITERAL:                              \
-                RETURN_BOOL(valkey_glide->reply_literal);                     \
+                RETURN_BOOL(valkey_glide->opt_reply_literal);                 \
             default:                                                          \
                 RETURN_FALSE;                                                 \
         }                                                                     \

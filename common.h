@@ -239,10 +239,10 @@ typedef struct {
     int                   batch_type; /* ATOMIC, MULTI, or PIPELINE */
     bool                  is_in_batch_mode;
 
-    zend_object std;
-
     /* Runtime options (like PHPRedis OPT_* settings) */
-    bool reply_literal; /* OPT_REPLY_LITERAL: return "OK" string instead of true */
+    bool opt_reply_literal; /* OPT_REPLY_LITERAL: return "OK" string instead of true */
+
+    zend_object std; /* MUST be last - PHP allocates extra memory after this */
 } valkey_glide_object;
 
 /* For convenience we store the salt as a printable hex string which requires 2
