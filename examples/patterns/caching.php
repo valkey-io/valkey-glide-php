@@ -1,5 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
+namespace ValkeyGlide\Examples\Patterns;
+
 /**
  * Caching Patterns Example
  *
@@ -9,7 +13,7 @@
 
 // Enable error reporting for debugging
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', '1');
 
 // Check if extension is loaded
 if (!extension_loaded('valkey_glide')) {
@@ -133,7 +137,7 @@ class CacheManager
 
 $client = null;
 try {
-    $client = new ValkeyGlide();
+    $client = new \ValkeyGlide();
     $client->connect(addresses: $addresses, use_tls: false, request_timeout: 5000);
     echo "Connected to Valkey server\n\n";
 

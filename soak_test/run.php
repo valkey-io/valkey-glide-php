@@ -1,12 +1,12 @@
 <?php
 
-declare(strict_types=1);
-
-namespace ValkeyGlide\SoakTest;
-
 /**
  * Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0
  */
+
+declare(strict_types=1);
+
+namespace ValkeyGlide\SoakTest;
 
 /**
  * Endurance/Soak Test for ValkeyGlide PHP Client
