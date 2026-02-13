@@ -13,29 +13,35 @@ This test simulates real-world usage patterns by executing a mix of Valkey comma
 The test executes commands from six categories with weighted probability distribution:
 
 #### 1. String Operations
+
 - `SET` - Write data
 - `GET` - Read data
 - `INCR` - Atomic increment
 
 #### 2. Hash Operations
+
 - `HSET` - Set hash field
 - `HGET` - Get hash field
 - `HGETALL` - Get all fields
 
 #### 3. List Operations
+
 - `LPUSH` - Push to list
 - `RPOP` - Pop from list
 - `LRANGE` - Get range
 
 #### 4. Set Operations
+
 - `SADD` - Add to set
 - `SMEMBERS` - Get all members
 
 #### 5. Sorted Set Operations
+
 - `ZADD` - Add with score
 - `ZRANGE` - Get range
 
 #### 6. Key Management
+
 - `DEL` - Delete keys
 - `EXISTS` - Check existence
 - `EXPIRE` - Set TTL
@@ -68,21 +74,25 @@ php run.php --host=redis.example.com --port=6380
 ### Examples
 
 **24-hour standalone test:**
+
 ```bash
 php run.php --duration=24
 ```
 
 **48-hour cluster test:**
+
 ```bash
 php run.php --duration=48 --cluster
 ```
 
 **1-hour quick test:**
+
 ```bash
 php run.php --duration=1
 ```
 
 **Custom server:**
+
 ```bash
 php run.php --host=redis-prod.example.com --port=6380 --duration=72
 ```
@@ -100,7 +110,8 @@ The test reports progress every 5 minutes with:
 - **Memory Usage** - Current PHP memory consumption
 
 Example output:
-```
+
+```text
 === Progress Report ===
 Elapsed: 2h 15m
 Total Operations: 1,234,567
@@ -118,7 +129,6 @@ At test completion, a comprehensive report includes:
 - Command distribution (which commands were executed and how often)
 - Error types (if any errors occurred)
 - Total runtime and throughput
-
 
 ## Configuration
 
