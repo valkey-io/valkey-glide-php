@@ -1,6 +1,6 @@
 # Welcome to Valkey GLIDE PHP
 
-Valkey GLIDE is the official open-source Valkey client library, proudly part of the Valkey organization. Our mission is to make your experience with Valkey and Redis OSS seamless and enjoyable. Whether you're a seasoned developer or just starting out, Valkey GLIDE is here to support you every step of the way.
+GLIDE is the official open-source Valkey client library, proudly part of the Valkey organization. Our mission is to make your experience with Valkey and Redis OSS seamless and enjoyable. Whether you're a seasoned developer or just starting out, Valkey GLIDE is here to support you every step of the way.
 
 **`valkey-glide-php`** is the PHP binding for Valkey GLIDE. It brings the power and flexibility of the Valkey GLIDE core to the PHP ecosystem, with a familiar and convenient interface based on the popular [PHPRedis](https://github.com/phpredis/phpredis) API. By providing a drop-in replacement client for PHPRedis, this client offers an easy migration path and minimal learning curve—while adding the features of Valkey GLIDE.
 
