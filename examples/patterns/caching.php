@@ -1,15 +1,13 @@
 <?php
 
-declare(strict_types=1);
-
-namespace ValkeyGlide\Examples\Patterns;
-
 /**
  * Caching Patterns Example
  *
  * This example demonstrates various caching patterns using Valkey GLIDE,
  * including simple cache, cache-aside, write-through, and cache invalidation.
  */
+
+declare(strict_types=1);
 
 // Enable error reporting for debugging
 error_reporting(E_ALL);
@@ -137,7 +135,7 @@ class CacheManager
 
 $client = null;
 try {
-    $client = new \ValkeyGlide();
+    $client = new ValkeyGlide();
     $client->connect(addresses: $addresses, use_tls: false, request_timeout: 5000);
     echo "Connected to Valkey server\n\n";
 

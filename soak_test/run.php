@@ -6,15 +6,11 @@
 
 declare(strict_types=1);
 
-namespace ValkeyGlide\SoakTest;
-
 /**
  * Endurance/Soak Test for ValkeyGlide PHP Client
  *
  * Tests client stability under sustained load over extended periods
  */
-
-use ValkeyGlide;
 
 // Configuration
 const TEST_DURATION_HOURS = 24;  // Default duration
@@ -48,9 +44,9 @@ class SoakTest
     {
         // Create client
         if ($isCluster) {
-            $this->client = new \ValkeyGlideCluster(addresses: [['host' => $host, 'port' => $port]]);
+            $this->client = new ValkeyGlideCluster(addresses: [['host' => $host, 'port' => $port]]);
         } else {
-            $this->client = new \ValkeyGlide();
+            $this->client = new ValkeyGlide();
             $this->client->connect(addresses: [['host' => $host, 'port' => $port]]);
         }
 
