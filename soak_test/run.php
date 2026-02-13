@@ -1,5 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
+namespace ValkeyGlide\SoakTest;
+
 /**
  * Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0
  */
@@ -9,6 +13,8 @@
  *
  * Tests client stability under sustained load over extended periods
  */
+
+use ValkeyGlide;
 
 // Configuration
 const TEST_DURATION_HOURS = 24;  // Default duration
@@ -42,9 +48,9 @@ class SoakTest
     {
         // Create client
         if ($isCluster) {
-            $this->client = new ValkeyGlideCluster(addresses: [['host' => $host, 'port' => $port]]);
+            $this->client = new \ValkeyGlideCluster(addresses: [['host' => $host, 'port' => $port]]);
         } else {
-            $this->client = new ValkeyGlide();
+            $this->client = new \ValkeyGlide();
             $this->client->connect(addresses: [['host' => $host, 'port' => $port]]);
         }
 
@@ -401,7 +407,9 @@ class SoakTest
     }
 }
 
-// Parse command-line arguments
+/**
+ * Parse command-line arguments
+ */
 function parseArguments(): array
 {
     $options = getopt('', [
@@ -419,15 +427,25 @@ function parseArguments(): array
     ];
 }
 
-// Main execution
-$args = parseArguments();
+/**
+ * Main execution
+ */
+function main(): void
+{
+    $args = parseArguments();
 
-echo "Valkey GLIDE PHP Soak Test\n";
-echo "===========================\n";
-echo "Duration: " . number_format($args['duration'], 2) . " hours\n";
-echo "Mode: " . ($args['cluster'] ? 'Cluster' : 'Standalone') . "\n";
-echo "Server: {$args['host']}:{$args['port']}\n";
-echo "===========================\n\n";
+    echo "Valkey GLIDE PHP Soak Test\n";
+    echo "===========================\n";
+    echo "Duration: " . number_format($args['duration'], 2) . " hours\n";
+    echo "Mode: " . ($args['cluster'] ? 'Cluster' : 'Standalone') . "\n";
+    echo "Server: {$args['host']}:{$args['port']}\n";
+    echo "===========================\n\n";
 
-$test = new SoakTest($args['cluster'], $args['host'], $args['port']);
-$test->run($args['duration']);
+    $test = new SoakTest($args['cluster'], $args['host'], $args['port']);
+    $test->run($args['duration']);
+}
+
+// Execute only if run directly
+if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '')) {
+    main();
+}
