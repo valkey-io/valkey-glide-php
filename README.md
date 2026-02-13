@@ -1,10 +1,8 @@
 # Welcome to Valkey GLIDE PHP
 
-Valkey General Language Independent Driver for the Enterprise (GLIDE) is the official open-source Valkey client library, proudly part of the Valkey organization. Our mission is to make your experience with Valkey and Redis OSS seamless and enjoyable. Whether you're a seasoned developer or just starting out, Valkey GLIDE is here to support you every step of the way.
+Valkey GLIDE is the official open-source Valkey client library, proudly part of the Valkey organization. Our mission is to make your experience with Valkey and Redis OSS seamless and enjoyable. Whether you're a seasoned developer or just starting out, Valkey GLIDE is here to support you every step of the way.
 
-**`valkey-glide-php`** is the PHP binding for Valkey GLIDE. It brings the power and flexibility of the Valkey GLIDE core to the PHP ecosystem, with a familiar and convenient interface based on the popular [PHPRedis](https://github.com/phpredis/phpredis) API. By staying mostly API-compatible with PHPRedis, this client offers an easy migration path and minimal learning curve—while adding the features of Valkey GLIDE.
-
-> We chose [PHPRedis](https://github.com/phpredis/phpredis) because it is a powerful and widely adopted Redis client for PHP.
+**`valkey-glide-php`** is the PHP binding for Valkey GLIDE. It brings the power and flexibility of the Valkey GLIDE core to the PHP ecosystem, with a familiar and convenient interface based on the popular [PHPRedis](https://github.com/phpredis/phpredis) API. By providing a drop-in replacement client for PHPRedis, this client offers an easy migration path and minimal learning curve—while adding the features of Valkey GLIDE.
 
 ## Why Choose Valkey GLIDE?
 
@@ -25,10 +23,10 @@ Valkey General Language Independent Driver for the Enterprise (GLIDE) is the off
 
 Valkey GLIDE is API-compatible with the following engine versions:
 
-| Engine Type           |  6.2  |  7.0  |   7.1  |  7.2  |  8.0  |  8.1  |
-|-----------------------|-------|-------|--------|-------|-------|-------|
-| Valkey                |   -   |   -   |   -    |   V   |   V   |   V   |
-| Redis                 |   V   |   V   |   V    |   V   |   -   |   -   |
+| Engine Type           |  6.2  |  7.0  |   7.1  |  7.2  |  8.0  |  8.1  |  9.0  |
+|-----------------------|-------|-------|--------|-------|-------|-------|-------|
+| Valkey                |   -   |   -   |   -    |   V   |   V   |   V   |   V   |
+| Redis                 |   V   |   V   |   V    |   V   |   -   |   -   |   -   |
 
 ## Getting Started - PHP Wrapper
 

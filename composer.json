@@ -1,6 +1,6 @@
 {
     "name": "valkey-io/valkey-glide-php",
-    "description": "General Language Independent Driver for the Enterprise (GLIDE) for Valkey",
+    "description": "Valkey GLIDE for PHP",
     "type": "php-ext",
     "license": "Apache-2.0",
     "provide": {
