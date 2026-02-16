@@ -432,44 +432,45 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
     /* Process compression configuration if provided */
     if (params->compression && Z_TYPE_P(params->compression) == IS_ARRAY) {
         HashTable* compression_ht = Z_ARRVAL_P(params->compression);
-        
+
         config->compression_config = ecalloc(1, sizeof(valkey_glide_compression_config_t));
-        
+
         /* Parse enabled (default: false) */
-        zval* enabled_zv = zend_hash_str_find(compression_ht, 
+        zval* enabled_zv                    = zend_hash_str_find(compression_ht,
                                               VALKEY_GLIDE_COMPRESSION_ENABLED,
                                               strlen(VALKEY_GLIDE_COMPRESSION_ENABLED));
         config->compression_config->enabled = enabled_zv ? zval_is_true(enabled_zv) : false;
-        
+
         /* Parse backend (default: ZSTD) */
         zval* backend_zv = zend_hash_str_find(compression_ht,
                                               VALKEY_GLIDE_COMPRESSION_BACKEND,
                                               strlen(VALKEY_GLIDE_COMPRESSION_BACKEND));
-        config->compression_config->backend = backend_zv ? 
-            (valkey_glide_compression_backend_t)zval_get_long(backend_zv) : 
-            VALKEY_GLIDE_COMPRESSION_BACKEND_ZSTD;
-        
+        config->compression_config->backend =
+            backend_zv ? (valkey_glide_compression_backend_t) zval_get_long(backend_zv)
+                       : VALKEY_GLIDE_COMPRESSION_BACKEND_ZSTD;
+
         /* Parse compression_level (optional, -1 = not set) */
-        zval* level_zv = zend_hash_str_find(compression_ht,
-                                            VALKEY_GLIDE_COMPRESSION_LEVEL,
-                                            strlen(VALKEY_GLIDE_COMPRESSION_LEVEL));
+        zval* level_zv = zend_hash_str_find(
+            compression_ht, VALKEY_GLIDE_COMPRESSION_LEVEL, strlen(VALKEY_GLIDE_COMPRESSION_LEVEL));
         config->compression_config->compression_level = level_zv ? zval_get_long(level_zv) : -1;
-        
+
         /* Parse min_compression_size (default: 64) */
         zval* min_size_zv = zend_hash_str_find(compression_ht,
                                                VALKEY_GLIDE_COMPRESSION_MIN_SIZE,
                                                strlen(VALKEY_GLIDE_COMPRESSION_MIN_SIZE));
-        config->compression_config->min_compression_size = min_size_zv ? 
-            (uint32_t)zval_get_long(min_size_zv) : 64;
-        
+        config->compression_config->min_compression_size =
+            min_size_zv ? (uint32_t) zval_get_long(min_size_zv) : 64;
+
         /* Validate min_compression_size */
         uint32_t min_allowed = get_min_compressed_size();
         if (config->compression_config->min_compression_size < min_allowed) {
             efree(config->compression_config);
             config->compression_config = NULL;
             char error_msg[256];
-            snprintf(error_msg, sizeof(error_msg),
-                     "min_compression_size must be at least %u bytes", min_allowed);
+            snprintf(error_msg,
+                     sizeof(error_msg),
+                     "min_compression_size must be at least %u bytes",
+                     min_allowed);
             zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
             return;
         }
@@ -993,9 +994,9 @@ PHP_METHOD(ValkeyGlide, close) {
  */
 PHP_METHOD(ValkeyGlide, getStatistics) {
     ZEND_PARSE_PARAMETERS_NONE();
-    
+
     Statistics stats = get_statistics();
-    
+
     array_init(return_value);
     add_assoc_long(return_value, "total_connections", stats.total_connections);
     add_assoc_long(return_value, "total_clients", stats.total_clients);

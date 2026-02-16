@@ -130,13 +130,13 @@ typedef struct {
 
 typedef enum {
     VALKEY_GLIDE_COMPRESSION_BACKEND_ZSTD = 0,
-    VALKEY_GLIDE_COMPRESSION_BACKEND_LZ4 = 1
+    VALKEY_GLIDE_COMPRESSION_BACKEND_LZ4  = 1
 } valkey_glide_compression_backend_t;
 
 typedef struct {
     bool                               enabled;
     valkey_glide_compression_backend_t backend;
-    int32_t                            compression_level;    /* -1 means not set (use default) */
+    int32_t                            compression_level; /* -1 means not set (use default) */
     uint32_t                           min_compression_size;
 } valkey_glide_compression_config_t;
 
@@ -164,12 +164,12 @@ typedef struct {
 
 typedef struct {
     valkey_glide_node_address_t*                       addresses;
-    valkey_glide_server_credentials_t*                 credentials;         /* NULL if not set */
-    valkey_glide_backoff_strategy_t*                   reconnect_strategy;  /* NULL if not set */
-    char*                                              client_name;         /* NULL if not set */
-    char*                                              client_az;           /* NULL if not set */
-    valkey_glide_advanced_base_client_configuration_t* advanced_config;     /* NULL if not set */
-    valkey_glide_compression_config_t*                 compression_config;  /* NULL if not set */
+    valkey_glide_server_credentials_t*                 credentials;        /* NULL if not set */
+    valkey_glide_backoff_strategy_t*                   reconnect_strategy; /* NULL if not set */
+    char*                                              client_name;        /* NULL if not set */
+    char*                                              client_az;          /* NULL if not set */
+    valkey_glide_advanced_base_client_configuration_t* advanced_config;    /* NULL if not set */
+    valkey_glide_compression_config_t*                 compression_config; /* NULL if not set */
     valkey_glide_read_from_t                           read_from;
     int                                                addresses_count;
     int                                                request_timeout;         /* -1 if not set */

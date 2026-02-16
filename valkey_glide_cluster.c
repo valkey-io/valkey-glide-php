@@ -268,9 +268,9 @@ PHP_METHOD(ValkeyGlideCluster, close) {
 /* {{{ proto array ValkeyGlideCluster::getStatistics() */
 PHP_METHOD(ValkeyGlideCluster, getStatistics) {
     ZEND_PARSE_PARAMETERS_NONE();
-    
+
     Statistics stats = get_statistics();
-    
+
     array_init(return_value);
     add_assoc_long(return_value, "total_connections", stats.total_connections);
     add_assoc_long(return_value, "total_clients", stats.total_clients);

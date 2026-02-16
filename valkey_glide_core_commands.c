@@ -193,23 +193,23 @@ uint8_t* create_connection_request(size_t*                                   len
     }
 
     /* Set compression configuration */
-    ConnectionRequest__CompressionConfig compression_cfg = 
+    ConnectionRequest__CompressionConfig compression_cfg =
         CONNECTION_REQUEST__COMPRESSION_CONFIG__INIT;
-    
+
     if (config->compression_config) {
         compression_cfg.enabled = config->compression_config->enabled;
-        
-        compression_cfg.backend = (config->compression_config->backend == 
-                                   VALKEY_GLIDE_COMPRESSION_BACKEND_LZ4)
-                                    ? CONNECTION_REQUEST__COMPRESSION_BACKEND__LZ4
-                                    : CONNECTION_REQUEST__COMPRESSION_BACKEND__ZSTD;
-        
+
+        compression_cfg.backend =
+            (config->compression_config->backend == VALKEY_GLIDE_COMPRESSION_BACKEND_LZ4)
+                ? CONNECTION_REQUEST__COMPRESSION_BACKEND__LZ4
+                : CONNECTION_REQUEST__COMPRESSION_BACKEND__ZSTD;
+
         compression_cfg.min_compression_size = config->compression_config->min_compression_size;
-        
+
         if (config->compression_config->compression_level >= 0) {
             compression_cfg.compression_level = config->compression_config->compression_level;
         }
-        
+
         conn_req.compression_config = &compression_cfg;
     }
 
