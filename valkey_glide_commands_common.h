@@ -1487,4 +1487,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 int  execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 void execute_script_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
+/* FFI Compression functions - Statistics struct already defined in glide_bindings.h */
+unsigned long get_min_compressed_size(void);
+
 #endif /* VALKEY_GLIDE_COMMANDS_COMMON_H */

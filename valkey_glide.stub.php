@@ -248,6 +248,22 @@ class ValkeyGlide
     public const IAM_CONFIG_REFRESH_INTERVAL = 'refreshIntervalSeconds';
 
     /**
+     * Compression Backend Constants
+     */
+
+    /**
+     * @var int
+     * Use ZSTD compression backend (better compression ratio)
+     */
+    public const COMPRESSION_BACKEND_ZSTD = 0;
+
+    /**
+     * @var int
+     * Use LZ4 compression backend (faster compression/decompression)
+     */
+    public const COMPRESSION_BACKEND_LZ4 = 1;
+
+    /**
      *
      * @var string
      *
@@ -346,6 +362,7 @@ class ValkeyGlide
      * @param array|null $advanced_config Advanced TLS/connection settings
      * @param bool|null $lazy_connect Defer connection until first command (default: false)
      * @param resource|array|null $context Stream context resource or array for TLS configuration
+     * @param array|null $compression Compression configuration: ['enabled' => true, 'backend' => COMPRESSION_BACKEND_ZSTD, 'compression_level' => 3, 'min_compression_size' => 64]
      * @return bool True on successful connection, false on failure
      *
      * @throws ValkeyGlideException If conflicting parameters are specified or connection fails
@@ -377,6 +394,7 @@ class ValkeyGlide
         ?array $advanced_config = null,
         ?bool $lazy_connect = null,
         resource|array|null $context = null,
+        ?array $compression = null,
     ): bool;
 
     public function __destruct();
@@ -569,6 +587,29 @@ class ValkeyGlide
     public function client(string $opt, mixed ...$args): mixed;
 
     public function close(): bool;
+
+    /**
+     * Get compression and connection statistics for this client.
+     *
+     * Returns runtime metrics about compression effectiveness and client connections.
+     * Statistics are global across all clients in the process.
+     *
+     * @return array Associative array with the following keys:
+     *   - total_connections: Total number of connections opened to Valkey
+     *   - total_clients: Total number of GLIDE clients created
+     *   - total_values_compressed: Count of values successfully compressed
+     *   - total_values_decompressed: Count of values successfully decompressed
+     *   - total_original_bytes: Total bytes of original data before compression
+     *   - total_bytes_compressed: Total bytes after compression
+     *   - total_bytes_decompressed: Total bytes after decompression
+     *   - compression_skipped_count: Number of times compression was skipped (value too small)
+     *
+     * @example
+     * $stats = $client->getStatistics();
+     * echo "Compression ratio: " . ($stats['total_original_bytes'] / $stats['total_bytes_compressed']) . ":1\n";
+     * echo "Space saved: " . ($stats['total_original_bytes'] - $stats['total_bytes_compressed']) . " bytes\n";
+     */
+    public function getStatistics(): array;
 
     /**
      * Set the OpenTelemetry sample percentage at runtime.

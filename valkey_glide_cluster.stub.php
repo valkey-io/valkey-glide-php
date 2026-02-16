@@ -152,6 +152,22 @@ class ValkeyGlideCluster
     public const IAM_CONFIG_REFRESH_INTERVAL = 'refreshIntervalSeconds';
 
     /**
+     * Compression Backend Constants
+     */
+
+    /**
+     * @var int
+     * Use ZSTD compression backend (better compression ratio)
+     */
+    public const COMPRESSION_BACKEND_ZSTD = 0;
+
+    /**
+     * @var int
+     * Use LZ4 compression backend (faster compression/decompression)
+     */
+    public const COMPRESSION_BACKEND_LZ4 = 1;
+
+    /**
      * @var string
      * Advanced config key for refresh topology from initial nodes option
      */
@@ -221,6 +237,7 @@ class ValkeyGlideCluster
      *                                          and within the range supported by the server configuration.
      *                                          For cluster mode, requires Valkey 9.0+ with cluster-databases > 1.
      *                                          If not specified, defaults to database 0.
+     * @param array|null $compression           Compression configuration: ['enabled' => true, 'backend' => COMPRESSION_BACKEND_ZSTD, 'compression_level' => 3, 'min_compression_size' => 64]
      *
      * Note: Cannot mix PHPRedis-style and ValkeyGlide-style parameters.
      */
@@ -244,6 +261,7 @@ class ValkeyGlideCluster
         ?array $advanced_config = null,
         ?bool $lazy_connect = null,
         ?int $database_id = null,
+        ?array $compression = null,
     ) {
     }
 
@@ -340,6 +358,11 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::close
      */
     public function close(): bool;
+
+    /**
+     * @see ValkeyGlide::getStatistics
+     */
+    public function getStatistics(): array;
 
     /**
      * @see ValkeyGlide::updateConnectionPassword
