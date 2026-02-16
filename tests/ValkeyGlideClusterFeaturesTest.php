@@ -1032,4 +1032,121 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         ValkeyGlide::setOtelSamplePercentage($randomPercentage);
         $this->assertEquals($randomPercentage, ValkeyGlide::getOtelSamplePercentage(), "Sample percentage should be $randomPercentage");
     }
+
+    public function testCompressionBasicZSTD()
+    {
+        // Test basic compression with ZSTD backend in cluster mode
+        $client = new ValkeyGlideCluster(
+            addresses: $this->getClusterAddresses(),
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'compression_level' => 3,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $key = 'test_cluster_compression_zstd_' . uniqid();
+        $data = str_repeat('A', 1000);
+
+        $this->assertTrue($client->set($key, $data));
+        $result = $client->get($key);
+        $this->assertEquals($data, $result);
+
+        $client->del($key);
+        $client->close();
+    }
+
+    public function testCompressionBasicLZ4()
+    {
+        // Test basic compression with LZ4 backend in cluster mode
+        $client = new ValkeyGlideCluster(
+            addresses: $this->getClusterAddresses(),
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_LZ4,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $key = 'test_cluster_compression_lz4_' . uniqid();
+        $data = str_repeat('B', 1000);
+
+        $this->assertTrue($client->set($key, $data));
+        $result = $client->get($key);
+        $this->assertEquals($data, $result);
+
+        $client->del($key);
+        $client->close();
+    }
+
+    public function testCompressionStatistics()
+    {
+        // Test getStatistics() method in cluster mode
+        $client = new ValkeyGlideCluster(
+            addresses: $this->getClusterAddresses(),
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $stats_before = $client->getStatistics();
+        $this->assertIsArray($stats_before);
+        $this->assertArrayHasKey('total_values_compressed', $stats_before);
+        $this->assertArrayHasKey('total_original_bytes', $stats_before);
+        $this->assertArrayHasKey('total_bytes_compressed', $stats_before);
+        $this->assertArrayHasKey('compression_skipped_count', $stats_before);
+
+        $key = 'test_cluster_stats_' . uniqid();
+        $data = str_repeat('C', 1000);
+        $client->set($key, $data);
+
+        $stats_after = $client->getStatistics();
+        $this->assertGreaterThanOrEqual($stats_before['total_values_compressed'], 
+                                        $stats_after['total_values_compressed']);
+
+        $client->del($key);
+        $client->close();
+    }
+
+    public function testCompressionDisabled()
+    {
+        // Test with compression explicitly disabled in cluster mode
+        $client = new ValkeyGlideCluster(
+            addresses: $this->getClusterAddresses(),
+            compression: [
+                'enabled' => false
+            ]
+        );
+
+        $key = 'test_cluster_no_compression_' . uniqid();
+        $data = str_repeat('D', 1000);
+
+        $this->assertTrue($client->set($key, $data));
+        $result = $client->get($key);
+        $this->assertEquals($data, $result);
+
+        $client->del($key);
+        $client->close();
+    }
+
+    public function testCompressionInvalidMinSize()
+    {
+        // Test validation error for invalid min_compression_size in cluster mode
+        try {
+            $client = new ValkeyGlideCluster(
+                addresses: $this->getClusterAddresses(),
+                compression: [
+                    'enabled' => true,
+                    'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                    'min_compression_size' => 1  // Too small
+                ]
+            );
+            $this->fail('Should throw exception for invalid min_compression_size');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains('min_compression_size must be at least', $e->getMessage());
+        }
+    }
 }
