@@ -1036,8 +1036,9 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     public function testCompressionBasicZSTD()
     {
         // Test basic compression with ZSTD backend in cluster mode
+        $addresses = [['host' => 'localhost', 'port' => 7001]];
         $client = new ValkeyGlideCluster(
-            addresses: $this->getClusterAddresses(),
+            addresses: $addresses,
             compression: [
                 'enabled' => true,
                 'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
@@ -1060,8 +1061,9 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     public function testCompressionBasicLZ4()
     {
         // Test basic compression with LZ4 backend in cluster mode
+        $addresses = [['host' => 'localhost', 'port' => 7001]];
         $client = new ValkeyGlideCluster(
-            addresses: $this->getClusterAddresses(),
+            addresses: $addresses,
             compression: [
                 'enabled' => true,
                 'backend' => ValkeyGlide::COMPRESSION_BACKEND_LZ4,
@@ -1083,8 +1085,9 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     public function testCompressionStatistics()
     {
         // Test getStatistics() method in cluster mode
+        $addresses = [['host' => 'localhost', 'port' => 7001]];
         $client = new ValkeyGlideCluster(
-            addresses: $this->getClusterAddresses(),
+            addresses: $addresses,
             compression: [
                 'enabled' => true,
                 'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
@@ -1116,8 +1119,9 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     public function testCompressionDisabled()
     {
         // Test with compression explicitly disabled in cluster mode
+        $addresses = [['host' => 'localhost', 'port' => 7001]];
         $client = new ValkeyGlideCluster(
-            addresses: $this->getClusterAddresses(),
+            addresses: $addresses,
             compression: [
                 'enabled' => false
             ]
@@ -1137,9 +1141,10 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     public function testCompressionInvalidMinSize()
     {
         // Test validation error for invalid min_compression_size in cluster mode
+        $addresses = [['host' => 'localhost', 'port' => 7001]];
         try {
             $client = new ValkeyGlideCluster(
-                addresses: $this->getClusterAddresses(),
+                addresses: $addresses,
                 compression: [
                     'enabled' => true,
                     'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
