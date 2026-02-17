@@ -176,6 +176,7 @@ void valkey_glide_init_common_constructor_params(
     params->database_id             = 0;
     params->database_id_is_null     = 1;
     params->context                 = NULL;
+    params->compression             = NULL;
 }
 
 void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
