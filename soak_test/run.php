@@ -442,6 +442,6 @@ function main(): void
 }
 
 // Execute only if run directly
-if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '')) {
+if (__FILE__ === (get_included_files()[0] ?? '')) {
     main();
 }
