@@ -1371,9 +1371,9 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         $client->set($key, $data);
 
         $stats_after = $client->getStatistics();
-        $this->assertGreaterThanOrEqual(
-            $stats_before['total_values_compressed'],
-            $stats_after['total_values_compressed']
+        $this->assertTrue(
+            $stats_after['total_values_compressed'] >= $stats_before['total_values_compressed'],
+            'Compression should have been applied'
         );
 
         $client->del($key);
