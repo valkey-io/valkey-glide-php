@@ -1186,7 +1186,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
         $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
-        $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+        $this->assertLTE($bytesOriginal, $bytesCompressed);
 
         $client->del(...$keys);
         $client->close();
@@ -1215,7 +1215,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertEquals($data, $client->get($key));
 
             $stats_after = $client->getStatistics();
-            $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+            $this->assertGT($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
 
             $client->del($key);
             $client->close();
@@ -1245,7 +1245,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertEquals($data, $client->get($key));
 
             $stats_after = $client->getStatistics();
-            $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+            $this->assertGT($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
 
             $client->del($key);
             $client->close();
@@ -1311,7 +1311,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
         $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
-        $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+        $this->assertLTE($bytesOriginal, $bytesCompressed);
 
         foreach ($keys as $key) {
             $this->assertEquals($values[$key], $client->get($key));
@@ -1346,11 +1346,11 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertEquals($data, $client->get($key));
 
             $stats_after = $client->getStatistics();
-            $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+            $this->assertGT($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
 
             $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
             $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
-            $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+            $this->assertLTE($bytesOriginal, $bytesCompressed);
 
             $client->del($key);
         }
@@ -1377,7 +1377,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $this->assertEquals('', $client->get($key));
 
         $stats_after = $client->getStatistics();
-        $this->assertGreaterThan($stats_before['compression_skipped_count'], $stats_after['compression_skipped_count']);
+        $this->assertGT($stats_before['compression_skipped_count'], $stats_after['compression_skipped_count']);
         $this->assertEquals($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
 
         $client->del($key);
@@ -1404,11 +1404,11 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $this->assertEquals($data, $client->get($key));
 
         $stats_after = $client->getStatistics();
-        $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+        $this->assertGT($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
 
         $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
         $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
-        $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+        $this->assertLTE($bytesOriginal, $bytesCompressed);
 
         $client->del($key);
         $client->close();

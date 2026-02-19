@@ -1612,7 +1612,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertEquals($data, $client->get($key));
 
             $stats_after = $client->getStatistics();
-            $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+            $this->assertGT($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
 
             $client->del($key);
             $client->close();
@@ -1644,7 +1644,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertEquals($data, $client->get($key));
 
             $stats_after = $client->getStatistics();
-            $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+            $this->assertGT($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
 
             $client->del($key);
             $client->close();
@@ -1730,11 +1730,11 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertEquals($data, $client->get($key));
 
             $stats_after = $client->getStatistics();
-            $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+            $this->assertGT($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
 
             $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
             $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
-            $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+            $this->assertLTE($bytesOriginal, $bytesCompressed);
 
             $client->del($key);
         }
@@ -1763,7 +1763,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         $this->assertEquals('', $client->get($key));
 
         $stats_after = $client->getStatistics();
-        $this->assertGreaterThan($stats_before['compression_skipped_count'], $stats_after['compression_skipped_count']);
+        $this->assertGT($stats_before['compression_skipped_count'], $stats_after['compression_skipped_count']);
         $this->assertEquals($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
 
         $client->del($key);
@@ -1792,11 +1792,11 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         $this->assertEquals($data, $client->get($key));
 
         $stats_after = $client->getStatistics();
-        $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+        $this->assertGT($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
 
         $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
         $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
-        $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+        $this->assertLTE($bytesOriginal, $bytesCompressed);
 
         $client->del($key);
         $client->close();
@@ -1825,11 +1825,11 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         $this->assertEquals($data, $client->get($key));
 
         $ttl = $client->ttl($key);
-        $this->assertGreaterThan(0, $ttl);
-        $this->assertLessThanOrEqual(10, $ttl);
+        $this->assertGT(0, $ttl);
+        $this->assertLTE(10, $ttl);
 
         $stats_after = $client->getStatistics();
-        $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+        $this->assertGT($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
 
         $client->del($key);
         $client->close();
@@ -1868,7 +1868,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
         $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
-        $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+        $this->assertLTE($bytesOriginal, $bytesCompressed);
 
         foreach ($keys as $key) {
             $this->assertEquals($values[$key], $client->get($key));
@@ -1951,7 +1951,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
         $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
-        $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+        $this->assertLTE($bytesOriginal, $bytesCompressed);
 
         // Sample verification
         for ($i = 0; $i < $numKeys; $i += 100) {
