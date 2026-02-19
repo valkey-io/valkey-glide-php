@@ -1490,4 +1490,27 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
 /* FFI Compression functions - Statistics struct already defined in glide_bindings.h */
 unsigned long get_min_compressed_size(void);
 
+/* ====================================================================
+ * STATISTICS METHOD IMPLEMENTATION MACRO
+ * ==================================================================== */
+
+#define GET_STATISTICS_METHOD_IMPL(class_name)                                                    \
+    PHP_METHOD(class_name, getStatistics) {                                                       \
+        ZEND_PARSE_PARAMETERS_NONE();                                                             \
+                                                                                                  \
+        Statistics stats = get_statistics();                                                      \
+                                                                                                  \
+        array_init(return_value);                                                                 \
+        add_assoc_long(return_value, "total_connections", stats.total_connections);               \
+        add_assoc_long(return_value, "total_clients", stats.total_clients);                       \
+        add_assoc_long(return_value, "total_values_compressed", stats.total_values_compressed);   \
+        add_assoc_long(                                                                           \
+            return_value, "total_values_decompressed", stats.total_values_decompressed);          \
+        add_assoc_long(return_value, "total_original_bytes", stats.total_original_bytes);         \
+        add_assoc_long(return_value, "total_bytes_compressed", stats.total_bytes_compressed);     \
+        add_assoc_long(return_value, "total_bytes_decompressed", stats.total_bytes_decompressed); \
+        add_assoc_long(                                                                           \
+            return_value, "compression_skipped_count", stats.compression_skipped_count);          \
+    }
+
 #endif /* VALKEY_GLIDE_COMMANDS_COMMON_H */

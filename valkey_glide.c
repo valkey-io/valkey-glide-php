@@ -991,23 +991,8 @@ PHP_METHOD(ValkeyGlide, close) {
     RETURN_TRUE;
 }
 
-/* {{{ proto array ValkeyGlide::getStatistics()
- */
-PHP_METHOD(ValkeyGlide, getStatistics) {
-    ZEND_PARSE_PARAMETERS_NONE();
-
-    Statistics stats = get_statistics();
-
-    array_init(return_value);
-    add_assoc_long(return_value, "total_connections", stats.total_connections);
-    add_assoc_long(return_value, "total_clients", stats.total_clients);
-    add_assoc_long(return_value, "total_values_compressed", stats.total_values_compressed);
-    add_assoc_long(return_value, "total_values_decompressed", stats.total_values_decompressed);
-    add_assoc_long(return_value, "total_original_bytes", stats.total_original_bytes);
-    add_assoc_long(return_value, "total_bytes_compressed", stats.total_bytes_compressed);
-    add_assoc_long(return_value, "total_bytes_decompressed", stats.total_bytes_decompressed);
-    add_assoc_long(return_value, "compression_skipped_count", stats.compression_skipped_count);
-}
+/* {{{ proto array ValkeyGlide::getStatistics() */
+GET_STATISTICS_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
 PHP_METHOD(ValkeyGlide, setOtelSamplePercentage) {
