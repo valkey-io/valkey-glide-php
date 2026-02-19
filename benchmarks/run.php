@@ -36,6 +36,7 @@ function convertNanosecsToMillisecs(int $nanoseconds): float
 enum ClientType: string
 {
     case GLIDE = 'glide';
+    case GLIDE_COMPRESSED = 'glide-compressed';
     case PHPREDIS = 'phpredis';
     case ALL = 'all';
 }
@@ -69,20 +70,25 @@ function createClient(
     bool $useTls,
     bool $isCluster
 ): object {
-    if ($clientType === ClientType::GLIDE) {
+    if ($clientType === ClientType::GLIDE || $clientType === ClientType::GLIDE_COMPRESSED) {
+        $compression = $clientType === ClientType::GLIDE_COMPRESSED
+            ? ['backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD]
+            : null;
         $advancedConfig = $useTls ? ['tls_config' => ['use_insecure_tls' => true]] : null;
         if ($isCluster) {
             return new ValkeyGlideCluster(
                 addresses: [['host' => $host, 'port' => $port]],
                 use_tls: $useTls,
-                advanced_config: $advancedConfig
+                advanced_config: $advancedConfig,
+                compression: $compression
             );
         } else {
             $client = new ValkeyGlide();
             $client->connect(
                 addresses: [['host' => $host, 'port' => $port]],
                 use_tls: $useTls,
-                advanced_config: $advancedConfig
+                advanced_config: $advancedConfig,
+                compression: $compression
             );
             return $client;
         }
@@ -286,6 +292,22 @@ function main(
         );
         $benchResults[] = $result;
     }
+
+    // Run ValkeyGlide with compression benchmark
+    if ($clientsToRun === ClientType::ALL || $clientsToRun === ClientType::GLIDE_COMPRESSED) {
+        $skipPrePopulation = $clientsToRun === ClientType::ALL;  // Skip if already pre-populated
+        $result = runClient(
+            ClientType::GLIDE_COMPRESSED,
+            $totalCommands,
+            $dataSize,
+            $isCluster,
+            $host,
+            $port,
+            $useTls,
+            $skipPrePopulation
+        );
+        $benchResults[] = $result;
+    }
 }
 
 // Main execution
@@ -296,7 +318,7 @@ $iterationsList = $args['iterations'];
 $dataSize = $args['dataSize'];
 $clientsToRun = ClientType::tryFrom($args['clients']);
 if ($clientsToRun === null) {
-    echo "Error: Invalid client type '{$args['clients']}'. Valid options: all, glide, phpredis\n";
+    echo "Error: Invalid client type '{$args['clients']}'. Valid options: all, glide, glide-compressed, phpredis\n";
     exit(1);
 }
 $host = $args['host'];

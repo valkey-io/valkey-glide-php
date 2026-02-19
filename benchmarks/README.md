@@ -21,7 +21,7 @@ php run.php
 
 - `--resultsFile` - Output file path (default: `../results/php-results.json`)
 - `--dataSize` - Size of data in bytes (default: `100`)
-- `--clients` - Which clients to run: `all`, `glide`, or `phpredis` (default: `all`)
+- `--clients` - Which clients to run: `all`, `glide`, `glide-compressed`, or `phpredis` (default: `all`)
 - `--host` - Server hostname (default: `localhost`)
 - `--port` - Server port (default: `6379`)
 - `--iterations` - Number of operations to run (default: `100_000,1_000_000,5_000_000`)
@@ -60,6 +60,18 @@ php run.php --dataSize=1000 --iterations=100000,1000000
 
 ```bash
 php run.php --clients=glide
+```
+
+**Test with compression enabled:**
+
+```bash
+php run.php --clients=glide-compressed
+```
+
+**Compare all clients (including compression):**
+
+```bash
+php run.php --clients=all
 ```
 
 **Quick test (low iterations):**
