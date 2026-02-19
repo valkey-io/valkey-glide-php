@@ -247,6 +247,11 @@ struct batch_command {
     enum RequestType     request_type;
 };
 
+/* Client runtime options - matching PHPRedis behavior */
+typedef enum {
+    VALKEY_GLIDE_OPT_REPLY_LITERAL = 1 /* Return "OK" string instead of true for Ok responses */
+} valkey_glide_option_t;
+
 typedef struct {
     const void*           glide_client; /* Valkey Glide client pointer */
     struct batch_command* buffered_commands;
@@ -255,7 +260,10 @@ typedef struct {
     int                   batch_type; /* ATOMIC, MULTI, or PIPELINE */
     bool                  is_in_batch_mode;
 
-    zend_object std;
+    /* Runtime options (like PHPRedis OPT_* settings) */
+    bool opt_reply_literal; /* OPT_REPLY_LITERAL: return "OK" string instead of true */
+
+    zend_object std; /* MUST be last - PHP allocates extra memory after this */
 } valkey_glide_object;
 
 /* For convenience we store the salt as a printable hex string which requires 2

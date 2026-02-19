@@ -843,3 +843,11 @@ PFCOUNT_METHOD_IMPL(ValkeyGlide)
 /* {{{ proto bool ValkeyGlide::pfmerge(string dst, array keys) */
 PFMERGE_METHOD_IMPL(ValkeyGlide)
 /* }}} */
+
+/* {{{ proto bool ValkeyGlide::setOption(int option, mixed value) */
+SETOPTION_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::getOption(int option) */
+GETOPTION_METHOD_IMPL(ValkeyGlide)
+/* }}} */

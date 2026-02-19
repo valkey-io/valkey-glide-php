@@ -461,6 +461,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
                                       ? get_valkey_glide_cluster_ce()            \
                                       : get_valkey_glide_ce())) {                \
+            APPLY_REPLY_LITERAL(return_value);                                   \
             return;                                                              \
         }                                                                        \
         zval_dtor(return_value);                                                 \

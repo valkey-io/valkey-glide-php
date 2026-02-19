@@ -449,6 +449,7 @@ int execute_list_mpop_command(
                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
                                          ? get_valkey_glide_cluster_ce()            \
                                          : get_valkey_glide_ce())) {                \
+            APPLY_REPLY_LITERAL(return_value);                                      \
             return;                                                                 \
         }                                                                           \
         zval_dtor(return_value);                                                    \
@@ -477,6 +478,7 @@ int execute_list_mpop_command(
                                       strcmp(#class_name, "ValkeyGlideCluster") == 0 \
                                           ? get_valkey_glide_cluster_ce()            \
                                           : get_valkey_glide_ce())) {                \
+            APPLY_REPLY_LITERAL(return_value);                                       \
             return;                                                                  \
         }                                                                            \
         zval_dtor(return_value);                                                     \
