@@ -1156,4 +1156,261 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertStringContains('min_compression_size must be at least', $e->getMessage());
         }
     }
+
+    public function testCompressionClusterMultiSlot()
+    {
+        $addresses = [['host' => 'localhost', 'port' => 7001]];
+        $client = new ValkeyGlideCluster(
+            addresses: $addresses,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $numKeys = 100;
+        $keys = [];
+        $stats_before = $client->getStatistics();
+
+        for ($i = 0; $i < $numKeys; $i++) {
+            $key = "multislot_{$i}_" . uniqid();
+            $keys[] = $key;
+            $data = str_repeat('data', 250);
+            $this->assertTrue($client->set($key, $data));
+        }
+
+        $stats_after = $client->getStatistics();
+        $compressed = $stats_after['total_values_compressed'] - $stats_before['total_values_compressed'];
+        $this->assertEquals($numKeys, $compressed);
+
+        $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
+        $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
+        $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+
+        $client->del(...$keys);
+        $client->close();
+    }
+
+    public function testCompressionClusterValidZSTDLevels()
+    {
+        $validLevels = [1, 3, 10, 22];
+        foreach ($validLevels as $level) {
+            $addresses = [['host' => 'localhost', 'port' => 7001]];
+            $client = new ValkeyGlideCluster(
+                addresses: $addresses,
+                compression: [
+                    'enabled' => true,
+                    'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                    'compression_level' => $level,
+                    'min_compression_size' => 64
+                ]
+            );
+
+            $key = "cluster_zstd_{$level}_" . uniqid();
+            $data = str_repeat('test', 250);
+            $stats_before = $client->getStatistics();
+
+            $this->assertTrue($client->set($key, $data));
+            $this->assertEquals($data, $client->get($key));
+
+            $stats_after = $client->getStatistics();
+            $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterValidLZ4Levels()
+    {
+        $validLevels = [0, 1, 6, 12];
+        foreach ($validLevels as $level) {
+            $addresses = [['host' => 'localhost', 'port' => 7001]];
+            $client = new ValkeyGlideCluster(
+                addresses: $addresses,
+                compression: [
+                    'enabled' => true,
+                    'backend' => ValkeyGlide::COMPRESSION_BACKEND_LZ4,
+                    'compression_level' => $level,
+                    'min_compression_size' => 64
+                ]
+            );
+
+            $key = "cluster_lz4_{$level}_" . uniqid();
+            $data = str_repeat('test', 250);
+            $stats_before = $client->getStatistics();
+
+            $this->assertTrue($client->set($key, $data));
+            $this->assertEquals($data, $client->get($key));
+
+            $stats_after = $client->getStatistics();
+            $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterInvalidLevels()
+    {
+        $invalidConfigs = [
+            ['backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD, 'level' => 23],
+            ['backend' => ValkeyGlide::COMPRESSION_BACKEND_LZ4, 'level' => 13]
+        ];
+
+        foreach ($invalidConfigs as $config) {
+            try {
+                $addresses = [['host' => 'localhost', 'port' => 7001]];
+                $client = new ValkeyGlideCluster(
+                    addresses: $addresses,
+                    compression: [
+                        'enabled' => true,
+                        'backend' => $config['backend'],
+                        'compression_level' => $config['level'],
+                        'min_compression_size' => 64
+                    ]
+                );
+                $client->close();
+                $this->fail("Invalid level {$config['level']} should throw exception");
+            } catch (Exception $e) {
+                $msg = strtolower($e->getMessage());
+                $this->assertTrue(str_contains($msg, 'compression') || str_contains($msg, 'level'));
+            }
+        }
+    }
+
+    public function testCompressionClusterBatchOperations()
+    {
+        $addresses = [['host' => 'localhost', 'port' => 7001]];
+        $client = new ValkeyGlideCluster(
+            addresses: $addresses,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $numKeys = 100;
+        $keys = [];
+        $values = [];
+        $stats_before = $client->getStatistics();
+
+        for ($i = 0; $i < $numKeys; $i++) {
+            $key = "cluster_batch_{$i}_" . uniqid();
+            $value = str_repeat('data', 250);
+            $keys[] = $key;
+            $values[$key] = $value;
+            $client->set($key, $value);
+        }
+
+        $stats_after = $client->getStatistics();
+        $compressed = $stats_after['total_values_compressed'] - $stats_before['total_values_compressed'];
+        $this->assertEquals($numKeys, $compressed);
+
+        $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
+        $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
+        $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+
+        foreach ($keys as $key) {
+            $this->assertEquals($values[$key], $client->get($key));
+        }
+
+        $client->del(...$keys);
+        $client->close();
+    }
+
+    public function testCompressionClusterDataTypes()
+    {
+        $addresses = [['host' => 'localhost', 'port' => 7001]];
+        $client = new ValkeyGlideCluster(
+            addresses: $addresses,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $testData = [
+            'json' => json_encode(['id' => 123, 'name' => str_repeat('test', 50)]),
+            'base64' => base64_encode(random_bytes(500))
+        ];
+
+        foreach ($testData as $type => $data) {
+            $key = "cluster_datatype_{$type}_" . uniqid();
+            $stats_before = $client->getStatistics();
+
+            $this->assertTrue($client->set($key, $data));
+            $this->assertEquals($data, $client->get($key));
+
+            $stats_after = $client->getStatistics();
+            $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+
+            $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
+            $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
+            $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+
+            $client->del($key);
+        }
+
+        $client->close();
+    }
+
+    public function testCompressionClusterEmptyValue()
+    {
+        $addresses = [['host' => 'localhost', 'port' => 7001]];
+        $client = new ValkeyGlideCluster(
+            addresses: $addresses,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $key = 'cluster_empty_' . uniqid();
+        $stats_before = $client->getStatistics();
+
+        $this->assertTrue($client->set($key, ''));
+        $this->assertEquals('', $client->get($key));
+
+        $stats_after = $client->getStatistics();
+        $this->assertGreaterThan($stats_before['compression_skipped_count'], $stats_after['compression_skipped_count']);
+        $this->assertEquals($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+
+        $client->del($key);
+        $client->close();
+    }
+
+    public function testCompressionClusterVeryLargeValue()
+    {
+        $addresses = [['host' => 'localhost', 'port' => 7001]];
+        $client = new ValkeyGlideCluster(
+            addresses: $addresses,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $key = 'cluster_large_' . uniqid();
+        $data = str_repeat('A', 10 * 1024 * 1024); // 10MB
+        $stats_before = $client->getStatistics();
+
+        $this->assertTrue($client->set($key, $data));
+        $this->assertEquals($data, $client->get($key));
+
+        $stats_after = $client->getStatistics();
+        $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+
+        $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
+        $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
+        $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+
+        $client->del($key);
+        $client->close();
+    }
 }

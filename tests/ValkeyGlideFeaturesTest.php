@@ -1424,4 +1424,542 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertStringContains('min_compression_size must be at least', $e->getMessage());
         }
     }
+
+    public function testCompressionEffectiveness()
+    {
+        // Test that compression actually reduces data size
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: $this->getTLS(),
+            advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $stats_before = $client->getStatistics();
+
+        $key = 'test_effectiveness_' . uniqid();
+        $data = str_repeat('compressible data pattern ', 100);
+        $client->set($key, $data);
+
+        $stats_after = $client->getStatistics();
+        $original_bytes = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
+        $compressed_bytes = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
+
+        $this->assertTrue(
+            $compressed_bytes < $original_bytes,
+            "Compressed size ($compressed_bytes) should be less than original ($original_bytes)"
+        );
+
+        $client->del($key);
+        $client->close();
+    }
+
+    public function testCompressionSkipsSmallValues()
+    {
+        // Test that values below min_compression_size are not compressed
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: $this->getTLS(),
+            advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 256
+            ]
+        );
+
+        $stats_before = $client->getStatistics();
+
+        $key = 'test_small_' . uniqid();
+        $small_data = 'short';
+        $client->set($key, $small_data);
+
+        $stats_after = $client->getStatistics();
+
+        $this->assertEquals(
+            $stats_before['total_values_compressed'],
+            $stats_after['total_values_compressed'],
+            'Small value should not be compressed'
+        );
+
+        $this->assertTrue(
+            $stats_after['compression_skipped_count'] > $stats_before['compression_skipped_count'],
+            'Skip count should increase'
+        );
+
+        $client->del($key);
+        $client->close();
+    }
+
+    public function testCompressionMultiBackendDecompression()
+    {
+        // Test that any client can decompress data from any backend
+        $key1 = 'test_zstd_' . uniqid();
+        $key2 = 'test_lz4_' . uniqid();
+        $data1 = str_repeat('ZSTD data ', 100);
+        $data2 = str_repeat('LZ4 data ', 100);
+
+        // Client 1: Write with ZSTD
+        $client1 = new ValkeyGlide();
+        $client1->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: $this->getTLS(),
+            advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD
+            ]
+        );
+        $client1->set($key1, $data1);
+        $client1->close();
+
+        // Client 2: Write with LZ4
+        $client2 = new ValkeyGlide();
+        $client2->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: $this->getTLS(),
+            advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_LZ4
+            ]
+        );
+        $client2->set($key2, $data2);
+        $client2->close();
+
+        // Client 3: Read both with ZSTD config (should decompress both)
+        $client3 = new ValkeyGlide();
+        $client3->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: $this->getTLS(),
+            advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD
+            ]
+        );
+
+        $this->assertEquals($data1, $client3->get($key1), 'Should decompress ZSTD data');
+        $this->assertEquals($data2, $client3->get($key2), 'Should decompress LZ4 data');
+
+        $client3->del($key1);
+        $client3->del($key2);
+        $client3->close();
+    }
+
+    public function testCompressionBackwardsCompatibility()
+    {
+        // Test that compression-enabled client can read uncompressed data
+        $key = 'test_uncompressed_' . uniqid();
+        $data = str_repeat('uncompressed data ', 100);
+
+        // Write uncompressed data
+        $client_no_compression = new ValkeyGlide();
+        $client_no_compression->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: $this->getTLS(),
+            advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null
+        );
+        $client_no_compression->set($key, $data);
+        $client_no_compression->close();
+
+        // Read with compression-enabled client
+        $client_with_compression = new ValkeyGlide();
+        $client_with_compression->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: $this->getTLS(),
+            advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD
+            ]
+        );
+
+        $this->assertEquals($data, $client_with_compression->get($key), 'Should read uncompressed data');
+
+        $client_with_compression->del($key);
+        $client_with_compression->close();
+    }
+
+    public function testCompressionValidZSTDLevels()
+    {
+        $validLevels = [1, 3, 10, 22, -5];
+        foreach ($validLevels as $level) {
+            $client = new ValkeyGlide();
+            $client->connect(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                use_tls: $this->getTLS(),
+                advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+                compression: [
+                    'enabled' => true,
+                    'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                    'compression_level' => $level,
+                    'min_compression_size' => 64
+                ]
+            );
+
+            $key = "zstd_level_{$level}_" . uniqid();
+            $data = str_repeat('test', 250);
+            $stats_before = $client->getStatistics();
+
+            $this->assertTrue($client->set($key, $data));
+            $this->assertEquals($data, $client->get($key));
+
+            $stats_after = $client->getStatistics();
+            $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionValidLZ4Levels()
+    {
+        $validLevels = [-128, -10, 0, 1, 6, 12];
+        foreach ($validLevels as $level) {
+            $client = new ValkeyGlide();
+            $client->connect(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                use_tls: $this->getTLS(),
+                advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+                compression: [
+                    'enabled' => true,
+                    'backend' => ValkeyGlide::COMPRESSION_BACKEND_LZ4,
+                    'compression_level' => $level,
+                    'min_compression_size' => 64
+                ]
+            );
+
+            $key = "lz4_level_{$level}_" . uniqid();
+            $data = str_repeat('test', 250);
+            $stats_before = $client->getStatistics();
+
+            $this->assertTrue($client->set($key, $data));
+            $this->assertEquals($data, $client->get($key));
+
+            $stats_after = $client->getStatistics();
+            $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionInvalidZSTDLevels()
+    {
+        $invalidLevels = [23, 100, -200000];
+        foreach ($invalidLevels as $level) {
+            try {
+                $client = new ValkeyGlide();
+                $client->connect(
+                    addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                    use_tls: $this->getTLS(),
+                    advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+                    compression: [
+                        'enabled' => true,
+                        'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                        'compression_level' => $level,
+                        'min_compression_size' => 64
+                    ]
+                );
+                $client->close();
+                $this->fail("Invalid ZSTD level {$level} should throw exception");
+            } catch (Exception $e) {
+                $msg = strtolower($e->getMessage());
+                $this->assertTrue(str_contains($msg, 'compression') || str_contains($msg, 'level'));
+            }
+        }
+    }
+
+    public function testCompressionInvalidLZ4Levels()
+    {
+        $invalidLevels = [13, 100, -129, -1000];
+        foreach ($invalidLevels as $level) {
+            try {
+                $client = new ValkeyGlide();
+                $client->connect(
+                    addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                    use_tls: $this->getTLS(),
+                    advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+                    compression: [
+                        'enabled' => true,
+                        'backend' => ValkeyGlide::COMPRESSION_BACKEND_LZ4,
+                        'compression_level' => $level,
+                        'min_compression_size' => 64
+                    ]
+                );
+                $client->close();
+                $this->fail("Invalid LZ4 level {$level} should throw exception");
+            } catch (Exception $e) {
+                $msg = strtolower($e->getMessage());
+                $this->assertTrue(str_contains($msg, 'compression') || str_contains($msg, 'level'));
+            }
+        }
+    }
+
+    public function testCompressionDataTypes()
+    {
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: $this->getTLS(),
+            advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $testData = [
+            'json' => json_encode(['id' => 123, 'name' => str_repeat('test', 50)]),
+            'base64' => base64_encode(random_bytes(500)),
+            'unicode' => str_repeat('Hello世界🌍', 50)
+        ];
+
+        foreach ($testData as $type => $data) {
+            $key = "datatype_{$type}_" . uniqid();
+            $stats_before = $client->getStatistics();
+
+            $this->assertTrue($client->set($key, $data));
+            $this->assertEquals($data, $client->get($key));
+
+            $stats_after = $client->getStatistics();
+            $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+
+            $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
+            $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
+            $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+
+            $client->del($key);
+        }
+
+        $client->close();
+    }
+
+    public function testCompressionEmptyValue()
+    {
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: $this->getTLS(),
+            advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $key = 'empty_' . uniqid();
+        $stats_before = $client->getStatistics();
+
+        $this->assertTrue($client->set($key, ''));
+        $this->assertEquals('', $client->get($key));
+
+        $stats_after = $client->getStatistics();
+        $this->assertGreaterThan($stats_before['compression_skipped_count'], $stats_after['compression_skipped_count']);
+        $this->assertEquals($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+
+        $client->del($key);
+        $client->close();
+    }
+
+    public function testCompressionVeryLargeValue()
+    {
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: $this->getTLS(),
+            advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $key = 'large_' . uniqid();
+        $data = str_repeat('A', 10 * 1024 * 1024); // 10MB
+        $stats_before = $client->getStatistics();
+
+        $this->assertTrue($client->set($key, $data));
+        $this->assertEquals($data, $client->get($key));
+
+        $stats_after = $client->getStatistics();
+        $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+
+        $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
+        $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
+        $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+
+        $client->del($key);
+        $client->close();
+    }
+
+    public function testCompressionWithTTL()
+    {
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: $this->getTLS(),
+            advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $key = 'ttl_' . uniqid();
+        $data = str_repeat('test', 250);
+        $stats_before = $client->getStatistics();
+
+        $this->assertTrue($client->set($key, $data));
+        $this->assertTrue($client->expire($key, 10));
+        $this->assertEquals($data, $client->get($key));
+
+        $ttl = $client->ttl($key);
+        $this->assertGreaterThan(0, $ttl);
+        $this->assertLessThanOrEqual(10, $ttl);
+
+        $stats_after = $client->getStatistics();
+        $this->assertGreaterThan($stats_before['total_values_compressed'], $stats_after['total_values_compressed']);
+
+        $client->del($key);
+        $client->close();
+    }
+
+    public function testCompressionBatchOperations()
+    {
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: $this->getTLS(),
+            advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $numKeys = 100;
+        $keys = [];
+        $values = [];
+        $stats_before = $client->getStatistics();
+
+        for ($i = 0; $i < $numKeys; $i++) {
+            $key = "batch_{$i}_" . uniqid();
+            $value = str_repeat('data', 250);
+            $keys[] = $key;
+            $values[$key] = $value;
+            $client->set($key, $value);
+        }
+
+        $stats_after = $client->getStatistics();
+        $compressed = $stats_after['total_values_compressed'] - $stats_before['total_values_compressed'];
+        $this->assertEquals($numKeys, $compressed);
+
+        $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
+        $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
+        $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+
+        foreach ($keys as $key) {
+            $this->assertEquals($values[$key], $client->get($key));
+        }
+
+        $client->del(...$keys);
+        $client->close();
+    }
+
+    public function testCompressionBatchMixedSizes()
+    {
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: $this->getTLS(),
+            advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $keys = [];
+        $stats_before = $client->getStatistics();
+
+        // Small values (below threshold)
+        for ($i = 0; $i < 10; $i++) {
+            $key = "small_{$i}_" . uniqid();
+            $keys[] = $key;
+            $client->set($key, 'tiny');
+        }
+
+        // Large values (above threshold)
+        for ($i = 0; $i < 20; $i++) {
+            $key = "large_{$i}_" . uniqid();
+            $keys[] = $key;
+            $client->set($key, str_repeat('data', 250));
+        }
+
+        $stats_after = $client->getStatistics();
+        $skipped = $stats_after['compression_skipped_count'] - $stats_before['compression_skipped_count'];
+        $compressed = $stats_after['total_values_compressed'] - $stats_before['total_values_compressed'];
+
+        $this->assertEquals(10, $skipped);
+        $this->assertEquals(20, $compressed);
+
+        $client->del(...$keys);
+        $client->close();
+    }
+
+    public function testCompressionLargeBatchPayload()
+    {
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: $this->getTLS(),
+            advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+
+        $numKeys = 1000;
+        $keys = [];
+        $value = str_repeat('data', 250);
+        $stats_before = $client->getStatistics();
+
+        for ($i = 0; $i < $numKeys; $i++) {
+            $key = "payload_{$i}_" . uniqid();
+            $keys[] = $key;
+            $client->set($key, $value);
+        }
+
+        $stats_after = $client->getStatistics();
+        $compressed = $stats_after['total_values_compressed'] - $stats_before['total_values_compressed'];
+        $this->assertEquals($numKeys, $compressed);
+
+        $bytesOriginal = $stats_after['total_original_bytes'] - $stats_before['total_original_bytes'];
+        $bytesCompressed = $stats_after['total_bytes_compressed'] - $stats_before['total_bytes_compressed'];
+        $this->assertLessThanOrEqual($bytesOriginal, $bytesCompressed);
+
+        // Sample verification
+        for ($i = 0; $i < $numKeys; $i += 100) {
+            $this->assertEquals($value, $client->get($keys[$i]));
+        }
+
+        $client->del(...$keys);
+        $client->close();
+    }
 }
