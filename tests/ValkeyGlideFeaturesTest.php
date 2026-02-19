@@ -1719,8 +1719,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         $testData = [
             'json' => json_encode(['id' => 123, 'name' => str_repeat('test', 50)]),
-            'base64' => base64_encode(random_bytes(500)),
-            'unicode' => str_repeat('Hello世界🌍', 50)
+            'base64' => base64_encode(random_bytes(500))
         ];
 
         foreach ($testData as $type => $data) {

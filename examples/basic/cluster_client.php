@@ -209,6 +209,53 @@ try {
     // All user data is on the same slot, so we can use transactions
     echo "All user data is on the same slot - can use multi-key operations\n\n";
 
+    // Compression example
+    echo "Compression in Cluster Mode:\n";
+    echo "----------------------------\n";
+
+    // Create a new cluster client with compression enabled
+    $compressedClient = new ValkeyGlideCluster(
+        addresses: $addresses,
+        use_tls: $use_tls,
+        credentials: $password ? ['password' => $password] : null,
+        compression: [
+            'enabled' => true,
+            'backend' => ValkeyGlide::COMPRESSION_BACKEND_LZ4,
+            'compression_level' => 1,
+            'min_compression_size' => 64
+        ]
+    );
+
+    // Store large values across cluster
+    $compressedKeys = [
+        'data:{shard1}:large' => str_repeat('Sample data A. ', 50),
+        'data:{shard2}:large' => str_repeat('Sample data B. ', 50),
+        'data:{shard3}:large' => str_repeat('Sample data C. ', 50)
+    ];
+
+    foreach ($compressedKeys as $key => $value) {
+        $compressedClient->set($key, $value);
+        echo "Stored {$key} (" . strlen($value) . " bytes)\n";
+    }
+
+    // Get compression statistics
+    $stats = $compressedClient->getStatistics();
+    echo "Cluster compression stats:\n";
+    echo "  Values compressed: {$stats['total_values_compressed']}\n";
+    echo "  Original bytes: {$stats['total_original_bytes']}\n";
+    echo "  Compressed bytes: {$stats['total_bytes_compressed']}\n";
+    $ratio = $stats['total_original_bytes'] > 0 
+        ? round(($stats['total_bytes_compressed'] / $stats['total_original_bytes']) * 100, 2) 
+        : 0;
+    echo "  Compression ratio: {$ratio}%\n";
+
+    // Cleanup compressed keys
+    foreach (array_keys($compressedKeys) as $key) {
+        $compressedClient->del([$key]);
+    }
+    $compressedClient->close();
+    echo "\n";
+
     // Cleanup
     echo "🧹 Cleanup:\n";
     echo "----------\n";

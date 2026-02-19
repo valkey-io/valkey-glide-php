@@ -161,6 +161,50 @@ try {
     $dbsize = $client->dbsize();
     echo "  Database size: {$dbsize} keys\n\n";
 
+    // Compression example
+    echo "Compression Example:\n";
+    echo "--------------------\n";
+
+    // Create a new client with compression enabled
+    $compressedClient = new ValkeyGlide();
+    $compressedClient->connect(
+        addresses: $addresses,
+        use_tls: $use_tls,
+        credentials: $password ? ['password' => $password] : null,
+        compression: [
+            'enabled' => true,
+            'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+            'compression_level' => 3,
+            'min_compression_size' => 64
+        ]
+    );
+
+    // Store large value that will be compressed
+    $largeKey = 'example:large_data';
+    $largeValue = str_repeat('This is sample data for compression. ', 100);
+    $compressedClient->set($largeKey, $largeValue);
+    echo "Stored large value ({$largeValue} bytes)\n";
+
+    // Get compression statistics
+    $stats = $compressedClient->getStatistics();
+    echo "Compression stats:\n";
+    echo "  Values compressed: {$stats['total_values_compressed']}\n";
+    echo "  Original bytes: {$stats['total_original_bytes']}\n";
+    echo "  Compressed bytes: {$stats['total_bytes_compressed']}\n";
+    $ratio = $stats['total_original_bytes'] > 0 
+        ? round(($stats['total_bytes_compressed'] / $stats['total_original_bytes']) * 100, 2) 
+        : 0;
+    echo "  Compression ratio: {$ratio}%\n";
+
+    // Verify data integrity
+    $retrieved = $compressedClient->get($largeKey);
+    echo "Data integrity: " . ($retrieved === $largeValue ? 'Verified' : 'Failed') . "\n";
+
+    // Cleanup
+    $compressedClient->del([$largeKey]);
+    $compressedClient->close();
+    echo "\n";
+
     // Cleanup
     echo "🧹 Cleanup:\n";
     echo "----------\n";
