@@ -453,19 +453,19 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
         RETURN_FALSE;                                                             \
     }
 
-#define HMSET_METHOD_IMPL(class_name)                                             \
-    PHP_METHOD(class_name, hMset) {                                               \
-        if (execute_hmset_command(getThis(),                                      \
-                                  ZEND_NUM_ARGS(),                                \
-                                  return_value,                                   \
-                                  strcmp(#class_name, "ValkeyGlideCluster") == 0  \
-                                      ? get_valkey_glide_cluster_ce()             \
-                                      : get_valkey_glide_ce())) {                 \
-            APPLY_REPLY_LITERAL(return_value);                                    \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
+#define HMSET_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hMset) {                                              \
+        if (execute_hmset_command(getThis(),                                     \
+                                  ZEND_NUM_ARGS(),                               \
+                                  return_value,                                  \
+                                  strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                      ? get_valkey_glide_cluster_ce()            \
+                                      : get_valkey_glide_ce())) {                \
+            APPLY_REPLY_LITERAL(return_value);                                   \
+            return;                                                              \
+        }                                                                        \
+        zval_dtor(return_value);                                                 \
+        RETURN_FALSE;                                                            \
     }
 
 #define HINCRBY_METHOD_IMPL(class_name)                                            \
