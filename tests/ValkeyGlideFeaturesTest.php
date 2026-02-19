@@ -1961,7 +1961,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         $client->del(...$keys);
         $client->close();
     }
-  
+
     public function testOptReplyLiteralConstant()
     {
         $this->assertTrue(defined('ValkeyGlide::OPT_REPLY_LITERAL'));
