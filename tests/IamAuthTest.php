@@ -149,7 +149,8 @@ class IamAuthTest extends \TestSuite
                         'service' => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
                         'refreshIntervalSeconds' => 5  // Fast refresh for testing
                     ]
-                ]
+                ],
+                advanced_config: ['connection_timeout' => 5000]
             );
 
             // Verify connection with PING
