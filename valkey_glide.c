@@ -284,7 +284,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
 
         /* Check for username */
         zval* username_val = zend_hash_str_find(
-            cred_ht, VALKEY_GLIDE_AUTH_USERNAME, strlen(VALKEY_GLIDE_AUTH_USERNAME));
+            cred_ht, VALKEY_GLIDE_AUTH_USERNAME, sizeof(VALKEY_GLIDE_AUTH_USERNAME) - 1);
         if (username_val && Z_TYPE_P(username_val) == IS_STRING) {
             config->credentials->username = Z_STRVAL_P(username_val);
         } else {
@@ -293,7 +293,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
 
         /* Check for password */
         zval* password_val = zend_hash_str_find(
-            cred_ht, VALKEY_GLIDE_AUTH_PASSWORD, strlen(VALKEY_GLIDE_AUTH_PASSWORD));
+            cred_ht, VALKEY_GLIDE_AUTH_PASSWORD, sizeof(VALKEY_GLIDE_AUTH_PASSWORD) - 1);
         if (password_val && Z_TYPE_P(password_val) == IS_STRING) {
             config->credentials->password = Z_STRVAL_P(password_val);
         } else {
@@ -302,7 +302,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
 
         /* Check for IAM config (mutually exclusive with password) */
         zval* iam_config_val = zend_hash_str_find(
-            cred_ht, VALKEY_GLIDE_AUTH_IAM_CONFIG, strlen(VALKEY_GLIDE_AUTH_IAM_CONFIG));
+            cred_ht, VALKEY_GLIDE_AUTH_IAM_CONFIG, sizeof(VALKEY_GLIDE_AUTH_IAM_CONFIG) - 1);
         if (iam_config_val && Z_TYPE_P(iam_config_val) == IS_ARRAY) {
             HashTable* iam_ht = Z_ARRVAL_P(iam_config_val);
 
@@ -313,7 +313,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             zval* cluster_name_val =
                 zend_hash_str_find(iam_ht,
                                    VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME,
-                                   strlen(VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME));
+                                   sizeof(VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME) - 1);
             if (cluster_name_val && Z_TYPE_P(cluster_name_val) == IS_STRING) {
                 config->credentials->iam_config->cluster_name = Z_STRVAL_P(cluster_name_val);
             } else {
@@ -322,7 +322,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
 
             /* Parse region (required) */
             zval* region_val = zend_hash_str_find(
-                iam_ht, VALKEY_GLIDE_IAM_CONFIG_REGION, strlen(VALKEY_GLIDE_IAM_CONFIG_REGION));
+                iam_ht, VALKEY_GLIDE_IAM_CONFIG_REGION, sizeof(VALKEY_GLIDE_IAM_CONFIG_REGION) - 1);
             if (region_val && Z_TYPE_P(region_val) == IS_STRING) {
                 config->credentials->iam_config->region = Z_STRVAL_P(region_val);
             } else {
@@ -331,7 +331,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
 
             /* Parse service type (required) */
             zval* service_val = zend_hash_str_find(
-                iam_ht, VALKEY_GLIDE_IAM_CONFIG_SERVICE, strlen(VALKEY_GLIDE_IAM_CONFIG_SERVICE));
+                iam_ht, VALKEY_GLIDE_IAM_CONFIG_SERVICE, sizeof(VALKEY_GLIDE_IAM_CONFIG_SERVICE) - 1);
             if (service_val && Z_TYPE_P(service_val) == IS_STRING) {
                 const char* service_str = Z_STRVAL_P(service_val);
                 if (strcasecmp(service_str, VALKEY_GLIDE_IAM_SERVICE_MEMORYDB) == 0) {
@@ -350,7 +350,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             zval* refresh_val =
                 zend_hash_str_find(iam_ht,
                                    VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL,
-                                   strlen(VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL));
+                                   sizeof(VALKEY_GLIDE_IAM_CONFIG_REFRESH_INTERVAL) - 1);
             if (refresh_val && Z_TYPE_P(refresh_val) == IS_LONG) {
                 config->credentials->iam_config->refresh_interval_seconds = Z_LVAL_P(refresh_val);
             } else {
