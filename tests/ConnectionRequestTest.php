@@ -615,6 +615,118 @@ class ConnectionRequestTest extends \TestSuite
         }
     }
 
+    // ================================================================
+    // Compression Tests
+    // ================================================================
+
+    public function testCompressionStandaloneZstdDefault()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            compression: ['enabled' => true, 'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD]
+        );
+
+        $compression_config = $request->getCompressionConfig();
+        $this->assertTrue($compression_config->getEnabled());
+        $this->assertEquals(ValkeyGlide::COMPRESSION_BACKEND_ZSTD, $compression_config->getBackend());
+        $this->assertEquals(3, $compression_config->getCompressionLevel());
+        $this->assertEquals(256, $compression_config->getMinCompressionSize());
+    }
+
+    public function testCompressionClusterZstdDefault()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            compression: ['enabled' => true, 'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD]
+        );
+
+        $compression_config = $request->getCompressionConfig();
+        $this->assertTrue($compression_config->getEnabled());
+        $this->assertEquals(ValkeyGlide::COMPRESSION_BACKEND_ZSTD, $compression_config->getBackend());
+        $this->assertEquals(3, $compression_config->getCompressionLevel());
+        $this->assertEquals(256, $compression_config->getMinCompressionSize());
+    }
+
+    public function testCompressionStandaloneLZ4Default()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            compression: ['enabled' => true, 'backend' => ValkeyGlide::COMPRESSION_BACKEND_LZ4]
+        );
+
+        $compression_config = $request->getCompressionConfig();
+        $this->assertTrue($compression_config->getEnabled());
+        $this->assertEquals(ValkeyGlide::COMPRESSION_BACKEND_LZ4, $compression_config->getBackend());
+        $this->assertEquals(0, $compression_config->getCompressionLevel());
+        $this->assertEquals(256, $compression_config->getMinCompressionSize());
+    }
+
+    public function testCompressionClusterLZ4Default()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            compression: ['enabled' => true, 'backend' => ValkeyGlide::COMPRESSION_BACKEND_LZ4]
+        );
+
+        $compression_config = $request->getCompressionConfig();
+        $this->assertTrue($compression_config->getEnabled());
+        $this->assertEquals(ValkeyGlide::COMPRESSION_BACKEND_LZ4, $compression_config->getBackend());
+        $this->assertEquals(0, $compression_config->getCompressionLevel());
+        $this->assertEquals(256, $compression_config->getMinCompressionSize());
+    }
+
+    public function testCompressionStandaloneCustomConfig()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'compression_level' => 10,
+                'min_compression_size' => 512
+            ]
+        );
+
+        $compression_config = $request->getCompressionConfig();
+        $this->assertTrue($compression_config->getEnabled());
+        $this->assertEquals(ValkeyGlide::COMPRESSION_BACKEND_ZSTD, $compression_config->getBackend());
+        $this->assertEquals(10, $compression_config->getCompressionLevel());
+        $this->assertEquals(512, $compression_config->getMinCompressionSize());
+    }
+
+    public function testCompressionClusterCustomConfig()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_LZ4,
+                'compression_level' => 6,
+                'min_compression_size' => 128
+            ]
+        );
+
+        $compression_config = $request->getCompressionConfig();
+        $this->assertTrue($compression_config->getEnabled());
+        $this->assertEquals(ValkeyGlide::COMPRESSION_BACKEND_LZ4, $compression_config->getBackend());
+        $this->assertEquals(6, $compression_config->getCompressionLevel());
+        $this->assertEquals(128, $compression_config->getMinCompressionSize());
+    }
+
+    public function testCompressionStandaloneDisabled()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            compression: ['enabled' => false]
+        );
+
+        $compression_config = $request->getCompressionConfig();
+        $this->assertFalse($compression_config->getEnabled());
+    }
+
+    public function testCompressionClusterDisabled()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            compression: ['enabled' => false]
+        );
+
+        $compression_config = $request->getCompressionConfig();
+        $this->assertFalse($compression_config->getEnabled());
+    }
+
     // Helper methods
     // --------------
 
