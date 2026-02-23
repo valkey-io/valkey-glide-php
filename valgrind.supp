@@ -2079,3 +2079,76 @@
    fun:*alloc*string*String*as*core*fmt*Write*write_char*
    ...
 }
+
+# AWS SDK token bucket initialization (retry mechanism)
+# Safe to suppress: One-time initialization of retry token buckets per client type
+{
+   aws_sdk_token_bucket_default
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:*aws_smithy_runtime*client*retries*token_bucket*TokenBucket*default*
+   fun:*aws_smithy_runtime*static_partition_map*StaticPartitionMap*get_or_init*
+   fun:*aws_smithy_runtime*client*defaults*default_plugin*
+}
+
+# AWS SDK retry partition initialization
+# Safe to suppress: Static retry partition cloning during client initialization
+{
+   aws_sdk_retry_partition_clone
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:*aws_smithy_runtime*client*retries*RetryPartitionInner*clone*
+   fun:*aws_smithy_runtime*client*defaults*default_plugin*
+}
+
+# AWS SDK static partition map initialization
+# Safe to suppress: Global static partition map for retry mechanism
+{
+   aws_sdk_static_partition_map
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:*std*sync*once*Once*call_once_force*
+   fun:*std*sys*sync*once*futex*Once*call*
+   fun:*std*sync*once_lock*OnceLock*initialize*
+   fun:*aws_smithy_runtime*static_partition_map*StaticPartitionMap*get_or_init*
+}
+
+# AWS SDK STS endpoint partition resolver
+# Safe to suppress: One-time STS endpoint partition resolver initialization
+{
+   aws_sdk_sts_partition_resolver
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:*aws_sdk_sts*endpoint_lib*partition*PartitionResolver*new_from_json*
+   fun:*core*ops*function*FnOnce*call_once*
+   fun:*std*sync*once*Once*call_once_force*
+}
+
+# AWS SDK STS partition resolver hashmap
+# Safe to suppress: Hashmap for STS partition resolver (largest allocation ~12KB)
+{
+   aws_sdk_sts_partition_hashmap
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:*hashbrown*raw*RawTableInner*fallible_with_capacity*
+   fun:*hashbrown*raw*RawTable*reserve_rehash*
+   fun:*aws_sdk_sts*endpoint_lib*partition*PartitionResolver*new_from_json*
+}
+
+# AWS SDK fastrand thread initialization
+# Safe to suppress: Thread-local storage for random number generation
+{
+   aws_sdk_fastrand_thread
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:*std*thread*thread*Thread*new*
+   fun:*std*thread*current*init_current*
+   fun:*fastrand*global_rng*random_seed*
+   fun:*aws_runtime*invocation_id*InvocationIdInterceptor*new*
+}
