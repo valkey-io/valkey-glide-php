@@ -97,6 +97,8 @@ class ClientConstructorMock
      *                                           connection_timeout is in milliseconds.
      * @param bool|null $lazy_connect            Whether to use lazy connection.
      * @param resource|null $context             Stream context for the connection.
+     * @param array|null $compression            Compression configuration ['enabled' => true, 'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+     *                                           'compression_level' => 3, 'min_compression_size' => 256].
      */
     public static function simulate_standalone_constructor(
         ?array $addresses = null,
@@ -111,6 +113,7 @@ class ClientConstructorMock
         ?array $advanced_config = null,
         ?bool $lazy_connect = null,
         mixed $context = null,
+        ?array $compression = null,
     ): \Connection_request\ConnectionRequest;
 
     /**
@@ -135,6 +138,8 @@ class ClientConstructorMock
      *                                                For cluster mode, requires Valkey 9.0+ with cluster-databases > 1.
      *                                                If not specified, defaults to database 0.
      * @param resource|null $context                     Stream context for the connection.
+     * @param array|null $compression                 Compression configuration ['enabled' => true, 'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+     *                                                'compression_level' => 3, 'min_compression_size' => 256].
      */
     public static function simulate_cluster_constructor(
         ?array $addresses = null,
@@ -150,5 +155,6 @@ class ClientConstructorMock
         ?bool $lazy_connect = null,
         ?int $database_id = null,
         mixed $context = null,
+        ?array $compression = null,
     ): \Connection_request\ConnectionRequest;
 }

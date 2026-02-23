@@ -330,8 +330,9 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             }
 
             /* Parse service type (required) */
-            zval* service_val = zend_hash_str_find(
-                iam_ht, VALKEY_GLIDE_IAM_CONFIG_SERVICE, sizeof(VALKEY_GLIDE_IAM_CONFIG_SERVICE) - 1);
+            zval* service_val = zend_hash_str_find(iam_ht,
+                                                   VALKEY_GLIDE_IAM_CONFIG_SERVICE,
+                                                   sizeof(VALKEY_GLIDE_IAM_CONFIG_SERVICE) - 1);
             if (service_val && Z_TYPE_P(service_val) == IS_STRING) {
                 const char* service_str = Z_STRVAL_P(service_val);
                 if (strcasecmp(service_str, VALKEY_GLIDE_IAM_SERVICE_MEMORYDB) == 0) {
@@ -363,8 +364,10 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
 
             /* Validate that username is provided for IAM */
             if (!config->credentials->username) {
+                valkey_glide_cleanup_client_config(config);
                 zend_throw_exception(
                     get_valkey_glide_exception_ce(), "IAM authentication requires a username", 0);
+                return;
             }
         }
     } else {
@@ -420,14 +423,22 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
     config->use_tls         = _determine_use_tls(params);
     config->advanced_config = _build_advanced_config(params, is_cluster);
 
+    /* If advanced config build failed (exception thrown), clean up and return */
+    if (EG(exception)) {
+        valkey_glide_cleanup_client_config(config);
+        return;
+    }
+
     // Raise an exception if insecure TLS is requested but TLS is not enabled
     if (!config->use_tls && config->advanced_config && config->advanced_config->tls_config &&
         config->advanced_config->tls_config->use_insecure_tls) {
         VALKEY_LOG_ERROR("insecure_tls_with_tls_disabled",
                          "Cannot configure insecure TLS when TLS is disabled.");
+        valkey_glide_cleanup_client_config(config);
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "Cannot configure insecure TLS when TLS is disabled.",
                              0);
+        return;
     }
 
     /* Process compression configuration if provided */
@@ -451,8 +462,9 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
                        : VALKEY_GLIDE_COMPRESSION_BACKEND_ZSTD;
 
         /* Parse compression_level (optional, -1 = not set) */
-        zval* level_zv = zend_hash_str_find(
-            compression_ht, VALKEY_GLIDE_COMPRESSION_LEVEL, sizeof(VALKEY_GLIDE_COMPRESSION_LEVEL) - 1);
+        zval* level_zv                                = zend_hash_str_find(compression_ht,
+                                            VALKEY_GLIDE_COMPRESSION_LEVEL,
+                                            sizeof(VALKEY_GLIDE_COMPRESSION_LEVEL) - 1);
         config->compression_config->compression_level = level_zv ? zval_get_long(level_zv) : -1;
 
         /* Parse min_compression_size (default: 64) */
@@ -1508,7 +1520,9 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
         const char* error_msg =
             "At most one of stream context or advanced TLS config can be specified.";
         VALKEY_LOG_ERROR("tls_config_conflict", error_msg);
+        efree(tls_advanced_config);
         zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
+        return NULL;
     }
 
     // Set TLS configuration from stream context.
@@ -1535,7 +1549,9 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
             } else {
                 const char* error_message = "Failed to load root certificate from file";
                 VALKEY_LOG_ERROR("tls_config_cafile", error_message);
+                efree(tls_advanced_config);
                 zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+                return NULL;
             }
         }
     }
@@ -1581,6 +1597,12 @@ static valkey_glide_advanced_base_client_configuration_t* _build_advanced_config
 
     advanced_config->connection_timeout = _determine_connection_timeout(params);
     advanced_config->tls_config         = _build_advanced_tls_config(params, is_cluster);
+
+    /* If TLS config build failed (exception thrown), clean up and return NULL */
+    if (EG(exception)) {
+        efree(advanced_config);
+        return NULL;
+    }
 
     return advanced_config;
 }

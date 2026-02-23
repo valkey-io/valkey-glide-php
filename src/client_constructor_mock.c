@@ -92,7 +92,7 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
 
-    ZEND_PARSE_PARAMETERS_START(0, 12)
+    ZEND_PARSE_PARAMETERS_START(0, 13)
     Z_PARAM_OPTIONAL
     Z_PARAM_ARRAY_OR_NULL(common_params.addresses)
     Z_PARAM_BOOL(common_params.use_tls)
@@ -107,6 +107,7 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
     Z_PARAM_RESOURCE_EX(
         common_params.context, 1, 0) /* Use Z_PARAM_RESOURCE_OR_NULL with PHP 8.5+ */
+    Z_PARAM_ARRAY_OR_NULL(common_params.compression)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* Validate database_id range before setting */
@@ -150,7 +151,7 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
 
-    ZEND_PARSE_PARAMETERS_START(0, 13)
+    ZEND_PARSE_PARAMETERS_START(0, 14)
     Z_PARAM_OPTIONAL
     Z_PARAM_ARRAY_OR_NULL(common_params.addresses)
     Z_PARAM_BOOL(common_params.use_tls)
@@ -166,6 +167,7 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
     Z_PARAM_LONG_OR_NULL(common_params.database_id, common_params.database_id_is_null)
     Z_PARAM_RESOURCE_EX(
         common_params.context, 1, 0) /* Use Z_PARAM_RESOURCE_OR_NULL with PHP 8.5+ */
+    Z_PARAM_ARRAY_OR_NULL(common_params.compression)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* Validate database_id range before setting */
