@@ -19,6 +19,10 @@ GLIDE is the official open-source Valkey client library, proudly part of the Val
 - **[Cluster-Aware MGET/MSET/DEL/FLUSHALL](https://github.com/valkey-io/valkey-glide/wiki/General-Concepts#multi-slot-command-handling:~:text=Multi%2DSlot%20Command%20Execution,JSON.MGET)** – Execute multi-key commands across cluster slots without manual key grouping.
 - **[Cluster Scan](https://github.com/valkey-io/valkey-glide/wiki/General-Concepts#cluster-scan)** – Unified key iteration across shards using a consistent, high-level API for cluster environments.
 
+## Experimental Features
+
+- **Compression** – The compression feature is currently experimental. We are actively expanding this feature, and detailed documentation around risks and usage will be updated soon.
+
 ## Supported Engine Versions
 
 Valkey GLIDE is API-compatible with the following engine versions:
