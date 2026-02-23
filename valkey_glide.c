@@ -439,26 +439,26 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         /* Parse enabled (default: false) */
         zval* enabled_zv                    = zend_hash_str_find(compression_ht,
                                               VALKEY_GLIDE_COMPRESSION_ENABLED,
-                                              strlen(VALKEY_GLIDE_COMPRESSION_ENABLED));
+                                              sizeof(VALKEY_GLIDE_COMPRESSION_ENABLED) - 1);
         config->compression_config->enabled = enabled_zv ? zval_is_true(enabled_zv) : false;
 
         /* Parse backend (default: ZSTD) */
         zval* backend_zv = zend_hash_str_find(compression_ht,
                                               VALKEY_GLIDE_COMPRESSION_BACKEND,
-                                              strlen(VALKEY_GLIDE_COMPRESSION_BACKEND));
+                                              sizeof(VALKEY_GLIDE_COMPRESSION_BACKEND) - 1);
         config->compression_config->backend =
             backend_zv ? (valkey_glide_compression_backend_t) zval_get_long(backend_zv)
                        : VALKEY_GLIDE_COMPRESSION_BACKEND_ZSTD;
 
         /* Parse compression_level (optional, -1 = not set) */
         zval* level_zv = zend_hash_str_find(
-            compression_ht, VALKEY_GLIDE_COMPRESSION_LEVEL, strlen(VALKEY_GLIDE_COMPRESSION_LEVEL));
+            compression_ht, VALKEY_GLIDE_COMPRESSION_LEVEL, sizeof(VALKEY_GLIDE_COMPRESSION_LEVEL) - 1);
         config->compression_config->compression_level = level_zv ? zval_get_long(level_zv) : -1;
 
         /* Parse min_compression_size (default: 64) */
         zval* min_size_zv = zend_hash_str_find(compression_ht,
                                                VALKEY_GLIDE_COMPRESSION_MIN_SIZE,
-                                               strlen(VALKEY_GLIDE_COMPRESSION_MIN_SIZE));
+                                               sizeof(VALKEY_GLIDE_COMPRESSION_MIN_SIZE) - 1);
         config->compression_config->min_compression_size =
             min_size_zv ? (uint32_t) zval_get_long(min_size_zv) : 64;
 
