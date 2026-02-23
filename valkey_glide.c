@@ -465,13 +465,12 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         /* Validate min_compression_size */
         uint32_t min_allowed = get_min_compressed_size();
         if (config->compression_config->min_compression_size < min_allowed) {
-            efree(config->compression_config);
-            config->compression_config = NULL;
             char error_msg[256];
             snprintf(error_msg,
                      sizeof(error_msg),
                      "min_compression_size must be at least %u bytes",
                      min_allowed);
+            valkey_glide_cleanup_client_config(config);
             zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
             return;
         }
