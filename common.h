@@ -134,10 +134,10 @@ typedef enum {
 } valkey_glide_compression_backend_t;
 
 typedef struct {
-    bool                               enabled;
-    valkey_glide_compression_backend_t backend;
-    int32_t                            compression_level; /* -1 means not set (use default) */
     uint32_t                           min_compression_size;
+    int32_t                            compression_level; /* -1 means not set (use default) */
+    valkey_glide_compression_backend_t backend;
+    bool                               enabled;
 } valkey_glide_compression_config_t;
 
 typedef struct {
