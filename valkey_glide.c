@@ -179,9 +179,9 @@ void valkey_glide_init_common_constructor_params(
     params->compression             = NULL;
 }
 
-void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
-                                           valkey_glide_base_client_configuration_t*     config,
-                                           bool is_cluster) {
+int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
+                                          valkey_glide_base_client_configuration_t*     config,
+                                          bool is_cluster) {
     /* Basic configuration */
     config->request_timeout =
         params->request_timeout_is_null ? -1 : params->request_timeout; /* -1 means not set */
@@ -269,7 +269,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
             VALKEY_LOG_ERROR("php_construct", error_message);
             zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
             valkey_glide_cleanup_client_config(config);
-            return;
+            return FAILURE;
         }
     }
     ZEND_HASH_FOREACH_END();
@@ -367,7 +367,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
                 valkey_glide_cleanup_client_config(config);
                 zend_throw_exception(
                     get_valkey_glide_exception_ce(), "IAM authentication requires a username", 0);
-                return;
+                return FAILURE;
             }
         }
     } else {
@@ -424,9 +424,9 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
     config->advanced_config = _build_advanced_config(params, is_cluster);
 
     /* If advanced config build failed (exception thrown), clean up and return */
-    if (EG(exception)) {
+    if (config->advanced_config == NULL && EG(exception)) {
         valkey_glide_cleanup_client_config(config);
-        return;
+        return FAILURE;
     }
 
     // Raise an exception if insecure TLS is requested but TLS is not enabled
@@ -438,7 +438,7 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "Cannot configure insecure TLS when TLS is disabled.",
                              0);
-        return;
+        return FAILURE;
     }
 
     /* Process compression configuration if provided */
@@ -484,13 +484,14 @@ void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
                      min_allowed);
             valkey_glide_cleanup_client_config(config);
             zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
-            return;
+            return FAILURE;
         }
     } else {
         config->compression_config = NULL;
     }
 
     _initialize_open_telemetry(params, is_cluster);
+    return SUCCESS;
 }
 
 const zend_function_entry valkey_glide_cluster_methods[] = {
@@ -813,7 +814,12 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     memset(&client_config, 0, sizeof(client_config));
 
     /* Populate configuration parameters shared between client and cluster connections. */
-    valkey_glide_build_client_config_base(&common_params, &client_config, false);
+    if (valkey_glide_build_client_config_base(&common_params, &client_config, false) == FAILURE) {
+        if (created_addresses) {
+            zval_ptr_dtor(&addresses_array);
+        }
+        return FAILURE;
+    }
 
     /* Issue the connection request. */
     const ConnectionResponse* conn_resp = create_glide_client(&client_config);

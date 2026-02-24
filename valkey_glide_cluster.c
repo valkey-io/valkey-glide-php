@@ -59,7 +59,10 @@ static int valkey_glide_cluster_create_connection(
     client_config.periodic_checks_manual = NULL;
 
     /* Populate configuration parameters shared between client and cluster connections. */
-    valkey_glide_build_client_config_base(&common_params, &client_config.base, true);
+    if (valkey_glide_build_client_config_base(&common_params, &client_config.base, true) ==
+        FAILURE) {
+        return FAILURE;
+    }
 
     /* Parse cluster-specific advanced config options */
     client_config.refresh_topology_from_initial_nodes = false; /* Default value */

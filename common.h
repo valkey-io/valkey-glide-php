@@ -219,9 +219,9 @@ typedef struct {
 
 void valkey_glide_init_common_constructor_params(
     valkey_glide_php_common_constructor_params_t* params);
-void valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
+int  valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
                                            valkey_glide_base_client_configuration_t*     config,
-                                           bool is_cluster);
+                                           bool                                          is_cluster);
 void valkey_glide_cleanup_client_config(valkey_glide_base_client_configuration_t* config);
 
 #if PHP_VERSION_ID < 80000

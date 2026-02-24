@@ -125,10 +125,7 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     memset(&client_config, 0, sizeof(client_config));
 
     /* Populate configuration parameters shared between client and cluster connections. */
-    valkey_glide_build_client_config_base(&common_params, &client_config, false);
-
-    /* Check if an exception was thrown during config build */
-    if (EG(exception)) {
+    if (valkey_glide_build_client_config_base(&common_params, &client_config, false) == FAILURE) {
         if (addresses_allocated) {
             zval_ptr_dtor(common_params.addresses);
             efree(common_params.addresses);
@@ -199,10 +196,8 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
     client_config.periodic_checks_manual = NULL;
 
     /* Populate configuration parameters shared between client and cluster connections. */
-    valkey_glide_build_client_config_base(&common_params, &client_config.base, true);
-
-    /* Check if an exception was thrown during config build */
-    if (EG(exception)) {
+    if (valkey_glide_build_client_config_base(&common_params, &client_config.base, true) ==
+        FAILURE) {
         if (addresses_allocated) {
             zval_ptr_dtor(common_params.addresses);
             efree(common_params.addresses);
