@@ -75,6 +75,8 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests
 require_once __DIR__ . "/TestSuite.php";
 require_once __DIR__ . "/../vendor/autoload.php";
 require_once __DIR__ . "/Connection_request/AuthenticationInfo.php";
+require_once __DIR__ . "/Connection_request/CompressionBackend.php";
+require_once __DIR__ . "/Connection_request/CompressionConfig.php";
 require_once __DIR__ . "/Connection_request/ConnectionRequest.php";
 require_once __DIR__ . "/Connection_request/ConnectionRetryStrategy.php";
 require_once __DIR__ . "/Connection_request/NodeAddress.php";
