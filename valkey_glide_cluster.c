@@ -1085,6 +1085,12 @@ UPDATE_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlideCluster)
 CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto string ValkeyGlideCluster::refreshIamToken()
+ */
+REFRESH_IAM_TOKEN_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+
 COPY_METHOD_IMPL(ValkeyGlideCluster)
 
 /* Script commands */

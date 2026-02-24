@@ -403,6 +403,11 @@ class ValkeyGlideCluster
     public function clearConnectionPassword(bool $immediateAuth = false): string;
 
     /**
+     * @see ValkeyGlide::refreshIamToken()
+     */
+    public function refreshIamToken(): string;
+
+    /**
      * @see ValkeyGlide::config()
      */
    //TODO public function config(mixed $route, string $subcommand, mixed ...$extra_args): mixed;

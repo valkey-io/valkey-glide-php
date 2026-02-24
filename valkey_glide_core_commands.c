@@ -2267,3 +2267,78 @@ void execute_update_connection_password(zval*             object,
 
     free_command_result(result);
 }
+
+/**
+ * Execute refresh_iam_token command
+ *
+ * @param object The ValkeyGlide or ValkeyGlideCluster object
+ * @param return_value The return value zval
+ * @param ce The class entry
+ */
+void execute_refresh_iam_token(zval* object, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        VALKEY_LOG_ERROR("refresh_iam_token",
+                         "Invalid client object or client connection handle is NULL");
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "Invalid client object or client connection handle is NULL",
+                             0);
+        return;
+    }
+
+    /* Call FFI function */
+    CommandResult* result = refresh_iam_token(valkey_glide->glide_client,
+                                              0); /* request_id - using 0 for synchronous call */
+
+    /* Check result */
+    if (!result) {
+        VALKEY_LOG_ERROR("refresh_iam_token", "FFI call returned NULL result");
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Failed to refresh IAM token", 0);
+        return;
+    }
+
+    /* Check for command error */
+    if (result->command_error) {
+        VALKEY_LOG_ERROR_FMT("refresh_iam_token",
+                             "Command execution failed with error: %s",
+                             result->command_error->command_error_message
+                                 ? result->command_error->command_error_message
+                                 : "Unknown error");
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
+        free_command_result(result);
+        return;
+    }
+
+    if (!result->response) {
+        VALKEY_LOG_ERROR("refresh_iam_token", "No response received from server");
+        free_command_result(result);
+        zend_throw_exception(get_valkey_glide_exception_ce(), "No response received from server", 0);
+        return;
+    }
+
+    /* Process response */
+    if (result->response->response_type == Ok) {
+        ZVAL_STRING(return_value, "OK");
+    } else if (result->response->response_type == Error) {
+        VALKEY_LOG_ERROR_FMT(
+            "refresh_iam_token",
+            "Server returned error: %s",
+            result->response->string_value ? result->response->string_value : "Unknown error");
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(),
+            result->response->string_value ? result->response->string_value : "Unknown error",
+            0);
+    } else {
+        VALKEY_LOG_ERROR_FMT("refresh_iam_token",
+                             "Unexpected response type: %d",
+                             result->response->response_type);
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Unexpected response from server", 0);
+    }
+
+    free_command_result(result);
+}
+

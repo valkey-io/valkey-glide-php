@@ -1045,6 +1045,11 @@ UPDATE_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlide)
 CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto string ValkeyGlide::refreshIamToken()
+ */
+REFRESH_IAM_TOKEN_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* Basic method stubs - these need to be implemented with ValkeyGlide */
 
 PHP_METHOD(ValkeyGlide, ssubscribe) { /* TODO: Implement */

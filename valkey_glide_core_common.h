@@ -311,6 +311,11 @@ void execute_update_connection_password(zval*             object,
                                         zval*             return_value,
                                         zend_class_entry* ce);
 
+/**
+ * Execute refresh_iam_token command
+ */
+void execute_refresh_iam_token(zval* object, zval* return_value, zend_class_entry* ce);
+
 /* Macro for updateConnectionPassword method implementation */
 #define UPDATE_CONNECTION_PASSWORD_METHOD_IMPL(class_name)                                       \
     PHP_METHOD(class_name, updateConnectionPassword) {                                           \
@@ -350,6 +355,19 @@ void execute_update_connection_password(zval*             object,
                                                                                             \
         execute_update_connection_password(                                                 \
             object, "", 0, immediate_auth, return_value, Z_OBJCE_P(object));                \
+    }
+
+/* Macro for refreshIamToken method implementation */
+#define REFRESH_IAM_TOKEN_METHOD_IMPL(class_name)                                           \
+    PHP_METHOD(class_name, refreshIamToken) {                                               \
+        zval* object = ZEND_THIS;                                                           \
+                                                                                            \
+        if (zend_parse_parameters(ZEND_NUM_ARGS(), "") == FAILURE) {                        \
+            zend_throw_exception(get_valkey_glide_exception_ce(), "Invalid parameters", 0); \
+            return;                                                                         \
+        }                                                                                   \
+                                                                                            \
+        execute_refresh_iam_token(object, return_value, Z_OBJCE_P(object));                 \
     }
 
 #endif /* VALKEY_GLIDE_CORE_COMMON_H */

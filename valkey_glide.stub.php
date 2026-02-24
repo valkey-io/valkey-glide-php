@@ -675,6 +675,33 @@ class ValkeyGlide
     public function clearConnectionPassword(bool $immediateAuth = false): string;
 
     /**
+     * Manually refresh the IAM authentication token.
+     *
+     * This method triggers an immediate refresh of the IAM authentication token.
+     * It is only available when the client was created with IAM authentication enabled.
+     *
+     * @return string Returns "OK" on success
+     * @throws Exception if IAM authentication is not enabled or the operation fails
+     *
+     * @example
+     * $client = new ValkeyGlide();
+     * $client->connect(
+     *     addresses: [['host' => 'localhost', 'port' => 6379]],
+     *     credentials: [
+     *         'username' => 'default',
+     *         'iamConfig' => [
+     *             'clusterName' => 'my-cluster',
+     *             'region' => 'us-east-1',
+     *             'service' => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
+     *             'refreshIntervalSeconds' => 300
+     *         ]
+     *     ]
+     * );
+     * $client->refreshIamToken();
+     */
+    public function refreshIamToken(): string;
+
+    /**
      *  Execute the ValkeyGlide CONFIG command in a variety of ways.
      *
      *  What the command does in particular depends on the `$operation` qualifier.

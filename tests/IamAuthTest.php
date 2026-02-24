@@ -162,6 +162,9 @@ class IamAuthTest extends \TestSuite
             $value = $client->get('iam_test_key');
             $this->assertEquals('iam_test_value', $value);
 
+            // Manually refresh IAM token
+            $client->refreshIamToken();
+
             // Verify operations still work after token refresh
             $client->set('iam_test_key2', 'iam_test_value2');
             $value2 = $client->get('iam_test_key2');
@@ -169,7 +172,7 @@ class IamAuthTest extends \TestSuite
 
             // Cleanup
             $client->del('iam_test_key', 'iam_test_key2');
-            unset($client);
+            $client->close();
         } finally {
             $this->restoreEnvironmentVariables();
         }
@@ -236,7 +239,7 @@ class IamAuthTest extends \TestSuite
 
             // Cleanup
             $client->del('auto_refresh_test');
-            unset($client);
+            $client->close();
         } finally {
             $this->restoreEnvironmentVariables();
         }
