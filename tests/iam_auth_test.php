@@ -58,7 +58,7 @@ class IamAuthTest
         $this->testMissingUsername();
         $this->testInvalidRefreshInterval();
 
-        // Print summary
+        // Print test summary
         echo "\n=====================================\n";
         echo "Test Summary\n";
         echo "=====================================\n";
