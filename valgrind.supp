@@ -2216,3 +2216,80 @@
    fun:rand_bytes_private*
    ...
 }
+
+# AWS-LC RSA signature verification - uninitialised value usage
+# Safe to suppress: RSA PSS signature verification uses uninitialised memory
+# for constant-time operations and cryptographic optimizations
+{
+   aws_lc_rsa_verify_pkcs1_pss_uninit_value8
+   Memcheck:Value8
+   fun:aws_lc_*_RSA_verify_PKCS1_PSS_mgf1
+   fun:aws_lc_*_RSA_verify_pss_mgf1
+   fun:pkey_rsa_verify
+   fun:aws_lc_*_EVP_DigestVerifyFinal
+   fun:aws_lc_*_EVP_DigestVerify
+   ...
+}
+
+{
+   aws_lc_rsa_verify_pkcs1_pss_cond
+   Memcheck:Cond
+   fun:aws_lc_*_RSA_verify_PKCS1_PSS_mgf1
+   fun:aws_lc_*_RSA_verify_pss_mgf1
+   fun:pkey_rsa_verify
+   fun:aws_lc_*_EVP_DigestVerifyFinal
+   fun:aws_lc_*_EVP_DigestVerify
+   ...
+}
+
+# RustLS TLS handshake with AWS-LC RSA verification
+# Safe to suppress: TLS certificate verification chain using RSA PSS
+{
+   rustls_tls13_rsa_verify_uninit
+   Memcheck:Cond
+   fun:aws_lc_*_RSA_verify_PKCS1_PSS_mgf1
+   ...
+   fun:*aws_lc_rs*rsa*signature*verify_rsa_signature*
+   fun:*aws_lc_rs*rsa*signature*RsaParameters*verify_sig*
+   fun:*webpki*signed_data*verify_signature*
+   fun:*webpki*end_entity*EndEntityCert*verify_signature*
+   fun:*rustls*webpki*verify*verify_tls13_signature*
+   ...
+}
+
+{
+   rustls_tls13_rsa_verify_value8
+   Memcheck:Value8
+   fun:aws_lc_*_RSA_verify_PKCS1_PSS_mgf1
+   ...
+   fun:*aws_lc_rs*rsa*signature*verify_rsa_signature*
+   fun:*aws_lc_rs*rsa*signature*RsaParameters*verify_sig*
+   fun:*webpki*signed_data*verify_signature*
+   fun:*webpki*end_entity*EndEntityCert*verify_signature*
+   fun:*rustls*webpki*verify*verify_tls13_signature*
+   ...
+}
+
+# RustLS client extensions encoding - uninitialised value from heap
+# Safe to suppress: TLS client hello extensions may use uninitialised padding
+{
+   rustls_client_extensions_uninit
+   Memcheck:Cond
+   ...
+   obj:*/valkey_glide.so
+   fun:*rustls*msgs*handshake*ClientExtensions*collect_used*
+   fun:*rustls*msgs*handshake*ClientExtensions*used_extensions_in_encoding_order*
+   fun:*rustls*msgs*handshake*ClientExtensions*encode*
+   ...
+}
+
+# AWS Smithy HTTP client connector - possibly lost during async operations
+# Safe to suppress: HTTP client connector memory managed by Rust runtime
+{
+   aws_smithy_http_connector_build
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*aws_smithy_http_client*client*ConnectorBuilder*build*
+}
