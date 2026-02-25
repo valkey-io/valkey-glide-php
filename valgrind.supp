@@ -2242,6 +2242,64 @@
    ...
 }
 
+# AWS-LC PKCS1 MGF1 mask generation function - uninitialised values
+# Safe to suppress: MGF1 uses uninitialised memory for cryptographic operations
+{
+   aws_lc_pkcs1_mgf1_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:aws_lc_*_PKCS1_MGF1
+   fun:aws_lc_*_RSA_verify_PKCS1_PSS_mgf1
+   ...
+}
+
+{
+   aws_lc_pkcs1_mgf1_cond
+   Memcheck:Cond
+   ...
+   fun:aws_lc_*_PKCS1_MGF1
+   fun:aws_lc_*_RSA_verify_PKCS1_PSS_mgf1
+   ...
+}
+
+# Valgrind memmove with uninitialised values from AWS-LC crypto
+# Safe to suppress: memmove called by AWS-LC with intentional uninitialised data
+{
+   memmove_aws_lc_pkcs1_mgf1_value8
+   Memcheck:Value8
+   fun:memmove
+   fun:aws_lc_*_PKCS1_MGF1
+   fun:aws_lc_*_RSA_verify_PKCS1_PSS_mgf1
+   ...
+}
+
+{
+   memmove_aws_lc_pkcs1_mgf1_cond
+   Memcheck:Cond
+   fun:memmove
+   fun:aws_lc_*_PKCS1_MGF1
+   fun:aws_lc_*_RSA_verify_PKCS1_PSS_mgf1
+   ...
+}
+
+# AWS-LC RSA_size and OPENSSL_malloc with uninitialised values
+# Safe to suppress: RSA operations use uninitialised memory for constant-time operations
+{
+   aws_lc_rsa_size_cond
+   Memcheck:Cond
+   fun:aws_lc_*_RSA_size
+   fun:aws_lc_*_RSA_verify_PKCS1_PSS_mgf1
+   ...
+}
+
+{
+   aws_lc_openssl_malloc_cond
+   Memcheck:Cond
+   fun:aws_lc_*_OPENSSL_malloc
+   fun:aws_lc_*_RSA_verify_PKCS1_PSS_mgf1
+   ...
+}
+
 # RustLS TLS handshake with AWS-LC RSA verification
 # Safe to suppress: TLS certificate verification chain using RSA PSS
 {
