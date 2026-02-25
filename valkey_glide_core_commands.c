@@ -2316,7 +2316,8 @@ void execute_refresh_iam_token(zval* object, zval* return_value, zend_class_entr
     if (!result->response) {
         VALKEY_LOG_ERROR("refresh_iam_token", "No response received from server");
         free_command_result(result);
-        zend_throw_exception(get_valkey_glide_exception_ce(), "No response received from server", 0);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "No response received from server", 0);
         return;
     }
 
@@ -2333,12 +2334,10 @@ void execute_refresh_iam_token(zval* object, zval* return_value, zend_class_entr
             result->response->string_value ? result->response->string_value : "Unknown error",
             0);
     } else {
-        VALKEY_LOG_ERROR_FMT("refresh_iam_token",
-                             "Unexpected response type: %d",
-                             result->response->response_type);
+        VALKEY_LOG_ERROR_FMT(
+            "refresh_iam_token", "Unexpected response type: %d", result->response->response_type);
         zend_throw_exception(get_valkey_glide_exception_ce(), "Unexpected response from server", 0);
     }
 
     free_command_result(result);
 }
-

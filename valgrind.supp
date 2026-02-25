@@ -2152,3 +2152,67 @@
    fun:*fastrand*global_rng*random_seed*
    fun:*aws_runtime*invocation_id*InvocationIdInterceptor*new*
 }
+
+# AWS-LC BigNum Montgomery multiplication - uninitialised value usage
+# Safe to suppress: Cryptographic operations intentionally use uninitialised memory
+# for constant-time operations and performance optimizations
+{
+   aws_lc_bn_mul4x_mont_uninit
+   Memcheck:Value8
+   fun:aws_lc_*_bn_mul4x_mont
+   ...
+}
+
+{
+   aws_lc_bn_mul4x_mont_cond
+   Memcheck:Cond
+   fun:aws_lc_*_bn_mul4x_mont
+   ...
+}
+
+# AWS-LC ML-KEM (Kyber) post-quantum crypto - uninitialised value usage
+# Safe to suppress: Post-quantum cryptographic operations use uninitialised memory
+# for rejection sampling and constant-time implementations
+{
+   aws_lc_mlkem_poly_rej_uniform_uninit
+   Memcheck:Value8
+   ...
+   fun:mlk_rej_uniform*
+   fun:mlkem_poly_rej_uniform_x4
+   ...
+}
+
+{
+   aws_lc_mlkem_poly_rej_uniform_cond
+   Memcheck:Cond
+   ...
+   fun:mlk_rej_uniform*
+   fun:mlkem_poly_rej_uniform_x4
+   ...
+}
+
+{
+   aws_lc_mlkem_gen_matrix_uninit
+   Memcheck:Cond
+   fun:mlkem_poly_rej_uniform_x4
+   fun:mlkem*_gen_matrix
+   ...
+}
+
+# AWS-LC random bytes generation - uninitialised value usage
+# Safe to suppress: Random number generation intentionally uses uninitialised memory
+# for entropy mixing and security purposes
+{
+   aws_lc_rand_bytes_private_uninit
+   Memcheck:Value8
+   fun:rand_bytes_private*
+   ...
+}
+
+{
+   aws_lc_rand_bytes_private_cond
+   Memcheck:Cond
+   ...
+   fun:rand_bytes_private*
+   ...
+}
