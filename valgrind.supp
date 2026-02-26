@@ -1868,3 +1868,214 @@
    fun:*rustls*client*hs*emit_client_hello*
    ...
 }
+
+# ============================================================================
+# Tracing/Logging Syscall Parameter Errors
+# Uninitialized bytes in log buffers from Debug formatting
+# ============================================================================
+
+{
+   tracing_write_buf_uninit
+   Memcheck:Param
+   write(buf)
+   fun:__libc_write
+   fun:write
+   ...
+   fun:*tracing_appender*rolling*RollingWriter*
+   ...
+}
+
+{
+   tracing_write_count_uninit
+   Memcheck:Param
+   write(count)
+   fun:__libc_write
+   fun:write
+   ...
+   fun:*tracing_appender*rolling*RollingWriter*
+   ...
+}
+
+{
+   tracing_stdout_write_buf_uninit
+   Memcheck:Param
+   write(buf)
+   fun:__libc_write
+   fun:write
+   ...
+   fun:*std*io*stdio*Stdout*write_all*
+   ...
+}
+
+{
+   tracing_stdout_write_count_uninit
+   Memcheck:Param
+   write(count)
+   fun:__libc_write
+   fun:write
+   ...
+   fun:*std*io*stdio*Stdout*write_all*
+   ...
+}
+
+{
+   tracing_subscriber_event_write_buf_uninit
+   Memcheck:Param
+   write(buf)
+   fun:__libc_write
+   fun:write
+   ...
+   fun:*tracing_subscriber*layer*layered*Layered*event*
+   ...
+}
+
+{
+   tracing_subscriber_event_write_count_uninit
+   Memcheck:Param
+   write(count)
+   fun:__libc_write
+   fun:write
+   ...
+   fun:*tracing_subscriber*layer*layered*Layered*event*
+   ...
+}
+
+# ============================================================================
+# Socket Connect Syscall Parameter Errors
+# Uninitialized padding in sockaddr_in structure
+# ============================================================================
+
+{
+   socketcall_connect_sin_addr_uninit
+   Memcheck:Param
+   socketcall.connect(serv_addr.sin_addr)
+   fun:connect
+   ...
+   fun:*mio*net*tcp*stream*TcpStream*connect*
+   ...
+}
+
+{
+   socketcall_connect_serv_addr_uninit
+   Memcheck:Param
+   socketcall.connect(serv_addr)
+   fun:connect
+   ...
+   fun:*mio*net*tcp*stream*TcpStream*connect*
+   ...
+}
+
+{
+   connect_sin_addr_uninit
+   Memcheck:Param
+   connect(serv_addr.sin_addr)
+   fun:connect
+   ...
+   fun:*redis*aio*tokio*connect_tcp*
+   ...
+}
+
+{
+   connect_serv_addr_uninit
+   Memcheck:Param
+   connect(serv_addr)
+   fun:connect
+   ...
+   fun:*redis*
+   ...
+}
+
+# ============================================================================
+# Redis Cluster Topology Debug Formatting
+# Uninitialized values in topology view debug output
+# ============================================================================
+
+{
+   redis_topology_view_debug_fmt_uninit
+   Memcheck:Cond
+   ...
+   fun:*redis*cluster_topology*TopologyView*as*core*fmt*Debug*fmt*
+   ...
+}
+
+{
+   redis_topology_view_debug_fmt_value8
+   Memcheck:Value8
+   ...
+   fun:*redis*cluster_topology*TopologyView*as*core*fmt*Debug*fmt*
+   ...
+}
+
+# ============================================================================
+# Core Fmt Builders
+# Debug formatting builders with uninitialized padding
+# ============================================================================
+
+{
+   core_fmt_debug_map_uninit
+   Memcheck:Cond
+   ...
+   fun:*core*fmt*builders*DebugMap*
+   ...
+}
+
+{
+   core_fmt_debug_map_value8
+   Memcheck:Value8
+   ...
+   fun:*core*fmt*builders*DebugMap*
+   ...
+}
+
+{
+   core_fmt_debug_struct_uninit
+   Memcheck:Cond
+   ...
+   fun:*core*fmt*builders*DebugStruct*
+   ...
+}
+
+{
+   core_fmt_debug_struct_value8
+   Memcheck:Value8
+   ...
+   fun:*core*fmt*builders*DebugStruct*
+   ...
+}
+
+{
+   core_fmt_formatter_debug_struct_uninit
+   Memcheck:Cond
+   ...
+   fun:*core*fmt*Formatter*debug_struct*
+   ...
+}
+
+{
+   core_fmt_formatter_debug_struct_value8
+   Memcheck:Value8
+   ...
+   fun:*core*fmt*Formatter*debug_struct*
+   ...
+}
+
+# ============================================================================
+# Alloc String Write Operations
+# String buffer growth with uninitialized capacity
+# ============================================================================
+
+{
+   alloc_string_write_char_uninit
+   Memcheck:Cond
+   ...
+   fun:*alloc*string*String*as*core*fmt*Write*write_char*
+   ...
+}
+
+{
+   alloc_string_write_char_value8
+   Memcheck:Value8
+   ...
+   fun:*alloc*string*String*as*core*fmt*Write*write_char*
+   ...
+}
