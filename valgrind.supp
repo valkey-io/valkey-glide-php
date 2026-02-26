@@ -1526,3 +1526,345 @@
    fun:*redis*client*Client*create_multiplexed_async_connection*
    ...
 }
+
+# ============================================================================
+# Webpki Time Parsing with Corrupted Stacks
+# Certificate timestamp parsing in assembly code
+# ============================================================================
+
+{
+   webpki_time_from_der_corrupted_stack_value8
+   Memcheck:Value8
+   fun:*webpki*time*FromDer*UnixTime*from_der*
+}
+
+{
+   webpki_time_from_der_corrupted_stack_cond
+   Memcheck:Cond
+   fun:*webpki*time*FromDer*UnixTime*from_der*
+}
+
+# ============================================================================
+# Rustls Crypto AES-GCM Decryption
+# TLS 1.3 AEAD cipher operations
+# ============================================================================
+
+{
+   rustls_aes128gcm_decrypter_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*rustls*crypto*aws_lc_rs*tls13*Aes128GcmAead*decrypter*
+   ...
+}
+
+{
+   rustls_aes128gcm_decrypter_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*rustls*crypto*aws_lc_rs*tls13*Aes128GcmAead*decrypter*
+   ...
+}
+
+{
+   rustls_crypto_tls13_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*rustls*crypto*aws_lc_rs*tls13*
+   ...
+}
+
+{
+   rustls_crypto_tls13_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*rustls*crypto*aws_lc_rs*tls13*
+   ...
+}
+
+# ============================================================================
+# Rust Core Formatting Operations
+# Number formatting with optimizations
+# ============================================================================
+
+{
+   rust_fmt_num_impl_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*core*fmt*num*imp*_fmt_inner*
+   ...
+}
+
+{
+   rust_fmt_num_impl_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*core*fmt*num*imp*_fmt_inner*
+   ...
+}
+
+{
+   rust_fmt_num_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:_fmt_inner*
+   ...
+}
+
+{
+   rust_fmt_num_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:_fmt_inner*
+   ...
+}
+
+{
+   rust_str_debug_fmt_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*str*as*core*fmt*Debug*fmt*
+   ...
+}
+
+{
+   rust_str_debug_fmt_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*str*as*core*fmt*Debug*fmt*
+   ...
+}
+
+# ============================================================================
+# Rust Core String Operations
+# is_char_boundary and other string boundary checks
+# ============================================================================
+
+{
+   rust_str_is_char_boundary_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:is_char_boundary*
+   ...
+}
+
+{
+   rust_str_is_char_boundary_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:is_char_boundary*
+   ...
+}
+
+{
+   rust_str_pattern_is_contained_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*str*as*core*str*pattern*Pattern*is_contained_in*
+   ...
+}
+
+{
+   rust_str_pattern_is_contained_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*str*as*core*str*pattern*Pattern*is_contained_in*
+   ...
+}
+
+{
+   rust_str_get_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:get*
+   ...
+}
+
+{
+   rust_str_get_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:get*
+   ...
+}
+
+# ============================================================================
+# Glide FFI Boundary Operations
+# C FFI functions handling Rust/C data conversion
+# ============================================================================
+
+{
+   glide_ffi_valkey_value_to_command_response_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*glide_ffi*valkey_value_to_command_response*
+   ...
+}
+
+{
+   glide_ffi_valkey_value_to_command_response_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*glide_ffi*valkey_value_to_command_response*
+   ...
+}
+
+{
+   glide_ffi_free_command_response_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*glide_ffi*free_command_response*
+   ...
+}
+
+{
+   glide_ffi_free_command_response_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*glide_ffi*free_command_response*
+   ...
+}
+
+# ============================================================================
+# Process Ping Result - C Code
+# Uninitialized values from TLS handshake propagating to ping processing
+# ============================================================================
+
+{
+   process_ping_result_uninit_value8
+   Memcheck:Value8
+   fun:process_ping_result
+   ...
+}
+
+{
+   process_ping_result_cond_uninit
+   Memcheck:Cond
+   fun:process_ping_result
+   ...
+}
+
+# ============================================================================
+# System Call Suppressions
+# malloc, realloc, calloc, posix_memalign with uninitialized checks
+# ============================================================================
+
+{
+   libc_malloc_cond_uninit
+   Memcheck:Cond
+   fun:malloc
+   ...
+}
+
+{
+   libc_malloc_uninit_value8
+   Memcheck:Value8
+   fun:malloc
+   ...
+}
+
+{
+   libc_realloc_cond_uninit
+   Memcheck:Cond
+   fun:realloc
+   ...
+}
+
+{
+   libc_realloc_uninit_value8
+   Memcheck:Value8
+   fun:realloc
+   ...
+}
+
+{
+   libc_calloc_cond_uninit
+   Memcheck:Cond
+   fun:calloc
+   ...
+}
+
+{
+   libc_calloc_uninit_value8
+   Memcheck:Value8
+   fun:calloc
+   ...
+}
+
+{
+   libc_posix_memalign_cond_uninit
+   Memcheck:Cond
+   fun:posix_memalign
+   ...
+}
+
+{
+   libc_posix_memalign_uninit_value8
+   Memcheck:Value8
+   fun:posix_memalign
+   ...
+}
+
+{
+   libc_write_cond_uninit
+   Memcheck:Cond
+   fun:__libc_write
+   ...
+}
+
+{
+   libc_write_uninit_value8
+   Memcheck:Value8
+   fun:__libc_write
+   ...
+}
+
+{
+   libc_connect_cond_uninit
+   Memcheck:Cond
+   fun:connect
+   ...
+}
+
+{
+   libc_connect_uninit_value8
+   Memcheck:Value8
+   fun:connect
+   ...
+}
+
+# ============================================================================
+# Rustls Message Handshake
+# TLS ClientExtensions encoding with padding
+# ============================================================================
+
+{
+   rustls_client_extensions_collect_used_uninit
+   Memcheck:Cond
+   ...
+   fun:*rustls*msgs*handshake*ClientExtensions*collect_used*
+   ...
+}
+
+{
+   rustls_client_extensions_encode_uninit
+   Memcheck:Cond
+   ...
+   fun:*rustls*msgs*handshake*ClientExtensions*encode*
+   ...
+}
+
+{
+   rustls_handshake_payload_encode_uninit
+   Memcheck:Cond
+   ...
+   fun:*rustls*msgs*handshake*HandshakeMessagePayload*payload_encode*
+   ...
+}
+
+{
+   rustls_emit_client_hello_uninit
+   Memcheck:Cond
+   ...
+   fun:*rustls*client*hs*emit_client_hello*
+   ...
+}
