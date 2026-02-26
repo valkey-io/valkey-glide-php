@@ -1077,3 +1077,452 @@
    ...
    obj:*/valkey_glide.so
 }
+
+# ============================================================================
+# Redis Cluster Async Operations
+# Uninitialized values in cluster topology and connection management
+# ============================================================================
+
+{
+   redis_cluster_async_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*redis*cluster_async*
+   ...
+}
+
+{
+   redis_cluster_async_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*redis*cluster_async*
+   ...
+}
+
+{
+   redis_cluster_slotmap_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*redis*cluster_slotmap*
+   ...
+}
+
+{
+   redis_cluster_slotmap_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*redis*cluster_slotmap*
+   ...
+}
+
+{
+   redis_cluster_get_connection_info_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*redis*cluster*get_connection_info*
+   ...
+}
+
+{
+   redis_cluster_get_connection_info_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*redis*cluster*get_connection_info*
+   ...
+}
+
+# ============================================================================
+# DashMap Concurrent HashMap Operations
+# Lock-free concurrent data structure with intentional uninitialized patterns
+# ============================================================================
+
+{
+   dashmap_get_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*dashmap*DashMap*_get*
+   ...
+}
+
+{
+   dashmap_get_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*dashmap*DashMap*_get*
+   ...
+}
+
+{
+   dashmap_entry_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*dashmap*DashMap*_entry*
+   ...
+}
+
+{
+   dashmap_entry_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*dashmap*DashMap*_entry*
+   ...
+}
+
+{
+   dashmap_insert_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*dashmap*DashMap*_insert*
+   ...
+}
+
+{
+   dashmap_insert_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*dashmap*DashMap*_insert*
+   ...
+}
+
+{
+   dashmap_any_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*dashmap*
+   ...
+}
+
+{
+   dashmap_any_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*dashmap*
+   ...
+}
+
+# ============================================================================
+# Rust Core Network Parser
+# IP address parsing with SIMD optimizations
+# ============================================================================
+
+{
+   rust_net_parser_read_ipv4_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*core*net*parser*read_ipv4_addr*
+   ...
+}
+
+{
+   rust_net_parser_read_ipv4_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*core*net*parser*read_ipv4_addr*
+   ...
+}
+
+{
+   rust_net_parser_read_atomically_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:read_atomically*
+   ...
+}
+
+{
+   rust_net_parser_read_atomically_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:read_atomically*
+   ...
+}
+
+{
+   rust_net_parser_any_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*core*net*parser*
+   ...
+}
+
+{
+   rust_net_parser_any_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*core*net*parser*
+   ...
+}
+
+# ============================================================================
+# Rustls PKI Types - Certificate Parsing
+# Server name and IP address parsing in TLS certificates
+# ============================================================================
+
+{
+   rustls_pki_server_name_parser_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*rustls_pki_types*server_name*parser*
+   ...
+}
+
+{
+   rustls_pki_server_name_parser_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*rustls_pki_types*server_name*parser*
+   ...
+}
+
+# ============================================================================
+# Rust Core Slice Operations
+# split_first, first, and other slice operations with SIMD
+# ============================================================================
+
+{
+   rust_slice_split_first_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:split_first*
+   ...
+}
+
+{
+   rust_slice_split_first_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:split_first*
+   ...
+}
+
+{
+   rust_slice_first_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:first*
+   ...
+}
+
+{
+   rust_slice_first_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:first*
+   ...
+}
+
+{
+   rust_slice_position_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:position*
+   ...
+}
+
+{
+   rust_slice_position_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:position*
+   ...
+}
+
+# ============================================================================
+# Rust Core Iterator Adapters
+# FilterMap and other iterator combinators
+# ============================================================================
+
+{
+   rust_iter_filter_map_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*core*iter*adapters*filter_map*
+   ...
+}
+
+{
+   rust_iter_filter_map_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*core*iter*adapters*filter_map*
+   ...
+}
+
+# ============================================================================
+# Hashbrown Raw Table Operations
+# Low-level hash table operations with SIMD
+# ============================================================================
+
+{
+   hashbrown_reserve_rehash_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*hashbrown*raw*RawTable*reserve_rehash*
+   ...
+}
+
+{
+   hashbrown_reserve_rehash_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*hashbrown*raw*RawTable*reserve_rehash*
+   ...
+}
+
+{
+   hashbrown_insert_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*hashbrown*map*HashMap*insert*
+   ...
+}
+
+{
+   hashbrown_insert_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*hashbrown*map*HashMap*insert*
+   ...
+}
+
+# ============================================================================
+# Tracing Subscriber Formatting
+# Log formatting with escape sequences
+# ============================================================================
+
+{
+   tracing_fmt_escape_writer_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*tracing_subscriber*fmt*format*escape*EscapingWriter*
+   ...
+}
+
+{
+   tracing_fmt_escape_writer_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*tracing_subscriber*fmt*format*escape*EscapingWriter*
+   ...
+}
+
+# ============================================================================
+# Glide Core Client Operations
+# Cluster client creation and pubsub synchronization
+# ============================================================================
+
+{
+   glide_core_create_cluster_client_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*glide_core*client*create_cluster_client*
+   ...
+}
+
+{
+   glide_core_create_cluster_client_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*glide_core*client*create_cluster_client*
+   ...
+}
+
+{
+   glide_pubsub_synchronizer_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*glide_core*pubsub*synchronizer*
+   ...
+}
+
+{
+   glide_pubsub_synchronizer_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*glide_core*pubsub*synchronizer*
+   ...
+}
+
+# ============================================================================
+# Rust Standard Library Thread-Local Storage
+# Thread-local destruction with uninitialized checks
+# ============================================================================
+
+{
+   rust_std_thread_local_destroy_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*std*sys*thread_local*native*eager*destroy*
+   ...
+}
+
+{
+   rust_std_thread_local_destroy_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*std*sys*thread_local*native*eager*destroy*
+   ...
+}
+
+# ============================================================================
+# Redis AIO Multiplexed Connection
+# Drop operations for multiplexed connections
+# ============================================================================
+
+{
+   redis_aio_multiplexed_drop_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*core*ptr*drop_in_place*redis*aio*multiplexed_connection*
+   ...
+}
+
+{
+   redis_aio_multiplexed_drop_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*core*ptr*drop_in_place*redis*aio*multiplexed_connection*
+   ...
+}
+
+# ============================================================================
+# Futures Util Shared Future
+# Shared future polling with atomic operations
+# ============================================================================
+
+{
+   futures_util_shared_poll_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*futures_util*future*future*shared*Shared*
+   ...
+}
+
+{
+   futures_util_shared_poll_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*futures_util*future*future*shared*Shared*
+   ...
+}
+
+# ============================================================================
+# Redis Client Connection Creation
+# Async connection initialization
+# ============================================================================
+
+{
+   redis_client_create_connection_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*redis*client*Client*create_multiplexed_async_connection*
+   ...
+}
+
+{
+   redis_client_create_connection_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*redis*client*Client*create_multiplexed_async_connection*
+   ...
+}
