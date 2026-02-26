@@ -753,6 +753,51 @@
    obj:*/valkey_glide.so
 }
 
+# AWS-LC with corrupted stack traces (assembly code that valgrind can't trace)
+# These show only ??? in the call stack because they're hand-written assembly
+{
+   aws_lc_bn_mul4x_mont_corrupted_stack_value8
+   Memcheck:Value8
+   fun:aws_lc_0_37_1_bn_mul4x_mont
+   obj:*/valkey_glide.so
+}
+
+{
+   aws_lc_bn_mul4x_mont_corrupted_stack_cond
+   Memcheck:Cond
+   fun:aws_lc_0_37_1_bn_mul4x_mont
+   obj:*/valkey_glide.so
+}
+
+{
+   aws_lc_bn_sqr8x_mont_corrupted_stack_value8
+   Memcheck:Value8
+   fun:aws_lc_0_37_1_bn_sqr8x_mont
+   obj:*/valkey_glide.so
+}
+
+{
+   aws_lc_bn_sqr8x_mont_corrupted_stack_cond
+   Memcheck:Cond
+   fun:aws_lc_0_37_1_bn_sqr8x_mont
+   obj:*/valkey_glide.so
+}
+
+# Catch any AWS-LC function with corrupted stack (no parent frame visible)
+{
+   aws_lc_any_corrupted_stack_value8
+   Memcheck:Value8
+   fun:aws_lc_*
+   obj:*/valkey_glide.so
+}
+
+{
+   aws_lc_any_corrupted_stack_cond
+   Memcheck:Cond
+   fun:aws_lc_*
+   obj:*/valkey_glide.so
+}
+
 # ============================================================================
 # Rust Parser and String Operation Suppressions
 # These are SIMD optimizations that read beyond data but mask unused bytes
