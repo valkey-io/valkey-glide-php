@@ -371,3 +371,384 @@
    fun:realloc
    fun:*alloc*raw_vec*finish_grow*
 }
+
+# ============================================================================
+# Cryptographic Library Uninitialized Value Suppressions
+# These are intentional patterns in crypto libraries for constant-time operations
+# ============================================================================
+
+# AWS-LC ML-KEM (post-quantum crypto) - intentional uninit for constant-time
+{
+   aws_lc_mlkem_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*mlkem*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   aws_lc_mlkem_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*mlkem*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# AWS-LC RSA operations - constant-time big number arithmetic
+{
+   aws_lc_rsa_verify_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*aws_lc*rsa_verify*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   aws_lc_rsa_verify_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*aws_lc*rsa_verify*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# AWS-LC big number operations - constant-time arithmetic
+{
+   aws_lc_bn_operations_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*aws_lc*bn_*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   aws_lc_bn_operations_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*aws_lc*bn_*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# AWS-LC BN_div operations
+{
+   aws_lc_bn_div_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*aws_lc*BN_div*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   aws_lc_bn_div_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*aws_lc*BN_div*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# AWS-LC Montgomery context operations
+{
+   aws_lc_mont_ctx_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*aws_lc*BN_MONT_CTX*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   aws_lc_mont_ctx_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*aws_lc*BN_MONT_CTX*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# AWS-LC EVP digest operations
+{
+   aws_lc_evp_digest_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*aws_lc*EVP_Digest*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   aws_lc_evp_digest_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*aws_lc*EVP_Digest*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# AWS-LC PKEY operations
+{
+   aws_lc_pkey_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*aws_lc*EVP_PKEY*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   aws_lc_pkey_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*aws_lc*EVP_PKEY*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# AWS-LC random number generation
+{
+   aws_lc_rand_bytes_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*rand_bytes_private*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   aws_lc_rand_bytes_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*rand_bytes_private*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Rustls TLS certificate verification
+{
+   rustls_cert_verify_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*rustls*verify*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   rustls_cert_verify_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*rustls*verify*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Rustls connection processing
+{
+   rustls_connection_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*rustls*conn*ConnectionCore*process_new_packets*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   rustls_connection_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*rustls*conn*ConnectionCore*process_new_packets*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Webpki certificate operations
+{
+   webpki_cert_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*webpki*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   webpki_cert_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*webpki*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# AWS-LC-RS (Rust wrapper) signature operations
+{
+   aws_lc_rs_signature_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*aws_lc_rs*signature*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   aws_lc_rs_signature_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*aws_lc_rs*signature*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Tokio-rustls TLS stream operations
+{
+   tokio_rustls_stream_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*tokio_rustls*common*Stream*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   tokio_rustls_stream_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*tokio_rustls*common*Stream*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Rustls crypto provider (aws_lc_rs) operations
+{
+   rustls_crypto_aws_lc_rs_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*rustls*crypto*aws_lc_rs*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   rustls_crypto_aws_lc_rs_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*rustls*crypto*aws_lc_rs*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Rustls client connection initialization
+{
+   rustls_client_for_client_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*rustls*client*client_conn*for_client*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   rustls_client_for_client_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*rustls*client*client_conn*for_client*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Rustls TLS13 handshake operations
+{
+   rustls_tls13_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*rustls*client*tls13*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   rustls_tls13_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*rustls*client*tls13*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Rustls PKI types certificate operations
+{
+   rustls_pki_types_cert_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*rustls_pki_types*CertificateDer*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   rustls_pki_types_cert_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*rustls_pki_types*CertificateDer*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Valgrind bcmp with uninit (used in cert verification)
+{
+   valgrind_bcmp_uninit_value8
+   Memcheck:Value8
+   fun:bcmp
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   valgrind_bcmp_cond_uninit
+   Memcheck:Cond
+   fun:bcmp
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Valgrind memmove with uninit (used in cert operations)
+{
+   valgrind_memmove_uninit_value8
+   Memcheck:Value8
+   fun:memmove
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   valgrind_memmove_cond_uninit
+   Memcheck:Cond
+   fun:memmove
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Generic AWS-LC operations (catch-all for any missed patterns)
+{
+   aws_lc_generic_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*aws_lc_0_37_1*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   aws_lc_generic_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*aws_lc_0_37_1*
+   ...
+   obj:*/valkey_glide.so
+}
