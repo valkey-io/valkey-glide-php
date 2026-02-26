@@ -196,6 +196,17 @@ class ValkeyGlide
     public const  READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY = 3;
 
     /**
+     * Compression backend constants
+     * @var int
+     */
+    public const COMPRESSION_BACKEND_ZSTD = 0;  // Zstandard compression
+
+    /**
+     * @var int
+     */
+    public const COMPRESSION_BACKEND_LZ4 = 1;   // LZ4 compression
+
+    /**
      * @var string
      * COPY command option key for replacing existing destination key
      */
