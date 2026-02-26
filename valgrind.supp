@@ -752,3 +752,288 @@
    ...
    obj:*/valkey_glide.so
 }
+
+# ============================================================================
+# Rust Parser and String Operation Suppressions
+# These are SIMD optimizations that read beyond data but mask unused bytes
+# ============================================================================
+
+# Combine parser library - SIMD optimizations
+{
+   combine_parser_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*combine*parser*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   combine_parser_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*combine*parser*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Redis protocol parser
+{
+   redis_parser_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*redis*parser*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   redis_parser_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*redis*parser*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# UTF-8 validation - SIMD operations
+{
+   utf8_validation_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:run_utf8_validation
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   utf8_validation_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:run_utf8_validation
+   ...
+   obj:*/valkey_glide.so
+}
+
+# memchr library - SIMD memory search
+{
+   memchr_avx2_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*memchr*arch*x86_64*avx2*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   memchr_avx2_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*memchr*arch*x86_64*avx2*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Rust core string operations - SIMD pattern matching
+{
+   rust_str_simd_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*core*str*pattern*simd_contains*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   rust_str_simd_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*core*str*pattern*simd_contains*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Rust core string impl
+{
+   rust_core_str_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*core*str*<impl*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   rust_core_str_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*core*str*<impl*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Rust UTF-8 chunks iterator
+{
+   rust_utf8_chunks_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*core*str*lossy*Utf8Chunks*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   rust_utf8_chunks_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*core*str*lossy*Utf8Chunks*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Redis multiplexed connection pipeline
+{
+   redis_pipeline_sink_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*redis*aio*multiplexed_connection*PipelineSink*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Tokio-rustls TLS stream
+{
+   tokio_rustls_tls_stream_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*tokio_rustls*client*TlsStream*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Rustls connection reader
+{
+   rustls_reader_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*rustls*conn*connection*Reader*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# PHP emalloc operations
+{
+   php_emalloc_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:_emalloc
+   ...
+}
+
+# Process ping result
+{
+   process_ping_result_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:process_ping_result
+   ...
+   obj:*/valkey_glide.so
+}
+
+# ============================================================================
+# TLS Handshake Syscall Suppressions
+# Uninitialized padding bytes in TLS ClientHello - protocol compliant
+# ============================================================================
+
+{
+   tls_writev_uninit_vector0
+   Memcheck:Param
+   writev(vector[0])
+   fun:__writev
+   fun:writev
+   ...
+   fun:*rustls*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   tls_writev_uninit_vector1
+   Memcheck:Param
+   writev(vector[1])
+   fun:__writev
+   fun:writev
+   ...
+   fun:*rustls*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   tls_writev_uninit_any_vector
+   Memcheck:Param
+   writev(vector[...])
+   fun:__writev
+   fun:writev
+   ...
+   obj:*/valkey_glide.so
+}
+
+# ============================================================================
+# Generic Rust Standard Library Suppressions
+# Catch-all for any remaining Rust stdlib SIMD operations
+# ============================================================================
+
+{
+   rust_std_simd_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*core*slice*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   rust_std_simd_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*core*slice*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   rust_alloc_uninit_value8
+   Memcheck:Value8
+   ...
+   fun:*alloc*
+   ...
+   obj:*/valkey_glide.so
+}
+
+{
+   rust_alloc_cond_uninit
+   Memcheck:Cond
+   ...
+   fun:*alloc*
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Generic strncmp with uninit (used in various string comparisons)
+{
+   strncmp_cond_uninit
+   Memcheck:Cond
+   fun:strncmp
+   ...
+   obj:*/valkey_glide.so
+}
+
+# Generic malloc with uninit
+{
+   malloc_cond_uninit
+   Memcheck:Cond
+   fun:malloc
+   ...
+   obj:*/valkey_glide.so
+}
