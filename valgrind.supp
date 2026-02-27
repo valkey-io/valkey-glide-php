@@ -2153,6 +2153,34 @@
    fun:*aws_runtime*invocation_id*InvocationIdInterceptor*new*
 }
 
+# ============================================================================
+# Global Initialization Memory - "Possibly Lost" but Actually Reachable
+# These are one-time initializations that live for the program's lifetime
+# ============================================================================
+
+# AWS SDK STS Partition Resolver
+{
+   aws_sdk_sts_partition_resolver_init
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*aws_sdk_sts*endpoint_lib*partition*PartitionResolver*new_from_json*
+   ...
+}
+
+{
+   aws_sdk_sts_partition_resolver_hashmap
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*hashbrown*raw*RawTableInner*fallible_with_capacity*
+   ...
+   fun:*aws_sdk_sts*endpoint_lib*partition*PartitionResolver*new_from_json*
+   ...
+}
+
 # AWS-LC BigNum Montgomery multiplication - uninitialised value usage
 # Safe to suppress: Cryptographic operations intentionally use uninitialised memory
 # for constant-time operations and performance optimizations
@@ -2350,4 +2378,242 @@
    fun:malloc
    ...
    fun:*aws_smithy_http_client*client*ConnectorBuilder*build*
+   ...
+}
+
+{
+   aws_sdk_sts_regex_init
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*regex_lite*
+   ...
+   fun:*aws_sdk_sts*endpoint_lib*partition*PartitionResolver*new_from_json*
+   ...
+}
+
+# AWS Smithy Runtime Static Partition Map
+{
+   aws_smithy_static_partition_map
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*aws_smithy_runtime*static_partition_map*StaticPartitionMap*get_or_init*
+   ...
+}
+
+{
+   aws_smithy_default_plugins
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*aws_smithy_runtime*client*defaults*default_plugins*
+   ...
+}
+
+# Tokio Runtime Initialization
+{
+   tokio_runtime_builder_build
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:malloc
+   fun:posix_memalign
+   ...
+   fun:*tokio*runtime*builder*Builder*build*
+   ...
+}
+
+{
+   tokio_runtime_driver_new
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:malloc
+   ...
+   fun:*tokio*runtime*driver*Driver*new*
+   ...
+}
+
+{
+   tokio_signal_registry_init
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:malloc
+   ...
+   fun:*tokio*signal*registry*EventInfo*
+   ...
+}
+
+{
+   mio_events_with_capacity
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:malloc
+   ...
+   fun:*mio*event*events*Events*with_capacity*
+   ...
+}
+
+# OpenTelemetry Initialization
+{
+   opentelemetry_batch_span_processor
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:malloc
+   fun:posix_memalign
+   ...
+   fun:*opentelemetry_sdk*trace*span_processor*BatchSpanProcessor*new*
+   ...
+}
+
+{
+   opentelemetry_span_on_end
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:malloc
+   ...
+   fun:*opentelemetry_sdk*trace*span_processor*BatchSpanProcessor*on_end*
+   ...
+}
+
+{
+   tokio_mpsc_list_tx_find_block
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:malloc
+   ...
+   fun:*tokio*sync*mpsc*list*Tx*find_block*
+   ...
+}
+
+# Thread-Local Storage
+{
+   thread_local_dtv_allocation
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:malloc
+   ...
+   fun:allocate_dtv_entry
+   fun:allocate_and_init
+   fun:tls_get_addr_tail
+   ...
+}
+
+{
+   thread_start_tls
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:malloc
+   ...
+   fun:*std*sys*thread*unix*Thread*new*thread_start*
+   ...
+}
+
+# Rustls Native Certificates
+{
+   rustls_native_certs_load
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:calloc
+   ...
+   fun:*rustls_pki_types*pem*read*
+   ...
+   fun:*rustls_native_certs*load*
+   ...
+}
+
+{
+   rustls_native_certs_pem_from_buf
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:calloc
+   ...
+   fun:*rustls_pki_types*pem*from_buf_inner*
+   ...
+}
+
+{
+   rustls_client_config_init
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:calloc
+   fun:malloc
+   ...
+   fun:*aws_smithy_http_client*client*tls*rustls_provider*build_connector*create_rustls_client_config*
+   ...
+}
+
+# AWS-LC Error Handling
+{
+   aws_lc_err_put_error
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:calloc
+   ...
+   fun:*aws_lc*ERR_put_error*
+   ...
+}
+
+{
+   aws_lc_evp_parse_public_key
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:calloc
+   ...
+   fun:*aws_lc*EVP_parse_public_key*
+   ...
+}
+
+# AWS Config Loader
+{
+   aws_config_loader_init
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*aws_config*loader*ConfigLoader*load*
+   ...
+}
+
+{
+   aws_config_imds_client_build
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*aws_config*imds*client*Builder*build*
+   ...
+}
+
+{
+   aws_config_web_identity_token_build
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*aws_config*web_identity_token*Builder*build*
+   ...
+}
+
+# Regex Lite NFA Compiler
+{
+   regex_lite_nfa_compiler
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:malloc
+   ...
+   fun:*regex_lite*nfa*Compiler*
+   ...
+}
+
+{
+   regex_lite_regex_new
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   fun:malloc
+   ...
+   fun:*regex_lite*string*Regex*new*
+   ...
 }
