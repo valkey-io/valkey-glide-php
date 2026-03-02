@@ -102,9 +102,17 @@ abstract class ValkeyGlideBaseTest extends TestSuite
         'Cupertino'     => [-122.032182, 37.322998]
     ];
 
+    // TLS configuration
     protected const TLS_ADDRESS_STANDALONE = ['host' => 'localhost', 'port' => 6400];
     protected const TLS_ADDRESS_CLUSTER    = ['host' => 'localhost', 'port' => 8001];
     protected const TLS_CERTIFICATE_PATH   = __DIR__ . '/../valkey-glide/utils/tls_crts/ca.crt';
+
+    // Host names and addresses for tests.
+    // See 'cluster_manager.py' for details.
+    protected const HOSTNAME_TLS = 'valkey.glide.test.tls.com';
+    protected const HOSTNAME_NO_TLS = 'valkey.glide.test.no_tls.com';
+    protected const HOST_ADDRESS_IPV4 = '127.0.0.1';
+    protected const HOST_ADDRESS_IPV6 = '::1';
 
     protected function getNilValue()
     {
