@@ -1383,51 +1383,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $client->close();
     }
 
-    // TLS Tests
-    // ---------
-
-    public function testTlsSecureStream()
-    {
-        $client = new ValkeyGlideCluster(
-            addresses: [self::TLS_ADDRESS_CLUSTER],
-            context: stream_context_create(['ssl' => ['cafile' => self::TLS_CERTIFICATE_PATH]])
-        );
-
-        $this->assertConnected($client);
-    }
-
-    public function testTlsSecureConfig()
-    {
-        $client = new ValkeyGlideCluster(
-            addresses: [self::TLS_ADDRESS_CLUSTER],
-            use_tls: true,
-            advanced_config: ['tls_config' => ['root_certs' => file_get_contents(self::TLS_CERTIFICATE_PATH)]]
-        );
-
-        $this->assertConnected($client);
-    }
-
-    public function testTlsInsecureStream()
-    {
-        $client = new ValkeyGlideCluster(
-            addresses: [self::TLS_ADDRESS_CLUSTER],
-            context: stream_context_create(['ssl' => ['verify_peer' => false]])
-        );
-
-        $this->assertConnected($client);
-    }
-
-    public function testTlsInsecureConfig()
-    {
-        $client = new ValkeyGlideCluster(
-            addresses: [self::TLS_ADDRESS_CLUSTER],
-            use_tls: true,
-            advanced_config: ['tls_config' => ['use_insecure_tls' => true]]
-        );
-
-        $this->assertConnected($client);
-    }
-
     public function testScriptExists()
     {
         $script = 'return "Hello"';

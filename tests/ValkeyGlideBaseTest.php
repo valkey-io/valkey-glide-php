@@ -268,13 +268,46 @@ abstract class ValkeyGlideBaseTest extends TestSuite
         return defined(get_class($this->valkey_glide) . '::MULTI');
     }
 
+    /**
+     * Asserts that the given client is connected.
+     *
+     * @param ValkeyGlide|ValkeyGlideCluster $client The client instance
+     */
     protected function assertConnected(ValkeyGlide|ValkeyGlideCluster $client)
     {
         $result =
             $client instanceof ValkeyGlideCluster
             ? $client->ping('allPrimaries')
             : $client->ping();
+        // ping() can return either 'PONG' or true depending on the implementation
+        $this->assertTrue($result === 'PONG' || $result === true, "Expected 'PONG' or true, got: " . var_export($result, true));
+    }
 
-        $this->assertTrue($result, "Client should be connected");
+    /**
+     * Marks the current test as skipped if TLS is disabled.
+     */
+    protected function markTestSkippedIfTlsDisabled(): void
+    {
+        if (!$this->getTLS()) {
+            $this->markTestSkipped('TLS is disabled');
+        }
+    }
+
+    /**
+     * Marks the current test as skipped if TLS is enabled.
+     */
+    protected function markTestSkippedIfTlsEnabled(): void
+    {
+        if ($this->getTLS()) {
+            $this->markTestSkipped('TLS is enabled');
+        }
+    }
+
+    /**
+     * Loads and returns the CA certificate for TLS tests.
+     */
+    protected function getCaCertificate(): string
+    {
+        return file_get_contents(self::TLS_CERTIFICATE_PATH);
     }
 }

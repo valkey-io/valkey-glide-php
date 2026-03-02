@@ -824,12 +824,22 @@ class TestSuite
     }
 
     /**
-     * Asserts that the given client is connected.
+     * Asserts that executing the given callable throws an exception of the specified type.
+     *
+     * @param string $exceptionClass The expected exception class name
+     * @param callable $callable The function to execute
      */
-    protected function assertConnected($client): void
+    protected function assertThrows(string $exceptionClass, callable $callable): void
     {
-        $result = $client->ping();
-        $this->assertEquals('PONG', $result);
+        try {
+            $callable();
+            $this->fail('Expected exception of type ' . $exceptionClass . ' was not thrown.');
+        } catch (Exception $e) {
+            if ($e instanceof $exceptionClass) {
+                return;
+            }
+            $this->fail('Expected exception of type ' . $exceptionClass . ' but got ' . get_class($e) . ': ' . $e->getMessage());
+        }
     }
 
     protected function fail(string $message): bool
@@ -854,38 +864,6 @@ class TestSuite
         );
 
         throw new TestSkippedException($msg);
-    }
-
-    /**
-     * Marks the current test as skipped if TLS is disabled.
-     */
-    protected function markTestSkippedIfTlsDisabled(): void
-    {
-        if (!$this->getTLS()) {
-            $this->markTestSkipped('TLS is disabled');
-        }
-    }
-
-    /**
-     * Marks the current test as skipped if TLS is enabled.
-     */
-    protected function markTestSkippedIfTlsEnabled(): void
-    {
-        if ($this->getTLS()) {
-            $this->markTestSkipped('TLS is enabled');
-        }
-    }
-
-    /**
-     * Loads and returns the CA certificate for TLS tests.
-     */
-    protected function getCaCertificate(): string
-    {
-        $path = __DIR__ . '/../valkey-glide/utils/tls_crts/ca.crt';
-        if (!file_exists($path)) {
-            throw new Exception("CA certificate not found at: $path");
-        }
-        return file_get_contents($path);
     }
 
     private static function getMaxTestLen(array $methods, ?string $limit): int
