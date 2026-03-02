@@ -15,6 +15,7 @@ done
 
 # Start primary (6379)
 valkey-server --port 6379 \
+  --bind 127.0.0.1 ::1 \
   --dir "$BASE_DIR/6379" \
   --daemonize yes \
   --logfile "$BASE_DIR/6379/valkey.log" \
@@ -22,6 +23,7 @@ valkey-server --port 6379 \
 
 # Start replicas (6380, 6381)
 valkey-server --port 6380 \
+  --bind 127.0.0.1 ::1 \
   --dir "$BASE_DIR/6380" \
   --daemonize yes \
   --logfile "$BASE_DIR/6380/valkey.log" \
@@ -29,6 +31,7 @@ valkey-server --port 6380 \
 
 
 valkey-server --port 6381 \
+  --bind 127.0.0.1 ::1 \
   --dir "$BASE_DIR/6381" \
   --daemonize yes \
   --logfile "$BASE_DIR/6381/valkey.log" \

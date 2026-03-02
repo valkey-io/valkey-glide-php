@@ -32,6 +32,7 @@ for port in "${PORTS[@]}"; do
 
   cat > "$NODE_DIR/valkey.conf" <<EOF
 port $port
+bind 127.0.0.1 ::1
 cluster-enabled yes
 cluster-config-file nodes.conf
 cluster-node-timeout 5000
