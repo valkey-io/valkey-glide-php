@@ -636,12 +636,10 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testPHPRedisStyleHostPort()
     {
-        // Test PHPRedis-compatible connection with host and port
-        if ($this->getTLS()) {
-            $this->markTestSkipped('PHPRedis-style connection test requires non-TLS');
-            return;
-        }
+        // PHPRedis-style connections are not support with TLS.
+        $this->markTestSkippedIfTlsEnabled();
 
+        // Test PHPRedis-compatible connection with host and port
         $client = new ValkeyGlide();
         $result = $client->connect($this->getHost(), $this->getPort());
 
@@ -659,12 +657,10 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testPHPRedisStyleWithTimeout()
     {
-        // Test PHPRedis-compatible connection with timeout parameter
-        if ($this->getTLS()) {
-            $this->markTestSkipped('PHPRedis-style connection test requires non-TLS');
-            return;
-        }
+        // PHPRedis-style connections are not support with TLS.
+        $this->markTestSkippedIfTlsEnabled();
 
+        // Test PHPRedis-compatible connection with timeout parameter
         $client = new ValkeyGlide();
         $result = $client->connect($this->getHost(), $this->getPort(), 2.5);
 
@@ -681,12 +677,10 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testPHPRedisStyleConflictDetection()
     {
-        // Test that mixing PHPRedis and ValkeyGlide parameters is detected
-        if ($this->getTLS()) {
-            $this->markTestSkipped('Parameter conflict test requires non-TLS');
-            return;
-        }
+        // PHPRedis-style connections are not support with TLS.
+        $this->markTestSkippedIfTlsEnabled();
 
+        // Test that mixing PHPRedis and ValkeyGlide parameters is detected
         $client = new ValkeyGlide();
 
         try {

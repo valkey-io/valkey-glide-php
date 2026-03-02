@@ -485,7 +485,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testBitPos()
     {
         if (version_compare($this->version, '2.8.7') < 0) {
-            $this->MarkTestSkipped();
+            $this->markTestSkipped();
             return;
         }
 
@@ -3265,7 +3265,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         /* ZRANGEBYLEX available on versions >= 2.8.9 */
         if (version_compare($this->version, '2.8.9') < 0) {
-            $this->MarkTestSkipped();
+            $this->markTestSkipped();
             return;
         }
 
@@ -3296,7 +3296,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testZLexCount()
     {
         if (version_compare($this->version, '2.8.9') < 0) {
-            $this->MarkTestSkipped();
+            $this->markTestSkipped();
             return;
         }
 
@@ -3605,7 +3605,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testZRemRangeByLex()
     {
         if (version_compare($this->version, '2.8.9') < 0) {
-            $this->MarkTestSkipped();
+            $this->markTestSkipped();
             return;
         }
 
@@ -3625,7 +3625,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testBZPop()
     {
         if (version_compare($this->version, '5.0.0') < 0) {
-            $this->MarkTestSkipped();
+            $this->markTestSkipped();
             return;
         }
 
@@ -3649,7 +3649,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testZPop()
     {
         if (version_compare($this->version, '5.0.0') < 0) {
-            $this->MarkTestSkipped();
+            $this->markTestSkipped();
             return;
         }
 
@@ -3673,7 +3673,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testZRandMember()
     {
         if (version_compare($this->version, '6.2.0') < 0) {
-            $this->MarkTestSkipped();
+            $this->markTestSkipped();
             return;
         }
         $this->valkey_glide->del('key');
@@ -4686,7 +4686,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testHRandField()
     {
         if (version_compare($this->version, '6.2.0') < 0) {
-            $this->MarkTestSkipped();
+            $this->markTestSkipped();
         }
 
         $this->valkey_glide->del('key');
