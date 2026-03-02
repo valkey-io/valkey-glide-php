@@ -27,7 +27,7 @@ fi
 # Run markdownlint:
 # - Include all .md files.
 # - Exclude files in valkey-glide submodule.
-# - Exclude files in vendor directory.
+# - Exclude files in the build or vendor directories.
 MARKDOWNLINT_OPTIONS=""
 if [ "$FIX" = true ]; then
     MARKDOWNLINT_OPTIONS="--fix"
@@ -36,6 +36,7 @@ fi
 find . -name "*.md" -print0 | \
     grep -zv "valkey-glide/" | \
     grep -zv "vendor/" | \
+    grep -zv "build/" | \
     xargs -0 -r markdownlint $MARKDOWNLINT_OPTIONS
 
 echo "✓ Markdown linting completed!"
