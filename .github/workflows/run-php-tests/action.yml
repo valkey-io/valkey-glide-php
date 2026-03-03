@@ -13,6 +13,19 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Configure DNS for tests
+      shell: bash
+      run: |
+        ENTRIES="127.0.0.1 valkey.glide.test.tls.com
+        127.0.0.1 valkey.glide.test.no_tls.com
+        ::1 valkey.glide.test.tls.com
+        ::1 valkey.glide.test.no_tls.com"
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          echo "$ENTRIES" >> /c/Windows/System32/drivers/etc/hosts
+        else
+          echo "$ENTRIES" | sudo tee -a /etc/hosts
+        fi
+
     - name: Start Valkey servers
       working-directory: tests
       shell: bash
@@ -93,6 +106,7 @@ runs:
       shell: bash
       env:
         EXTENSION_PATH: ${{ inputs.extension-path }}
+        VALKEY_GLIDE_DNS_TESTS_ENABLED: "1"
       run: |
         # Debug: Check if extension is loaded and classes exist
         echo "=== Extension Debug Info ==="
