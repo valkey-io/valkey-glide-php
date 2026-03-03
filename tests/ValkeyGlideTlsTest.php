@@ -14,7 +14,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
 
     public function testTlsSecureStream()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $client = new ValkeyGlide();
         $client->connect(
@@ -28,7 +28,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
 
     public function testTlsSecureConfig()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $client = new ValkeyGlide();
         $client->connect(
@@ -45,7 +45,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
 
     public function testTlsInsecureStream()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $client = new ValkeyGlide();
         $client->connect(
@@ -59,7 +59,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
 
     public function testTlsInsecureConfig()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $client = new ValkeyGlide();
         $client->connect(
@@ -79,7 +79,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
 
     public function testTlsWithoutCertificate()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $this->assertThrows(ValkeyGlideException::class, function () {
             $client = new ValkeyGlide();
@@ -95,7 +95,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
 
     public function testTlsWithSelfSignedCertificate()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $certData = $this->getCaCertificate();
 
@@ -117,7 +117,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
 
     public function testTlsWithSelfSignedCertificateStream()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $client = new ValkeyGlide();
         $client->connect(
@@ -134,7 +134,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
 
     public function testTlsWithMultipleCertificates()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $certData = $this->getCaCertificate();
         $multipleCerts = $certData . "\n" . $certData;
@@ -157,7 +157,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
 
     public function testTlsWithEmptyCertificate()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $this->assertThrows(ValkeyGlideException::class, function () {
             $client = new ValkeyGlide();
@@ -176,7 +176,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
 
     public function testTlsWithInvalidCertificate()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $this->assertThrows(ValkeyGlideException::class, function () {
             $client = new ValkeyGlide();
@@ -198,7 +198,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
 
     public function testTlsWithIPv4Address()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $certData = $this->getCaCertificate();
 
@@ -220,7 +220,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
 
     public function testTlsWithIPv4AddressStream()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $client = new ValkeyGlide();
         $client->connect(
@@ -237,7 +237,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
 
     public function testTlsWithIPv6Address()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $certData = $this->getCaCertificate();
 
@@ -259,7 +259,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
 
     public function testTlsWithIPv6AddressStream()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $client = new ValkeyGlide();
         $client->connect(

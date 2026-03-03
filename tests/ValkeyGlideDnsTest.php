@@ -19,7 +19,7 @@ class ValkeyGlideDnsTest extends ValkeyGlideBaseTest
     /**
      * Skips the current test if DNS tests are not enabled.
      */
-    protected function skipIfNotEnabled(): void
+    protected function skipIfDnsNotEnabled(): void
     {
         if (!getenv('VALKEY_GLIDE_DNS_TESTS_ENABLED')) {
             $this->markTestSkipped('DNS tests are disabled. Set VALKEY_GLIDE_DNS_TESTS_ENABLED=1 to enable.');
@@ -28,8 +28,8 @@ class ValkeyGlideDnsTest extends ValkeyGlideBaseTest
 
     public function testDnsConnectWithValidHostname()
     {
-        $this->skipIfNotEnabled();
-        $this->markTestSkippedIfTlsEnabled();
+        $this->skipIfDnsNotEnabled();
+        $this->skipIfTlsEnabled();
 
         $client = new ValkeyGlide();
         $client->connect(
@@ -42,8 +42,8 @@ class ValkeyGlideDnsTest extends ValkeyGlideBaseTest
 
     public function testDnsConnectWithInvalidHostname()
     {
-        $this->skipIfNotEnabled();
-        $this->markTestSkippedIfTlsEnabled();
+        $this->skipIfDnsNotEnabled();
+        $this->skipIfTlsEnabled();
 
         $this->assertThrows(ValkeyGlideException::class, function () {
             $client = new ValkeyGlide();
@@ -55,8 +55,8 @@ class ValkeyGlideDnsTest extends ValkeyGlideBaseTest
 
     public function testDnsTlsWithHostnameInCertificate()
     {
-        $this->skipIfNotEnabled();
-        $this->markTestSkippedIfTlsEnabled();
+        $this->skipIfDnsNotEnabled();
+        $this->skipIfTlsDisabled();
 
         $client = new ValkeyGlide();
         $client->connect(
@@ -74,8 +74,8 @@ class ValkeyGlideDnsTest extends ValkeyGlideBaseTest
 
     public function testDnsTlsWithHostnameNotInCertificate()
     {
-        $this->skipIfNotEnabled();
-        $this->markTestSkippedIfTlsEnabled();
+        $this->skipIfDnsNotEnabled();
+        $this->skipIfTlsDisabled();
 
         $certData = $this->getCaCertificate();
 

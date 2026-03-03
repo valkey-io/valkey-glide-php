@@ -103,8 +103,14 @@ abstract class ValkeyGlideBaseTest extends TestSuite
     ];
 
     // TLS configuration
-    protected const TLS_ADDRESS_STANDALONE = ['host' => 'localhost', 'port' => 6400];
-    protected const TLS_ADDRESS_CLUSTER    = ['host' => 'localhost', 'port' => 8001];
+    protected const TLS_HOST_STANDALONE = 'localhost';
+    protected const TLS_PORT_STANDALONE = 6400;
+    protected const TLS_ADDRESS_STANDALONE = ['host' => self::TLS_HOST_STANDALONE, 'port' => self::TLS_PORT_STANDALONE];
+
+    protected const TLS_HOST_CLUSTER = 'localhost';
+    protected const TLS_PORT_CLUSTER = 8001;
+    protected const TLS_ADDRESS_CLUSTER = ['host' => self::TLS_HOST_CLUSTER, 'port' => self::TLS_PORT_CLUSTER];
+
     protected const TLS_CERTIFICATE_PATH   = __DIR__ . '/../valkey-glide/utils/tls_crts/ca.crt';
 
     // Host names and addresses for tests.
@@ -286,7 +292,7 @@ abstract class ValkeyGlideBaseTest extends TestSuite
     /**
      * Marks the current test as skipped if TLS is disabled.
      */
-    protected function markTestSkippedIfTlsDisabled(): void
+    protected function skipIfTlsDisabled(): void
     {
         if (!$this->getTLS()) {
             $this->markTestSkipped('TLS is disabled');
@@ -296,7 +302,7 @@ abstract class ValkeyGlideBaseTest extends TestSuite
     /**
      * Marks the current test as skipped if TLS is enabled.
      */
-    protected function markTestSkippedIfTlsEnabled(): void
+    protected function skipIfTlsEnabled(): void
     {
         if ($this->getTLS()) {
             $this->markTestSkipped('TLS is enabled');

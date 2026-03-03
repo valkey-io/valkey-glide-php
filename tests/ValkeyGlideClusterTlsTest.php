@@ -11,7 +11,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
 {
     public function testTlsWithoutCertificate()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $this->assertThrows(ValkeyGlideException::class, function () {
             new ValkeyGlideCluster(
@@ -23,7 +23,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
 
     public function testTlsWithCertificateStream()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $client = new ValkeyGlideCluster(
             addresses: [self::TLS_ADDRESS_CLUSTER],
@@ -36,7 +36,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
 
     public function testTlsWithCertificateConfig()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $client = new ValkeyGlideCluster(
             addresses: [self::TLS_ADDRESS_CLUSTER],
@@ -50,7 +50,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
 
     public function testTlsWithMultipleCertificates()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $certData = $this->getCaCertificate();
         $multipleCerts = $certData . "\n" . $certData;
@@ -69,7 +69,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
 
     public function testTlsWithEmptyCertificate()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $this->assertThrows(ValkeyGlideException::class, function () {
             $client = new ValkeyGlideCluster(
@@ -84,7 +84,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
 
     public function testTlsWithInvalidCertificate()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $this->assertThrows(ValkeyGlideException::class, function () {
             $client = new ValkeyGlideCluster(
@@ -99,7 +99,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
 
     public function testTlsWithIPv4Address()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $client = new ValkeyGlideCluster(
             addresses: [[
@@ -118,7 +118,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
 
     public function testTlsWithIPv6Address()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $client = new ValkeyGlideCluster(
             addresses: [[
@@ -137,7 +137,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
 
     public function testTlsWithInsecureStream()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $client = new ValkeyGlideCluster(
             addresses: [self::TLS_ADDRESS_CLUSTER],
@@ -150,7 +150,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
 
     public function testTlsWithInsecureConfig()
     {
-        $this->markTestSkippedIfTlsDisabled();
+        $this->skipIfTlsDisabled();
 
         $client = new ValkeyGlideCluster(
             addresses: [self::TLS_ADDRESS_CLUSTER],
