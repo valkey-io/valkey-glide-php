@@ -19,7 +19,9 @@ done
 rm -rf valkey_data 2>/dev/null || true
 
 # TLS standalone servers.
-../valkey-glide/utils/cluster_manager.py --tls stop --prefix tls-standalone || true
+# TODO #5494: Extra 'tls-' prefix needed to handle 'cluster_manager.py' bug
+# https://github.com/valkey-io/valkey-glide/issues/5494
+../valkey-glide/utils/cluster_manager.py --tls stop --prefix tls-tls-standalone || true
 
 # Cluster servers
 # ---------------
@@ -32,7 +34,9 @@ done
 rm -rf valkey_cluster 2>/dev/null || true 
 
 # TLS cluster servers.
-../valkey-glide/utils/cluster_manager.py --tls stop --prefix tls-cluster || true
+# TODO #5494: Extra 'tls-' prefix needed to handle 'cluster_manager.py' bug
+# https://github.com/valkey-io/valkey-glide/issues/5494
+../valkey-glide/utils/cluster_manager.py --tls stop --prefix tls-tls-cluster || true
 rm -rf ../valkey-glide/utils/clusters/tls-* 2>/dev/null || true
 
 # Auth cluster servers.
