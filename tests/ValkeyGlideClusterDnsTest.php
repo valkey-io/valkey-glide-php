@@ -6,7 +6,7 @@ require_once __DIR__ . '/ValkeyGlideBaseTest.php';
 
 /**
  * DNS resolution tests for cluster client.
- * 
+ *
  * To run these tests, you need to add the following mappings to your hosts
  * file then set the environment variable VALKEY_GLIDE_DNS_TESTS_ENABLED:
  * - 127.0.0.1 valkey.glide.test.tls.com
