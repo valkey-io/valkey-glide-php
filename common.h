@@ -249,14 +249,14 @@ struct batch_command {
 
 /* Client runtime options - values match PHPRedis for drop-in compatibility */
 typedef enum {
-    VALKEY_GLIDE_OPT_SERIALIZER          = 1,
-    VALKEY_GLIDE_OPT_PREFIX              = 2,
-    VALKEY_GLIDE_OPT_READ_TIMEOUT        = 3,
-    VALKEY_GLIDE_OPT_SCAN                = 4,
-    VALKEY_GLIDE_OPT_FAILOVER            = 5,
-    VALKEY_GLIDE_OPT_TCP_KEEPALIVE       = 6,
-    VALKEY_GLIDE_OPT_COMPRESSION         = 7,
-    VALKEY_GLIDE_OPT_REPLY_LITERAL       = 8, /* Return "OK" string instead of true for Ok responses */
+    VALKEY_GLIDE_OPT_SERIALIZER    = 1,
+    VALKEY_GLIDE_OPT_PREFIX        = 2,
+    VALKEY_GLIDE_OPT_READ_TIMEOUT  = 3,
+    VALKEY_GLIDE_OPT_SCAN          = 4,
+    VALKEY_GLIDE_OPT_FAILOVER      = 5,
+    VALKEY_GLIDE_OPT_TCP_KEEPALIVE = 6,
+    VALKEY_GLIDE_OPT_COMPRESSION   = 7,
+    VALKEY_GLIDE_OPT_REPLY_LITERAL = 8, /* Return "OK" string instead of true for Ok responses */
     VALKEY_GLIDE_OPT_COMPRESSION_LEVEL   = 9,
     VALKEY_GLIDE_OPT_NULL_MBULK_AS_NULL  = 10,
     VALKEY_GLIDE_OPT_MAX_RETRIES         = 11,

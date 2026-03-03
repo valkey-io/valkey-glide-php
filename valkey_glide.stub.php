@@ -609,6 +609,10 @@ class ValkeyGlide
     /**
      * Prefix a key with the currently set prefix (OPT_PREFIX).
      *
+     * Note: Unlike PHPRedis, the prefix is not automatically applied to commands.
+     * Use this method to manually prefix keys when needed (e.g., for Lua scripts,
+     * SCAN patterns, or userland compatibility layers).
+     *
      * @param string $key The key to prefix
      * @return string The prefixed key, or the original key if no prefix is set
      */

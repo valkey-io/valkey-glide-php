@@ -2228,6 +2228,38 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         $this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, '');
     }
 
+    public function testOptPrefixNotAutoAppliedToCommands()
+    {
+        $key = '{test}prefix_no_auto';
+        try {
+            // Set a prefix
+            $this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, 'myprefix:');
+
+            // SET should store the key as-is (not auto-prefixed)
+            $this->valkey_glide->set($key, 'hello');
+
+            // GET with the same key should return the value (no auto-prefix applied)
+            $this->assertEquals('hello', $this->valkey_glide->get($key));
+
+            // The prefixed key should NOT exist because auto-prefixing is not implemented
+            $this->assertFalse($this->valkey_glide->get('myprefix:' . $key));
+        } finally {
+            $this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, '');
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testCloneThrowsError()
+    {
+        $thrown = false;
+        try {
+            $clone = clone $this->valkey_glide;
+        } catch (\Error $e) {
+            $thrown = true;
+        }
+        $this->assertTrue($thrown, 'Expected Error when cloning ValkeyGlide object');
+    }
+
     public function testOptReplyLiteralStillWorks()
     {
         $key = '{test}opt_reply_literal_new_value';

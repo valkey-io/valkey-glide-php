@@ -1175,13 +1175,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->incrbyfloat('key', -1.5);
         $this->assertKeyEquals('abc', 'key');
 
-        // Test with prefixing
-       // $this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, 'someprefix:');
-        // TODO ADD this option to the test
+        // Test with a manually prefixed key (OPT_PREFIX does not auto-apply to
+        // commands yet — see ValkeyGlideFeaturesTest::testOptPrefixNotAutoAppliedToCommands)
         $this->valkey_glide->del('someprefix:key');
         $this->valkey_glide->incrbyfloat('someprefix:key', 1.8);
         $this->assertKeyEqualsWeak(1.8, 'someprefix:key');
-        //$this->valkey_glide->setOption(ValkeyGlide::OPT_PREFIX, '');
         $this->assertKeyExists('someprefix:key');
         $this->valkey_glide->del('someprefix:key');
     }

@@ -1497,109 +1497,107 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
     } while (0)
 
 /* Option methods - matching PHPRedis setOption/getOption API */
-#define SETOPTION_METHOD_IMPL(class_name)                                     \
-    PHP_METHOD(class_name, setOption) {                                       \
-        zend_long option;                                                     \
-        zval*     value;                                                      \
-                                                                              \
-        ZEND_PARSE_PARAMETERS_START(2, 2)                                     \
-        Z_PARAM_LONG(option)                                                  \
-        Z_PARAM_ZVAL(value)                                                   \
-        ZEND_PARSE_PARAMETERS_END();                                          \
-                                                                              \
-        valkey_glide_object* valkey_glide =                                   \
-            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis()); \
-        if (!valkey_glide) {                                                  \
-            RETURN_FALSE;                                                     \
-        }                                                                     \
-                                                                              \
-        switch (option) {                                                     \
-            case VALKEY_GLIDE_OPT_REPLY_LITERAL:                              \
-                valkey_glide->opt_reply_literal = zval_is_true(value);        \
-                RETURN_TRUE;                                                  \
-            case VALKEY_GLIDE_OPT_PREFIX: {                                   \
-                zend_string* prefix_str = zval_get_string(value);             \
-                if (valkey_glide->opt_prefix) {                               \
-                    efree(valkey_glide->opt_prefix);                          \
-                    valkey_glide->opt_prefix     = NULL;                      \
-                    valkey_glide->opt_prefix_len = 0;                         \
-                }                                                             \
-                if (ZSTR_LEN(prefix_str) > 0) {                               \
-                    valkey_glide->opt_prefix_len = ZSTR_LEN(prefix_str);      \
-                    valkey_glide->opt_prefix =                                \
-                        estrndup(ZSTR_VAL(prefix_str), ZSTR_LEN(prefix_str)); \
-                }                                                             \
-                zend_string_release(prefix_str);                              \
-                RETURN_TRUE;                                                  \
-            }                                                                 \
-            case VALKEY_GLIDE_OPT_SERIALIZER:                                 \
-                valkey_glide->opt_serializer = zval_get_long(value);          \
-                RETURN_TRUE;                                                  \
-            case VALKEY_GLIDE_OPT_SCAN:                                       \
-                valkey_glide->opt_scan = zval_get_long(value);                \
-                RETURN_TRUE;                                                  \
-            case VALKEY_GLIDE_OPT_READ_TIMEOUT:                               \
-            case VALKEY_GLIDE_OPT_FAILOVER:                                   \
-            case VALKEY_GLIDE_OPT_TCP_KEEPALIVE:                              \
-            case VALKEY_GLIDE_OPT_COMPRESSION:                                \
-            case VALKEY_GLIDE_OPT_COMPRESSION_LEVEL:                          \
-            case VALKEY_GLIDE_OPT_NULL_MBULK_AS_NULL:                         \
-            case VALKEY_GLIDE_OPT_MAX_RETRIES:                                \
-            case VALKEY_GLIDE_OPT_BACKOFF_ALGORITHM:                          \
-            case VALKEY_GLIDE_OPT_BACKOFF_BASE:                               \
-            case VALKEY_GLIDE_OPT_BACKOFF_CAP:                                \
-            case VALKEY_GLIDE_OPT_PACK_IGNORE_NUMBERS:                        \
-                RETURN_TRUE; /* no-op for phpredis compat */                  \
-            default:                                                          \
-                php_error_docref(NULL, E_WARNING,                             \
-                    "Unknown option '" ZEND_LONG_FMT "'", option);            \
-                RETURN_FALSE;                                                 \
-        }                                                                     \
+#define SETOPTION_METHOD_IMPL(class_name)                                                        \
+    PHP_METHOD(class_name, setOption) {                                                          \
+        zend_long option;                                                                        \
+        zval*     value;                                                                         \
+                                                                                                 \
+        ZEND_PARSE_PARAMETERS_START(2, 2)                                                        \
+        Z_PARAM_LONG(option)                                                                     \
+        Z_PARAM_ZVAL(value)                                                                      \
+        ZEND_PARSE_PARAMETERS_END();                                                             \
+                                                                                                 \
+        valkey_glide_object* valkey_glide =                                                      \
+            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());                    \
+        if (!valkey_glide) {                                                                     \
+            RETURN_FALSE;                                                                        \
+        }                                                                                        \
+                                                                                                 \
+        switch (option) {                                                                        \
+            case VALKEY_GLIDE_OPT_REPLY_LITERAL:                                                 \
+                valkey_glide->opt_reply_literal = zval_is_true(value);                           \
+                RETURN_TRUE;                                                                     \
+            case VALKEY_GLIDE_OPT_PREFIX: {                                                      \
+                zend_string* prefix_str = zval_get_string(value);                                \
+                if (valkey_glide->opt_prefix) {                                                  \
+                    efree(valkey_glide->opt_prefix);                                             \
+                    valkey_glide->opt_prefix     = NULL;                                         \
+                    valkey_glide->opt_prefix_len = 0;                                            \
+                }                                                                                \
+                if (ZSTR_LEN(prefix_str) > 0) {                                                  \
+                    valkey_glide->opt_prefix_len = ZSTR_LEN(prefix_str);                         \
+                    valkey_glide->opt_prefix =                                                   \
+                        estrndup(ZSTR_VAL(prefix_str), ZSTR_LEN(prefix_str));                    \
+                }                                                                                \
+                zend_string_release(prefix_str);                                                 \
+                RETURN_TRUE;                                                                     \
+            }                                                                                    \
+            case VALKEY_GLIDE_OPT_SERIALIZER:                                                    \
+                valkey_glide->opt_serializer = zval_get_long(value);                             \
+                RETURN_TRUE;                                                                     \
+            case VALKEY_GLIDE_OPT_SCAN:                                                          \
+                valkey_glide->opt_scan = zval_get_long(value);                                   \
+                RETURN_TRUE;                                                                     \
+            case VALKEY_GLIDE_OPT_READ_TIMEOUT:                                                  \
+            case VALKEY_GLIDE_OPT_FAILOVER:                                                      \
+            case VALKEY_GLIDE_OPT_TCP_KEEPALIVE:                                                 \
+            case VALKEY_GLIDE_OPT_COMPRESSION:                                                   \
+            case VALKEY_GLIDE_OPT_COMPRESSION_LEVEL:                                             \
+            case VALKEY_GLIDE_OPT_NULL_MBULK_AS_NULL:                                            \
+            case VALKEY_GLIDE_OPT_MAX_RETRIES:                                                   \
+            case VALKEY_GLIDE_OPT_BACKOFF_ALGORITHM:                                             \
+            case VALKEY_GLIDE_OPT_BACKOFF_BASE:                                                  \
+            case VALKEY_GLIDE_OPT_BACKOFF_CAP:                                                   \
+            case VALKEY_GLIDE_OPT_PACK_IGNORE_NUMBERS:                                           \
+                RETURN_TRUE; /* no-op for phpredis compat */                                     \
+            default:                                                                             \
+                php_error_docref(NULL, E_WARNING, "Unknown option '" ZEND_LONG_FMT "'", option); \
+                RETURN_FALSE;                                                                    \
+        }                                                                                        \
     }
 
-#define GETOPTION_METHOD_IMPL(class_name)                                                   \
-    PHP_METHOD(class_name, getOption) {                                                     \
-        zend_long option;                                                                   \
-                                                                                            \
-        ZEND_PARSE_PARAMETERS_START(1, 1)                                                   \
-        Z_PARAM_LONG(option)                                                                \
-        ZEND_PARSE_PARAMETERS_END();                                                        \
-                                                                                            \
-        valkey_glide_object* valkey_glide =                                                 \
-            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());               \
-        if (!valkey_glide) {                                                                \
-            RETURN_FALSE;                                                                   \
-        }                                                                                   \
-                                                                                            \
-        switch (option) {                                                                   \
-            case VALKEY_GLIDE_OPT_REPLY_LITERAL:                                            \
-                RETURN_LONG(valkey_glide->opt_reply_literal);                               \
-            case VALKEY_GLIDE_OPT_PREFIX:                                                   \
-                if (valkey_glide->opt_prefix) {                                             \
-                    RETURN_STRINGL(valkey_glide->opt_prefix, valkey_glide->opt_prefix_len); \
-                }                                                                           \
-                RETURN_NULL();                                                              \
-            case VALKEY_GLIDE_OPT_SERIALIZER:                                               \
-                RETURN_LONG(valkey_glide->opt_serializer);                                  \
-            case VALKEY_GLIDE_OPT_SCAN:                                                     \
-                RETURN_LONG(valkey_glide->opt_scan);                                        \
-            case VALKEY_GLIDE_OPT_READ_TIMEOUT:                                             \
-            case VALKEY_GLIDE_OPT_FAILOVER:                                                 \
-            case VALKEY_GLIDE_OPT_TCP_KEEPALIVE:                                            \
-            case VALKEY_GLIDE_OPT_COMPRESSION:                                              \
-            case VALKEY_GLIDE_OPT_COMPRESSION_LEVEL:                                        \
-            case VALKEY_GLIDE_OPT_NULL_MBULK_AS_NULL:                                       \
-            case VALKEY_GLIDE_OPT_MAX_RETRIES:                                              \
-            case VALKEY_GLIDE_OPT_BACKOFF_ALGORITHM:                                        \
-            case VALKEY_GLIDE_OPT_BACKOFF_BASE:                                             \
-            case VALKEY_GLIDE_OPT_BACKOFF_CAP:                                              \
-            case VALKEY_GLIDE_OPT_PACK_IGNORE_NUMBERS:                                      \
-                RETURN_LONG(0);                                                             \
-            default:                                                                        \
-                php_error_docref(NULL, E_WARNING,                                           \
-                    "Unknown option '" ZEND_LONG_FMT "'", option);                          \
-                RETURN_FALSE;                                                               \
-        }                                                                                   \
+#define GETOPTION_METHOD_IMPL(class_name)                                                        \
+    PHP_METHOD(class_name, getOption) {                                                          \
+        zend_long option;                                                                        \
+                                                                                                 \
+        ZEND_PARSE_PARAMETERS_START(1, 1)                                                        \
+        Z_PARAM_LONG(option)                                                                     \
+        ZEND_PARSE_PARAMETERS_END();                                                             \
+                                                                                                 \
+        valkey_glide_object* valkey_glide =                                                      \
+            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());                    \
+        if (!valkey_glide) {                                                                     \
+            RETURN_FALSE;                                                                        \
+        }                                                                                        \
+                                                                                                 \
+        switch (option) {                                                                        \
+            case VALKEY_GLIDE_OPT_REPLY_LITERAL:                                                 \
+                RETURN_LONG(valkey_glide->opt_reply_literal);                                    \
+            case VALKEY_GLIDE_OPT_PREFIX:                                                        \
+                if (valkey_glide->opt_prefix) {                                                  \
+                    RETURN_STRINGL(valkey_glide->opt_prefix, valkey_glide->opt_prefix_len);      \
+                }                                                                                \
+                RETURN_NULL();                                                                   \
+            case VALKEY_GLIDE_OPT_SERIALIZER:                                                    \
+                RETURN_LONG(valkey_glide->opt_serializer);                                       \
+            case VALKEY_GLIDE_OPT_SCAN:                                                          \
+                RETURN_LONG(valkey_glide->opt_scan);                                             \
+            case VALKEY_GLIDE_OPT_READ_TIMEOUT:                                                  \
+            case VALKEY_GLIDE_OPT_FAILOVER:                                                      \
+            case VALKEY_GLIDE_OPT_TCP_KEEPALIVE:                                                 \
+            case VALKEY_GLIDE_OPT_COMPRESSION:                                                   \
+            case VALKEY_GLIDE_OPT_COMPRESSION_LEVEL:                                             \
+            case VALKEY_GLIDE_OPT_NULL_MBULK_AS_NULL:                                            \
+            case VALKEY_GLIDE_OPT_MAX_RETRIES:                                                   \
+            case VALKEY_GLIDE_OPT_BACKOFF_ALGORITHM:                                             \
+            case VALKEY_GLIDE_OPT_BACKOFF_BASE:                                                  \
+            case VALKEY_GLIDE_OPT_BACKOFF_CAP:                                                   \
+            case VALKEY_GLIDE_OPT_PACK_IGNORE_NUMBERS:                                           \
+                RETURN_LONG(0);                                                                  \
+            default:                                                                             \
+                php_error_docref(NULL, E_WARNING, "Unknown option '" ZEND_LONG_FMT "'", option); \
+                RETURN_FALSE;                                                                    \
+        }                                                                                        \
     }
 
 #define PREFIX_METHOD_IMPL(class_name)                                                        \
