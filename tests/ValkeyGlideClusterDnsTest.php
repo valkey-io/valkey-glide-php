@@ -5,26 +5,30 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests
 require_once __DIR__ . '/ValkeyGlideBaseTest.php';
 
 /**
- * DNS Resolution Tests for ValkeyGlideCluster
+ * DNS resolution tests for cluster client.
+ * 
+ * To run these tests, you need to add the following mappings to your hosts
+ * file then set the environment variable VALKEY_GLIDE_DNS_TESTS_ENABLED:
+ * - 127.0.0.1 valkey.glide.test.tls.com
+ * - 127.0.0.1 valkey.glide.test.no_tls.com
+ * - ::1 valkey.glide.test.tls.com
+ * - ::1 valkey.glide.test.no_tls.com
  */
 class ValkeyGlideClusterDnsTest extends ValkeyGlideBaseTest
 {
     /**
-     * Marks the current test as skipped if DNS tests are disabled.
+     * Skips the current test if DNS tests are not enabled.
      */
-    protected function markTestSkippedIfDnsTestsDisabled(): void
+    protected function skipIfNotEnabled(): void
     {
         if (!getenv('VALKEY_GLIDE_DNS_TESTS_ENABLED')) {
             $this->markTestSkipped('DNS tests are disabled. Set VALKEY_GLIDE_DNS_TESTS_ENABLED=1 to enable.');
         }
     }
 
-    // Non-TLS DNS Tests
-    // -----------------
-
     public function testDnsConnectWithValidHostname()
     {
-        $this->markTestSkippedIfDnsTestsDisabled();
+        $this->skipIfNotEnabled();
         $this->markTestSkippedIfTlsEnabled();
 
         $client = new ValkeyGlideCluster(
@@ -37,33 +41,26 @@ class ValkeyGlideClusterDnsTest extends ValkeyGlideBaseTest
 
     public function testDnsConnectWithInvalidHostname()
     {
-        $this->markTestSkippedIfDnsTestsDisabled();
+        $this->skipIfNotEnabled();
         $this->markTestSkippedIfTlsEnabled();
 
         $this->assertThrows(ValkeyGlideException::class, function () {
             $client = new ValkeyGlideCluster(
                 addresses: [['host' => 'nonexistent.invalid', 'port' => $this->getPort()]],
-                advanced_config: ['connection_timeout' => 5000]
             );
         });
     }
 
-    // TLS DNS Tests
-    // -------------
-
     public function testDnsTlsWithHostnameInCertificate()
     {
-        $this->markTestSkippedIfDnsTestsDisabled();
+        $this->skipIfNotEnabled();
         $this->markTestSkippedIfTlsDisabled();
-
-        $certData = $this->getCaCertificate();
 
         $client = new ValkeyGlideCluster(
             addresses: [['host' => self::HOSTNAME_TLS, 'port' => self::TLS_ADDRESS_CLUSTER['port']]],
             use_tls: true,
             advanced_config: [
-                'connection_timeout' => 5000,
-                'tls_config' => ['root_certs' => $certData]
+                'tls_config' => ['root_certs' => $this->getCaCertificate()]
             ]
         );
 
@@ -73,7 +70,7 @@ class ValkeyGlideClusterDnsTest extends ValkeyGlideBaseTest
 
     public function testDnsTlsWithHostnameNotInCertificate()
     {
-        $this->markTestSkippedIfDnsTestsDisabled();
+        $this->skipIfNotEnabled();
         $this->markTestSkippedIfTlsDisabled();
 
         $certData = $this->getCaCertificate();
@@ -83,7 +80,6 @@ class ValkeyGlideClusterDnsTest extends ValkeyGlideBaseTest
                 addresses: [['host' => self::HOSTNAME_NO_TLS, 'port' => self::TLS_ADDRESS_CLUSTER['port']]],
                 use_tls: true,
                 advanced_config: [
-                    'connection_timeout' => 5000,
                     'tls_config' => ['root_certs' => $certData]
                 ]
             );
