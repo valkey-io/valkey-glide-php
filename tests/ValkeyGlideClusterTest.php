@@ -330,6 +330,12 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
+    /* Override getPort to return cluster port */
+    public function getPort()
+    {
+        return $this->getTLS() ? 8001 : 7001;
+    }
+
     /* Overrides for ValkeyGlideTest where the function signature is different.  This
      * is only true for a few commands, which by definition have to be directed
      * at a specific node */
@@ -1479,5 +1485,36 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             $this->assertTrue($e instanceof RedisException, 'Exception should be RedisException');
             $this->assertTrue($e instanceof ValkeyGlideException, 'Exception should be ValkeyGlideException');
         }
+    }
+
+    public function testConnectWithIPv4Address()
+    {
+        $this->skipIfTlsEnabled();
+
+        $client = new ValkeyGlideCluster(
+            addresses: [[
+                'host' => self::HOST_ADDRESS_IPV4,
+                'port' => $this->getPort()
+            ]]
+        );
+
+        $this->assertConnected($client);
+        $client->close();
+    }
+
+    public function testConnectWithIPv6Address()
+    {
+        $this->skipIfTlsEnabled();
+        $this->markTestSkipped('IPv6 cluster connectivity has known issues with topology discovery');
+
+        $client = new ValkeyGlideCluster(
+            addresses: [[
+                'host' => self::HOST_ADDRESS_IPV6,
+                'port' => $this->getPort()
+            ]]
+        );
+
+        $this->assertConnected($client);
+        $client->close();
     }
 }

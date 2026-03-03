@@ -16,16 +16,6 @@ require_once __DIR__ . '/ValkeyGlideClusterBaseTest.php';
  */
 class ValkeyGlideClusterDnsTest extends ValkeyGlideClusterBaseTest
 {
-    /**
-     * Skips the current test if DNS tests are not enabled.
-     */
-    protected function skipIfDnsNotEnabled(): void
-    {
-        if (!getenv('VALKEY_GLIDE_DNS_TESTS_ENABLED')) {
-            $this->markTestSkipped('DNS tests are disabled. Set VALKEY_GLIDE_DNS_TESTS_ENABLED=1 to enable.');
-        }
-    }
-
     public function testDnsConnectWithValidHostname()
     {
         $this->skipIfDnsNotEnabled();
@@ -34,7 +24,7 @@ class ValkeyGlideClusterDnsTest extends ValkeyGlideClusterBaseTest
         $client = new ValkeyGlideCluster(
             addresses: [[
                 'host' => self::HOSTNAME_NO_TLS,
-                'port' => 7001  // Non-TLS cluster port
+                'port' => $this->getPort()
             ]]
         );
 
@@ -48,10 +38,10 @@ class ValkeyGlideClusterDnsTest extends ValkeyGlideClusterBaseTest
         $this->skipIfTlsEnabled();
 
         $this->assertThrows(ValkeyGlideException::class, function () {
-            $client = new ValkeyGlideCluster(
+            new ValkeyGlideCluster(
                 addresses: [[
                     'host' => 'nonexistent.invalid',
-                    'port' => 7001  // Non-TLS cluster port
+                    'port' => $this->getPort()
                 ]],
             );
         });

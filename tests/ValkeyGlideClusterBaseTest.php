@@ -89,12 +89,7 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest
     ];
 
     protected static array $seeds = [];
-    private static array $seed_messages = [];
     private static string $seed_source = '';
-
-
-
-
 
     /* Load our seeds on construction */
     public function __construct($host, $port, $auth, $tls)

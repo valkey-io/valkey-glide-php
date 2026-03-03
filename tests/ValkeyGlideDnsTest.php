@@ -33,7 +33,10 @@ class ValkeyGlideDnsTest extends ValkeyGlideBaseTest
 
         $client = new ValkeyGlide();
         $client->connect(
-            addresses: [['host' => self::HOSTNAME_NO_TLS, 'port' => $this->getPort()]]
+            addresses: [[
+                'host' => self::HOSTNAME_NO_TLS,
+                'port' => $this->getPort()
+            ]]
         );
 
         $this->assertConnected($client);
@@ -48,7 +51,10 @@ class ValkeyGlideDnsTest extends ValkeyGlideBaseTest
         $this->assertThrows(ValkeyGlideException::class, function () {
             $client = new ValkeyGlide();
             $client->connect(
-                addresses: [['host' => 'nonexistent.invalid', 'port' => $this->getPort()]],
+                addresses: [[
+                    'host' => 'nonexistent.invalid',
+                    'port' => $this->getPort()
+                ]],
             );
         });
     }
@@ -60,10 +66,12 @@ class ValkeyGlideDnsTest extends ValkeyGlideBaseTest
 
         $client = new ValkeyGlide();
         $client->connect(
-            addresses: [['host' => self::HOSTNAME_TLS, 'port' => self::TLS_ADDRESS_STANDALONE['port']]],
+            addresses: [[
+                'host' => self::HOSTNAME_TLS,
+                'port' => self::TLS_PORT_STANDALONE
+            ]],
             use_tls: true,
             advanced_config: [
-                'connection_timeout' => 5000,
                 'tls_config' => ['root_certs' => $this->getCaCertificate()]
             ]
         );
@@ -77,15 +85,16 @@ class ValkeyGlideDnsTest extends ValkeyGlideBaseTest
         $this->skipIfDnsNotEnabled();
         $this->skipIfTlsDisabled();
 
-        $certData = $this->getCaCertificate();
-
-        $this->assertThrows(ValkeyGlideException::class, function () use ($certData) {
+        $this->assertThrows(ValkeyGlideException::class, function () {
             $client = new ValkeyGlide();
             $client->connect(
-                addresses: [['host' => self::HOSTNAME_NO_TLS, 'port' => self::TLS_ADDRESS_STANDALONE['port']]],
+                addresses: [[
+                    'host' => self::HOSTNAME_NO_TLS,
+                    'port' => self::TLS_PORT_STANDALONE
+                ]],
                 use_tls: true,
                 advanced_config: [
-                    'tls_config' => ['root_certs' => $certData]
+                    'tls_config' => ['root_certs' => $this->getCaCertificate()]
                 ]
             );
         });

@@ -8055,4 +8055,36 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $this->assertTrue($e instanceof ValkeyGlideException, 'Exception should be ValkeyGlideException');
         }
     }
+
+    public function testConnectWithIPv4Address()
+    {
+        $this->skipIfTlsEnabled();
+
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [[
+                'host' => self::HOST_ADDRESS_IPV4,
+                'port' => $this->getPort()
+            ]]
+        );
+
+        $this->assertConnected($client);
+        $client->close();
+    }
+
+    public function testConnectWithIPv6Address()
+    {
+        $this->skipIfTlsEnabled();
+
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [[
+                'host' => self::HOST_ADDRESS_IPV6,
+                'port' => $this->getPort()
+            ]]
+        );
+
+        $this->assertConnected($client);
+        $client->close();
+    }
 }

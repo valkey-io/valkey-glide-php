@@ -316,4 +316,14 @@ abstract class ValkeyGlideBaseTest extends TestSuite
     {
         return file_get_contents(self::TLS_CERTIFICATE_PATH);
     }
+
+    /**
+     * Skips the current test if DNS tests are not enabled.
+     */
+    protected function skipIfDnsNotEnabled(): void
+    {
+        if (!getenv('VALKEY_GLIDE_DNS_TESTS_ENABLED')) {
+            $this->markTestSkipped('DNS tests are disabled. Set VALKEY_GLIDE_DNS_TESTS_ENABLED=1 to enable.');
+        }
+    }
 }
