@@ -220,7 +220,7 @@ jobs:
     if: |
       always() &&
       (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped') &&
-      (needs.wait-for-merge-and-tag.result == 'success' || needs.wait-for-merge-and-tag.result == 'skipped' || github.event_name == 'pull_request') &&
+      (needs.wait-for-merge-and-tag.result == 'success' || needs.wait-for-merge-and-tag.result == 'skipped' || github.event_name == 'pull_request' || github.event_name == 'release') &&
       (needs.validate-version.outputs.is-rc != 'true')
     outputs:
       package-version: ${{ steps.version.outputs.version }}
