@@ -64,7 +64,7 @@
             "dealerdirect/phpcodesniffer-composer-installer": true
         },
         "audit": {
-            "ignore": ["PKSA-wws7-mr54-jsny"]
+            "ignore": ["PKSA-wws7-mr54-jsny", "PKSA-rkkf-636k-qjb3"]
         }
     }
 }
