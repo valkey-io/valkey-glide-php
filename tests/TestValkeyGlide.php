@@ -95,6 +95,7 @@ require_once __DIR__ . "/ValkeyGlideClusterDnsTest.php";
 require_once __DIR__ . "/IamAuthTest.php";
 require_once __DIR__ . "/ValkeyGlideJsonTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterJsonTest.php";
+require_once __DIR__ . "/ValkeyGlideValkeySearchTest.php";
 
 function getClassArray($classes)
 {
@@ -124,6 +125,7 @@ function getTestClass($class)
         'valkeyglideclientbatch' => 'ValkeyGlideBatchTest',
         'valkeyglideclusterbatch' => 'ValkeyGlideClusterBatchTest',
         'updateconnectionpassword' => 'UpdateConnectionPasswordTest',
+        'ValkeyGlideValkeySearch' => 'ValkeyGlideValkeySearchTest',
         'valkeyglidedns' => 'ValkeyGlideDnsTest',
         'valkeyglideclusterdns' => 'ValkeyGlideClusterDnsTest',
         'iamauth' => 'IamAuthTest',

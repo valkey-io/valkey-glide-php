@@ -14,6 +14,7 @@
 
 #include "command_response.h" /* Include command_response.h for string conversion functions */
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_ft_common.h"
 #include "valkey_glide_geo_common.h"
 #include "valkey_glide_hash_common.h" /* Include hash command framework */
 #include "valkey_glide_json_common.h"
@@ -947,4 +948,46 @@ JSON_ARRTRIM_METHOD_IMPL(ValkeyGlide)
 
 /* {{{ proto mixed ValkeyGlide::jsonArrLen(string key [, string path]) */
 JSON_ARRLEN_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string|false ValkeyGlide::ftCreate(string index, array schema, ?array options = null)
+ */
+FT_CREATE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string|false ValkeyGlide::ftDropIndex(string index) */
+FT_DROPINDEX_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array|false ValkeyGlide::ftList() */
+FT_LIST_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array|false ValkeyGlide::ftSearch(string index, string query, ?array options = null) */
+FT_SEARCH_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array|false ValkeyGlide::ftAggregate(string index, string query, ?array options = null)
+ */
+FT_AGGREGATE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array|false ValkeyGlide::ftInfo(string index, ?array options = null) */
+FT_INFO_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string|false ValkeyGlide::ftAliasAdd(string alias, string index) */
+FT_ALIASADD_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string|false ValkeyGlide::ftAliasDel(string alias) */
+FT_ALIASDEL_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string|false ValkeyGlide::ftAliasUpdate(string alias, string index) */
+FT_ALIASUPDATE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array|false ValkeyGlide::ftAliasList() */
+FT_ALIASLIST_METHOD_IMPL(ValkeyGlide)
 /* }}} */

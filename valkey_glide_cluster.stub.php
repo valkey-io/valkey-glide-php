@@ -1550,4 +1550,54 @@ class ValkeyGlideCluster
 
     /** @see ValkeyGlide::jsonArrLen */
     public function jsonArrLen(string $key, string $path = ''): ValkeyGlideCluster|array|int|false|null;
+
+    /**
+     * @see ValkeyGlide::ftCreate
+     */
+    public function ftCreate(string $index, array $schema, ?array $options = null): ValkeyGlideCluster|string|bool;
+
+    /**
+     * @see ValkeyGlide::ftDropIndex
+     */
+    public function ftDropIndex(string $index): ValkeyGlideCluster|string|bool;
+
+    /**
+     * @see ValkeyGlide::ftList
+     */
+    public function ftList(): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::ftSearch
+     */
+    public function ftSearch(string $index, string $query, ?array $options = null): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::ftAggregate
+     */
+    public function ftAggregate(string $index, string $query, ?array $options = null): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::ftInfo
+     */
+    public function ftInfo(string $index, ?array $options = null): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::ftAliasAdd
+     */
+    public function ftAliasAdd(string $alias, string $index): ValkeyGlideCluster|string|bool;
+
+    /**
+     * @see ValkeyGlide::ftAliasDel
+     */
+    public function ftAliasDel(string $alias): ValkeyGlideCluster|string|bool;
+
+    /**
+     * @see ValkeyGlide::ftAliasUpdate
+     */
+    public function ftAliasUpdate(string $alias, string $index): ValkeyGlideCluster|string|bool;
+
+    /**
+     * @see ValkeyGlide::ftAliasList
+     */
+    public function ftAliasList(): ValkeyGlideCluster|array|false;
 }
