@@ -63,6 +63,7 @@ def patch_rust_types_rs(rust_types_file):
     - jitter_percent: Option<u32> -> u32
     - refresh_interval_seconds: Option<u32> -> u32
     - compression_level: Option<i32> -> i32
+    - read_only: Option<bool> -> bool
     """
     
     if not os.path.exists(rust_types_file):
@@ -127,6 +128,16 @@ def patch_rust_types_rs(rust_types_file):
             needs_patching = True
             log_message("Applied compression_level patch")
         
+        # Fix read_only: changed from Option<bool> to bool
+        read_only_pattern = r'let read_only = value\.read_only\.unwrap_or\(false\);'
+        read_only_replacement = 'let read_only = value.read_only;'
+        if re.search(read_only_pattern, new_content):
+            if not needs_patching:
+                create_backup(rust_types_file)
+            new_content = re.sub(read_only_pattern, read_only_replacement, new_content)
+            needs_patching = True
+            log_message("Applied read_only patch")
+        
         if needs_patching:
             with open(rust_types_file, 'w') as f:
                 f.write(new_content)
@@ -152,8 +163,9 @@ def verify_rust_patch(rust_types_file):
         jitter_fixed = 'Some(strategy.jitter_percent)' in content
         refresh_fixed = 'refresh_interval_seconds: Some(refresh_interval_seconds)' in content
         compression_fixed = 'Some(proto_config.compression_level)' in content
+        read_only_fixed = 'let read_only = value.read_only;' in content
         
-        if tcp_nodelay_fixed and pubsub_fixed and jitter_fixed and refresh_fixed and compression_fixed:
+        if tcp_nodelay_fixed and pubsub_fixed and jitter_fixed and refresh_fixed and compression_fixed and read_only_fixed:
             log_message("Rust patch verification: SUCCESS")
             return True
         else:
@@ -168,6 +180,8 @@ def verify_rust_patch(rust_types_file):
                 missing.append("refresh_interval_seconds fix")
             if not compression_fixed:
                 missing.append("compression_level fix")
+            if not read_only_fixed:
+                missing.append("read_only fix")
             log_message(f"Rust patch verification: FAILED - Missing: {', '.join(missing)}", "ERROR")
             return False
     
