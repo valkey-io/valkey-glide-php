@@ -1224,8 +1224,30 @@ FT_LIST_METHOD_IMPL(ValkeyGlideCluster)
 FT_SEARCH_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto array|false ValkeyGlideCluster::ftAggregate(string index, string query, ?array options
+ * = null)
+ */
+FT_AGGREGATE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto array|false ValkeyGlideCluster::ftInfo(string index, ?array options = null) */
 FT_INFO_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string|false ValkeyGlideCluster::ftAliasAdd(string alias, string index) */
+FT_ALIASADD_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string|false ValkeyGlideCluster::ftAliasDel(string alias) */
+FT_ALIASDEL_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string|false ValkeyGlideCluster::ftAliasUpdate(string alias, string index) */
+FT_ALIASUPDATE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array|false ValkeyGlideCluster::ftAliasList() */
+FT_ALIASLIST_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 #endif /* PHP_REDIS_CLUSTER_C */

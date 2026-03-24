@@ -4552,6 +4552,65 @@ class ValkeyGlide
     public function ftSearch(string $index, string $query, ?array $options = null): ValkeyGlide|array|false;
 
     /**
+     * Run an aggregation pipeline against an index.
+     *
+     * The $options array is a flat list of tokens passed directly to the server.
+     * Pipeline clauses (GROUPBY, SORTBY, APPLY, FILTER, LIMIT) are applied in the
+     * order they appear in the array, so ordering matters.
+     *
+     * @param string $index   The name of the index to aggregate.
+     * @param string $query   The filter query string (e.g. "*", "@price:[100 +inf]").
+     * @param array  $options Optional flat array of aggregation option tokens.
+     *                        <code>
+     *                        $options = [
+     *                            'VERBATIM',                          # Disable stemming
+     *                            'LOAD', '*',                         # Load all fields
+     *                            'LOAD', '<count>', '@field', ...,    # Load specific fields
+     *                            'TIMEOUT', '<ms>',                   # Override module timeout
+     *                            'PARAMS', '<count>', 'k', 'v', ..., # Query parameters
+     *                            'DIALECT', '<version>',              # Query dialect version
+     *
+     *                            # Pipeline clauses (repeatable, order matters):
+     *                            'GROUPBY', '<count>', '@field', ..., # Group by fields
+     *                                'REDUCE', '<func>', '<nargs>',   #   Reducer (COUNT, SUM, AVG, TOLIST, ...)
+     *                                    [args...],                   #   Reducer arguments
+     *                                    'AS', '<name>',              #   Output property name
+     *                            'SORTBY', '<count>',                 # Sort by fields
+     *                                '@field', 'ASC|DESC', ...,       #   count = 2 * number of fields
+     *                                'MAX', '<n>',                    #   Optional: only sort top N
+     *                            'APPLY', '<expr>', 'AS', '<name>',   # Compute a new property
+     *                            'FILTER', '<expression>',            # Filter rows
+     *                            'LIMIT', '<offset>', '<count>',      # Paginate
+     *                        ];
+     *                        </code>
+     *
+     * @return ValkeyGlide|array|false Array of result rows, or false on failure.
+     *
+     * @see https://valkey.io/commands/ft.aggregate/
+     *
+     * @example
+     * // Group by condition, count per group
+     * $client->ftAggregate('idx', '*', [
+     *     'LOAD', '1', '__key',
+     *     'GROUPBY', '1', '@condition',
+     *         'REDUCE', 'COUNT', '0', 'AS', 'total'
+     * ]);
+     *
+     * @example
+     * // APPLY + GROUPBY with multiple reducers + SORTBY
+     * $client->ftAggregate('movies', '*', [
+     *     'LOAD', '*',
+     *     'APPLY', 'ceil(@rating)', 'AS', 'r_rating',
+     *     'GROUPBY', '1', '@genre',
+     *         'REDUCE', 'COUNT', '0', 'AS', 'nb_of_movies',
+     *         'REDUCE', 'SUM', '1', 'votes', 'AS', 'nb_of_votes',
+     *         'REDUCE', 'AVG', '1', 'r_rating', 'AS', 'avg_rating',
+     *     'SORTBY', '4', '@avg_rating', 'DESC', '@nb_of_votes', 'DESC'
+     * ]);
+     */
+    public function ftAggregate(string $index, string $query, ?array $options = null): ValkeyGlide|array|false;
+
+    /**
      * Return information and statistics about an index.
      *
      * @param string $index   The name of the index to inspect.
@@ -4587,6 +4646,41 @@ class ValkeyGlide
      *
      * @return ValkeyGlide|string|false "OK" on success, false on failure.
      *
+     * @see https://valkey.io/commands/ft.aliasadd/
+     */
+    public function ftAliasAdd(string $alias, string $index): ValkeyGlide|string|bool;
+
+    /**
+     * Remove an alias from an index.
+     *
+     * @param string $alias The alias name to remove.
+     *
+     * @return ValkeyGlide|string|false "OK" on success, false on failure.
+     *
+     * @see https://valkey.io/commands/ft.aliasdel/
+     */
+    public function ftAliasDel(string $alias): ValkeyGlide|string|bool;
+
+    /**
+     * Update an existing alias to point to a different index.
+     *
+     * @param string $alias The alias name to update.
+     * @param string $index The new index to associate the alias with.
+     *
+     * @return ValkeyGlide|string|false "OK" on success, false on failure.
+     *
+     * @see https://valkey.io/commands/ft.aliasupdate/
+     */
+    public function ftAliasUpdate(string $alias, string $index): ValkeyGlide|string|bool;
+
+    /**
+     * Return a map of all aliases to their associated index names.
+     *
+     * @return ValkeyGlide|array|false Associative array of alias => index, or false on failure.
+     *
+     * @see https://valkey.io/commands/ft._aliaslist/
+     */
+    public function ftAliasList(): ValkeyGlide|array|false;
 }
 
 class ValkeyGlideException extends RuntimeException

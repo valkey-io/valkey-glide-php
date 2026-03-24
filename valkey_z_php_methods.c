@@ -870,6 +870,27 @@ FT_LIST_METHOD_IMPL(ValkeyGlide)
 FT_SEARCH_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto array|false ValkeyGlide::ftAggregate(string index, string query, ?array options = null)
+ */
+FT_AGGREGATE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto array|false ValkeyGlide::ftInfo(string index, ?array options = null) */
 FT_INFO_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string|false ValkeyGlide::ftAliasAdd(string alias, string index) */
+FT_ALIASADD_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string|false ValkeyGlide::ftAliasDel(string alias) */
+FT_ALIASDEL_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string|false ValkeyGlide::ftAliasUpdate(string alias, string index) */
+FT_ALIASUPDATE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array|false ValkeyGlide::ftAliasList() */
+FT_ALIASLIST_METHOD_IMPL(ValkeyGlide)
 /* }}} */

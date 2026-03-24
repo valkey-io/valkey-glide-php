@@ -4,7 +4,7 @@
 
 ### Changes
 
-* PHP: Add core FT.* (Vector Search) commands: ftCreate, ftDropIndex, ftList, ftSearch, ftInfo for standalone and cluster clients
+* PHP: Add FT.* alias and aggregate commands: ftAggregate, ftAliasAdd, ftAliasDel, ftAliasUpdate, ftAliasList for standalone and cluster clients
 
 ## 1.0.0
 

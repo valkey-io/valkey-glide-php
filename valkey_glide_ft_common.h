@@ -97,6 +97,17 @@ int build_ft_search_args(const char*   index_name,
                          char***       out_allocated,
                          int*          out_alloc_count);
 
+int build_ft_aggregate_args(const char*   index_name,
+                            size_t        index_name_len,
+                            const char*   query,
+                            size_t        query_len,
+                            HashTable*    options_ht,
+                            const char*** out_strings,
+                            size_t**      out_lengths,
+                            int*          out_count,
+                            char***       out_allocated,
+                            int*          out_alloc_count);
+
 int build_ft_info_args(const char*   index_name,
                        size_t        index_name_len,
                        HashTable*    options_ht,
@@ -114,7 +125,15 @@ int execute_ft_create_command(zval* object, int argc, zval* return_value, zend_c
 int execute_ft_dropindex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_ft_list_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_ft_search_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_ft_aggregate_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_ft_info_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_ft_aliasadd_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_ft_aliasdel_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_ft_aliasupdate_command(zval*             object,
+                                   int               argc,
+                                   zval*             return_value,
+                                   zend_class_entry* ce);
+int execute_ft_aliaslist_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 /* ====================================================================
  * CONVENIENCE MACROS
@@ -199,6 +218,20 @@ int execute_ft_info_command(zval* object, int argc, zval* return_value, zend_cla
         RETURN_FALSE;                                                                \
     }
 
+#define FT_AGGREGATE_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, ftAggregate) {                                               \
+        if (execute_ft_aggregate_command(getThis(),                                     \
+                                         ZEND_NUM_ARGS(),                               \
+                                         return_value,                                  \
+                                         strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                             ? get_valkey_glide_cluster_ce()            \
+                                             : get_valkey_glide_ce())) {                \
+            return;                                                                     \
+        }                                                                               \
+        zval_dtor(return_value);                                                        \
+        RETURN_FALSE;                                                                   \
+    }
+
 #define FT_INFO_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, ftInfo) {                                               \
         if (execute_ft_info_command(getThis(),                                     \
@@ -211,6 +244,65 @@ int execute_ft_info_command(zval* object, int argc, zval* return_value, zend_cla
         }                                                                          \
         zval_dtor(return_value);                                                   \
         RETURN_FALSE;                                                              \
+    }
+
+#define FT_ALIASADD_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, ftAliasAdd) {                                               \
+        if (execute_ft_aliasadd_command(getThis(),                                     \
+                                        ZEND_NUM_ARGS(),                               \
+                                        return_value,                                  \
+                                        strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                            ? get_valkey_glide_cluster_ce()            \
+                                            : get_valkey_glide_ce())) {                \
+            APPLY_REPLY_LITERAL(return_value);                                         \
+            return;                                                                    \
+        }                                                                              \
+        zval_dtor(return_value);                                                       \
+        RETURN_FALSE;                                                                  \
+    }
+
+#define FT_ALIASDEL_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, ftAliasDel) {                                               \
+        if (execute_ft_aliasdel_command(getThis(),                                     \
+                                        ZEND_NUM_ARGS(),                               \
+                                        return_value,                                  \
+                                        strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                            ? get_valkey_glide_cluster_ce()            \
+                                            : get_valkey_glide_ce())) {                \
+            APPLY_REPLY_LITERAL(return_value);                                         \
+            return;                                                                    \
+        }                                                                              \
+        zval_dtor(return_value);                                                       \
+        RETURN_FALSE;                                                                  \
+    }
+
+#define FT_ALIASUPDATE_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, ftAliasUpdate) {                                               \
+        if (execute_ft_aliasupdate_command(getThis(),                                     \
+                                           ZEND_NUM_ARGS(),                               \
+                                           return_value,                                  \
+                                           strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                               ? get_valkey_glide_cluster_ce()            \
+                                               : get_valkey_glide_ce())) {                \
+            APPLY_REPLY_LITERAL(return_value);                                            \
+            return;                                                                       \
+        }                                                                                 \
+        zval_dtor(return_value);                                                          \
+        RETURN_FALSE;                                                                     \
+    }
+
+#define FT_ALIASLIST_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, ftAliasList) {                                               \
+        if (execute_ft_aliaslist_command(getThis(),                                     \
+                                         ZEND_NUM_ARGS(),                               \
+                                         return_value,                                  \
+                                         strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                             ? get_valkey_glide_cluster_ce()            \
+                                             : get_valkey_glide_ce())) {                \
+            return;                                                                     \
+        }                                                                               \
+        zval_dtor(return_value);                                                        \
+        RETURN_FALSE;                                                                   \
     }
 
 #endif /* VALKEY_GLIDE_FT_COMMON_H */

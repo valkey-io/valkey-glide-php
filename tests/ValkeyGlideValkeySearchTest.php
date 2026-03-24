@@ -283,6 +283,86 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->assertTrue($threw);
     }
 
+    /* ── FT.ALIAS* ─────────────────────────────────────────────────── */
+
+    public function testFtAliasOperations()
+    {
+        $this->skipIfModuleNotAvailable();
+        $alias1 = 'alias1-' . uniqid();
+        $alias2 = 'alias2-' . uniqid();
+        $idx = uniqid() . '-index';
+        $this->getClient()->ftCreate($idx, [
+            ['name' => 'vec', 'type' => 'VECTOR', 'algorithm' => 'FLAT',
+             'dim' => 2, 'metric' => 'L2'],
+        ]);
+
+        $r = $this->getClient()->ftAliasAdd($alias1, $idx);
+        $this->assertTrue($r);
+
+        $aliases = $this->getClient()->ftAliasList();
+        $this->assertIsArray($aliases);
+        $this->assertEquals($idx, $aliases[$alias1] ?? null);
+
+        // Duplicate alias -> error
+        $threw = false;
+        try {
+            $this->getClient()->ftAliasAdd($alias1, $idx);
+        } catch (\Throwable $e) {
+            $threw = true;
+        }
+        $this->assertTrue($threw);
+
+        $r = $this->getClient()->ftAliasUpdate($alias2, $idx);
+        $this->assertTrue($r);
+
+        $aliases = $this->getClient()->ftAliasList();
+        $this->assertEquals($idx, $aliases[$alias1] ?? null);
+        $this->assertEquals($idx, $aliases[$alias2] ?? null);
+
+        $this->getClient()->ftAliasDel($alias2);
+        $this->getClient()->ftAliasDel($alias1);
+
+        // Delete non-existent -> error
+        $threw = false;
+        try {
+            $this->getClient()->ftAliasDel($alias2);
+        } catch (\Throwable $e) {
+            $threw = true;
+        }
+        $this->assertTrue($threw);
+
+        $this->getClient()->ftDropIndex($idx);
+    }
+
+    /* ── FT.AGGREGATE (stays flat - pipeline ordering) ─────────────── */
+
+    public function testFtAggregateBicycles()
+    {
+        $this->skipIfModuleNotAvailable();
+        $prefix = '{bicycles' . uniqid() . '}:';
+        $idx = $prefix . 'idx';
+        $this->getClient()->ftCreate($idx, [
+            ['name' => 'model', 'type' => 'TEXT'],
+            ['name' => 'price', 'type' => 'NUMERIC'],
+            ['name' => 'condition', 'type' => 'TAG', 'separator' => ','],
+        ], ['ON' => 'HASH', 'PREFIX' => [$prefix]]);
+
+        $conditions = ['new', 'used', 'used', 'used', 'used', 'new', 'new', 'new', 'new', 'refurbished'];
+        for ($i = 0; $i < count($conditions); $i++) {
+            $this->getClient()->hSet($prefix . $i, ['model' => 'bike' . $i, 'price' => (string)(100 + $i * 10), 'condition' => $conditions[$i]]);
+        }
+        usleep(1500000);
+
+        $result = $this->getClient()->ftAggregate(
+            $idx,
+            '*',
+            ['LOAD', '1', '__key', 'GROUPBY', '1', '@condition', 'REDUCE', 'COUNT', '0', 'AS', 'bicycles']
+        );
+        $this->assertIsArray($result);
+
+        $this->getClient()->ftDropIndex($idx);
+    }
+
     /* ── FT.CREATE index-level options ─────────────────────────────── */
 
     public function testFtCreateWithScoreLanguageSkipInitialScan()
