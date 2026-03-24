@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changes
+
+* PHP: Add core FT.* (Vector Search) commands: ftCreate, ftDropIndex, ftList, ftSearch, ftInfo for standalone and cluster clients
+
 ## 1.0.0
 
 ### Changes (1.0.0)

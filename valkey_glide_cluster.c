@@ -15,6 +15,7 @@
 #include "logger.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
+#include "valkey_glide_ft_common.h"
 #include "valkey_glide_geo_common.h"
 #include "valkey_glide_hash_common.h" /* Include hash command framework */
 #include "valkey_glide_list_common.h"
@@ -1202,6 +1203,29 @@ SETOPTION_METHOD_IMPL(ValkeyGlideCluster)
 
 /* {{{ proto mixed ValkeyGlideCluster::getOption(int option) */
 GETOPTION_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string|false ValkeyGlideCluster::ftCreate(string index, array schema, ?array options =
+ * null)
+ */
+FT_CREATE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string|false ValkeyGlideCluster::ftDropIndex(string index) */
+FT_DROPINDEX_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array|false ValkeyGlideCluster::ftList() */
+FT_LIST_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array|false ValkeyGlideCluster::ftSearch(string index, string query, ?array options =
+ * null) */
+FT_SEARCH_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array|false ValkeyGlideCluster::ftInfo(string index, ?array options = null) */
+FT_INFO_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 #endif /* PHP_REDIS_CLUSTER_C */

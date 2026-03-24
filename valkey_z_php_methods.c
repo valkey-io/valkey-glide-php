@@ -14,6 +14,7 @@
 
 #include "command_response.h" /* Include command_response.h for string conversion functions */
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_ft_common.h"
 #include "valkey_glide_geo_common.h"
 #include "valkey_glide_hash_common.h" /* Include hash command framework */
 #include "valkey_glide_list_common.h"
@@ -850,4 +851,25 @@ SETOPTION_METHOD_IMPL(ValkeyGlide)
 
 /* {{{ proto mixed ValkeyGlide::getOption(int option) */
 GETOPTION_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string|false ValkeyGlide::ftCreate(string index, array schema, ?array options = null)
+ */
+FT_CREATE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string|false ValkeyGlide::ftDropIndex(string index) */
+FT_DROPINDEX_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array|false ValkeyGlide::ftList() */
+FT_LIST_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array|false ValkeyGlide::ftSearch(string index, string query, ?array options = null) */
+FT_SEARCH_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array|false ValkeyGlide::ftInfo(string index, ?array options = null) */
+FT_INFO_METHOD_IMPL(ValkeyGlide)
 /* }}} */

@@ -90,6 +90,7 @@ require_once __DIR__ . "/ValkeyGlideClusterFeaturesTest.php";
 require_once __DIR__ . "/ValkeyGlideBatchTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterBatchTest.php";
 require_once __DIR__ . "/UpdateConnectionPasswordTest.php";
+require_once __DIR__ . "/ValkeyGlideValkeySearchTest.php";
 
 function getClassArray($classes)
 {
@@ -118,7 +119,8 @@ function getTestClass($class)
         'valkeyglideclusterfeatures' => 'ValkeyGlideClusterFeaturesTest',
         'valkeyglideclientbatch' => 'ValkeyGlideBatchTest',
         'valkeyglideclusterbatch' => 'ValkeyGlideClusterBatchTest',
-        'updateconnectionpassword' => 'UpdateConnectionPasswordTest'
+        'updateconnectionpassword' => 'UpdateConnectionPasswordTest',
+        'ValkeyGlideValkeySearch' => 'ValkeyGlideValkeySearchTest'
     ];
 
     /* Return early if the class is one of our built-in ones */

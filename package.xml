@@ -68,6 +68,9 @@ Requirements:
    <file name="valkey_glide_core_common.c" role="src" />
    <file name="valkey_glide_core_common.h" role="src" />
    <file name="valkey_glide_expire_commands.c" role="src" />
+   <file name="valkey_glide_ft_commands.c" role="src" />
+   <file name="valkey_glide_ft_common.h" role="src" />
+   <file name="valkey_glide_ft_common.c" role="src" />
    <file name="valkey_glide_geo_commands.c" role="src" />
    <file name="valkey_glide_geo_common.c" role="src" />
    <file name="valkey_glide_geo_common.h" role="src" />

@@ -1472,4 +1472,29 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::function
      */
     public function function(string $operation, mixed ...$args): mixed;
+
+    /**
+     * @see ValkeyGlide::ftCreate
+     */
+    public function ftCreate(string $index, array $schema, ?array $options = null): ValkeyGlideCluster|string|bool;
+
+    /**
+     * @see ValkeyGlide::ftDropIndex
+     */
+    public function ftDropIndex(string $index): ValkeyGlideCluster|string|bool;
+
+    /**
+     * @see ValkeyGlide::ftList
+     */
+    public function ftList(): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::ftSearch
+     */
+    public function ftSearch(string $index, string $query, ?array $options = null): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::ftInfo
+     */
+    public function ftInfo(string $index, ?array $options = null): ValkeyGlideCluster|array|false;
 }
