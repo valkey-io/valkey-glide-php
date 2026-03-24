@@ -16,6 +16,7 @@ on:
       - .github/workflows/build-php-wrapper/action.yml
       - .github/workflows/test-benchmark/action.yml
       - .github/workflows/install-engine/action.yml
+      - .github/workflows/start-valkey-docker/action.yml
       - .github/workflows/create-test-matrices/action.yml
       - .github/json_matrices/**
   pull_request:
@@ -29,6 +30,7 @@ on:
       - .github/workflows/build-php-wrapper/action.yml
       - .github/workflows/test-benchmark/action.yml
       - .github/workflows/install-engine/action.yml
+      - .github/workflows/start-valkey-docker/action.yml
       - .github/workflows/create-test-matrices/action.yml
       - .github/json_matrices/**
       # PHP-specific paths
@@ -137,7 +139,27 @@ jobs:
           echo "Composer install completed. Checking for composer.lock:"
           ls -la composer.lock || echo "Warning: composer.lock not found"
 
-      - name: Run PHP Extension Tests
+      # For valkey 9.0 on ubuntu, use Docker containers (includes Search module).
+      - name: Start Valkey servers via Docker (9.0, ubuntu)
+        if: ${{ matrix.engine.version == '9.0' && matrix.host.OS == 'ubuntu' }}
+        uses: ./.github/workflows/start-valkey-docker
+        with:
+          engine-version: ${{ matrix.engine.version }}
+
+      - name: Run tests (Docker servers)
+        if: ${{ matrix.engine.version == '9.0' && matrix.host.OS == 'ubuntu' }}
+        run: |
+          php -n -d extension=${{ github.workspace }}/modules/valkey_glide.so tests/TestValkeyGlide.php
+
+      - name: Stop Docker servers
+        if: ${{ always() && matrix.engine.version == '9.0' && matrix.host.OS == 'ubuntu' }}
+        run: |
+          docker ps -a --filter "name=valkey-" --format "{{.Names}}" | xargs -r docker rm -f || true
+          pkill valkey-server 2>/dev/null || true
+
+      # For all other versions/platforms, use native server startup.
+      - name: Run PHP Extension Tests (native servers)
+        if: ${{ !(matrix.engine.version == '9.0' && matrix.host.OS == 'ubuntu') }}
         uses: ./.github/workflows/run-php-tests
         with:
           extension-path: ${{ github.workspace }}/modules/valkey_glide.so
@@ -338,10 +360,10 @@ jobs:
       - name: Stop Valkey servers
         if: always()
         run: |
-          # Stop all Valkey server processes
-          echo "Stopping Valkey servers..."
-          pkill valkey-server || true
-          # Clean up data directories
+          echo "Stopping Valkey Docker containers..."
+          docker ps -a --filter "name=valkey-" --format "{{.Names}}" | xargs -r docker rm -f || true
+          # Also stop any native valkey-server processes (from TLS setup)
+          pkill valkey-server 2>/dev/null || true
           rm -rf $HOME/valkey-cluster || true
           rm -rf tests/valkey_data || true
 
@@ -470,7 +492,16 @@ jobs:
               libprotobuf-c1 \
               valgrind
 
-      - name: Start Valkey servers
+      # For valkey 9.0, use Docker containers (includes Search module).
+      - name: Start Valkey servers via Docker (9.0)
+        if: ${{ matrix.engine.version == '9.0' }}
+        uses: ./.github/workflows/start-valkey-docker
+        with:
+          engine-version: ${{ matrix.engine.version }}
+
+      # For all other versions, use native server startup.
+      - name: Start Valkey servers (native)
+        if: ${{ matrix.engine.version != '9.0' }}
         working-directory: tests
         run: |
           set -e  # Exit on any error
@@ -788,10 +819,9 @@ jobs:
       - name: Stop Valkey servers
         if: always()
         run: |
-          # Stop all Valkey server processes
           echo "Stopping Valkey servers..."
-          pkill valkey-server || true
-          # Clean up data directories
+          docker ps -a --filter "name=valkey-" --format "{{.Names}}" | xargs -r docker rm -f 2>/dev/null || true
+          pkill valkey-server 2>/dev/null || true
           rm -rf $HOME/valkey-cluster || true
           rm -rf tests/valkey_data || true
 
@@ -1028,10 +1058,10 @@ jobs:
       - name: Stop Valkey servers
         if: always()
         run: |
-          # Stop all Valkey server processes
-          echo "Stopping Valkey servers..."
-          pkill valkey-server || true
-          # Clean up data directories
+          echo "Stopping Valkey Docker containers..."
+          docker ps -a --filter "name=valkey-" --format "{{.Names}}" | xargs -r docker rm -f || true
+          # Also stop any native valkey-server processes (from TLS setup)
+          pkill valkey-server 2>/dev/null || true
           rm -rf $HOME/valkey-cluster || true
           rm -rf tests/valkey_data || true
 
@@ -1078,7 +1108,7 @@ jobs:
           target: aarch64-unknown-linux-gnu
           php-version: ${{ env.BASE_PHP_VERSION }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          engine-version: "8.0"
+          engine-version: "8.1"
 
       - name: Generate test protobuf PHP classes
         run: |
@@ -1125,16 +1155,15 @@ jobs:
 
       - name: Run modules tests
         run: |
-          # Run tests using direct extension loading with absolute path
           php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php
 
-          # Run all test files with direct extension loading using absolute path
-          for test_file in tests/ValkeyGlide*Test.php; do
-            if [ -f "$test_file" ]; then
-              echo "Running $test_file..."
-              php -n -d extension=$(pwd)/modules/valkey_glide.so "$test_file"
-            fi
-          done
+      - name: Stop Valkey servers
+        if: always()
+        run: |
+          echo "Stopping Valkey servers..."
+          pkill valkey-server 2>/dev/null || true
+          rm -rf $HOME/valkey-cluster || true
+          rm -rf tests/valkey_data || true
 
       - name: Upload test reports
         if: always()

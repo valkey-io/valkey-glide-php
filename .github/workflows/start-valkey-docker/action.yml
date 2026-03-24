@@ -1,0 +1,318 @@
+name: Start Valkey Servers via Docker
+description: Start standalone and cluster Valkey servers using Docker containers with host networking
+
+inputs:
+  engine-version:
+    description: "Valkey engine version (e.g., 9.0, 8.1, 8.0, 7.2)"
+    required: true
+  tls:
+    description: "Whether to set up TLS servers (requires valkey-glide submodule)"
+    required: false
+    default: "true"
+  auth-cluster:
+    description: "Whether to set up an auth-protected cluster"
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Check Docker availability
+      id: check-docker
+      shell: bash
+      run: |
+        if command -v docker &> /dev/null && docker info &> /dev/null; then
+          echo "available=true" >> $GITHUB_OUTPUT
+          echo "Docker is available"
+        else
+          echo "available=false" >> $GITHUB_OUTPUT
+          echo "Docker is NOT available - will fall back to native server startup"
+        fi
+
+    # ── Docker path: pull image and extract binaries ──────────────────
+
+    - name: Determine Docker image
+      if: ${{ steps.check-docker.outputs.available == 'true' }}
+      id: docker-image
+      shell: bash
+      env:
+        ENGINE_VERSION: ${{ inputs.engine-version }}
+      run: |
+        # TEMPORARY: Force valkey-bundle:9.1-rc1 until stable 9.x images are published.
+        # The engine-version input is still used for runtime behavior (e.g. --cluster-databases)
+        # but the Docker image is pinned here.
+        # TODO: remove hardcoded after stable versions are released
+        IMAGE="valkey/valkey-bundle:9.1-rc1"
+        echo "Using pinned Docker image: $IMAGE"
+
+        echo "image=$IMAGE" >> $GITHUB_OUTPUT
+        echo "Docker image: $IMAGE"
+
+    - name: Pull Docker image
+      if: ${{ steps.check-docker.outputs.available == 'true' }}
+      shell: bash
+      env:
+        IMAGE: ${{ steps.docker-image.outputs.image }}
+      run: |
+        echo "Pulling $IMAGE..."
+        docker pull "$IMAGE"
+
+    - name: Extract CLI binaries from Docker image
+      if: ${{ steps.check-docker.outputs.available == 'true' }}
+      shell: bash
+      env:
+        IMAGE: ${{ steps.docker-image.outputs.image }}
+      run: |
+        # Extract valkey-cli from the image for cluster creation and PING checks.
+        # Do NOT extract valkey-server — the source-built binary from install-engine
+        # must remain intact for TLS setup via cluster_manager.py.
+        CONTAINER_ID=$(docker create "$IMAGE")
+        if command -v sudo &> /dev/null; then SUDO=sudo; else SUDO=""; fi
+
+        docker cp "$CONTAINER_ID:/usr/local/bin/valkey-cli" /tmp/valkey-cli 2>/dev/null || \
+          docker cp "$CONTAINER_ID:/usr/local/bin/redis-cli" /tmp/valkey-cli 2>/dev/null || \
+          { echo "ERROR: Could not find valkey-cli or redis-cli in image"; docker rm "$CONTAINER_ID"; exit 1; }
+        $SUDO cp /tmp/valkey-cli /usr/local/bin/valkey-cli
+        $SUDO chmod +x /usr/local/bin/valkey-cli
+
+        # Create redis-cli symlink for compatibility
+        $SUDO ln -sf /usr/local/bin/valkey-cli /usr/local/bin/redis-cli 2>/dev/null || true
+
+        docker rm "$CONTAINER_ID"
+
+        echo "Installed binaries:"
+        valkey-cli --version || echo "valkey-cli not working"
+        valkey-server --version || echo "valkey-server not available on host"
+
+    # ── Docker path: start servers ────────────────────────────────────
+
+    - name: Start standalone Valkey servers (Docker)
+      if: ${{ steps.check-docker.outputs.available == 'true' }}
+      shell: bash
+      env:
+        IMAGE: ${{ steps.docker-image.outputs.image }}
+      run: |
+        echo "=== Starting standalone Valkey servers ==="
+
+        for entry in "valkey-primary:6379" "valkey-replica1:6380" "valkey-replica2:6381"; do
+          NAME="${entry%%:*}"
+          PORT="${entry##*:}"
+          docker run -d --name "$NAME" --network host \
+            "$IMAGE" valkey-server \
+            --port "$PORT" \
+            --enable-debug-command yes \
+            --protected-mode no \
+            --save ""
+        done
+
+        # Wait for servers to be ready
+        echo "Waiting for standalone servers..."
+        for port in 6379 6380 6381; do
+          for i in $(seq 1 30); do
+            if valkey-cli -p $port PING 2>/dev/null | grep -q PONG; then
+              echo "  Port $port: ready"
+              break
+            fi
+            sleep 0.5
+          done
+        done
+
+        # Set up replication
+        valkey-cli -p 6380 REPLICAOF 127.0.0.1 6379
+        valkey-cli -p 6381 REPLICAOF 127.0.0.1 6379
+
+        echo "✅ Standalone servers ready (primary: 6379, replicas: 6380, 6381)"
+
+    - name: Start Valkey cluster (Docker)
+      if: ${{ steps.check-docker.outputs.available == 'true' }}
+      shell: bash
+      env:
+        IMAGE: ${{ steps.docker-image.outputs.image }}
+        ENGINE_VERSION: ${{ inputs.engine-version }}
+      run: |
+        echo "=== Starting Valkey cluster nodes ==="
+
+        MAJOR=$(echo "$ENGINE_VERSION" | cut -d. -f1 | cut -d- -f1)
+
+        for port in 7001 7002 7003 7004 7005 7006; do
+          EXTRA_ARGS=""
+          if [ "$MAJOR" -ge 9 ]; then
+            EXTRA_ARGS="--cluster-databases 16"
+          fi
+
+          docker run -d --name "valkey-cluster-${port}" --network host \
+            "$IMAGE" valkey-server \
+            --port "$port" \
+            --cluster-enabled yes \
+            --cluster-config-file "nodes-${port}.conf" \
+            --cluster-node-timeout 5000 \
+            --appendonly no \
+            --protected-mode no \
+            --enable-debug-command yes \
+            --save "" \
+            $EXTRA_ARGS
+        done
+
+        echo "Waiting for cluster nodes..."
+        for port in 7001 7002 7003 7004 7005 7006; do
+          for i in $(seq 1 30); do
+            if valkey-cli -p $port PING 2>/dev/null | grep -q PONG; then
+              echo "  Port $port: ready"
+              break
+            fi
+            sleep 0.5
+          done
+        done
+
+        echo "Creating cluster..."
+        valkey-cli --cluster create \
+          127.0.0.1:7001 127.0.0.1:7002 127.0.0.1:7003 \
+          127.0.0.1:7004 127.0.0.1:7005 127.0.0.1:7006 \
+          --cluster-replicas 1 \
+          --cluster-yes
+
+        echo "✅ Cluster ready (ports 7001-7006)"
+
+    - name: Set up auth cluster (Docker)
+      if: ${{ steps.check-docker.outputs.available == 'true' && inputs.auth-cluster == 'true' }}
+      shell: bash
+      env:
+        IMAGE: ${{ steps.docker-image.outputs.image }}
+      run: |
+        echo "=== Setting up auth-protected cluster ==="
+
+        for port in 5001 5002 5003 5004 5005 5006; do
+          docker run -d --name "valkey-auth-${port}" --network host \
+            "$IMAGE" valkey-server \
+            --port "$port" \
+            --cluster-enabled yes \
+            --cluster-config-file "nodes-auth-${port}.conf" \
+            --cluster-node-timeout 5000 \
+            --appendonly no \
+            --protected-mode no \
+            --enable-debug-command yes \
+            --requirepass dummy_password \
+            --masterauth dummy_password \
+            --save ""
+        done
+
+        echo "Waiting for auth cluster nodes..."
+        for port in 5001 5002 5003 5004 5005 5006; do
+          for i in $(seq 1 30); do
+            if valkey-cli -p $port -a dummy_password PING 2>/dev/null | grep -q PONG; then
+              echo "  Port $port: ready"
+              break
+            fi
+            sleep 0.5
+          done
+        done
+
+        echo "Creating auth cluster..."
+        valkey-cli --cluster create \
+          127.0.0.1:5001 127.0.0.1:5002 127.0.0.1:5003 \
+          127.0.0.1:5004 127.0.0.1:5005 127.0.0.1:5006 \
+          --cluster-replicas 1 \
+          --cluster-yes \
+          -a dummy_password
+
+        echo "✅ Auth cluster ready (ports 5001-5006, password: dummy_password)"
+
+    # ──
+    # TLS setup (works with both Docker and native paths, built from source
+    # because of possible incompatibility of the Alpine Valkey server binary on
+    # the Ubuntu runner
+    # ──
+
+    - name: Set up TLS servers
+      if: ${{ inputs.tls == 'true' }}
+      shell: bash
+      run: |
+        echo "=== Setting up TLS servers ==="
+
+        # TLS setup uses cluster_manager.py which needs valkey-server on the host.
+        if ! command -v valkey-server &> /dev/null; then
+          echo "⚠️  WARNING: valkey-server not available on host, skipping TLS setup"
+          echo "TLS tests will be skipped at runtime"
+          exit 0
+        fi
+
+        cd tests
+        chmod +x start_valkey_with_replicas.sh create-valkey-cluster.sh
+
+        # TLS standalone on port 6400
+        if ../valkey-glide/utils/cluster_manager.py --tls start --prefix tls-standalone -p 6400 -r 0; then
+          echo "✅ TLS standalone server started on port 6400"
+        else
+          echo "⚠️  WARNING: TLS standalone setup failed, continuing without TLS"
+        fi
+
+        # TLS cluster on ports 8001-8006
+        if ../valkey-glide/utils/cluster_manager.py --tls start --prefix tls-cluster --cluster-mode -p 8001 8002 8003 8004 8005 8006; then
+          echo "✅ TLS cluster started on ports 8001-8006"
+        else
+          echo "⚠️  WARNING: TLS cluster setup failed, continuing without TLS cluster"
+        fi
+
+    # ── Native fallback (no Docker available, e.g. macOS) ─────────────
+
+    - name: Start servers natively (fallback)
+      if: ${{ steps.check-docker.outputs.available != 'true' }}
+      shell: bash
+      run: |
+        echo "=== Starting Valkey servers natively (no Docker) ==="
+        export PATH="/usr/local/bin:$PATH"
+
+        if ! command -v valkey-server &> /dev/null; then
+          echo "ERROR: Neither Docker nor valkey-server available"
+          exit 1
+        fi
+
+        cd tests
+        chmod +x start_valkey_with_replicas.sh create-valkey-cluster.sh
+
+        echo "Starting standalone servers..."
+        ./start_valkey_with_replicas.sh
+        sleep 3
+
+        echo "Starting cluster..."
+        ./create-valkey-cluster.sh
+
+        echo "=== Native server startup completed ==="
+        ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No server processes found"
+
+    # ── Verification ──────────────────────────────────────────────────
+
+    - name: Verify all servers
+      shell: bash
+      run: |
+        echo "=== Final server verification ==="
+
+        echo "Standalone:"
+        for port in 6379 6380 6381; do
+          RESULT=$(valkey-cli -p $port PING 2>/dev/null || echo "FAILED")
+          echo "  Port $port: $RESULT"
+        done
+
+        echo "Cluster:"
+        for port in 7001 7002 7003 7004 7005 7006; do
+          RESULT=$(valkey-cli -p $port PING 2>/dev/null || echo "FAILED")
+          echo "  Port $port: $RESULT"
+        done
+
+        echo "Auth cluster:"
+        for port in 5001 5002 5003 5004 5005 5006; do
+          RESULT=$(valkey-cli -p $port -a dummy_password PING 2>/dev/null || echo "FAILED")
+          echo "  Port $port: $RESULT"
+        done
+
+        echo "TLS (port 6400):"
+        valkey-cli -p 6400 PING 2>/dev/null || echo "  Not available (TLS tests will skip)"
+
+        if command -v docker &> /dev/null; then
+          echo ""
+          echo "Docker containers:"
+          docker ps --format "table {{.Names}}\t{{.Status}}" | grep valkey || echo "  None"
+        fi
+
+        echo ""
+        echo "=== Server startup complete ==="

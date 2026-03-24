@@ -391,6 +391,11 @@ jobs:
             exit 1
           fi
 
+      - name: Start Valkey servers via Docker
+        uses: ./.github/workflows/start-valkey-docker
+        with:
+          engine-version: ${{ matrix.engine.version }}
+
       - name: Run PHP Extension Tests
         uses: ./.github/workflows/run-php-tests
         with:
@@ -400,6 +405,9 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
+          echo "Stopping Valkey Docker containers..."
+          docker ps -a --filter "name=valkey-" --format "{{.Names}}" | xargs -r docker rm -f || true
+          pkill valkey-server 2>/dev/null || true
           if [ -f server.pid ]; then
             kill $(cat server.pid) || true
           fi
