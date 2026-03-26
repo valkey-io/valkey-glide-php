@@ -237,6 +237,42 @@ uint8_t* create_route_bytes_from_route(cluster_route_t* route, size_t* route_byt
 }
 
 /* Execute a command and handle common error checking */
+/* Helper to free route-related allocations */
+static void cleanup_route(uint8_t* route_bytes, cluster_route_t* route) {
+    if (route_bytes) {
+        efree(route_bytes);
+    }
+    if (route->type == ROUTE_TYPE_KEY && route->data.key_route.key_allocated) {
+        efree(route->data.key_route.key);
+    }
+}
+
+/* Validate parameters before FFI call, returns 1 if valid, 0 otherwise */
+static int validate_command_params(const void*          glide_client,
+                                   unsigned long        arg_count,
+                                   const uintptr_t*     args,
+                                   const unsigned long* args_len) {
+    if (!glide_client) {
+        VALKEY_LOG_ERROR("parameter_validation", "glide_client is NULL");
+        return 0;
+    }
+
+    if (arg_count > 0) {
+        if (!args) {
+            VALKEY_LOG_ERROR_FMT(
+                "parameter_validation", "args is NULL but arg_count is %lu", arg_count);
+            return 0;
+        }
+        if (!args_len) {
+            VALKEY_LOG_ERROR_FMT(
+                "parameter_validation", "args_len is NULL but arg_count is %lu", arg_count);
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 CommandResult* execute_command_with_route(const void*          glide_client,
                                           enum RequestType     command_type,
                                           unsigned long        arg_count,
@@ -263,39 +299,14 @@ CommandResult* execute_command_with_route(const void*          glide_client,
     uint8_t* route_bytes     = create_route_bytes_from_route(&route, &route_bytes_len);
     if (!route_bytes) {
         VALKEY_LOG_ERROR("route_processing", "Failed to create route bytes");
-        /* Free dynamically allocated key if needed before returning */
-        if (route.type == ROUTE_TYPE_KEY && route.data.key_route.key_allocated) {
-            efree(route.data.key_route.key);
-        }
+        cleanup_route(NULL, &route);
         return NULL;
     }
 
     /* Validate all parameters before FFI call */
-    if (!glide_client) {
-        VALKEY_LOG_ERROR("parameter_validation", "glide_client is NULL");
+    if (!validate_command_params(glide_client, arg_count, args, args_len)) {
+        cleanup_route(route_bytes, &route);
         return NULL;
-    }
-
-    if (arg_count > 0) {
-        if (!args) {
-            VALKEY_LOG_ERROR_FMT(
-                "parameter_validation", "args is NULL but arg_count is %lu", arg_count);
-            return NULL;
-        }
-        if (!args_len) {
-            VALKEY_LOG_ERROR_FMT(
-                "parameter_validation", "args_len is NULL but arg_count is %lu", arg_count);
-            return NULL;
-        }
-    }
-
-    if (route_bytes_len > 0) {
-        if (!route_bytes) {
-            VALKEY_LOG_ERROR_FMT("parameter_validation",
-                                 "route_bytes is NULL but route_bytes_len is %zu",
-                                 route_bytes_len);
-            return NULL;
-        }
     }
 
     /* Create OTEL span for tracing */
@@ -316,15 +327,8 @@ CommandResult* execute_command_with_route(const void*          glide_client,
     /* Cleanup span */
     valkey_glide_drop_span(span_ptr);
 
-    /* Free route bytes */
-    if (route_bytes) {
-        efree(route_bytes);
-    }
-
-    /* Free dynamically allocated key if needed */
-    if (route.type == ROUTE_TYPE_KEY && route.data.key_route.key_allocated) {
-        efree(route.data.key_route.key);
-    }
+    /* Free route allocations */
+    cleanup_route(route_bytes, &route);
 
     /* Validate result before returning */
     if (!result) {
