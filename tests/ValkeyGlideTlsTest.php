@@ -5,13 +5,10 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests
 require_once __DIR__ . '/ValkeyGlideBaseTest.php';
 
 /**
- * TLS Certificate Validation Tests for Standalone ValkeyGlide
+ * TLS tests for Valkey GLIDE standalone client.
  */
 class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
 {
-    // Existing TLS Tests (from ValkeyGlideTest.php)
-    // -----------------------------------------------
-
     public function testTlsSecureStream()
     {
         $this->skipIfTlsDisabled();
@@ -73,9 +70,6 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
         $this->assertConnected($client);
         $client->close();
     }
-
-    // Certificate Validation Tests
-    // -----------------------------
 
     public function testTlsWithoutCertificate()
     {
@@ -192,9 +186,6 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
             );
         });
     }
-
-    // IP Address Tests
-    // ----------------
 
     public function testTlsWithIPv4Address()
     {

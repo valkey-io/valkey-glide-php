@@ -5,7 +5,7 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests
 require_once __DIR__ . '/ValkeyGlideClusterBaseTest.php';
 
 /**
- * TLS tests for cluster Valkey GLIDE client.
+ * TLS tests for Valkey GLIDE cluster client.
  */
 class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
 {
