@@ -3,6 +3,7 @@
 defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
 
 require_once __DIR__ . '/ValkeyGlideClusterBaseTest.php';
+require_once __DIR__ . '/TestConstants.php';
 
 /**
  * TLS tests for Valkey GLIDE cluster client.
@@ -103,7 +104,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
 
         $client = new ValkeyGlideCluster(
             addresses: [[
-                'host' => self::HOST_ADDRESS_IPV4,
+                'host' => TestConstants::HOST_ADDRESS_IPV4,
                 'port' => self::TLS_ADDRESS_CLUSTER['port']
             ]],
             use_tls: true,
@@ -122,7 +123,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
 
         $client = new ValkeyGlideCluster(
             addresses: [[
-                'host' => self::HOST_ADDRESS_IPV6,
+                'host' => TestConstants::HOST_ADDRESS_IPV6,
                 'port' => self::TLS_ADDRESS_CLUSTER['port']
             ]],
             use_tls: true,

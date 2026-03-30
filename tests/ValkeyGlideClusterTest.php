@@ -73,6 +73,7 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests
 */
 
 require_once __DIR__ . "/ValkeyGlideTest.php";
+require_once __DIR__ . '/TestConstants.php';
 
 /**
  * Most ValkeyGlideCluster tests should work the same as the standard ValkeyGlide object
@@ -1493,7 +1494,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $client = new ValkeyGlideCluster(
             addresses: [[
-                'host' => self::HOST_ADDRESS_IPV4,
+                'host' => TestConstants::HOST_ADDRESS_IPV4,
                 'port' => $this->getPort()
             ]]
         );
@@ -1509,7 +1510,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $client = new ValkeyGlideCluster(
             addresses: [[
-                'host' => self::HOST_ADDRESS_IPV6,
+                'host' => TestConstants::HOST_ADDRESS_IPV6,
                 'port' => $this->getPort()
             ]]
         );

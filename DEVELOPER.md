@@ -292,6 +292,27 @@ php -n -d extension=../modules/valkey_glide.so TestValkeyGlide.php
 
 ```
 
+### DNS Tests
+
+To run [standalone](tests/ValkeyGlideDnsTest.php) and [cluster](tests/ValkeyGlideClusterDnsTest.php) DNS tests locally:
+
+1. Add the following entries to your hosts file:
+    - Linux/macOS: `/etc/hosts`
+    - Windows: `C:\Windows\System32\drivers\etc\hosts`
+
+    ```text
+    127.0.0.1 valkey.glide.test.tls.com
+    127.0.0.1 valkey.glide.test.no_tls.com
+    ::1 valkey.glide.test.tls.com
+    ::1 valkey.glide.test.no_tls.com
+    ```
+
+2. Set the environment variable:
+
+    ```bash
+    export VALKEY_GLIDE_DNS_TESTS_ENABLED=1
+    ```
+
 ### Linters
 
 Development on the PHP wrapper involves changes in both C and PHP code. We have comprehensive linting infrastructure to ensure code quality and consistency. All linting checks are automatically run in our GitHub Actions CI pipeline.

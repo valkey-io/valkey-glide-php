@@ -73,6 +73,7 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die('Use TestValkeyGlide.php to run tests
 */
 
 require_once __DIR__ . '/ValkeyGlideBaseTest.php';
+require_once __DIR__ . '/TestConstants.php';
 
 class ValkeyGlideTest extends ValkeyGlideBaseTest
 {
@@ -8063,7 +8064,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $client = new ValkeyGlide();
         $client->connect(
             addresses: [[
-                'host' => self::HOST_ADDRESS_IPV4,
+                'host' => TestConstants::HOST_ADDRESS_IPV4,
                 'port' => $this->getPort()
             ]]
         );
@@ -8079,7 +8080,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $client = new ValkeyGlide();
         $client->connect(
             addresses: [[
-                'host' => self::HOST_ADDRESS_IPV6,
+                'host' => TestConstants::HOST_ADDRESS_IPV6,
                 'port' => $this->getPort()
             ]]
         );

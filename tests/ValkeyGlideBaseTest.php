@@ -103,22 +103,19 @@ abstract class ValkeyGlideBaseTest extends TestSuite
     ];
 
     // TLS configuration
-    protected const TLS_HOST_STANDALONE = 'localhost';
     protected const TLS_PORT_STANDALONE = 6400;
-    protected const TLS_ADDRESS_STANDALONE = ['host' => self::TLS_HOST_STANDALONE, 'port' => self::TLS_PORT_STANDALONE];
+    protected const TLS_ADDRESS_STANDALONE = [
+        'host' => 'localhost',
+        'port' => self::TLS_PORT_STANDALONE
+    ];
 
-    protected const TLS_HOST_CLUSTER = 'localhost';
     protected const TLS_PORT_CLUSTER = 8001;
-    protected const TLS_ADDRESS_CLUSTER = ['host' => self::TLS_HOST_CLUSTER, 'port' => self::TLS_PORT_CLUSTER];
+    protected const TLS_ADDRESS_CLUSTER = [
+        'host' => 'localhost',
+        'port' => self::TLS_PORT_CLUSTER
+    ];
 
     protected const TLS_CERTIFICATE_PATH   = __DIR__ . '/../valkey-glide/utils/tls_crts/ca.crt';
-
-    // Host names and addresses for tests.
-    // See 'cluster_manager.py' for details.
-    protected const HOSTNAME_TLS = 'valkey.glide.test.tls.com';
-    protected const HOSTNAME_NO_TLS = 'valkey.glide.test.no_tls.com';
-    protected const HOST_ADDRESS_IPV4 = '127.0.0.1';
-    protected const HOST_ADDRESS_IPV6 = '::1';
 
     protected function getNilValue()
     {

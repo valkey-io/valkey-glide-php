@@ -3,29 +3,14 @@
 defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
 
 require_once __DIR__ . '/ValkeyGlideBaseTest.php';
+require_once __DIR__ . '/TestConstants.php';
 
 /**
  * DNS resolution tests for standalone client.
- *
- * To run these tests, you need to add the following mappings to your hosts
- * file then set the environment variable VALKEY_GLIDE_DNS_TESTS_ENABLED:
- * - 127.0.0.1 valkey.glide.test.tls.com
- * - 127.0.0.1 valkey.glide.test.no_tls.com
- * - ::1 valkey.glide.test.tls.com
- * - ::1 valkey.glide.test.no_tls.com
+ * See DEVELOPER.md#dns-tests for setup instructions.
  */
 class ValkeyGlideDnsTest extends ValkeyGlideBaseTest
 {
-    /**
-     * Skips the current test if DNS tests are not enabled.
-     */
-    protected function skipIfDnsNotEnabled(): void
-    {
-        if (!getenv('VALKEY_GLIDE_DNS_TESTS_ENABLED')) {
-            $this->markTestSkipped('DNS tests are disabled. Set VALKEY_GLIDE_DNS_TESTS_ENABLED=1 to enable.');
-        }
-    }
-
     public function testDnsConnectWithValidHostname()
     {
         $this->skipIfDnsNotEnabled();
@@ -34,7 +19,7 @@ class ValkeyGlideDnsTest extends ValkeyGlideBaseTest
         $client = new ValkeyGlide();
         $client->connect(
             addresses: [[
-                'host' => self::HOSTNAME_NO_TLS,
+                'host' => TestConstants::HOSTNAME_NO_TLS,
                 'port' => $this->getPort()
             ]]
         );
@@ -67,8 +52,8 @@ class ValkeyGlideDnsTest extends ValkeyGlideBaseTest
         $client = new ValkeyGlide();
         $client->connect(
             addresses: [[
-                'host' => self::HOSTNAME_TLS,
-                'port' => self::TLS_PORT_STANDALONE
+                'host' => TestConstants::HOSTNAME_TLS,
+                'port' => $this->getPort()
             ]],
             use_tls: true,
             advanced_config: [
@@ -89,8 +74,8 @@ class ValkeyGlideDnsTest extends ValkeyGlideBaseTest
             $client = new ValkeyGlide();
             $client->connect(
                 addresses: [[
-                    'host' => self::HOSTNAME_NO_TLS,
-                    'port' => self::TLS_PORT_STANDALONE
+                    'host' => TestConstants::HOSTNAME_NO_TLS,
+                    'port' => $this->getPort()
                 ]],
                 use_tls: true,
                 advanced_config: [
