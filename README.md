@@ -160,11 +160,10 @@ pie install valkey-io/valkey-glide-php:$VERSION
 You can install the extension using PECL from GitHub releases:
 
 ```bash
-# Install from a specific release
-pecl install https://github.com/valkey-io/valkey-glide-php/releases/download/v1.0.0/valkey_glide-1.0.0.tgz
+# Download the package
+curl -L https://github.com/valkey-io/valkey-glide-php/releases/download/v1.0.0/valkey_glide-1.0.0.tgz -o valkey_glide-1.0.0.tgz
 
-# Or download and install manually
-wget https://github.com/valkey-io/valkey-glide-php/releases/download/v1.0.0/valkey_glide-1.0.0.tgz
+# Install with PECL
 pecl install valkey_glide-1.0.0.tgz
 ```
 
