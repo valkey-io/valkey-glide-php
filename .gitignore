@@ -26,9 +26,10 @@ logs/
 python/.env*
 benchmarks/results
 
-# IDE generaged files
+# IDE generated files
 .vs
 .vscode
+.kiro
 .idea
 
 # MacOS metadata
@@ -58,7 +59,7 @@ utils/TestUtils.js
 # java compiled files.
 *.class
 
-# generaged files (e.g. protobuf)
+# generated files (e.g. protobuf)
 generated/
 protoc-*.zip
 
