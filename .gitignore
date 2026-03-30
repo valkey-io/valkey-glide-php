@@ -108,6 +108,7 @@ tests/valkey_data/*/valkey.log
 composer.lock
 configure
 configure.ac
+config.h
 config.h.in
 config.log
 config.nice
