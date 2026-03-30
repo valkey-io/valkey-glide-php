@@ -90,6 +90,8 @@ require_once __DIR__ . "/ValkeyGlideClusterFeaturesTest.php";
 require_once __DIR__ . "/ValkeyGlideBatchTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterBatchTest.php";
 require_once __DIR__ . "/UpdateConnectionPasswordTest.php";
+require_once __DIR__ . "/ValkeyGlideDnsTest.php";
+require_once __DIR__ . "/ValkeyGlideClusterDnsTest.php";
 
 function getClassArray($classes)
 {
@@ -118,7 +120,9 @@ function getTestClass($class)
         'valkeyglideclusterfeatures' => 'ValkeyGlideClusterFeaturesTest',
         'valkeyglideclientbatch' => 'ValkeyGlideBatchTest',
         'valkeyglideclusterbatch' => 'ValkeyGlideClusterBatchTest',
-        'updateconnectionpassword' => 'UpdateConnectionPasswordTest'
+        'updateconnectionpassword' => 'UpdateConnectionPasswordTest',
+        'valkeyglidedns' => 'ValkeyGlideDnsTest',
+        'valkeyglideclusterdns' => 'ValkeyGlideClusterDnsTest',
     ];
 
     /* Return early if the class is one of our built-in ones */
@@ -151,10 +155,22 @@ ini_set('display_errors', '1');
 $opt = getopt('', ['host:', 'port:', 'class:', 'test:', 'nocolors', 'user:', 'auth:', 'tls']);
 
 /* The test class(es) we want to run */
-$default_classes = 'connectionrequest,valkeyglide,valkeyglidecluster,valkeyglideclientfeatures,';
-$default_classes .= 'valkeyglidepubsub,valkeyglideclusterpubsub,valkeyglideclusterfeatures,';
-$default_classes .= 'valkeyglideclientbatch,valkeyglideclusterbatch,updateconnectionpassword,';
-$default_classes .= 'phpredisstyleconnection';
+$default_classes = implode(',', [
+    'connectionrequest',
+    'valkeyglide',
+    'valkeyglidecluster',
+    'valkeyglideclientfeatures',
+    'valkeyglidepubsub',
+    'valkeyglideclusterpubsub',
+    'valkeyglideclusterfeatures',
+    'valkeyglideclientbatch',
+    'valkeyglideclusterbatch',
+    'updateconnectionpassword',
+    'phpredisstyleconnection',
+    'valkeyglidedns',
+    'valkeyglideclusterdns',
+]);
+
 $classes = getClassArray($opt['class'] ?? $default_classes);
 
 $colorize = !isset($opt['nocolors']);
