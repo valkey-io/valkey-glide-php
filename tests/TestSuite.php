@@ -914,13 +914,15 @@ class TestSuite
         }
 
         if (! $fullname) {
-            die("Fatal:  Couldn't find $filename\n");
+            fwrite(STDERR, "Fatal:  Couldn't find $filename\n");
+            exit(1);
         }
 
         require_once($fullname);
 
         if (! class_exists($class)) {
-            die("Fatal:  Loaded '$filename' but didn't find class '$class'\n");
+            fwrite(STDERR, "Fatal:  Loaded '$filename' but didn't find class '$class'\n");
+            exit(1);
         }
 
         /* Loaded the file and found the class, return it */
