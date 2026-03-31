@@ -12,9 +12,9 @@ runs:
           ~/.cargo/git/db/
           ~/.cargo/bin/cargo-zigbuild
           ~/.cargo/bin/cbindgen
-        key: cargo-zig-${{ runner.os }}-cargo-zigbuild-v0.20.1-cbindgen
+        key: cargo-zig-${{ runner.os }}-${{ runner.arch }}-cargo-zigbuild-v0.20.1-cbindgen
         restore-keys: |
-          cargo-zig-${{ runner.os }}-
+          cargo-zig-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Install zig
       shell: bash
