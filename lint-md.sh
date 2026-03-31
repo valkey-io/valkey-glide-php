@@ -28,6 +28,7 @@ fi
 # - Include all .md files.
 # - Exclude files in valkey-glide submodule.
 # - Exclude files in the build or vendor directories.
+# - Exclude .kiro IDE directory.
 MARKDOWNLINT_OPTIONS=""
 if [ "$FIX" = true ]; then
     MARKDOWNLINT_OPTIONS="--fix"
@@ -37,6 +38,7 @@ find . -name "*.md" -print0 | \
     grep -zv "valkey-glide/" | \
     grep -zv "vendor/" | \
     grep -zv "build/" | \
+    grep -zv ".kiro/" | \
     xargs -0 -r markdownlint $MARKDOWNLINT_OPTIONS
 
 echo "✓ Markdown linting completed!"
