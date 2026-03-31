@@ -115,6 +115,13 @@ class TestSuite
         $this->tls = $tls;
     }
 
+    /**
+     * Default setUp is a no-op. Subclasses can override to initialize resources.
+     */
+    public function setUp()
+    {
+    }
+
     public function getHost()
     {
         return $this->host;
