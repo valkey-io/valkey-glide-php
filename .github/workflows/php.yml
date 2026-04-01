@@ -472,16 +472,17 @@ jobs:
               libprotobuf-c1 \
               valgrind
 
-      # For valkey 9.0, use Docker containers (includes Search module).
+      # For valkey 9.0, use Docker containers (includes Search module)
+      # alongside native servers on default ports for the main test suite.
       - name: Start Valkey servers via Docker (9.0)
         if: ${{ matrix.engine.version == '9.0' }}
         uses: ./.github/workflows/start-valkey-docker
         with:
           engine-version: ${{ matrix.engine.version }}
 
-      # For all other versions, use native server startup.
+      # Start native servers on default ports (6379, 7001-7006, etc.)
+      # needed by the main test suite. For 9.0 these run alongside Docker.
       - name: Start Valkey servers (native)
-        if: ${{ matrix.engine.version != '9.0' }}
         working-directory: tests
         run: |
           set -e  # Exit on any error
@@ -800,6 +801,9 @@ jobs:
         if: always()
         run: |
           echo "Stopping Valkey servers..."
+          # Stop Docker containers (from start-valkey-docker action)
+          docker ps -a --filter "name=valkey-" --format "{{.Names}}" | xargs -r docker rm -f || true
+          # Stop native valkey-server processes
           pkill valkey-server 2>/dev/null || true
           rm -rf $HOME/valkey-cluster || true
           rm -rf tests/valkey_data || true
