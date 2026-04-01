@@ -139,27 +139,7 @@ jobs:
           echo "Composer install completed. Checking for composer.lock:"
           ls -la composer.lock || echo "Warning: composer.lock not found"
 
-      # For valkey 9.0 on ubuntu, use Docker containers (includes Search module).
-      - name: Start Valkey servers via Docker (9.0, ubuntu)
-        if: ${{ matrix.engine.version == '9.0' && matrix.host.OS == 'ubuntu' }}
-        uses: ./.github/workflows/start-valkey-docker
-        with:
-          engine-version: ${{ matrix.engine.version }}
-
-      - name: Run tests (Docker servers)
-        if: ${{ matrix.engine.version == '9.0' && matrix.host.OS == 'ubuntu' }}
-        run: |
-          php -n -d extension=${{ github.workspace }}/modules/valkey_glide.so tests/TestValkeyGlide.php
-
-      - name: Stop Docker servers
-        if: ${{ always() && matrix.engine.version == '9.0' && matrix.host.OS == 'ubuntu' }}
-        run: |
-          docker ps -a --filter "name=valkey-" --format "{{.Names}}" | xargs -r docker rm -f || true
-          pkill valkey-server 2>/dev/null || true
-
-      # For all other versions/platforms, use native server startup.
-      - name: Run PHP Extension Tests (native servers)
-        if: ${{ !(matrix.engine.version == '9.0' && matrix.host.OS == 'ubuntu') }}
+      - name: Run PHP Extension Tests
         uses: ./.github/workflows/run-php-tests
         with:
           extension-path: ${{ github.workspace }}/modules/valkey_glide.so
@@ -820,7 +800,6 @@ jobs:
         if: always()
         run: |
           echo "Stopping Valkey servers..."
-          docker ps -a --filter "name=valkey-" --format "{{.Names}}" | xargs -r docker rm -f 2>/dev/null || true
           pkill valkey-server 2>/dev/null || true
           rm -rf $HOME/valkey-cluster || true
           rm -rf tests/valkey_data || true
@@ -1058,9 +1037,7 @@ jobs:
       - name: Stop Valkey servers
         if: always()
         run: |
-          echo "Stopping Valkey Docker containers..."
-          docker ps -a --filter "name=valkey-" --format "{{.Names}}" | xargs -r docker rm -f || true
-          # Also stop any native valkey-server processes (from TLS setup)
+          echo "Stopping Valkey servers..."
           pkill valkey-server 2>/dev/null || true
           rm -rf $HOME/valkey-cluster || true
           rm -rf tests/valkey_data || true
@@ -1079,8 +1056,56 @@ jobs:
             tests/**/*.log
             tests/**/*.out
 
+  test-modules-linux:
+      name: Modules Tests (Linux)
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.run-modules-tests == 'true'
+      runs-on: ubuntu-latest
+      timeout-minutes: 35
+      steps:
+          - uses: actions/checkout@v4
+            with:
+                submodules: recursive
+
+          - name: Build PHP wrapper
+            uses: ./.github/workflows/build-php-wrapper
+            with:
+                os: ubuntu
+                target: x86_64-unknown-linux-gnu
+                php-version: ${{ env.BASE_PHP_VERSION }}
+                github-token: ${{ secrets.GITHUB_TOKEN }}
+                engine-version: "9.0"
+
+          - name: Generate test protobuf PHP classes
+            run: |
+                protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/ ./valkey-glide/glide-core/src/protobuf/connection_request.proto
+
+          - name: Install PHP dependencies
+            run: |
+                composer install --no-interaction --prefer-dist --optimize-autoloader
+
+          - name: Start module servers via Docker
+            uses: ./.github/workflows/start-valkey-docker
+            with:
+                engine-version: "9.0"
+
+          - name: Run modules tests
+            run: |
+                php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php --class=ValkeyGlideValkeySearch
+
+          - name: Upload test reports
+            if: always()
+            continue-on-error: true
+            uses: actions/upload-artifact@v4
+            with:
+                name: test-reports-modules-php-docker
+                path: |
+                    tests/**/*.diff
+                    tests/**/*.exp
+                    tests/**/*.log
+                    tests/**/*.out
+
   test-modules:
-    if: ((github.repository_owner == 'valkey-io' && github.event_name == 'workflow_dispatch' && github.event.inputs.run-modules-tests == 'true') || github.event.pull_request.head.repo.owner.login == 'valkey-io')
+    if: github.repository_owner == 'valkey-io' && github.event_name == 'workflow_dispatch' && github.event.inputs.run-modules-tests == 'true'
     name: Modules Tests
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
@@ -1155,7 +1180,7 @@ jobs:
 
       - name: Run modules tests
         run: |
-          php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php
+          php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php --class=ValkeyGlideValkeySearch
 
       - name: Stop Valkey servers
         if: always()
