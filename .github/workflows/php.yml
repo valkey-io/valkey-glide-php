@@ -1057,52 +1057,51 @@ jobs:
             tests/**/*.out
 
   test-modules-linux:
-      name: Modules Tests (Linux)
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.run-modules-tests == 'true'
-      runs-on: ubuntu-latest
-      timeout-minutes: 35
-      steps:
-          - uses: actions/checkout@v4
-            with:
-                submodules: recursive
+    name: Modules Tests (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-          - name: Build PHP wrapper
-            uses: ./.github/workflows/build-php-wrapper
-            with:
-                os: ubuntu
-                target: x86_64-unknown-linux-gnu
-                php-version: ${{ env.BASE_PHP_VERSION }}
-                github-token: ${{ secrets.GITHUB_TOKEN }}
-                engine-version: "9.0"
+      - name: Build PHP wrapper
+        uses: ./.github/workflows/build-php-wrapper
+        with:
+          os: ubuntu
+          target: x86_64-unknown-linux-gnu
+          php-version: ${{ env.BASE_PHP_VERSION }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: "9.0"
 
-          - name: Generate test protobuf PHP classes
-            run: |
-                protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/ ./valkey-glide/glide-core/src/protobuf/connection_request.proto
+      - name: Generate test protobuf PHP classes
+        run: |
+          protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/ ./valkey-glide/glide-core/src/protobuf/connection_request.proto
 
-          - name: Install PHP dependencies
-            run: |
-                composer install --no-interaction --prefer-dist --optimize-autoloader
+      - name: Install PHP dependencies
+        run: |
+          composer install --no-interaction --prefer-dist --optimize-autoloader
 
-          - name: Start module servers via Docker
-            uses: ./.github/workflows/start-valkey-docker
-            with:
-                engine-version: "9.0"
+      - name: Start module servers via Docker
+        uses: ./.github/workflows/start-valkey-docker
+        with:
+          engine-version: "9.0"
 
-          - name: Run modules tests
-            run: |
-                php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php --class=ValkeyGlideValkeySearch
+      - name: Run modules tests
+        run: |
+          php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php --class=ValkeyGlideValkeySearch
 
-          - name: Upload test reports
-            if: always()
-            continue-on-error: true
-            uses: actions/upload-artifact@v4
-            with:
-                name: test-reports-modules-php-docker
-                path: |
-                    tests/**/*.diff
-                    tests/**/*.exp
-                    tests/**/*.log
-                    tests/**/*.out
+      - name: Upload test reports
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-modules-php-docker
+          path: |
+            tests/**/*.diff
+            tests/**/*.exp
+            tests/**/*.log
+            tests/**/*.out
 
   test-modules:
     if: github.repository_owner == 'valkey-io' && github.event_name == 'workflow_dispatch' && github.event.inputs.run-modules-tests == 'true'
