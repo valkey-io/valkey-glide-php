@@ -1064,6 +1064,8 @@ jobs:
     name: Modules Tests (Linux)
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
