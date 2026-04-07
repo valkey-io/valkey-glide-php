@@ -125,12 +125,12 @@ function getTestClass($class)
         'valkeyglideclientbatch' => 'ValkeyGlideBatchTest',
         'valkeyglideclusterbatch' => 'ValkeyGlideClusterBatchTest',
         'updateconnectionpassword' => 'UpdateConnectionPasswordTest',
-        'ValkeyGlideValkeySearch' => 'ValkeyGlideValkeySearchTest',
         'valkeyglidedns' => 'ValkeyGlideDnsTest',
         'valkeyglideclusterdns' => 'ValkeyGlideClusterDnsTest',
         'iamauth' => 'IamAuthTest',
         'valkeyglidejson' => 'ValkeyGlideJsonTest',
         'valkeyglideclusterjson' => 'ValkeyGlideClusterJsonTest'
+        'valkeyglidevalkeysearch' => 'ValkeyGlideValkeySearchTest',
     ];
 
     /* Return early if the class is one of our built-in ones */
