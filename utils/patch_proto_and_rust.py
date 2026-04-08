@@ -59,6 +59,7 @@ def patch_rust_types_rs(rust_types_file):
     
     Fixes several fields that changed from Option<T> to T in protobuf:
     - tcp_nodelay: Option<bool> -> bool
+    - read_only: Option<bool> -> bool
     - pubsub_reconciliation_interval_ms: Option<u32> -> u32
     - jitter_percent: Option<u32> -> u32
     - refresh_interval_seconds: Option<u32> -> u32
@@ -87,6 +88,16 @@ def patch_rust_types_rs(rust_types_file):
             new_content = re.sub(tcp_nodelay_pattern, tcp_nodelay_replacement, new_content)
             needs_patching = True
             log_message("Applied tcp_nodelay patch")
+        
+        # Fix read_only: changed from Option<bool> to bool
+        read_only_pattern = r'let read_only = value\.read_only\.unwrap_or\(false\);'
+        read_only_replacement = 'let read_only = value.read_only;'
+        if re.search(read_only_pattern, new_content):
+            if not needs_patching:
+                create_backup(rust_types_file)
+            new_content = re.sub(read_only_pattern, read_only_replacement, new_content)
+            needs_patching = True
+            log_message("Applied read_only patch")
         
         # Fix pubsub_reconciliation_interval_ms: changed from Option<u32> to u32
         pubsub_pattern = r'value\.pubsub_reconciliation_interval_ms\.filter\(\|&v\| v != 0\);'
@@ -159,6 +170,7 @@ def verify_rust_patch(rust_types_file):
         
         # Check for the fixed patterns
         tcp_nodelay_fixed = 'let tcp_nodelay = value.tcp_nodelay;' in content
+        read_only_fixed = 'let read_only = value.read_only;' in content
         pubsub_fixed = 'if value.pubsub_reconciliation_interval_ms != 0 { Some(value.pubsub_reconciliation_interval_ms) } else { None }' in content
         jitter_fixed = 'Some(strategy.jitter_percent)' in content
         refresh_fixed = 'refresh_interval_seconds: Some(refresh_interval_seconds)' in content
@@ -172,6 +184,8 @@ def verify_rust_patch(rust_types_file):
             missing = []
             if not tcp_nodelay_fixed:
                 missing.append("tcp_nodelay fix")
+            if not read_only_fixed:
+                missing.append("read_only fix")
             if not pubsub_fixed:
                 missing.append("pubsub_reconciliation_interval_ms fix")
             if not jitter_fixed:
