@@ -8027,6 +8027,11 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             return;
         }
 
+        if (class_exists('Redis', false)) {
+            $this->markTestSkipped('PHPRedis extension is already loaded, cannot test aliases');
+            return;
+        }
+
         ValkeyGlide::registerPHPRedisAliases();
 
         $this->assertTrue(class_exists('Redis'), 'Redis class alias should exist');
