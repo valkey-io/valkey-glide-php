@@ -225,6 +225,27 @@ uint8_t* create_connection_request(size_t*                                   len
     pubsub_subs.channels_or_patterns_by_type   = NULL;
     conn_req.pubsub_subscriptions              = &pubsub_subs;
 
+    /* Set client-side cache configuration */
+    ConnectionRequest__ClientSideCache client_side_cache_msg =
+        CONNECTION_REQUEST__CLIENT_SIDE_CACHE__INIT;
+    if (config->client_side_cache) {
+        client_side_cache_msg.cache_id     = config->client_side_cache->cache_id;
+        client_side_cache_msg.max_cache_kb = config->client_side_cache->max_cache_kb;
+        client_side_cache_msg.enable_metrics = config->client_side_cache->enable_metrics;
+
+        if (config->client_side_cache->entry_ttl_seconds >= 0) {
+            client_side_cache_msg.entry_ttl_seconds =
+                config->client_side_cache->entry_ttl_seconds;
+        }
+
+        if (config->client_side_cache->eviction_policy >= 0) {
+            client_side_cache_msg.eviction_policy =
+                (ConnectionRequest__EvictionPolicy) config->client_side_cache->eviction_policy;
+        }
+
+        conn_req.client_side_cache = &client_side_cache_msg;
+    }
+
     /* Calculate the size of the serialized message */
     *len = connection_request__connection_request__get_packed_size(&conn_req);
 
@@ -2342,6 +2363,85 @@ void execute_refresh_iam_token(zval* object, zval* return_value, zend_class_entr
         VALKEY_LOG_ERROR_FMT(
             "refresh_iam_token", "Unexpected response type: %d", result->response->response_type);
         zend_throw_exception(get_valkey_glide_exception_ce(), "Unexpected response from server", 0);
+    }
+
+    free_command_result(result);
+}
+
+/**
+ * Execute get_cache_metrics command
+ *
+ * @param object The ValkeyGlide or ValkeyGlideCluster object
+ * @param metrics_type The type of cache metric to retrieve (see CACHE_METRICS_* constants)
+ * @param return_value The return value zval
+ * @param ce The class entry
+ */
+void execute_get_cache_metrics(zval*             object,
+                               int               metrics_type,
+                               zval*             return_value,
+                               zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        VALKEY_LOG_ERROR("get_cache_metrics",
+                         "Invalid client object or client connection handle is NULL");
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "Invalid client object or client connection handle is NULL",
+                             0);
+        return;
+    }
+
+    /* Call FFI function */
+    CommandResult* result =
+        get_cache_metrics(valkey_glide->glide_client,
+                          0, /* request_id - using 0 for synchronous call */
+                          metrics_type);
+
+    /* Check result */
+    if (!result) {
+        VALKEY_LOG_ERROR("get_cache_metrics", "FFI call returned NULL result");
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "Failed to get cache metrics", 0);
+        return;
+    }
+
+    /* Check for command error */
+    if (result->command_error) {
+        VALKEY_LOG_ERROR_FMT("get_cache_metrics",
+                             "Command execution failed with error: %s",
+                             result->command_error->command_error_message
+                                 ? result->command_error->command_error_message
+                                 : "Unknown error");
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
+        free_command_result(result);
+        return;
+    }
+
+    if (!result->response) {
+        VALKEY_LOG_ERROR("get_cache_metrics", "No response received");
+        free_command_result(result);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "No response received for cache metrics", 0);
+        return;
+    }
+
+    /* Process response based on type */
+    if (result->response->response_type == Float) {
+        ZVAL_DOUBLE(return_value, result->response->float_value);
+    } else if (result->response->response_type == Int) {
+        ZVAL_LONG(return_value, result->response->int_value);
+    } else if (result->response->response_type == Error) {
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(),
+            result->response->string_value ? result->response->string_value : "Unknown error",
+            0);
+    } else {
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "Unexpected response type for cache metrics",
+                             0);
     }
 
     free_command_result(result);

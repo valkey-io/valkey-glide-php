@@ -65,7 +65,8 @@ def patch_rust_types_rs(rust_types_file):
     - refresh_interval_seconds: Option<u32> -> u32
     - compression_level: Option<i32> -> i32
     - read_only: Option<bool> -> bool
-    - eviction_policy: Option<EnumOrUnknown> -> EnumOrUnknown
+    - client_side_cache.entry_ttl_seconds: Option<u64> -> u64
+    - client_side_cache.eviction_policy: Option<EnumOrUnknown> -> EnumOrUnknown
     """
     
     if not os.path.exists(rust_types_file):
@@ -164,14 +165,32 @@ def patch_rust_types_rs(rust_types_file):
             needs_patching = True
             log_message("Applied read_only patch")
         
-        # Fix eviction_policy: changed from Option<EnumOrUnknown> to EnumOrUnknown
-        # The .and_then() method doesn't exist on EnumOrUnknown, need to use .enum_value() directly
-        eviction_pattern = r'eviction_policy: proto_cache\s*\n\s*\.eviction_policy\s*\n\s*\.and_then\(\|enum_or_unknown\| enum_or_unknown\.enum_value\(\)\.ok\(\)\)'
-        eviction_replacement = 'eviction_policy: proto_cache\n                    .eviction_policy\n                    .enum_value().ok()'
-        if re.search(eviction_pattern, new_content):
+        # Fix client_side_cache.entry_ttl_seconds: changed from Option<u64> to u64
+        entry_ttl_pattern = r'entry_ttl_seconds:\s*proto_cache\.entry_ttl_seconds,'
+        entry_ttl_replacement = 'entry_ttl_seconds: if proto_cache.entry_ttl_seconds != 0 { Some(proto_cache.entry_ttl_seconds) } else { None },'
+        if re.search(entry_ttl_pattern, new_content):
             if not needs_patching:
                 create_backup(rust_types_file)
-            new_content = re.sub(eviction_pattern, eviction_replacement, new_content)
+            new_content = re.sub(entry_ttl_pattern, entry_ttl_replacement, new_content)
+            needs_patching = True
+            log_message("Applied entry_ttl_seconds patch")
+        
+        # Fix client_side_cache.eviction_policy: changed from Option<EnumOrUnknown> to EnumOrUnknown
+        eviction_pattern = (
+            r'eviction_policy:\s*proto_cache\s*'
+            r'\.eviction_policy\s*'
+            r'\.and_then\(\|enum_or_unknown\|\s*enum_or_unknown\.enum_value\(\)\.ok\(\)\)'
+        )
+        eviction_replacement = (
+            'eviction_policy: proto_cache\n'
+            '                    .eviction_policy\n'
+            '                    .enum_value()\n'
+            '                    .ok()'
+        )
+        if re.search(eviction_pattern, new_content, re.DOTALL):
+            if not needs_patching:
+                create_backup(rust_types_file)
+            new_content = re.sub(eviction_pattern, eviction_replacement, new_content, flags=re.DOTALL)
             needs_patching = True
             log_message("Applied eviction_policy patch")
         
@@ -204,6 +223,15 @@ def verify_rust_patch(rust_types_file):
         max_decompressed_fixed = 'if proto_config.max_decompressed_size != 0' in content
         
         if tcp_nodelay_fixed and pubsub_fixed and jitter_fixed and refresh_fixed and compression_fixed and read_only_fixed and max_decompressed_fixed:
+        read_only_fixed = 'let read_only = value.read_only;' in content
+        entry_ttl_fixed = 'if proto_cache.entry_ttl_seconds != 0 { Some(proto_cache.entry_ttl_seconds) } else { None }' in content
+        eviction_fixed = '.enum_value()' in content and '.and_then(|enum_or_unknown|' not in content
+        
+        all_fixed = (tcp_nodelay_fixed and pubsub_fixed and jitter_fixed and
+                     refresh_fixed and compression_fixed and read_only_fixed and
+                     entry_ttl_fixed and eviction_fixed)
+        
+        if all_fixed:
             log_message("Rust patch verification: SUCCESS")
             return True
         else:
@@ -222,6 +250,12 @@ def verify_rust_patch(rust_types_file):
                 missing.append("compression_level fix")
             if not max_decompressed_fixed:
                 missing.append("max_decompressed_size fix")
+            if not read_only_fixed:
+                missing.append("read_only fix")
+            if not entry_ttl_fixed:
+                missing.append("entry_ttl_seconds fix")
+            if not eviction_fixed:
+                missing.append("eviction_policy fix")
             log_message(f"Rust patch verification: FAILED - Missing: {', '.join(missing)}", "ERROR")
             return False
     

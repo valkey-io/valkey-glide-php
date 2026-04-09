@@ -370,4 +370,60 @@ void execute_refresh_iam_token(zval* object, zval* return_value, zend_class_entr
         execute_refresh_iam_token(object, return_value, Z_OBJCE_P(object));                 \
     }
 
+/* Cache metrics type constants */
+#define CACHE_METRICS_HIT_RATE 0
+#define CACHE_METRICS_MISS_RATE 1
+#define CACHE_METRICS_ENTRY_COUNT 2
+#define CACHE_METRICS_EVICTIONS 3
+#define CACHE_METRICS_EXPIRATIONS 4
+
+/**
+ * Execute get_cache_metrics command
+ */
+void execute_get_cache_metrics(zval*             object,
+                               int               metrics_type,
+                               zval*             return_value,
+                               zend_class_entry* ce);
+
+/* Macro for getCacheHitRate method implementation */
+#define GET_CACHE_HIT_RATE_METHOD_IMPL(class_name)                                    \
+    PHP_METHOD(class_name, getCacheHitRate) {                                          \
+        ZEND_PARSE_PARAMETERS_NONE();                                                  \
+        execute_get_cache_metrics(                                                     \
+            ZEND_THIS, CACHE_METRICS_HIT_RATE, return_value, Z_OBJCE_P(ZEND_THIS));   \
+    }
+
+/* Macro for getCacheMissRate method implementation */
+#define GET_CACHE_MISS_RATE_METHOD_IMPL(class_name)                                   \
+    PHP_METHOD(class_name, getCacheMissRate) {                                         \
+        ZEND_PARSE_PARAMETERS_NONE();                                                  \
+        execute_get_cache_metrics(                                                     \
+            ZEND_THIS, CACHE_METRICS_MISS_RATE, return_value, Z_OBJCE_P(ZEND_THIS));  \
+    }
+
+/* Macro for getCacheEntryCount method implementation */
+#define GET_CACHE_ENTRY_COUNT_METHOD_IMPL(class_name)                                  \
+    PHP_METHOD(class_name, getCacheEntryCount) {                                       \
+        ZEND_PARSE_PARAMETERS_NONE();                                                  \
+        execute_get_cache_metrics(                                                     \
+            ZEND_THIS, CACHE_METRICS_ENTRY_COUNT, return_value, Z_OBJCE_P(ZEND_THIS));\
+    }
+
+/* Macro for getCacheEvictions method implementation */
+#define GET_CACHE_EVICTIONS_METHOD_IMPL(class_name)                                    \
+    PHP_METHOD(class_name, getCacheEvictions) {                                        \
+        ZEND_PARSE_PARAMETERS_NONE();                                                  \
+        execute_get_cache_metrics(                                                     \
+            ZEND_THIS, CACHE_METRICS_EVICTIONS, return_value, Z_OBJCE_P(ZEND_THIS));  \
+    }
+
+/* Macro for getCacheExpirations method implementation */
+#define GET_CACHE_EXPIRATIONS_METHOD_IMPL(class_name)                                  \
+    PHP_METHOD(class_name, getCacheExpirations) {                                      \
+        ZEND_PARSE_PARAMETERS_NONE();                                                  \
+        execute_get_cache_metrics(                                                     \
+            ZEND_THIS, CACHE_METRICS_EXPIRATIONS, return_value, Z_OBJCE_P(ZEND_THIS));\
+    }
+    }
+
 #endif /* VALKEY_GLIDE_CORE_COMMON_H */

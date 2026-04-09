@@ -97,6 +97,7 @@ require_once __DIR__ . "/ValkeyGlideJsonTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterJsonTest.php";
 require_once __DIR__ . "/ValkeyGlideSearchTest.php";
 require_once __DIR__ . "/ValkeyGlideClusterSearchTest.php";
+require_once __DIR__ . "/ClientSideCacheTest.php";
 
 function getClassArray($classes)
 {
@@ -133,6 +134,7 @@ function getTestClass($class)
         'valkeyglideclusterjson' => 'ValkeyGlideClusterJsonTest',
         'valkeyglidesearch' => 'ValkeyGlideSearchTest',
         'valkeyglideclustersearch' => 'ValkeyGlideClusterSearchTest',
+        'clientsidecache' => 'ClientSideCacheTest'
     ];
 
     /* Return early if the class is one of our built-in ones */

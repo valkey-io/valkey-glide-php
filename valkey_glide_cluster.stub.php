@@ -249,6 +249,9 @@ class ValkeyGlideCluster
      *                                          For cluster mode, requires Valkey 9.0+ with cluster-databases > 1.
      *                                          If not specified, defaults to database 0.
      * @param array|null $compression           Compression configuration: ['enabled' => true, 'backend' => COMPRESSION_BACKEND_ZSTD, 'compression_level' => 3, 'min_compression_size' => 64]
+     * @param array|null $client_side_cache     Client-side cache configuration array from ClientSideCache::toArray():
+     *                                          ['cache_id' => string, 'max_cache_kb' => int, 'entry_ttl_seconds' => ?int,
+     *                                          'eviction_policy' => ?int, 'enable_metrics' => bool]
      *
      * Note: Cannot mix PHPRedis-style and ValkeyGlide-style parameters.
      */
@@ -273,6 +276,7 @@ class ValkeyGlideCluster
         ?bool $lazy_connect = null,
         ?int $database_id = null,
         ?array $compression = null,
+        ?array $client_side_cache = null,
     ) {
     }
 
@@ -391,6 +395,31 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::getStatistics
      */
     public function getStatistics(): array;
+
+    /**
+     * @see ValkeyGlide::getCacheHitRate
+     */
+    public function getCacheHitRate(): float;
+
+    /**
+     * @see ValkeyGlide::getCacheMissRate
+     */
+    public function getCacheMissRate(): float;
+
+    /**
+     * @see ValkeyGlide::getCacheEntryCount
+     */
+    public function getCacheEntryCount(): int;
+
+    /**
+     * @see ValkeyGlide::getCacheEvictions
+     */
+    public function getCacheEvictions(): int;
+
+    /**
+     * @see ValkeyGlide::getCacheExpirations
+     */
+    public function getCacheExpirations(): int;
 
     /**
      * @see ValkeyGlide::updateConnectionPassword
