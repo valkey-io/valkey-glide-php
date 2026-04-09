@@ -461,11 +461,12 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
             backend_zv ? (valkey_glide_compression_backend_t) zval_get_long(backend_zv)
                        : VALKEY_GLIDE_COMPRESSION_BACKEND_ZSTD;
 
-        /* Parse compression_level (optional, -1 = not set) */
+        /* Parse compression_level (optional) */
         zval* level_zv                                = zend_hash_str_find(compression_ht,
                                             VALKEY_GLIDE_COMPRESSION_LEVEL,
                                             sizeof(VALKEY_GLIDE_COMPRESSION_LEVEL) - 1);
-        config->compression_config->compression_level = level_zv ? zval_get_long(level_zv) : -1;
+        config->compression_config->has_compression_level = (level_zv != NULL);
+        config->compression_config->compression_level = level_zv ? zval_get_long(level_zv) : 0;
 
         /* Parse min_compression_size (default: 64) */
         zval* min_size_zv = zend_hash_str_find(compression_ht,
