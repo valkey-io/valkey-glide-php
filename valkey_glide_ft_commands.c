@@ -12,35 +12,63 @@
 
 /* ====================================================================
  * FT.CREATE
- * Usage: $client->ftCreate(string $index, array $schema, ?array $options = null)
+ * Usage: $client->ftCreate(FtCreateBuilder $builder)
  *
- * $schema is an array of associative arrays, each describing a field:
- *   [['name' => 'title', 'type' => 'TEXT', 'sortable' => true], ...]
- *
- * $options is an associative array:
- *   ['ON' => 'HASH', 'PREFIX' => ['docs:'], ...]
+ * The builder is a PHP object with a toArray() method that returns:
+ *   ['index' => string, 'schema' => array, 'options' => array|null]
  * ==================================================================== */
 int execute_ft_create_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
-    char*                index_name     = NULL;
-    size_t               index_name_len = 0;
-    zval*                schema_arr     = NULL;
-    zval*                options_arr    = NULL;
+    zval*                builder_zval = NULL;
 
-    if (zend_parse_method_parameters(argc,
-                                     object,
-                                     "Osa|a",
-                                     &object,
-                                     ce,
-                                     &index_name,
-                                     &index_name_len,
-                                     &schema_arr,
-                                     &options_arr) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "Oo", &object, ce, &builder_zval) == FAILURE) {
         return 0;
     }
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     VALIDATE_FT_CLIENT(valkey_glide && valkey_glide->glide_client);
+
+    /* Call toArray() on the builder object */
+    zval method_name, builder_result;
+    ZVAL_STRING(&method_name, "toArray");
+    if (call_user_function(NULL, builder_zval, &method_name, &builder_result, 0, NULL) != SUCCESS ||
+        Z_TYPE(builder_result) != IS_ARRAY) {
+        zval_dtor(&method_name);
+        zval_dtor(&builder_result);
+        if (!EG(exception)) {
+            zend_throw_exception(
+                get_valkey_glide_exception_ce(),
+                "ftCreate: argument must be an FtCreateBuilder with a toArray() method",
+                0);
+        }
+        return 1;
+    }
+    zval_dtor(&method_name);
+
+    /* Extract index, schema, options from the result array */
+    HashTable* result_ht = Z_ARRVAL(builder_result);
+
+    zval* z_index = zend_hash_str_find(result_ht, "index", sizeof("index") - 1);
+    if (!z_index || Z_TYPE_P(z_index) != IS_STRING) {
+        zval_dtor(&builder_result);
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "ftCreate: builder toArray() must return an 'index' string",
+                             0);
+        return 1;
+    }
+
+    zval* z_schema = zend_hash_str_find(result_ht, "schema", sizeof("schema") - 1);
+    if (!z_schema || Z_TYPE_P(z_schema) != IS_ARRAY) {
+        zval_dtor(&builder_result);
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "ftCreate: builder toArray() must return a 'schema' array",
+                             0);
+        return 1;
+    }
+
+    zval*      z_options = zend_hash_str_find(result_ht, "options", sizeof("options") - 1);
+    HashTable* opts_ht =
+        (z_options && Z_TYPE_P(z_options) == IS_ARRAY) ? Z_ARRVAL_P(z_options) : NULL;
 
     const char** args      = NULL;
     size_t*      lens      = NULL;
@@ -48,19 +76,17 @@ int execute_ft_create_command(zval* object, int argc, zval* return_value, zend_c
     char**       allocated = NULL;
     int          alloc_n   = 0;
 
-    HashTable* opts_ht =
-        (options_arr && Z_TYPE_P(options_arr) == IS_ARRAY) ? Z_ARRVAL_P(options_arr) : NULL;
-
-    if (!build_ft_create_args(index_name,
-                              index_name_len,
-                              Z_ARRVAL_P(schema_arr),
+    if (!build_ft_create_args(Z_STRVAL_P(z_index),
+                              Z_STRLEN_P(z_index),
+                              Z_ARRVAL_P(z_schema),
                               opts_ht,
                               &args,
                               &lens,
                               &count,
                               &allocated,
                               &alloc_n)) {
-        return 1; /* Exception already thrown by builder */
+        zval_dtor(&builder_result);
+        return 1;
     }
 
     int status = execute_ft_command_internal(valkey_glide->glide_client,
@@ -72,6 +98,7 @@ int execute_ft_create_command(zval* object, int argc, zval* return_value, zend_c
                                              COMMAND_RESPONSE_NOT_ASSOSIATIVE);
 
     free_ft_collected(args, lens, allocated, alloc_n);
+    zval_dtor(&builder_result);
     return status;
 }
 
@@ -129,34 +156,61 @@ int execute_ft_list_command(zval* object, int argc, zval* return_value, zend_cla
 
 /* ====================================================================
  * FT.SEARCH
- * Usage: $client->ftSearch(string $index, string $query, ?array $options = null)
+ * Usage: $client->ftSearch(FtSearchBuilder $builder)
  *
- * $options is an associative array:
- *   ['NOCONTENT' => true, 'LIMIT' => [0, 10], 'PARAMS' => ['k' => 'v'], ...]
+ * The builder is a PHP object with a toArray() method that returns:
+ *   ['index' => string, 'query' => string, 'options' => array|null]
  * ==================================================================== */
 int execute_ft_search_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
-    char*                index_name     = NULL;
-    size_t               index_name_len = 0;
-    char*                query          = NULL;
-    size_t               query_len      = 0;
-    zval*                options_arr    = NULL;
+    zval*                builder_zval = NULL;
 
-    if (zend_parse_method_parameters(argc,
-                                     object,
-                                     "Oss|a",
-                                     &object,
-                                     ce,
-                                     &index_name,
-                                     &index_name_len,
-                                     &query,
-                                     &query_len,
-                                     &options_arr) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "Oo", &object, ce, &builder_zval) == FAILURE) {
         return 0;
     }
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     VALIDATE_FT_CLIENT(valkey_glide && valkey_glide->glide_client);
+
+    zval method_name, builder_result;
+    ZVAL_STRING(&method_name, "toArray");
+    if (call_user_function(NULL, builder_zval, &method_name, &builder_result, 0, NULL) != SUCCESS ||
+        Z_TYPE(builder_result) != IS_ARRAY) {
+        zval_dtor(&method_name);
+        zval_dtor(&builder_result);
+        if (!EG(exception)) {
+            zend_throw_exception(
+                get_valkey_glide_exception_ce(),
+                "ftSearch: argument must be an FtSearchBuilder with a toArray() method",
+                0);
+        }
+        return 1;
+    }
+    zval_dtor(&method_name);
+
+    HashTable* result_ht = Z_ARRVAL(builder_result);
+
+    zval* z_index = zend_hash_str_find(result_ht, "index", sizeof("index") - 1);
+    if (!z_index || Z_TYPE_P(z_index) != IS_STRING) {
+        zval_dtor(&builder_result);
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "ftSearch: builder toArray() must return an 'index' string",
+                             0);
+        return 1;
+    }
+
+    zval* z_query = zend_hash_str_find(result_ht, "query", sizeof("query") - 1);
+    if (!z_query || Z_TYPE_P(z_query) != IS_STRING) {
+        zval_dtor(&builder_result);
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "ftSearch: builder toArray() must return a 'query' string",
+                             0);
+        return 1;
+    }
+
+    zval*      z_options = zend_hash_str_find(result_ht, "options", sizeof("options") - 1);
+    HashTable* opts_ht =
+        (z_options && Z_TYPE_P(z_options) == IS_ARRAY) ? Z_ARRVAL_P(z_options) : NULL;
 
     const char** args      = NULL;
     size_t*      lens      = NULL;
@@ -164,19 +218,17 @@ int execute_ft_search_command(zval* object, int argc, zval* return_value, zend_c
     char**       allocated = NULL;
     int          alloc_n   = 0;
 
-    HashTable* opts_ht =
-        (options_arr && Z_TYPE_P(options_arr) == IS_ARRAY) ? Z_ARRVAL_P(options_arr) : NULL;
-
-    if (!build_ft_search_args(index_name,
-                              index_name_len,
-                              query,
-                              query_len,
+    if (!build_ft_search_args(Z_STRVAL_P(z_index),
+                              Z_STRLEN_P(z_index),
+                              Z_STRVAL_P(z_query),
+                              Z_STRLEN_P(z_query),
                               opts_ht,
                               &args,
                               &lens,
                               &count,
                               &allocated,
                               &alloc_n)) {
+        zval_dtor(&builder_result);
         return 1;
     }
 
@@ -189,36 +241,67 @@ int execute_ft_search_command(zval* object, int argc, zval* return_value, zend_c
                                              COMMAND_RESPONSE_NOT_ASSOSIATIVE);
 
     free_ft_collected(args, lens, allocated, alloc_n);
+    zval_dtor(&builder_result);
     return status;
 }
 
 /* ====================================================================
  * FT.AGGREGATE
- * Usage: $client->ftAggregate(string $index, string $query, ?array $options = null)
+ * Usage: $client->ftAggregate(FtAggregateBuilder $builder)
+ *
+ * The builder is a PHP object with a toArray() method that returns:
+ *   ['index' => string, 'query' => string, 'options' => array|null]
  * ==================================================================== */
 int execute_ft_aggregate_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
-    char*                index_name     = NULL;
-    size_t               index_name_len = 0;
-    char*                query          = NULL;
-    size_t               query_len      = 0;
-    zval*                options_arr    = NULL;
+    zval*                builder_zval = NULL;
 
-    if (zend_parse_method_parameters(argc,
-                                     object,
-                                     "Oss|a",
-                                     &object,
-                                     ce,
-                                     &index_name,
-                                     &index_name_len,
-                                     &query,
-                                     &query_len,
-                                     &options_arr) == FAILURE) {
+    if (zend_parse_method_parameters(argc, object, "Oo", &object, ce, &builder_zval) == FAILURE) {
         return 0;
     }
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     VALIDATE_FT_CLIENT(valkey_glide && valkey_glide->glide_client);
+
+    zval method_name, builder_result;
+    ZVAL_STRING(&method_name, "toArray");
+    if (call_user_function(NULL, builder_zval, &method_name, &builder_result, 0, NULL) != SUCCESS ||
+        Z_TYPE(builder_result) != IS_ARRAY) {
+        zval_dtor(&method_name);
+        zval_dtor(&builder_result);
+        if (!EG(exception)) {
+            zend_throw_exception(
+                get_valkey_glide_exception_ce(),
+                "ftAggregate: argument must be an FtAggregateBuilder with a toArray() method",
+                0);
+        }
+        return 1;
+    }
+    zval_dtor(&method_name);
+
+    HashTable* result_ht = Z_ARRVAL(builder_result);
+
+    zval* z_index = zend_hash_str_find(result_ht, "index", sizeof("index") - 1);
+    if (!z_index || Z_TYPE_P(z_index) != IS_STRING) {
+        zval_dtor(&builder_result);
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "ftAggregate: builder toArray() must return an 'index' string",
+                             0);
+        return 1;
+    }
+
+    zval* z_query = zend_hash_str_find(result_ht, "query", sizeof("query") - 1);
+    if (!z_query || Z_TYPE_P(z_query) != IS_STRING) {
+        zval_dtor(&builder_result);
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "ftAggregate: builder toArray() must return a 'query' string",
+                             0);
+        return 1;
+    }
+
+    zval*      z_options = zend_hash_str_find(result_ht, "options", sizeof("options") - 1);
+    HashTable* opts_ht =
+        (z_options && Z_TYPE_P(z_options) == IS_ARRAY) ? Z_ARRVAL_P(z_options) : NULL;
 
     const char** args      = NULL;
     size_t*      lens      = NULL;
@@ -226,19 +309,17 @@ int execute_ft_aggregate_command(zval* object, int argc, zval* return_value, zen
     char**       allocated = NULL;
     int          alloc_n   = 0;
 
-    HashTable* opts_ht =
-        (options_arr && Z_TYPE_P(options_arr) == IS_ARRAY) ? Z_ARRVAL_P(options_arr) : NULL;
-
-    if (!build_ft_aggregate_args(index_name,
-                                 index_name_len,
-                                 query,
-                                 query_len,
+    if (!build_ft_aggregate_args(Z_STRVAL_P(z_index),
+                                 Z_STRLEN_P(z_index),
+                                 Z_STRVAL_P(z_query),
+                                 Z_STRLEN_P(z_query),
                                  opts_ht,
                                  &args,
                                  &lens,
                                  &count,
                                  &allocated,
                                  &alloc_n)) {
+        zval_dtor(&builder_result);
         return 1;
     }
 
@@ -251,6 +332,7 @@ int execute_ft_aggregate_command(zval* object, int argc, zval* return_value, zen
                                              COMMAND_RESPONSE_NOT_ASSOSIATIVE);
 
     free_ft_collected(args, lens, allocated, alloc_n);
+    zval_dtor(&builder_result);
     return status;
 }
 

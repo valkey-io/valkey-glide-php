@@ -73,6 +73,11 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests
 */
 
 require_once __DIR__ . "/ValkeyGlideBaseTest.php";
+foreach (glob(__DIR__ . '/../Search/*.php') as $file) {
+    require_once $file;
+}
+
+use ValkeyGlide\Search\{FtCreateBuilder, FtTextField, FtNumericField, FtTagField, FtVectorField, FtSearchBuilder, FtAggregateBuilder, FtReducer};
 
 /**
  * Integration tests for FT.* (Valkey Search) commands.
@@ -118,10 +123,11 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $idx = uniqid('phptest_');
         try {
-            $result = $this->getClient()->ftCreate($idx, [
-                ['name' => 'vec', 'type' => 'VECTOR', 'algorithm' => 'HNSW',
-                 'dim' => 2, 'metric' => 'L2'],
-            ]);
+            $result = $this->getClient()->ftCreate(
+                (new FtCreateBuilder())
+                    ->index($idx)
+                    ->addField(FtVectorField::hnsw('vec', 2, 'L2'))
+            );
             $this->assertTrue($result);
         } finally {
             $this->getClient()->ftDropIndex($idx);
@@ -133,10 +139,13 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $idx = uniqid('phptest_');
         try {
-            $result = $this->getClient()->ftCreate($idx, [
-                ['name' => '$.vec', 'alias' => 'VEC', 'type' => 'VECTOR',
-                 'algorithm' => 'FLAT', 'dim' => 6, 'metric' => 'L2'],
-            ], ['ON' => 'JSON', 'PREFIX' => ['json:']]);
+            $result = $this->getClient()->ftCreate(
+                (new FtCreateBuilder())
+                    ->index($idx)
+                    ->on('JSON')
+                    ->prefix(['json:'])
+                    ->addField(FtVectorField::flat('$.vec', 6, 'L2')->alias('VEC'))
+            );
             $this->assertTrue($result);
         } finally {
             $this->getClient()->ftDropIndex($idx);
@@ -148,12 +157,16 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $idx = uniqid('phptest_');
         try {
-            $result = $this->getClient()->ftCreate($idx, [
-                ['name' => 'doc_embedding', 'type' => 'VECTOR', 'algorithm' => 'HNSW',
-                 'dim' => 1536, 'metric' => 'COSINE',
-                 'initial_cap' => 1000, 'm' => 40,
-                 'ef_construction' => 250, 'ef_runtime' => 40],
-            ], ['ON' => 'HASH', 'PREFIX' => ['docs:']]);
+            $result = $this->getClient()->ftCreate(
+                (new FtCreateBuilder())
+                    ->index($idx)
+                    ->on('HASH')
+                    ->prefix(['docs:'])
+                    ->addField(
+                        FtVectorField::hnsw('doc_embedding', 1536, 'COSINE')
+                            ->initialCap(1000)->m(40)->efConstruction(250)->efRuntime(40)
+                    )
+            );
             $this->assertTrue($result);
         } finally {
             $this->getClient()->ftDropIndex($idx);
@@ -165,11 +178,15 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $idx = uniqid('phptest_');
         try {
-            $result = $this->getClient()->ftCreate($idx, [
-                ['name' => 'title', 'type' => 'TEXT'],
-                ['name' => 'published_at', 'type' => 'NUMERIC'],
-                ['name' => 'category', 'type' => 'TAG'],
-            ], ['ON' => 'HASH', 'PREFIX' => ['blog:post:']]);
+            $result = $this->getClient()->ftCreate(
+                (new FtCreateBuilder())
+                    ->index($idx)
+                    ->on('HASH')
+                    ->prefix(['blog:post:'])
+                    ->addField(new FtTextField('title'))
+                    ->addField(new FtNumericField('published_at'))
+                    ->addField(new FtTagField('category'))
+            );
             $this->assertTrue($result);
         } finally {
             $this->getClient()->ftDropIndex($idx);
@@ -180,15 +197,15 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
     {
         $this->skipIfModuleNotAvailable();
         $idx = uniqid('phptest_');
-        $this->getClient()->ftCreate($idx, [
-            ['name' => 'title', 'type' => 'TEXT'],
-        ]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())->index($idx)->addField(new FtTextField('title'))
+        );
         try {
             $threw = false;
             try {
-                $this->getClient()->ftCreate($idx, [
-                    ['name' => 'title', 'type' => 'TEXT'],
-                ]);
+                $this->getClient()->ftCreate(
+                    (new FtCreateBuilder())->index($idx)->addField(new FtTextField('title'))
+                );
             } catch (\Throwable $e) {
                 $threw = true;
             }
@@ -198,16 +215,35 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         }
     }
 
+    public function testFtCreateDuplicateFieldThrows()
+    {
+        $this->skipIfModuleNotAvailable();
+        $threw = false;
+        try {
+            $this->getClient()->ftCreate(
+                (new FtCreateBuilder())
+                    ->index(uniqid('phptest_'))
+                    ->on('HASH')
+                    ->prefix(['dup:'])
+                    ->addField(new FtTextField('name'))
+                    ->addField(new FtTextField('name'))
+            );
+        } catch (\Throwable $e) {
+            $threw = true;
+            $this->assertStringContains('Duplicate', $e->getMessage());
+        }
+        $this->assertTrue($threw);
+    }
+
     /* ── FT.DROPINDEX + FT._LIST ───────────────────────────────────── */
 
     public function testFtDropIndexAndList()
     {
         $this->skipIfModuleNotAvailable();
         $idx = uniqid('phptest_');
-        $this->getClient()->ftCreate($idx, [
-            ['name' => 'vec', 'type' => 'VECTOR', 'algorithm' => 'HNSW',
-             'dim' => 2, 'metric' => 'L2'],
-        ]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())->index($idx)->addField(FtVectorField::hnsw('vec', 2, 'L2'))
+        );
         try {
             $before = $this->getClient()->ftList();
             $this->assertTrue(in_array($idx, $before, true));
@@ -237,10 +273,13 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $prefix = '{' . uniqid() . '}:';
         $idx = $prefix . 'index';
-        $this->getClient()->ftCreate($idx, [
-            ['name' => 'vec', 'alias' => 'VEC', 'type' => 'VECTOR',
-             'algorithm' => 'HNSW', 'dim' => 2, 'metric' => 'L2'],
-        ], ['ON' => 'HASH', 'PREFIX' => [$prefix]]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField(FtVectorField::hnsw('vec', 2, 'L2')->alias('VEC'))
+        );
 
         try {
             $vec0 = str_repeat("\x00", 8);
@@ -250,12 +289,11 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
             usleep(1500000);
 
             $result = $this->getClient()->ftSearch(
-                $idx,
-                '*=>[KNN 2 @VEC $query_vec]',
-                [
-                    'PARAMS' => ['query_vec' => $vec0],
-                    'RETURN' => ['vec'],
-                ]
+                (new FtSearchBuilder())
+                    ->index($idx)
+                    ->query('*=>[KNN 2 @VEC $query_vec]')
+                    ->params(['query_vec' => $vec0])
+                    ->returnFields(['vec'])
             );
             $this->assertIsArray($result);
             $this->assertEquals(2, $result[0]);
@@ -272,11 +310,289 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $threw = false;
         try {
-            $this->getClient()->ftSearch('nonexistent_' . uniqid(), '*');
+            $this->getClient()->ftSearch(
+                (new FtSearchBuilder())->index('nonexistent_' . uniqid())->query('*')
+            );
         } catch (\Throwable $e) {
             $threw = true;
         }
         $this->assertTrue($threw);
+    }
+
+    public function testFtSearchNoContent()
+    {
+        $this->skipIfModuleNotAvailable();
+        $prefix = '{' . uniqid() . '}:';
+        $idx = $prefix . 'index';
+        $key = $prefix . 'doc';
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField(new FtTextField('title'))
+        );
+
+        try {
+            $this->getClient()->hSet($key, 'title', 'hello world');
+            usleep(1500000);
+
+            // NOCONTENT: only keys returned, no field content
+            $result = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())
+                    ->index($idx)
+                    ->query('hello')
+                    ->noContent()
+            );
+            $this->assertIsArray($result);
+            $this->assertEquals(1, $result[0]);
+            // Result should contain the key but no field data
+            $this->assertIsArray($result[1]);
+            $this->assertEquals($key, $result[1][0]);
+        } finally {
+            $this->getClient()->ftDropIndex($idx);
+        }
+    }
+
+    public function testFtSearchDialect()
+    {
+        $this->skipIfModuleNotAvailable();
+        $prefix = '{' . uniqid() . '}:';
+        $idx = $prefix . 'index';
+        $key = $prefix . 'doc';
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField(new FtTextField('title'))
+        );
+
+        try {
+            $this->getClient()->hSet($key, 'title', 'hello world');
+            usleep(1500000);
+
+            // dialect 2 is accepted; assert the document is returned
+            $result = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())
+                    ->index($idx)
+                    ->query('hello')
+                    ->dialect(2)
+            );
+            $this->assertIsArray($result);
+            $this->assertEquals(1, $result[0]);
+        } finally {
+            $this->getClient()->ftDropIndex($idx);
+        }
+    }
+
+    public function testFtSearchDialectInvalid()
+    {
+        $this->skipIfModuleNotAvailable();
+        $prefix = '{' . uniqid() . '}:';
+        $idx = $prefix . 'index';
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField(new FtTextField('title'))
+        );
+
+        try {
+            // dialect < 2 is not supported; expect an error
+            $threw = false;
+            try {
+                $this->getClient()->ftSearch(
+                    (new FtSearchBuilder())
+                        ->index($idx)
+                        ->query('hello')
+                        ->dialect(1)
+                );
+            } catch (\Throwable $e) {
+                $threw = true;
+                $this->assertStringContains('DIALECT', $e->getMessage());
+            }
+            $this->assertTrue($threw);
+        } finally {
+            $this->getClient()->ftDropIndex($idx);
+        }
+    }
+
+    public function testFtSearchSortBy()
+    {
+        $this->skipIfModuleNotAvailable();
+        $prefix = '{' . uniqid() . '}:';
+        $idx = $prefix . 'index';
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField((new FtNumericField('price'))->sortable())
+                ->addField(new FtTextField('name'))
+        );
+
+        try {
+            $this->getClient()->hSet($prefix . '1', ['price' => '10', 'name' => 'Aardvark']);
+            $this->getClient()->hSet($prefix . '2', ['price' => '20', 'name' => 'Mango']);
+            $this->getClient()->hSet($prefix . '3', ['price' => '30', 'name' => 'Zebra']);
+            usleep(1500000);
+
+            // SORTBY price ASC
+            $result = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())
+                    ->index($idx)
+                    ->query('@price:[1 +inf]')
+                    ->sortBy('price', 'ASC')
+            );
+            $this->assertIsArray($result);
+            $this->assertEquals(3, $result[0]);
+            // First result should have lowest price
+            $fields = $result[1][1];
+            $priceIdx = array_search('price', $fields);
+            $this->assertTrue($priceIdx !== false);
+            $this->assertEquals('10', $fields[$priceIdx + 1]);
+
+            // SORTBY price DESC
+            $result = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())
+                    ->index($idx)
+                    ->query('@price:[1 +inf]')
+                    ->sortBy('price', 'DESC')
+            );
+            $this->assertIsArray($result);
+            $this->assertEquals(3, $result[0]);
+            // First result should have highest price
+            $fields = $result[1][1];
+            $priceIdx = array_search('price', $fields);
+            $this->assertTrue($priceIdx !== false);
+            $this->assertEquals('30', $fields[$priceIdx + 1]);
+        } finally {
+            $this->getClient()->ftDropIndex($idx);
+        }
+    }
+
+    public function testFtSearchWithSortKeys()
+    {
+        $this->skipIfModuleNotAvailable();
+        $prefix = '{' . uniqid() . '}:';
+        $idx = $prefix . 'index';
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField((new FtNumericField('price'))->sortable())
+                ->addField(new FtTextField('name'))
+        );
+
+        try {
+            $this->getClient()->hSet($prefix . '1', ['price' => '10', 'name' => 'Aardvark']);
+            $this->getClient()->hSet($prefix . '2', ['price' => '20', 'name' => 'Mango']);
+            $this->getClient()->hSet($prefix . '3', ['price' => '30', 'name' => 'Zebra']);
+            usleep(1500000);
+
+            // WITHSORTKEYS — each doc value becomes [sortKey, fieldMap]
+            $result = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())
+                    ->index($idx)
+                    ->query('@price:[1 +inf]')
+                    ->sortBy('price', 'ASC')
+                    ->withSortKeys()
+            );
+            $this->assertIsArray($result);
+            $this->assertEquals(3, $result[0]);
+            $this->assertIsArray($result[1]);
+
+            // Result[1] is a flat map: [key, [sortkey, [fields...]], key, [sortkey, [fields...]], ...]
+            $docs = $result[1];
+            $this->assertEquals(6, count($docs)); // 3 docs × 2 (key + value)
+
+            $expectedPrices = ['10', '20', '30'];
+            for ($i = 0; $i < 3; $i++) {
+                $docKey = $docs[$i * 2];
+                $docValue = $docs[$i * 2 + 1];
+
+                // docKey should be a string (the hash key)
+                $this->assertIsString($docKey);
+
+                // docValue should be [sortKey, fieldMap]
+                $this->assertIsArray($docValue);
+                $this->assertEquals(2, count($docValue));
+
+                // Sort key for numeric fields is prefixed with #
+                $sortKey = $docValue[0];
+                $this->assertIsString($sortKey);
+                $this->assertStringContains($expectedPrices[$i], $sortKey);
+
+                // Field map is a flat array: [field, val, field, val, ...]
+                $fieldArr = $docValue[1];
+                $this->assertIsArray($fieldArr);
+                $fieldMap = [];
+                for ($j = 0; $j < count($fieldArr); $j += 2) {
+                    $fieldMap[$fieldArr[$j]] = $fieldArr[$j + 1];
+                }
+                $this->assertEquals($expectedPrices[$i], $fieldMap['price']);
+            }
+        } finally {
+            $this->getClient()->ftDropIndex($idx);
+        }
+    }
+
+    public function testFtSearchTextQueryFlags()
+    {
+        $this->skipIfModuleNotAvailable();
+        $prefix = '{' . uniqid() . '}:';
+        $idx = $prefix . 'index';
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField(new FtTextField('title'))
+        );
+
+        try {
+            $this->getClient()->hSet($prefix . '1', 'title', 'hello world');
+            $this->getClient()->hSet($prefix . '2', 'title', 'hello there');
+            $this->getClient()->hSet($prefix . '3', 'title', 'goodbye world');
+            $this->getClient()->hSet($prefix . '4', 'title', 'world hello');
+            usleep(1500000);
+
+            // VERBATIM — no stemming
+            $result = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())
+                    ->index($idx)
+                    ->query('hello')
+                    ->verbatim()
+            );
+            $this->assertIsArray($result);
+            $this->assertEquals(3, $result[0]); // hello world, hello there, world hello
+
+            // SLOP without INORDER — proximity match in any order
+            $result = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())
+                    ->index($idx)
+                    ->query('hello world')
+                    ->slop(1)
+            );
+            $this->assertIsArray($result);
+            $this->assertEquals(2, $result[0]); // hello world, world hello
+
+            // SLOP with INORDER — proximity match in order only
+            $result = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())
+                    ->index($idx)
+                    ->query('hello world')
+                    ->inOrder()
+                    ->slop(1)
+            );
+            $this->assertIsArray($result);
+            $this->assertEquals(1, $result[0]); // hello world only
+        } finally {
+            $this->getClient()->ftDropIndex($idx);
+        }
     }
 
     /* ── FT.INFO ───────────────────────────────────────────────────── */
@@ -285,11 +601,14 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
     {
         $this->skipIfModuleNotAvailable();
         $idx = uniqid('phptest_');
-        $this->getClient()->ftCreate($idx, [
-            ['name' => '$.vec', 'alias' => 'VEC', 'type' => 'VECTOR',
-             'algorithm' => 'HNSW', 'dim' => 42, 'metric' => 'COSINE'],
-            ['name' => '$.name', 'alias' => 'name', 'type' => 'TEXT'],
-        ], ['ON' => 'JSON', 'PREFIX' => ['123']]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('JSON')
+                ->prefix(['123'])
+                ->addField(FtVectorField::hnsw('$.vec', 42, 'COSINE')->alias('VEC'))
+                ->addField((new FtTextField('$.name'))->alias('name'))
+        );
         try {
             $info = $this->getClient()->ftInfo($idx);
             $this->assertIsArray($info);
@@ -324,10 +643,9 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $alias1 = 'alias1-' . uniqid();
         $alias2 = 'alias2-' . uniqid();
         $idx = uniqid() . '-index';
-        $this->getClient()->ftCreate($idx, [
-            ['name' => 'vec', 'type' => 'VECTOR', 'algorithm' => 'FLAT',
-             'dim' => 2, 'metric' => 'L2'],
-        ]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())->index($idx)->addField(FtVectorField::flat('vec', 2, 'L2'))
+        );
 
         try {
             $r = $this->getClient()->ftAliasAdd($alias1, $idx);
@@ -376,11 +694,15 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $prefix = '{bicycles' . uniqid() . '}:';
         $idx = $prefix . 'idx';
-        $this->getClient()->ftCreate($idx, [
-            ['name' => 'model', 'type' => 'TEXT'],
-            ['name' => 'price', 'type' => 'NUMERIC'],
-            ['name' => 'condition', 'type' => 'TAG', 'separator' => ','],
-        ], ['ON' => 'HASH', 'PREFIX' => [$prefix]]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField(new FtTextField('model'))
+                ->addField(new FtNumericField('price'))
+                ->addField((new FtTagField('condition'))->separator(','))
+        );
 
         try {
             $conditions = ['new', 'used', 'used', 'used', 'used', 'new', 'new', 'new', 'new', 'refurbished'];
@@ -390,11 +712,209 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
             usleep(1500000);
 
             $result = $this->getClient()->ftAggregate(
-                $idx,
-                '@condition:{new|used|refurbished}',
-                ['LOAD', '1', '__key', 'GROUPBY', '1', '@condition', 'REDUCE', 'COUNT', '0', 'AS', 'bicycles']
+                (new FtAggregateBuilder())
+                    ->index($idx)
+                    ->query('@condition:{new|used|refurbished}')
+                    ->load(['__key', '@condition'])
+                    ->groupBy(['@condition'], [
+                        FtReducer::count()->as('bicycles'),
+                    ])
             );
             $this->assertIsArray($result);
+            $this->assertCount(3, $result);
+
+            // Build a condition => count map from the flat result rows
+            $groups = [];
+            foreach ($result as $row) {
+                $this->assertIsArray($row);
+                // Each row is a flat array: ["condition", <value>, "bicycles", <count>]
+                $condIdx = array_search('condition', $row);
+                $bikeIdx = array_search('bicycles', $row);
+                $this->assertTrue($condIdx !== false);
+                $this->assertTrue($bikeIdx !== false);
+                $groups[$row[$condIdx + 1]] = (int) $row[$bikeIdx + 1];
+            }
+
+            $this->assertArrayHasKey('new', $groups);
+            $this->assertArrayHasKey('used', $groups);
+            $this->assertArrayHasKey('refurbished', $groups);
+            $this->assertEquals(5, $groups['new']);
+            $this->assertEquals(4, $groups['used']);
+            $this->assertEquals(1, $groups['refurbished']);
+        } finally {
+            $this->getClient()->ftDropIndex($idx);
+        }
+    }
+
+    public function testFtAggregateMovies()
+    {
+        $this->skipIfModuleNotAvailable();
+        $prefix = '{movies' . uniqid() . '}:';
+        $idx = $prefix . 'idx';
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField(new FtTextField('title'))
+                ->addField(new FtNumericField('release_year'))
+                ->addField(new FtNumericField('rating'))
+                ->addField(new FtTagField('genre'))
+                ->addField(new FtNumericField('votes'))
+        );
+
+        try {
+            $this->getClient()->hSet($prefix . '11002', [
+                'title' => 'Star Wars V', 'release_year' => '1980',
+                'genre' => 'Action', 'rating' => '8.7', 'votes' => '1127635',
+            ]);
+            $this->getClient()->hSet($prefix . '11003', [
+                'title' => 'The Godfather', 'release_year' => '1972',
+                'genre' => 'Drama', 'rating' => '9.2', 'votes' => '1563839',
+            ]);
+            $this->getClient()->hSet($prefix . '11004', [
+                'title' => 'Heat', 'release_year' => '1995',
+                'genre' => 'Thriller', 'rating' => '8.2', 'votes' => '559490',
+            ]);
+            $this->getClient()->hSet($prefix . '11005', [
+                'title' => 'Star Wars VI', 'release_year' => '1983',
+                'genre' => 'Action', 'rating' => '8.3', 'votes' => '906260',
+            ]);
+            usleep(1500000);
+
+            // APPLY ceil(@rating) + GROUPBY genre with COUNT, SUM, AVG + SORTBY
+            $result = $this->getClient()->ftAggregate(
+                (new FtAggregateBuilder())
+                    ->index($idx)
+                    ->query('@genre:{Action|Drama|Thriller}')
+                    ->load(['@genre', '@rating', '@votes'])
+                    ->apply('ceil(@rating)', 'r_rating')
+                    ->groupBy(['@genre'], [
+                        FtReducer::count()->as('nb_of_movies'),
+                        FtReducer::sum('@votes')->as('nb_of_votes'),
+                        FtReducer::avg('@r_rating')->as('avg_rating'),
+                    ])
+                    ->sortBy(['@avg_rating' => 'DESC', '@nb_of_votes' => 'DESC'])
+            );
+            $this->assertIsArray($result);
+            $this->assertCount(3, $result);
+
+            // Build genre => fields map from the flat result rows
+            $genres = [];
+            foreach ($result as $row) {
+                $this->assertIsArray($row);
+                $genreIdx = array_search('genre', $row);
+                $this->assertTrue($genreIdx !== false);
+                $genre = $row[$genreIdx + 1];
+                $fields = [];
+                for ($i = 0; $i < count($row); $i += 2) {
+                    $fields[$row[$i]] = $row[$i + 1];
+                }
+                $genres[$genre] = $fields;
+            }
+
+            // Verify sorted order: Drama (avg 10), Action (avg 9), Thriller (avg 9)
+            $genreKeys = array_keys($genres);
+            $this->assertEquals('Drama', $genreKeys[0]);
+            $this->assertEquals('Action', $genreKeys[1]);
+            $this->assertEquals('Thriller', $genreKeys[2]);
+
+            // Drama: 1 movie, ceil(9.2)=10
+            $this->assertEquals('1', $genres['Drama']['nb_of_movies']);
+            $this->assertEquals('10', $genres['Drama']['avg_rating']);
+
+            // Action: 2 movies, avg(ceil(8.7), ceil(8.3)) = avg(9, 9) = 9
+            $this->assertEquals('2', $genres['Action']['nb_of_movies']);
+            $this->assertEquals('9', $genres['Action']['avg_rating']);
+
+            // Thriller: 1 movie, ceil(8.2)=9
+            $this->assertEquals('1', $genres['Thriller']['nb_of_movies']);
+            $this->assertEquals('9', $genres['Thriller']['avg_rating']);
+        } finally {
+            $this->getClient()->ftDropIndex($idx);
+        }
+    }
+
+    public function testFtAggregateQueryFlags()
+    {
+        $this->skipIfModuleNotAvailable();
+        $prefix = '{aggflags' . uniqid() . '}:';
+        $idx = $prefix . 'idx';
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField(new FtNumericField('score'))
+                ->addField(new FtTextField('title'))
+        );
+
+        try {
+            $this->getClient()->hSet($prefix . '1', ['score' => '10', 'title' => 'hello world']);
+            $this->getClient()->hSet($prefix . '2', ['score' => '20', 'title' => 'hello there']);
+            usleep(1500000);
+
+            // VERBATIM — disables stemming; both docs match, no LOAD so empty rows
+            $result = $this->getClient()->ftAggregate(
+                (new FtAggregateBuilder())
+                    ->index($idx)
+                    ->query('@score:[1 +inf]')
+                    ->verbatim()
+            );
+            $this->assertIsArray($result);
+            $this->assertCount(2, $result);
+            foreach ($result as $row) {
+                $this->assertIsArray($row);
+                $this->assertCount(0, $row);
+            }
+
+            // INORDER + SLOP — proximity matching flags accepted
+            $result = $this->getClient()->ftAggregate(
+                (new FtAggregateBuilder())
+                    ->index($idx)
+                    ->query('@score:[1 +inf]')
+                    ->inOrder()
+                    ->slop(1)
+            );
+            $this->assertIsArray($result);
+            $this->assertCount(2, $result);
+            foreach ($result as $row) {
+                $this->assertIsArray($row);
+                $this->assertCount(0, $row);
+            }
+
+            // DIALECT
+            $result = $this->getClient()->ftAggregate(
+                (new FtAggregateBuilder())
+                    ->index($idx)
+                    ->query('@score:[1 +inf]')
+                    ->dialect(2)
+            );
+            $this->assertIsArray($result);
+            $this->assertCount(2, $result);
+            foreach ($result as $row) {
+                $this->assertIsArray($row);
+                $this->assertCount(0, $row);
+            }
+
+            // LOAD with explicit fields — single matching doc returns field values
+            $result = $this->getClient()->ftAggregate(
+                (new FtAggregateBuilder())
+                    ->index($idx)
+                    ->query('@score:[20 +inf]')
+                    ->load(['@score', '@title'])
+            );
+            $this->assertIsArray($result);
+            $this->assertCount(1, $result);
+            $row = $result[0];
+            $this->assertIsArray($row);
+            $this->assertTrue(count($row) > 0);
+            // Convert flat row to map
+            $fields = [];
+            for ($i = 0; $i < count($row); $i += 2) {
+                $fields[$row[$i]] = $row[$i + 1];
+            }
+            $this->assertEquals('hello there', $fields['title']);
         } finally {
             $this->getClient()->ftDropIndex($idx);
         }
@@ -408,15 +928,16 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $prefix = '{' . uniqid() . '}:';
         $idx = $prefix . 'idx';
         try {
-            $result = $this->getClient()->ftCreate($idx, [
-                ['name' => 'title', 'type' => 'TEXT'],
-            ], [
-                'ON' => 'HASH',
-                'PREFIX' => [$prefix],
-                'SCORE' => 1,
-                'LANGUAGE' => 'english',
-                'SKIPINITIALSCAN' => true,
-            ]);
+            $result = $this->getClient()->ftCreate(
+                (new FtCreateBuilder())
+                    ->index($idx)
+                    ->on('HASH')
+                    ->prefix([$prefix])
+                    ->score(1)
+                    ->language('english')
+                    ->skipInitialScan()
+                    ->addField(new FtTextField('title'))
+            );
             $this->assertTrue($result);
         } finally {
             $this->getClient()->ftDropIndex($idx);
@@ -428,18 +949,62 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $prefix = '{' . uniqid() . '}:';
         $idx = $prefix . 'idx';
-        $this->getClient()->ftCreate($idx, [
-            ['name' => 'title', 'type' => 'TEXT'],
-        ], [
-            'ON' => 'HASH',
-            'PREFIX' => [$prefix],
-            'NOSTOPWORDS' => true,
-        ]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)->on('HASH')->prefix([$prefix])
+                ->noStopWords()
+                ->addField(new FtTextField('title'))
+        );
         try {
             $this->getClient()->hSet($prefix . '1', 'title', 'the quick fox');
             usleep(1500000);
-            $result = $this->getClient()->ftSearch($idx, 'the');
+            $result = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())->index($idx)->query('the')
+            );
             $this->assertIsArray($result);
+        } finally {
+            $this->getClient()->ftDropIndex($idx);
+        }
+    }
+
+    public function testFtCreateStopWords()
+    {
+        $this->skipIfModuleNotAvailable();
+        $prefix = '{' . uniqid() . '}:';
+        $idx = $prefix . 'idx';
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)->on('HASH')->prefix([$prefix])
+                ->stopWords(['fox', 'an'])
+                ->addField(new FtTextField('title'))
+        );
+        try {
+            $this->getClient()->hSet($prefix . '1', 'title', 'the quick fox');
+            usleep(1500000);
+
+            // "the" and "quick" are not stop words, so they should be searchable
+            $result = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())->index($idx)->query('the')
+            );
+            $this->assertIsArray($result);
+            $this->assertEquals(1, $result[0]);
+
+            $result = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())->index($idx)->query('quick')
+            );
+            $this->assertIsArray($result);
+            $this->assertEquals(1, $result[0]);
+
+            // "fox" is a custom stop word, so searching for it should fail
+            $threw = false;
+            try {
+                $this->getClient()->ftSearch(
+                    (new FtSearchBuilder())->index($idx)->query('fox')
+                );
+            } catch (\Throwable $e) {
+                $threw = true;
+            }
+            $this->assertTrue($threw);
         } finally {
             $this->getClient()->ftDropIndex($idx);
         }
@@ -450,20 +1015,25 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $prefix = '{' . uniqid() . '}:';
         $idx = $prefix . 'idx';
-        $this->getClient()->ftCreate($idx, [
-            ['name' => 'title', 'type' => 'TEXT'],
-        ], [
-            'ON' => 'HASH',
-            'PREFIX' => [$prefix],
-            'MINSTEMSIZE' => 6,
-        ]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->minStemSize(6)
+                ->addField(new FtTextField('title'))
+        );
         try {
             $this->getClient()->hSet($prefix . '1', 'title', 'running');
             $this->getClient()->hSet($prefix . '2', 'title', 'plays');
             usleep(1500000);
-            $r = $this->getClient()->ftSearch($idx, 'run');
+            $r = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())->index($idx)->query('run')
+            );
             $this->assertIsArray($r);
-            $r = $this->getClient()->ftSearch($idx, 'play');
+            $r = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())->index($idx)->query('play')
+            );
             $this->assertIsArray($r);
         } finally {
             $this->getClient()->ftDropIndex($idx);
@@ -475,22 +1045,27 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $prefix = '{' . uniqid() . '}:';
         $idx = $prefix . 'idx';
-        $this->getClient()->ftCreate($idx, [
-            ['name' => 'title', 'type' => 'TEXT'],
-        ], [
-            'ON' => 'HASH',
-            'PREFIX' => [$prefix],
-            'NOOFFSETS' => true,
-        ]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->noOffsets()
+                ->addField(new FtTextField('title'))
+        );
         try {
             $this->getClient()->hSet($prefix . '1', 'title', 'hello');
             usleep(1500000);
-            $r = $this->getClient()->ftSearch($idx, 'hello');
+            $r = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())->index($idx)->query('hello')
+            );
             $this->assertIsArray($r);
             // SLOP requires offsets - should fail
             $threw = false;
             try {
-                $this->getClient()->ftSearch($idx, 'hello', ['SLOP' => 1]);
+                $this->getClient()->ftSearch(
+                    (new FtSearchBuilder())->index($idx)->query('hello')->slop(1)
+                );
             } catch (\Throwable $e) {
                 $threw = true;
             }
@@ -507,23 +1082,31 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $prefix = '{' . uniqid() . '}:';
         $idx = $prefix . 'idx';
-        $this->getClient()->ftCreate($idx, [
-            ['name' => 'title', 'type' => 'TEXT', 'nostem' => true, 'weight' => 1, 'sortable' => true],
-            ['name' => 'price', 'type' => 'NUMERIC', 'sortable' => true],
-            ['name' => 'tag', 'type' => 'TAG', 'separator' => ',', 'sortable' => true],
-        ], ['ON' => 'HASH', 'PREFIX' => [$prefix]]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField((new FtTextField('title'))->noStem()->weight(1)->sortable())
+                ->addField((new FtNumericField('price'))->sortable())
+                ->addField((new FtTagField('tag'))->separator(',')->sortable())
+        );
         try {
             $this->getClient()->hSet($prefix . '1', ['title' => 'hello', 'price' => '10', 'tag' => 'a,b']);
             usleep(1500000);
 
-            $r = $this->getClient()->ftSearch($idx, '@price:[1 +inf]', [
-                'SORTBY' => ['price', 'ASC'],
-            ]);
+            $r = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())->index($idx)->query('@price:[1 +inf]')->sortBy('price', 'ASC')
+            );
             $this->assertIsArray($r);
 
-            $r = $this->getClient()->ftSearch($idx, 'hello');
+            $r = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())->index($idx)->query('hello')
+            );
             $this->assertIsArray($r);
-            $r = $this->getClient()->ftSearch($idx, 'hellos');
+            $r = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())->index($idx)->query('hellos')
+            );
             $this->assertIsArray($r);
         } finally {
             $this->getClient()->ftDropIndex($idx);
@@ -535,13 +1118,19 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $prefix = '{' . uniqid() . '}:';
         $idx = $prefix . 'idx';
-        $this->getClient()->ftCreate($idx, [
-            ['name' => 'title', 'type' => 'TEXT', 'withsuffixtrie' => true],
-        ], ['ON' => 'HASH', 'PREFIX' => [$prefix]]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField((new FtTextField('title'))->withSuffixTrie())
+        );
         try {
             $this->getClient()->hSet($prefix . '1', 'title', 'hello world');
             usleep(1500000);
-            $r = $this->getClient()->ftSearch($idx, '*orld');
+            $r = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())->index($idx)->query('*orld')
+            );
             $this->assertIsArray($r);
         } finally {
             $this->getClient()->ftDropIndex($idx);
@@ -553,15 +1142,19 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $prefix = '{' . uniqid() . '}:';
         $idx = $prefix . 'idx';
-        $this->getClient()->ftCreate($idx, [
-            ['name' => 'title', 'type' => 'TEXT', 'nosuffixtrie' => true],
-        ], ['ON' => 'HASH', 'PREFIX' => [$prefix]]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)->on('HASH')->prefix([$prefix])
+                ->addField((new FtTextField('title'))->noSuffixTrie())
+        );
         try {
             $this->getClient()->hSet($prefix . '1', 'title', 'hello world');
             usleep(1500000);
             $threw = false;
             try {
-                $this->getClient()->ftSearch($idx, '*orld');
+                $this->getClient()->ftSearch(
+                    (new FtSearchBuilder())->index($idx)->query('*orld')
+                );
             } catch (\Throwable $e) {
                 $threw = true;
             }
@@ -579,10 +1172,14 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $prefix = '{' . uniqid() . '}:';
         $idx = $prefix . 'idx';
-        $this->getClient()->ftCreate($idx, [
-            ['name' => 'tag', 'type' => 'TAG'],
-            ['name' => 'score', 'type' => 'NUMERIC'],
-        ], ['ON' => 'HASH', 'PREFIX' => [$prefix]]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField(new FtTagField('tag'))
+                ->addField(new FtNumericField('score'))
+        );
 
         try {
             $this->getClient()->hSet($prefix . '1', 'tag', 'test', 'score', '1');
@@ -590,17 +1187,17 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
             usleep(1500000);
 
             // SOMESHARDS + INCONSISTENT
-            $r = $this->getClient()->ftSearch($idx, '@tag:{test}', [
-                'SOMESHARDS' => true,
-                'INCONSISTENT' => true,
-            ]);
+            $r = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())->index($idx)->query('@tag:{test}')
+                    ->someShards()->inconsistent()
+            );
             $this->assertIsArray($r);
 
             // ALLSHARDS + CONSISTENT
-            $r = $this->getClient()->ftSearch($idx, '@tag:{test}', [
-                'ALLSHARDS' => true,
-                'CONSISTENT' => true,
-            ]);
+            $r = $this->getClient()->ftSearch(
+                (new FtSearchBuilder())->index($idx)->query('@tag:{test}')
+                    ->allShards()->consistent()
+            );
             $this->assertIsArray($r);
         } finally {
             $this->getClient()->ftDropIndex($idx);
@@ -614,9 +1211,10 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $prefix = '{' . uniqid() . '}:';
         $idx = $prefix . 'idx';
-        $this->getClient()->ftCreate($idx, [
-            ['name' => 'title', 'type' => 'TEXT'],
-        ], ['ON' => 'HASH', 'PREFIX' => [$prefix]]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())->index($idx)->on('HASH')->prefix([$prefix])
+                ->addField(new FtTextField('title'))
+        );
         try {
             $this->getClient()->hSet($prefix . '1', 'title', 'hello world');
             usleep(1500000);
@@ -650,9 +1248,10 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $prefix = '{' . uniqid() . '}:';
         $idx = $prefix . 'idx';
-        $this->getClient()->ftCreate($idx, [
-            ['name' => 'title', 'type' => 'TEXT'],
-        ], ['ON' => 'HASH', 'PREFIX' => [$prefix]]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())->index($idx)->on('HASH')->prefix([$prefix])
+                ->addField(new FtTextField('title'))
+        );
         try {
             $this->getClient()->hSet($prefix . '1', 'title', 'hello world');
             usleep(1500000);
@@ -683,11 +1282,15 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         $this->skipIfModuleNotAvailable();
         $prefix = '{' . uniqid() . '}:';
         $idx = $prefix . 'index';
-        $this->getClient()->ftCreate($idx, [
-            ['name' => 'title', 'type' => 'TEXT'],
-            ['name' => 'price', 'type' => 'NUMERIC'],
-            ['name' => 'category', 'type' => 'TAG'],
-        ], ['ON' => 'HASH', 'PREFIX' => [$prefix]]);
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField(new FtTextField('title'))
+                ->addField(new FtNumericField('price'))
+                ->addField(new FtTagField('category'))
+        );
 
         try {
             $this->getClient()->hSet($prefix . '1', ['title' => 'Widget', 'price' => '9.99', 'category' => 'tools']);
@@ -696,9 +1299,11 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
 
             // Simple RETURN without aliases — returned fields should use original names
             $result = $this->getClient()->ftSearch(
-                $idx,
-                '@category:{tools|electronics}',
-                ['RETURN' => ['title', 'price'], 'SORTBY' => ['price', 'ASC']]
+                (new FtSearchBuilder())
+                    ->index($idx)
+                    ->query('@category:{tools|electronics}')
+                    ->returnFields(['title', 'price'])
+                    ->sortBy('price', 'ASC')
             );
             $this->assertIsArray($result);
             $this->assertEquals(2, $result[0]);
@@ -710,9 +1315,11 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
 
             // RETURN with AS aliases — returned fields should use alias names
             $result = $this->getClient()->ftSearch(
-                $idx,
-                '@category:{tools|electronics}',
-                ['RETURN' => ['title' => 't', 'price' => 'p'], 'SORTBY' => ['price', 'ASC']]
+                (new FtSearchBuilder())
+                    ->index($idx)
+                    ->query('@category:{tools|electronics}')
+                    ->returnFields(['title' => 't', 'price' => 'p'])
+                    ->sortBy('price', 'ASC')
             );
             $this->assertIsArray($result);
             $this->assertEquals(2, $result[0]);
@@ -725,9 +1332,11 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
 
             // Mixed: 'title' aliased to 't', 'price' unaliased
             $result = $this->getClient()->ftSearch(
-                $idx,
-                '@category:{tools|electronics}',
-                ['RETURN' => ['title' => 't', 'price'], 'SORTBY' => ['price', 'ASC']]
+                (new FtSearchBuilder())
+                    ->index($idx)
+                    ->query('@category:{tools|electronics}')
+                    ->returnFields(['title' => 't', 'price'])
+                    ->sortBy('price', 'ASC')
             );
             $this->assertIsArray($result);
             $this->assertEquals(2, $result[0]);

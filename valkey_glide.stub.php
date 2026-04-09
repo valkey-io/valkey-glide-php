@@ -4806,90 +4806,29 @@ class ValkeyGlide
     public function jsonArrLen(string $key, string $path = ''): ValkeyGlide|array|int|false|null;
 
     /**
-     * Create a new search index with the given schema.
+     * Create a new search index.
      *
-     * @param string $index   The name of the index to create.
-     * @param array  $schema  Array of field definitions. Each field is an associative array:
-     *                        <code>
-     *                        $schema = [
-     *                            # TEXT field
-     *                            ['name' => 'title', 'type' => 'TEXT',
-     *                                'alias'          => 'ttl',    # optional alias
-     *                                'nostem'         => true,     # disable stemming
-     *                                'weight'         => 1.0,      # field weight (only 1.0 supported)
-     *                                'withsuffixtrie' => true,     # enable suffix queries (default)
-     *                                'nosuffixtrie'   => true,     # disable suffix queries
-     *                                'sortable'       => true,     # allow SORTBY
-     *                            ],
-     *
-     *                            # TAG field
-     *                            ['name' => 'category', 'type' => 'TAG',
-     *                                'separator'     => ',',       # tag separator (default ",")
-     *                                'casesensitive' => true,      # preserve letter case
-     *                                'sortable'      => true,
-     *                            ],
-     *
-     *                            # NUMERIC field
-     *                            ['name' => 'price', 'type' => 'NUMERIC',
-     *                                'sortable' => true,
-     *                            ],
-     *
-     *                            # VECTOR field (HNSW or FLAT)
-     *                            ['name' => 'vec', 'type' => 'VECTOR',
-     *                                'algorithm'       => 'HNSW',    # HNSW or FLAT (required)
-     *                                'dim'             => 1536,      # dimensions (required)
-     *                                'metric'          => 'COSINE',  # L2, IP, or COSINE (required)
-     *                                'initial_cap'     => 1000,      # initial capacity (HNSW & FLAT)
-     *                                'm'               => 40,        # HNSW only: max outgoing edges per node
-     *                                'ef_construction' => 200,       # HNSW only: vectors examined during build
-     *                                'ef_runtime'      => 10,        # HNSW only: vectors examined during query
-     *                            ],
-     *                        ];
-     *                        </code>
-     * @param array  $options Optional associative array of index-level options.
-     *                        <code>
-     *                        $options = [
-     *                            'ON'              => 'HASH',         # or 'JSON' (default HASH)
-     *                            'PREFIX'          => ['docs:'],      # key prefixes to index
-     *                            'SCORE'           => 1.0,            # default score (only 1.0 supported)
-     *                            'LANGUAGE'        => 'english',      # default stemming language
-     *                            'SKIPINITIALSCAN' => true,           # skip scanning existing keys
-     *                            'MINSTEMSIZE'     => 6,              # minimum word length to stem (default 4)
-     *                            'WITHOFFSETS'     => true,           # store term offsets (default)
-     *                            'NOOFFSETS'       => true,           # don't store term offsets
-     *                            'NOSTOPWORDS'     => true,           # disable stop-word filtering
-     *                            'STOPWORDS'       => ['the', 'a'],   # custom stop-word list
-     *                            'PUNCTUATION'     => ',.<>{}[]"':;!@#$%^&\*()-+=~/\|?',     # custom word separator characters
-     *                        ];
-     *                        </code>
+     * @param \ValkeyGlide\Search\FtCreateBuilder $builder A configured builder with index name, fields, and options.
      *
      * @return ValkeyGlide|string|false "OK" on success, false on failure.
      *
+     * @see \ValkeyGlide\Search\FtCreateBuilder
      * @see https://valkey.io/commands/ft.create/
      *
      * @example
-     * // Text + numeric index on HASH keys
-     * $client->ftCreate('myindex', [
-     *     ['name' => 'title', 'type' => 'TEXT', 'sortable' => true],
-     *     ['name' => 'price', 'type' => 'NUMERIC', 'sortable' => true],
-     * ], ['ON' => 'HASH', 'PREFIX' => ['product:']]);
+     * use ValkeyGlide\Search\{FtCreateBuilder, FtTextField, FtNumericField, FtVectorField};
      *
-     * @example
-     * // HNSW vector index
-     * $client->ftCreate('vecindex', [
-     *     ['name' => 'embedding', 'type' => 'VECTOR', 'algorithm' => 'HNSW',
-     *      'dim' => 1536, 'metric' => 'COSINE', 'm' => 40],
-     * ], ['ON' => 'HASH', 'PREFIX' => ['docs:']]);
-     *
-     * @example
-     * // JSON index with aliased fields
-     * $client->ftCreate('jsonindex', [
-     *     ['name' => '$.vec', 'alias' => 'VEC', 'type' => 'VECTOR',
-     *      'algorithm' => 'FLAT', 'dim' => 6, 'metric' => 'L2'],
-     *     ['name' => '$.name', 'type' => 'TEXT'],
-     * ], ['ON' => 'JSON', 'PREFIX' => ['json:']]);
+     * $client->ftCreate(
+     *     (new FtCreateBuilder())
+     *         ->index('myindex')
+     *         ->on('HASH')
+     *         ->prefix(['product:'])
+     *         ->addField((new FtTextField('title'))->sortable())
+     *         ->addField((new FtNumericField('price'))->sortable())
+     *         ->addField(FtVectorField::hnsw('embedding', 1536, 'COSINE')->m(40))
+     * );
      */
-    public function ftCreate(string $index, array $schema, ?array $options = null): ValkeyGlide|string|bool;
+    public function ftCreate(\ValkeyGlide\Search\FtCreateBuilder $builder): ValkeyGlide|string|bool;
 
     /**
      * Drop an existing search index.
@@ -4914,123 +4853,50 @@ class ValkeyGlide
     /**
      * Execute a search query against an index.
      *
-     * @param string $index   The name of the index to search.
-     * @param string $query   The search query string (e.g. "*", "@title:hello",
-     *                        "*=>[KNN 2 @VEC $query_vec]").
-     * @param array  $options Optional associative array of search options.
-     *                        <code>
-     *                        $options = [
-     *                            'NOCONTENT'    => true,              # return keys only, no field data
-     *                            'VERBATIM'     => true,              # disable stemming in the query
-     *                            'INORDER'      => true,              # require proximity terms in order
-     *                            'SLOP'         => 2,                 # max distance between proximity terms
-     *                            'LIMIT'        => [0, 10],           # [offset, count] pagination
-     *                            'SORTBY'       => ['price', 'ASC'],  # sort by a SORTABLE field
-     *                            'WITHSORTKEYS' => true,              # include sort key in each result
-     *                            'RETURN'       => ['title', 'price'],# return only these fields
-     *                            // RETURN with aliases (string key => alias):
-     *                            // 'RETURN' => ['title' => 't', 'price' => 'p'],
-     *                            // Mixed (some aliased, some not):
-     *                            // 'RETURN' => ['title' => 't', 'price'],
-     *                            'TIMEOUT'      => 5000,              # override module timeout (ms)
-     *                            'PARAMS'       => ['k' => 'v'],      # query parameters (key => value)
-     *                            'DIALECT'      => 2,                 # query dialect version
-     *                            'ALLSHARDS'    => true,              # query all shards (cluster mode)
-     *                            'SOMESHARDS'   => true,              # query subset of shards (cluster mode)
-     *                            'CONSISTENT'   => true,              # require consistent results (cluster mode)
-     *                            'INCONSISTENT' => true,              # allow inconsistent results (cluster mode)
-     *                        ];
-     *                        </code>
+     * @param \ValkeyGlide\Search\FtSearchBuilder $builder A configured search builder.
      *
      * @return ValkeyGlide|array|false The search result, or false on failure.
      *
+     * @see \ValkeyGlide\Search\FtSearchBuilder
      * @see https://valkey.io/commands/ft.search/
      *
      * @example
-     * // Simple text query with pagination
-     * $client->ftSearch('myindex', '@title:hello', ['LIMIT' => [0, 10]]);
+     * use ValkeyGlide\Search\FtSearchBuilder;
      *
-     * @example
-     * // KNN vector search with params
-     * $vec = str_repeat("\x00", 8);
-     * $client->ftSearch('vecindex', '*=>[KNN 2 @VEC $query_vec]', [
-     *     'PARAMS' => ['query_vec' => $vec],
-     *     'RETURN' => ['vec'],
-     * ]);
-     *
-     * @example
-     * // Sorted search, keys only
-     * $client->ftSearch('myindex', '@price:[1 +inf]', [
-     *     'SORTBY' => ['price', 'ASC'],
-     *     'NOCONTENT' => true,
-     * ]);
-     *
-     * @example
-     * // RETURN with field aliases
-     * $client->ftSearch('myindex', '@category:{tools}', [
-     *     'RETURN' => ['title' => 't', 'price' => 'p'],
-     * ]);
+     * $client->ftSearch(
+     *     (new FtSearchBuilder())
+     *         ->index('myindex')
+     *         ->query('@title:hello')
+     *         ->sortBy('price', 'ASC')
+     *         ->limit(0, 10)
+     * );
      */
-    public function ftSearch(string $index, string $query, ?array $options = null): ValkeyGlide|array|false;
+    public function ftSearch(\ValkeyGlide\Search\FtSearchBuilder $builder): ValkeyGlide|array|false;
 
     /**
      * Run an aggregation pipeline against an index.
      *
-     * The $options array is a flat list of tokens passed directly to the server.
-     * Pipeline clauses (GROUPBY, SORTBY, APPLY, FILTER, LIMIT) are applied in the
-     * order they appear in the array, so ordering matters.
-     *
-     * @param string $index   The name of the index to aggregate.
-     * @param string $query   The filter query string (e.g. "*", "@price:[100 +inf]").
-     * @param array  $options Optional flat array of aggregation option tokens.
-     *                        <code>
-     *                        $options = [
-     *                            'VERBATIM',                          # Disable stemming
-     *                            'LOAD', '*',                         # Load all fields
-     *                            'LOAD', '<count>', '@field', ...,    # Load specific fields
-     *                            'TIMEOUT', '<ms>',                   # Override module timeout
-     *                            'PARAMS', '<count>', 'k', 'v', ..., # Query parameters
-     *                            'DIALECT', '<version>',              # Query dialect version
-     *
-     *                            # Pipeline clauses (repeatable, order matters):
-     *                            'GROUPBY', '<count>', '@field', ..., # Group by fields
-     *                                'REDUCE', '<func>', '<nargs>',   #   Reducer (COUNT, SUM, AVG, TOLIST, ...)
-     *                                    [args...],                   #   Reducer arguments
-     *                                    'AS', '<name>',              #   Output property name
-     *                            'SORTBY', '<count>',                 # Sort by fields
-     *                                '@field', 'ASC|DESC', ...,       #   count = 2 * number of fields
-     *                                'MAX', '<n>',                    #   Optional: only sort top N
-     *                            'APPLY', '<expr>', 'AS', '<name>',   # Compute a new property
-     *                            'FILTER', '<expression>',            # Filter rows
-     *                            'LIMIT', '<offset>', '<count>',      # Paginate
-     *                        ];
-     *                        </code>
+     * @param \ValkeyGlide\Search\FtAggregateBuilder $builder A configured aggregate builder.
      *
      * @return ValkeyGlide|array|false Array of result rows, or false on failure.
      *
+     * @see \ValkeyGlide\Search\FtAggregateBuilder
      * @see https://valkey.io/commands/ft.aggregate/
      *
      * @example
-     * // Group by condition, count per group
-     * $client->ftAggregate('idx', '*', [
-     *     'LOAD', '1', '__key',
-     *     'GROUPBY', '1', '@condition',
-     *         'REDUCE', 'COUNT', '0', 'AS', 'total'
-     * ]);
+     * use ValkeyGlide\Search\{FtAggregateBuilder, FtReducer};
      *
-     * @example
-     * // APPLY + GROUPBY with multiple reducers + SORTBY
-     * $client->ftAggregate('movies', '*', [
-     *     'LOAD', '*',
-     *     'APPLY', 'ceil(@rating)', 'AS', 'r_rating',
-     *     'GROUPBY', '1', '@genre',
-     *         'REDUCE', 'COUNT', '0', 'AS', 'nb_of_movies',
-     *         'REDUCE', 'SUM', '1', 'votes', 'AS', 'nb_of_votes',
-     *         'REDUCE', 'AVG', '1', 'r_rating', 'AS', 'avg_rating',
-     *     'SORTBY', '4', '@avg_rating', 'DESC', '@nb_of_votes', 'DESC'
-     * ]);
+     * $client->ftAggregate(
+     *     (new FtAggregateBuilder())
+     *         ->index('idx')
+     *         ->query('*')
+     *         ->load(['__key'])
+     *         ->groupBy(['@condition'], [
+     *             FtReducer::count()->as('total'),
+     *         ])
+     * );
      */
-    public function ftAggregate(string $index, string $query, ?array $options = null): ValkeyGlide|array|false;
+    public function ftAggregate(\ValkeyGlide\Search\FtAggregateBuilder $builder): ValkeyGlide|array|false;
 
     /**
      * Return information and statistics about an index.
