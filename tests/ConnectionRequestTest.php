@@ -630,8 +630,8 @@ class ConnectionRequestTest extends \TestSuite
         $compression_config = $request->getCompressionConfig();
         $this->assertTrue($compression_config->getEnabled());
         $this->assertEquals(ValkeyGlide::COMPRESSION_BACKEND_ZSTD, $compression_config->getBackend());
-        $this->assertEquals(3, $compression_config->getCompressionLevel());
-        $this->assertEquals(256, $compression_config->getMinCompressionSize());
+        $this->assertEquals(0, $compression_config->getCompressionLevel());
+        $this->assertEquals(64, $compression_config->getMinCompressionSize());
     }
 
     public function testCompressionClusterZstdDefault()
@@ -643,8 +643,8 @@ class ConnectionRequestTest extends \TestSuite
         $compression_config = $request->getCompressionConfig();
         $this->assertTrue($compression_config->getEnabled());
         $this->assertEquals(ValkeyGlide::COMPRESSION_BACKEND_ZSTD, $compression_config->getBackend());
-        $this->assertEquals(3, $compression_config->getCompressionLevel());
-        $this->assertEquals(256, $compression_config->getMinCompressionSize());
+        $this->assertEquals(0, $compression_config->getCompressionLevel());
+        $this->assertEquals(64, $compression_config->getMinCompressionSize());
     }
 
     public function testCompressionStandaloneLZ4Default()
@@ -657,7 +657,7 @@ class ConnectionRequestTest extends \TestSuite
         $this->assertTrue($compression_config->getEnabled());
         $this->assertEquals(ValkeyGlide::COMPRESSION_BACKEND_LZ4, $compression_config->getBackend());
         $this->assertEquals(0, $compression_config->getCompressionLevel());
-        $this->assertEquals(256, $compression_config->getMinCompressionSize());
+        $this->assertEquals(64, $compression_config->getMinCompressionSize());
     }
 
     public function testCompressionClusterLZ4Default()
@@ -670,7 +670,7 @@ class ConnectionRequestTest extends \TestSuite
         $this->assertTrue($compression_config->getEnabled());
         $this->assertEquals(ValkeyGlide::COMPRESSION_BACKEND_LZ4, $compression_config->getBackend());
         $this->assertEquals(0, $compression_config->getCompressionLevel());
-        $this->assertEquals(256, $compression_config->getMinCompressionSize());
+        $this->assertEquals(64, $compression_config->getMinCompressionSize());
     }
 
     public function testCompressionStandaloneCustomConfig()
