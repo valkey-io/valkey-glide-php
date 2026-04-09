@@ -207,7 +207,6 @@ uint8_t* create_connection_request(size_t*                                   len
         compression_cfg.min_compression_size = config->compression_config->min_compression_size;
 
         if (config->compression_config->has_compression_level) {
-            compression_cfg.has_compression_level = 1;
             compression_cfg.compression_level = config->compression_config->compression_level;
         }
 

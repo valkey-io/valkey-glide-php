@@ -138,7 +138,7 @@ typedef struct {
     int32_t                            compression_level;
     valkey_glide_compression_backend_t backend;
     bool                               enabled;
-    bool                               has_compression_level; /* true if user explicitly set compression_level */
+    bool has_compression_level; /* true if user explicitly set compression_level */
 } valkey_glide_compression_config_t;
 
 typedef struct {
