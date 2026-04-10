@@ -970,16 +970,6 @@
    ...
 }
 
-# Process ping result
-{
-   process_ping_result_uninit_value8
-   Memcheck:Value8
-   ...
-   fun:process_ping_result
-   ...
-   obj:*/valkey_glide.so
-}
-
 # ============================================================================
 # TLS Handshake Syscall Suppressions
 # Uninitialized padding bytes in TLS ClientHello - protocol compliant
@@ -2101,43 +2091,6 @@
    fun:malloc
    fun:*aws_smithy_runtime*client*retries*RetryPartitionInner*clone*
    fun:*aws_smithy_runtime*client*defaults*default_plugin*
-}
-
-# AWS SDK static partition map initialization
-# Safe to suppress: Global static partition map for retry mechanism
-{
-   aws_sdk_static_partition_map
-   Memcheck:Leak
-   match-leak-kinds: possible
-   fun:malloc
-   fun:*std*sync*once*Once*call_once_force*
-   fun:*std*sys*sync*once*futex*Once*call*
-   fun:*std*sync*once_lock*OnceLock*initialize*
-   fun:*aws_smithy_runtime*static_partition_map*StaticPartitionMap*get_or_init*
-}
-
-# AWS SDK STS endpoint partition resolver
-# Safe to suppress: One-time STS endpoint partition resolver initialization
-{
-   aws_sdk_sts_partition_resolver
-   Memcheck:Leak
-   match-leak-kinds: possible
-   fun:malloc
-   fun:*aws_sdk_sts*endpoint_lib*partition*PartitionResolver*new_from_json*
-   fun:*core*ops*function*FnOnce*call_once*
-   fun:*std*sync*once*Once*call_once_force*
-}
-
-# AWS SDK STS partition resolver hashmap
-# Safe to suppress: Hashmap for STS partition resolver (largest allocation ~12KB)
-{
-   aws_sdk_sts_partition_hashmap
-   Memcheck:Leak
-   match-leak-kinds: possible
-   fun:malloc
-   fun:*hashbrown*raw*RawTableInner*fallible_with_capacity*
-   fun:*hashbrown*raw*RawTable*reserve_rehash*
-   fun:*aws_sdk_sts*endpoint_lib*partition*PartitionResolver*new_from_json*
 }
 
 # AWS SDK fastrand thread initialization
