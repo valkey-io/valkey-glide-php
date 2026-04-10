@@ -222,8 +222,8 @@ typedef struct {
     zval*     credentials;
     zval*     reconnect_strategy;
     zval*     advanced_config;
-    zval*     context;     /* Stream context for TLS */
-    zval*     compression; /* Compression configuration */
+    zval*     context;           /* Stream context for TLS */
+    zval*     compression;       /* Compression configuration */
     zval*     client_side_cache; /* Client-side cache configuration */
     char*     client_name;
     char*     client_az;

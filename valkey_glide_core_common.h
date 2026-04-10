@@ -386,19 +386,19 @@ void execute_get_cache_metrics(zval*             object,
                                zend_class_entry* ce);
 
 /* Macro for getCacheHitRate method implementation */
-#define GET_CACHE_HIT_RATE_METHOD_IMPL(class_name)                                    \
-    PHP_METHOD(class_name, getCacheHitRate) {                                          \
-        ZEND_PARSE_PARAMETERS_NONE();                                                  \
-        execute_get_cache_metrics(                                                     \
-            ZEND_THIS, CACHE_METRICS_HIT_RATE, return_value, Z_OBJCE_P(ZEND_THIS));   \
+#define GET_CACHE_HIT_RATE_METHOD_IMPL(class_name)                                  \
+    PHP_METHOD(class_name, getCacheHitRate) {                                       \
+        ZEND_PARSE_PARAMETERS_NONE();                                               \
+        execute_get_cache_metrics(                                                  \
+            ZEND_THIS, CACHE_METRICS_HIT_RATE, return_value, Z_OBJCE_P(ZEND_THIS)); \
     }
 
 /* Macro for getCacheMissRate method implementation */
-#define GET_CACHE_MISS_RATE_METHOD_IMPL(class_name)                                   \
-    PHP_METHOD(class_name, getCacheMissRate) {                                         \
-        ZEND_PARSE_PARAMETERS_NONE();                                                  \
-        execute_get_cache_metrics(                                                     \
-            ZEND_THIS, CACHE_METRICS_MISS_RATE, return_value, Z_OBJCE_P(ZEND_THIS));  \
+#define GET_CACHE_MISS_RATE_METHOD_IMPL(class_name)                                  \
+    PHP_METHOD(class_name, getCacheMissRate) {                                       \
+        ZEND_PARSE_PARAMETERS_NONE();                                                \
+        execute_get_cache_metrics(                                                   \
+            ZEND_THIS, CACHE_METRICS_MISS_RATE, return_value, Z_OBJCE_P(ZEND_THIS)); \
     }
 
 /* Macro for getCacheEntryCount method implementation */
@@ -406,15 +406,15 @@ void execute_get_cache_metrics(zval*             object,
     PHP_METHOD(class_name, getCacheEntryCount) {                                       \
         ZEND_PARSE_PARAMETERS_NONE();                                                  \
         execute_get_cache_metrics(                                                     \
-            ZEND_THIS, CACHE_METRICS_ENTRY_COUNT, return_value, Z_OBJCE_P(ZEND_THIS));\
+            ZEND_THIS, CACHE_METRICS_ENTRY_COUNT, return_value, Z_OBJCE_P(ZEND_THIS)); \
     }
 
 /* Macro for getCacheEvictions method implementation */
-#define GET_CACHE_EVICTIONS_METHOD_IMPL(class_name)                                    \
-    PHP_METHOD(class_name, getCacheEvictions) {                                        \
-        ZEND_PARSE_PARAMETERS_NONE();                                                  \
-        execute_get_cache_metrics(                                                     \
-            ZEND_THIS, CACHE_METRICS_EVICTIONS, return_value, Z_OBJCE_P(ZEND_THIS));  \
+#define GET_CACHE_EVICTIONS_METHOD_IMPL(class_name)                                  \
+    PHP_METHOD(class_name, getCacheEvictions) {                                      \
+        ZEND_PARSE_PARAMETERS_NONE();                                                \
+        execute_get_cache_metrics(                                                   \
+            ZEND_THIS, CACHE_METRICS_EVICTIONS, return_value, Z_OBJCE_P(ZEND_THIS)); \
     }
 
 /* Macro for getCacheExpirations method implementation */
@@ -422,7 +422,7 @@ void execute_get_cache_metrics(zval*             object,
     PHP_METHOD(class_name, getCacheExpirations) {                                      \
         ZEND_PARSE_PARAMETERS_NONE();                                                  \
         execute_get_cache_metrics(                                                     \
-            ZEND_THIS, CACHE_METRICS_EXPIRATIONS, return_value, Z_OBJCE_P(ZEND_THIS));\
+            ZEND_THIS, CACHE_METRICS_EXPIRATIONS, return_value, Z_OBJCE_P(ZEND_THIS)); \
     }
     }
 

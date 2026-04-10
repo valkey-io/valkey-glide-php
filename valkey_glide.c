@@ -509,12 +509,10 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
     if (params->client_side_cache && Z_TYPE_P(params->client_side_cache) == IS_ARRAY) {
         HashTable* cache_ht = Z_ARRVAL_P(params->client_side_cache);
 
-        config->client_side_cache =
-            ecalloc(1, sizeof(valkey_glide_client_side_cache_config_t));
+        config->client_side_cache = ecalloc(1, sizeof(valkey_glide_client_side_cache_config_t));
 
         /* Parse cache_id (required) */
-        zval* cache_id_zv =
-            zend_hash_str_find(cache_ht, "cache_id", sizeof("cache_id") - 1);
+        zval* cache_id_zv = zend_hash_str_find(cache_ht, "cache_id", sizeof("cache_id") - 1);
         if (cache_id_zv && Z_TYPE_P(cache_id_zv) == IS_STRING) {
             config->client_side_cache->cache_id     = Z_STRVAL_P(cache_id_zv);
             config->client_side_cache->cache_id_len = Z_STRLEN_P(cache_id_zv);
@@ -549,7 +547,8 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         /* Parse eviction_policy (optional, -1 = not set / use default LRU) */
         zval* eviction_zv =
             zend_hash_str_find(cache_ht, "eviction_policy", sizeof("eviction_policy") - 1);
-        config->client_side_cache->eviction_policy = eviction_zv ? (int) zval_get_long(eviction_zv) : -1;
+        config->client_side_cache->eviction_policy =
+            eviction_zv ? (int) zval_get_long(eviction_zv) : -1;
 
         /* Parse enable_metrics (optional, default false) */
         zval* metrics_zv =
@@ -842,8 +841,8 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
         common_params.lazy_connect_is_null = false;
     }
 
-    common_params.context     = context;
-    common_params.compression = compression;
+    common_params.context           = context;
+    common_params.compression       = compression;
     common_params.client_side_cache = client_side_cache;
 
     /* Default to localhost:6379 if no addresses provided */
