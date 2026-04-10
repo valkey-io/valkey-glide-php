@@ -73,7 +73,7 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests
 * <http://www.zend.com>.
 */
 
-require_once __DIR__ . "/TestSuite.php";
+require_once __DIR__ . "/ValkeyGlideBaseTest.php";
 
 /**
  * IAM Authentication Tests for ValkeyGlide PHP
@@ -86,7 +86,7 @@ require_once __DIR__ . "/TestSuite.php";
  *
  * Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0
  */
-class IamAuthTest extends \TestSuite
+class IamAuthTest extends ValkeyGlideBaseTest
 {
     private $originalEnvVars = [];
 
@@ -113,6 +113,52 @@ class IamAuthTest extends \TestSuite
     }
 
     /**
+     * Set mock AWS credentials in the environment.
+     */
+    private function setMockAwsCredentials()
+    {
+        putenv('AWS_ACCESS_KEY_ID=test_access_key');
+        putenv('AWS_SECRET_ACCESS_KEY=test_secret_key');
+        putenv('AWS_SESSION_TOKEN=test_session_token');
+    }
+
+    /**
+     * Create a ValkeyGlide client configured with IAM authentication.
+     *
+     * @param int $refreshIntervalSeconds IAM token refresh interval in seconds
+     * @param int|null $connectionTimeout Connection timeout in milliseconds (optional)
+     * @return ValkeyGlide
+     */
+    private function createIamClient(int $refreshIntervalSeconds, ?int $connectionTimeout = null): ValkeyGlide
+    {
+        $client = new ValkeyGlide();
+
+        $connectArgs = [
+            'addresses' => [
+                ['host' => $this->getHost(), 'port' => $this->getPort()]
+            ],
+            'use_tls' => false,
+            'credentials' => [
+                'username' => 'default',
+                'iamConfig' => [
+                    'clusterName' => 'test-cluster',
+                    'region' => 'us-east-1',
+                    'service' => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
+                    'refreshIntervalSeconds' => $refreshIntervalSeconds
+                ]
+            ]
+        ];
+
+        if ($connectionTimeout !== null) {
+            $connectArgs['advanced_config'] = ['connection_timeout' => $connectionTimeout];
+        }
+
+        $client->connect(...$connectArgs);
+
+        return $client;
+    }
+
+    /**
      * Test 1: Basic IAM Authentication with Mock Credentials
      *
      * Purpose: Verify client can connect and operate using IAM authentication
@@ -124,38 +170,20 @@ class IamAuthTest extends \TestSuite
      * 3. Create client with IAM authentication (use_tls=false for local testing)
      * 4. Verify connection with PING command
      * 5. Test basic operations (SET/GET)
-     * 7. Verify operations still work after token refresh
+     * 6. Verify operations still work after token refresh
      */
     public function testIamAuthenticationWithMockCredentials()
     {
         try {
-            // Set mock AWS credentials
-            putenv('AWS_ACCESS_KEY_ID=test_access_key');
-            putenv('AWS_SECRET_ACCESS_KEY=test_secret_key');
-            putenv('AWS_SESSION_TOKEN=test_session_token');
+            $this->setMockAwsCredentials();
 
-            // Create client with IAM authentication
-            $client = new ValkeyGlide();
-            $client->connect(
-                addresses: [
-                    ['host' => $this->getHost(), 'port' => $this->getPort()]
-                ],
-                use_tls: false,  // Local testing without TLS
-                credentials: [
-                    'username' => 'default',
-                    'iamConfig' => [
-                        'clusterName' => 'test-cluster',
-                        'region' => 'us-east-1',
-                        'service' => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
-                        'refreshIntervalSeconds' => 5  // Fast refresh for testing
-                    ]
-                ],
-                advanced_config: ['connection_timeout' => 5000]
+            $client = $this->createIamClient(
+                refreshIntervalSeconds: 5,
+                connectionTimeout: 5000
             );
 
             // Verify connection with PING
-            $response = $client->ping();
-            $this->assertTrue($response);
+            $this->assertConnected($client);
 
             // Test basic operations (SET/GET)
             $client->set('iam_test_key', 'iam_test_value');
@@ -166,6 +194,7 @@ class IamAuthTest extends \TestSuite
             $client->refreshIamToken();
 
             // Verify operations still work after token refresh
+            $this->assertConnected($client);
             $client->set('iam_test_key2', 'iam_test_value2');
             $value2 = $client->get('iam_test_key2');
             $this->assertEquals('iam_test_value2', $value2);
@@ -194,32 +223,12 @@ class IamAuthTest extends \TestSuite
     public function testAutomaticIamTokenRefresh()
     {
         try {
-            // Set mock AWS credentials
-            putenv('AWS_ACCESS_KEY_ID=test_access_key');
-            putenv('AWS_SECRET_ACCESS_KEY=test_secret_key');
-            putenv('AWS_SESSION_TOKEN=test_session_token');
+            $this->setMockAwsCredentials();
 
-            // Create client with short refresh interval
-            $client = new ValkeyGlide();
-            $client->connect(
-                addresses: [
-                    ['host' => $this->getHost(), 'port' => $this->getPort()]
-                ],
-                use_tls: false,
-                credentials: [
-                    'username' => 'default',
-                    'iamConfig' => [
-                        'clusterName' => 'test-cluster',
-                        'region' => 'us-east-1',
-                        'service' => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
-                        'refreshIntervalSeconds' => 2  // Very short interval for testing
-                    ]
-                ]
-            );
+            $client = $this->createIamClient(refreshIntervalSeconds: 2);
 
             // Verify initial connection with PING
-            $response = $client->ping();
-            $this->assertTrue($response);
+            $this->assertConnected($client);
 
             // Test initial operation
             $client->set('auto_refresh_test', 'initial_value');
@@ -230,8 +239,7 @@ class IamAuthTest extends \TestSuite
             sleep(3);
 
             // Verify client still works after automatic refresh
-            $response = $client->ping();
-            $this->assertTrue($response);
+            $this->assertConnected($client);
 
             $client->set('auto_refresh_test', 'refreshed_value');
             $value = $client->get('auto_refresh_test');
