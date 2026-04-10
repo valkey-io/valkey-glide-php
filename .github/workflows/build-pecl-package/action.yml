@@ -114,6 +114,16 @@ runs:
           fi
         done
 
+        # Copy Search directory
+        echo "=== Copying Search directory ==="
+        mkdir -p "$PACKAGE_DIR/Search"
+        for file in Search/*.php; do
+          if [[ -f "$file" ]]; then
+            echo "Copying $file"
+            cp "$file" "$PACKAGE_DIR/Search/"
+          fi
+        done
+
         # Copy src directory
         echo "=== Copying src directory ==="
         mkdir -p "$PACKAGE_DIR/src"
