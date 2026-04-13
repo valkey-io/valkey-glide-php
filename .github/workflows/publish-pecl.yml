@@ -145,7 +145,7 @@ jobs:
     environment: release-approval # This requires manual approval
     steps:
       - name: Check if PR is merged
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prNumber = ${{ needs.prepare-version-bump.outputs.pr-number }};
