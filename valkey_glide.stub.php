@@ -4409,6 +4409,46 @@ class ValkeyGlide
      * $valkey_glide->zUnionStore('dst', ['zs1', 'zs2', 'zs3']);
      */
     public function zunionstore(string $dst, array $keys, ?array $weights = null, ?string $aggregate = null): ValkeyGlide|int|false;
+
+    /**
+     * Set the JSON value at the specified path stored at key.
+     *
+     * @see https://valkey.io/commands/json.set
+     *
+     * @param string      $key   The key of the JSON document.
+     * @param string      $path  The path within the JSON document where the value will be set.
+     * @param string      $value The value to set at the specific path, in JSON formatted string.
+     * @param string|null $condition Optional condition: 'NX' (only if not exists) or 'XX' (only if exists).
+     *
+     * @return ValkeyGlide|bool|null True if the value is successfully set. Null if the condition is not met.
+     *                               False on failure.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": 1, "b": 2}');
+     * $valkey_glide->jsonSet('doc', '$.a', '3', 'XX');
+     */
+    public function jsonSet(string $key, string $path, string $value, ?string $condition = null): ValkeyGlide|bool|null;
+
+    /**
+     * Retrieve the JSON value at the specified path(s) stored at key.
+     *
+     * @see https://valkey.io/commands/json.get
+     *
+     * @param string       $key   The key of the JSON document.
+     * @param string|array $paths Optional. A path or array of paths within the JSON document.
+     *                            If not provided, returns the entire document.
+     *                            Supports JSONPath (starting with '$') and legacy path syntax.
+     *
+     * @return ValkeyGlide|string|false|null The JSON string representation of the value(s) at the path(s).
+     *                                       Null if the key doesn't exist. False on failure.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": 1, "b": 2}');
+     * $valkey_glide->jsonGet('doc');              // '{"a":1,"b":2}'
+     * $valkey_glide->jsonGet('doc', '$.a');       // '[1]'
+     * $valkey_glide->jsonGet('doc', ['$.a', '$.b']); // '{"$.a":[1],"$.b":[2]}'
+     */
+    public function jsonGet(string $key, string|array $paths = '$'): ValkeyGlide|string|false|null;
 }
 
 class ValkeyGlideException extends RuntimeException

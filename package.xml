@@ -73,6 +73,8 @@ Requirements:
    <file name="valkey_glide_geo_common.h" role="src" />
    <file name="valkey_glide_hash_common.c" role="src" />
    <file name="valkey_glide_hash_common.h" role="src" />
+   <file name="valkey_glide_json_common.c" role="src" />
+   <file name="valkey_glide_json_common.h" role="src" />
    <file name="valkey_glide_list_common.c" role="src" />
    <file name="valkey_glide_list_common.h" role="src" />
    <file name="valkey_glide_s_common.c" role="src" />

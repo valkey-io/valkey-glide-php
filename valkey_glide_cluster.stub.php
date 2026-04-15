@@ -1477,4 +1477,14 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::function
      */
     public function function(string $operation, mixed ...$args): mixed;
+
+    /**
+     * @see ValkeyGlide::jsonSet
+     */
+    public function jsonSet(string $key, string $path, string $value, ?string $condition = null): ValkeyGlideCluster|bool|null;
+
+    /**
+     * @see ValkeyGlide::jsonGet
+     */
+    public function jsonGet(string $key, string|array $paths = '$'): ValkeyGlideCluster|string|false|null;
 }

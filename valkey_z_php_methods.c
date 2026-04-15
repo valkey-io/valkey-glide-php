@@ -16,6 +16,7 @@
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_geo_common.h"
 #include "valkey_glide_hash_common.h" /* Include hash command framework */
+#include "valkey_glide_json_common.h"
 #include "valkey_glide_list_common.h"
 #include "valkey_glide_s_common.h"
 #include "valkey_glide_x_common.h"
@@ -850,4 +851,13 @@ SETOPTION_METHOD_IMPL(ValkeyGlide)
 
 /* {{{ proto mixed ValkeyGlide::getOption(int option) */
 GETOPTION_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto bool ValkeyGlide::jsonSet(string key, string path, string value [, string condition])
+ */
+JSON_SET_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string ValkeyGlide::jsonGet(string key [, string|array paths]) */
+JSON_GET_METHOD_IMPL(ValkeyGlide)
 /* }}} */

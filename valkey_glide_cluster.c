@@ -17,6 +17,7 @@
 #include "valkey_glide_core_common.h"
 #include "valkey_glide_geo_common.h"
 #include "valkey_glide_hash_common.h" /* Include hash command framework */
+#include "valkey_glide_json_common.h"
 #include "valkey_glide_list_common.h"
 #include "valkey_glide_pubsub_common.h"
 #include "valkey_glide_pubsub_introspection.h"
@@ -1208,6 +1209,15 @@ SETOPTION_METHOD_IMPL(ValkeyGlideCluster)
 
 /* {{{ proto mixed ValkeyGlideCluster::getOption(int option) */
 GETOPTION_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto bool ValkeyGlideCluster::jsonSet(string key, string path, string value [, string
+ * condition]) */
+JSON_SET_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string ValkeyGlideCluster::jsonGet(string key [, string|array paths]) */
+JSON_GET_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 #endif /* PHP_REDIS_CLUSTER_C */
