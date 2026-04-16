@@ -29,10 +29,49 @@
 #include "common.h"
 #include "include/glide_bindings.h"
 #include "valkey_glide_commands_common.h"
-#include "valkey_glide_core_common.h"
 #include "valkey_glide_z_common.h"
 
 extern zend_class_entry* get_valkey_glide_exception_ce();
+
+/**
+ * Batch result processor for JSON.SET: Ok -> true, Null -> null.
+ */
+static int process_json_set_result(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        ZVAL_FALSE(return_value);
+        return 0;
+    }
+    if (response->response_type == Ok) {
+        ZVAL_TRUE(return_value);
+        return 1;
+    }
+    if (response->response_type == Null) {
+        ZVAL_NULL(return_value);
+        return 1;
+    }
+    ZVAL_FALSE(return_value);
+    return 0;
+}
+
+/**
+ * Batch result processor for JSON.GET: String -> string, Null -> null.
+ */
+static int process_json_get_result(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        ZVAL_NULL(return_value);
+        return 0;
+    }
+    if (response->response_type == String && response->string_value) {
+        RETVAL_STRINGL(response->string_value, response->string_value_len);
+        return 1;
+    }
+    if (response->response_type == Null) {
+        ZVAL_NULL(return_value);
+        return 1;
+    }
+    ZVAL_FALSE(return_value);
+    return 0;
+}
 
 /**
  * Execute JSON.SET command.
@@ -93,7 +132,7 @@ int execute_json_set_command(zval* object, int argc, zval* return_value, zend_cl
                                            full_args_len,
                                            full_arg_count,
                                            NULL,
-                                           process_core_string_result);
+                                           process_json_set_result);
         efree(full_args);
         efree(full_args_len);
         if (res) {
@@ -165,14 +204,7 @@ int execute_json_get_command(zval* object, int argc, zval* return_value, zend_cl
     unsigned long* cmd_args_len = NULL;
     unsigned long  arg_count    = 0;
 
-    if (paths_param == NULL) {
-        /* No paths - just key */
-        arg_count       = 1;
-        cmd_args        = (uintptr_t*) emalloc(sizeof(uintptr_t));
-        cmd_args_len    = (unsigned long*) emalloc(sizeof(unsigned long));
-        cmd_args[0]     = (uintptr_t) key;
-        cmd_args_len[0] = key_len;
-    } else if (Z_TYPE_P(paths_param) == IS_STRING) {
+    if (Z_TYPE_P(paths_param) == IS_STRING) {
         /* Single path string */
         arg_count       = 2;
         cmd_args        = (uintptr_t*) emalloc(2 * sizeof(uintptr_t));
@@ -211,6 +243,7 @@ int execute_json_get_command(zval* object, int argc, zval* return_value, zend_cl
         ZEND_HASH_FOREACH_END();
     } else {
         /* Invalid type for paths */
+        php_error_docref(NULL, E_WARNING, "jsonGet expects paths as string or array");
         return 0;
     }
 
@@ -222,7 +255,7 @@ int execute_json_get_command(zval* object, int argc, zval* return_value, zend_cl
                                            cmd_args_len,
                                            arg_count,
                                            NULL,
-                                           process_core_string_result);
+                                           process_json_get_result);
         efree(cmd_args);
         efree(cmd_args_len);
         if (res) {
