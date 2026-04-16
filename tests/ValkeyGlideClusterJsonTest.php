@@ -40,7 +40,8 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
             $this->assertNotEquals(false, $value);
 
             $decoded = json_decode($value, true);
-            $this->assertNotEquals(null, $decoded);
+            $this->assertEquals(1, $decoded['a']);
+            $this->assertEquals('hello', $decoded['b']);
         } finally {
             $this->valkey_glide->del($key);
         }
@@ -158,6 +159,53 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
 
             $value = $this->valkey_glide->jsonGet($key, '$.scores');
             $this->assertEquals('[[10,20,30]]', $value);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonSetInvalidJson()
+    {
+        $key = '{json}:' . uniqid();
+        $threw = false;
+        try {
+            $this->valkey_glide->jsonSet($key, '$', 'not valid json');
+        } catch (\Throwable $e) {
+            $threw = true;
+        }
+        $this->assertTrue($threw);
+        $this->valkey_glide->del($key);
+    }
+
+    public function testJsonGetInvalidPath()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 1}');
+            $threw = false;
+            try {
+                $this->valkey_glide->jsonGet($key, '.invalid[path');
+            } catch (\Throwable $e) {
+                $threw = true;
+            }
+            $this->assertTrue($threw);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonSetOnWrongKeyType()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->set($key, 'plain_string');
+            $threw = false;
+            try {
+                $this->valkey_glide->jsonSet($key, '$.a', '1');
+            } catch (\Throwable $e) {
+                $threw = true;
+            }
+            $this->assertTrue($threw);
         } finally {
             $this->valkey_glide->del($key);
         }
