@@ -197,7 +197,7 @@ class ValkeyGlideJsonTest extends ValkeyGlideBaseTest
                 ->indent('  ')
                 ->newline("\n")
                 ->space(' ');
-            $value2 = $this->valkey_glide->jsonGet($key, '$', $opts->toArray());
+            $value2 = $this->valkey_glide->jsonGet($key, '$', $opts);
             $this->assertNotEquals(false, $value2);
             $this->assertTrue(strpos($value2, "\n") !== false);
             $this->assertEquals($value, $value2);

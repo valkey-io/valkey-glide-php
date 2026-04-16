@@ -189,16 +189,33 @@ int execute_json_get_command(zval* object, int argc, zval* return_value, zend_cl
     zval*                paths_param   = NULL;
     zval*                options_param = NULL;
 
-    /* Parse parameters: key, optional paths (string or array), optional options array */
+    /* Parse parameters: key, optional paths (string or array), optional options (array or object)
+     */
     if (zend_parse_method_parameters(
-            argc, object, "Os|za!", &object, ce, &key, &key_len, &paths_param, &options_param) ==
+            argc, object, "Os|zz!", &object, ce, &key, &key_len, &paths_param, &options_param) ==
         FAILURE) {
         return 0;
     }
 
+    /* If options is an object with toArray(), call it to get the array */
+    zval options_arr;
+    ZVAL_UNDEF(&options_arr);
+    if (options_param && Z_TYPE_P(options_param) == IS_OBJECT) {
+        zval func_name;
+        ZVAL_STRING(&func_name, "toArray");
+        if (call_user_function(NULL, options_param, &func_name, &options_arr, 0, NULL) == SUCCESS &&
+            Z_TYPE(options_arr) == IS_ARRAY) {
+            options_param = &options_arr;
+        }
+        zval_ptr_dtor(&func_name);
+    }
+
+#define CLEANUP_OPTIONS_ARR() zval_ptr_dtor(&options_arr)
+
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide || !valkey_glide->glide_client) {
+        CLEANUP_OPTIONS_ARR();
         return 0;
     }
 
@@ -249,6 +266,7 @@ int execute_json_get_command(zval* object, int argc, zval* return_value, zend_cl
         use_array_paths = 1;
     } else {
         php_error_docref(NULL, E_WARNING, "jsonGet expects paths as string or array");
+        CLEANUP_OPTIONS_ARR();
         return 0;
     }
 
@@ -304,6 +322,8 @@ int execute_json_get_command(zval* object, int argc, zval* return_value, zend_cl
         idx++;
     }
 
+    /* Extract option values before cleanup since they point into options_arr */
+
     /* Check for batch mode */
     if (valkey_glide->is_in_batch_mode) {
         int res = buffer_command_for_batch(valkey_glide,
@@ -315,6 +335,7 @@ int execute_json_get_command(zval* object, int argc, zval* return_value, zend_cl
                                            process_json_get_result);
         efree(cmd_args);
         efree(cmd_args_len);
+        CLEANUP_OPTIONS_ARR();
         if (res) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -328,6 +349,8 @@ int execute_json_get_command(zval* object, int argc, zval* return_value, zend_cl
 
     efree(cmd_args);
     efree(cmd_args_len);
+    CLEANUP_OPTIONS_ARR();
+#undef CLEANUP_OPTIONS_ARR
 
     if (result) {
         if (result->command_error) {

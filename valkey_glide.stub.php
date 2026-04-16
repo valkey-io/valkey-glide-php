@@ -4448,9 +4448,9 @@ class ValkeyGlide
      * $valkey_glide->jsonGet('doc', '$.a');       // '[1]'
      * $valkey_glide->jsonGet('doc', ['$.a', '$.b']); // '{"$.a":[1],"$.b":[2]}'
      * $valkey_glide->jsonGet('doc', '$', ['indent' => '  ', 'newline' => "\n", 'space' => ' ']);
-     * $valkey_glide->jsonGet('doc', '$', JsonGetOptions::builder()->indent('  ')->newline("\n")->space(' ')->toArray());
+     * $valkey_glide->jsonGet('doc', '$', JsonGetOptions::builder()->indent('  ')->newline("\n")->space(' '));
      */
-    public function jsonGet(string $key, string|array $paths = '$', ?array $options = null): ValkeyGlide|string|false|null;
+    public function jsonGet(string $key, string|array $paths = '$', object|array|null $options = null): ValkeyGlide|string|false|null;
 }
 
 class ValkeyGlideException extends RuntimeException
