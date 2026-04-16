@@ -10,8 +10,10 @@ require_once __DIR__ . "/ValkeyGlideBaseTest.php";
  */
 class ValkeyGlideJsonTest extends ValkeyGlideBaseTest
 {
-    protected function skipIfModuleNotAvailable(): void
+    public function setUp()
     {
+        parent::setUp();
+
         try {
             $this->valkey_glide->jsonSet('__json_probe__', '$', '1');
             $this->valkey_glide->del('__json_probe__');
@@ -29,8 +31,6 @@ class ValkeyGlideJsonTest extends ValkeyGlideBaseTest
 
     public function testJsonSetAndGet()
     {
-        $this->skipIfModuleNotAvailable();
-
         $key = '{json}:' . uniqid();
         try {
             $result = $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": "hello"}');
@@ -48,7 +48,6 @@ class ValkeyGlideJsonTest extends ValkeyGlideBaseTest
 
     public function testJsonSetWithPath()
     {
-        $this->skipIfModuleNotAvailable();
 
         $key = '{json}:' . uniqid();
         try {
@@ -64,7 +63,6 @@ class ValkeyGlideJsonTest extends ValkeyGlideBaseTest
 
     public function testJsonSetNX()
     {
-        $this->skipIfModuleNotAvailable();
 
         $key = '{json}:' . uniqid();
         try {
@@ -83,7 +81,6 @@ class ValkeyGlideJsonTest extends ValkeyGlideBaseTest
 
     public function testJsonSetXX()
     {
-        $this->skipIfModuleNotAvailable();
 
         $key = '{json}:' . uniqid();
         try {
@@ -104,7 +101,6 @@ class ValkeyGlideJsonTest extends ValkeyGlideBaseTest
 
     public function testJsonGetNonExistingKey()
     {
-        $this->skipIfModuleNotAvailable();
 
         $key = '{json}:' . uniqid();
         $this->valkey_glide->del($key);
@@ -115,7 +111,6 @@ class ValkeyGlideJsonTest extends ValkeyGlideBaseTest
 
     public function testJsonGetMultiplePaths()
     {
-        $this->skipIfModuleNotAvailable();
 
         $key = '{json}:' . uniqid();
         try {
@@ -135,7 +130,6 @@ class ValkeyGlideJsonTest extends ValkeyGlideBaseTest
 
     public function testJsonGetSinglePath()
     {
-        $this->skipIfModuleNotAvailable();
 
         $key = '{json}:' . uniqid();
         try {
@@ -153,7 +147,6 @@ class ValkeyGlideJsonTest extends ValkeyGlideBaseTest
 
     public function testJsonSetNestedObject()
     {
-        $this->skipIfModuleNotAvailable();
 
         $key = '{json}:' . uniqid();
         try {
