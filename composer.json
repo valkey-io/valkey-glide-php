@@ -29,7 +29,8 @@
     "autoload": {
         "psr-4": {
             "ValkeyGlide\\": "src/",
-            "ValkeyGlide\\OpenTelemetry\\": "./"
+            "ValkeyGlide\\OpenTelemetry\\": "./",
+            "ValkeyGlide\\Json\\": "Json/"
         },
         "files": [
             "OpenTelemetryConfig.php",

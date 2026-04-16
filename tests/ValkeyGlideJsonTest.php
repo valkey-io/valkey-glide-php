@@ -40,8 +40,8 @@ class ValkeyGlideJsonTest extends ValkeyGlideBaseTest
             $this->assertNotEquals(false, $value);
 
             $decoded = json_decode($value, true);
-            $this->assertEquals(1, $decoded['a']);
-            $this->assertEquals('hello', $decoded['b']);
+            $this->assertEquals(1, $decoded[0]['a']);
+            $this->assertEquals('hello', $decoded[0]['b']);
         } finally {
             $this->valkey_glide->del($key);
         }
@@ -175,6 +175,35 @@ class ValkeyGlideJsonTest extends ValkeyGlideBaseTest
         }
         $this->assertTrue($threw);
         $this->valkey_glide->del($key);
+    }
+
+    public function testJsonGetWithOptions()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": 2}');
+
+            // Test with array
+            $value = $this->valkey_glide->jsonGet($key, '$', [
+                'indent' => '  ',
+                'newline' => "\n",
+                'space' => ' ',
+            ]);
+            $this->assertNotEquals(false, $value);
+            $this->assertTrue(strpos($value, "\n") !== false);
+
+            // Test with builder
+            $opts = \ValkeyGlide\Json\JsonGetOptions::builder()
+                ->indent('  ')
+                ->newline("\n")
+                ->space(' ');
+            $value2 = $this->valkey_glide->jsonGet($key, '$', $opts->toArray());
+            $this->assertNotEquals(false, $value2);
+            $this->assertTrue(strpos($value2, "\n") !== false);
+            $this->assertEquals($value, $value2);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
     }
 
     public function testJsonGetInvalidPath()

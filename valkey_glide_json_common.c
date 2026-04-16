@@ -180,17 +180,19 @@ int execute_json_set_command(zval* object, int argc, zval* return_value, zend_cl
 /**
  * Execute JSON.GET command.
  *
- * JSON.GET key [path [path ...]]
+ * JSON.GET key [INDENT indent] [NEWLINE newline] [SPACE space] [path [path ...]]
  */
 int execute_json_get_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
-    zval*                paths_param = NULL;
+    zval*                paths_param   = NULL;
+    zval*                options_param = NULL;
 
-    /* Parse parameters: key, optional paths (string or array) */
+    /* Parse parameters: key, optional paths (string or array), optional options array */
     if (zend_parse_method_parameters(
-            argc, object, "Os|z", &object, ce, &key, &key_len, &paths_param) == FAILURE) {
+            argc, object, "Os|za!", &object, ce, &key, &key_len, &paths_param, &options_param) ==
+        FAILURE) {
         return 0;
     }
 
@@ -200,61 +202,106 @@ int execute_json_get_command(zval* object, int argc, zval* return_value, zend_cl
         return 0;
     }
 
-    /* Build command arguments */
-    uintptr_t*     cmd_args     = NULL;
-    unsigned long* cmd_args_len = NULL;
-    unsigned long  arg_count    = 0;
+    /* Count formatting options (INDENT/NEWLINE/SPACE = 2 args each) */
+    int         opt_count   = 0;
+    const char* indent_val  = NULL;
+    size_t      indent_len  = 0;
+    const char* newline_val = NULL;
+    size_t      newline_len = 0;
+    const char* space_val   = NULL;
+    size_t      space_len   = 0;
 
-    if (paths_param == NULL || Z_TYPE_P(paths_param) == IS_STRING) {
-        /* Single path string (or default '$' when no arg provided) */
-        const char* path;
-        size_t      path_len;
-        if (paths_param == NULL) {
-            path     = "$";
-            path_len = 1;
-        } else {
-            path     = Z_STRVAL_P(paths_param);
-            path_len = Z_STRLEN_P(paths_param);
+    if (options_param && Z_TYPE_P(options_param) == IS_ARRAY) {
+        zval* zv;
+        if ((zv = zend_hash_str_find(Z_ARRVAL_P(options_param), "indent", 6)) != NULL &&
+            Z_TYPE_P(zv) == IS_STRING) {
+            indent_val = Z_STRVAL_P(zv);
+            indent_len = Z_STRLEN_P(zv);
+            opt_count += 2;
         }
-        arg_count       = 2;
-        cmd_args        = (uintptr_t*) emalloc(2 * sizeof(uintptr_t));
-        cmd_args_len    = (unsigned long*) emalloc(2 * sizeof(unsigned long));
-        cmd_args[0]     = (uintptr_t) key;
-        cmd_args_len[0] = key_len;
-        cmd_args[1]     = (uintptr_t) path;
-        cmd_args_len[1] = path_len;
+        if ((zv = zend_hash_str_find(Z_ARRVAL_P(options_param), "newline", 7)) != NULL &&
+            Z_TYPE_P(zv) == IS_STRING) {
+            newline_val = Z_STRVAL_P(zv);
+            newline_len = Z_STRLEN_P(zv);
+            opt_count += 2;
+        }
+        if ((zv = zend_hash_str_find(Z_ARRVAL_P(options_param), "space", 5)) != NULL &&
+            Z_TYPE_P(zv) == IS_STRING) {
+            space_val = Z_STRVAL_P(zv);
+            space_len = Z_STRLEN_P(zv);
+            opt_count += 2;
+        }
+    }
+
+    /* Determine paths */
+    const char* single_path     = "$";
+    size_t      single_path_len = 1;
+    int         path_count      = 1;
+    zend_bool   use_array_paths = 0;
+
+    if (paths_param == NULL) {
+        /* default '$' */
+    } else if (Z_TYPE_P(paths_param) == IS_STRING) {
+        single_path     = Z_STRVAL_P(paths_param);
+        single_path_len = Z_STRLEN_P(paths_param);
     } else if (Z_TYPE_P(paths_param) == IS_ARRAY) {
-        /* Array of paths */
-        HashTable* ht         = Z_ARRVAL_P(paths_param);
-        int        path_count = zend_hash_num_elements(ht);
+        path_count      = zend_hash_num_elements(Z_ARRVAL_P(paths_param));
+        use_array_paths = 1;
+    } else {
+        php_error_docref(NULL, E_WARNING, "jsonGet expects paths as string or array");
+        return 0;
+    }
 
-        arg_count    = 1 + path_count; /* key + paths */
-        cmd_args     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
-        cmd_args_len = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    /* Build args: key [INDENT v] [NEWLINE v] [SPACE v] path [path ...] */
+    unsigned long  arg_count    = 1 + opt_count + path_count;
+    uintptr_t*     cmd_args     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    unsigned long* cmd_args_len = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    int            idx          = 0;
 
-        cmd_args[0]     = (uintptr_t) key;
-        cmd_args_len[0] = key_len;
+    cmd_args[idx]     = (uintptr_t) key;
+    cmd_args_len[idx] = key_len;
+    idx++;
 
+    if (indent_val) {
+        cmd_args[idx]     = (uintptr_t) "INDENT";
+        cmd_args_len[idx] = 6;
+        idx++;
+        cmd_args[idx]     = (uintptr_t) indent_val;
+        cmd_args_len[idx] = indent_len;
+        idx++;
+    }
+    if (newline_val) {
+        cmd_args[idx]     = (uintptr_t) "NEWLINE";
+        cmd_args_len[idx] = 7;
+        idx++;
+        cmd_args[idx]     = (uintptr_t) newline_val;
+        cmd_args_len[idx] = newline_len;
+        idx++;
+    }
+    if (space_val) {
+        cmd_args[idx]     = (uintptr_t) "SPACE";
+        cmd_args_len[idx] = 5;
+        idx++;
+        cmd_args[idx]     = (uintptr_t) space_val;
+        cmd_args_len[idx] = space_len;
+        idx++;
+    }
+
+    if (use_array_paths) {
         zval* val;
-        int   idx = 1;
-        ZEND_HASH_FOREACH_VAL(ht, val) {
-            if (Z_TYPE_P(val) == IS_STRING) {
-                cmd_args[idx]     = (uintptr_t) Z_STRVAL_P(val);
-                cmd_args_len[idx] = Z_STRLEN_P(val);
-                idx++;
-            } else {
-                /* Convert non-string to string */
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(paths_param), val) {
+            if (Z_TYPE_P(val) != IS_STRING) {
                 convert_to_string(val);
-                cmd_args[idx]     = (uintptr_t) Z_STRVAL_P(val);
-                cmd_args_len[idx] = Z_STRLEN_P(val);
-                idx++;
             }
+            cmd_args[idx]     = (uintptr_t) Z_STRVAL_P(val);
+            cmd_args_len[idx] = Z_STRLEN_P(val);
+            idx++;
         }
         ZEND_HASH_FOREACH_END();
     } else {
-        /* Invalid type for paths */
-        php_error_docref(NULL, E_WARNING, "jsonGet expects paths as string or array");
-        return 0;
+        cmd_args[idx]     = (uintptr_t) single_path;
+        cmd_args_len[idx] = single_path_len;
+        idx++;
     }
 
     /* Check for batch mode */
