@@ -29,6 +29,7 @@
 #include "common.h"
 #include "include/glide_bindings.h"
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_core_common.h"
 #include "valkey_glide_z_common.h"
 
 extern zend_class_entry* get_valkey_glide_exception_ce();
@@ -204,15 +205,24 @@ int execute_json_get_command(zval* object, int argc, zval* return_value, zend_cl
     unsigned long* cmd_args_len = NULL;
     unsigned long  arg_count    = 0;
 
-    if (Z_TYPE_P(paths_param) == IS_STRING) {
-        /* Single path string */
+    if (paths_param == NULL || Z_TYPE_P(paths_param) == IS_STRING) {
+        /* Single path string (or default '$' when no arg provided) */
+        const char* path;
+        size_t      path_len;
+        if (paths_param == NULL) {
+            path     = "$";
+            path_len = 1;
+        } else {
+            path     = Z_STRVAL_P(paths_param);
+            path_len = Z_STRLEN_P(paths_param);
+        }
         arg_count       = 2;
         cmd_args        = (uintptr_t*) emalloc(2 * sizeof(uintptr_t));
         cmd_args_len    = (unsigned long*) emalloc(2 * sizeof(unsigned long));
         cmd_args[0]     = (uintptr_t) key;
         cmd_args_len[0] = key_len;
-        cmd_args[1]     = (uintptr_t) Z_STRVAL_P(paths_param);
-        cmd_args_len[1] = Z_STRLEN_P(paths_param);
+        cmd_args[1]     = (uintptr_t) path;
+        cmd_args_len[1] = path_len;
     } else if (Z_TYPE_P(paths_param) == IS_ARRAY) {
         /* Array of paths */
         HashTable* ht         = Z_ARRVAL_P(paths_param);
