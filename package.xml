@@ -75,7 +75,9 @@ Requirements:
    <file name="valkey_glide_hash_common.h" role="src" />
    <file name="valkey_glide_json_common.c" role="src" />
    <file name="valkey_glide_json_common.h" role="src" />
-   <file name="Json/JsonGetOptions.php" role="php" />
+   <dir name="Json">
+    <file name="JsonGetOptions.php" role="php" />
+   </dir>
    <file name="valkey_glide_list_common.c" role="src" />
    <file name="valkey_glide_list_common.h" role="src" />
    <file name="valkey_glide_s_common.c" role="src" />

@@ -104,6 +104,16 @@ runs:
           fi
         done
 
+        # Copy Json directory
+        echo "=== Copying Json directory ==="
+        mkdir -p "$PACKAGE_DIR/Json"
+        for file in Json/*.php; do
+          if [[ -f "$file" ]]; then
+            echo "Copying $file"
+            cp "$file" "$PACKAGE_DIR/Json/"
+          fi
+        done
+
         # Copy src directory
         echo "=== Copying src directory ==="
         mkdir -p "$PACKAGE_DIR/src"
@@ -163,6 +173,7 @@ runs:
           "package.xml"
           "src/client_constructor_mock.c"
           "src/client_constructor_mock.stub.php"
+          "Json/JsonGetOptions.php"
         )
 
         for file in "${REQUIRED_FILES[@]}"; do
