@@ -4702,7 +4702,7 @@ class ValkeyGlide
      *
      * @param string $key    The key of the JSON document.
      * @param string $path   The path to the array within the JSON document.
-     * @param string ...$values The JSON values to append.
+     * @param string $values The JSON values to append.
      *
      * @return ValkeyGlide|array|int|false For JSONPath: array of new lengths. For legacy path: the new length.
      *
@@ -4720,7 +4720,7 @@ class ValkeyGlide
      * @param string $key       The key of the JSON document.
      * @param string $path      The path to the array within the JSON document.
      * @param int    $index     The array index before which values are inserted.
-     * @param string ...$values The JSON values to insert.
+     * @param string $values The JSON values to insert.
      *
      * @return ValkeyGlide|array|int|false For JSONPath: array of new lengths. For legacy path: the new length.
      *
