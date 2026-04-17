@@ -181,7 +181,6 @@ runs:
     - name: Build PHP extension
       shell: bash
       run: |
-        make build-modules-pre
         make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4")
 
     - name: Verify extension build
