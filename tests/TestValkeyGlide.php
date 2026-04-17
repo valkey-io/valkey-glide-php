@@ -129,7 +129,7 @@ function getTestClass($class)
         'valkeyglideclusterdns' => 'ValkeyGlideClusterDnsTest',
         'iamauth' => 'IamAuthTest',
         'valkeyglidejson' => 'ValkeyGlideJsonTest',
-        'valkeyglideclusterjson' => 'ValkeyGlideClusterJsonTest'
+        'valkeyglideclusterjson' => 'ValkeyGlideClusterJsonTest',
         'valkeyglidevalkeysearch' => 'ValkeyGlideValkeySearchTest',
     ];
 
