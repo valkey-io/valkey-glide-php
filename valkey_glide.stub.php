@@ -4450,7 +4450,7 @@ class ValkeyGlide
      * $valkey_glide->jsonGet('doc', '$', ['indent' => '  ', 'newline' => "\n", 'space' => ' ']);
      * $valkey_glide->jsonGet('doc', '$', JsonGetOptions::builder()->indent('  ')->newline("\n")->space(' '));
      */
-    public function jsonGet(string $key, string|array $paths = '$', object|array|null $options = null): ValkeyGlide|string|false|null;
+    public function jsonGet(string $key, string|array $paths = '$', ?array $options = null): ValkeyGlide|string|false|null;
 
     /**
      * Delete the JSON value at the specified path stored at key.
