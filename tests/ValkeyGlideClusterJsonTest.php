@@ -313,10 +313,13 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
             $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": "hello", "c": [1, 2]}');
 
             $result = $this->valkey_glide->jsonType($key, '$.a');
-            $this->assertNotNull($result);
+            $this->assertEquals(['integer'], $result);
+
+            $result = $this->valkey_glide->jsonType($key, '$.b');
+            $this->assertEquals(['string'], $result);
 
             $result = $this->valkey_glide->jsonType($key, '$.c');
-            $this->assertNotNull($result);
+            $this->assertEquals(['array'], $result);
         } finally {
             $this->valkey_glide->del($key);
         }
@@ -358,11 +361,9 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
             $this->valkey_glide->jsonSet($key, '$', '{"bool": true, "nested": {"bool": false}}');
 
             $result = $this->valkey_glide->jsonToggle($key, '$..bool');
-            $this->assertNotNull($result);
-
-            $getResult = $this->valkey_glide->jsonGet($key);
-            $this->assertTrue(strpos($getResult, 'false') !== false);
-            $this->assertTrue(strpos($getResult, 'true') !== false);
+            $this->assertIsArray($result);
+            $this->assertEquals(false, $result[0]);
+            $this->assertEquals(true, $result[1]);
         } finally {
             $this->valkey_glide->del($key);
         }
@@ -372,13 +373,13 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
     {
         $key = '{json}:' . uniqid();
         try {
-            $this->valkey_glide->jsonSet($key, '$', '{"a": "foo", "b": "bar"}');
+            $this->valkey_glide->jsonSet($key, '$', '{"a": "foo"}');
 
-            $result = $this->valkey_glide->jsonStrAppend($key, '$.a', '"baz"');
-            $this->assertNotNull($result);
+            $result = $this->valkey_glide->jsonStrAppend($key, '$.a', '"bar"');
+            $this->assertEquals([6], $result);
 
             $getResult = $this->valkey_glide->jsonGet($key, '$.a');
-            $this->assertTrue(strpos($getResult, 'foobaz') !== false);
+            $this->assertTrue(strpos($getResult, 'foobar') !== false);
         } finally {
             $this->valkey_glide->del($key);
         }
@@ -391,7 +392,7 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
             $this->valkey_glide->jsonSet($key, '$', '{"a": "hello"}');
 
             $result = $this->valkey_glide->jsonStrLen($key, '$.a');
-            $this->assertNotNull($result);
+            $this->assertEquals([5], $result);
         } finally {
             $this->valkey_glide->del($key);
         }
@@ -407,7 +408,7 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
             $this->assertEquals(2, $result);
 
             $result = $this->valkey_glide->jsonObjLen($key, '$.b');
-            $this->assertNotNull($result);
+            $this->assertEquals([2], $result);
         } finally {
             $this->valkey_glide->del($key);
         }
@@ -420,7 +421,7 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
             $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": 2}');
 
             $result = $this->valkey_glide->jsonObjKeys($key);
-            $this->assertNotNull($result);
+            $this->assertEquals(['a', 'b'], $result);
 
             $result = $this->valkey_glide->jsonObjKeys('non_existing_key_' . uniqid());
             $this->assertNull($result);
@@ -436,11 +437,10 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
             $this->valkey_glide->jsonSet($key, '$', '{"a": [1, 2]}');
 
             $result = $this->valkey_glide->jsonArrAppend($key, '$.a', '3', '4');
-            $this->assertNotNull($result);
+            $this->assertEquals([4], $result);
 
-            $getResult = $this->valkey_glide->jsonGet($key);
-            $this->assertTrue(strpos($getResult, '3') !== false);
-            $this->assertTrue(strpos($getResult, '4') !== false);
+            $getResult = $this->valkey_glide->jsonGet($key, '$.a');
+            $this->assertEquals('[[1,2,3,4]]', $getResult);
         } finally {
             $this->valkey_glide->del($key);
         }
@@ -453,10 +453,10 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
             $this->valkey_glide->jsonSet($key, '$', '{"a": [1, 2, 3]}');
 
             $result = $this->valkey_glide->jsonArrInsert($key, '$.a', 1, '"x"');
-            $this->assertNotNull($result);
+            $this->assertEquals([4], $result);
 
-            $getResult = $this->valkey_glide->jsonGet($key);
-            $this->assertTrue(strpos($getResult, 'x') !== false);
+            $getResult = $this->valkey_glide->jsonGet($key, '$.a');
+            $this->assertEquals('[[1,"x",2,3]]', $getResult);
         } finally {
             $this->valkey_glide->del($key);
         }
@@ -469,10 +469,10 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
             $this->valkey_glide->jsonSet($key, '$', '{"a": [1, 2, 3, 2]}');
 
             $result = $this->valkey_glide->jsonArrIndex($key, '$.a', '2');
-            $this->assertNotNull($result);
+            $this->assertEquals([1], $result);
 
             $result = $this->valkey_glide->jsonArrIndex($key, '$.a', '99');
-            $this->assertNotNull($result);
+            $this->assertEquals([-1], $result);
         } finally {
             $this->valkey_glide->del($key);
         }
@@ -485,7 +485,7 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
             $this->valkey_glide->jsonSet($key, '$', '{"a": [1, 2, 3]}');
 
             $result = $this->valkey_glide->jsonArrLen($key, '$.a');
-            $this->assertNotNull($result);
+            $this->assertEquals([3], $result);
         } finally {
             $this->valkey_glide->del($key);
         }
@@ -498,11 +498,11 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
             $this->valkey_glide->jsonSet($key, '$', '{"a": [10, 20, 30]}');
 
             $result = $this->valkey_glide->jsonArrPop($key, '$.a');
-            $this->assertNotNull($result);
+            $this->assertEquals(['30'], $result);
 
             $this->valkey_glide->jsonSet($key, '$', '{"a": [10, 20, 30]}');
             $result = $this->valkey_glide->jsonArrPop($key, '$.a', 0);
-            $this->assertNotNull($result);
+            $this->assertEquals(['10'], $result);
         } finally {
             $this->valkey_glide->del($key);
         }
@@ -515,12 +515,10 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
             $this->valkey_glide->jsonSet($key, '$', '{"a": [1, 2, 3, 4, 5]}');
 
             $result = $this->valkey_glide->jsonArrTrim($key, '$.a', 1, 3);
-            $this->assertNotNull($result);
+            $this->assertEquals([3], $result);
 
-            $getResult = $this->valkey_glide->jsonGet($key);
-            $this->assertTrue(strpos($getResult, '2') !== false);
-            $this->assertTrue(strpos($getResult, '3') !== false);
-            $this->assertTrue(strpos($getResult, '4') !== false);
+            $getResult = $this->valkey_glide->jsonGet($key, '$.a');
+            $this->assertEquals('[[2,3,4]]', $getResult);
         } finally {
             $this->valkey_glide->del($key);
         }
