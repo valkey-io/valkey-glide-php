@@ -4766,7 +4766,7 @@ class ValkeyGlide
      * $valkey_glide->jsonArrPop('doc', '$.a');    // ['30']
      * $valkey_glide->jsonArrPop('doc', '$.a', 0); // ['10']
      */
-    public function jsonArrPop(string $key, string $path = '', int $index = 0): ValkeyGlide|array|string|false|null;
+    public function jsonArrPop(string $key, string $path = '', int $index = -1): ValkeyGlide|array|string|false|null;
 
     /**
      * Trim the array to a subarray [start, end], both inclusive.

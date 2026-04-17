@@ -1085,10 +1085,8 @@ int execute_json_arrindex_command(zval*             object,
     char*                path   = NULL;
     char*                scalar = NULL;
     size_t               key_len, path_len, scalar_len;
-    zend_long            start     = 0;
-    zend_long            end       = 0;
-    zend_bool            has_start = 0;
-    zend_bool            has_end   = 0;
+    zend_long            start = 0;
+    zend_long            end   = 0;
 
     if (zend_parse_method_parameters(argc,
                                      object,
@@ -1193,7 +1191,7 @@ int execute_json_arrpop_command(zval* object, int argc, zval* return_value, zend
     char*                key  = NULL;
     char*                path = NULL;
     size_t               key_len, path_len = 0;
-    zend_long            index = 0;
+    zend_long            index = -1;
 
     if (zend_parse_method_parameters(
             argc, object, "Os|sl", &object, ce, &key, &key_len, &path, &path_len, &index) ==

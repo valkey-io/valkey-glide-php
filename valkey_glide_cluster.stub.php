@@ -1543,7 +1543,7 @@ class ValkeyGlideCluster
     public function jsonArrIndex(string $key, string $path, string $scalar, int $start = 0, int $end = 0): ValkeyGlideCluster|array|int|false;
 
     /** @see ValkeyGlide::jsonArrPop */
-    public function jsonArrPop(string $key, string $path = '', int $index = 0): ValkeyGlideCluster|array|string|false|null;
+    public function jsonArrPop(string $key, string $path = '', int $index = -1): ValkeyGlideCluster|array|string|false|null;
 
     /** @see ValkeyGlide::jsonArrTrim */
     public function jsonArrTrim(string $key, string $path, int $start, int $end): ValkeyGlideCluster|array|int|false;
