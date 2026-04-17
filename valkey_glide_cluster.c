@@ -1220,27 +1220,93 @@ JSON_SET_METHOD_IMPL(ValkeyGlideCluster)
 JSON_GET_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto int ValkeyGlideCluster::jsonDel(string key [, string path]) */
 JSON_DEL_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto int ValkeyGlideCluster::jsonForget(string key [, string path]) */
 JSON_FORGET_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto int ValkeyGlideCluster::jsonClear(string key [, string path]) */
 JSON_CLEAR_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::jsonMGet(array keys, string path) */
 JSON_MGET_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::jsonType(string key [, string path]) */
 JSON_TYPE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string ValkeyGlideCluster::jsonNumIncrBy(string key, string path, float number) */
 JSON_NUMINCRBY_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string ValkeyGlideCluster::jsonNumMultBy(string key, string path, float number) */
 JSON_NUMMULTBY_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::jsonToggle(string key [, string path]) */
 JSON_TOGGLE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::jsonStrAppend(string key, string pathOrValue [, string
+ * value])
+ */
 JSON_STRAPPEND_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::jsonStrLen(string key [, string path]) */
 JSON_STRLEN_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::jsonObjLen(string key [, string path]) */
 JSON_OBJLEN_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::jsonObjKeys(string key [, string path]) */
 JSON_OBJKEYS_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::jsonResp(string key [, string path]) */
 JSON_RESP_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::jsonDebugMemory(string key [, string path]) */
 JSON_DEBUG_MEMORY_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::jsonDebugFields(string key [, string path]) */
 JSON_DEBUG_FIELDS_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::jsonArrAppend(string key, string path, string ...values) */
 JSON_ARRAPPEND_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::jsonArrInsert(string key, string path, int index, string
+ * ...values) */
 JSON_ARRINSERT_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::jsonArrIndex(string key, string path, string scalar [, int
+ * start [, int end]]) */
 JSON_ARRINDEX_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::jsonArrPop(string key [, string path [, int index]]) */
 JSON_ARRPOP_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::jsonArrTrim(string key, string path, int start, int end) */
 JSON_ARRTRIM_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlideCluster::jsonArrLen(string key [, string path]) */
 JSON_ARRLEN_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
 
 #endif /* PHP_REDIS_CLUSTER_C */
 /* vim: set tabstop=4 softtabstop=4 expandtab shiftwidth=4: */

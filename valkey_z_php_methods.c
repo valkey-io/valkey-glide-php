@@ -863,24 +863,88 @@ JSON_SET_METHOD_IMPL(ValkeyGlide)
 JSON_GET_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto int ValkeyGlide::jsonDel(string key [, string path]) */
 JSON_DEL_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto int ValkeyGlide::jsonForget(string key [, string path]) */
 JSON_FORGET_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto int ValkeyGlide::jsonClear(string key [, string path]) */
 JSON_CLEAR_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::jsonMGet(array keys, string path) */
 JSON_MGET_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::jsonType(string key [, string path]) */
 JSON_TYPE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string ValkeyGlide::jsonNumIncrBy(string key, string path, float number) */
 JSON_NUMINCRBY_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string ValkeyGlide::jsonNumMultBy(string key, string path, float number) */
 JSON_NUMMULTBY_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::jsonToggle(string key [, string path]) */
 JSON_TOGGLE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::jsonStrAppend(string key, string pathOrValue [, string value]) */
 JSON_STRAPPEND_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::jsonStrLen(string key [, string path]) */
 JSON_STRLEN_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::jsonObjLen(string key [, string path]) */
 JSON_OBJLEN_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::jsonObjKeys(string key [, string path]) */
 JSON_OBJKEYS_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::jsonResp(string key [, string path]) */
 JSON_RESP_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::jsonDebugMemory(string key [, string path]) */
 JSON_DEBUG_MEMORY_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::jsonDebugFields(string key [, string path]) */
 JSON_DEBUG_FIELDS_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::jsonArrAppend(string key, string path, string ...values) */
 JSON_ARRAPPEND_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::jsonArrInsert(string key, string path, int index, string ...values)
+ */
 JSON_ARRINSERT_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::jsonArrIndex(string key, string path, string scalar [, int start [,
+ * int end]]) */
 JSON_ARRINDEX_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::jsonArrPop(string key [, string path [, int index]]) */
 JSON_ARRPOP_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::jsonArrTrim(string key, string path, int start, int end) */
 JSON_ARRTRIM_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto mixed ValkeyGlide::jsonArrLen(string key [, string path]) */
 JSON_ARRLEN_METHOD_IMPL(ValkeyGlide)
+/* }}} */

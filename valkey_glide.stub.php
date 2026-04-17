@@ -4452,67 +4452,355 @@ class ValkeyGlide
      */
     public function jsonGet(string $key, string|array $paths = '$', object|array|null $options = null): ValkeyGlide|string|false|null;
 
-    /** @see https://valkey.io/commands/json.del */
+    /**
+     * Delete the JSON value at the specified path stored at key.
+     *
+     * @see https://valkey.io/commands/json.del
+     *
+     * @param string $key  The key of the JSON document.
+     * @param string $path Optional. The path within the JSON document. If not provided, deletes the entire document.
+     *
+     * @return ValkeyGlide|int|false The number of paths deleted. 0 if the key or path doesn't exist. False on failure.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": 1, "nested": {"a": 2}}');
+     * $valkey_glide->jsonDel('doc', '$..a'); // 2
+     * $valkey_glide->jsonDel('doc');         // 1 (deletes entire doc)
+     */
     public function jsonDel(string $key, string $path = ''): ValkeyGlide|int|false;
 
-    /** @see https://valkey.io/commands/json.forget */
+    /**
+     * Delete the JSON value at the specified path. Alias for jsonDel.
+     *
+     * @see https://valkey.io/commands/json.forget
+     * @see ValkeyGlide::jsonDel()
+     *
+     * @param string $key  The key of the JSON document.
+     * @param string $path Optional. The path within the JSON document.
+     *
+     * @return ValkeyGlide|int|false The number of paths deleted. 0 if the key or path doesn't exist. False on failure.
+     */
     public function jsonForget(string $key, string $path = ''): ValkeyGlide|int|false;
 
-    /** @see https://valkey.io/commands/json.clear */
+    /**
+     * Clear arrays/objects at the specified path. Numeric values are set to 0.
+     *
+     * @see https://valkey.io/commands/json.clear
+     *
+     * @param string $key  The key of the JSON document.
+     * @param string $path Optional. The path within the JSON document. Defaults to root.
+     *
+     * @return ValkeyGlide|int|false The number of values cleared. 0 if already empty. False on failure.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": 1, "b": [1, 2, 3]}');
+     * $valkey_glide->jsonClear('doc', '$.*'); // 2
+     */
     public function jsonClear(string $key, string $path = ''): ValkeyGlide|int|false;
 
-    /** @see https://valkey.io/commands/json.mget */
+    /**
+     * Retrieve JSON values at the specified path from multiple keys.
+     *
+     * @see https://valkey.io/commands/json.mget
+     *
+     * @param array  $keys The keys of the JSON documents.
+     * @param string $path The path within the JSON documents.
+     *
+     * @return ValkeyGlide|array|false An array of JSON strings for each key. Null elements for keys that don't exist.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc1', '$', '{"a": 1}');
+     * $valkey_glide->jsonSet('doc2', '$', '{"a": 2}');
+     * $valkey_glide->jsonMGet(['doc1', 'doc2', 'missing'], '$.a'); // ['[1]', '[2]', null]
+     */
     public function jsonMGet(array $keys, string $path): ValkeyGlide|array|false;
 
-    /** @see https://valkey.io/commands/json.type */
+    /**
+     * Report the type of the JSON value at the specified path.
+     *
+     * @see https://valkey.io/commands/json.type
+     *
+     * @param string $key  The key of the JSON document.
+     * @param string $path Optional. The path within the JSON document.
+     *
+     * @return ValkeyGlide|array|string|false|null For JSONPath: array of type strings. For legacy path: a type string.
+     *                                             Null if the key doesn't exist. False on failure.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": 1, "b": "hello"}');
+     * $valkey_glide->jsonType('doc', '$.a'); // ['integer']
+     */
     public function jsonType(string $key, string $path = ''): ValkeyGlide|array|string|false|null;
 
-    /** @see https://valkey.io/commands/json.numincrby */
+    /**
+     * Increment the numeric value at the specified path by the given number.
+     *
+     * @see https://valkey.io/commands/json.numincrby
+     *
+     * @param string $key    The key of the JSON document.
+     * @param string $path   The path within the JSON document.
+     * @param float  $number The number to increment by.
+     *
+     * @return ValkeyGlide|string|false|null A string representation of the new value(s). Null for non-numeric paths.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": 1}');
+     * $valkey_glide->jsonNumIncrBy('doc', '$.a', 10); // '[11]'
+     */
     public function jsonNumIncrBy(string $key, string $path, float $number): ValkeyGlide|string|false|null;
 
-    /** @see https://valkey.io/commands/json.nummultby */
+    /**
+     * Multiply the numeric value at the specified path by the given number.
+     *
+     * @see https://valkey.io/commands/json.nummultby
+     *
+     * @param string $key    The key of the JSON document.
+     * @param string $path   The path within the JSON document.
+     * @param float  $number The number to multiply by.
+     *
+     * @return ValkeyGlide|string|false|null A string representation of the new value(s). Null for non-numeric paths.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": 2}');
+     * $valkey_glide->jsonNumMultBy('doc', '$.a', 5); // '[10]'
+     */
     public function jsonNumMultBy(string $key, string $path, float $number): ValkeyGlide|string|false|null;
 
-    /** @see https://valkey.io/commands/json.toggle */
+    /**
+     * Toggle a boolean value at the specified path.
+     *
+     * @see https://valkey.io/commands/json.toggle
+     *
+     * @param string $key  The key of the JSON document.
+     * @param string $path Optional. The path within the JSON document.
+     *
+     * @return ValkeyGlide|array|bool|false|null For JSONPath: array of booleans. For legacy path: the toggled value.
+     *                                           Null for non-boolean paths. False on failure.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"flag": true}');
+     * $valkey_glide->jsonToggle('doc', '$.flag'); // [false]
+     */
     public function jsonToggle(string $key, string $path = ''): ValkeyGlide|array|bool|false|null;
 
-    /** @see https://valkey.io/commands/json.strappend */
+    /**
+     * Append a string to the string value at the specified path.
+     *
+     * @see https://valkey.io/commands/json.strappend
+     *
+     * @param string $key         The key of the JSON document.
+     * @param string $pathOrValue When 3 args: the path. When 2 args: the JSON string to append.
+     * @param string $value       Optional. The JSON-encoded string to append (e.g., '"baz"').
+     *
+     * @return ValkeyGlide|array|int|false|null For JSONPath: array of new string lengths. For legacy path: the new length.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": "foo"}');
+     * $valkey_glide->jsonStrAppend('doc', '$.a', '"bar"'); // [6]
+     */
     public function jsonStrAppend(string $key, string $pathOrValue, string $value = ''): ValkeyGlide|array|int|false|null;
 
-    /** @see https://valkey.io/commands/json.strlen */
+    /**
+     * Return the length of the string at the specified path.
+     *
+     * @see https://valkey.io/commands/json.strlen
+     *
+     * @param string $key  The key of the JSON document.
+     * @param string $path Optional. The path within the JSON document.
+     *
+     * @return ValkeyGlide|array|int|false|null For JSONPath: array of lengths. For legacy path: the string length.
+     *                                          Null if the key doesn't exist. False on failure.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": "hello"}');
+     * $valkey_glide->jsonStrLen('doc', '$.a'); // [5]
+     */
     public function jsonStrLen(string $key, string $path = ''): ValkeyGlide|array|int|false|null;
 
-    /** @see https://valkey.io/commands/json.objlen */
+    /**
+     * Return the number of keys in the object at the specified path.
+     *
+     * @see https://valkey.io/commands/json.objlen
+     *
+     * @param string $key  The key of the JSON document.
+     * @param string $path Optional. The path within the JSON document.
+     *
+     * @return ValkeyGlide|array|int|false|null For JSONPath: array of object sizes. For legacy path: the object size.
+     *                                          Null if the key doesn't exist. False on failure.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": 1, "b": 2}');
+     * $valkey_glide->jsonObjLen('doc'); // 2
+     */
     public function jsonObjLen(string $key, string $path = ''): ValkeyGlide|array|int|false|null;
 
-    /** @see https://valkey.io/commands/json.objkeys */
+    /**
+     * Return the key names in the object at the specified path.
+     *
+     * @see https://valkey.io/commands/json.objkeys
+     *
+     * @param string $key  The key of the JSON document.
+     * @param string $path Optional. The path within the JSON document.
+     *
+     * @return ValkeyGlide|array|false|null For JSONPath: nested array of key names. For legacy path: array of key names.
+     *                                      Null if the key doesn't exist. False on failure.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": 1, "b": 2}');
+     * $valkey_glide->jsonObjKeys('doc'); // ['a', 'b']
+     */
     public function jsonObjKeys(string $key, string $path = ''): ValkeyGlide|array|false|null;
 
-    /** @see https://valkey.io/commands/json.resp */
+    /**
+     * Return the JSON document in RESP format.
+     *
+     * @see https://valkey.io/commands/json.resp
+     *
+     * @param string $key  The key of the JSON document.
+     * @param string $path Optional. The path within the JSON document.
+     *
+     * @return ValkeyGlide|array|false|null The RESP representation. Null if the key doesn't exist. False on failure.
+     */
     public function jsonResp(string $key, string $path = ''): ValkeyGlide|array|false|null;
 
-    /** @see https://valkey.io/commands/json.debug-memory */
+    /**
+     * Report memory usage in bytes for the JSON value.
+     *
+     * @see https://valkey.io/commands/json.debug-memory
+     *
+     * @param string $key  The key of the JSON document.
+     * @param string $path Optional. The path within the JSON document.
+     *
+     * @return ValkeyGlide|array|int|false|null Memory usage in bytes. Null if the key doesn't exist. False on failure.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": 1}');
+     * $valkey_glide->jsonDebugMemory('doc'); // e.g., 72
+     */
     public function jsonDebugMemory(string $key, string $path = ''): ValkeyGlide|array|int|false|null;
 
-    /** @see https://valkey.io/commands/json.debug-fields */
+    /**
+     * Report the number of fields in the JSON value.
+     *
+     * @see https://valkey.io/commands/json.debug-fields
+     *
+     * @param string $key  The key of the JSON document.
+     * @param string $path Optional. The path within the JSON document.
+     *
+     * @return ValkeyGlide|array|int|false|null Number of fields. Null if the key doesn't exist. False on failure.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": 1, "b": [1, 2, 3]}');
+     * $valkey_glide->jsonDebugFields('doc'); // 6
+     */
     public function jsonDebugFields(string $key, string $path = ''): ValkeyGlide|array|int|false|null;
 
-    /** @see https://valkey.io/commands/json.arrappend */
+    /**
+     * Append one or more values to the JSON array at the specified path.
+     *
+     * @see https://valkey.io/commands/json.arrappend
+     *
+     * @param string $key    The key of the JSON document.
+     * @param string $path   The path to the array within the JSON document.
+     * @param string ...$values The JSON values to append.
+     *
+     * @return ValkeyGlide|array|int|false For JSONPath: array of new lengths. For legacy path: the new length.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": [1, 2]}');
+     * $valkey_glide->jsonArrAppend('doc', '$.a', '3', '4'); // [4]
+     */
     public function jsonArrAppend(string $key, string $path, string ...$values): ValkeyGlide|array|int|false;
 
-    /** @see https://valkey.io/commands/json.arrinsert */
+    /**
+     * Insert one or more values into the array before the given index.
+     *
+     * @see https://valkey.io/commands/json.arrinsert
+     *
+     * @param string $key       The key of the JSON document.
+     * @param string $path      The path to the array within the JSON document.
+     * @param int    $index     The array index before which values are inserted.
+     * @param string ...$values The JSON values to insert.
+     *
+     * @return ValkeyGlide|array|int|false For JSONPath: array of new lengths. For legacy path: the new length.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": [1, 2, 3]}');
+     * $valkey_glide->jsonArrInsert('doc', '$.a', 1, '"x"'); // [4]
+     */
     public function jsonArrInsert(string $key, string $path, int $index, string ...$values): ValkeyGlide|array|int|false;
 
-    /** @see https://valkey.io/commands/json.arrindex */
+    /**
+     * Search for the first occurrence of a scalar value in the array.
+     *
+     * @see https://valkey.io/commands/json.arrindex
+     *
+     * @param string $key    The key of the JSON document.
+     * @param string $path   The path to the array within the JSON document.
+     * @param string $scalar The JSON scalar value to search for.
+     * @param int    $start  Optional. Start index (inclusive). Default 0.
+     * @param int    $end    Optional. End index (exclusive). Default 0 (end of array).
+     *
+     * @return ValkeyGlide|array|int|false For JSONPath: array of indices (-1 if not found). For legacy path: the index.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": [1, 2, 3, 2]}');
+     * $valkey_glide->jsonArrIndex('doc', '$.a', '2'); // [1]
+     */
     public function jsonArrIndex(string $key, string $path, string $scalar, int $start = 0, int $end = 0): ValkeyGlide|array|int|false;
 
-    /** @see https://valkey.io/commands/json.arrpop */
+    /**
+     * Pop an element from the array.
+     *
+     * @see https://valkey.io/commands/json.arrpop
+     *
+     * @param string $key   The key of the JSON document.
+     * @param string $path  Optional. The path to the array.
+     * @param int    $index Optional. The index to pop. Default -1 (last element).
+     *
+     * @return ValkeyGlide|array|string|false|null For JSONPath: array of popped values. For legacy path: the popped value.
+     *                                             Null if the array is empty. False on failure.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": [10, 20, 30]}');
+     * $valkey_glide->jsonArrPop('doc', '$.a');    // ['30']
+     * $valkey_glide->jsonArrPop('doc', '$.a', 0); // ['10']
+     */
     public function jsonArrPop(string $key, string $path = '', int $index = 0): ValkeyGlide|array|string|false|null;
 
-    /** @see https://valkey.io/commands/json.arrtrim */
+    /**
+     * Trim the array to a subarray [start, end], both inclusive.
+     *
+     * @see https://valkey.io/commands/json.arrtrim
+     *
+     * @param string $key   The key of the JSON document.
+     * @param string $path  The path to the array within the JSON document.
+     * @param int    $start The start index (inclusive).
+     * @param int    $end   The end index (inclusive).
+     *
+     * @return ValkeyGlide|array|int|false For JSONPath: array of new lengths. For legacy path: the new length.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": [1, 2, 3, 4, 5]}');
+     * $valkey_glide->jsonArrTrim('doc', '$.a', 1, 3); // [3] (array becomes [2, 3, 4])
+     */
     public function jsonArrTrim(string $key, string $path, int $start, int $end): ValkeyGlide|array|int|false;
 
-    /** @see https://valkey.io/commands/json.arrlen */
+    /**
+     * Return the length of the array at the specified path.
+     *
+     * @see https://valkey.io/commands/json.arrlen
+     *
+     * @param string $key  The key of the JSON document.
+     * @param string $path Optional. The path within the JSON document.
+     *
+     * @return ValkeyGlide|array|int|false|null For JSONPath: array of lengths. For legacy path: the length.
+     *                                          Null if the key doesn't exist. False on failure.
+     *
+     * @example
+     * $valkey_glide->jsonSet('doc', '$', '{"a": [1, 2, 3]}');
+     * $valkey_glide->jsonArrLen('doc', '$.a'); // [3]
+     */
     public function jsonArrLen(string $key, string $path = ''): ValkeyGlide|array|int|false|null;
 }
 
