@@ -1220,5 +1220,27 @@ JSON_SET_METHOD_IMPL(ValkeyGlideCluster)
 JSON_GET_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+JSON_DEL_METHOD_IMPL(ValkeyGlideCluster)
+JSON_FORGET_METHOD_IMPL(ValkeyGlideCluster)
+JSON_CLEAR_METHOD_IMPL(ValkeyGlideCluster)
+JSON_MGET_METHOD_IMPL(ValkeyGlideCluster)
+JSON_TYPE_METHOD_IMPL(ValkeyGlideCluster)
+JSON_NUMINCRBY_METHOD_IMPL(ValkeyGlideCluster)
+JSON_NUMMULTBY_METHOD_IMPL(ValkeyGlideCluster)
+JSON_TOGGLE_METHOD_IMPL(ValkeyGlideCluster)
+JSON_STRAPPEND_METHOD_IMPL(ValkeyGlideCluster)
+JSON_STRLEN_METHOD_IMPL(ValkeyGlideCluster)
+JSON_OBJLEN_METHOD_IMPL(ValkeyGlideCluster)
+JSON_OBJKEYS_METHOD_IMPL(ValkeyGlideCluster)
+JSON_RESP_METHOD_IMPL(ValkeyGlideCluster)
+JSON_DEBUG_MEMORY_METHOD_IMPL(ValkeyGlideCluster)
+JSON_DEBUG_FIELDS_METHOD_IMPL(ValkeyGlideCluster)
+JSON_ARRAPPEND_METHOD_IMPL(ValkeyGlideCluster)
+JSON_ARRINSERT_METHOD_IMPL(ValkeyGlideCluster)
+JSON_ARRINDEX_METHOD_IMPL(ValkeyGlideCluster)
+JSON_ARRPOP_METHOD_IMPL(ValkeyGlideCluster)
+JSON_ARRTRIM_METHOD_IMPL(ValkeyGlideCluster)
+JSON_ARRLEN_METHOD_IMPL(ValkeyGlideCluster)
+
 #endif /* PHP_REDIS_CLUSTER_C */
 /* vim: set tabstop=4 softtabstop=4 expandtab shiftwidth=4: */

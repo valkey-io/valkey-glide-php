@@ -240,4 +240,338 @@ class ValkeyGlideJsonTest extends ValkeyGlideBaseTest
             $this->valkey_glide->del($key);
         }
     }
+
+    public function testJsonDel()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "nested": {"a": 2, "b": 3}}');
+            $result = $this->valkey_glide->jsonDel($key, '$..a');
+            $this->assertEquals(2, $result);
+
+            $this->valkey_glide->jsonSet($key, '$', '{"x": 1}');
+            $result = $this->valkey_glide->jsonDel($key);
+            $this->assertEquals(1, $result);
+
+            $result = $this->valkey_glide->jsonDel('non_existing_key_' . uniqid());
+            $this->assertEquals(0, $result);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonForget()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": 2}');
+            $result = $this->valkey_glide->jsonForget($key, '$.a');
+            $this->assertEquals(1, $result);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonClear()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": [1, 2, 3]}');
+            $result = $this->valkey_glide->jsonClear($key, '$.*');
+            $this->assertEquals(2, $result);
+
+            $result = $this->valkey_glide->jsonClear($key, '$.*');
+            $this->assertEquals(0, $result);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonMGet()
+    {
+        $key1 = '{json}:mget1:' . uniqid();
+        $key2 = '{json}:mget2:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key1, '$', '{"a": 1}');
+            $this->valkey_glide->jsonSet($key2, '$', '{"a": 2}');
+
+            $result = $this->valkey_glide->jsonMGet([$key1, $key2, 'non_existing_' . uniqid()], '$.a');
+            $this->assertIsArray($result);
+            $this->assertCount(3, $result);
+            $this->assertEquals('[1]', $result[0]);
+            $this->assertEquals('[2]', $result[1]);
+            $this->assertEquals(null, $result[2]);
+        } finally {
+            $this->valkey_glide->del($key1);
+            $this->valkey_glide->del($key2);
+        }
+    }
+
+    public function testJsonType()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": "hello", "c": [1, 2]}');
+
+            $result = $this->valkey_glide->jsonType($key, '$.a');
+            $this->assertNotNull($result);
+
+            $result = $this->valkey_glide->jsonType($key, '$.c');
+            $this->assertNotNull($result);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonNumIncrBy()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": 2.5}');
+
+            $result = $this->valkey_glide->jsonNumIncrBy($key, '$.a', 10);
+            $this->assertEquals('[11]', $result);
+
+            $result = $this->valkey_glide->jsonNumIncrBy($key, '$.b', 0.5);
+            $this->assertEquals('[3]', $result);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonNumMultBy()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 2, "b": 3}');
+
+            $result = $this->valkey_glide->jsonNumMultBy($key, '$.a', 5);
+            $this->assertEquals('[10]', $result);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonToggle()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"bool": true, "nested": {"bool": false}}');
+
+            $result = $this->valkey_glide->jsonToggle($key, '$..bool');
+            $this->assertNotNull($result);
+
+            $getResult = $this->valkey_glide->jsonGet($key);
+            $this->assertTrue(strpos($getResult, 'false') !== false);
+            $this->assertTrue(strpos($getResult, 'true') !== false);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonStrAppend()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": "foo", "b": "bar"}');
+
+            $result = $this->valkey_glide->jsonStrAppend($key, '$.a', '"baz"');
+            $this->assertNotNull($result);
+
+            $getResult = $this->valkey_glide->jsonGet($key, '$.a');
+            $this->assertTrue(strpos($getResult, 'foobaz') !== false);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonStrLen()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": "hello"}');
+
+            $result = $this->valkey_glide->jsonStrLen($key, '$.a');
+            $this->assertNotNull($result);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonObjLen()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": {"x": 1, "y": 2}}');
+
+            $result = $this->valkey_glide->jsonObjLen($key);
+            $this->assertEquals(2, $result);
+
+            $result = $this->valkey_glide->jsonObjLen($key, '$.b');
+            $this->assertNotNull($result);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonObjKeys()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": 2}');
+
+            $result = $this->valkey_glide->jsonObjKeys($key);
+            $this->assertNotNull($result);
+
+            $result = $this->valkey_glide->jsonObjKeys('non_existing_key_' . uniqid());
+            $this->assertNull($result);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonArrAppend()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": [1, 2]}');
+
+            $result = $this->valkey_glide->jsonArrAppend($key, '$.a', '3', '4');
+            $this->assertNotNull($result);
+
+            $getResult = $this->valkey_glide->jsonGet($key);
+            $this->assertTrue(strpos($getResult, '3') !== false);
+            $this->assertTrue(strpos($getResult, '4') !== false);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonArrInsert()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": [1, 2, 3]}');
+
+            $result = $this->valkey_glide->jsonArrInsert($key, '$.a', 1, '"x"');
+            $this->assertNotNull($result);
+
+            $getResult = $this->valkey_glide->jsonGet($key);
+            $this->assertTrue(strpos($getResult, 'x') !== false);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonArrIndex()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": [1, 2, 3, 2]}');
+
+            $result = $this->valkey_glide->jsonArrIndex($key, '$.a', '2');
+            $this->assertNotNull($result);
+
+            $result = $this->valkey_glide->jsonArrIndex($key, '$.a', '99');
+            $this->assertNotNull($result);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonArrLen()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": [1, 2, 3]}');
+
+            $result = $this->valkey_glide->jsonArrLen($key, '$.a');
+            $this->assertNotNull($result);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonArrPop()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": [10, 20, 30]}');
+
+            $result = $this->valkey_glide->jsonArrPop($key, '$.a');
+            $this->assertNotNull($result);
+
+            $this->valkey_glide->jsonSet($key, '$', '{"a": [10, 20, 30]}');
+            $result = $this->valkey_glide->jsonArrPop($key, '$.a', 0);
+            $this->assertNotNull($result);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonArrTrim()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": [1, 2, 3, 4, 5]}');
+
+            $result = $this->valkey_glide->jsonArrTrim($key, '$.a', 1, 3);
+            $this->assertNotNull($result);
+
+            $getResult = $this->valkey_glide->jsonGet($key);
+            $this->assertTrue(strpos($getResult, '2') !== false);
+            $this->assertTrue(strpos($getResult, '3') !== false);
+            $this->assertTrue(strpos($getResult, '4') !== false);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonResp()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": [1, 2]}');
+
+            $result = $this->valkey_glide->jsonResp($key);
+            $this->assertNotNull($result);
+
+            $result = $this->valkey_glide->jsonResp('non_existing_key_' . uniqid());
+            $this->assertNull($result);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonDebugMemory()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": "hello"}');
+
+            $result = $this->valkey_glide->jsonDebugMemory($key);
+            $this->assertNotNull($result);
+
+            $result = $this->valkey_glide->jsonDebugMemory($key, '$.a');
+            $this->assertNotNull($result);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonDebugFields()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": [1, 2, 3]}');
+
+            $result = $this->valkey_glide->jsonDebugFields($key);
+            $this->assertNotNull($result);
+
+            $result = $this->valkey_glide->jsonDebugFields($key, '$.b');
+            $this->assertNotNull($result);
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
 }

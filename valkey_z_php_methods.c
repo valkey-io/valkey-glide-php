@@ -858,6 +858,29 @@ GETOPTION_METHOD_IMPL(ValkeyGlide)
 JSON_SET_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto string ValkeyGlide::jsonGet(string key [, string|array paths]) */
+/* {{{ proto string ValkeyGlide::jsonGet(string key [, string|array paths [, array|object options]])
+ */
 JSON_GET_METHOD_IMPL(ValkeyGlide)
 /* }}} */
+
+JSON_DEL_METHOD_IMPL(ValkeyGlide)
+JSON_FORGET_METHOD_IMPL(ValkeyGlide)
+JSON_CLEAR_METHOD_IMPL(ValkeyGlide)
+JSON_MGET_METHOD_IMPL(ValkeyGlide)
+JSON_TYPE_METHOD_IMPL(ValkeyGlide)
+JSON_NUMINCRBY_METHOD_IMPL(ValkeyGlide)
+JSON_NUMMULTBY_METHOD_IMPL(ValkeyGlide)
+JSON_TOGGLE_METHOD_IMPL(ValkeyGlide)
+JSON_STRAPPEND_METHOD_IMPL(ValkeyGlide)
+JSON_STRLEN_METHOD_IMPL(ValkeyGlide)
+JSON_OBJLEN_METHOD_IMPL(ValkeyGlide)
+JSON_OBJKEYS_METHOD_IMPL(ValkeyGlide)
+JSON_RESP_METHOD_IMPL(ValkeyGlide)
+JSON_DEBUG_MEMORY_METHOD_IMPL(ValkeyGlide)
+JSON_DEBUG_FIELDS_METHOD_IMPL(ValkeyGlide)
+JSON_ARRAPPEND_METHOD_IMPL(ValkeyGlide)
+JSON_ARRINSERT_METHOD_IMPL(ValkeyGlide)
+JSON_ARRINDEX_METHOD_IMPL(ValkeyGlide)
+JSON_ARRPOP_METHOD_IMPL(ValkeyGlide)
+JSON_ARRTRIM_METHOD_IMPL(ValkeyGlide)
+JSON_ARRLEN_METHOD_IMPL(ValkeyGlide)

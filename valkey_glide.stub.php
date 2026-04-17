@@ -4451,6 +4451,69 @@ class ValkeyGlide
      * $valkey_glide->jsonGet('doc', '$', JsonGetOptions::builder()->indent('  ')->newline("\n")->space(' '));
      */
     public function jsonGet(string $key, string|array $paths = '$', object|array|null $options = null): ValkeyGlide|string|false|null;
+
+    /** @see https://valkey.io/commands/json.del */
+    public function jsonDel(string $key, string $path = ''): ValkeyGlide|int|false;
+
+    /** @see https://valkey.io/commands/json.forget */
+    public function jsonForget(string $key, string $path = ''): ValkeyGlide|int|false;
+
+    /** @see https://valkey.io/commands/json.clear */
+    public function jsonClear(string $key, string $path = ''): ValkeyGlide|int|false;
+
+    /** @see https://valkey.io/commands/json.mget */
+    public function jsonMGet(array $keys, string $path): ValkeyGlide|array|false;
+
+    /** @see https://valkey.io/commands/json.type */
+    public function jsonType(string $key, string $path = ''): ValkeyGlide|array|string|false|null;
+
+    /** @see https://valkey.io/commands/json.numincrby */
+    public function jsonNumIncrBy(string $key, string $path, float $number): ValkeyGlide|string|false|null;
+
+    /** @see https://valkey.io/commands/json.nummultby */
+    public function jsonNumMultBy(string $key, string $path, float $number): ValkeyGlide|string|false|null;
+
+    /** @see https://valkey.io/commands/json.toggle */
+    public function jsonToggle(string $key, string $path = ''): ValkeyGlide|array|bool|false|null;
+
+    /** @see https://valkey.io/commands/json.strappend */
+    public function jsonStrAppend(string $key, string $pathOrValue, string $value = ''): ValkeyGlide|array|int|false|null;
+
+    /** @see https://valkey.io/commands/json.strlen */
+    public function jsonStrLen(string $key, string $path = ''): ValkeyGlide|array|int|false|null;
+
+    /** @see https://valkey.io/commands/json.objlen */
+    public function jsonObjLen(string $key, string $path = ''): ValkeyGlide|array|int|false|null;
+
+    /** @see https://valkey.io/commands/json.objkeys */
+    public function jsonObjKeys(string $key, string $path = ''): ValkeyGlide|array|false|null;
+
+    /** @see https://valkey.io/commands/json.resp */
+    public function jsonResp(string $key, string $path = ''): ValkeyGlide|array|false|null;
+
+    /** @see https://valkey.io/commands/json.debug-memory */
+    public function jsonDebugMemory(string $key, string $path = ''): ValkeyGlide|array|int|false|null;
+
+    /** @see https://valkey.io/commands/json.debug-fields */
+    public function jsonDebugFields(string $key, string $path = ''): ValkeyGlide|array|int|false|null;
+
+    /** @see https://valkey.io/commands/json.arrappend */
+    public function jsonArrAppend(string $key, string $path, string ...$values): ValkeyGlide|array|int|false;
+
+    /** @see https://valkey.io/commands/json.arrinsert */
+    public function jsonArrInsert(string $key, string $path, int $index, string ...$values): ValkeyGlide|array|int|false;
+
+    /** @see https://valkey.io/commands/json.arrindex */
+    public function jsonArrIndex(string $key, string $path, string $scalar, int $start = 0, int $end = 0): ValkeyGlide|array|int|false;
+
+    /** @see https://valkey.io/commands/json.arrpop */
+    public function jsonArrPop(string $key, string $path = '', int $index = 0): ValkeyGlide|array|string|false|null;
+
+    /** @see https://valkey.io/commands/json.arrtrim */
+    public function jsonArrTrim(string $key, string $path, int $start, int $end): ValkeyGlide|array|int|false;
+
+    /** @see https://valkey.io/commands/json.arrlen */
+    public function jsonArrLen(string $key, string $path = ''): ValkeyGlide|array|int|false|null;
 }
 
 class ValkeyGlideException extends RuntimeException

@@ -1487,4 +1487,67 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::jsonGet
      */
     public function jsonGet(string $key, string|array $paths = '$', object|array|null $options = null): ValkeyGlideCluster|string|false|null;
+
+    /** @see ValkeyGlide::jsonDel */
+    public function jsonDel(string $key, string $path = ''): ValkeyGlideCluster|int|false;
+
+    /** @see ValkeyGlide::jsonForget */
+    public function jsonForget(string $key, string $path = ''): ValkeyGlideCluster|int|false;
+
+    /** @see ValkeyGlide::jsonClear */
+    public function jsonClear(string $key, string $path = ''): ValkeyGlideCluster|int|false;
+
+    /** @see ValkeyGlide::jsonMGet */
+    public function jsonMGet(array $keys, string $path): ValkeyGlideCluster|array|false;
+
+    /** @see ValkeyGlide::jsonType */
+    public function jsonType(string $key, string $path = ''): ValkeyGlideCluster|array|string|false|null;
+
+    /** @see ValkeyGlide::jsonNumIncrBy */
+    public function jsonNumIncrBy(string $key, string $path, float $number): ValkeyGlideCluster|string|false|null;
+
+    /** @see ValkeyGlide::jsonNumMultBy */
+    public function jsonNumMultBy(string $key, string $path, float $number): ValkeyGlideCluster|string|false|null;
+
+    /** @see ValkeyGlide::jsonToggle */
+    public function jsonToggle(string $key, string $path = ''): ValkeyGlideCluster|array|bool|false|null;
+
+    /** @see ValkeyGlide::jsonStrAppend */
+    public function jsonStrAppend(string $key, string $pathOrValue, string $value = ''): ValkeyGlideCluster|array|int|false|null;
+
+    /** @see ValkeyGlide::jsonStrLen */
+    public function jsonStrLen(string $key, string $path = ''): ValkeyGlideCluster|array|int|false|null;
+
+    /** @see ValkeyGlide::jsonObjLen */
+    public function jsonObjLen(string $key, string $path = ''): ValkeyGlideCluster|array|int|false|null;
+
+    /** @see ValkeyGlide::jsonObjKeys */
+    public function jsonObjKeys(string $key, string $path = ''): ValkeyGlideCluster|array|false|null;
+
+    /** @see ValkeyGlide::jsonResp */
+    public function jsonResp(string $key, string $path = ''): ValkeyGlideCluster|array|false|null;
+
+    /** @see ValkeyGlide::jsonDebugMemory */
+    public function jsonDebugMemory(string $key, string $path = ''): ValkeyGlideCluster|array|int|false|null;
+
+    /** @see ValkeyGlide::jsonDebugFields */
+    public function jsonDebugFields(string $key, string $path = ''): ValkeyGlideCluster|array|int|false|null;
+
+    /** @see ValkeyGlide::jsonArrAppend */
+    public function jsonArrAppend(string $key, string $path, string ...$values): ValkeyGlideCluster|array|int|false;
+
+    /** @see ValkeyGlide::jsonArrInsert */
+    public function jsonArrInsert(string $key, string $path, int $index, string ...$values): ValkeyGlideCluster|array|int|false;
+
+    /** @see ValkeyGlide::jsonArrIndex */
+    public function jsonArrIndex(string $key, string $path, string $scalar, int $start = 0, int $end = 0): ValkeyGlideCluster|array|int|false;
+
+    /** @see ValkeyGlide::jsonArrPop */
+    public function jsonArrPop(string $key, string $path = '', int $index = 0): ValkeyGlideCluster|array|string|false|null;
+
+    /** @see ValkeyGlide::jsonArrTrim */
+    public function jsonArrTrim(string $key, string $path, int $start, int $end): ValkeyGlideCluster|array|int|false;
+
+    /** @see ValkeyGlide::jsonArrLen */
+    public function jsonArrLen(string $key, string $path = ''): ValkeyGlideCluster|array|int|false|null;
 }
