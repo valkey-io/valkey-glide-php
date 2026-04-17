@@ -573,6 +573,11 @@ int execute_json_mget_command(zval* object, int argc, zval* return_value, zend_c
             return 0;
         }
         if (result->response) {
+            if (result->response->response_type == Null) {
+                ZVAL_NULL(return_value);
+                free_command_result(result);
+                return 1;
+            }
             if (command_response_to_zval(
                     result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false)) {
                 free_command_result(result);
@@ -608,7 +613,19 @@ static int execute_json_num_command(
     }
 
     char   num_buf[64];
-    size_t num_len = snprintf(num_buf, sizeof(num_buf), "%g", number);
+    size_t num_len = snprintf(num_buf, sizeof(num_buf), "%.17g", number);
+    /* Strip trailing zeros after decimal point for cleaner output */
+    if (strchr(num_buf, '.')) {
+        char* p = num_buf + num_len - 1;
+        while (*p == '0') {
+            p--;
+        }
+        if (*p == '.') {
+            p--;
+        }
+        num_len          = (size_t) (p - num_buf + 1);
+        num_buf[num_len] = '\0';
+    }
 
     uintptr_t     cmd_args[3] = {(uintptr_t) key, (uintptr_t) path, (uintptr_t) num_buf};
     unsigned long cmd_lens[3] = {key_len, path_len, num_len};
@@ -746,6 +763,11 @@ int execute_json_strappend_command(zval*             object,
             return 0;
         }
         if (result->response) {
+            if (result->response->response_type == Null) {
+                ZVAL_NULL(return_value);
+                free_command_result(result);
+                return 1;
+            }
             if (command_response_to_zval(
                     result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false)) {
                 free_command_result(result);
@@ -821,6 +843,11 @@ static int execute_json_debug_command(zval*             object,
             return 0;
         }
         if (result->response) {
+            if (result->response->response_type == Null) {
+                ZVAL_NULL(return_value);
+                free_command_result(result);
+                return 1;
+            }
             if (command_response_to_zval(
                     result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false)) {
                 free_command_result(result);
@@ -926,6 +953,11 @@ int execute_json_arrappend_command(zval*             object,
             return 0;
         }
         if (result->response) {
+            if (result->response->response_type == Null) {
+                ZVAL_NULL(return_value);
+                free_command_result(result);
+                return 1;
+            }
             if (command_response_to_zval(
                     result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false)) {
                 free_command_result(result);
@@ -1024,6 +1056,11 @@ int execute_json_arrinsert_command(zval*             object,
             return 0;
         }
         if (result->response) {
+            if (result->response->response_type == Null) {
+                ZVAL_NULL(return_value);
+                free_command_result(result);
+                return 1;
+            }
             if (command_response_to_zval(
                     result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false)) {
                 free_command_result(result);
@@ -1131,6 +1168,11 @@ int execute_json_arrindex_command(zval*             object,
             return 0;
         }
         if (result->response) {
+            if (result->response->response_type == Null) {
+                ZVAL_NULL(return_value);
+                free_command_result(result);
+                return 1;
+            }
             if (command_response_to_zval(
                     result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false)) {
                 free_command_result(result);
@@ -1213,6 +1255,11 @@ int execute_json_arrpop_command(zval* object, int argc, zval* return_value, zend
             return 0;
         }
         if (result->response) {
+            if (result->response->response_type == Null) {
+                ZVAL_NULL(return_value);
+                free_command_result(result);
+                return 1;
+            }
             if (command_response_to_zval(
                     result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false)) {
                 free_command_result(result);
@@ -1275,6 +1322,11 @@ int execute_json_arrtrim_command(zval* object, int argc, zval* return_value, zen
             return 0;
         }
         if (result->response) {
+            if (result->response->response_type == Null) {
+                ZVAL_NULL(return_value);
+                free_command_result(result);
+                return 1;
+            }
             if (command_response_to_zval(
                     result->response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false)) {
                 free_command_result(result);
