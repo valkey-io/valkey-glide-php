@@ -197,7 +197,7 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
                 ->indent('  ')
                 ->newline("\n")
                 ->space(' ');
-            $value2 = $this->valkey_glide->jsonGet($key, '$', $opts);
+            $value2 = $this->valkey_glide->jsonGet($key, '$', $opts->toArray());
             $this->assertNotEquals(false, $value2);
             $this->assertTrue(strpos($value2, "\n") !== false);
             $this->assertEquals($value, $value2);
@@ -528,10 +528,13 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
     {
         $key = '{json}:' . uniqid();
         try {
-            $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": [1, 2]}');
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 1}');
 
             $result = $this->valkey_glide->jsonResp($key);
-            $this->assertNotNull($result);
+            $this->assertIsArray($result);
+            $this->assertEquals('{', $result[0]);
+            $this->assertEquals('a', $result[1][0]);
+            $this->assertEquals(1, $result[1][1]);
 
             $result = $this->valkey_glide->jsonResp('non_existing_key_' . uniqid());
             $this->assertNull($result);
@@ -547,10 +550,12 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
             $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": "hello"}');
 
             $result = $this->valkey_glide->jsonDebugMemory($key);
-            $this->assertNotNull($result);
+            $this->assertIsInt($result);
+            $this->assertTrue($result > 0);
 
             $result = $this->valkey_glide->jsonDebugMemory($key, '$.a');
-            $this->assertNotNull($result);
+            $this->assertIsArray($result);
+            $this->assertTrue($result[0] > 0);
         } finally {
             $this->valkey_glide->del($key);
         }
@@ -563,10 +568,12 @@ class ValkeyGlideClusterJsonTest extends ValkeyGlideClusterBaseTest
             $this->valkey_glide->jsonSet($key, '$', '{"a": 1, "b": [1, 2, 3]}');
 
             $result = $this->valkey_glide->jsonDebugFields($key);
-            $this->assertNotNull($result);
+            $this->assertIsInt($result);
+            $this->assertEquals(5, $result);
 
             $result = $this->valkey_glide->jsonDebugFields($key, '$.b');
-            $this->assertNotNull($result);
+            $this->assertIsArray($result);
+            $this->assertEquals(3, $result[0]);
         } finally {
             $this->valkey_glide->del($key);
         }

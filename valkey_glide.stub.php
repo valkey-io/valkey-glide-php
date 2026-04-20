@@ -4434,10 +4434,12 @@ class ValkeyGlide
      *
      * @see https://valkey.io/commands/json.get
      *
-     * @param string       $key   The key of the JSON document.
-     * @param string|array $paths Optional. A path or array of paths within the JSON document.
-     *                            If not provided, returns the entire document.
-     *                            Supports JSONPath (starting with '$') and legacy path syntax.
+     * @param string       $key     The key of the JSON document.
+     * @param string|array $paths   Optional. A path or array of paths within the JSON document.
+     *                              If not provided, returns the entire document.
+     *                              Supports JSONPath (starting with '$') and legacy path syntax.
+     * @param array|null   $options Optional. Formatting options array with keys: 'indent', 'newline', 'space'.
+     *                              Use JsonGetOptions::builder()->...->toArray() or pass an array directly.
      *
      * @return ValkeyGlide|string|false|null The JSON string representation of the value(s) at the path(s).
      *                                       Null if the key doesn't exist. False on failure.
@@ -4448,7 +4450,7 @@ class ValkeyGlide
      * $valkey_glide->jsonGet('doc', '$.a');       // '[1]'
      * $valkey_glide->jsonGet('doc', ['$.a', '$.b']); // '{"$.a":[1],"$.b":[2]}'
      * $valkey_glide->jsonGet('doc', '$', ['indent' => '  ', 'newline' => "\n", 'space' => ' ']);
-     * $valkey_glide->jsonGet('doc', '$', JsonGetOptions::builder()->indent('  ')->newline("\n")->space(' '));
+     * $valkey_glide->jsonGet('doc', '$', JsonGetOptions::builder()->indent('  ')->newline("\n")->space(' ')->toArray());
      */
     public function jsonGet(string $key, string|array $paths = '$', ?array $options = null): ValkeyGlide|string|false|null;
 
