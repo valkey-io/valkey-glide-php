@@ -1097,6 +1097,12 @@ jobs:
         run: |
           php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php --class=ValkeyGlideValkeySearch
 
+      - name: Stop Valkey servers
+        if: always()
+        run: |
+          echo "Stopping Valkey Docker containers..."
+          docker ps -a --filter "name=valkey-" --format "{{.Names}}" | xargs -r docker rm -f || true
+
       - name: Upload test reports
         if: always()
         continue-on-error: true

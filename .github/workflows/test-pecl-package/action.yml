@@ -400,3 +400,10 @@ runs:
       with:
         extension-path: valkey_glide
         php-version: ${{ inputs.php-version }}
+
+    - name: Stop Valkey Docker containers
+      if: always()
+      shell: bash
+      run: |
+        echo "Stopping Valkey Docker containers..."
+        docker ps -a --filter "name=valkey-" --format "{{.Names}}" | xargs -r docker rm -f || true
