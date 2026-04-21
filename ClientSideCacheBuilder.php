@@ -41,15 +41,16 @@ class ClientSideCacheBuilder
      * Sets the Time-To-Live for cached entries in milliseconds.
      *
      * After this duration, entries automatically expire and are removed
-     * from the cache. If not specified, no expiration is applied.
+     * from the cache. Set to 0 to disable TTL expiration (entries remain
+     * until evicted or invalidated).
      *
-     * @param int $entryTtlMs TTL in milliseconds (must be positive).
+     * @param int $entryTtlMs TTL in milliseconds (must be non-negative, 0 = no expiration).
      * @return self This builder instance for method chaining.
      */
     public function entryTtlMs(int $entryTtlMs): self
     {
-        if ($entryTtlMs <= 0) {
-            throw new ValkeyGlideException("entryTtlMs must be positive");
+        if ($entryTtlMs < 0) {
+            throw new ValkeyGlideException("entryTtlMs must be non-negative (0 = no expiration)");
         }
         $this->entryTtlMs = $entryTtlMs;
         return $this;
@@ -103,10 +104,13 @@ class ClientSideCacheBuilder
     /**
      * Gets the entry TTL in milliseconds.
      *
-     * @return int|null The entry TTL in milliseconds, or null if not set.
+     * @return int The entry TTL in milliseconds (0 = no expiration).
      */
-    public function getEntryTtlMs(): ?int
+    public function getEntryTtlMs(): int
     {
+        if ($this->entryTtlMs === null) {
+            throw new ValkeyGlideException("entryTtlMs is required");
+        }
         return $this->entryTtlMs;
     }
 
@@ -154,6 +158,9 @@ class ClientSideCacheBuilder
     {
         if ($this->maxCacheKb === null) {
             throw new ValkeyGlideException("maxCacheKb is required");
+        }
+        if ($this->entryTtlMs === null) {
+            throw new ValkeyGlideException("entryTtlMs is required");
         }
 
         return new ClientSideCache($this);

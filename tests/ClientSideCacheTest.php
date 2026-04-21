@@ -228,6 +228,7 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
     {
         $cache = ClientSideCache::builder()
             ->maxCacheKb(1)
+            ->entryTtlMs(60000)
             ->evictionPolicy(ClientSideCache::EVICTION_LRU)
             ->enableMetrics()
             ->build();
@@ -264,6 +265,7 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
     {
         $cache = ClientSideCache::builder()
             ->maxCacheKb(1)
+            ->entryTtlMs(60000)
             ->evictionPolicy(ClientSideCache::EVICTION_LFU)
             ->enableMetrics()
             ->build();
@@ -310,19 +312,24 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
             ClientSideCache::builder()->maxCacheKb(0)->build();
         });
 
-        // entryTtlMs must be positive
+        // entryTtlMs must be non-negative
         $this->assertThrowsMatch(null, function () {
             ClientSideCache::builder()->maxCacheKb(1)->entryTtlMs(-1)->build();
         });
 
+        // entryTtlMs is required
+        $this->assertThrowsMatch(null, function () {
+            ClientSideCache::builder()->maxCacheKb(1)->build();
+        });
+
         // maxCacheKb is required
         $this->assertThrowsMatch(null, function () {
-            ClientSideCache::builder()->build();
+            ClientSideCache::builder()->entryTtlMs(60000)->build();
         });
 
         // Invalid eviction policy
         $this->assertThrowsMatch(null, function () {
-            ClientSideCache::builder()->maxCacheKb(1)->evictionPolicy(99)->build();
+            ClientSideCache::builder()->maxCacheKb(1)->entryTtlMs(60000)->evictionPolicy(99)->build();
         });
     }
 
@@ -331,8 +338,8 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
      */
     public function testUniqueCacheIds()
     {
-        $cache1 = ClientSideCache::builder()->maxCacheKb(1)->build();
-        $cache2 = ClientSideCache::builder()->maxCacheKb(1)->build();
+        $cache1 = ClientSideCache::builder()->maxCacheKb(1)->entryTtlMs(60000)->build();
+        $cache2 = ClientSideCache::builder()->maxCacheKb(1)->entryTtlMs(60000)->build();
 
         $id1 = $cache1->getCacheId();
         $id2 = $cache2->getCacheId();

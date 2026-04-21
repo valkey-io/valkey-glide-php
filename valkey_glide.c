@@ -539,10 +539,10 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
             return FAILURE;
         }
 
-        /* Parse entry_ttl_ms (optional, -1 = not set) */
+        /* Parse entry_ttl_ms (required, 0 = no expiration) */
         zval* ttl_zv =
             zend_hash_str_find(cache_ht, "entry_ttl_ms", sizeof("entry_ttl_ms") - 1);
-        config->client_side_cache->entry_ttl_ms = ttl_zv ? zval_get_long(ttl_zv) : -1;
+        config->client_side_cache->entry_ttl_ms = ttl_zv ? zval_get_long(ttl_zv) : 0;
 
         /* Parse eviction_policy (optional, -1 = not set / use default LRU) */
         zval* eviction_zv =

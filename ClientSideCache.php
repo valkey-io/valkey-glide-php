@@ -36,7 +36,7 @@ class ClientSideCache
 
     private string $cacheId;
     private int $maxCacheKb;
-    private ?int $entryTtlMs;
+    private int $entryTtlMs;
     private ?int $evictionPolicy;
     private bool $enableMetrics;
 
@@ -87,9 +87,9 @@ class ClientSideCache
     /**
      * Gets the entry TTL in milliseconds.
      *
-     * @return int|null The entry TTL in milliseconds, or null if not set.
+     * @return int The entry TTL in milliseconds (0 = no expiration).
      */
-    public function getEntryTtlMs(): ?int
+    public function getEntryTtlMs(): int
     {
         return $this->entryTtlMs;
     }
@@ -125,12 +125,9 @@ class ClientSideCache
         $result = [
             'cache_id' => $this->cacheId,
             'max_cache_kb' => $this->maxCacheKb,
+            'entry_ttl_ms' => $this->entryTtlMs,
             'enable_metrics' => $this->enableMetrics,
         ];
-
-        if ($this->entryTtlMs !== null) {
-            $result['entry_ttl_ms'] = $this->entryTtlMs;
-        }
 
         if ($this->evictionPolicy !== null) {
             $result['eviction_policy'] = $this->evictionPolicy;
