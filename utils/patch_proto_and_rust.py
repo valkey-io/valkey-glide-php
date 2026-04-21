@@ -65,7 +65,7 @@ def patch_rust_types_rs(rust_types_file):
     - refresh_interval_seconds: Option<u32> -> u32
     - compression_level: Option<i32> -> i32
     - read_only: Option<bool> -> bool
-    - client_side_cache.entry_ttl_seconds: Option<u64> -> u64
+    - client_side_cache.entry_ttl_ms: Option<u64> -> u64
     - client_side_cache.eviction_policy: Option<EnumOrUnknown> -> EnumOrUnknown
     """
     
@@ -165,15 +165,15 @@ def patch_rust_types_rs(rust_types_file):
             needs_patching = True
             log_message("Applied read_only patch")
         
-        # Fix client_side_cache.entry_ttl_seconds: changed from Option<u64> to u64
-        entry_ttl_pattern = r'entry_ttl_seconds:\s*proto_cache\.entry_ttl_seconds,'
-        entry_ttl_replacement = 'entry_ttl_seconds: if proto_cache.entry_ttl_seconds != 0 { Some(proto_cache.entry_ttl_seconds) } else { None },'
+        # Fix client_side_cache.entry_ttl_ms: changed from Option<u64> to u64
+        entry_ttl_pattern = r'entry_ttl_ms:\s*proto_cache\.entry_ttl_ms,'
+        entry_ttl_replacement = 'entry_ttl_ms: if proto_cache.entry_ttl_ms != 0 { Some(proto_cache.entry_ttl_ms) } else { None },'
         if re.search(entry_ttl_pattern, new_content):
             if not needs_patching:
                 create_backup(rust_types_file)
             new_content = re.sub(entry_ttl_pattern, entry_ttl_replacement, new_content)
             needs_patching = True
-            log_message("Applied entry_ttl_seconds patch")
+            log_message("Applied entry_ttl_ms patch")
         
         # Fix client_side_cache.eviction_policy: changed from Option<EnumOrUnknown> to EnumOrUnknown
         eviction_pattern = (
@@ -224,7 +224,7 @@ def verify_rust_patch(rust_types_file):
         
         if tcp_nodelay_fixed and pubsub_fixed and jitter_fixed and refresh_fixed and compression_fixed and read_only_fixed and max_decompressed_fixed:
         read_only_fixed = 'let read_only = value.read_only;' in content
-        entry_ttl_fixed = 'if proto_cache.entry_ttl_seconds != 0 { Some(proto_cache.entry_ttl_seconds) } else { None }' in content
+        entry_ttl_fixed = 'if proto_cache.entry_ttl_ms != 0 { Some(proto_cache.entry_ttl_ms) } else { None }' in content
         eviction_fixed = '.enum_value()' in content and '.and_then(|enum_or_unknown|' not in content
         
         all_fixed = (tcp_nodelay_fixed and pubsub_fixed and jitter_fixed and
@@ -253,7 +253,7 @@ def verify_rust_patch(rust_types_file):
             if not read_only_fixed:
                 missing.append("read_only fix")
             if not entry_ttl_fixed:
-                missing.append("entry_ttl_seconds fix")
+                missing.append("entry_ttl_ms fix")
             if not eviction_fixed:
                 missing.append("eviction_policy fix")
             log_message(f"Rust patch verification: FAILED - Missing: {', '.join(missing)}", "ERROR")

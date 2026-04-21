@@ -250,7 +250,7 @@ class ValkeyGlideCluster
      *                                          If not specified, defaults to database 0.
      * @param array|null $compression           Compression configuration: ['enabled' => true, 'backend' => COMPRESSION_BACKEND_ZSTD, 'compression_level' => 3, 'min_compression_size' => 64]
      * @param array|null $client_side_cache     Client-side cache configuration array from ClientSideCache::toArray():
-     *                                          ['cache_id' => string, 'max_cache_kb' => int, 'entry_ttl_seconds' => ?int,
+     *                                          ['cache_id' => string, 'max_cache_kb' => int, 'entry_ttl_ms' => ?int,
      *                                          'eviction_policy' => ?int, 'enable_metrics' => bool]
      *
      * Note: Cannot mix PHPRedis-style and ValkeyGlide-style parameters.

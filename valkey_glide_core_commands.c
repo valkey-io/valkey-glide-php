@@ -233,8 +233,8 @@ uint8_t* create_connection_request(size_t*                                   len
         client_side_cache_msg.max_cache_kb   = config->client_side_cache->max_cache_kb;
         client_side_cache_msg.enable_metrics = config->client_side_cache->enable_metrics;
 
-        if (config->client_side_cache->entry_ttl_seconds >= 0) {
-            client_side_cache_msg.entry_ttl_seconds = config->client_side_cache->entry_ttl_seconds;
+        if (config->client_side_cache->entry_ttl_ms >= 0) {
+            client_side_cache_msg.entry_ttl_ms = config->client_side_cache->entry_ttl_ms;
         }
 
         if (config->client_side_cache->eviction_policy >= 0) {

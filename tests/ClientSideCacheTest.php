@@ -58,7 +58,7 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
     {
         $cache = ClientSideCache::builder()
             ->maxCacheKb(1)
-            ->entryTtlSeconds(60)
+            ->entryTtlMs(60000)
             ->enableMetrics()
             ->build();
 
@@ -93,7 +93,7 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
     {
         $cache = ClientSideCache::builder()
             ->maxCacheKb(1)
-            ->entryTtlSeconds(60)
+            ->entryTtlMs(60000)
             ->build(); // enableMetrics defaults to false
 
         $client = $this->newCachedInstance($cache->toArray());
@@ -120,7 +120,7 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
     {
         $cache = ClientSideCache::builder()
             ->maxCacheKb(1)
-            ->entryTtlSeconds(60)
+            ->entryTtlMs(60000)
             ->enableMetrics()
             ->build();
 
@@ -144,7 +144,7 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
     {
         $cache = ClientSideCache::builder()
             ->maxCacheKb(1)
-            ->entryTtlSeconds(2)
+            ->entryTtlMs(2000)
             ->enableMetrics()
             ->build();
 
@@ -175,7 +175,7 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
     {
         $cache = ClientSideCache::builder()
             ->maxCacheKb(1)
-            ->entryTtlSeconds(60)
+            ->entryTtlMs(60000)
             ->enableMetrics()
             ->build();
 
@@ -310,9 +310,9 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
             ClientSideCache::builder()->maxCacheKb(0)->build();
         });
 
-        // entryTtlSeconds must be positive
+        // entryTtlMs must be positive
         $this->assertThrowsMatch(null, function () {
-            ClientSideCache::builder()->maxCacheKb(1)->entryTtlSeconds(-1)->build();
+            ClientSideCache::builder()->maxCacheKb(1)->entryTtlMs(-1)->build();
         });
 
         // maxCacheKb is required
@@ -349,7 +349,7 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
     {
         $cache = ClientSideCache::builder()
             ->maxCacheKb(1024)
-            ->entryTtlSeconds(60)
+            ->entryTtlMs(60000)
             ->evictionPolicy(ClientSideCache::EVICTION_LFU)
             ->enableMetrics()
             ->build();
@@ -358,7 +358,7 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
 
         $this->assertArrayHasKey('cache_id', $arr);
         $this->assertEquals(1024, $arr['max_cache_kb']);
-        $this->assertEquals(60, $arr['entry_ttl_seconds']);
+        $this->assertEquals(60000, $arr['entry_ttl_ms']);
         $this->assertEquals(ClientSideCache::EVICTION_LFU, $arr['eviction_policy']);
         $this->assertTrue($arr['enable_metrics']);
     }

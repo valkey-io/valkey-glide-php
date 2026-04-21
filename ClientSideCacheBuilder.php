@@ -15,7 +15,7 @@ class ClientSideCacheBuilder
     private static int $counter = 0;
 
     private ?int $maxCacheKb = null;
-    private ?int $entryTtlSeconds = null;
+    private ?int $entryTtlMs = null;
     private ?int $evictionPolicy = null;
     private bool $enableMetrics = false;
 
@@ -38,20 +38,20 @@ class ClientSideCacheBuilder
     }
 
     /**
-     * Sets the Time-To-Live for cached entries in seconds.
+     * Sets the Time-To-Live for cached entries in milliseconds.
      *
      * After this duration, entries automatically expire and are removed
      * from the cache. If not specified, no expiration is applied.
      *
-     * @param int $entryTtlSeconds TTL in seconds (must be positive).
+     * @param int $entryTtlMs TTL in milliseconds (must be positive).
      * @return self This builder instance for method chaining.
      */
-    public function entryTtlSeconds(int $entryTtlSeconds): self
+    public function entryTtlMs(int $entryTtlMs): self
     {
-        if ($entryTtlSeconds <= 0) {
-            throw new ValkeyGlideException("entryTtlSeconds must be positive");
+        if ($entryTtlMs <= 0) {
+            throw new ValkeyGlideException("entryTtlMs must be positive");
         }
-        $this->entryTtlSeconds = $entryTtlSeconds;
+        $this->entryTtlMs = $entryTtlMs;
         return $this;
     }
 
@@ -101,13 +101,13 @@ class ClientSideCacheBuilder
     }
 
     /**
-     * Gets the entry TTL in seconds.
+     * Gets the entry TTL in milliseconds.
      *
-     * @return int|null The entry TTL in seconds, or null if not set.
+     * @return int|null The entry TTL in milliseconds, or null if not set.
      */
-    public function getEntryTtlSeconds(): ?int
+    public function getEntryTtlMs(): ?int
     {
-        return $this->entryTtlSeconds;
+        return $this->entryTtlMs;
     }
 
     /**
