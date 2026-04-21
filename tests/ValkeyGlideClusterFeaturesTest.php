@@ -1455,4 +1455,554 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->valkey_glide->del($key);
         }
     }
+
+    // ==================== Compression Tests for Supported Commands ====================
+
+    /**
+     * Helper to create a compression-enabled cluster client
+     */
+    private function createCompressedClusterClient(): ValkeyGlideCluster
+    {
+        $addresses = [['host' => 'localhost', 'port' => 7001]];
+        return new ValkeyGlideCluster(
+            addresses: $addresses,
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+    }
+
+    public function testCompressionClusterMsetMget()
+    {
+        $client = $this->createCompressedClusterClient();
+        $data = str_repeat('compressible_data_', 100);
+        // Use hash tags to ensure keys are on the same slot
+        $key1 = '{compression_mset}_1_' . uniqid();
+        $key2 = '{compression_mset}_2_' . uniqid();
+        $key3 = '{compression_mset}_3_' . uniqid();
+
+        try {
+            $stats_before = $client->getStatistics();
+
+            // MSET with large values
+            $result = $client->mset([
+                $key1 => $data . '_1',
+                $key2 => $data . '_2',
+                $key3 => $data . '_3'
+            ]);
+            $this->assertTrue($result);
+
+            $stats_after = $client->getStatistics();
+            $compressed = $stats_after['total_values_compressed'] - $stats_before['total_values_compressed'];
+            $this->assertEquals(3, $compressed, 'All 3 values should be compressed');
+
+            // MGET should decompress correctly
+            $values = $client->mget([$key1, $key2, $key3]);
+            $this->assertEquals($data . '_1', $values[0]);
+            $this->assertEquals($data . '_2', $values[1]);
+            $this->assertEquals($data . '_3', $values[2]);
+        } finally {
+            $client->del($key1, $key2, $key3);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterMsetnx()
+    {
+        $client = $this->createCompressedClusterClient();
+        $data = str_repeat('msetnx_data_', 100);
+        // Use hash tags to ensure keys are on the same slot
+        $key1 = '{compression_msetnx}_1_' . uniqid();
+        $key2 = '{compression_msetnx}_2_' . uniqid();
+
+        try {
+            $stats_before = $client->getStatistics();
+
+            // MSETNX with large values (keys don't exist)
+            $result = $client->msetnx([
+                $key1 => $data . '_1',
+                $key2 => $data . '_2'
+            ]);
+            // Cluster msetnx returns array of results
+            $this->assertIsArray($result);
+            $this->assertEquals(count($result), array_sum($result));
+
+            $stats_after = $client->getStatistics();
+            $compressed = $stats_after['total_values_compressed'] - $stats_before['total_values_compressed'];
+            $this->assertEquals(2, $compressed, 'Both values should be compressed');
+
+            // Verify values
+            $this->assertEquals($data . '_1', $client->get($key1));
+            $this->assertEquals($data . '_2', $client->get($key2));
+        } finally {
+            $client->del($key1, $key2);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterGetex()
+    {
+        $client = $this->createCompressedClusterClient();
+        $data = str_repeat('getex_data_', 100);
+        $key = 'compression_cluster_getex_' . uniqid();
+
+        try {
+            $stats_before = $client->getStatistics();
+
+            // Set compressed value
+            $client->set($key, $data);
+
+            $stats_after_set = $client->getStatistics();
+            $this->assertGT(
+                $stats_before['total_values_compressed'],
+                $stats_after_set['total_values_compressed']
+            );
+
+            // GETEX with EX option
+            $result = $client->getex($key, ['EX' => 100]);
+            $this->assertEquals($data, $result);
+            $this->assertBetween($client->ttl($key), 95, 100);
+
+            // GETEX with PERSIST option
+            $result = $client->getex($key, ['PERSIST' => true]);
+            $this->assertEquals($data, $result);
+            $this->assertEquals(-1, $client->ttl($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterGetdel()
+    {
+        $client = $this->createCompressedClusterClient();
+        $data = str_repeat('getdel_data_', 100);
+        $key = 'compression_cluster_getdel_' . uniqid();
+
+        try {
+            $stats_before = $client->getStatistics();
+
+            // Set compressed value
+            $client->set($key, $data);
+
+            $stats_after = $client->getStatistics();
+            $this->assertGT(
+                $stats_before['total_values_compressed'],
+                $stats_after['total_values_compressed']
+            );
+
+            // GETDEL should return decompressed value and delete key
+            $result = $client->getdel($key);
+            $this->assertEquals($data, $result);
+
+            // Key should be deleted
+            $this->assertFalse($client->get($key));
+            $this->assertEquals(0, $client->exists($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterSetexViaRawCommand()
+    {
+        $client = $this->createCompressedClusterClient();
+        $data = str_repeat('setex_data_', 100);
+        $key = 'compression_cluster_setex_raw_' . uniqid();
+
+        try {
+            $stats_before = $client->getStatistics();
+
+            // SETEX via rawCommand
+            $result = $client->rawCommand($key, 'SETEX', $key, '10', $data);
+            $this->assertTrue($result);
+
+            $stats_after = $client->getStatistics();
+            $this->assertGT(
+                $stats_before['total_values_compressed'],
+                $stats_after['total_values_compressed']
+            );
+
+            // Verify value and TTL
+            $this->assertEquals($data, $client->get($key));
+            $this->assertBetween($client->ttl($key), 5, 10);
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterPsetexViaRawCommand()
+    {
+        $client = $this->createCompressedClusterClient();
+        $data = str_repeat('psetex_data_', 100);
+        $key = 'compression_cluster_psetex_raw_' . uniqid();
+
+        try {
+            $stats_before = $client->getStatistics();
+
+            // PSETEX via rawCommand
+            $result = $client->rawCommand($key, 'PSETEX', $key, '10000', $data);
+            $this->assertTrue($result);
+
+            $stats_after = $client->getStatistics();
+            $this->assertGT(
+                $stats_before['total_values_compressed'],
+                $stats_after['total_values_compressed']
+            );
+
+            // Verify value and TTL
+            $this->assertEquals($data, $client->get($key));
+            $this->assertBetween($client->pttl($key), 5000, 10000);
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterSetnxViaRawCommand()
+    {
+        $client = $this->createCompressedClusterClient();
+        $data = str_repeat('setnx_data_', 100);
+        $key = 'compression_cluster_setnx_raw_' . uniqid();
+
+        try {
+            $stats_before = $client->getStatistics();
+
+            // SETNX via rawCommand (key doesn't exist)
+            $result = $client->rawCommand($key, 'SETNX', $key, $data);
+            $this->assertEquals(1, $result);
+
+            $stats_after = $client->getStatistics();
+            $this->assertGT(
+                $stats_before['total_values_compressed'],
+                $stats_after['total_values_compressed']
+            );
+
+            // Verify value
+            $this->assertEquals($data, $client->get($key));
+
+            // SETNX should fail if key exists
+            $result = $client->rawCommand($key, 'SETNX', $key, 'new_value');
+            $this->assertEquals(0, $result);
+
+            // Original value unchanged
+            $this->assertEquals($data, $client->get($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    // ==================== Compression Tests for Blocked/Incompatible Commands ====================
+
+    public function testCompressionClusterBlockedAppend()
+    {
+        $client = $this->createCompressedClusterClient();
+        $data = str_repeat('append_data_', 100);
+        $key = 'compression_cluster_blocked_append_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+
+            try {
+                $client->append($key, ' suffix');
+                $this->fail('APPEND should throw an error when compression is enabled');
+            } catch (Exception $e) {
+                $this->assertStringContains('compression', strtolower($e->getMessage()));
+            }
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterBlockedGetrange()
+    {
+        $client = $this->createCompressedClusterClient();
+        $data = str_repeat('getrange_data_', 100);
+        $key = 'compression_cluster_blocked_getrange_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+
+            try {
+                $client->getRange($key, 0, 10);
+                $this->fail('GETRANGE should throw an error when compression is enabled');
+            } catch (Exception $e) {
+                $this->assertStringContains('compression', strtolower($e->getMessage()));
+            }
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterBlockedSetrange()
+    {
+        $client = $this->createCompressedClusterClient();
+        $data = str_repeat('setrange_data_', 100);
+        $key = 'compression_cluster_blocked_setrange_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+
+            try {
+                $client->setRange($key, 0, 'replaced');
+                $this->fail('SETRANGE should throw an error when compression is enabled');
+            } catch (Exception $e) {
+                $this->assertStringContains('compression', strtolower($e->getMessage()));
+            }
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterBlockedStrlen()
+    {
+        $client = $this->createCompressedClusterClient();
+        $data = str_repeat('strlen_data_', 100);
+        $key = 'compression_cluster_blocked_strlen_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+
+            try {
+                $client->strlen($key);
+                $this->fail('STRLEN should throw an error when compression is enabled');
+            } catch (Exception $e) {
+                $this->assertStringContains('compression', strtolower($e->getMessage()));
+            }
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterBlockedIncr()
+    {
+        $client = $this->createCompressedClusterClient();
+        $key = 'compression_cluster_blocked_incr_' . uniqid();
+
+        try {
+            $client->set($key, '100');
+
+            try {
+                $client->incr($key);
+                $this->fail('INCR should throw an error when compression is enabled');
+            } catch (Exception $e) {
+                $this->assertStringContains('compression', strtolower($e->getMessage()));
+            }
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterBlockedIncrby()
+    {
+        $client = $this->createCompressedClusterClient();
+        $key = 'compression_cluster_blocked_incrby_' . uniqid();
+
+        try {
+            $client->set($key, '100');
+
+            try {
+                $client->incrBy($key, 10);
+                $this->fail('INCRBY should throw an error when compression is enabled');
+            } catch (Exception $e) {
+                $this->assertStringContains('compression', strtolower($e->getMessage()));
+            }
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterBlockedIncrbyfloat()
+    {
+        $client = $this->createCompressedClusterClient();
+        $key = 'compression_cluster_blocked_incrbyfloat_' . uniqid();
+
+        try {
+            $client->set($key, '100.5');
+
+            try {
+                $client->incrByFloat($key, 1.5);
+                $this->fail('INCRBYFLOAT should throw an error when compression is enabled');
+            } catch (Exception $e) {
+                $this->assertStringContains('compression', strtolower($e->getMessage()));
+            }
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterBlockedDecr()
+    {
+        $client = $this->createCompressedClusterClient();
+        $key = 'compression_cluster_blocked_decr_' . uniqid();
+
+        try {
+            $client->set($key, '100');
+
+            try {
+                $client->decr($key);
+                $this->fail('DECR should throw an error when compression is enabled');
+            } catch (Exception $e) {
+                $this->assertStringContains('compression', strtolower($e->getMessage()));
+            }
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterBlockedDecrby()
+    {
+        $client = $this->createCompressedClusterClient();
+        $key = 'compression_cluster_blocked_decrby_' . uniqid();
+
+        try {
+            $client->set($key, '100');
+
+            try {
+                $client->decrBy($key, 10);
+                $this->fail('DECRBY should throw an error when compression is enabled');
+            } catch (Exception $e) {
+                $this->assertStringContains('compression', strtolower($e->getMessage()));
+            }
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterBlockedGetbit()
+    {
+        $client = $this->createCompressedClusterClient();
+        $key = 'compression_cluster_blocked_getbit_' . uniqid();
+
+        try {
+            $client->set($key, 'hello');
+
+            try {
+                $client->getBit($key, 0);
+                $this->fail('GETBIT should throw an error when compression is enabled');
+            } catch (Exception $e) {
+                $this->assertStringContains('compression', strtolower($e->getMessage()));
+            }
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterBlockedSetbit()
+    {
+        $client = $this->createCompressedClusterClient();
+        $key = 'compression_cluster_blocked_setbit_' . uniqid();
+
+        try {
+            $client->set($key, 'hello');
+
+            try {
+                $client->setBit($key, 7, 1);
+                $this->fail('SETBIT should throw an error when compression is enabled');
+            } catch (Exception $e) {
+                $this->assertStringContains('compression', strtolower($e->getMessage()));
+            }
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterBlockedBitcount()
+    {
+        $client = $this->createCompressedClusterClient();
+        $key = 'compression_cluster_blocked_bitcount_' . uniqid();
+
+        try {
+            $client->set($key, 'hello');
+
+            try {
+                $client->bitCount($key);
+                $this->fail('BITCOUNT should throw an error when compression is enabled');
+            } catch (Exception $e) {
+                $this->assertStringContains('compression', strtolower($e->getMessage()));
+            }
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    // ==================== Blocked Commands via rawCommand ====================
+
+    public function testCompressionClusterBlockedIncrViaRawCommand()
+    {
+        $client = $this->createCompressedClusterClient();
+        $key = 'compression_cluster_blocked_incr_raw_' . uniqid();
+
+        try {
+            $client->set($key, '100');
+
+            try {
+                $client->rawCommand($key, 'INCR', $key);
+                $this->fail('INCR via rawCommand should throw an error when compression is enabled');
+            } catch (Exception $e) {
+                $this->assertStringContains('compression', strtolower($e->getMessage()));
+            }
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterBlockedAppendViaRawCommand()
+    {
+        $client = $this->createCompressedClusterClient();
+        $data = str_repeat('append_raw_', 100);
+        $key = 'compression_cluster_blocked_append_raw_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+
+            try {
+                $client->rawCommand($key, 'APPEND', $key, ' suffix');
+                $this->fail('APPEND via rawCommand should throw an error when compression is enabled');
+            } catch (Exception $e) {
+                $this->assertStringContains('compression', strtolower($e->getMessage()));
+            }
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testCompressionClusterBlockedStrlenViaRawCommand()
+    {
+        $client = $this->createCompressedClusterClient();
+        $data = str_repeat('strlen_raw_', 100);
+        $key = 'compression_cluster_blocked_strlen_raw_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+
+            try {
+                $client->rawCommand($key, 'STRLEN', $key);
+                $this->fail('STRLEN via rawCommand should throw an error when compression is enabled');
+            } catch (Exception $e) {
+                $this->assertStringContains('compression', strtolower($e->getMessage()));
+            }
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
 }
