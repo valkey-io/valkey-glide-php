@@ -152,12 +152,12 @@ typedef enum {
 
 /* Client-side cache configuration */
 typedef struct {
-    char*  cache_id;          /* Unique cache identifier */
-    size_t cache_id_len;      /* Length of cache_id */
-    long   max_cache_kb;      /* Maximum cache size in KB */
-    long   entry_ttl_ms;      /* TTL for entries in milliseconds, 0 = no expiration */
-    int    eviction_policy;   /* Eviction policy, -1 if not set */
-    bool   enable_metrics;    /* Whether to enable cache metrics */
+    char*  cache_id;        /* Unique cache identifier */
+    size_t cache_id_len;    /* Length of cache_id */
+    long   max_cache_kb;    /* Maximum cache size in KB */
+    long   entry_ttl_ms;    /* TTL for entries in milliseconds, 0 = no expiration */
+    int    eviction_policy; /* Eviction policy, -1 if not set */
+    bool   enable_metrics;  /* Whether to enable cache metrics */
 } valkey_glide_client_side_cache_config_t;
 
 typedef struct {

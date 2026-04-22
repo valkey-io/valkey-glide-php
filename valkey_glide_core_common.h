@@ -424,6 +424,5 @@ void execute_get_cache_metrics(zval*             object,
         execute_get_cache_metrics(                                                     \
             ZEND_THIS, CACHE_METRICS_EXPIRATIONS, return_value, Z_OBJCE_P(ZEND_THIS)); \
     }
-    }
 
 #endif /* VALKEY_GLIDE_CORE_COMMON_H */
