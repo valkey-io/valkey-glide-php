@@ -2576,6 +2576,7 @@
 # Stack: tokio::runtime::builder::Builder::build -> std::thread::Thread::new
 {
    tokio_runtime_thread_init
+   rust_thread_current_init_arc
    Memcheck:Leak
    match-leak-kinds: possible
    fun:malloc
