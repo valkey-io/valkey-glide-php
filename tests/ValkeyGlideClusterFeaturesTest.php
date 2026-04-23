@@ -1695,6 +1695,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     }
 
     // ==================== Compression Tests for Blocked/Incompatible Commands ====================
+    // These commands return false when compression is enabled (PHPRedis compatibility)
 
     public function testCompressionClusterBlockedAppend()
     {
@@ -1704,13 +1705,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, $data);
-
-            try {
-                $client->append($key, ' suffix');
-                $this->fail('APPEND should throw an error when compression is enabled');
-            } catch (Exception $e) {
-                $this->assertStringContains('compression', strtolower($e->getMessage()));
-            }
+            $result = $client->append($key, ' suffix');
+            $this->assertFalse($result, 'APPEND should return false when compression is enabled');
         } finally {
             $client->del($key);
             $client->close();
@@ -1725,13 +1721,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, $data);
-
-            try {
-                $client->getRange($key, 0, 10);
-                $this->fail('GETRANGE should throw an error when compression is enabled');
-            } catch (Exception $e) {
-                $this->assertStringContains('compression', strtolower($e->getMessage()));
-            }
+            $result = $client->getRange($key, 0, 10);
+            $this->assertFalse($result, 'GETRANGE should return false when compression is enabled');
         } finally {
             $client->del($key);
             $client->close();
@@ -1746,13 +1737,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, $data);
-
-            try {
-                $client->setRange($key, 0, 'replaced');
-                $this->fail('SETRANGE should throw an error when compression is enabled');
-            } catch (Exception $e) {
-                $this->assertStringContains('compression', strtolower($e->getMessage()));
-            }
+            $result = $client->setRange($key, 0, 'replaced');
+            $this->assertFalse($result, 'SETRANGE should return false when compression is enabled');
         } finally {
             $client->del($key);
             $client->close();
@@ -1767,13 +1753,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, $data);
-
-            try {
-                $client->strlen($key);
-                $this->fail('STRLEN should throw an error when compression is enabled');
-            } catch (Exception $e) {
-                $this->assertStringContains('compression', strtolower($e->getMessage()));
-            }
+            $result = $client->strlen($key);
+            $this->assertFalse($result, 'STRLEN should return false when compression is enabled');
         } finally {
             $client->del($key);
             $client->close();
@@ -1787,13 +1768,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, '100');
-
-            try {
-                $client->incr($key);
-                $this->fail('INCR should throw an error when compression is enabled');
-            } catch (Exception $e) {
-                $this->assertStringContains('compression', strtolower($e->getMessage()));
-            }
+            $result = $client->incr($key);
+            $this->assertFalse($result, 'INCR should return false when compression is enabled');
         } finally {
             $client->del($key);
             $client->close();
@@ -1807,13 +1783,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, '100');
-
-            try {
-                $client->incrBy($key, 10);
-                $this->fail('INCRBY should throw an error when compression is enabled');
-            } catch (Exception $e) {
-                $this->assertStringContains('compression', strtolower($e->getMessage()));
-            }
+            $result = $client->incrBy($key, 10);
+            $this->assertFalse($result, 'INCRBY should return false when compression is enabled');
         } finally {
             $client->del($key);
             $client->close();
@@ -1827,13 +1798,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, '100.5');
-
-            try {
-                $client->incrByFloat($key, 1.5);
-                $this->fail('INCRBYFLOAT should throw an error when compression is enabled');
-            } catch (Exception $e) {
-                $this->assertStringContains('compression', strtolower($e->getMessage()));
-            }
+            $result = $client->incrByFloat($key, 1.5);
+            $this->assertFalse($result, 'INCRBYFLOAT should return false when compression is enabled');
         } finally {
             $client->del($key);
             $client->close();
@@ -1847,13 +1813,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, '100');
-
-            try {
-                $client->decr($key);
-                $this->fail('DECR should throw an error when compression is enabled');
-            } catch (Exception $e) {
-                $this->assertStringContains('compression', strtolower($e->getMessage()));
-            }
+            $result = $client->decr($key);
+            $this->assertFalse($result, 'DECR should return false when compression is enabled');
         } finally {
             $client->del($key);
             $client->close();
@@ -1867,13 +1828,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, '100');
-
-            try {
-                $client->decrBy($key, 10);
-                $this->fail('DECRBY should throw an error when compression is enabled');
-            } catch (Exception $e) {
-                $this->assertStringContains('compression', strtolower($e->getMessage()));
-            }
+            $result = $client->decrBy($key, 10);
+            $this->assertFalse($result, 'DECRBY should return false when compression is enabled');
         } finally {
             $client->del($key);
             $client->close();
@@ -1887,13 +1843,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, 'hello');
-
-            try {
-                $client->getBit($key, 0);
-                $this->fail('GETBIT should throw an error when compression is enabled');
-            } catch (Exception $e) {
-                $this->assertStringContains('compression', strtolower($e->getMessage()));
-            }
+            $result = $client->getBit($key, 0);
+            $this->assertFalse($result, 'GETBIT should return false when compression is enabled');
         } finally {
             $client->del($key);
             $client->close();
@@ -1907,13 +1858,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, 'hello');
-
-            try {
-                $client->setBit($key, 7, 1);
-                $this->fail('SETBIT should throw an error when compression is enabled');
-            } catch (Exception $e) {
-                $this->assertStringContains('compression', strtolower($e->getMessage()));
-            }
+            $result = $client->setBit($key, 7, 1);
+            $this->assertFalse($result, 'SETBIT should return false when compression is enabled');
         } finally {
             $client->del($key);
             $client->close();
@@ -1927,13 +1873,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, 'hello');
-
-            try {
-                $client->bitCount($key);
-                $this->fail('BITCOUNT should throw an error when compression is enabled');
-            } catch (Exception $e) {
-                $this->assertStringContains('compression', strtolower($e->getMessage()));
-            }
+            $result = $client->bitCount($key);
+            $this->assertFalse($result, 'BITCOUNT should return false when compression is enabled');
         } finally {
             $client->del($key);
             $client->close();
@@ -1949,13 +1890,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, '100');
-
-            try {
-                $client->rawCommand($key, 'INCR', $key);
-                $this->fail('INCR via rawCommand should throw an error when compression is enabled');
-            } catch (Exception $e) {
-                $this->assertStringContains('compression', strtolower($e->getMessage()));
-            }
+            $result = $client->rawCommand($key, 'INCR', $key);
+            $this->assertFalse($result, 'INCR via rawCommand should return false when compression is enabled');
         } finally {
             $client->del($key);
             $client->close();
@@ -1970,13 +1906,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, $data);
-
-            try {
-                $client->rawCommand($key, 'APPEND', $key, ' suffix');
-                $this->fail('APPEND via rawCommand should throw an error when compression is enabled');
-            } catch (Exception $e) {
-                $this->assertStringContains('compression', strtolower($e->getMessage()));
-            }
+            $result = $client->rawCommand($key, 'APPEND', $key, ' suffix');
+            $this->assertFalse($result, 'APPEND via rawCommand should return false when compression is enabled');
         } finally {
             $client->del($key);
             $client->close();
@@ -1991,13 +1922,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, $data);
-
-            try {
-                $client->rawCommand($key, 'STRLEN', $key);
-                $this->fail('STRLEN via rawCommand should throw an error when compression is enabled');
-            } catch (Exception $e) {
-                $this->assertStringContains('compression', strtolower($e->getMessage()));
-            }
+            $result = $client->rawCommand($key, 'STRLEN', $key);
+            $this->assertFalse($result, 'STRLEN via rawCommand should return false when compression is enabled');
         } finally {
             $client->del($key);
             $client->close();
