@@ -1554,12 +1554,12 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::ftCreate
      */
-    public function ftCreate(\ValkeyGlide\Search\FtCreateBuilder $builder): ValkeyGlideCluster|string|bool;
+    public function ftCreate(\ValkeyGlide\Search\FtCreateBuilder $builder): ValkeyGlideCluster|string|false;
 
     /**
      * @see ValkeyGlide::ftDropIndex
      */
-    public function ftDropIndex(string $index): ValkeyGlideCluster|string|bool;
+    public function ftDropIndex(string $index): ValkeyGlideCluster|string|false;
 
     /**
      * @see ValkeyGlide::ftList
@@ -1584,17 +1584,17 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::ftAliasAdd
      */
-    public function ftAliasAdd(string $alias, string $index): ValkeyGlideCluster|string|bool;
+    public function ftAliasAdd(string $alias, string $index): ValkeyGlideCluster|string|false;
 
     /**
      * @see ValkeyGlide::ftAliasDel
      */
-    public function ftAliasDel(string $alias): ValkeyGlideCluster|string|bool;
+    public function ftAliasDel(string $alias): ValkeyGlideCluster|string|false;
 
     /**
      * @see ValkeyGlide::ftAliasUpdate
      */
-    public function ftAliasUpdate(string $alias, string $index): ValkeyGlideCluster|string|bool;
+    public function ftAliasUpdate(string $alias, string $index): ValkeyGlideCluster|string|false;
 
     /**
      * @see ValkeyGlide::ftAliasList

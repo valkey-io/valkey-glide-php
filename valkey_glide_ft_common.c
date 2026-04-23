@@ -56,7 +56,7 @@ int execute_ft_command_internal(const void*      glide_client,
         zend_throw_exception(
             get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
         free_command_result(result);
-        return 1; /* Exception thrown, caller should return */
+        return 0;
     }
     if (!result->response) {
         free_command_result(result);
@@ -71,49 +71,6 @@ int execute_ft_command_internal(const void*      glide_client,
 /* ====================================================================
  * ARGUMENT COLLECTION UTILITIES
  * ==================================================================== */
-
-int collect_ft_array_strings(HashTable*    ht,
-                             const char*** out_strings,
-                             size_t**      out_lengths,
-                             int*          out_count,
-                             char***       allocated,
-                             int*          allocated_count) {
-    int   total = zend_hash_num_elements(ht);
-    int   idx   = 0;
-    int   alloc = 0;
-    zval* entry;
-
-    const char** strings = (const char**) emalloc(total * sizeof(const char*));
-    size_t*      lengths = (size_t*) emalloc(total * sizeof(size_t));
-    char**       allocs  = (char**) emalloc(total * sizeof(char*));
-
-    ZEND_HASH_FOREACH_VAL(ht, entry) {
-        if (Z_TYPE_P(entry) == IS_STRING) {
-            strings[idx] = Z_STRVAL_P(entry);
-            lengths[idx] = Z_STRLEN_P(entry);
-        } else {
-            zval copy;
-            ZVAL_DUP(&copy, entry);
-            convert_to_string(&copy);
-            char* str = emalloc(Z_STRLEN(copy) + 1);
-            memcpy(str, Z_STRVAL(copy), Z_STRLEN(copy));
-            str[Z_STRLEN(copy)] = '\0';
-            strings[idx]        = str;
-            lengths[idx]        = Z_STRLEN(copy);
-            allocs[alloc++]     = str;
-            zval_dtor(&copy);
-        }
-        idx++;
-    }
-    ZEND_HASH_FOREACH_END();
-
-    *out_strings     = strings;
-    *out_lengths     = lengths;
-    *out_count       = idx;
-    *allocated       = allocs;
-    *allocated_count = alloc;
-    return 1;
-}
 
 void free_ft_collected(const char** strings,
                        size_t*      lengths,

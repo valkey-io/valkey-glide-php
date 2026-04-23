@@ -41,7 +41,7 @@ int execute_ft_create_command(zval* object, int argc, zval* return_value, zend_c
                 "ftCreate: argument must be an FtCreateBuilder with a toArray() method",
                 0);
         }
-        return 1;
+        return 0;
     }
     zval_dtor(&method_name);
 
@@ -54,7 +54,7 @@ int execute_ft_create_command(zval* object, int argc, zval* return_value, zend_c
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "ftCreate: builder toArray() must return an 'index' string",
                              0);
-        return 1;
+        return 0;
     }
 
     zval* z_schema = zend_hash_str_find(result_ht, "schema", sizeof("schema") - 1);
@@ -63,7 +63,7 @@ int execute_ft_create_command(zval* object, int argc, zval* return_value, zend_c
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "ftCreate: builder toArray() must return a 'schema' array",
                              0);
-        return 1;
+        return 0;
     }
 
     zval*      z_options = zend_hash_str_find(result_ht, "options", sizeof("options") - 1);
@@ -86,7 +86,7 @@ int execute_ft_create_command(zval* object, int argc, zval* return_value, zend_c
                               &allocated,
                               &alloc_n)) {
         zval_dtor(&builder_result);
-        return 1;
+        return 0;
     }
 
     int status = execute_ft_command_internal(valkey_glide->glide_client,
@@ -184,7 +184,7 @@ int execute_ft_search_command(zval* object, int argc, zval* return_value, zend_c
                 "ftSearch: argument must be an FtSearchBuilder with a toArray() method",
                 0);
         }
-        return 1;
+        return 0;
     }
     zval_dtor(&method_name);
 
@@ -196,7 +196,7 @@ int execute_ft_search_command(zval* object, int argc, zval* return_value, zend_c
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "ftSearch: builder toArray() must return an 'index' string",
                              0);
-        return 1;
+        return 0;
     }
 
     zval* z_query = zend_hash_str_find(result_ht, "query", sizeof("query") - 1);
@@ -205,7 +205,7 @@ int execute_ft_search_command(zval* object, int argc, zval* return_value, zend_c
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "ftSearch: builder toArray() must return a 'query' string",
                              0);
-        return 1;
+        return 0;
     }
 
     zval*      z_options = zend_hash_str_find(result_ht, "options", sizeof("options") - 1);
@@ -229,7 +229,7 @@ int execute_ft_search_command(zval* object, int argc, zval* return_value, zend_c
                               &allocated,
                               &alloc_n)) {
         zval_dtor(&builder_result);
-        return 1;
+        return 0;
     }
 
     int status = execute_ft_command_internal(valkey_glide->glide_client,
@@ -275,7 +275,7 @@ int execute_ft_aggregate_command(zval* object, int argc, zval* return_value, zen
                 "ftAggregate: argument must be an FtAggregateBuilder with a toArray() method",
                 0);
         }
-        return 1;
+        return 0;
     }
     zval_dtor(&method_name);
 
@@ -287,7 +287,7 @@ int execute_ft_aggregate_command(zval* object, int argc, zval* return_value, zen
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "ftAggregate: builder toArray() must return an 'index' string",
                              0);
-        return 1;
+        return 0;
     }
 
     zval* z_query = zend_hash_str_find(result_ht, "query", sizeof("query") - 1);
@@ -296,7 +296,7 @@ int execute_ft_aggregate_command(zval* object, int argc, zval* return_value, zen
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "ftAggregate: builder toArray() must return a 'query' string",
                              0);
-        return 1;
+        return 0;
     }
 
     zval*      z_options = zend_hash_str_find(result_ht, "options", sizeof("options") - 1);
@@ -320,7 +320,7 @@ int execute_ft_aggregate_command(zval* object, int argc, zval* return_value, zen
                                  &allocated,
                                  &alloc_n)) {
         zval_dtor(&builder_result);
-        return 1;
+        return 0;
     }
 
     int status = execute_ft_command_internal(valkey_glide->glide_client,
@@ -369,7 +369,7 @@ int execute_ft_info_command(zval* object, int argc, zval* return_value, zend_cla
 
     if (!build_ft_info_args(
             index_name, index_name_len, opts_ht, &args, &lens, &count, &allocated, &alloc_n)) {
-        return 1;
+        return 0;
     }
 
     int status = execute_ft_command_internal(valkey_glide->glide_client,

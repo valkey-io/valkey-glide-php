@@ -4828,7 +4828,7 @@ class ValkeyGlide
      *         ->addField(FtVectorField::hnsw('embedding', 1536, 'COSINE')->m(40))
      * );
      */
-    public function ftCreate(\ValkeyGlide\Search\FtCreateBuilder $builder): ValkeyGlide|string|bool;
+    public function ftCreate(\ValkeyGlide\Search\FtCreateBuilder $builder): ValkeyGlide|string|false;
 
     /**
      * Drop an existing search index.
@@ -4839,7 +4839,7 @@ class ValkeyGlide
      *
      * @see https://valkey.io/commands/ft.dropindex/
      */
-    public function ftDropIndex(string $index): ValkeyGlide|string|bool;
+    public function ftDropIndex(string $index): ValkeyGlide|string|false;
 
     /**
      * Return a list of all existing search index names.
@@ -4936,7 +4936,7 @@ class ValkeyGlide
      *
      * @see https://valkey.io/commands/ft.aliasadd/
      */
-    public function ftAliasAdd(string $alias, string $index): ValkeyGlide|string|bool;
+    public function ftAliasAdd(string $alias, string $index): ValkeyGlide|string|false;
 
     /**
      * Remove an alias from an index.
@@ -4947,7 +4947,7 @@ class ValkeyGlide
      *
      * @see https://valkey.io/commands/ft.aliasdel/
      */
-    public function ftAliasDel(string $alias): ValkeyGlide|string|bool;
+    public function ftAliasDel(string $alias): ValkeyGlide|string|false;
 
     /**
      * Update an existing alias to point to a different index.
@@ -4959,7 +4959,7 @@ class ValkeyGlide
      *
      * @see https://valkey.io/commands/ft.aliasupdate/
      */
-    public function ftAliasUpdate(string $alias, string $index): ValkeyGlide|string|bool;
+    public function ftAliasUpdate(string $alias, string $index): ValkeyGlide|string|false;
 
     /**
      * Return a map of all aliases to their associated index names.

@@ -21,6 +21,12 @@
  * Builds the FFI argument arrays from a C string array, calls execute_command(),
  * and converts the response to a PHP zval.
  *
+ * Return value convention (consistent across all FT command helpers):
+ *   1  — success; return_value has been populated.
+ *   0  — failure; either a PHP exception has been thrown (check EG(exception))
+ *         or the FFI call returned no result. The caller must NOT set return_value
+ *         itself — the PHP_METHOD wrapper handles RETURN_FALSE on 0.
+ *
  * @param glide_client  The FFI client pointer.
  * @param cmd_type      The RequestType enum value (e.g. FtCreate, FtSearch).
  * @param strings       Array of C strings (arguments).
@@ -28,7 +34,7 @@
  * @param count         Number of arguments.
  * @param return_value  PHP return value zval.
  * @param assoc_flag    Associative array flag for response conversion.
- * @return 1 on success, 0 on failure.
+ * @return 1 on success, 0 on failure (exception may be pending).
  */
 int execute_ft_command_internal(const void*      glide_client,
                                 enum RequestType cmd_type,
@@ -43,26 +49,9 @@ int execute_ft_command_internal(const void*      glide_client,
  * ==================================================================== */
 
 /**
- * Collect string arguments from a PHP HashTable into C arrays.
- * Each element is converted to string. Caller must free via free_ft_collected().
- *
- * @param ht              The PHP HashTable to iterate.
- * @param out_strings     Output: array of C string pointers (emalloc'd).
- * @param out_lengths     Output: array of string lengths (emalloc'd).
- * @param out_count       Output: number of collected strings.
- * @param allocated       Output: array of strings that need efree (emalloc'd).
- * @param allocated_count Output: number of allocated strings.
- * @return 1 on success, 0 on failure.
- */
-int collect_ft_array_strings(HashTable*    ht,
-                             const char*** out_strings,
-                             size_t**      out_lengths,
-                             int*          out_count,
-                             char***       allocated,
-                             int*          allocated_count);
-
-/**
- * Free resources allocated by collect_ft_array_strings.
+ * Free resources allocated by FT argument builders (e.g. build_ft_create_args).
+ * Builders populate parallel arrays of C string pointers, lengths, and a list
+ * of emalloc'd strings that own their backing memory.
  */
 void free_ft_collected(const char** strings,
                        size_t*      lengths,
