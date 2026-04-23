@@ -1525,9 +1525,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 $key1 => $data . '_1',
                 $key2 => $data . '_2'
             ]);
-            // Cluster msetnx returns array of results
-            $this->assertIsArray($result);
-            $this->assertEquals(count($result), array_sum($result));
+            $this->assertTrue($result);
 
             $stats_after = $client->getStatistics();
             $compressed = $stats_after['total_values_compressed'] - $stats_before['total_values_compressed'];
