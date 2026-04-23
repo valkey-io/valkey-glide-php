@@ -83,8 +83,15 @@ use ValkeyGlide\Search\{FtCreateBuilder, FtTextField, FtNumericField, FtTagField
  * Integration tests for FT.* (Valkey Search) commands.
  * Requires a Valkey server with the Search module loaded.
  */
-class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
+class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
 {
+    /**
+     * Time in microseconds to wait for the search index to sync after
+     * writing documents. Valkey Search indexes asynchronously, so a
+     * short delay is needed between writes and reads in integration tests.
+     */
+    private const INDEX_SYNC_DELAY_US = 1500000;
+
     private ?ValkeyGlide $client = null;
 
     public function __construct($host, $port, $auth, $tls)
@@ -201,15 +208,12 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
             (new FtCreateBuilder())->index($idx)->addField(new FtTextField('title'))
         );
         try {
-            $threw = false;
-            try {
-                $this->getClient()->ftCreate(
+            $client = $this->getClient();
+            $this->assertThrowsMatch($idx, function ($idx) use ($client) {
+                $client->ftCreate(
                     (new FtCreateBuilder())->index($idx)->addField(new FtTextField('title'))
                 );
-            } catch (\Throwable $e) {
-                $threw = true;
-            }
-            $this->assertTrue($threw);
+            }, '/already exists/');
         } finally {
             $this->getClient()->ftDropIndex($idx);
         }
@@ -218,9 +222,9 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
     public function testFtCreateDuplicateFieldThrows()
     {
         $this->skipIfModuleNotAvailable();
-        $threw = false;
-        try {
-            $this->getClient()->ftCreate(
+        $client = $this->getClient();
+        $this->assertThrowsMatch(null, function () use ($client) {
+            $client->ftCreate(
                 (new FtCreateBuilder())
                     ->index(uniqid('phptest_'))
                     ->on('HASH')
@@ -228,11 +232,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
                     ->addField(new FtTextField('name'))
                     ->addField(new FtTextField('name'))
             );
-        } catch (\Throwable $e) {
-            $threw = true;
-            $this->assertStringContains('Duplicate', $e->getMessage());
-        }
-        $this->assertTrue($threw);
+        }, '/Duplicate/');
     }
 
     /* ── FT.DROPINDEX + FT._LIST ───────────────────────────────────── */
@@ -257,13 +257,11 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
     public function testFtDropIndexNonExistentThrows()
     {
         $this->skipIfModuleNotAvailable();
-        $threw = false;
-        try {
-            $this->getClient()->ftDropIndex('nonexistent_' . uniqid());
-        } catch (\Throwable $e) {
-            $threw = true;
-        }
-        $this->assertTrue($threw);
+        $client = $this->getClient();
+        $nonExistent = 'nonexistent_' . uniqid();
+        $this->assertThrowsMatch($nonExistent, function ($idx) use ($client) {
+            $client->ftDropIndex($idx);
+        }, '/not found/');
     }
 
     /* ── FT.SEARCH ─────────────────────────────────────────────────── */
@@ -286,7 +284,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
             $vec1 = "\x00\x00\x00\x00\x00\x00\x80\xBF";
             $this->getClient()->hSet($prefix . '0', 'vec', $vec0);
             $this->getClient()->hSet($prefix . '1', 'vec', $vec1);
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
 
             $result = $this->getClient()->ftSearch(
                 (new FtSearchBuilder())
@@ -308,15 +306,13 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
     public function testFtSearchNonExistentThrows()
     {
         $this->skipIfModuleNotAvailable();
-        $threw = false;
-        try {
-            $this->getClient()->ftSearch(
-                (new FtSearchBuilder())->index('nonexistent_' . uniqid())->query('*')
+        $client = $this->getClient();
+        $nonExistent = 'nonexistent_' . uniqid();
+        $this->assertThrowsMatch($nonExistent, function ($idx) use ($client) {
+            $client->ftSearch(
+                (new FtSearchBuilder())->index($idx)->query('*')
             );
-        } catch (\Throwable $e) {
-            $threw = true;
-        }
-        $this->assertTrue($threw);
+        }, '/not found/');
     }
 
     public function testFtSearchNoContent()
@@ -335,7 +331,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
 
         try {
             $this->getClient()->hSet($key, 'title', 'hello world');
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
 
             // NOCONTENT: only keys returned, no field content
             $result = $this->getClient()->ftSearch(
@@ -370,7 +366,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
 
         try {
             $this->getClient()->hSet($key, 'title', 'hello world');
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
 
             // dialect 2 is accepted; assert the document is returned
             $result = $this->getClient()->ftSearch(
@@ -401,19 +397,15 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
 
         try {
             // dialect < 2 is not supported; expect an error
-            $threw = false;
-            try {
-                $this->getClient()->ftSearch(
+            $client = $this->getClient();
+            $this->assertThrowsMatch($idx, function ($idx) use ($client) {
+                $client->ftSearch(
                     (new FtSearchBuilder())
                         ->index($idx)
                         ->query('hello')
                         ->dialect(1)
                 );
-            } catch (\Throwable $e) {
-                $threw = true;
-                $this->assertStringContains('DIALECT', $e->getMessage());
-            }
-            $this->assertTrue($threw);
+            }, '/DIALECT/');
         } finally {
             $this->getClient()->ftDropIndex($idx);
         }
@@ -437,7 +429,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
             $this->getClient()->hSet($prefix . '1', ['price' => '10', 'name' => 'Aardvark']);
             $this->getClient()->hSet($prefix . '2', ['price' => '20', 'name' => 'Mango']);
             $this->getClient()->hSet($prefix . '3', ['price' => '30', 'name' => 'Zebra']);
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
 
             // SORTBY price ASC
             $result = $this->getClient()->ftSearch(
@@ -491,7 +483,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
             $this->getClient()->hSet($prefix . '1', ['price' => '10', 'name' => 'Aardvark']);
             $this->getClient()->hSet($prefix . '2', ['price' => '20', 'name' => 'Mango']);
             $this->getClient()->hSet($prefix . '3', ['price' => '30', 'name' => 'Zebra']);
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
 
             // WITHSORTKEYS — each doc value becomes [sortKey, fieldMap]
             $result = $this->getClient()->ftSearch(
@@ -558,7 +550,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
             $this->getClient()->hSet($prefix . '2', 'title', 'hello there');
             $this->getClient()->hSet($prefix . '3', 'title', 'goodbye world');
             $this->getClient()->hSet($prefix . '4', 'title', 'world hello');
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
 
             // VERBATIM — no stemming
             $result = $this->getClient()->ftSearch(
@@ -623,13 +615,11 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
     public function testFtInfoNonExistentThrows()
     {
         $this->skipIfModuleNotAvailable();
-        $threw = false;
-        try {
-            $this->getClient()->ftInfo('nonexistent_' . uniqid());
-        } catch (\Throwable $e) {
-            $threw = true;
-        }
-        $this->assertTrue($threw);
+        $client = $this->getClient();
+        $nonExistent = 'nonexistent_' . uniqid();
+        $this->assertThrowsMatch($nonExistent, function ($idx) use ($client) {
+            $client->ftInfo($idx);
+        }, '/not found/');
     }
 
     /* ── FT.ALIAS* ─────────────────────────────────────────────────── */
@@ -656,13 +646,10 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
             $this->assertEquals($idx, $aliases[$alias1] ?? null);
 
             // Duplicate alias -> error
-            $threw = false;
-            try {
-                $this->getClient()->ftAliasAdd($alias1, $idx);
-            } catch (\Throwable $e) {
-                $threw = true;
-            }
-            $this->assertTrue($threw);
+            $client = $this->getClient();
+            $this->assertThrowsMatch($alias1, function ($alias) use ($client, $idx) {
+                $client->ftAliasAdd($alias, $idx);
+            });
 
             $r = $this->getClient()->ftAliasUpdate($alias2, $idx);
             $this->assertTrue($r);
@@ -675,13 +662,9 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
             $this->getClient()->ftAliasDel($alias1);
 
             // Delete non-existent -> error
-            $threw = false;
-            try {
-                $this->getClient()->ftAliasDel($alias2);
-            } catch (\Throwable $e) {
-                $threw = true;
-            }
-            $this->assertTrue($threw);
+            $this->assertThrowsMatch($alias2, function ($alias) use ($client) {
+                $client->ftAliasDel($alias);
+            });
         } finally {
             $this->getClient()->ftDropIndex($idx);
         }
@@ -709,7 +692,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
             for ($i = 0; $i < count($conditions); $i++) {
                 $this->getClient()->hSet($prefix . $i, ['model' => 'bike' . $i, 'price' => (string)(100 + $i * 10), 'condition' => $conditions[$i]]);
             }
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
 
             $result = $this->getClient()->ftAggregate(
                 (new FtAggregateBuilder())
@@ -780,7 +763,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
                 'title' => 'Star Wars VI', 'release_year' => '1983',
                 'genre' => 'Action', 'rating' => '8.3', 'votes' => '906260',
             ]);
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
 
             // APPLY ceil(@rating) + GROUPBY genre with COUNT, SUM, AVG + SORTBY
             $result = $this->getClient()->ftAggregate(
@@ -852,7 +835,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         try {
             $this->getClient()->hSet($prefix . '1', ['score' => '10', 'title' => 'hello world']);
             $this->getClient()->hSet($prefix . '2', ['score' => '20', 'title' => 'hello there']);
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
 
             // VERBATIM — disables stemming; both docs match, no LOAD so empty rows
             $result = $this->getClient()->ftAggregate(
@@ -957,7 +940,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         );
         try {
             $this->getClient()->hSet($prefix . '1', 'title', 'the quick fox');
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
             $result = $this->getClient()->ftSearch(
                 (new FtSearchBuilder())->index($idx)->query('the')
             );
@@ -980,7 +963,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         );
         try {
             $this->getClient()->hSet($prefix . '1', 'title', 'the quick fox');
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
 
             // "the" and "quick" are not stop words, so they should be searchable
             $result = $this->getClient()->ftSearch(
@@ -996,15 +979,12 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
             $this->assertEquals(1, $result[0]);
 
             // "fox" is a custom stop word, so searching for it should fail
-            $threw = false;
-            try {
-                $this->getClient()->ftSearch(
+            $client = $this->getClient();
+            $this->assertThrowsMatch($idx, function ($idx) use ($client) {
+                $client->ftSearch(
                     (new FtSearchBuilder())->index($idx)->query('fox')
                 );
-            } catch (\Throwable $e) {
-                $threw = true;
-            }
-            $this->assertTrue($threw);
+            }, '/Invalid.*Query Syntax/');
         } finally {
             $this->getClient()->ftDropIndex($idx);
         }
@@ -1026,7 +1006,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         try {
             $this->getClient()->hSet($prefix . '1', 'title', 'running');
             $this->getClient()->hSet($prefix . '2', 'title', 'plays');
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
             $r = $this->getClient()->ftSearch(
                 (new FtSearchBuilder())->index($idx)->query('run')
             );
@@ -1055,21 +1035,18 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         );
         try {
             $this->getClient()->hSet($prefix . '1', 'title', 'hello');
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
             $r = $this->getClient()->ftSearch(
                 (new FtSearchBuilder())->index($idx)->query('hello')
             );
             $this->assertIsArray($r);
             // SLOP requires offsets - should fail
-            $threw = false;
-            try {
-                $this->getClient()->ftSearch(
+            $client = $this->getClient();
+            $this->assertThrowsMatch($idx, function ($idx) use ($client) {
+                $client->ftSearch(
                     (new FtSearchBuilder())->index($idx)->query('hello')->slop(1)
                 );
-            } catch (\Throwable $e) {
-                $threw = true;
-            }
-            $this->assertTrue($threw);
+            }, '/does not support offsets/');
         } finally {
             $this->getClient()->ftDropIndex($idx);
         }
@@ -1093,7 +1070,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         );
         try {
             $this->getClient()->hSet($prefix . '1', ['title' => 'hello', 'price' => '10', 'tag' => 'a,b']);
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
 
             $r = $this->getClient()->ftSearch(
                 (new FtSearchBuilder())->index($idx)->query('@price:[1 +inf]')->sortBy('price', 'ASC')
@@ -1127,7 +1104,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         );
         try {
             $this->getClient()->hSet($prefix . '1', 'title', 'hello world');
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
             $r = $this->getClient()->ftSearch(
                 (new FtSearchBuilder())->index($idx)->query('*orld')
             );
@@ -1149,16 +1126,13 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         );
         try {
             $this->getClient()->hSet($prefix . '1', 'title', 'hello world');
-            usleep(1500000);
-            $threw = false;
-            try {
-                $this->getClient()->ftSearch(
+            usleep(self::INDEX_SYNC_DELAY_US);
+            $client = $this->getClient();
+            $this->assertThrowsMatch($idx, function ($idx) use ($client) {
+                $client->ftSearch(
                     (new FtSearchBuilder())->index($idx)->query('*orld')
                 );
-            } catch (\Throwable $e) {
-                $threw = true;
-            }
-            $this->assertTrue($threw);
+            }, '/suffix/i');
         } finally {
             $this->getClient()->ftDropIndex($idx);
         }
@@ -1184,7 +1158,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         try {
             $this->getClient()->hSet($prefix . '1', 'tag', 'test', 'score', '1');
             $this->getClient()->hSet($prefix . '2', 'tag', 'test', 'score', '2');
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
 
             // SOMESHARDS + INCONSISTENT
             $r = $this->getClient()->ftSearch(
@@ -1217,7 +1191,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         );
         try {
             $this->getClient()->hSet($prefix . '1', 'title', 'hello world');
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
 
             // LOCAL scope
             $info = $this->getClient()->ftInfo($idx, ['scope' => 'LOCAL']);
@@ -1254,7 +1228,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         );
         try {
             $this->getClient()->hSet($prefix . '1', 'title', 'hello world');
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
 
             // PRIMARY scope — works if coordinator is enabled, otherwise rejected
             try {
@@ -1295,7 +1269,7 @@ class ValkeyGlideValkeySearchTest extends ValkeyGlideBaseTest
         try {
             $this->getClient()->hSet($prefix . '1', ['title' => 'Widget', 'price' => '9.99', 'category' => 'tools']);
             $this->getClient()->hSet($prefix . '2', ['title' => 'Gadget', 'price' => '19.99', 'category' => 'electronics']);
-            usleep(1500000);
+            usleep(self::INDEX_SYNC_DELAY_US);
 
             // Simple RETURN without aliases — returned fields should use original names
             $result = $this->getClient()->ftSearch(
