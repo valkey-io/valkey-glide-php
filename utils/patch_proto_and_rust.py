@@ -64,6 +64,7 @@ def patch_rust_types_rs(rust_types_file):
     - refresh_interval_seconds: Option<u32> -> u32
     - compression_level: Option<i32> -> i32
     - read_only: Option<bool> -> bool
+    - eviction_policy: Option<EnumOrUnknown> -> EnumOrUnknown
     """
     
     if not os.path.exists(rust_types_file):
@@ -138,6 +139,17 @@ def patch_rust_types_rs(rust_types_file):
             needs_patching = True
             log_message("Applied read_only patch")
         
+        # Fix eviction_policy: changed from Option<EnumOrUnknown> to EnumOrUnknown
+        # The .and_then() method doesn't exist on EnumOrUnknown, need to use .enum_value() directly
+        eviction_pattern = r'eviction_policy: proto_cache\s*\n\s*\.eviction_policy\s*\n\s*\.and_then\(\|enum_or_unknown\| enum_or_unknown\.enum_value\(\)\.ok\(\)\)'
+        eviction_replacement = 'eviction_policy: proto_cache\n                    .eviction_policy\n                    .enum_value().ok()'
+        if re.search(eviction_pattern, new_content):
+            if not needs_patching:
+                create_backup(rust_types_file)
+            new_content = re.sub(eviction_pattern, eviction_replacement, new_content)
+            needs_patching = True
+            log_message("Applied eviction_policy patch")
+        
         if needs_patching:
             with open(rust_types_file, 'w') as f:
                 f.write(new_content)
@@ -189,6 +201,106 @@ def verify_rust_patch(rust_types_file):
         log_message(f"Error verifying patch: {e}", "ERROR")
         return False
 
+def patch_ffi_lib_rs(ffi_lib_file):
+    """Patch the FFI lib.rs file to fix type mismatches between protobuf and Rust code.
+    
+    Fixes several fields that changed from Option<T> to T in protobuf:
+    - tcp_nodelay: Some(enabled) -> enabled
+    - read_only: Some(enabled) -> enabled
+    - pubsub_reconciliation_interval_ms: Some(interval_ms) -> interval_ms
+    - jitter_percent: Some(...) -> ...
+    - compression_level: Some(level_val) -> level_val
+    - refresh_interval_seconds: Some(interval_val) -> interval_val
+    """
+    
+    if not os.path.exists(ffi_lib_file):
+        log_message(f"FFI lib.rs file not found: {ffi_lib_file}", "ERROR")
+        return False
+    
+    log_message(f"Patching FFI lib.rs file: {ffi_lib_file}")
+    
+    try:
+        with open(ffi_lib_file, 'r') as f:
+            content = f.read()
+        
+        needs_patching = False
+        new_content = content
+        
+        # Fix tcp_nodelay: request.tcp_nodelay = Some(enabled) -> request.tcp_nodelay = enabled
+        tcp_nodelay_pattern = r'request\.tcp_nodelay = Some\(enabled\);'
+        tcp_nodelay_replacement = 'request.tcp_nodelay = enabled;'
+        if re.search(tcp_nodelay_pattern, content):
+            create_backup(ffi_lib_file)
+            new_content = re.sub(tcp_nodelay_pattern, tcp_nodelay_replacement, new_content)
+            needs_patching = True
+            log_message("Applied FFI tcp_nodelay patch")
+        
+        # Fix read_only: request.read_only = Some(enabled) -> request.read_only = enabled
+        read_only_pattern = r'request\.read_only = Some\(enabled\);'
+        read_only_replacement = 'request.read_only = enabled;'
+        if re.search(read_only_pattern, new_content):
+            if not needs_patching:
+                create_backup(ffi_lib_file)
+            new_content = re.sub(read_only_pattern, read_only_replacement, new_content)
+            needs_patching = True
+            log_message("Applied FFI read_only patch")
+        
+        # Fix pubsub_reconciliation_interval_ms: Some(interval_ms) -> interval_ms
+        pubsub_pattern = r'request\.pubsub_reconciliation_interval_ms = Some\(interval_ms\);'
+        pubsub_replacement = 'request.pubsub_reconciliation_interval_ms = interval_ms;'
+        if re.search(pubsub_pattern, new_content):
+            if not needs_patching:
+                create_backup(ffi_lib_file)
+            new_content = re.sub(pubsub_pattern, pubsub_replacement, new_content)
+            needs_patching = True
+            log_message("Applied FFI pubsub_reconciliation_interval_ms patch")
+        
+        # Fix jitter_percent: strategy.jitter_percent = Some(...) -> strategy.jitter_percent = ...
+        jitter_pattern = r'strategy\.jitter_percent = Some\(\s*\n\s*jitter\s*\n\s*\.as_u64\(\)\s*\n\s*\.ok_or_else\(\|\| "jitter_percent must be a positive integer"\.to_string\(\)\)\?\s*\n\s*as u32,\s*\n\s*\);'
+        jitter_replacement = '''strategy.jitter_percent = jitter
+                    .as_u64()
+                    .ok_or_else(|| "jitter_percent must be a positive integer".to_string())?
+                    as u32;'''
+        if re.search(jitter_pattern, new_content):
+            if not needs_patching:
+                create_backup(ffi_lib_file)
+            new_content = re.sub(jitter_pattern, jitter_replacement, new_content)
+            needs_patching = True
+            log_message("Applied FFI jitter_percent patch")
+        
+        # Fix compression_level: config.compression_level = Some(level_val) -> config.compression_level = level_val
+        compression_pattern = r'config\.compression_level = Some\(level_val\);'
+        compression_replacement = 'config.compression_level = level_val;'
+        if re.search(compression_pattern, new_content):
+            if not needs_patching:
+                create_backup(ffi_lib_file)
+            new_content = re.sub(compression_pattern, compression_replacement, new_content)
+            needs_patching = True
+            log_message("Applied FFI compression_level patch")
+        
+        # Fix refresh_interval_seconds: iam_creds.refresh_interval_seconds = Some(interval_val) -> iam_creds.refresh_interval_seconds = interval_val
+        refresh_pattern = r'iam_creds\.refresh_interval_seconds = Some\(interval_val\);'
+        refresh_replacement = 'iam_creds.refresh_interval_seconds = interval_val;'
+        if re.search(refresh_pattern, new_content):
+            if not needs_patching:
+                create_backup(ffi_lib_file)
+            new_content = re.sub(refresh_pattern, refresh_replacement, new_content)
+            needs_patching = True
+            log_message("Applied FFI refresh_interval_seconds patch")
+        
+        if needs_patching:
+            with open(ffi_lib_file, 'w') as f:
+                f.write(new_content)
+            log_message(f"Successfully patched FFI lib.rs file: {ffi_lib_file}")
+            return True
+        else:
+            log_message(f"FFI lib.rs file already patched or no changes needed: {ffi_lib_file}")
+            return True
+    
+    except Exception as e:
+        log_message(f"Error patching {ffi_lib_file}: {e}", "ERROR")
+        return False
+
 def main():
     """Main function to run all patching operations.
     
@@ -204,6 +316,7 @@ def main():
     # Define paths
     protobuf_directory = base_dir / "valkey-glide" / "glide-core" / "src" / "protobuf"
     rust_types_file = base_dir / "valkey-glide" / "glide-core" / "src" / "client" / "types.rs"
+    ffi_lib_file = base_dir / "valkey-glide" / "ffi" / "src" / "lib.rs"
     
     success = True
     
@@ -216,8 +329,8 @@ def main():
         log_message(f"Protobuf directory not found: {protobuf_directory}", "ERROR")
         success = False
     
-    # Step 2: Patch Rust jitter_percent issue
-    log_message("=== Phase 2: Patching Rust Code ===")
+    # Step 2: Patch Rust types.rs
+    log_message("=== Phase 2: Patching Rust types.rs ===")
     if rust_types_file.exists():
         if not patch_rust_types_rs(str(rust_types_file)):
             success = False
@@ -227,6 +340,15 @@ def main():
                 success = False
     else:
         log_message(f"Rust types file not found: {rust_types_file}", "ERROR")
+        success = False
+    
+    # Step 3: Patch FFI lib.rs
+    log_message("=== Phase 3: Patching FFI lib.rs ===")
+    if ffi_lib_file.exists():
+        if not patch_ffi_lib_rs(str(ffi_lib_file)):
+            success = False
+    else:
+        log_message(f"FFI lib.rs file not found: {ffi_lib_file}", "ERROR")
         success = False
     
     # Summary

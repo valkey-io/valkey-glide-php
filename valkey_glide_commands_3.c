@@ -1880,8 +1880,14 @@ int execute_rawcommand_command_internal(
 
     if (result) {
         if (result->command_error) {
-            /* Command failed */
+            /* Command failed - throw exception */
+            const char* error_msg = result->command_error->command_error_message
+                                        ? result->command_error->command_error_message
+                                        : "Command execution failed";
+            char* error_copy = estrdup(error_msg);
             free_command_result(result);
+            zend_throw_exception(zend_ce_exception, error_copy, 0);
+            efree(error_copy);
             return 0;
         }
 
