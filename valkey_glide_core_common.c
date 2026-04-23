@@ -149,10 +149,10 @@ int execute_core_command(valkey_glide_object* valkey_glide,
                                         ? result->command_error->command_error_message
                                         : "Command execution failed";
             VALKEY_LOG_ERROR_FMT("execute_core_command", "Command error: %s", error_msg);
-            
+
             /* Copy the error message before freeing the result */
             char* error_copy = estrdup(error_msg);
-            
+
             efree(result_ptr);
             free_command_result(result);
             /* Cleanup before throwing exception */
@@ -161,7 +161,7 @@ int execute_core_command(valkey_glide_object* valkey_glide,
             efree(error_copy);
             return -1;
         }
-        
+
         if (result->response) {
             /* Non-routed commands use standard processor */
             res = processor(result->response, result_ptr, return_value);
