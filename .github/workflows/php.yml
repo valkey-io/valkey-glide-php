@@ -1095,7 +1095,8 @@ jobs:
 
       - name: Run modules tests
         run: |
-          php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php --class=ValkeyGlideValkeySearch
+          php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php --class=ValkeyGlideSearchTest
+          php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php --class=ValkeyGlideClusterSearchTest
 
       - name: Stop Valkey servers
         if: always()
@@ -1191,7 +1192,8 @@ jobs:
 
       - name: Run modules tests
         run: |
-          php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php --class=ValkeyGlideValkeySearch
+          php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php --class=ValkeyGlideSearchTest
+          php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php --class=ValkeyGlideClusterSearchTest
 
       - name: Stop Valkey servers
         if: always()
