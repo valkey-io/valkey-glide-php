@@ -100,7 +100,12 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest
 
     public function getPort()
     {
-        return $this->getTLS() ? self::TLS_PORT_CLUSTER : 7001;
+        if ($this->getTLS()) {
+            return self::TLS_PORT_CLUSTER;
+        }
+
+        $port = parent::getPort();
+        return ($port !== null && $port !== 6379) ? $port : 7001;
     }
 
     /* Override setUp to get info from a specific node */
@@ -121,7 +126,7 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest
     {
         try {
             return new ValkeyGlideCluster(
-                addresses: [['host' => '127.0.0.1', 'port' => 7001]],
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
                 use_tls: false,
                 credentials: $this->getAuth(),
                 read_from: ValkeyGlide::READ_FROM_PRIMARY
