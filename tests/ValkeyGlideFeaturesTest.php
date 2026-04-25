@@ -2048,27 +2048,34 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     // ==================== Compression Tests for Supported Commands ====================
 
     /**
-     * Helper to create a compression-enabled standalone client
+     * Shared compression-enabled client for compression tests
      */
-    private function createCompressedClient(): ValkeyGlide
+    private ?ValkeyGlide $compressedClient = null;
+
+    /**
+     * Get or create the shared compression-enabled standalone client
+     */
+    private function getCompressedClient(): ValkeyGlide
     {
-        $client = new ValkeyGlide();
-        $client->connect(
-            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
-            use_tls: $this->getTLS(),
-            advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
-            compression: [
-                'enabled' => true,
-                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
-                'min_compression_size' => 64
-            ]
-        );
-        return $client;
+        if ($this->compressedClient === null) {
+            $this->compressedClient = new ValkeyGlide();
+            $this->compressedClient->connect(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                use_tls: $this->getTLS(),
+                advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+                compression: [
+                    'enabled' => true,
+                    'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                    'min_compression_size' => 64
+                ]
+            );
+        }
+        return $this->compressedClient;
     }
 
     public function testCompressionMsetMget()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $data = str_repeat('compressible_data_', 100);
         $key1 = 'compression_mset_1_' . uniqid();
         $key2 = 'compression_mset_2_' . uniqid();
@@ -2096,13 +2103,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertEquals($data . '_3', $values[2]);
         } finally {
             $client->del($key1, $key2, $key3);
-            $client->close();
         }
     }
 
     public function testCompressionMsetnx()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $data = str_repeat('msetnx_data_', 100);
         $key1 = 'compression_msetnx_1_' . uniqid();
         $key2 = 'compression_msetnx_2_' . uniqid();
@@ -2136,14 +2142,13 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             // Original value should be unchanged
             $this->assertEquals($data . '_1', $client->get($key1));
         } finally {
-            $client->del($key1, $key2);
-            $client->close();
+            $client->del($key1, $key2, $key3);
         }
     }
 
     public function testCompressionGetex()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $data = str_repeat('getex_data_', 100);
         $key = 'compression_getex_' . uniqid();
 
@@ -2175,13 +2180,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertEquals(-1, $client->ttl($key));
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionGetdel()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $data = str_repeat('getdel_data_', 100);
         $key = 'compression_getdel_' . uniqid();
 
@@ -2206,13 +2210,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertEquals(0, $client->exists($key));
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionSetexViaRawCommand()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $data = str_repeat('setex_data_', 100);
         $key = 'compression_setex_raw_' . uniqid();
 
@@ -2234,13 +2237,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertBetween($client->ttl($key), 5, 10);
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionPsetexViaRawCommand()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $data = str_repeat('psetex_data_', 100);
         $key = 'compression_psetex_raw_' . uniqid();
 
@@ -2262,13 +2264,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertBetween($client->pttl($key), 5000, 10000);
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionSetnxViaRawCommand()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $data = str_repeat('setnx_data_', 100);
         $key = 'compression_setnx_raw_' . uniqid();
 
@@ -2296,7 +2297,6 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertEquals($data, $client->get($key));
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
@@ -2305,7 +2305,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testCompressionBlockedAppend()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $data = str_repeat('append_data_', 100);
         $key = 'compression_blocked_append_' . uniqid();
 
@@ -2315,13 +2315,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'APPEND should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionBlockedGetrange()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $data = str_repeat('getrange_data_', 100);
         $key = 'compression_blocked_getrange_' . uniqid();
 
@@ -2331,13 +2330,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'GETRANGE should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionBlockedSetrange()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $data = str_repeat('setrange_data_', 100);
         $key = 'compression_blocked_setrange_' . uniqid();
 
@@ -2347,13 +2345,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'SETRANGE should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionBlockedStrlen()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $data = str_repeat('strlen_data_', 100);
         $key = 'compression_blocked_strlen_' . uniqid();
 
@@ -2363,13 +2360,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'STRLEN should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionBlockedIncr()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $key = 'compression_blocked_incr_' . uniqid();
 
         try {
@@ -2378,13 +2374,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'INCR should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionBlockedIncrby()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $key = 'compression_blocked_incrby_' . uniqid();
 
         try {
@@ -2393,13 +2388,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'INCRBY should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionBlockedIncrbyfloat()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $key = 'compression_blocked_incrbyfloat_' . uniqid();
 
         try {
@@ -2408,13 +2402,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'INCRBYFLOAT should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionBlockedDecr()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $key = 'compression_blocked_decr_' . uniqid();
 
         try {
@@ -2423,13 +2416,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'DECR should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionBlockedDecrby()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $key = 'compression_blocked_decrby_' . uniqid();
 
         try {
@@ -2438,13 +2430,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'DECRBY should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionBlockedGetbit()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $key = 'compression_blocked_getbit_' . uniqid();
 
         try {
@@ -2453,13 +2444,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'GETBIT should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionBlockedSetbit()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $key = 'compression_blocked_setbit_' . uniqid();
 
         try {
@@ -2468,13 +2458,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'SETBIT should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionBlockedBitcount()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $key = 'compression_blocked_bitcount_' . uniqid();
 
         try {
@@ -2483,7 +2472,6 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'BITCOUNT should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
@@ -2491,7 +2479,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testCompressionBlockedIncrViaRawCommand()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $key = 'compression_blocked_incr_raw_' . uniqid();
 
         try {
@@ -2500,13 +2488,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'INCR via rawCommand should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionBlockedAppendViaRawCommand()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $data = str_repeat('append_raw_', 100);
         $key = 'compression_blocked_append_raw_' . uniqid();
 
@@ -2516,13 +2503,12 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'APPEND via rawCommand should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionBlockedStrlenViaRawCommand()
     {
-        $client = $this->createCompressedClient();
+        $client = $this->getCompressedClient();
         $data = str_repeat('strlen_raw_', 100);
         $key = 'compression_blocked_strlen_raw_' . uniqid();
 
@@ -2532,7 +2518,6 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'STRLEN via rawCommand should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 }

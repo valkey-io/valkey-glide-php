@@ -1459,24 +1459,32 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     // ==================== Compression Tests for Supported Commands ====================
 
     /**
-     * Helper to create a compression-enabled cluster client
+     * Shared compression-enabled cluster client for compression tests
      */
-    private function createCompressedClusterClient(): ValkeyGlideCluster
+    private ?ValkeyGlideCluster $compressedClusterClient = null;
+
+    /**
+     * Get or create the shared compression-enabled cluster client
+     */
+    private function getCompressedClusterClient(): ValkeyGlideCluster
     {
-        $addresses = [['host' => 'localhost', 'port' => 7001]];
-        return new ValkeyGlideCluster(
-            addresses: $addresses,
-            compression: [
-                'enabled' => true,
-                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
-                'min_compression_size' => 64
-            ]
-        );
+        if ($this->compressedClusterClient === null) {
+            $addresses = [['host' => 'localhost', 'port' => 7001]];
+            $this->compressedClusterClient = new ValkeyGlideCluster(
+                addresses: $addresses,
+                compression: [
+                    'enabled' => true,
+                    'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                    'min_compression_size' => 64
+                ]
+            );
+        }
+        return $this->compressedClusterClient;
     }
 
     public function testCompressionClusterMsetMget()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $data = str_repeat('compressible_data_', 100);
         // Use hash tags to ensure keys are on the same slot
         $key1 = '{compression_mset}_1_' . uniqid();
@@ -1505,13 +1513,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertEquals($data . '_3', $values[2]);
         } finally {
             $client->del($key1, $key2, $key3);
-            $client->close();
         }
     }
 
     public function testCompressionClusterMsetnx()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $data = str_repeat('msetnx_data_', 100);
         // Use hash tags to ensure keys are on the same slot
         $key1 = '{compression_msetnx}_1_' . uniqid();
@@ -1536,13 +1543,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertEquals($data . '_2', $client->get($key2));
         } finally {
             $client->del($key1, $key2);
-            $client->close();
         }
     }
 
     public function testCompressionClusterGetex()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $data = str_repeat('getex_data_', 100);
         $key = 'compression_cluster_getex_' . uniqid();
 
@@ -1569,13 +1575,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertEquals(-1, $client->ttl($key));
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterGetdel()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $data = str_repeat('getdel_data_', 100);
         $key = 'compression_cluster_getdel_' . uniqid();
 
@@ -1600,13 +1605,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertEquals(0, $client->exists($key));
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterSetexViaRawCommand()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $data = str_repeat('setex_data_', 100);
         $key = 'compression_cluster_setex_raw_' . uniqid();
 
@@ -1628,13 +1632,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertBetween($client->ttl($key), 5, 10);
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterPsetexViaRawCommand()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $data = str_repeat('psetex_data_', 100);
         $key = 'compression_cluster_psetex_raw_' . uniqid();
 
@@ -1656,13 +1659,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertBetween($client->pttl($key), 5000, 10000);
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterSetnxViaRawCommand()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $data = str_repeat('setnx_data_', 100);
         $key = 'compression_cluster_setnx_raw_' . uniqid();
 
@@ -1690,7 +1692,6 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertEquals($data, $client->get($key));
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
@@ -1699,7 +1700,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
     public function testCompressionClusterBlockedAppend()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $data = str_repeat('append_data_', 100);
         $key = 'compression_cluster_blocked_append_' . uniqid();
 
@@ -1709,13 +1710,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertFalse($result, 'APPEND should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterBlockedGetrange()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $data = str_repeat('getrange_data_', 100);
         $key = 'compression_cluster_blocked_getrange_' . uniqid();
 
@@ -1725,13 +1725,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertFalse($result, 'GETRANGE should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterBlockedSetrange()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $data = str_repeat('setrange_data_', 100);
         $key = 'compression_cluster_blocked_setrange_' . uniqid();
 
@@ -1741,13 +1740,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertFalse($result, 'SETRANGE should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterBlockedStrlen()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $data = str_repeat('strlen_data_', 100);
         $key = 'compression_cluster_blocked_strlen_' . uniqid();
 
@@ -1757,13 +1755,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertFalse($result, 'STRLEN should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterBlockedIncr()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $key = 'compression_cluster_blocked_incr_' . uniqid();
 
         try {
@@ -1772,13 +1769,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertFalse($result, 'INCR should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterBlockedIncrby()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $key = 'compression_cluster_blocked_incrby_' . uniqid();
 
         try {
@@ -1787,13 +1783,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertFalse($result, 'INCRBY should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterBlockedIncrbyfloat()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $key = 'compression_cluster_blocked_incrbyfloat_' . uniqid();
 
         try {
@@ -1802,13 +1797,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertFalse($result, 'INCRBYFLOAT should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterBlockedDecr()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $key = 'compression_cluster_blocked_decr_' . uniqid();
 
         try {
@@ -1817,13 +1811,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertFalse($result, 'DECR should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterBlockedDecrby()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $key = 'compression_cluster_blocked_decrby_' . uniqid();
 
         try {
@@ -1832,13 +1825,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertFalse($result, 'DECRBY should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterBlockedGetbit()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $key = 'compression_cluster_blocked_getbit_' . uniqid();
 
         try {
@@ -1847,13 +1839,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertFalse($result, 'GETBIT should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterBlockedSetbit()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $key = 'compression_cluster_blocked_setbit_' . uniqid();
 
         try {
@@ -1862,13 +1853,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertFalse($result, 'SETBIT should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterBlockedBitcount()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $key = 'compression_cluster_blocked_bitcount_' . uniqid();
 
         try {
@@ -1877,7 +1867,6 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertFalse($result, 'BITCOUNT should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
@@ -1885,7 +1874,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
     public function testCompressionClusterBlockedIncrViaRawCommand()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $key = 'compression_cluster_blocked_incr_raw_' . uniqid();
 
         try {
@@ -1894,13 +1883,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertFalse($result, 'INCR via rawCommand should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterBlockedAppendViaRawCommand()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $data = str_repeat('append_raw_', 100);
         $key = 'compression_cluster_blocked_append_raw_' . uniqid();
 
@@ -1910,13 +1898,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertFalse($result, 'APPEND via rawCommand should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 
     public function testCompressionClusterBlockedStrlenViaRawCommand()
     {
-        $client = $this->createCompressedClusterClient();
+        $client = $this->getCompressedClusterClient();
         $data = str_repeat('strlen_raw_', 100);
         $key = 'compression_cluster_blocked_strlen_raw_' . uniqid();
 
@@ -1926,7 +1913,6 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertFalse($result, 'STRLEN via rawCommand should return false when compression is enabled');
         } finally {
             $client->del($key);
-            $client->close();
         }
     }
 }

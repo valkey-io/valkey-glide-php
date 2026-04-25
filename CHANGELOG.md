@@ -5,6 +5,7 @@
 ### Changes
 
 * PHP: Add JSON.SET and JSON.GET commands for standalone and cluster clients ([#184](https://github.com/valkey-io/valkey-glide-php/pull/184))
+* PHP: Add transparent compression support for string values ([#186](https://github.com/valkey-io/valkey-glide-php/pull/186))
 
 ## 1.0.0
 
