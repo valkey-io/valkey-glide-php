@@ -388,9 +388,22 @@ runs:
         composer install --no-interaction --prefer-dist --optimize-autoloader
         echo "Composer install completed"
 
+    - name: Start Valkey servers via Docker
+      if: steps.package-info.outputs.is-rc != 'true'
+      uses: ./.github/workflows/start-valkey-docker
+      with:
+        engine-version: ${{ inputs.engine-version }}
+
     - name: Run PHP Extension Tests
       if: steps.package-info.outputs.is-rc != 'true'
       uses: ./.github/workflows/run-php-tests
       with:
         extension-path: valkey_glide
         php-version: ${{ inputs.php-version }}
+
+    - name: Stop Valkey Docker containers
+      if: always()
+      shell: bash
+      run: |
+        echo "Stopping Valkey Docker containers..."
+        docker ps -a --filter "name=valkey-" --format "{{.Names}}" | xargs -r docker rm -f || true

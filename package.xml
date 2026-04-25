@@ -68,6 +68,9 @@ Requirements:
    <file name="valkey_glide_core_common.c" role="src" />
    <file name="valkey_glide_core_common.h" role="src" />
    <file name="valkey_glide_expire_commands.c" role="src" />
+   <file name="valkey_glide_ft_commands.c" role="src" />
+   <file name="valkey_glide_ft_common.h" role="src" />
+   <file name="valkey_glide_ft_common.c" role="src" />
    <file name="valkey_glide_geo_commands.c" role="src" />
    <file name="valkey_glide_geo_common.c" role="src" />
    <file name="valkey_glide_geo_common.h" role="src" />
@@ -104,6 +107,16 @@ Requirements:
    <file name="TracesConfigBuilder.php" role="php" />
    <file name="MetricsConfig.php" role="php" />
    <file name="MetricsConfigBuilder.php" role="php" />
+   <dir name="Search">
+    <file name="FtAggregateBuilder.php" role="php" />
+    <file name="FtCreateBuilder.php" role="php" />
+    <file name="FtNumericField.php" role="php" />
+    <file name="FtReducer.php" role="php" />
+    <file name="FtSearchBuilder.php" role="php" />
+    <file name="FtTagField.php" role="php" />
+    <file name="FtTextField.php" role="php" />
+    <file name="FtVectorField.php" role="php" />
+   </dir>
    <dir name="src">
     <file name="client_constructor_mock.c" role="src" />
     <file name="client_constructor_mock.stub.php" role="src" />

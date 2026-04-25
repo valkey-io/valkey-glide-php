@@ -4804,6 +4804,171 @@ class ValkeyGlide
      * $valkey_glide->jsonArrLen('doc', '$.a'); // [3]
      */
     public function jsonArrLen(string $key, string $path = ''): ValkeyGlide|array|int|false|null;
+
+    /**
+     * Create a new search index.
+     *
+     * @param \ValkeyGlide\Search\FtCreateBuilder $builder A configured builder with index name, fields, and options.
+     *
+     * @return ValkeyGlide|string|false "OK" on success, false on failure.
+     *
+     * @see \ValkeyGlide\Search\FtCreateBuilder
+     * @see https://valkey.io/commands/ft.create/
+     *
+     * @example
+     * use ValkeyGlide\Search\{FtCreateBuilder, FtTextField, FtNumericField, FtVectorField};
+     *
+     * $client->ftCreate(
+     *     (new FtCreateBuilder())
+     *         ->index('myindex')
+     *         ->on('HASH')
+     *         ->prefix(['product:'])
+     *         ->addField((new FtTextField('title'))->sortable())
+     *         ->addField((new FtNumericField('price'))->sortable())
+     *         ->addField(FtVectorField::hnsw('embedding', 1536, 'COSINE')->m(40))
+     * );
+     */
+    public function ftCreate(\ValkeyGlide\Search\FtCreateBuilder $builder): ValkeyGlide|string|false;
+
+    /**
+     * Drop an existing search index.
+     *
+     * @param string $index The name of the index to drop.
+     *
+     * @return ValkeyGlide|string|false "OK" on success, false on failure.
+     *
+     * @see https://valkey.io/commands/ft.dropindex/
+     */
+    public function ftDropIndex(string $index): ValkeyGlide|string|false;
+
+    /**
+     * Return a list of all existing search index names.
+     *
+     * @return ValkeyGlide|array|false Array of index name strings, or false on failure.
+     *
+     * @see https://valkey.io/commands/ft._list/
+     */
+    public function ftList(): ValkeyGlide|array|false;
+
+    /**
+     * Execute a search query against an index.
+     *
+     * @param \ValkeyGlide\Search\FtSearchBuilder $builder A configured search builder.
+     *
+     * @return ValkeyGlide|array|false The search result, or false on failure.
+     *
+     * @see \ValkeyGlide\Search\FtSearchBuilder
+     * @see https://valkey.io/commands/ft.search/
+     *
+     * @example
+     * use ValkeyGlide\Search\FtSearchBuilder;
+     *
+     * $client->ftSearch(
+     *     (new FtSearchBuilder())
+     *         ->index('myindex')
+     *         ->query('@title:hello')
+     *         ->sortBy('price', 'ASC')
+     *         ->limit(0, 10)
+     * );
+     */
+    public function ftSearch(\ValkeyGlide\Search\FtSearchBuilder $builder): ValkeyGlide|array|false;
+
+    /**
+     * Run an aggregation pipeline against an index.
+     *
+     * @param \ValkeyGlide\Search\FtAggregateBuilder $builder A configured aggregate builder.
+     *
+     * @return ValkeyGlide|array|false Array of result rows, or false on failure.
+     *
+     * @see \ValkeyGlide\Search\FtAggregateBuilder
+     * @see https://valkey.io/commands/ft.aggregate/
+     *
+     * @example
+     * use ValkeyGlide\Search\{FtAggregateBuilder, FtReducer};
+     *
+     * $client->ftAggregate(
+     *     (new FtAggregateBuilder())
+     *         ->index('idx')
+     *         ->query('*')
+     *         ->load(['__key'])
+     *         ->groupBy(['@condition'], [
+     *             FtReducer::count()->as('total'),
+     *         ])
+     * );
+     */
+    public function ftAggregate(\ValkeyGlide\Search\FtAggregateBuilder $builder): ValkeyGlide|array|false;
+
+    /**
+     * Return information and statistics about an index.
+     *
+     * @param string $index   The name of the index to inspect.
+     * @param array  $options Optional associative array of info options.
+     *                        <code>
+     *                        $options = [
+     *                            'scope'         => 'LOCAL',    # 'LOCAL', 'PRIMARY', or 'CLUSTER'
+     *                            'ALLSHARDS'     => true,       # query all shards (cluster mode)
+     *                            'SOMESHARDS'    => true,       # query subset of shards (cluster mode)
+     *                            'CONSISTENT'    => true,       # require consistent results (cluster mode)
+     *                            'INCONSISTENT'  => true,       # allow inconsistent results (cluster mode)
+     *                        ];
+     *                        </code>
+     *
+     * @return ValkeyGlide|array|false Associative array of index info, or false on failure.
+     *
+     * @see https://valkey.io/commands/ft.info/
+     *
+     * @example
+     * $info = $client->ftInfo('myindex');
+     * echo $info['index_name'];
+     *
+     * @example
+     * $info = $client->ftInfo('myindex', ['scope' => 'LOCAL']);
+     */
+    public function ftInfo(string $index, ?array $options = null): ValkeyGlide|array|false;
+
+    /**
+     * Add an alias to an existing index.
+     *
+     * @param string $alias The alias name to add.
+     * @param string $index The index to associate the alias with.
+     *
+     * @return ValkeyGlide|string|false "OK" on success, false on failure.
+     *
+     * @see https://valkey.io/commands/ft.aliasadd/
+     */
+    public function ftAliasAdd(string $alias, string $index): ValkeyGlide|string|false;
+
+    /**
+     * Remove an alias from an index.
+     *
+     * @param string $alias The alias name to remove.
+     *
+     * @return ValkeyGlide|string|false "OK" on success, false on failure.
+     *
+     * @see https://valkey.io/commands/ft.aliasdel/
+     */
+    public function ftAliasDel(string $alias): ValkeyGlide|string|false;
+
+    /**
+     * Update an existing alias to point to a different index.
+     *
+     * @param string $alias The alias name to update.
+     * @param string $index The new index to associate the alias with.
+     *
+     * @return ValkeyGlide|string|false "OK" on success, false on failure.
+     *
+     * @see https://valkey.io/commands/ft.aliasupdate/
+     */
+    public function ftAliasUpdate(string $alias, string $index): ValkeyGlide|string|false;
+
+    /**
+     * Return a map of all aliases to their associated index names.
+     *
+     * @return ValkeyGlide|array|false Associative array of alias => index, or false on failure.
+     *
+     * @see https://valkey.io/commands/ft._aliaslist/
+     */
+    public function ftAliasList(): ValkeyGlide|array|false;
 }
 
 class ValkeyGlideException extends RuntimeException

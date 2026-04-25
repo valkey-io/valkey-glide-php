@@ -30,7 +30,8 @@
         "psr-4": {
             "ValkeyGlide\\": "src/",
             "ValkeyGlide\\OpenTelemetry\\": "./",
-            "ValkeyGlide\\Json\\": "Json/"
+            "ValkeyGlide\\Json\\": "Json/",
+            "ValkeyGlide\\Search\\": "Search/"
         },
         "files": [
             "OpenTelemetryConfig.php",

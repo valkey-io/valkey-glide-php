@@ -134,13 +134,6 @@ runs:
               echo '  - ' . \$class . PHP_EOL;
             }
           }
-          echo 'ClientConstructorMock exists: ' . (class_exists('ClientConstructorMock') ? 'YES' : 'NO') . PHP_EOL;
-          if (class_exists('ClientConstructorMock')) {
-            echo 'ClientConstructorMock methods: ' . PHP_EOL;
-            foreach (get_class_methods('ClientConstructorMock') as \$method) {
-              echo '  - ' . \$method . PHP_EOL;
-            }
-          }
         "
 
         # Run tests using extension loading
