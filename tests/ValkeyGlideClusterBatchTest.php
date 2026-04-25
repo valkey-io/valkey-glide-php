@@ -204,7 +204,7 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
     {
         $client = new ValkeyGlideCluster();
         $client->connect(
-            addresses: [['host' => $this->host, 'port' => $this->port]],
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
             compression: [
                 'enabled' => true,
                 'backend' => ValkeyGlideCluster::COMPRESSION_BACKEND_ZSTD,
@@ -314,33 +314,27 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
         // Set up a key first
         $client->set($key1, 'test_value');
 
-        // Test APPEND - should return false in batch with compression
+        // Test APPEND - batch should fail entirely when blocked command is used with compression
         $results = $client->multi()
             ->append($key1, '_suffix')
             ->exec();
 
-        $this->assertIsArray($results);
-        $this->assertCount(1, $results);
-        $this->assertFalse($results[0]); // APPEND should return false with compression
+        $this->assertFalse($results); // Entire batch fails when blocked command is used
 
-        // Test INCR - should return false in batch with compression
+        // Test INCR - batch should fail entirely when blocked command is used with compression
         $client->set($key1, '10');
         $results = $client->multi()
             ->incr($key1)
             ->exec();
 
-        $this->assertIsArray($results);
-        $this->assertCount(1, $results);
-        $this->assertFalse($results[0]); // INCR should return false with compression
+        $this->assertFalse($results); // Entire batch fails when blocked command is used
 
-        // Test STRLEN - should return false in batch with compression
+        // Test STRLEN - batch should fail entirely when blocked command is used with compression
         $results = $client->multi()
             ->strlen($key1)
             ->exec();
 
-        $this->assertIsArray($results);
-        $this->assertCount(1, $results);
-        $this->assertFalse($results[0]); // STRLEN should return false with compression
+        $this->assertFalse($results); // Entire batch fails when blocked command is used
 
         // Cleanup
         $client->del($key1);
