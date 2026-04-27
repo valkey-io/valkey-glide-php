@@ -202,16 +202,15 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
      */
     private function createCompressedClusterBatchClient(): ValkeyGlideCluster
     {
-        $client = new ValkeyGlideCluster();
-        $client->connect(
+        return new ValkeyGlideCluster(
             addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: false,
             compression: [
                 'enabled' => true,
                 'backend' => ValkeyGlideCluster::COMPRESSION_BACKEND_ZSTD,
                 'min_compression_size' => 64
             ]
         );
-        return $client;
     }
 
     /**
