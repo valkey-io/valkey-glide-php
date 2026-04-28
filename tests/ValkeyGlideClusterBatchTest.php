@@ -200,6 +200,35 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
     }
 
     // ===================================================================
+    // Override inherited standalone compression tests - not applicable to cluster
+    // ===================================================================
+
+    public function testCompressionBatchSetGet()
+    {
+        // Standalone compression batch tests not applicable to cluster - see testCompressionClusterBatchSetGet
+    }
+
+    public function testCompressionBatchMsetMget()
+    {
+        // Standalone compression batch tests not applicable to cluster - see testCompressionClusterBatchMsetMget
+    }
+
+    public function testCompressionBatchMixedOperations()
+    {
+        // Standalone compression batch tests not applicable to cluster
+    }
+
+    public function testCompressionBatchWithSmallValues()
+    {
+        // Standalone compression batch tests not applicable to cluster
+    }
+
+    public function testCompressionBatchBlockedCommands()
+    {
+        // Standalone compression batch tests not applicable to cluster - see testCompressionClusterBatchBlockedCommands
+    }
+
+    // ===================================================================
     // COMPRESSION BATCH TESTS
     // ===================================================================
 
