@@ -44,8 +44,7 @@ static int valkey_glide_cluster_create_connection(
     zend_long                                    periodic_checks,
     zend_bool                                    periodic_checks_is_null) {
     /* Validate addresses - cluster mode requires at least one address */
-    if (common_params.addresses == NULL ||
-        Z_TYPE_P(common_params.addresses) != IS_ARRAY ||
+    if (common_params.addresses == NULL || Z_TYPE_P(common_params.addresses) != IS_ARRAY ||
         zend_hash_num_elements(Z_ARRVAL_P(common_params.addresses)) == 0) {
         const char* error_message =
             "Cluster mode requires at least one address. Use constructor parameters or connect() "

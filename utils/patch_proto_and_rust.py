@@ -140,6 +140,20 @@ def patch_rust_types_rs(rust_types_file):
             needs_patching = True
             log_message("Applied compression_level patch")
         
+        # Fix max_decompressed_size: changed from Option<u64> to u64
+        max_decompressed_pattern = r'max_decompressed_size:\s*proto_config\s*\n\s*\.max_decompressed_size\s*\n\s*\.map\(\|size\| size as usize\)'
+        max_decompressed_replacement = '''max_decompressed_size: if proto_config.max_decompressed_size != 0 {
+                    Some(proto_config.max_decompressed_size as usize)
+                } else {
+                    None
+                }'''
+        if re.search(max_decompressed_pattern, new_content):
+            if not needs_patching:
+                create_backup(rust_types_file)
+            new_content = re.sub(max_decompressed_pattern, max_decompressed_replacement, new_content)
+            needs_patching = True
+            log_message("Applied max_decompressed_size patch")
+        
         # Fix read_only: changed from Option<bool> to bool
         read_only_pattern = r'let read_only = value\.read_only\.unwrap_or\(false\);'
         read_only_replacement = 'let read_only = value.read_only;'
@@ -187,9 +201,9 @@ def verify_rust_patch(rust_types_file):
         jitter_fixed = 'Some(strategy.jitter_percent)' in content
         refresh_fixed = 'refresh_interval_seconds: Some(refresh_interval_seconds)' in content
         compression_fixed = 'Some(proto_config.compression_level)' in content
-        read_only_fixed = 'let read_only = value.read_only;' in content
+        max_decompressed_fixed = 'if proto_config.max_decompressed_size != 0' in content
         
-        if tcp_nodelay_fixed and pubsub_fixed and jitter_fixed and refresh_fixed and compression_fixed and read_only_fixed:
+        if tcp_nodelay_fixed and pubsub_fixed and jitter_fixed and refresh_fixed and compression_fixed and read_only_fixed and max_decompressed_fixed:
             log_message("Rust patch verification: SUCCESS")
             return True
         else:
@@ -206,8 +220,8 @@ def verify_rust_patch(rust_types_file):
                 missing.append("refresh_interval_seconds fix")
             if not compression_fixed:
                 missing.append("compression_level fix")
-            if not read_only_fixed:
-                missing.append("read_only fix")
+            if not max_decompressed_fixed:
+                missing.append("max_decompressed_size fix")
             log_message(f"Rust patch verification: FAILED - Missing: {', '.join(missing)}", "ERROR")
             return False
     
