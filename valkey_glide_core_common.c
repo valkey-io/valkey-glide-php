@@ -143,6 +143,20 @@ int execute_core_command(valkey_glide_object* valkey_glide,
     /* Process result using appropriate handler */
     VALKEY_LOG_DEBUG("command_execution", "Processing command result");
     if (result) {
+        /* Check for command error first */
+        if (result->command_error) {
+            const char* error_msg = result->command_error->command_error_message
+                                        ? result->command_error->command_error_message
+                                        : "Command execution failed";
+            VALKEY_LOG_ERROR_FMT("execute_core_command", "Command error: %s", error_msg);
+
+            efree(result_ptr);
+            free_command_result(result);
+            free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
+            ZVAL_FALSE(return_value);
+            return 0;
+        }
+
         if (result->response) {
             /* Non-routed commands use standard processor */
             res = processor(result->response, result_ptr, return_value);

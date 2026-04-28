@@ -2044,4 +2044,587 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->valkey_glide->del($key);
         }
     }
+
+    // ==================== Compression Tests for Supported Commands ====================
+
+    /**
+     * Shared compression-enabled client for compression tests
+     */
+    private ?ValkeyGlide $compressedClient = null;
+
+    /**
+     * Get or create the shared compression-enabled standalone client
+     */
+    private function getCompressedClient(): ValkeyGlide
+    {
+        if ($this->compressedClient === null) {
+            $this->compressedClient = new ValkeyGlide();
+            $this->compressedClient->connect(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                use_tls: $this->getTLS(),
+                advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null,
+                compression: [
+                    'enabled' => true,
+                    'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                    'min_compression_size' => 64
+                ]
+            );
+        }
+        return $this->compressedClient;
+    }
+
+    public function testCompressionMsetMget()
+    {
+        $client = $this->getCompressedClient();
+        $data = str_repeat('compressible_data_', 100);
+        $key1 = 'compression_mset_1_' . uniqid();
+        $key2 = 'compression_mset_2_' . uniqid();
+        $key3 = 'compression_mset_3_' . uniqid();
+
+        try {
+            $stats_before = $client->getStatistics();
+
+            // MSET with large values
+            $result = $client->mset([
+                $key1 => $data . '_1',
+                $key2 => $data . '_2',
+                $key3 => $data . '_3'
+            ]);
+            $this->assertTrue($result);
+
+            $stats_after = $client->getStatistics();
+            $compressed = $stats_after['total_values_compressed'] - $stats_before['total_values_compressed'];
+            $this->assertEquals(3, $compressed, 'All 3 values should be compressed');
+
+            // MGET should decompress correctly
+            $values = $client->mget([$key1, $key2, $key3]);
+            $this->assertEquals($data . '_1', $values[0]);
+            $this->assertEquals($data . '_2', $values[1]);
+            $this->assertEquals($data . '_3', $values[2]);
+        } finally {
+            $client->del($key1, $key2, $key3);
+        }
+    }
+
+    public function testCompressionMsetnx()
+    {
+        $client = $this->getCompressedClient();
+        $data = str_repeat('msetnx_data_', 100);
+        $key1 = 'compression_msetnx_1_' . uniqid();
+        $key2 = 'compression_msetnx_2_' . uniqid();
+
+        try {
+            $stats_before = $client->getStatistics();
+
+            // MSETNX with large values (keys don't exist)
+            $result = $client->msetnx([
+                $key1 => $data . '_1',
+                $key2 => $data . '_2'
+            ]);
+            $this->assertTrue($result);
+
+            $stats_after = $client->getStatistics();
+            $compressed = $stats_after['total_values_compressed'] - $stats_before['total_values_compressed'];
+            $this->assertEquals(2, $compressed, 'Both values should be compressed');
+
+            // Verify values
+            $this->assertEquals($data . '_1', $client->get($key1));
+            $this->assertEquals($data . '_2', $client->get($key2));
+
+            // MSETNX should fail if any key exists
+            $key3 = 'compression_msetnx_3_' . uniqid();
+            $result = $client->msetnx([
+                $key1 => 'new_value',
+                $key3 => $data . '_3'
+            ]);
+            $this->assertFalse($result);
+
+            // Original value should be unchanged
+            $this->assertEquals($data . '_1', $client->get($key1));
+        } finally {
+            $client->del($key1, $key2, $key3);
+        }
+    }
+
+    public function testCompressionGetex()
+    {
+        $client = $this->getCompressedClient();
+        $data = str_repeat('getex_data_', 100);
+        $key = 'compression_getex_' . uniqid();
+
+        try {
+            $stats_before = $client->getStatistics();
+
+            // Set compressed value
+            $client->set($key, $data);
+
+            $stats_after_set = $client->getStatistics();
+            $this->assertGT(
+                $stats_before['total_values_compressed'],
+                $stats_after_set['total_values_compressed']
+            );
+
+            // GETEX with EX option
+            $result = $client->getex($key, ['EX' => 100]);
+            $this->assertEquals($data, $result);
+            $this->assertBetween($client->ttl($key), 95, 100);
+
+            // GETEX with PX option
+            $result = $client->getex($key, ['PX' => 50000]);
+            $this->assertEquals($data, $result);
+            $this->assertBetween($client->pttl($key), 45000, 50000);
+
+            // GETEX with PERSIST option
+            $result = $client->getex($key, ['PERSIST' => true]);
+            $this->assertEquals($data, $result);
+            $this->assertEquals(-1, $client->ttl($key));
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionGetdel()
+    {
+        $client = $this->getCompressedClient();
+        $data = str_repeat('getdel_data_', 100);
+        $key = 'compression_getdel_' . uniqid();
+
+        try {
+            $stats_before = $client->getStatistics();
+
+            // Set compressed value
+            $client->set($key, $data);
+
+            $stats_after = $client->getStatistics();
+            $this->assertGT(
+                $stats_before['total_values_compressed'],
+                $stats_after['total_values_compressed']
+            );
+
+            // GETDEL should return decompressed value and delete key
+            $result = $client->getdel($key);
+            $this->assertEquals($data, $result);
+
+            // Key should be deleted
+            $this->assertFalse($client->get($key));
+            $this->assertEquals(0, $client->exists($key));
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionSetexViaRawCommand()
+    {
+        $client = $this->getCompressedClient();
+        $data = str_repeat('setex_data_', 100);
+        $key = 'compression_setex_raw_' . uniqid();
+
+        try {
+            $stats_before = $client->getStatistics();
+
+            // SETEX via rawCommand
+            $result = $client->rawCommand('SETEX', $key, '10', $data);
+            $this->assertTrue($result);
+
+            $stats_after = $client->getStatistics();
+            $this->assertGT(
+                $stats_before['total_values_compressed'],
+                $stats_after['total_values_compressed']
+            );
+
+            // Verify value and TTL
+            $this->assertEquals($data, $client->get($key));
+            $this->assertBetween($client->ttl($key), 5, 10);
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionPsetexViaRawCommand()
+    {
+        $client = $this->getCompressedClient();
+        $data = str_repeat('psetex_data_', 100);
+        $key = 'compression_psetex_raw_' . uniqid();
+
+        try {
+            $stats_before = $client->getStatistics();
+
+            // PSETEX via rawCommand
+            $result = $client->rawCommand('PSETEX', $key, '10000', $data);
+            $this->assertTrue($result);
+
+            $stats_after = $client->getStatistics();
+            $this->assertGT(
+                $stats_before['total_values_compressed'],
+                $stats_after['total_values_compressed']
+            );
+
+            // Verify value and TTL
+            $this->assertEquals($data, $client->get($key));
+            $this->assertBetween($client->pttl($key), 5000, 10000);
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionSetnxViaRawCommand()
+    {
+        $client = $this->getCompressedClient();
+        $data = str_repeat('setnx_data_', 100);
+        $key = 'compression_setnx_raw_' . uniqid();
+
+        try {
+            $stats_before = $client->getStatistics();
+
+            // SETNX via rawCommand (key doesn't exist)
+            $result = $client->rawCommand('SETNX', $key, $data);
+            $this->assertEquals(1, $result);
+
+            $stats_after = $client->getStatistics();
+            $this->assertGT(
+                $stats_before['total_values_compressed'],
+                $stats_after['total_values_compressed']
+            );
+
+            // Verify value
+            $this->assertEquals($data, $client->get($key));
+
+            // SETNX should fail if key exists
+            $result = $client->rawCommand('SETNX', $key, 'new_value');
+            $this->assertEquals(0, $result);
+
+            // Original value unchanged
+            $this->assertEquals($data, $client->get($key));
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    // ==================== Compression Tests for Blocked/Incompatible Commands ====================
+    // These commands return false when compression is enabled (PHPRedis compatibility)
+
+    public function testCompressionBlockedAppend()
+    {
+        $client = $this->getCompressedClient();
+        $data = str_repeat('append_data_', 100);
+        $key = 'compression_blocked_append_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+            $result = $client->append($key, ' suffix');
+            $this->assertFalse($result, 'APPEND should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionBlockedGetrange()
+    {
+        $client = $this->getCompressedClient();
+        $data = str_repeat('getrange_data_', 100);
+        $key = 'compression_blocked_getrange_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+            $result = $client->getRange($key, 0, 10);
+            $this->assertFalse($result, 'GETRANGE should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionBlockedSetrange()
+    {
+        $client = $this->getCompressedClient();
+        $data = str_repeat('setrange_data_', 100);
+        $key = 'compression_blocked_setrange_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+            $result = $client->setRange($key, 0, 'replaced');
+            $this->assertFalse($result, 'SETRANGE should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionBlockedStrlen()
+    {
+        $client = $this->getCompressedClient();
+        $data = str_repeat('strlen_data_', 100);
+        $key = 'compression_blocked_strlen_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+            $result = $client->strlen($key);
+            $this->assertFalse($result, 'STRLEN should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionBlockedIncr()
+    {
+        $client = $this->getCompressedClient();
+        $key = 'compression_blocked_incr_' . uniqid();
+
+        try {
+            $client->set($key, '100');
+            $result = $client->incr($key);
+            $this->assertFalse($result, 'INCR should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionBlockedIncrby()
+    {
+        $client = $this->getCompressedClient();
+        $key = 'compression_blocked_incrby_' . uniqid();
+
+        try {
+            $client->set($key, '100');
+            $result = $client->incrBy($key, 10);
+            $this->assertFalse($result, 'INCRBY should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionBlockedIncrbyfloat()
+    {
+        $client = $this->getCompressedClient();
+        $key = 'compression_blocked_incrbyfloat_' . uniqid();
+
+        try {
+            $client->set($key, '100.5');
+            $result = $client->incrByFloat($key, 1.5);
+            $this->assertFalse($result, 'INCRBYFLOAT should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionBlockedDecr()
+    {
+        $client = $this->getCompressedClient();
+        $key = 'compression_blocked_decr_' . uniqid();
+
+        try {
+            $client->set($key, '100');
+            $result = $client->decr($key);
+            $this->assertFalse($result, 'DECR should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionBlockedDecrby()
+    {
+        $client = $this->getCompressedClient();
+        $key = 'compression_blocked_decrby_' . uniqid();
+
+        try {
+            $client->set($key, '100');
+            $result = $client->decrBy($key, 10);
+            $this->assertFalse($result, 'DECRBY should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionBlockedGetbit()
+    {
+        $client = $this->getCompressedClient();
+        $key = 'compression_blocked_getbit_' . uniqid();
+
+        try {
+            $client->set($key, 'hello');
+            $result = $client->getBit($key, 0);
+            $this->assertFalse($result, 'GETBIT should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionBlockedSetbit()
+    {
+        $client = $this->getCompressedClient();
+        $key = 'compression_blocked_setbit_' . uniqid();
+
+        try {
+            $client->set($key, 'hello');
+            $result = $client->setBit($key, 7, 1);
+            $this->assertFalse($result, 'SETBIT should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionBlockedBitcount()
+    {
+        $client = $this->getCompressedClient();
+        $key = 'compression_blocked_bitcount_' . uniqid();
+
+        try {
+            $client->set($key, 'hello');
+            $result = $client->bitCount($key);
+            $this->assertFalse($result, 'BITCOUNT should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    // ==================== Blocked Commands via rawCommand ====================
+
+    public function testCompressionBlockedIncrViaRawCommand()
+    {
+        $client = $this->getCompressedClient();
+        $key = 'compression_blocked_incr_raw_' . uniqid();
+
+        try {
+            $client->set($key, '100');
+            $result = $client->rawCommand('INCR', $key);
+            $this->assertFalse($result, 'INCR via rawCommand should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionBlockedAppendViaRawCommand()
+    {
+        $client = $this->getCompressedClient();
+        $data = str_repeat('append_raw_', 100);
+        $key = 'compression_blocked_append_raw_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+            $result = $client->rawCommand('APPEND', $key, ' suffix');
+            $this->assertFalse($result, 'APPEND via rawCommand should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionBlockedStrlenViaRawCommand()
+    {
+        $client = $this->getCompressedClient();
+        $data = str_repeat('strlen_raw_', 100);
+        $key = 'compression_blocked_strlen_raw_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+            $result = $client->rawCommand('STRLEN', $key);
+            $this->assertFalse($result, 'STRLEN via rawCommand should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    // ==================== max_decompressed_size Tests ====================
+
+    /**
+     * Test that max_decompressed_size parameter is accepted in compression config
+     */
+    public function testCompressionMaxDecompressedSizeConfig()
+    {
+        // Test with explicit max_decompressed_size
+        $client = new ValkeyGlide();
+        $client->connect($this->getHost(), $this->getPort(), compression: [
+            'enabled' => true,
+            'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+            'min_compression_size' => 64,
+            'max_decompressed_size' => 1024 * 1024 // 1MB
+        ]);
+
+        $key = 'compression_max_size_config_' . uniqid();
+        $value = str_repeat('A', 100);
+
+        try {
+            $this->assertTrue($client->set($key, $value));
+            $this->assertEquals($value, $client->get($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    /**
+     * Test that max_decompressed_size works with LZ4 backend
+     */
+    public function testCompressionMaxDecompressedSizeLZ4()
+    {
+        $client = new ValkeyGlide();
+        $client->connect($this->getHost(), $this->getPort(), compression: [
+            'enabled' => true,
+            'backend' => ValkeyGlide::COMPRESSION_BACKEND_LZ4,
+            'min_compression_size' => 64,
+            'max_decompressed_size' => 10 * 1024 * 1024 // 10MB
+        ]);
+
+        $key = 'compression_max_size_lz4_' . uniqid();
+        $value = str_repeat('B', 200);
+
+        try {
+            $this->assertTrue($client->set($key, $value));
+            $this->assertEquals($value, $client->get($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    /**
+     * Test that max_decompressed_size defaults work (no explicit value)
+     */
+    public function testCompressionMaxDecompressedSizeDefault()
+    {
+        // Create client without explicit max_decompressed_size - should use default (512MB)
+        $client = new ValkeyGlide();
+        $client->connect($this->getHost(), $this->getPort(), compression: [
+            'enabled' => true,
+            'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+            'min_compression_size' => 64
+            // max_decompressed_size not specified - uses default
+        ]);
+
+        $key = 'compression_max_size_default_' . uniqid();
+        $value = str_repeat('C', 150);
+
+        try {
+            $this->assertTrue($client->set($key, $value));
+            $this->assertEquals($value, $client->get($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    /**
+     * Test max_decompressed_size with large value (within limit)
+     */
+    public function testCompressionMaxDecompressedSizeLargeValue()
+    {
+        $client = new ValkeyGlide();
+        $client->connect($this->getHost(), $this->getPort(), compression: [
+            'enabled' => true,
+            'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+            'min_compression_size' => 64,
+            'max_decompressed_size' => 5 * 1024 * 1024 // 5MB limit
+        ]);
+
+        $key = 'compression_max_size_large_' . uniqid();
+        // Create a 1MB value (well within 5MB limit)
+        $value = str_repeat('D', 1024 * 1024);
+
+        try {
+            $this->assertTrue($client->set($key, $value));
+            $retrieved = $client->get($key);
+            $this->assertEquals(strlen($value), strlen($retrieved));
+            $this->assertEquals($value, $retrieved);
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
 }

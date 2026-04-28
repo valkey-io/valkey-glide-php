@@ -43,6 +43,17 @@ static int valkey_glide_cluster_create_connection(
     valkey_glide_php_common_constructor_params_t common_params,
     zend_long                                    periodic_checks,
     zend_bool                                    periodic_checks_is_null) {
+    /* Validate addresses - cluster mode requires at least one address */
+    if (common_params.addresses == NULL || Z_TYPE_P(common_params.addresses) != IS_ARRAY ||
+        zend_hash_num_elements(Z_ARRVAL_P(common_params.addresses)) == 0) {
+        const char* error_message =
+            "Cluster mode requires at least one address. Use constructor parameters or connect() "
+            "with addresses.";
+        VALKEY_LOG_ERROR("cluster_construct", error_message);
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+        return FAILURE;
+    }
+
     /* Validate database_id range early */
     if (!common_params.database_id_is_null && common_params.database_id < 0) {
         const char* error_message = "Database ID must be non-negative.";

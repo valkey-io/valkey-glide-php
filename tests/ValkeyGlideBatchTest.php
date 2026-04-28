@@ -3951,6 +3951,228 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     }
 
     // ===================================================================
+    // COMPRESSION BATCH TESTS
+    // ===================================================================
+
+    /**
+     * Helper to create a client with compression enabled
+     */
+    private function createCompressedBatchClient(): ValkeyGlide
+    {
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+        return $client;
+    }
+
+    /**
+     * Test compression with batch SET/GET operations
+     */
+    public function testCompressionBatchSetGet()
+    {
+        $client = $this->createCompressedBatchClient();
+
+        $key1 = 'compression_batch_set_1_' . uniqid();
+        $key2 = 'compression_batch_set_2_' . uniqid();
+        $key3 = 'compression_batch_set_3_' . uniqid();
+
+        // Create values large enough to trigger compression (> 64 bytes)
+        $value1 = str_repeat('A', 100);
+        $value2 = str_repeat('B', 150);
+        $value3 = str_repeat('C', 200);
+
+        // Execute SET operations in batch with compression
+        $results = $client->multi()
+            ->set($key1, $value1)
+            ->set($key2, $value2)
+            ->set($key3, $value3)
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(3, $results);
+        $this->assertTrue($results[0]);
+        $this->assertTrue($results[1]);
+        $this->assertTrue($results[2]);
+
+        // Execute GET operations in batch with compression
+        $getResults = $client->multi()
+            ->get($key1)
+            ->get($key2)
+            ->get($key3)
+            ->exec();
+
+        // Verify decompressed values match original
+        $this->assertIsArray($getResults);
+        $this->assertCount(3, $getResults);
+        $this->assertEquals($value1, $getResults[0]);
+        $this->assertEquals($value2, $getResults[1]);
+        $this->assertEquals($value3, $getResults[2]);
+
+        // Cleanup
+        $client->del($key1, $key2, $key3);
+        $client->close();
+    }
+
+    /**
+     * Test compression with batch MSET/MGET operations
+     */
+    public function testCompressionBatchMsetMget()
+    {
+        $client = $this->createCompressedBatchClient();
+
+        $key1 = '{compress}batch_mset_1_' . uniqid();
+        $key2 = '{compress}batch_mset_2_' . uniqid();
+        $key3 = '{compress}batch_mset_3_' . uniqid();
+
+        // Create values large enough to trigger compression
+        $value1 = str_repeat('X', 100);
+        $value2 = str_repeat('Y', 150);
+        $value3 = str_repeat('Z', 200);
+
+        // Execute MSET and MGET in batch with compression
+        $results = $client->multi()
+            ->mset([$key1 => $value1, $key2 => $value2])
+            ->mget([$key1, $key2])
+            ->set($key3, $value3)
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(3, $results);
+        $this->assertTrue($results[0]); // MSET result
+        $this->assertEquals([$value1, $value2], $results[1]); // MGET result with decompressed values
+        $this->assertTrue($results[2]); // SET result
+
+        // Verify values can be retrieved correctly
+        $finalGet = $client->mget([$key1, $key2, $key3]);
+        $this->assertEquals([$value1, $value2, $value3], $finalGet);
+
+        // Cleanup
+        $client->del($key1, $key2, $key3);
+        $client->close();
+    }
+
+    /**
+     * Test compression batch with mixed operations
+     */
+    public function testCompressionBatchMixedOperations()
+    {
+        $client = $this->createCompressedBatchClient();
+
+        $key1 = 'compression_batch_mixed_1_' . uniqid();
+        $key2 = 'compression_batch_mixed_2_' . uniqid();
+
+        // Create values large enough to trigger compression
+        $value1 = str_repeat('M', 100);
+        $value2 = str_repeat('N', 150);
+
+        // Execute mixed operations in batch
+        $results = $client->multi()
+            ->set($key1, $value1)
+            ->get($key1)
+            ->set($key2, $value2)
+            ->get($key2)
+            ->del($key1)
+            ->exists($key1, $key2)
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(6, $results);
+        $this->assertTrue($results[0]); // SET key1
+        $this->assertEquals($value1, $results[1]); // GET key1 (decompressed)
+        $this->assertTrue($results[2]); // SET key2
+        $this->assertEquals($value2, $results[3]); // GET key2 (decompressed)
+        $this->assertEquals(1, $results[4]); // DEL key1
+        $this->assertEquals(1, $results[5]); // EXISTS (only key2 exists)
+
+        // Cleanup
+        $client->del($key2);
+        $client->close();
+    }
+
+    /**
+     * Test compression batch with values below compression threshold
+     */
+    public function testCompressionBatchWithSmallValues()
+    {
+        $client = $this->createCompressedBatchClient();
+
+        $key1 = 'compression_batch_small_1_' . uniqid();
+        $key2 = 'compression_batch_small_2_' . uniqid();
+
+        // Create values smaller than compression threshold (< 64 bytes)
+        $value1 = 'small_value_1';
+        $value2 = 'small_value_2';
+
+        // Execute operations in batch - values should not be compressed
+        $results = $client->multi()
+            ->set($key1, $value1)
+            ->set($key2, $value2)
+            ->get($key1)
+            ->get($key2)
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(4, $results);
+        $this->assertTrue($results[0]);
+        $this->assertTrue($results[1]);
+        $this->assertEquals($value1, $results[2]);
+        $this->assertEquals($value2, $results[3]);
+
+        // Cleanup
+        $client->del($key1, $key2);
+        $client->close();
+    }
+
+    /**
+     * Test that blocked commands return false in batch mode with compression
+     */
+    public function testCompressionBatchBlockedCommands()
+    {
+        $client = $this->createCompressedBatchClient();
+
+        $key1 = 'compression_batch_blocked_' . uniqid();
+
+        // Set up a key first
+        $client->set($key1, 'test_value');
+
+        // Test APPEND - batch should fail entirely when blocked command is used with compression
+        $results = $client->multi()
+            ->append($key1, '_suffix')
+            ->exec();
+
+        $this->assertFalse($results); // Entire batch fails when blocked command is used
+
+        // Test INCR - batch should fail entirely when blocked command is used with compression
+        $client->set($key1, '10');
+        $results = $client->multi()
+            ->incr($key1)
+            ->exec();
+
+        $this->assertFalse($results); // Entire batch fails when blocked command is used
+
+        // Test STRLEN - batch should fail entirely when blocked command is used with compression
+        $results = $client->multi()
+            ->strlen($key1)
+            ->exec();
+
+        $this->assertFalse($results); // Entire batch fails when blocked command is used
+
+        // Cleanup
+        $client->del($key1);
+        $client->close();
+    }
+
+    // ===================================================================
     // CLOSING CLASS
     // ===================================================================
 }

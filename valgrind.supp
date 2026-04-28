@@ -2570,3 +2570,31 @@
    fun:*regex_lite*string*Regex*new*
    ...
 }
+
+# Tokio runtime thread initialization
+# This is a false positive - memory is intentionally kept alive for thread lifetime
+# Stack: tokio::runtime::builder::Builder::build -> std::thread::Thread::new
+{
+   tokio_runtime_thread_init
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*std*thread*thread*Thread*new*
+   fun:*std*thread*current*init_current*
+   fun:*tokio*runtime*builder*Builder*build*
+   ...
+}
+
+# Alternative pattern for tokio thread init via glide_ffi
+{
+   tokio_runtime_thread_init_glide
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*std*thread*thread*Thread*new*
+   ...
+   fun:*glide_ffi*create_client*
+   ...
+}

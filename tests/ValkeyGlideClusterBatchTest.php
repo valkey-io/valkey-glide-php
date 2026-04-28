@@ -18,6 +18,12 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
         parent::__construct($host, $port, $auth, $tls);
     }
 
+    /* Override getPort to return cluster port */
+    public function getPort()
+    {
+        return $this->getTLS() ? 8001 : 7001;
+    }
+
       /* Override setUp to get info from a specific node */
     public function setUp()
     {
@@ -191,5 +197,181 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
     public function testFunctionDumpRestoreBatch()
     {
         // FUNCTION DUMP and RESTORE are not supported in batch and cluster mode
+    }
+
+    // ===================================================================
+    // Override inherited standalone compression tests - not applicable to cluster
+    // ===================================================================
+
+    public function testCompressionBatchSetGet()
+    {
+        // Standalone compression batch tests not applicable to cluster - see testCompressionClusterBatchSetGet
+    }
+
+    public function testCompressionBatchMsetMget()
+    {
+        // Standalone compression batch tests not applicable to cluster - see testCompressionClusterBatchMsetMget
+    }
+
+    public function testCompressionBatchMixedOperations()
+    {
+        // Standalone compression batch tests not applicable to cluster
+    }
+
+    public function testCompressionBatchWithSmallValues()
+    {
+        // Standalone compression batch tests not applicable to cluster
+    }
+
+    public function testCompressionBatchBlockedCommands()
+    {
+        // Standalone compression batch tests not applicable to cluster - see testCompressionClusterBatchBlockedCommands
+    }
+
+    // ===================================================================
+    // COMPRESSION BATCH TESTS
+    // ===================================================================
+
+    /**
+     * Helper to create a cluster client with compression enabled
+     */
+    private function createCompressedClusterBatchClient(): ValkeyGlideCluster
+    {
+        return new ValkeyGlideCluster(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            use_tls: $this->getTLS(),
+            compression: [
+                'enabled' => true,
+                'backend' => ValkeyGlideCluster::COMPRESSION_BACKEND_ZSTD,
+                'min_compression_size' => 64
+            ]
+        );
+    }
+
+    /**
+     * Test compression with cluster batch SET/GET operations
+     */
+    public function testCompressionClusterBatchSetGet()
+    {
+        $client = $this->createCompressedClusterBatchClient();
+
+        $key1 = '{compress}cluster_batch_set_1_' . uniqid();
+        $key2 = '{compress}cluster_batch_set_2_' . uniqid();
+        $key3 = '{compress}cluster_batch_set_3_' . uniqid();
+
+        // Create values large enough to trigger compression (> 64 bytes)
+        $value1 = str_repeat('A', 100);
+        $value2 = str_repeat('B', 150);
+        $value3 = str_repeat('C', 200);
+
+        // Execute SET operations in batch with compression
+        $results = $client->multi()
+            ->set($key1, $value1)
+            ->set($key2, $value2)
+            ->set($key3, $value3)
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(3, $results);
+        $this->assertTrue($results[0]);
+        $this->assertTrue($results[1]);
+        $this->assertTrue($results[2]);
+
+        // Execute GET operations in batch with compression
+        $getResults = $client->multi()
+            ->get($key1)
+            ->get($key2)
+            ->get($key3)
+            ->exec();
+
+        // Verify decompressed values match original
+        $this->assertIsArray($getResults);
+        $this->assertCount(3, $getResults);
+        $this->assertEquals($value1, $getResults[0]);
+        $this->assertEquals($value2, $getResults[1]);
+        $this->assertEquals($value3, $getResults[2]);
+
+        // Cleanup
+        $client->del($key1, $key2, $key3);
+        $client->close();
+    }
+
+    /**
+     * Test compression with cluster batch MSET/MGET operations
+     */
+    public function testCompressionClusterBatchMsetMget()
+    {
+        $client = $this->createCompressedClusterBatchClient();
+
+        $key1 = '{compress}cluster_batch_mset_1_' . uniqid();
+        $key2 = '{compress}cluster_batch_mset_2_' . uniqid();
+        $key3 = '{compress}cluster_batch_mset_3_' . uniqid();
+
+        // Create values large enough to trigger compression
+        $value1 = str_repeat('X', 100);
+        $value2 = str_repeat('Y', 150);
+        $value3 = str_repeat('Z', 200);
+
+        // Execute MSET and MGET in batch with compression
+        $results = $client->multi()
+            ->mset([$key1 => $value1, $key2 => $value2])
+            ->mget([$key1, $key2])
+            ->set($key3, $value3)
+            ->exec();
+
+        // Verify transaction results
+        $this->assertIsArray($results);
+        $this->assertCount(3, $results);
+        $this->assertTrue($results[0]); // MSET result
+        $this->assertEquals([$value1, $value2], $results[1]); // MGET result with decompressed values
+        $this->assertTrue($results[2]); // SET result
+
+        // Verify values can be retrieved correctly
+        $finalGet = $client->mget([$key1, $key2, $key3]);
+        $this->assertEquals([$value1, $value2, $value3], $finalGet);
+
+        // Cleanup
+        $client->del($key1, $key2, $key3);
+        $client->close();
+    }
+
+    /**
+     * Test that blocked commands return false in cluster batch mode with compression
+     */
+    public function testCompressionClusterBatchBlockedCommands()
+    {
+        $client = $this->createCompressedClusterBatchClient();
+
+        $key1 = '{compress}cluster_batch_blocked_' . uniqid();
+
+        // Set up a key first
+        $client->set($key1, 'test_value');
+
+        // Test APPEND - batch should fail entirely when blocked command is used with compression
+        $results = $client->multi()
+            ->append($key1, '_suffix')
+            ->exec();
+
+        $this->assertFalse($results); // Entire batch fails when blocked command is used
+
+        // Test INCR - batch should fail entirely when blocked command is used with compression
+        $client->set($key1, '10');
+        $results = $client->multi()
+            ->incr($key1)
+            ->exec();
+
+        $this->assertFalse($results); // Entire batch fails when blocked command is used
+
+        // Test STRLEN - batch should fail entirely when blocked command is used with compression
+        $results = $client->multi()
+            ->strlen($key1)
+            ->exec();
+
+        $this->assertFalse($results); // Entire batch fails when blocked command is used
+
+        // Cleanup
+        $client->del($key1);
+        $client->close();
     }
 }

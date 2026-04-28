@@ -475,6 +475,15 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         config->compression_config->min_compression_size =
             min_size_zv ? (uint32_t) zval_get_long(min_size_zv) : 64;
 
+        /* Parse max_decompressed_size (optional, default handled by core) */
+        zval* max_decompressed_zv =
+            zend_hash_str_find(compression_ht,
+                               VALKEY_GLIDE_COMPRESSION_MAX_DECOMPRESSED_SIZE,
+                               sizeof(VALKEY_GLIDE_COMPRESSION_MAX_DECOMPRESSED_SIZE) - 1);
+        config->compression_config->has_max_decompressed_size = (max_decompressed_zv != NULL);
+        config->compression_config->max_decompressed_size =
+            max_decompressed_zv ? (uint64_t) zval_get_long(max_decompressed_zv) : 0;
+
         /* Validate min_compression_size */
         uint32_t min_allowed = get_min_compressed_size();
         if (config->compression_config->min_compression_size < min_allowed) {

@@ -210,6 +210,11 @@ uint8_t* create_connection_request(size_t*                                   len
             compression_cfg.compression_level = config->compression_config->compression_level;
         }
 
+        if (config->compression_config->has_max_decompressed_size) {
+            compression_cfg.max_decompressed_size =
+                config->compression_config->max_decompressed_size;
+        }
+
         conn_req.compression_config = &compression_cfg;
     }
 

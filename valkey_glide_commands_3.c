@@ -1880,8 +1880,9 @@ int execute_rawcommand_command_internal(
 
     if (result) {
         if (result->command_error) {
-            /* Command failed */
+            /* Command failed - return false to maintain PHPRedis compatibility */
             free_command_result(result);
+            ZVAL_FALSE(return_value);
             return 0;
         }
 
