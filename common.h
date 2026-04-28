@@ -127,6 +127,7 @@ typedef struct {
 #define VALKEY_GLIDE_COMPRESSION_BACKEND "backend"
 #define VALKEY_GLIDE_COMPRESSION_LEVEL "compression_level"
 #define VALKEY_GLIDE_COMPRESSION_MIN_SIZE "min_compression_size"
+#define VALKEY_GLIDE_COMPRESSION_MAX_DECOMPRESSED_SIZE "max_decompressed_size"
 
 typedef enum {
     VALKEY_GLIDE_COMPRESSION_BACKEND_ZSTD = 0,
@@ -135,10 +136,12 @@ typedef enum {
 
 typedef struct {
     uint32_t                           min_compression_size;
+    uint64_t                           max_decompressed_size;
     int32_t                            compression_level;
     valkey_glide_compression_backend_t backend;
     bool                               enabled;
-    bool has_compression_level; /* true if user explicitly set compression_level */
+    bool has_compression_level;      /* true if user explicitly set compression_level */
+    bool has_max_decompressed_size;  /* true if user explicitly set max_decompressed_size */
 } valkey_glide_compression_config_t;
 
 typedef struct {
