@@ -18,6 +18,12 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
         parent::__construct($host, $port, $auth, $tls);
     }
 
+    /* Override getPort to return cluster port */
+    public function getPort()
+    {
+        return $this->getTLS() ? 8001 : 7001;
+    }
+
       /* Override setUp to get info from a specific node */
     public function setUp()
     {
@@ -204,7 +210,7 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
     {
         return new ValkeyGlideCluster(
             addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
-            use_tls: false,
+            use_tls: $this->getTLS(),
             compression: [
                 'enabled' => true,
                 'backend' => ValkeyGlideCluster::COMPRESSION_BACKEND_ZSTD,
