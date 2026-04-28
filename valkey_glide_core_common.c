@@ -150,14 +150,10 @@ int execute_core_command(valkey_glide_object* valkey_glide,
                                         : "Command execution failed";
             VALKEY_LOG_ERROR_FMT("execute_core_command", "Command error: %s", error_msg);
 
-            /* Copy error message before freeing result since zend_throw_exception needs it */
-            char* error_copy = estrdup(error_msg);
-
             efree(result_ptr);
             free_command_result(result);
             free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
-            zend_throw_exception(get_valkey_glide_exception_ce(), error_copy, 0);
-            efree(error_copy);
+            ZVAL_FALSE(return_value);
             return 0;
         }
 

@@ -1696,7 +1696,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     }
 
     // ==================== Compression Tests for Blocked/Incompatible Commands ====================
-    // These commands throw exceptions when compression is enabled
+    // These commands return false when compression is enabled
 
     public function testCompressionClusterBlockedAppend()
     {
@@ -1706,14 +1706,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, $data);
-            $exceptionThrown = false;
-            try {
-                $client->append($key, ' suffix');
-            } catch (Exception $e) {
-                $exceptionThrown = true;
-                $this->assertStringContains('APPEND', $e->getMessage());
-            }
-            $this->assertTrue($exceptionThrown, 'APPEND should throw exception when compression is enabled');
+            $result = $client->append($key, ' suffix');
+            $this->assertFalse($result, 'APPEND should return false when compression is enabled');
         } finally {
             $client->del($key);
         }
@@ -1727,14 +1721,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, $data);
-            $exceptionThrown = false;
-            try {
-                $client->getRange($key, 0, 10);
-            } catch (Exception $e) {
-                $exceptionThrown = true;
-                $this->assertStringContains('GETRANGE', $e->getMessage());
-            }
-            $this->assertTrue($exceptionThrown, 'GETRANGE should throw exception when compression is enabled');
+            $result = $client->getRange($key, 0, 10);
+            $this->assertFalse($result, 'GETRANGE should return false when compression is enabled');
         } finally {
             $client->del($key);
         }
@@ -1748,14 +1736,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, $data);
-            $exceptionThrown = false;
-            try {
-                $client->setRange($key, 0, 'replaced');
-            } catch (Exception $e) {
-                $exceptionThrown = true;
-                $this->assertStringContains('SETRANGE', $e->getMessage());
-            }
-            $this->assertTrue($exceptionThrown, 'SETRANGE should throw exception when compression is enabled');
+            $result = $client->setRange($key, 0, 'replaced');
+            $this->assertFalse($result, 'SETRANGE should return false when compression is enabled');
         } finally {
             $client->del($key);
         }
@@ -1769,14 +1751,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, $data);
-            $exceptionThrown = false;
-            try {
-                $client->strlen($key);
-            } catch (Exception $e) {
-                $exceptionThrown = true;
-                $this->assertStringContains('STRLEN', $e->getMessage());
-            }
-            $this->assertTrue($exceptionThrown, 'STRLEN should throw exception when compression is enabled');
+            $result = $client->strlen($key);
+            $this->assertFalse($result, 'STRLEN should return false when compression is enabled');
         } finally {
             $client->del($key);
         }
@@ -1789,14 +1765,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, '100');
-            $exceptionThrown = false;
-            try {
-                $client->incr($key);
-            } catch (Exception $e) {
-                $exceptionThrown = true;
-                $this->assertStringContains('INCR', $e->getMessage());
-            }
-            $this->assertTrue($exceptionThrown, 'INCR should throw exception when compression is enabled');
+            $result = $client->incr($key);
+            $this->assertFalse($result, 'INCR should return false when compression is enabled');
         } finally {
             $client->del($key);
         }
@@ -1809,14 +1779,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, '100');
-            $exceptionThrown = false;
-            try {
-                $client->incrBy($key, 10);
-            } catch (Exception $e) {
-                $exceptionThrown = true;
-                $this->assertStringContains('INCRBY', $e->getMessage());
-            }
-            $this->assertTrue($exceptionThrown, 'INCRBY should throw exception when compression is enabled');
+            $result = $client->incrBy($key, 10);
+            $this->assertFalse($result, 'INCRBY should return false when compression is enabled');
         } finally {
             $client->del($key);
         }
@@ -1829,14 +1793,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, '100.5');
-            $exceptionThrown = false;
-            try {
-                $client->incrByFloat($key, 1.5);
-            } catch (Exception $e) {
-                $exceptionThrown = true;
-                $this->assertStringContains('INCRBYFLOAT', $e->getMessage());
-            }
-            $this->assertTrue($exceptionThrown, 'INCRBYFLOAT should throw exception when compression is enabled');
+            $result = $client->incrByFloat($key, 1.5);
+            $this->assertFalse($result, 'INCRBYFLOAT should return false when compression is enabled');
         } finally {
             $client->del($key);
         }
@@ -1849,14 +1807,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, '100');
-            $exceptionThrown = false;
-            try {
-                $client->decr($key);
-            } catch (Exception $e) {
-                $exceptionThrown = true;
-                $this->assertStringContains('DECR', $e->getMessage());
-            }
-            $this->assertTrue($exceptionThrown, 'DECR should throw exception when compression is enabled');
+            $result = $client->decr($key);
+            $this->assertFalse($result, 'DECR should return false when compression is enabled');
         } finally {
             $client->del($key);
         }
@@ -1869,14 +1821,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, '100');
-            $exceptionThrown = false;
-            try {
-                $client->decrBy($key, 10);
-            } catch (Exception $e) {
-                $exceptionThrown = true;
-                $this->assertStringContains('DECRBY', $e->getMessage());
-            }
-            $this->assertTrue($exceptionThrown, 'DECRBY should throw exception when compression is enabled');
+            $result = $client->decrBy($key, 10);
+            $this->assertFalse($result, 'DECRBY should return false when compression is enabled');
         } finally {
             $client->del($key);
         }
@@ -1889,14 +1835,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, 'hello');
-            $exceptionThrown = false;
-            try {
-                $client->getBit($key, 0);
-            } catch (Exception $e) {
-                $exceptionThrown = true;
-                $this->assertStringContains('GETBIT', $e->getMessage());
-            }
-            $this->assertTrue($exceptionThrown, 'GETBIT should throw exception when compression is enabled');
+            $result = $client->getBit($key, 0);
+            $this->assertFalse($result, 'GETBIT should return false when compression is enabled');
         } finally {
             $client->del($key);
         }
@@ -1909,14 +1849,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, 'hello');
-            $exceptionThrown = false;
-            try {
-                $client->setBit($key, 7, 1);
-            } catch (Exception $e) {
-                $exceptionThrown = true;
-                $this->assertStringContains('SETBIT', $e->getMessage());
-            }
-            $this->assertTrue($exceptionThrown, 'SETBIT should throw exception when compression is enabled');
+            $result = $client->setBit($key, 7, 1);
+            $this->assertFalse($result, 'SETBIT should return false when compression is enabled');
         } finally {
             $client->del($key);
         }
@@ -1929,14 +1863,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         try {
             $client->set($key, 'hello');
-            $exceptionThrown = false;
-            try {
-                $client->bitCount($key);
-            } catch (Exception $e) {
-                $exceptionThrown = true;
-                $this->assertStringContains('BITCOUNT', $e->getMessage());
-            }
-            $this->assertTrue($exceptionThrown, 'BITCOUNT should throw exception when compression is enabled');
+            $result = $client->bitCount($key);
+            $this->assertFalse($result, 'BITCOUNT should return false when compression is enabled');
         } finally {
             $client->del($key);
         }
