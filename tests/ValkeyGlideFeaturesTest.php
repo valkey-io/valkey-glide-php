@@ -2520,4 +2520,111 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $client->del($key);
         }
     }
+
+    // ==================== max_decompressed_size Tests ====================
+
+    /**
+     * Test that max_decompressed_size parameter is accepted in compression config
+     */
+    public function testCompressionMaxDecompressedSizeConfig()
+    {
+        // Test with explicit max_decompressed_size
+        $client = new ValkeyGlide();
+        $client->connect($this->getHost(), $this->getPort(), compression: [
+            'enabled' => true,
+            'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+            'min_compression_size' => 64,
+            'max_decompressed_size' => 1024 * 1024 // 1MB
+        ]);
+
+        $key = 'compression_max_size_config_' . uniqid();
+        $value = str_repeat('A', 100);
+
+        try {
+            $this->assertTrue($client->set($key, $value));
+            $this->assertEquals($value, $client->get($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    /**
+     * Test that max_decompressed_size works with LZ4 backend
+     */
+    public function testCompressionMaxDecompressedSizeLZ4()
+    {
+        $client = new ValkeyGlide();
+        $client->connect($this->getHost(), $this->getPort(), compression: [
+            'enabled' => true,
+            'backend' => ValkeyGlide::COMPRESSION_BACKEND_LZ4,
+            'min_compression_size' => 64,
+            'max_decompressed_size' => 10 * 1024 * 1024 // 10MB
+        ]);
+
+        $key = 'compression_max_size_lz4_' . uniqid();
+        $value = str_repeat('B', 200);
+
+        try {
+            $this->assertTrue($client->set($key, $value));
+            $this->assertEquals($value, $client->get($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    /**
+     * Test that max_decompressed_size defaults work (no explicit value)
+     */
+    public function testCompressionMaxDecompressedSizeDefault()
+    {
+        // Create client without explicit max_decompressed_size - should use default (512MB)
+        $client = new ValkeyGlide();
+        $client->connect($this->getHost(), $this->getPort(), compression: [
+            'enabled' => true,
+            'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+            'min_compression_size' => 64
+            // max_decompressed_size not specified - uses default
+        ]);
+
+        $key = 'compression_max_size_default_' . uniqid();
+        $value = str_repeat('C', 150);
+
+        try {
+            $this->assertTrue($client->set($key, $value));
+            $this->assertEquals($value, $client->get($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    /**
+     * Test max_decompressed_size with large value (within limit)
+     */
+    public function testCompressionMaxDecompressedSizeLargeValue()
+    {
+        $client = new ValkeyGlide();
+        $client->connect($this->getHost(), $this->getPort(), compression: [
+            'enabled' => true,
+            'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
+            'min_compression_size' => 64,
+            'max_decompressed_size' => 5 * 1024 * 1024 // 5MB limit
+        ]);
+
+        $key = 'compression_max_size_large_' . uniqid();
+        // Create a 1MB value (well within 5MB limit)
+        $value = str_repeat('D', 1024 * 1024);
+
+        try {
+            $this->assertTrue($client->set($key, $value));
+            $retrieved = $client->get($key);
+            $this->assertEquals(strlen($value), strlen($retrieved));
+            $this->assertEquals($value, $retrieved);
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
 }
