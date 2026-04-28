@@ -1881,10 +1881,10 @@ int execute_rawcommand_command_internal(
     if (result) {
         if (result->command_error) {
             /* Command failed - throw exception with error message */
-            const char* error_msg = result->command_error->command_error_message
-                                        ? result->command_error->command_error_message
-                                        : "Command execution failed";
-            char* error_copy = estrdup(error_msg);
+            const char* error_msg  = result->command_error->command_error_message
+                                         ? result->command_error->command_error_message
+                                         : "Command execution failed";
+            char*       error_copy = estrdup(error_msg);
             free_command_result(result);
             zend_throw_exception(get_valkey_glide_exception_ce(), error_copy, 0);
             efree(error_copy);
