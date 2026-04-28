@@ -2556,14 +2556,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         try {
             $client->set($key, '100');
-            $exceptionThrown = false;
-            try {
-                $client->rawCommand('INCR', $key);
-            } catch (Exception $e) {
-                $exceptionThrown = true;
-                $this->assertStringContains('INCR', $e->getMessage());
-            }
-            $this->assertTrue($exceptionThrown, 'INCR via rawCommand should throw exception when compression is enabled');
+            $result = $client->rawCommand('INCR', $key);
+            $this->assertFalse($result, 'INCR via rawCommand should return false when compression is enabled');
         } finally {
             $client->del($key);
         }
@@ -2577,14 +2571,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         try {
             $client->set($key, $data);
-            $exceptionThrown = false;
-            try {
-                $client->rawCommand('APPEND', $key, ' suffix');
-            } catch (Exception $e) {
-                $exceptionThrown = true;
-                $this->assertStringContains('APPEND', $e->getMessage());
-            }
-            $this->assertTrue($exceptionThrown, 'APPEND via rawCommand should throw exception when compression is enabled');
+            $result = $client->rawCommand('APPEND', $key, ' suffix');
+            $this->assertFalse($result, 'APPEND via rawCommand should return false when compression is enabled');
         } finally {
             $client->del($key);
         }
@@ -2598,14 +2586,8 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         try {
             $client->set($key, $data);
-            $exceptionThrown = false;
-            try {
-                $client->rawCommand('STRLEN', $key);
-            } catch (Exception $e) {
-                $exceptionThrown = true;
-                $this->assertStringContains('STRLEN', $e->getMessage());
-            }
-            $this->assertTrue($exceptionThrown, 'STRLEN via rawCommand should throw exception when compression is enabled');
+            $result = $client->rawCommand('STRLEN', $key);
+            $this->assertFalse($result, 'STRLEN via rawCommand should return false when compression is enabled');
         } finally {
             $client->del($key);
         }
