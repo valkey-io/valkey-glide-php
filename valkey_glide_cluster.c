@@ -278,6 +278,16 @@ static zend_function_entry valkey_glide_cluster_methods[] = {
 
 /* {{{ proto bool ValkeyGlideCluster::close() */
 PHP_METHOD(ValkeyGlideCluster, close) {
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+
+    valkey_glide_clear_batch_state(valkey_glide);
+
+    if (valkey_glide->glide_client) {
+        close_glide_client(valkey_glide->glide_client);
+        valkey_glide->glide_client = NULL;
+    }
+
     RETURN_TRUE;
 }
 

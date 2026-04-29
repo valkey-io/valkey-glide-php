@@ -270,6 +270,8 @@ typedef struct {
     zend_object std; /* MUST be last - PHP allocates extra memory after this */
 } valkey_glide_object;
 
+void valkey_glide_clear_batch_state(valkey_glide_object* valkey_glide);
+
 /* For convenience we store the salt as a printable hex string which requires 2
  * characters per byte + 1 for the NULL terminator */
 #define REDIS_SALT_BYTES 32
