@@ -583,25 +583,7 @@ void free_valkey_glide_object(zend_object* object) {
     valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_GET_OBJECT(valkey_glide_object, object);
 
     /* Free buffered batch commands if object is destroyed mid-batch */
-    if (valkey_glide->buffered_commands) {
-        size_t i, j;
-        for (i = 0; i < valkey_glide->command_count; i++) {
-            struct batch_command* cmd = &valkey_glide->buffered_commands[i];
-            if (cmd->args) {
-                for (j = 0; j < cmd->arg_count; j++) {
-                    if (cmd->args[j]) {
-                        efree(cmd->args[j]);
-                    }
-                }
-                efree(cmd->args);
-            }
-            if (cmd->arg_lengths) {
-                efree(cmd->arg_lengths);
-            }
-        }
-        efree(valkey_glide->buffered_commands);
-        valkey_glide->buffered_commands = NULL;
-    }
+    valkey_glide_clear_batch_state(valkey_glide);
 
     /* Free the Valkey Glide client if it exists */
     if (valkey_glide->glide_client) {
@@ -1041,6 +1023,8 @@ PHP_METHOD(ValkeyGlide, __destruct) {
 PHP_METHOD(ValkeyGlide, close) {
     valkey_glide_object* valkey_glide =
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+
+    valkey_glide_clear_batch_state(valkey_glide);
 
     if (valkey_glide->glide_client) {
         close_glide_client(valkey_glide->glide_client);

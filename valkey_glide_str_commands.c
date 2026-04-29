@@ -454,10 +454,8 @@ int execute_sort_command(zval* object, int argc, zval* return_value, zend_class_
         /* Free the argument arrays */
         efree(args);
         efree(args_len);
-        if (offset_str)
-            efree(offset_str);
-        if (count_str)
-            efree(count_str);
+        efree(offset_str);
+        efree(count_str);
 
 
         /* Process the result */
@@ -547,10 +545,8 @@ int execute_sort_ro_command(zval* object, int argc, zval* return_value, zend_cla
         /* Free the argument arrays */
         efree(args);
         efree(args_len);
-        if (offset_str)
-            efree(offset_str);
-        if (count_str)
-            efree(count_str);
+        efree(offset_str);
+        efree(count_str);
 
 
         int ret_val = 0;

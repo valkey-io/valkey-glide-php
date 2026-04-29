@@ -29,8 +29,6 @@
 #include "valkey_glide_z_common.h"
 
 /* Helper functions for batch state management */
-static void clear_batch_state(valkey_glide_object* valkey_glide);
-
 static void expand_command_buffer(valkey_glide_object* valkey_glide);
 
 /* Helper function to process array arguments for FCALL commands */
@@ -130,7 +128,7 @@ int execute_wait_command(zval* object, int argc, zval* return_value, zend_class_
 /* Helper function implementations */
 
 /* Clear batch state and free buffered commands */
-static void clear_batch_state(valkey_glide_object* valkey_glide) {
+void valkey_glide_clear_batch_state(valkey_glide_object* valkey_glide) {
     if (!valkey_glide) {
         return;
     }
@@ -905,7 +903,7 @@ int execute_discard_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Clear batch state if we're in batch mode */
     if (valkey_glide->is_in_batch_mode) {
-        clear_batch_state(valkey_glide);
+        valkey_glide_clear_batch_state(valkey_glide);
         ZVAL_TRUE(return_value);
         return 1;
     } else {
@@ -940,7 +938,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     struct CmdInfo** cmd_infos =
         (struct CmdInfo**) emalloc(valkey_glide->command_count * sizeof(struct CmdInfo*));
     if (!cmd_infos) {
-        clear_batch_state(valkey_glide);
+        valkey_glide_clear_batch_state(valkey_glide);
         ZVAL_FALSE(return_value);
         return 0;
     }
@@ -957,7 +955,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
                 efree(cmd_infos[j]);
             }
             efree(cmd_infos);
-            clear_batch_state(valkey_glide);
+            valkey_glide_clear_batch_state(valkey_glide);
             ZVAL_FALSE(return_value);
             return 0;
         }
@@ -996,7 +994,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
         if (result->command_error) {
             /* Command failed */
             free_command_result(result);
-            clear_batch_state(valkey_glide);
+            valkey_glide_clear_batch_state(valkey_glide);
             ZVAL_FALSE(return_value);
             return 0;
         }
@@ -1007,7 +1005,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
                 ZVAL_FALSE(return_value);
                 status = 0;
                 free_command_result(result);
-                clear_batch_state(valkey_glide);
+                valkey_glide_clear_batch_state(valkey_glide);
                 return status;
             }
             array_init(return_value);
@@ -1037,7 +1035,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     }
 
     free_command_result(result);
-    clear_batch_state(valkey_glide);
+    valkey_glide_clear_batch_state(valkey_glide);
     return status;
 }
 
