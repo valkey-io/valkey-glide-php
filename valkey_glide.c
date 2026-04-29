@@ -556,11 +556,10 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         zval* eviction_zv =
             zend_hash_str_find(cache_ht, "eviction_policy", sizeof("eviction_policy") - 1);
         if (eviction_zv) {
-            config->client_side_cache->eviction_policy =
-                (valkey_glide_eviction_policy_t) zval_get_long(eviction_zv);
+            config->client_side_cache->eviction_policy     = (int) zval_get_long(eviction_zv);
             config->client_side_cache->has_eviction_policy = true;
         } else {
-            config->client_side_cache->eviction_policy     = VALKEY_GLIDE_EVICTION_POLICY_LRU;
+            config->client_side_cache->eviction_policy = CONNECTION_REQUEST__EVICTION_POLICY__LRU;
             config->client_side_cache->has_eviction_policy = false;
         }
 
