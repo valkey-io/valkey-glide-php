@@ -227,7 +227,6 @@ int  valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
                                            valkey_glide_base_client_configuration_t*     config,
                                            bool                                          is_cluster);
 void valkey_glide_cleanup_client_config(valkey_glide_base_client_configuration_t* config);
-void valkey_glide_clear_batch_state(valkey_glide_object* valkey_glide);
 
 #if PHP_VERSION_ID < 80000
 #define Z_PARAM_ARRAY_HT_OR_NULL(dest) Z_PARAM_ARRAY_HT_EX(dest, 1, 0)
@@ -270,6 +269,8 @@ typedef struct {
 
     zend_object std; /* MUST be last - PHP allocates extra memory after this */
 } valkey_glide_object;
+
+void valkey_glide_clear_batch_state(valkey_glide_object* valkey_glide);
 
 /* For convenience we store the salt as a printable hex string which requires 2
  * characters per byte + 1 for the NULL terminator */
