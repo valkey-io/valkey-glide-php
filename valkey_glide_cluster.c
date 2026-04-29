@@ -1126,6 +1126,10 @@ GET_CACHE_EVICTIONS_METHOD_IMPL(ValkeyGlideCluster)
 GET_CACHE_EXPIRATIONS_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto int ValkeyGlideCluster::getCacheTotalLookups() */
+GET_CACHE_TOTAL_LOOKUPS_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 COPY_METHOD_IMPL(ValkeyGlideCluster)
 
 /* Script commands */

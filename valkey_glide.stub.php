@@ -685,6 +685,14 @@ class ValkeyGlide
     public function getCacheExpirations(): int;
 
     /**
+     * Get the total number of cache lookups (hits + misses).
+     *
+     * @return int The total number of lookups.
+     * @throws ValkeyGlideException If client-side caching is not enabled or metrics tracking is disabled.
+     */
+    public function getCacheTotalLookups(): int;
+
+    /**
      * Set the OpenTelemetry sample percentage at runtime.
      *
      * @param int $percentage The sample percentage (0-100)

@@ -14,6 +14,28 @@ use ValkeyGlide\Cache\ClientSideCache;
  */
 class ClientSideCacheTest extends ValkeyGlideBaseTest
 {
+    /* Default cache configuration values */
+    private const DEFAULT_MAX_CACHE_KB = 1;
+    private const DEFAULT_ENTRY_TTL_MS = 60000;
+    private const LARGE_MAX_CACHE_KB   = 1024;
+
+    /* TTL for expiration tests (short enough to test within sleep) */
+    private const SHORT_TTL_MS         = 2000;
+    private const TTL_EXPIRY_WAIT_SECS = 3;
+
+    /* Value size used to force eviction in a 1 KB cache */
+    private const EVICTION_VALUE_SIZE  = 250;
+
+    /* Frequency counts for LFU eviction test */
+    private const LFU_HIGH_FREQUENCY   = 5;
+    private const LFU_MEDIUM_FREQUENCY = 2;
+
+    /* Number of keys for multi-key tests */
+    private const MULTI_KEY_COUNT      = 3;
+
+    /* Invalid eviction policy value for validation test */
+    private const INVALID_EVICTION_POLICY = 99;
+
     public function __construct($host, $port, $auth, $tls)
     {
         parent::__construct($host, $port, $auth, $tls);
@@ -52,16 +74,61 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
     }
 
     /**
+     * Helper to build a ClientSideCache config with common defaults.
+     *
+     * @param int $maxCacheKb     Maximum cache size in KB.
+     * @param int $entryTtlMs     Entry TTL in milliseconds.
+     * @param bool $enableMetrics Whether to enable metrics.
+     * @param int|null $evictionPolicy Eviction policy constant, or null for default.
+     * @return ClientSideCache
+     */
+    protected function buildCache(
+        int $maxCacheKb = self::DEFAULT_MAX_CACHE_KB,
+        int $entryTtlMs = self::DEFAULT_ENTRY_TTL_MS,
+        bool $enableMetrics = true,
+        ?int $evictionPolicy = null
+    ): ClientSideCache {
+        $builder = ClientSideCache::builder()
+            ->maxCacheKb($maxCacheKb)
+            ->entryTtlMs($entryTtlMs)
+            ->enableMetrics($enableMetrics);
+
+        if ($evictionPolicy !== null) {
+            $builder->evictionPolicy($evictionPolicy);
+        }
+
+        return $builder->build();
+    }
+
+    /**
+     * Assert that all metrics-dependent methods throw on the given client.
+     *
+     * @param ValkeyGlide $client The client to test.
+     * @param string $pattern     Regex pattern to match against the exception message.
+     */
+    protected function assertAllMetricsThrow(ValkeyGlide $client, string $pattern): void
+    {
+        $metricsMethods = [
+            'getCacheHitRate',
+            'getCacheMissRate',
+            'getCacheTotalLookups',
+            'getCacheEvictions',
+            'getCacheExpirations',
+        ];
+
+        foreach ($metricsMethods as $method) {
+            $this->assertThrowsMatch(null, function () use ($client, $method) {
+                $client->$method();
+            }, $pattern);
+        }
+    }
+
+    /**
      * Test basic cache hit/miss behavior with metrics tracking.
      */
     public function testBasicCacheHitWithMetrics()
     {
-        $cache = ClientSideCache::builder()
-            ->maxCacheKb(1)
-            ->entryTtlMs(60000)
-            ->enableMetrics()
-            ->build();
-
+        $cache = $this->buildCache();
         $client = $this->newCachedInstance($cache->toArray());
 
         $this->assertTrue($client->set('cache_test_key', 'cache_test_value'));
@@ -77,11 +144,13 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
         // Verify metrics: 1 miss + 2 hits = 3 total, hit rate ~66.67%
         $hitRate = $client->getCacheHitRate();
         $missRate = $client->getCacheMissRate();
+        $totalLookups = $client->getCacheTotalLookups();
 
         $this->assertBetween($hitRate, 0.60, 0.70);
         $this->assertBetween($missRate, 0.30, 0.40);
         // Rates should sum to ~1.0
         $this->assertBetween($hitRate + $missRate, 0.99, 1.01);
+        $this->assertEquals(3, $totalLookups);
 
         $client->close();
     }
@@ -91,11 +160,7 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
      */
     public function testCacheWithoutMetrics()
     {
-        $cache = ClientSideCache::builder()
-            ->maxCacheKb(1)
-            ->entryTtlMs(60000)
-            ->build(); // enableMetrics defaults to false
-
+        $cache = $this->buildCache(enableMetrics: false);
         $client = $this->newCachedInstance($cache->toArray());
 
         $this->assertTrue($client->set('key', 'value'));
@@ -103,9 +168,7 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
         $this->assertEquals('value', $client->get('key'));
 
         // Metrics should throw
-        $this->assertThrowsMatch(null, function () use ($client) {
-            $client->getCacheHitRate();
-        }, '/metrics/i');
+        $this->assertAllMetricsThrow($client, '/metrics/i');
 
         // Entry count should still work
         $this->assertEquals(1, $client->getCacheEntryCount());
@@ -118,12 +181,7 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
      */
     public function testCacheNilValuesNotCached()
     {
-        $cache = ClientSideCache::builder()
-            ->maxCacheKb(1)
-            ->entryTtlMs(60000)
-            ->enableMetrics()
-            ->build();
-
+        $cache = $this->buildCache();
         $client = $this->newCachedInstance($cache->toArray());
 
         $this->assertFalse($client->get('nonexistent_key'));
@@ -133,6 +191,7 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
 
         $missRate = $client->getCacheMissRate();
         $this->assertBetween($missRate, 0.99, 1.01);
+        $this->assertEquals(2, $client->getCacheTotalLookups());
 
         $client->close();
     }
@@ -142,12 +201,7 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
      */
     public function testCacheTtlExpiration()
     {
-        $cache = ClientSideCache::builder()
-            ->maxCacheKb(1)
-            ->entryTtlMs(2000)
-            ->enableMetrics()
-            ->build();
-
+        $cache = $this->buildCache(entryTtlMs: self::SHORT_TTL_MS);
         $client = $this->newCachedInstance($cache->toArray());
 
         $this->assertTrue($client->set('ttl_key', 'ttl_value'));
@@ -158,12 +212,13 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
         $this->assertEquals('ttl_value', $client->get('ttl_key'));
 
         // Wait for TTL to expire
-        sleep(3);
+        sleep(self::TTL_EXPIRY_WAIT_SECS);
 
         // GET after expiration - should fetch from server again
         $this->assertEquals('ttl_value', $client->get('ttl_key'));
 
         $this->assertEquals(1, $client->getCacheExpirations());
+        $this->assertEquals(3, $client->getCacheTotalLookups());
 
         $client->close();
     }
@@ -173,29 +228,25 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
      */
     public function testCacheMultipleKeys()
     {
-        $cache = ClientSideCache::builder()
-            ->maxCacheKb(1)
-            ->entryTtlMs(60000)
-            ->enableMetrics()
-            ->build();
-
+        $cache = $this->buildCache();
         $client = $this->newCachedInstance($cache->toArray());
 
-        for ($i = 1; $i <= 3; $i++) {
+        for ($i = 1; $i <= self::MULTI_KEY_COUNT; $i++) {
             $this->assertTrue($client->set("key{$i}", "value{$i}"));
         }
 
         // GET each key twice (miss + hit)
-        for ($i = 1; $i <= 3; $i++) {
+        for ($i = 1; $i <= self::MULTI_KEY_COUNT; $i++) {
             $this->assertEquals("value{$i}", $client->get("key{$i}"));
             $this->assertEquals("value{$i}", $client->get("key{$i}"));
         }
 
-        $this->assertEquals(3, $client->getCacheEntryCount());
+        $this->assertEquals(self::MULTI_KEY_COUNT, $client->getCacheEntryCount());
 
-        // 3 misses + 3 hits = 50% hit rate
+        // MULTI_KEY_COUNT misses + MULTI_KEY_COUNT hits = 50% hit rate
         $hitRate = $client->getCacheHitRate();
         $this->assertBetween($hitRate, 0.45, 0.55);
+        $this->assertEquals(self::MULTI_KEY_COUNT * 2, $client->getCacheTotalLookups());
 
         $client->close();
     }
@@ -210,9 +261,8 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
         $this->assertTrue($client->set('key', 'value'));
         $this->assertEquals('value', $client->get('key'));
 
-        $this->assertThrowsMatch(null, function () use ($client) {
-            $client->getCacheHitRate();
-        }, '/not enabled/i');
+        // All metrics (including entry count) should throw when cache is not configured
+        $this->assertAllMetricsThrow($client, '/not enabled/i');
 
         $this->assertThrowsMatch(null, function () use ($client) {
             $client->getCacheEntryCount();
@@ -226,23 +276,17 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
      */
     public function testCacheEvictionPolicyLru()
     {
-        $cache = ClientSideCache::builder()
-            ->maxCacheKb(1)
-            ->entryTtlMs(60000)
-            ->evictionPolicy(ClientSideCache::EVICTION_LRU)
-            ->enableMetrics()
-            ->build();
-
+        $cache = $this->buildCache(evictionPolicy: ClientSideCache::EVICTION_LRU);
         $client = $this->newCachedInstance($cache->toArray());
 
-        $value = str_repeat('x', 250);
+        $value = str_repeat('x', self::EVICTION_VALUE_SIZE);
 
-        for ($i = 1; $i <= 3; $i++) {
+        for ($i = 1; $i <= self::MULTI_KEY_COUNT; $i++) {
             $this->assertTrue($client->set("lru_key{$i}", $value));
             $this->assertEquals($value, $client->get("lru_key{$i}"));
         }
 
-        $this->assertEquals(3, $client->getCacheEntryCount());
+        $this->assertEquals(self::MULTI_KEY_COUNT, $client->getCacheEntryCount());
 
         // Access key1 to make it recently used
         $this->assertEquals($value, $client->get('lru_key1'));
@@ -263,26 +307,20 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
      */
     public function testCacheEvictionPolicyLfu()
     {
-        $cache = ClientSideCache::builder()
-            ->maxCacheKb(1)
-            ->entryTtlMs(60000)
-            ->evictionPolicy(ClientSideCache::EVICTION_LFU)
-            ->enableMetrics()
-            ->build();
-
+        $cache = $this->buildCache(evictionPolicy: ClientSideCache::EVICTION_LFU);
         $client = $this->newCachedInstance($cache->toArray());
 
-        $value = str_repeat('x', 250);
+        $value = str_repeat('x', self::EVICTION_VALUE_SIZE);
 
         // key1: high frequency
         $this->assertTrue($client->set('key1', $value));
-        for ($j = 0; $j < 5; $j++) {
+        for ($j = 0; $j < self::LFU_HIGH_FREQUENCY; $j++) {
             $this->assertEquals($value, $client->get('key1'));
         }
 
         // key2: medium frequency
         $this->assertTrue($client->set('key2', $value));
-        for ($j = 0; $j < 2; $j++) {
+        for ($j = 0; $j < self::LFU_MEDIUM_FREQUENCY; $j++) {
             $this->assertEquals($value, $client->get('key2'));
         }
 
@@ -290,13 +328,13 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
         $this->assertTrue($client->set('key3', $value));
         $this->assertEquals($value, $client->get('key3'));
 
-        $this->assertEquals(3, $client->getCacheEntryCount());
+        $this->assertEquals(self::MULTI_KEY_COUNT, $client->getCacheEntryCount());
 
         // key4 should trigger eviction of key3 (lowest frequency)
         $this->assertTrue($client->set('key4', $value));
         $this->assertEquals($value, $client->get('key4'));
 
-        $this->assertEquals(3, $client->getCacheEntryCount());
+        $this->assertEquals(self::MULTI_KEY_COUNT, $client->getCacheEntryCount());
         $this->assertEquals(1, $client->getCacheEvictions());
 
         $client->close();
@@ -314,22 +352,26 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
 
         // entryTtlMs must be non-negative
         $this->assertThrowsMatch(null, function () {
-            ClientSideCache::builder()->maxCacheKb(1)->entryTtlMs(-1)->build();
+            ClientSideCache::builder()->maxCacheKb(self::DEFAULT_MAX_CACHE_KB)->entryTtlMs(-1)->build();
         });
 
         // entryTtlMs is required
         $this->assertThrowsMatch(null, function () {
-            ClientSideCache::builder()->maxCacheKb(1)->build();
+            ClientSideCache::builder()->maxCacheKb(self::DEFAULT_MAX_CACHE_KB)->build();
         });
 
         // maxCacheKb is required
         $this->assertThrowsMatch(null, function () {
-            ClientSideCache::builder()->entryTtlMs(60000)->build();
+            ClientSideCache::builder()->entryTtlMs(self::DEFAULT_ENTRY_TTL_MS)->build();
         });
 
         // Invalid eviction policy
         $this->assertThrowsMatch(null, function () {
-            ClientSideCache::builder()->maxCacheKb(1)->entryTtlMs(60000)->evictionPolicy(99)->build();
+            ClientSideCache::builder()
+                ->maxCacheKb(self::DEFAULT_MAX_CACHE_KB)
+                ->entryTtlMs(self::DEFAULT_ENTRY_TTL_MS)
+                ->evictionPolicy(self::INVALID_EVICTION_POLICY)
+                ->build();
         });
     }
 
@@ -338,15 +380,13 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
      */
     public function testUniqueCacheIds()
     {
-        $cache1 = ClientSideCache::builder()->maxCacheKb(1)->entryTtlMs(60000)->build();
-        $cache2 = ClientSideCache::builder()->maxCacheKb(1)->entryTtlMs(60000)->build();
+        $cache1 = $this->buildCache();
+        $cache2 = $this->buildCache();
 
         $id1 = $cache1->getCacheId();
         $id2 = $cache2->getCacheId();
 
-        if ($id1 === $id2) {
-            $this->assert('Cache IDs should be unique but got: %s and %s', $id1, $id2);
-        }
+        $this->assertNotEquals($id1, $id2);
     }
 
     /**
@@ -354,18 +394,16 @@ class ClientSideCacheTest extends ValkeyGlideBaseTest
      */
     public function testToArray()
     {
-        $cache = ClientSideCache::builder()
-            ->maxCacheKb(1024)
-            ->entryTtlMs(60000)
-            ->evictionPolicy(ClientSideCache::EVICTION_LFU)
-            ->enableMetrics()
-            ->build();
+        $cache = $this->buildCache(
+            maxCacheKb: self::LARGE_MAX_CACHE_KB,
+            evictionPolicy: ClientSideCache::EVICTION_LFU
+        );
 
         $arr = $cache->toArray();
 
         $this->assertArrayHasKey('cache_id', $arr);
-        $this->assertEquals(1024, $arr['max_cache_kb']);
-        $this->assertEquals(60000, $arr['entry_ttl_ms']);
+        $this->assertEquals(self::LARGE_MAX_CACHE_KB, $arr['max_cache_kb']);
+        $this->assertEquals(self::DEFAULT_ENTRY_TTL_MS, $arr['entry_ttl_ms']);
         $this->assertEquals(ClientSideCache::EVICTION_LFU, $arr['eviction_policy']);
         $this->assertTrue($arr['enable_metrics']);
     }

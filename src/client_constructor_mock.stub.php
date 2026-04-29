@@ -100,7 +100,7 @@ class ClientConstructorMock
      * @param array|null $compression            Compression configuration ['enabled' => true, 'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
      *                                           'compression_level' => 3, 'min_compression_size' => 256].
      * @param array|null $client_side_cache      Client-side cache configuration ['cache_id' => string, 'max_cache_kb' => int,
-     *                                           'entry_ttl_seconds' => ?int, 'eviction_policy' => ?int, 'enable_metrics' => bool].
+     *                                           'entry_ttl_ms' => int, 'eviction_policy' => ?int, 'enable_metrics' => bool].
      */
     public static function simulate_standalone_constructor(
         ?array $addresses = null,
@@ -144,7 +144,7 @@ class ClientConstructorMock
      * @param array|null $compression                 Compression configuration ['enabled' => true, 'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
      *                                                'compression_level' => 3, 'min_compression_size' => 256].
      * @param array|null $client_side_cache           Client-side cache configuration ['cache_id' => string, 'max_cache_kb' => int,
-     *                                                'entry_ttl_seconds' => ?int, 'eviction_policy' => ?int, 'enable_metrics' => bool].
+     *                                                'entry_ttl_ms' => int, 'eviction_policy' => ?int, 'enable_metrics' => bool].
      */
     public static function simulate_cluster_constructor(
         ?array $addresses = null,

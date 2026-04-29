@@ -11,9 +11,6 @@ use ValkeyGlideException;
  */
 class ClientSideCacheBuilder
 {
-    private static string $uuidPrefix = '';
-    private static int $counter = 0;
-
     private ?int $maxCacheKb = null;
     private ?int $entryTtlMs = null;
     private ?int $evictionPolicy = null;
@@ -137,16 +134,13 @@ class ClientSideCacheBuilder
     /**
      * Gets the auto-generated unique cache ID.
      *
+     * Each call to build() generates a new unique cache ID using a GUID.
+     *
      * @return string The cache ID.
      */
     public function getCacheId(): string
     {
-        if (self::$uuidPrefix === '') {
-            self::$uuidPrefix = substr(bin2hex(random_bytes(4)), 0, 8);
-        }
-        $id = self::$uuidPrefix . '-' . self::$counter;
-        self::$counter++;
-        return $id;
+        return bin2hex(random_bytes(16));
     }
 
     /**

@@ -376,6 +376,7 @@ void execute_refresh_iam_token(zval* object, zval* return_value, zend_class_entr
 #define CACHE_METRICS_ENTRY_COUNT 2
 #define CACHE_METRICS_EVICTIONS 3
 #define CACHE_METRICS_EXPIRATIONS 4
+#define CACHE_METRICS_TOTAL_LOOKUPS 5
 
 /**
  * Execute get_cache_metrics command
@@ -423,6 +424,14 @@ void execute_get_cache_metrics(zval*             object,
         ZEND_PARSE_PARAMETERS_NONE();                                                  \
         execute_get_cache_metrics(                                                     \
             ZEND_THIS, CACHE_METRICS_EXPIRATIONS, return_value, Z_OBJCE_P(ZEND_THIS)); \
+    }
+
+/* Macro for getCacheTotalLookups method implementation */
+#define GET_CACHE_TOTAL_LOOKUPS_METHOD_IMPL(class_name)                                  \
+    PHP_METHOD(class_name, getCacheTotalLookups) {                                       \
+        ZEND_PARSE_PARAMETERS_NONE();                                                    \
+        execute_get_cache_metrics(                                                       \
+            ZEND_THIS, CACHE_METRICS_TOTAL_LOOKUPS, return_value, Z_OBJCE_P(ZEND_THIS)); \
     }
 
 #endif /* VALKEY_GLIDE_CORE_COMMON_H */

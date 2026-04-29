@@ -422,6 +422,11 @@ class ValkeyGlideCluster
     public function getCacheExpirations(): int;
 
     /**
+     * @see ValkeyGlide::getCacheTotalLookups
+     */
+    public function getCacheTotalLookups(): int;
+
+    /**
      * @see ValkeyGlide::updateConnectionPassword
      */
     public function updateConnectionPassword(string $password, bool $immediateAuth = false): string;

@@ -235,7 +235,7 @@ uint8_t* create_connection_request(size_t*                                   len
 
         client_side_cache_msg.entry_ttl_ms = config->client_side_cache->entry_ttl_ms;
 
-        if (config->client_side_cache->eviction_policy >= 0) {
+        if (config->client_side_cache->has_eviction_policy) {
             client_side_cache_msg.eviction_policy =
                 (ConnectionRequest__EvictionPolicy) config->client_side_cache->eviction_policy;
         }

@@ -541,13 +541,28 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
 
         /* Parse entry_ttl_ms (required, 0 = no expiration) */
         zval* ttl_zv = zend_hash_str_find(cache_ht, "entry_ttl_ms", sizeof("entry_ttl_ms") - 1);
-        config->client_side_cache->entry_ttl_ms = ttl_zv ? zval_get_long(ttl_zv) : 0;
+        if (ttl_zv) {
+            config->client_side_cache->entry_ttl_ms = zval_get_long(ttl_zv);
+        } else {
+            efree(config->client_side_cache);
+            config->client_side_cache = NULL;
+            valkey_glide_cleanup_client_config(config);
+            zend_throw_exception(
+                get_valkey_glide_exception_ce(), "client_side_cache requires entry_ttl_ms", 0);
+            return FAILURE;
+        }
 
-        /* Parse eviction_policy (optional, -1 = not set / use default LRU) */
+        /* Parse eviction_policy (optional, default LRU) */
         zval* eviction_zv =
             zend_hash_str_find(cache_ht, "eviction_policy", sizeof("eviction_policy") - 1);
-        config->client_side_cache->eviction_policy =
-            eviction_zv ? (int) zval_get_long(eviction_zv) : -1;
+        if (eviction_zv) {
+            config->client_side_cache->eviction_policy =
+                (valkey_glide_eviction_policy_t) zval_get_long(eviction_zv);
+            config->client_side_cache->has_eviction_policy = true;
+        } else {
+            config->client_side_cache->eviction_policy     = VALKEY_GLIDE_EVICTION_POLICY_LRU;
+            config->client_side_cache->has_eviction_policy = false;
+        }
 
         /* Parse enable_metrics (optional, default false) */
         zval* metrics_zv =
@@ -1144,6 +1159,10 @@ GET_CACHE_EVICTIONS_METHOD_IMPL(ValkeyGlide)
 
 /* {{{ proto int ValkeyGlide::getCacheExpirations() */
 GET_CACHE_EXPIRATIONS_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto int ValkeyGlide::getCacheTotalLookups() */
+GET_CACHE_TOTAL_LOOKUPS_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
 /* Basic method stubs - these need to be implemented with ValkeyGlide */
