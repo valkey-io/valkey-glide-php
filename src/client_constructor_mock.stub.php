@@ -99,6 +99,8 @@ class ClientConstructorMock
      * @param resource|null $context             Stream context for the connection.
      * @param array|null $compression            Compression configuration ['enabled' => true, 'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
      *                                           'compression_level' => 3, 'min_compression_size' => 256].
+     * @param array|null $client_side_cache      Client-side cache configuration ['cache_id' => string, 'max_cache_kb' => int,
+     *                                           'entry_ttl_ms' => int, 'eviction_policy' => ?int, 'enable_metrics' => bool].
      */
     public static function simulate_standalone_constructor(
         ?array $addresses = null,
@@ -114,6 +116,7 @@ class ClientConstructorMock
         ?bool $lazy_connect = null,
         mixed $context = null,
         ?array $compression = null,
+        ?array $client_side_cache = null,
     ): \Connection_request\ConnectionRequest;
 
     /**
@@ -140,6 +143,8 @@ class ClientConstructorMock
      * @param resource|null $context                     Stream context for the connection.
      * @param array|null $compression                 Compression configuration ['enabled' => true, 'backend' => ValkeyGlide::COMPRESSION_BACKEND_ZSTD,
      *                                                'compression_level' => 3, 'min_compression_size' => 256].
+     * @param array|null $client_side_cache           Client-side cache configuration ['cache_id' => string, 'max_cache_kb' => int,
+     *                                                'entry_ttl_ms' => int, 'eviction_policy' => ?int, 'enable_metrics' => bool].
      */
     public static function simulate_cluster_constructor(
         ?array $addresses = null,
@@ -156,5 +161,6 @@ class ClientConstructorMock
         ?int $database_id = null,
         mixed $context = null,
         ?array $compression = null,
+        ?array $client_side_cache = null,
     ): \Connection_request\ConnectionRequest;
 }

@@ -31,6 +31,10 @@ extern struct CommandResult* command(const void*          client_adapter_ptr,
 
 extern void free_command_result(struct CommandResult* command_result_ptr);
 
+extern struct CommandResult* get_cache_metrics(const void* client_adapter_ptr,
+                                               uintptr_t   request_id,
+                                               int32_t     metrics_type);
+
 #include "valkey_glide_otel.h"  // Include OTEL support
 
 /* Enum support includes - must be BEFORE arginfo includes */
@@ -177,6 +181,7 @@ void valkey_glide_init_common_constructor_params(
     params->database_id_is_null     = 1;
     params->context                 = NULL;
     params->compression             = NULL;
+    params->client_side_cache       = NULL;
 }
 
 int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
@@ -500,6 +505,72 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         config->compression_config = NULL;
     }
 
+    /* Process client-side cache configuration if provided */
+    if (params->client_side_cache && Z_TYPE_P(params->client_side_cache) == IS_ARRAY) {
+        HashTable* cache_ht = Z_ARRVAL_P(params->client_side_cache);
+
+        config->client_side_cache = ecalloc(1, sizeof(valkey_glide_client_side_cache_config_t));
+
+        /* Parse cache_id (required) */
+        zval* cache_id_zv = zend_hash_str_find(cache_ht, "cache_id", sizeof("cache_id") - 1);
+        if (cache_id_zv && Z_TYPE_P(cache_id_zv) == IS_STRING) {
+            config->client_side_cache->cache_id     = Z_STRVAL_P(cache_id_zv);
+            config->client_side_cache->cache_id_len = Z_STRLEN_P(cache_id_zv);
+        } else {
+            efree(config->client_side_cache);
+            config->client_side_cache = NULL;
+            valkey_glide_cleanup_client_config(config);
+            zend_throw_exception(
+                get_valkey_glide_exception_ce(), "client_side_cache requires a cache_id", 0);
+            return FAILURE;
+        }
+
+        /* Parse max_cache_kb (required) */
+        zval* max_cache_kb_zv =
+            zend_hash_str_find(cache_ht, "max_cache_kb", sizeof("max_cache_kb") - 1);
+        if (max_cache_kb_zv) {
+            config->client_side_cache->max_cache_kb = zval_get_long(max_cache_kb_zv);
+        } else {
+            efree(config->client_side_cache);
+            config->client_side_cache = NULL;
+            valkey_glide_cleanup_client_config(config);
+            zend_throw_exception(
+                get_valkey_glide_exception_ce(), "client_side_cache requires max_cache_kb", 0);
+            return FAILURE;
+        }
+
+        /* Parse entry_ttl_ms (required, 0 = no expiration) */
+        zval* ttl_zv = zend_hash_str_find(cache_ht, "entry_ttl_ms", sizeof("entry_ttl_ms") - 1);
+        if (ttl_zv) {
+            config->client_side_cache->entry_ttl_ms = zval_get_long(ttl_zv);
+        } else {
+            efree(config->client_side_cache);
+            config->client_side_cache = NULL;
+            valkey_glide_cleanup_client_config(config);
+            zend_throw_exception(
+                get_valkey_glide_exception_ce(), "client_side_cache requires entry_ttl_ms", 0);
+            return FAILURE;
+        }
+
+        /* Parse eviction_policy (optional, default LRU) */
+        zval* eviction_zv =
+            zend_hash_str_find(cache_ht, "eviction_policy", sizeof("eviction_policy") - 1);
+        if (eviction_zv) {
+            config->client_side_cache->eviction_policy     = (int) zval_get_long(eviction_zv);
+            config->client_side_cache->has_eviction_policy = true;
+        } else {
+            config->client_side_cache->eviction_policy = CONNECTION_REQUEST__EVICTION_POLICY__LRU;
+            config->client_side_cache->has_eviction_policy = false;
+        }
+
+        /* Parse enable_metrics (optional, default false) */
+        zval* metrics_zv =
+            zend_hash_str_find(cache_ht, "enable_metrics", sizeof("enable_metrics") - 1);
+        config->client_side_cache->enable_metrics = metrics_zv ? zval_is_true(metrics_zv) : false;
+    } else {
+        config->client_side_cache = NULL;
+    }
+
     _initialize_open_telemetry(params, is_cluster);
     if (EG(exception)) {
         valkey_glide_cleanup_client_config(config);
@@ -635,6 +706,11 @@ void valkey_glide_cleanup_client_config(valkey_glide_base_client_configuration_t
         efree(config->compression_config);
         config->compression_config = NULL;
     }
+
+    if (config->client_side_cache) {
+        efree(config->client_side_cache);
+        config->client_side_cache = NULL;
+    }
 }
 
 /**
@@ -741,7 +817,8 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
                                           zval*                advanced_config,
                                           zval*                lazy_connect_zval,
                                           zval*                context,
-                                          zval*                compression) {
+                                          zval*                compression,
+                                          zval*                client_side_cache) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
 
@@ -784,8 +861,9 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
         common_params.lazy_connect_is_null = false;
     }
 
-    common_params.context     = context;
-    common_params.compression = compression;
+    common_params.context           = context;
+    common_params.compression       = compression;
+    common_params.client_side_cache = client_side_cache;
 
     /* Default to localhost:6379 if no addresses provided */
     zval      addresses_array;
@@ -872,7 +950,7 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
    ?array $addresses, ?bool $use_tls, ?array $credentials, ?int $read_from,
    ?int $request_timeout, ?array $reconnect_strategy, ?int $database_id,
    ?string $client_name, ?string $client_az, ?array $advanced_config,
-   ?bool $lazy_connect, ?resource $context)
+   ?bool $lazy_connect, ?resource $context, ?array $client_side_cache)
    Establishes connection to Valkey server. Supports both PHPRedis-compatible
    (host/port) and ValkeyGlide-style (addresses array) parameters.
    Returns true on success, false on failure. */
@@ -900,8 +978,9 @@ PHP_METHOD(ValkeyGlide, connect) {
     zval*  lazy_connect_zval    = NULL;
     zval*  context              = NULL;
     zval*  compression          = NULL;
+    zval*  client_side_cache    = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(0, 19)
+    ZEND_PARSE_PARAMETERS_START(0, 20)
     Z_PARAM_OPTIONAL
     Z_PARAM_STRING_OR_NULL(host, host_len)
     Z_PARAM_ZVAL_OR_NULL(port_zval)
@@ -922,6 +1001,7 @@ PHP_METHOD(ValkeyGlide, connect) {
     Z_PARAM_ZVAL_OR_NULL(lazy_connect_zval)
     Z_PARAM_ZVAL_OR_NULL(context)
     Z_PARAM_ARRAY_OR_NULL(compression)
+    Z_PARAM_ARRAY_OR_NULL(client_side_cache)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* Apply defaults for nullable parameters */
@@ -993,7 +1073,8 @@ PHP_METHOD(ValkeyGlide, connect) {
                                                 advanced_config,
                                                 lazy_connect_zval,
                                                 context,
-                                                compression);
+                                                compression,
+                                                client_side_cache);
 
     /* Clean up temporary addresses array if we created it */
     if (host != NULL) {
@@ -1073,6 +1154,30 @@ CLEAR_CONNECTION_PASSWORD_METHOD_IMPL(ValkeyGlide)
 /* {{{ proto string ValkeyGlide::refreshIamToken()
  */
 REFRESH_IAM_TOKEN_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto float ValkeyGlide::getCacheHitRate() */
+GET_CACHE_HIT_RATE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto float ValkeyGlide::getCacheMissRate() */
+GET_CACHE_MISS_RATE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto int ValkeyGlide::getCacheEntryCount() */
+GET_CACHE_ENTRY_COUNT_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto int ValkeyGlide::getCacheEvictions() */
+GET_CACHE_EVICTIONS_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto int ValkeyGlide::getCacheExpirations() */
+GET_CACHE_EXPIRATIONS_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto int ValkeyGlide::getCacheTotalLookups() */
+GET_CACHE_TOTAL_LOOKUPS_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
 /* Basic method stubs - these need to be implemented with ValkeyGlide */

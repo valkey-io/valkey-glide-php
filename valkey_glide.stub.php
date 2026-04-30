@@ -375,6 +375,9 @@ class ValkeyGlide
      * @param bool|null $lazy_connect Defer connection until first command (default: false)
      * @param resource|array|null $context Stream context resource or array for TLS configuration
      * @param array|null $compression Compression configuration: ['enabled' => true, 'backend' => COMPRESSION_BACKEND_ZSTD, 'compression_level' => 3, 'min_compression_size' => 64]
+     * @param array|null $client_side_cache Client-side cache configuration array from ClientSideCache::toArray():
+     *                                      ['cache_id' => string, 'max_cache_kb' => int, 'entry_ttl_ms' => int,
+     *                                       'eviction_policy' => ?int, 'enable_metrics' => bool]
      * @return bool True on successful connection, false on failure
      *
      * @throws ValkeyGlideException If conflicting parameters are specified or connection fails
@@ -407,6 +410,7 @@ class ValkeyGlide
         ?bool $lazy_connect = null,
         resource|array|null $context = null,
         ?array $compression = null,
+        ?array $client_side_cache = null,
     ): bool;
 
     public function __destruct();
@@ -639,6 +643,54 @@ class ValkeyGlide
      * echo "Space saved: " . ($stats['total_original_bytes'] - $stats['total_bytes_compressed']) . " bytes\n";
      */
     public function getStatistics(): array;
+
+    /**
+     * Get the cache hit rate (hits / total requests).
+     *
+     * @return float The cache hit rate as a float between 0.0 and 1.0.
+     * @throws ValkeyGlideException If client-side caching is not enabled or metrics tracking is disabled.
+     */
+    public function getCacheHitRate(): float;
+
+    /**
+     * Get the cache miss rate (misses / total requests).
+     *
+     * @return float The cache miss rate as a float between 0.0 and 1.0.
+     * @throws ValkeyGlideException If client-side caching is not enabled or metrics tracking is disabled.
+     */
+    public function getCacheMissRate(): float;
+
+    /**
+     * Get the current number of entries in the client-side cache.
+     *
+     * @return int The number of entries in the cache.
+     * @throws ValkeyGlideException If client-side caching is not enabled.
+     */
+    public function getCacheEntryCount(): int;
+
+    /**
+     * Get the total number of entries evicted from the client-side cache due to memory constraints.
+     *
+     * @return int The number of evictions.
+     * @throws ValkeyGlideException If client-side caching is not enabled or metrics tracking is disabled.
+     */
+    public function getCacheEvictions(): int;
+
+    /**
+     * Get the total number of entries removed from the client-side cache due to TTL expiration.
+     *
+     * @return int The number of expirations.
+     * @throws ValkeyGlideException If client-side caching is not enabled or metrics tracking is disabled.
+     */
+    public function getCacheExpirations(): int;
+
+    /**
+     * Get the total number of cache lookups (hits + misses).
+     *
+     * @return int The total number of lookups.
+     * @throws ValkeyGlideException If client-side caching is not enabled or metrics tracking is disabled.
+     */
+    public function getCacheTotalLookups(): int;
 
     /**
      * Set the OpenTelemetry sample percentage at runtime.

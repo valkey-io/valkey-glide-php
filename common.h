@@ -144,6 +144,17 @@ typedef struct {
     bool has_max_decompressed_size; /* true if user explicitly set max_decompressed_size */
 } valkey_glide_compression_config_t;
 
+/* Client-side cache configuration */
+typedef struct {
+    char*  cache_id;     /* Unique cache identifier */
+    size_t cache_id_len; /* Length of cache_id */
+    long   max_cache_kb; /* Maximum cache size in KB */
+    long   entry_ttl_ms; /* TTL for entries in milliseconds, 0 = no expiration */
+    int eviction_policy; /* Eviction policy: use CONNECTION_REQUEST__EVICTION_POLICY__* constants */
+    bool has_eviction_policy; /* true if user explicitly set eviction_policy */
+    bool enable_metrics;      /* Whether to enable cache metrics */
+} valkey_glide_client_side_cache_config_t;
+
 typedef struct {
     int num_of_retries;
     int factor;
@@ -174,6 +185,7 @@ typedef struct {
     char*                                              client_az;          /* NULL if not set */
     valkey_glide_advanced_base_client_configuration_t* advanced_config;    /* NULL if not set */
     valkey_glide_compression_config_t*                 compression_config; /* NULL if not set */
+    valkey_glide_client_side_cache_config_t*           client_side_cache;  /* NULL if not set */
     valkey_glide_read_from_t                           read_from;
     int                                                addresses_count;
     int                                                request_timeout;         /* -1 if not set */
@@ -205,8 +217,9 @@ typedef struct {
     zval*     credentials;
     zval*     reconnect_strategy;
     zval*     advanced_config;
-    zval*     context;     /* Stream context for TLS */
-    zval*     compression; /* Compression configuration */
+    zval*     context;           /* Stream context for TLS */
+    zval*     compression;       /* Compression configuration */
+    zval*     client_side_cache; /* Client-side cache configuration */
     char*     client_name;
     char*     client_az;
     size_t    client_name_len;

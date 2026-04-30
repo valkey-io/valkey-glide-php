@@ -24,39 +24,39 @@ def remove_optional_from_proto(directory):
     files_modified = 0
 
     log_message(f"Scanning protobuf files in: {directory}")
-    
+
     for root, _, files in os.walk(directory):
         for file in files:
             if proto_file_pattern.match(file):
                 filepath = os.path.join(root, file)
-                
+
                 try:
                     with open(filepath, 'r') as f:
                         content = f.read()
-                    
+
                     # Check if file needs modification
                     if 'optional ' in content:
                         create_backup(filepath)
                         new_content = re.sub(r'\boptional\s+', '', content)
-                        
+
                         with open(filepath, 'w') as f:
                             f.write(new_content)
-                        
+
                         log_message(f"Updated protobuf: {filepath}")
                         files_modified += 1
                     else:
                         log_message(f"No changes needed: {filepath}")
-                        
+
                 except Exception as e:
                     log_message(f"Error processing {filepath}: {e}", "ERROR")
                     return False
-    
+
     log_message(f"Modified {files_modified} protobuf files")
     return True
 
 def patch_rust_types_rs(rust_types_file):
     """Patch the Rust types.rs file to fix type mismatches between protobuf and Rust code.
-    
+
     Fixes several fields that changed from Option<T> to T in protobuf:
     - tcp_nodelay: Option<bool> -> bool
     - read_only: Option<bool> -> bool
@@ -64,23 +64,23 @@ def patch_rust_types_rs(rust_types_file):
     - jitter_percent: Option<u32> -> u32
     - refresh_interval_seconds: Option<u32> -> u32
     - compression_level: Option<i32> -> i32
-    - read_only: Option<bool> -> bool
-    - eviction_policy: Option<EnumOrUnknown> -> EnumOrUnknown
+    - max_decompressed_size: Option<u64> -> u64
+    - client_side_cache.eviction_policy: Option<EnumOrUnknown> -> EnumOrUnknown
     """
-    
+
     if not os.path.exists(rust_types_file):
         log_message(f"Rust types file not found: {rust_types_file}", "ERROR")
         return False
-    
+
     log_message(f"Patching Rust file: {rust_types_file}")
-    
+
     try:
         with open(rust_types_file, 'r') as f:
             content = f.read()
-        
+
         needs_patching = False
         new_content = content
-        
+
         # Fix tcp_nodelay: changed from Option<bool> to bool
         tcp_nodelay_pattern = r'let tcp_nodelay = value\.tcp_nodelay\.unwrap_or\(true\);'
         tcp_nodelay_replacement = 'let tcp_nodelay = value.tcp_nodelay;'
@@ -89,7 +89,7 @@ def patch_rust_types_rs(rust_types_file):
             new_content = re.sub(tcp_nodelay_pattern, tcp_nodelay_replacement, new_content)
             needs_patching = True
             log_message("Applied tcp_nodelay patch")
-        
+
         # Fix read_only: changed from Option<bool> to bool
         read_only_pattern = r'let read_only = value\.read_only\.unwrap_or\(false\);'
         read_only_replacement = 'let read_only = value.read_only;'
@@ -99,7 +99,7 @@ def patch_rust_types_rs(rust_types_file):
             new_content = re.sub(read_only_pattern, read_only_replacement, new_content)
             needs_patching = True
             log_message("Applied read_only patch")
-        
+
         # Fix pubsub_reconciliation_interval_ms: changed from Option<u32> to u32
         pubsub_pattern = r'value\.pubsub_reconciliation_interval_ms\.filter\(\|&v\| v != 0\);'
         pubsub_replacement = 'if value.pubsub_reconciliation_interval_ms != 0 { Some(value.pubsub_reconciliation_interval_ms) } else { None };'
@@ -109,7 +109,7 @@ def patch_rust_types_rs(rust_types_file):
             new_content = re.sub(pubsub_pattern, pubsub_replacement, new_content)
             needs_patching = True
             log_message("Applied pubsub_reconciliation_interval_ms patch")
-        
+
         # Fix jitter_percent: changed from Option<u32> to u32
         jitter_pattern = r'jitter_percent:\s*strategy\.jitter_percent,'
         jitter_replacement = 'jitter_percent: Some(strategy.jitter_percent),'
@@ -119,7 +119,7 @@ def patch_rust_types_rs(rust_types_file):
             new_content = re.sub(jitter_pattern, jitter_replacement, new_content)
             needs_patching = True
             log_message("Applied jitter_percent patch")
-        
+
         # Fix refresh_interval_seconds: changed from Option<u32> to u32
         refresh_pattern = r'refresh_interval_seconds,\s*\n\s*}'
         refresh_replacement = 'refresh_interval_seconds: Some(refresh_interval_seconds),\n                }'
@@ -129,7 +129,7 @@ def patch_rust_types_rs(rust_types_file):
             new_content = re.sub(refresh_pattern, refresh_replacement, new_content)
             needs_patching = True
             log_message("Applied refresh_interval_seconds patch")
-        
+
         # Fix compression_level: changed from Option<i32> to i32
         compression_pattern = r'compression_level:\s*proto_config\.compression_level,'
         compression_replacement = 'compression_level: Some(proto_config.compression_level),'
@@ -139,7 +139,7 @@ def patch_rust_types_rs(rust_types_file):
             new_content = re.sub(compression_pattern, compression_replacement, new_content)
             needs_patching = True
             log_message("Applied compression_level patch")
-        
+
         # Fix max_decompressed_size: changed from Option<u64> to u64
         max_decompressed_pattern = r'max_decompressed_size:\s*proto_config\s*\n\s*\.max_decompressed_size\s*\n\s*\.map\(\|size\| size as usize\)'
         max_decompressed_replacement = '''max_decompressed_size: if proto_config.max_decompressed_size != 0 {
@@ -153,28 +153,26 @@ def patch_rust_types_rs(rust_types_file):
             new_content = re.sub(max_decompressed_pattern, max_decompressed_replacement, new_content)
             needs_patching = True
             log_message("Applied max_decompressed_size patch")
-        
-        # Fix read_only: changed from Option<bool> to bool
-        read_only_pattern = r'let read_only = value\.read_only\.unwrap_or\(false\);'
-        read_only_replacement = 'let read_only = value.read_only;'
-        if re.search(read_only_pattern, new_content):
+
+        # Fix client_side_cache.eviction_policy: changed from Option<EnumOrUnknown> to EnumOrUnknown
+        eviction_pattern = (
+            r'eviction_policy:\s*proto_cache\s*'
+            r'\.eviction_policy\s*'
+            r'\.and_then\(\|enum_or_unknown\|\s*enum_or_unknown\.enum_value\(\)\.ok\(\)\)'
+        )
+        eviction_replacement = (
+            'eviction_policy: proto_cache\n'
+            '                    .eviction_policy\n'
+            '                    .enum_value()\n'
+            '                    .ok()'
+        )
+        if re.search(eviction_pattern, new_content, re.DOTALL):
             if not needs_patching:
                 create_backup(rust_types_file)
-            new_content = re.sub(read_only_pattern, read_only_replacement, new_content)
-            needs_patching = True
-            log_message("Applied read_only patch")
-        
-        # Fix eviction_policy: changed from Option<EnumOrUnknown> to EnumOrUnknown
-        # The .and_then() method doesn't exist on EnumOrUnknown, need to use .enum_value() directly
-        eviction_pattern = r'eviction_policy: proto_cache\s*\n\s*\.eviction_policy\s*\n\s*\.and_then\(\|enum_or_unknown\| enum_or_unknown\.enum_value\(\)\.ok\(\)\)'
-        eviction_replacement = 'eviction_policy: proto_cache\n                    .eviction_policy\n                    .enum_value().ok()'
-        if re.search(eviction_pattern, new_content):
-            if not needs_patching:
-                create_backup(rust_types_file)
-            new_content = re.sub(eviction_pattern, eviction_replacement, new_content)
+            new_content = re.sub(eviction_pattern, eviction_replacement, new_content, flags=re.DOTALL)
             needs_patching = True
             log_message("Applied eviction_policy patch")
-        
+
         if needs_patching:
             with open(rust_types_file, 'w') as f:
                 f.write(new_content)
@@ -183,7 +181,7 @@ def patch_rust_types_rs(rust_types_file):
         else:
             log_message(f"File already patched: {rust_types_file}")
             return True
-    
+
     except Exception as e:
         log_message(f"Error patching {rust_types_file}: {e}", "ERROR")
         return False
@@ -193,7 +191,7 @@ def verify_rust_patch(rust_types_file):
     try:
         with open(rust_types_file, 'r') as f:
             content = f.read()
-        
+
         # Check for the fixed patterns
         tcp_nodelay_fixed = 'let tcp_nodelay = value.tcp_nodelay;' in content
         read_only_fixed = 'let read_only = value.read_only;' in content
@@ -202,8 +200,13 @@ def verify_rust_patch(rust_types_file):
         refresh_fixed = 'refresh_interval_seconds: Some(refresh_interval_seconds)' in content
         compression_fixed = 'Some(proto_config.compression_level)' in content
         max_decompressed_fixed = 'if proto_config.max_decompressed_size != 0' in content
-        
-        if tcp_nodelay_fixed and pubsub_fixed and jitter_fixed and refresh_fixed and compression_fixed and read_only_fixed and max_decompressed_fixed:
+        eviction_fixed = '.enum_value()' in content and '.and_then(|enum_or_unknown|' not in content
+
+        all_fixed = (tcp_nodelay_fixed and pubsub_fixed and jitter_fixed and
+                     refresh_fixed and compression_fixed and read_only_fixed and
+                     max_decompressed_fixed and eviction_fixed)
+
+        if all_fixed:
             log_message("Rust patch verification: SUCCESS")
             return True
         else:
@@ -222,48 +225,75 @@ def verify_rust_patch(rust_types_file):
                 missing.append("compression_level fix")
             if not max_decompressed_fixed:
                 missing.append("max_decompressed_size fix")
+            if not eviction_fixed:
+                missing.append("eviction_policy fix")
             log_message(f"Rust patch verification: FAILED - Missing: {', '.join(missing)}", "ERROR")
             return False
-    
+
     except Exception as e:
         log_message(f"Error verifying patch: {e}", "ERROR")
         return False
 
 def patch_ffi_lib_rs(ffi_lib_file):
-    """Patch the FFI lib.rs file to fix type mismatches between protobuf and Rust code.
-    
-    Fixes several fields that changed from Option<T> to T in protobuf:
-    - tcp_nodelay: Some(enabled) -> enabled
-    - read_only: Some(enabled) -> enabled
-    - pubsub_reconciliation_interval_ms: Some(interval_ms) -> interval_ms
-    - jitter_percent: Some(...) -> ...
-    - compression_level: Some(level_val) -> level_val
-    - refresh_interval_seconds: Some(interval_val) -> interval_val
+    """Patch the FFI lib.rs file to fix type mismatches after removing 'optional' from protos.
+
+    The upstream lib.rs wraps assignments in Some() for fields that were optional in proto.
+    After stripping 'optional', those fields become plain T, so Some() must be removed.
+
+    Fixes:
+    - strategy.jitter_percent = Some(...) -> direct assignment
+    - request.tcp_nodelay = Some(enabled) -> request.tcp_nodelay = enabled
+    - request.read_only = Some(enabled) -> request.read_only = enabled
+    - request.pubsub_reconciliation_interval_ms = Some(...) -> direct assignment
+    - config.compression_level = Some(...) -> direct assignment
+    - iam_creds.refresh_interval_seconds = Some(...) -> direct assignment
     """
-    
+
     if not os.path.exists(ffi_lib_file):
         log_message(f"FFI lib.rs file not found: {ffi_lib_file}", "ERROR")
         return False
-    
+
     log_message(f"Patching FFI lib.rs file: {ffi_lib_file}")
-    
+
     try:
         with open(ffi_lib_file, 'r') as f:
             content = f.read()
-        
+
         needs_patching = False
         new_content = content
-        
-        # Fix tcp_nodelay: request.tcp_nodelay = Some(enabled) -> request.tcp_nodelay = enabled
-        tcp_nodelay_pattern = r'request\.tcp_nodelay = Some\(enabled\);'
-        tcp_nodelay_replacement = 'request.tcp_nodelay = enabled;'
-        if re.search(tcp_nodelay_pattern, content):
+
+        # Fix jitter_percent: Some(value as u32,) -> value as u32
+        jitter_pattern = (
+            r'strategy\.jitter_percent = Some\(\s*\n'
+            r'\s*jitter\s*\n'
+            r'\s*\.as_u64\(\)\s*\n'
+            r'\s*\.ok_or_else\(\|\| "jitter_percent must be a positive integer"\.to_string\(\)\)\?\s*\n'
+            r'\s*as u32,\s*\n'
+            r'\s*\);'
+        )
+        jitter_replacement = (
+            'strategy.jitter_percent = jitter\n'
+            '                    .as_u64()\n'
+            '                    .ok_or_else(|| "jitter_percent must be a positive integer".to_string())?\n'
+            '                    as u32;'
+        )
+        if re.search(jitter_pattern, content):
             create_backup(ffi_lib_file)
-            new_content = re.sub(tcp_nodelay_pattern, tcp_nodelay_replacement, new_content)
+            new_content = re.sub(jitter_pattern, jitter_replacement, new_content)
+            needs_patching = True
+            log_message("Applied FFI jitter_percent patch")
+
+        # Fix tcp_nodelay: Some(enabled) -> enabled
+        tcp_pattern = r'request\.tcp_nodelay = Some\(enabled\);'
+        tcp_replacement = 'request.tcp_nodelay = enabled;'
+        if re.search(tcp_pattern, new_content):
+            if not needs_patching:
+                create_backup(ffi_lib_file)
+            new_content = re.sub(tcp_pattern, tcp_replacement, new_content)
             needs_patching = True
             log_message("Applied FFI tcp_nodelay patch")
-        
-        # Fix read_only: request.read_only = Some(enabled) -> request.read_only = enabled
+
+        # Fix read_only: Some(enabled) -> enabled
         read_only_pattern = r'request\.read_only = Some\(enabled\);'
         read_only_replacement = 'request.read_only = enabled;'
         if re.search(read_only_pattern, new_content):
@@ -272,7 +302,7 @@ def patch_ffi_lib_rs(ffi_lib_file):
             new_content = re.sub(read_only_pattern, read_only_replacement, new_content)
             needs_patching = True
             log_message("Applied FFI read_only patch")
-        
+
         # Fix pubsub_reconciliation_interval_ms: Some(interval_ms) -> interval_ms
         pubsub_pattern = r'request\.pubsub_reconciliation_interval_ms = Some\(interval_ms\);'
         pubsub_replacement = 'request.pubsub_reconciliation_interval_ms = interval_ms;'
@@ -282,21 +312,8 @@ def patch_ffi_lib_rs(ffi_lib_file):
             new_content = re.sub(pubsub_pattern, pubsub_replacement, new_content)
             needs_patching = True
             log_message("Applied FFI pubsub_reconciliation_interval_ms patch")
-        
-        # Fix jitter_percent: strategy.jitter_percent = Some(...) -> strategy.jitter_percent = ...
-        jitter_pattern = r'strategy\.jitter_percent = Some\(\s*\n\s*jitter\s*\n\s*\.as_u64\(\)\s*\n\s*\.ok_or_else\(\|\| "jitter_percent must be a positive integer"\.to_string\(\)\)\?\s*\n\s*as u32,\s*\n\s*\);'
-        jitter_replacement = '''strategy.jitter_percent = jitter
-                    .as_u64()
-                    .ok_or_else(|| "jitter_percent must be a positive integer".to_string())?
-                    as u32;'''
-        if re.search(jitter_pattern, new_content):
-            if not needs_patching:
-                create_backup(ffi_lib_file)
-            new_content = re.sub(jitter_pattern, jitter_replacement, new_content)
-            needs_patching = True
-            log_message("Applied FFI jitter_percent patch")
-        
-        # Fix compression_level: config.compression_level = Some(level_val) -> config.compression_level = level_val
+
+        # Fix compression_level: Some(level_val) -> level_val
         compression_pattern = r'config\.compression_level = Some\(level_val\);'
         compression_replacement = 'config.compression_level = level_val;'
         if re.search(compression_pattern, new_content):
@@ -305,8 +322,8 @@ def patch_ffi_lib_rs(ffi_lib_file):
             new_content = re.sub(compression_pattern, compression_replacement, new_content)
             needs_patching = True
             log_message("Applied FFI compression_level patch")
-        
-        # Fix refresh_interval_seconds: iam_creds.refresh_interval_seconds = Some(interval_val) -> iam_creds.refresh_interval_seconds = interval_val
+
+        # Fix refresh_interval_seconds: Some(interval_val) -> interval_val
         refresh_pattern = r'iam_creds\.refresh_interval_seconds = Some\(interval_val\);'
         refresh_replacement = 'iam_creds.refresh_interval_seconds = interval_val;'
         if re.search(refresh_pattern, new_content):
@@ -315,39 +332,67 @@ def patch_ffi_lib_rs(ffi_lib_file):
             new_content = re.sub(refresh_pattern, refresh_replacement, new_content)
             needs_patching = True
             log_message("Applied FFI refresh_interval_seconds patch")
-        
+
         if needs_patching:
             with open(ffi_lib_file, 'w') as f:
                 f.write(new_content)
-            log_message(f"Successfully patched FFI lib.rs file: {ffi_lib_file}")
+            log_message(f"Successfully patched FFI lib.rs: {ffi_lib_file}")
             return True
         else:
-            log_message(f"FFI lib.rs file already patched or no changes needed: {ffi_lib_file}")
+            log_message(f"FFI lib.rs already patched: {ffi_lib_file}")
             return True
-    
+
     except Exception as e:
         log_message(f"Error patching {ffi_lib_file}: {e}", "ERROR")
         return False
 
+def verify_ffi_patch(ffi_lib_file):
+    """Verify that the FFI lib.rs patch was applied correctly"""
+    try:
+        with open(ffi_lib_file, 'r') as f:
+            content = f.read()
+
+        checks = {
+            "jitter_percent": 'strategy.jitter_percent = Some(' not in content,
+            "tcp_nodelay": 'request.tcp_nodelay = Some(enabled)' not in content,
+            "read_only": 'request.read_only = Some(enabled)' not in content,
+            "pubsub_reconciliation_interval_ms": 'request.pubsub_reconciliation_interval_ms = Some(interval_ms)' not in content,
+            "compression_level": 'config.compression_level = Some(level_val)' not in content,
+            "refresh_interval_seconds": 'iam_creds.refresh_interval_seconds = Some(interval_val)' not in content,
+        }
+
+        missing = [name for name, fixed in checks.items() if not fixed]
+
+        if not missing:
+            log_message("FFI lib.rs patch verification: SUCCESS")
+            return True
+        else:
+            log_message(f"FFI lib.rs patch verification: FAILED - Still has Some() for: {', '.join(missing)}", "ERROR")
+            return False
+
+    except Exception as e:
+        log_message(f"Error verifying FFI patch: {e}", "ERROR")
+        return False
+
 def main():
     """Main function to run all patching operations.
-    
+
     This script patches protobuf files and Rust code to fix type mismatches
     that occur when protobuf 'optional' fields are removed, causing them to
     change from Option<T> to T in the generated Rust code.
     """
     log_message("Starting build-time patching process for protobuf and Rust files")
-    
+
     # Base directory (relative to script location)
     base_dir = Path(__file__).parent.parent
-    
+
     # Define paths
     protobuf_directory = base_dir / "valkey-glide" / "glide-core" / "src" / "protobuf"
     rust_types_file = base_dir / "valkey-glide" / "glide-core" / "src" / "client" / "types.rs"
     ffi_lib_file = base_dir / "valkey-glide" / "ffi" / "src" / "lib.rs"
-    
+
     success = True
-    
+
     # Step 1: Remove optional from protobuf files
     log_message("=== Phase 1: Patching Protobuf Files ===")
     if protobuf_directory.exists():
@@ -356,9 +401,9 @@ def main():
     else:
         log_message(f"Protobuf directory not found: {protobuf_directory}", "ERROR")
         success = False
-    
+
     # Step 2: Patch Rust types.rs
-    log_message("=== Phase 2: Patching Rust types.rs ===")
+    log_message("=== Phase 2: Patching Rust Code (types.rs) ===")
     if rust_types_file.exists():
         if not patch_rust_types_rs(str(rust_types_file)):
             success = False
@@ -369,16 +414,18 @@ def main():
     else:
         log_message(f"Rust types file not found: {rust_types_file}", "ERROR")
         success = False
-    
+
     # Step 3: Patch FFI lib.rs
-    log_message("=== Phase 3: Patching FFI lib.rs ===")
+    log_message("=== Phase 3: Patching FFI Code (lib.rs) ===")
     if ffi_lib_file.exists():
         if not patch_ffi_lib_rs(str(ffi_lib_file)):
             success = False
+        else:
+            if not verify_ffi_patch(str(ffi_lib_file)):
+                success = False
     else:
-        log_message(f"FFI lib.rs file not found: {ffi_lib_file}", "ERROR")
-        success = False
-    
+        log_message(f"FFI lib.rs file not found: {ffi_lib_file}", "WARN")
+
     # Summary
     if success:
         log_message("=== Build-time patching for protobuf and Rust files completed successfully ===")
