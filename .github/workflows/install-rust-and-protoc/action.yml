@@ -20,12 +20,12 @@ runs:
   using: "composite"
   steps:
     - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       with:
         targets: ${{ inputs.target }}
 
     - name: Install protoc (protobuf)
-      uses: arduino/setup-protoc@v3
+      uses: arduino/setup-protoc@f4d5893b897028ff5739576ea0409746887fa536 # v3
       with:
         version: "25.1"
         repo-token: ${{ inputs.github-token }}
