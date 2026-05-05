@@ -2,6 +2,8 @@ name: Build and publish extension packages
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 on:
   release:
@@ -351,3 +353,9 @@ jobs:
           asset_path: ${{ steps.build-package.outputs.package-file }}
           asset_name: ${{ steps.build-package.outputs.package-file }}
           asset_content_type: application/gzip
+
+      - name: Attest package provenance
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.create-release == 'true')
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ steps.build-package.outputs.package-file }}
