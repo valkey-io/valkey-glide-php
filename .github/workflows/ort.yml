@@ -82,7 +82,7 @@ jobs:
           submodules: recursive
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.85
+        uses: dtolnay/rust-toolchain@c56a35af9328d0bc581dc86c05e58f97f7c38a0e # 1.85
 
       - name: Build and install ORT
         if: steps.cache-ort.outputs.cache-hit != 'true'
@@ -206,7 +206,7 @@ jobs:
 
         ### PHP ###
       - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@728c6c6b8cf02c2e48117716a91ee48313958a19 # v2
         with:
           php-version: "8.1"
           tools: composer

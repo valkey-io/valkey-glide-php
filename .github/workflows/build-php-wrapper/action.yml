@@ -21,7 +21,7 @@ runs:
   using: composite
   steps:
     - name: Setup PHP
-      uses: shivammathur/setup-php@v2
+      uses: shivammathur/setup-php@728c6c6b8cf02c2e48117716a91ee48313958a19 # v2
       with:
         php-version: ${{ inputs.php-version }}
         extensions: tokenizer, json, ctype, iconv, mbstring
@@ -60,7 +60,7 @@ runs:
 
     - name: Install protobuf compiler (Ubuntu)
       if: ${{ inputs.os == 'ubuntu' }}
-      uses: arduino/setup-protoc@v3
+      uses: arduino/setup-protoc@f4d5893b897028ff5739576ea0409746887fa536 # v3
       with:
         version: "25.1"
         repo-token: ${{ inputs.github-token }}
@@ -114,10 +114,10 @@ runs:
       uses: ./.github/workflows/install-zig
 
     - name: Setup sccache
-      uses: mozilla-actions/sccache-action@v0.0.4
+      uses: mozilla-actions/sccache-action@2e7f9ec7921547d4b46598398ca573513895d0bd # v0.0.4
 
     - name: Setup Rust cache
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
       with:
         workspaces: |
           valkey-glide/ffi

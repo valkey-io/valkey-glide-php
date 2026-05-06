@@ -221,7 +221,7 @@ jobs:
             cargo install cbindgen
           fi
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
         with:
           workspaces: |
             valkey-glide/ffi
@@ -240,7 +240,7 @@ jobs:
         run: cargo build --release
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@728c6c6b8cf02c2e48117716a91ee48313958a19 # v2
         with:
           php-version: ${{ env.BASE_PHP_VERSION }}
           extensions: none
@@ -429,7 +429,7 @@ jobs:
           python3 utils/remove_optional_from_proto.py
           echo "=== Proto file cleanup completed ==="
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
         with:
           workspaces: |
             valkey-glide/ffi
@@ -450,7 +450,7 @@ jobs:
           CFLAGS="-g -O0" cargo build --target x86_64-unknown-linux-gnu --release
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@728c6c6b8cf02c2e48117716a91ee48313958a19 # v2
         with:
           php-version: ${{ env.BASE_PHP_VERSION }}
           extensions: tokenizer, json, ctype, iconv, mbstring, simplexml, curl
@@ -831,7 +831,7 @@ jobs:
           submodules: recursive
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@728c6c6b8cf02c2e48117716a91ee48313958a19 # v2
         with:
           php-version: ${{ env.BASE_PHP_VERSION }}
           extensions: none
@@ -1135,7 +1135,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
         with:
           workspaces: |
             valkey-glide/ffi
