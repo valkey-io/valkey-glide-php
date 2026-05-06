@@ -4,6 +4,8 @@
 
 ### Changes
 
+* PHP: Remove repo-level SECURITY.md to use org-level security policy consistently across all valkey-io repositories
+
 * PHP: Add FT.* (Vector Search) commands: ftCreate, ftDropIndex, ftList, ftSearch, ftAggregate, ftInfo, ftAliasAdd, ftAliasDel, ftAliasUpdate, ftAliasList for standalone and cluster clients ([#171](https://github.com/valkey-io/valkey-glide-php/pull/171))
 * PHP: Add JSON.SET and JSON.GET commands for standalone and cluster clients ([#184](https://github.com/valkey-io/valkey-glide-php/pull/184))
 * PHP: Add transparent compression support for string values ([#186](https://github.com/valkey-io/valkey-glide-php/pull/186))
