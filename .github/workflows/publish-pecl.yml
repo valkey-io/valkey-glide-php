@@ -356,6 +356,6 @@ jobs:
 
       - name: Attest package provenance
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.create-release == 'true')
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ${{ steps.build-package.outputs.package-file }}
