@@ -1,0 +1,23 @@
+name: PHP Full Matrix Tests (Nightly)
+
+on:
+  schedule:
+    - cron: "0 9 * * *" # 9:00 UTC Everyday
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  full-matrix-tests:
+    uses: ./.github/workflows/test.yml
+    with:
+      profile: full
+    secrets: inherit
