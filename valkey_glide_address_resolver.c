@@ -51,8 +51,14 @@ uint16_t valkey_glide_address_resolver_callback(const uint8_t* host,
         return 0; /* fallback */
     }
 
-    zval* resolved_host_zval = zend_hash_index_find(Z_ARRVAL(retval), 0);
-    zval* resolved_port_zval = zend_hash_index_find(Z_ARRVAL(retval), 1);
+    zval* resolved_host_zval = zend_hash_str_find(Z_ARRVAL(retval), "host", sizeof("host") - 1);
+    if (!resolved_host_zval) {
+        resolved_host_zval = zend_hash_index_find(Z_ARRVAL(retval), 0);
+    }
+    zval* resolved_port_zval = zend_hash_str_find(Z_ARRVAL(retval), "port", sizeof("port") - 1);
+    if (!resolved_port_zval) {
+        resolved_port_zval = zend_hash_index_find(Z_ARRVAL(retval), 1);
+    }
 
     if (!resolved_host_zval || !resolved_port_zval || Z_TYPE_P(resolved_host_zval) != IS_STRING) {
         zval_ptr_dtor(&retval);
