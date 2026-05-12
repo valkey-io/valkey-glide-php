@@ -40,7 +40,7 @@ jobs:
         run: python3 load_matrices.py "$PROFILE"
 
   test-with-runners:
-    name: PHP ${{ matrix.php }}, server ${{ matrix.engine.version }}, ${{ matrix.host.TARGET }}
+    name: PHP ${{ matrix.php }}, ${{ matrix.engine.type }} ${{ matrix.engine.version }}, ${{ matrix.host.TARGET }}
     needs: load-matrix
     timeout-minutes: 35
     strategy:
