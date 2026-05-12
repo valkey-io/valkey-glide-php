@@ -193,6 +193,7 @@ typedef struct {
     int                                                database_id;             /* -1 if not set */
     bool                                               use_tls;
     bool                                               lazy_connect; /* false if not set */
+    zval* address_resolver; /* NULL if not set - PHP callable */
 } valkey_glide_base_client_configuration_t;
 
 typedef struct {
@@ -232,6 +233,7 @@ typedef struct {
     zend_bool lazy_connect;
     zend_bool lazy_connect_is_null;
     zend_bool database_id_is_null;
+    zval*     address_resolver; /* PHP callable or NULL */
 } valkey_glide_php_common_constructor_params_t;
 
 void valkey_glide_init_common_constructor_params(

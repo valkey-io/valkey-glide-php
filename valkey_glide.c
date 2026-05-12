@@ -11,6 +11,7 @@
 #include "include/glide_bindings.h"
 #include "logger.h"          // Include logger functionality
 #include "logger_arginfo.h"  // Include logger functions arginfo - MUST BE LAST for ext_functions
+#include "valkey_glide_address_resolver.h"
 #include "valkey_glide_arginfo.h"          // Include generated arginfo header
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
 #include "valkey_glide_commands_common.h"
@@ -182,6 +183,7 @@ void valkey_glide_init_common_constructor_params(
     params->context                 = NULL;
     params->compression             = NULL;
     params->client_side_cache       = NULL;
+    params->address_resolver        = NULL;
 }
 
 int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
@@ -571,6 +573,8 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         config->client_side_cache = NULL;
     }
 
+    config->address_resolver = params->address_resolver;
+
     _initialize_open_telemetry(params, is_cluster);
     if (EG(exception)) {
         valkey_glide_cleanup_client_config(config);
@@ -632,6 +636,12 @@ PHP_MINIT_FUNCTION(valkey_glide) {
 
 PHP_MSHUTDOWN_FUNCTION(valkey_glide) {
     valkey_glide_pubsub_shutdown();
+    valkey_glide_clear_address_resolver();
+    return SUCCESS;
+}
+
+PHP_RSHUTDOWN_FUNCTION(valkey_glide) {
+    valkey_glide_clear_address_resolver();
     return SUCCESS;
 }
 
@@ -641,7 +651,7 @@ zend_module_entry valkey_glide_module_entry = {STANDARD_MODULE_HEADER,
                                                PHP_MINIT(valkey_glide),
                                                PHP_MSHUTDOWN(valkey_glide),
                                                NULL,
-                                               NULL,
+                                               PHP_RSHUTDOWN(valkey_glide),
                                                NULL,
                                                VALKEY_GLIDE_PHP_VERSION,
                                                STANDARD_MODULE_PROPERTIES};
@@ -711,6 +721,9 @@ void valkey_glide_cleanup_client_config(valkey_glide_base_client_configuration_t
         efree(config->client_side_cache);
         config->client_side_cache = NULL;
     }
+
+    /* address_resolver is a borrowed reference from PHP, don't free it */
+    config->address_resolver = NULL;
 }
 
 /**
@@ -818,7 +831,8 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
                                           zval*                lazy_connect_zval,
                                           zval*                context,
                                           zval*                compression,
-                                          zval*                client_side_cache) {
+                                          zval*                client_side_cache,
+                                          zval*                address_resolver) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
 
@@ -864,6 +878,7 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     common_params.context           = context;
     common_params.compression       = compression;
     common_params.client_side_cache = client_side_cache;
+    common_params.address_resolver  = address_resolver;
 
     /* Default to localhost:6379 if no addresses provided */
     zval      addresses_array;
@@ -979,8 +994,9 @@ PHP_METHOD(ValkeyGlide, connect) {
     zval*  context              = NULL;
     zval*  compression          = NULL;
     zval*  client_side_cache    = NULL;
+    zval*  address_resolver     = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(0, 20)
+    ZEND_PARSE_PARAMETERS_START(0, 21)
     Z_PARAM_OPTIONAL
     Z_PARAM_STRING_OR_NULL(host, host_len)
     Z_PARAM_ZVAL_OR_NULL(port_zval)
@@ -1002,6 +1018,7 @@ PHP_METHOD(ValkeyGlide, connect) {
     Z_PARAM_ZVAL_OR_NULL(context)
     Z_PARAM_ARRAY_OR_NULL(compression)
     Z_PARAM_ARRAY_OR_NULL(client_side_cache)
+    Z_PARAM_ZVAL_OR_NULL(address_resolver)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* Apply defaults for nullable parameters */
@@ -1074,7 +1091,8 @@ PHP_METHOD(ValkeyGlide, connect) {
                                                 lazy_connect_zval,
                                                 context,
                                                 compression,
-                                                client_side_cache);
+                                                client_side_cache,
+                                                address_resolver);
 
     /* Clean up temporary addresses array if we created it */
     if (host != NULL) {

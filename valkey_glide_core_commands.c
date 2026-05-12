@@ -28,6 +28,7 @@
 #include "common.h"
 #include "include/glide_bindings.h"
 #include "logger.h"
+#include "valkey_glide_address_resolver.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
 #include "valkey_glide_list_common.h"
@@ -276,9 +277,16 @@ static const ConnectionResponse* create_base_glide_client(
     ClientType client_type;
     client_type.tag = SyncClient;
 
+    /* Set up address resolver callback if configured */
+    AddressResolverCallback address_resolver_cb = NULL;
+    if (config->address_resolver && !Z_ISNULL_P(config->address_resolver)) {
+        valkey_glide_set_address_resolver(config->address_resolver);
+        address_resolver_cb = valkey_glide_address_resolver_callback;
+    }
+
     /* Create the client with pubsub callback registered at creation time */
-    const ConnectionResponse* conn_resp =
-        create_client(request_bytes, len, &client_type, valkey_glide_pubsub_callback);
+    const ConnectionResponse* conn_resp = create_client(
+        request_bytes, len, &client_type, valkey_glide_pubsub_callback, address_resolver_cb);
 
     /* Free the request bytes as they're no longer needed */
     efree(request_bytes);
