@@ -6,7 +6,7 @@
     "ARCH": "x64",
     "TARGET": "x86_64-unknown-linux-gnu",
     "run": "always",
-    "languages": ["python", "node", "java", "go", "dotnet", "rust", "php"],
+    "languages": ["php"],
     "profiles": ["full"]
   },
   {
@@ -15,7 +15,7 @@
     "RUNNER": ["self-hosted", "Linux", "ARM64", "ephemeral"],
     "ARCH": "arm64",
     "TARGET": "aarch64-unknown-linux-gnu",
-    "languages": ["python", "node", "java", "go", "dotnet", "php"],
+    "languages": ["php"],
     "profiles": ["full"]
   },
   {
@@ -24,7 +24,7 @@
     "RUNNER": "macos-15",
     "ARCH": "arm64",
     "TARGET": "aarch64-apple-darwin",
-    "languages": ["python", "node", "java", "go", "dotnet", "php"],
+    "languages": ["php"],
     "profiles": []
   },
   {
@@ -38,35 +38,12 @@
     "comment": "Tests for all clients (CI) are skipped for that platform due to instability, but CD pipelines still run on it. See PR #3482 for details."
   },
   {
-    "OS": "ubuntu",
-    "NAMED_OS": "linux",
-    "ARCH": "arm64",
-    "TARGET": "aarch64-unknown-linux-musl",
-    "RUNNER": ["self-hosted", "Linux", "ARM64", "ephemeral"],
-    "IMAGE": "node:lts-alpine",
-    "CONTAINER_OPTIONS": "--user root --privileged --rm",
-    "languages": [],
-    "profiles": []
-  },
-  {
-    "OS": "ubuntu",
-    "NAMED_OS": "linux",
-    "ARCH": "x64",
-    "TARGET": "x86_64-unknown-linux-musl",
-    "RUNNER": "ubuntu-latest",
-    "IMAGE": "node:lts-alpine",
-    "CONTAINER_OPTIONS": "--user root --privileged",
-    "languages": ["node"],
-    "profiles": []
-  },
-  {
     "OS": "amazon-linux",
     "NAMED_OS": "linux",
     "RUNNER": "ubuntu-latest",
     "ARCH": "x64",
     "TARGET": "x86_64-unknown-linux-gnu",
     "IMAGE": "amazonlinux:latest",
-    "languages": ["python", "node", "java", "go", "dotnet"],
     "profiles": []
   }
 ]
