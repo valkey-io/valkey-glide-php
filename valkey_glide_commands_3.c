@@ -673,8 +673,8 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
     valkey_glide_object* valkey_glide;
     char*                operation = NULL;
     size_t               operation_len;
-    zval*                z_args     = NULL;
-    int                  args_count = 0;
+    zval*                z_args       = NULL;
+    int                  args_count   = 0;
     int                  param_offset = 0;
 
     /* Check if this is a cluster call (has route parameter first) */
