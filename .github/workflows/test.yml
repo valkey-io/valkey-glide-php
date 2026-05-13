@@ -1,4 +1,4 @@
-name: Reusable Test Workflow
+name: GLIDE PHP Tests
 
 on:
   workflow_call:
@@ -13,7 +13,6 @@ on:
         required: true
         type: choice
         options:
-          - standard
           - full
         description: "Test profile"
 
