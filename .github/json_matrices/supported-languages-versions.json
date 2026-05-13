@@ -2,6 +2,10 @@
   {
     "language": "php",
     "versions": ["8.2", "8.3"],
-    "always-run-versions": ["8.2", "8.3"]
+    "always-run-versions": ["8.2", "8.3"],
+    "versioned": [
+      { "version": "8.2", "profiles": ["full"] },
+      { "version": "8.3", "profiles": ["full"] }
+    ]
   }
 ]

@@ -1,0 +1,16 @@
+name: PHP Full Matrix Tests (Nightly)
+
+on:
+  schedule:
+    - cron: "0 9 * * *" # 9:00 UTC Everyday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-matrix-tests:
+    uses: ./.github/workflows/test.yml
+    with:
+      profile: full
+    secrets: inherit

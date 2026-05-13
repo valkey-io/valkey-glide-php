@@ -2,18 +2,22 @@
   {
     "type": "valkey",
     "version": "9.0",
-    "run": "always"
+    "run": "always",
+    "profiles": ["full"]
   },
   {
     "type": "valkey",
-    "version": "8.1"
+    "version": "8.1",
+    "profiles": ["full"]
   },
   {
     "type": "valkey",
-    "version": "8.0"
+    "version": "8.0",
+    "profiles": ["full"]
   },
   {
     "type": "valkey",
-    "version": "7.2"
+    "version": "7.2",
+    "profiles": ["full"]
   }
 ]

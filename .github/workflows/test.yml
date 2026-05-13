@@ -1,0 +1,163 @@
+name: GLIDE PHP Tests
+
+on:
+  workflow_call:
+    inputs:
+      profile:
+        required: true
+        type: string
+        description: "Test profile: standard, full"
+  workflow_dispatch:
+    inputs:
+      profile:
+        required: true
+        type: choice
+        options:
+          - full
+        description: "Test profile"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  load-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      host-matrix: ${{ steps.load.outputs.host-matrix }}
+      container-host-matrix: ${{ steps.load.outputs.container-host-matrix }}
+      engine-matrix: ${{ steps.load.outputs.engine-matrix }}
+      php-matrix: ${{ steps.load.outputs.php-matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/json_matrices
+      - name: Load and filter matrices
+        id: load
+        working-directory: .github/json_matrices
+        env:
+          PROFILE: ${{ inputs.profile }}
+        run: python3 load_matrices.py "$PROFILE"
+
+  test-with-runners:
+    name: PHP ${{ matrix.php }}, ${{ matrix.engine.type }} ${{ matrix.engine.version }}, ${{ matrix.host.TARGET }}
+    needs: load-matrix
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ${{ fromJson(needs.load-matrix.outputs.php-matrix) }}
+        engine: ${{ fromJson(needs.load-matrix.outputs.engine-matrix) }}
+        host: ${{ fromJson(needs.load-matrix.outputs.host-matrix) }}
+    runs-on: ${{ matrix.host.RUNNER }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Output matrix parameters
+        run: |
+          echo "Job running with the following matrix configuration:"
+          echo "${{ toJson(matrix) }}"
+      - name: Build PHP wrapper
+        uses: ./.github/workflows/build-php-wrapper
+        with:
+          os: ${{ matrix.host.OS }}
+          target: ${{ matrix.host.TARGET }}
+          php-version: ${{ matrix.php }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: ${{ matrix.engine.version }}
+      - name: Generate test protobuf PHP classes
+        run: |
+          protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/ ./valkey-glide/glide-core/src/protobuf/connection_request.proto
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+      - name: Run PHP Extension Tests
+        uses: ./.github/workflows/run-php-tests
+        with:
+          extension-path: ${{ github.workspace }}/modules/valkey_glide.so
+          php-version: ${{ matrix.php }}
+      - name: Upload test reports
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-php-${{ matrix.php }}-${{ matrix.engine.type }}-${{ matrix.engine.version }}-${{ matrix.host.OS }}-${{ matrix.host.ARCH }}
+          path: |
+            utils/clusters/**
+            tests/**/*.diff
+            tests/**/*.exp
+            tests/**/*.log
+            tests/**/*.out
+
+  # TODO: See #198 for details.
+  test-with-containers:
+    name: PHP ${{ matrix.php }}, server ${{ matrix.engine.version }}, ${{ matrix.host.IMAGE }}
+    needs: load-matrix
+    if: false
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ${{ fromJson(needs.load-matrix.outputs.php-matrix) }}
+        engine: ${{ fromJson(needs.load-matrix.outputs.engine-matrix) }}
+        host: ${{ fromJson(needs.load-matrix.outputs.container-host-matrix) }}
+    runs-on: ${{ matrix.host.RUNNER }}
+    container:
+      image: ${{ matrix.host.IMAGE }}
+      options: ${{ matrix.host.CONTAINER_OPTIONS }}
+    steps:
+      - name: Install git and dependencies
+        run: |
+          yum update -y
+          yum install -y git tar php php-devel gcc make autoconf automake libtool pkgconfig openssl openssl-devel unzip
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          echo IMAGE=${{ matrix.host.IMAGE }} | sed -r 's/:/-/g' >> $GITHUB_ENV
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/cache@v4
+        with:
+          path: |
+            valkey-glide/ffi/target
+            valkey-glide/glide-core/src/generated
+            include/
+          key: ${{ matrix.host.IMAGE }}-php-${{ matrix.php }}
+          restore-keys: ${{ matrix.host.IMAGE }}-php
+      - name: Build PHP wrapper
+        uses: ./.github/workflows/build-php-wrapper
+        with:
+          os: ${{ matrix.host.OS }}
+          target: ${{ matrix.host.TARGET }}
+          php-version: ${{ matrix.php }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: ${{ matrix.engine.version }}
+      - name: Start Valkey servers
+        working-directory: tests
+        run: |
+          export PATH="/usr/local/bin:$PATH"
+          chmod +x start_valkey_with_replicas.sh create-valkey-cluster.sh
+          ./start_valkey_with_replicas.sh
+          sleep 3
+          ./create-valkey-cluster.sh
+      - name: Run PHP extension tests
+        run: php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php
+      - name: Stop Valkey servers
+        if: always()
+        run: |
+          pkill valkey-server 2>/dev/null || true
+          rm -rf $HOME/valkey-cluster || true
+          rm -rf tests/valkey_data || true
+      - name: Upload test reports
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-php-${{ matrix.php }}-${{ matrix.engine.type }}-${{ matrix.engine.version }}-${{ env.IMAGE }}-${{ matrix.host.ARCH }}
+          path: |
+            utils/clusters/**
+            tests/**/*.diff
+            tests/**/*.exp
+            tests/**/*.log
+            tests/**/*.out
