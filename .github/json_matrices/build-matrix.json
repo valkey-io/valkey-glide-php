@@ -25,7 +25,7 @@
     "ARCH": "arm64",
     "TARGET": "aarch64-apple-darwin",
     "languages": ["python", "node", "java", "go", "dotnet", "php"],
-    "profiles": ["full"]
+    "profiles": []
   },
   {
     "OS": "macos",
