@@ -6,13 +6,16 @@ on:
       profile:
         required: true
         type: string
-        description: "Test profile (test/standard/full)"
+        description: "Test profile: standard, full"
   workflow_dispatch:
     inputs:
       profile:
         required: true
-        type: string
-        description: "Test profile (test/standard/full)"
+        type: choice
+        options:
+          - standard
+          - full
+        description: "Test profile"
 
 permissions:
   contents: read
@@ -89,6 +92,7 @@ jobs:
             tests/**/*.log
             tests/**/*.out
 
+  # TODO: See #198 for details.
   test-with-containers:
     name: PHP ${{ matrix.php }}, server ${{ matrix.engine.version }}, ${{ matrix.host.IMAGE }}
     needs: load-matrix
@@ -107,7 +111,7 @@ jobs:
     steps:
       - name: Install git and dependencies
         run: |
-          yum update
+          yum update -y
           yum install -y git tar php php-devel gcc make autoconf automake libtool pkgconfig openssl openssl-devel unzip
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           echo IMAGE=${{ matrix.host.IMAGE }} | sed -r 's/:/-/g' >> $GITHUB_ENV
