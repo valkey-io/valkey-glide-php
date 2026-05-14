@@ -29,13 +29,18 @@ runs:
     - name: Create Pull Request
       id: create-pr
       uses: actions/github-script@v7
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_TEMP_BRANCH: ${{ inputs.temp-branch }}
+        INPUT_TARGET_BRANCH: ${{ inputs.target-branch }}
+        INPUT_DRY_RUN: ${{ inputs.dry-run }}
       with:
         github-token: ${{ inputs.github-token }}
         script: |
-          const version = '${{ inputs.version }}';
-          const tempBranch = '${{ inputs.temp-branch }}';
-          const targetBranch = '${{ inputs.target-branch }}';
-          const dryRun = '${{ inputs.dry-run }}' === 'true';
+          const version = process.env.INPUT_VERSION;
+          const tempBranch = process.env.INPUT_TEMP_BRANCH;
+          const targetBranch = process.env.INPUT_TARGET_BRANCH;
+          const dryRun = process.env.INPUT_DRY_RUN === 'true';
 
           const prTitle = `Version bump to v${version}`;
           const prBody = `## Version Bump to v${version}
