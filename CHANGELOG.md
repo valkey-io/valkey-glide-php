@@ -1,16 +1,27 @@
 # Changelog
 
-## Unreleased
+## 1.1.0
 
 ### Changes
 
-* PHP: Add Sigstore-based artifact attestation for published PECL packages
-* PHP: Pin all third-party GitHub Actions to SHA commit hashes to mitigate supply chain attacks (CWE-829)
-* PHP: Remove repo-level SECURITY.md to use org-level security policy consistently across all valkey-io repositories
-* PHP: Add FT.* (Vector Search) commands: ftCreate, ftDropIndex, ftList, ftSearch, ftAggregate, ftInfo, ftAliasAdd, ftAliasDel, ftAliasUpdate, ftAliasList for standalone and cluster clients ([#171](https://github.com/valkey-io/valkey-glide-php/pull/171))
-* PHP: Add JSON.SET and JSON.GET commands for standalone and cluster clients ([#184](https://github.com/valkey-io/valkey-glide-php/pull/184))
+* PHP: Add Sigstore-based artifact attestation for published PECL packages ([#189](https://github.com/valkey-io/valkey-glide-php/pull/189))
+* PHP: Pin all third-party GitHub Actions to SHA commit hashes to mitigate supply chain attacks (CWE-829) ([#188](https://github.com/valkey-io/valkey-glide-php/pull/188))
+* PHP: Remove repo-level SECURITY.md to use org-level security policy consistently across all valkey-io repositories ([#187](https://github.com/valkey-io/valkey-glide-php/pull/187))
+* PHP: Implement client-side caching with TTL-based expiration ([#180](https://github.com/valkey-io/valkey-glide-php/pull/180))
+* PHP: Fix memory leaks and resource management issues ([#174](https://github.com/valkey-io/valkey-glide-php/pull/174))
 * PHP: Add transparent compression support for string values ([#186](https://github.com/valkey-io/valkey-glide-php/pull/186))
-* PHP: implement client-side caching with TTL-based expiration ([#180](https://github.com/valkey-io/valkey-glide-php/pull/180))
+* PHP: Add Modules Testing CI ([#173](https://github.com/valkey-io/valkey-glide-php/pull/173))
+* PHP: Add FT.* (Vector Search) commands: ftCreate, ftDropIndex, ftList, ftSearch, ftAggregate, ftInfo, ftAliasAdd, ftAliasDel, ftAliasUpdate, ftAliasList for standalone and cluster clients ([#171](https://github.com/valkey-io/valkey-glide-php/pull/171))
+* PHP: Add JSON commands ([#185](https://github.com/valkey-io/valkey-glide-php/pull/185))
+* PHP: Add JSON.SET and JSON.GET commands for standalone and cluster clients ([#184](https://github.com/valkey-io/valkey-glide-php/pull/184))
+* PHP: Refactor IAM authentication tests ([#151](https://github.com/valkey-io/valkey-glide-php/pull/151))
+* PHP: Add DNS, TLS, and IP address tests ([#157](https://github.com/valkey-io/valkey-glide-php/pull/157))
+* PHP: Update approved license for aws-lc-sys:0.39.0 ([#176](https://github.com/valkey-io/valkey-glide-php/pull/176))
+* PHP: Update PECL installation readme ([#160](https://github.com/valkey-io/valkey-glide-php/pull/160))
+* PHP: Update valkey-glide submodule to latest main ([#154](https://github.com/valkey-io/valkey-glide-php/pull/154))
+* PHP: Implement transparent compression feature ([#150](https://github.com/valkey-io/valkey-glide-php/pull/150))
+* PHP: Add OPT_REPLY_LITERAL option for PHPRedis compatibility ([#120](https://github.com/valkey-io/valkey-glide-php/pull/120))
+* PHP: Add soak tests ([#130](https://github.com/valkey-io/valkey-glide-php/pull/130))
 
 ## 1.0.0
 
