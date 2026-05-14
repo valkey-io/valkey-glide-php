@@ -4,6 +4,7 @@
 
 ### Changes
 
+* PHP: Fix script injection vulnerability in create-version-pr action (CWE-829) ([#206](https://github.com/valkey-io/valkey-glide-php/pull/206))
 * PHP: Add Sigstore-based artifact attestation for published PECL packages ([#189](https://github.com/valkey-io/valkey-glide-php/pull/189))
 * PHP: Pin all third-party GitHub Actions to SHA commit hashes to mitigate supply chain attacks (CWE-829) ([#188](https://github.com/valkey-io/valkey-glide-php/pull/188))
 * PHP: Remove repo-level SECURITY.md to use org-level security policy consistently across all valkey-io repositories ([#187](https://github.com/valkey-io/valkey-glide-php/pull/187))
