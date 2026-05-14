@@ -4,6 +4,7 @@
 
 ### Changes
 
+* PHP: Fix script injection vulnerability in create-version-pr action (CWE-829)
 * PHP: Add Sigstore-based artifact attestation for published PECL packages
 * PHP: Pin all third-party GitHub Actions to SHA commit hashes to mitigate supply chain attacks (CWE-829)
 * PHP: Remove repo-level SECURITY.md to use org-level security policy consistently across all valkey-io repositories
