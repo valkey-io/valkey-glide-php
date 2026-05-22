@@ -1,4 +1,4 @@
-name: PHP Full Matrix Tests (Nightly)
+name: FMT Php
 
 on:
   schedule:
