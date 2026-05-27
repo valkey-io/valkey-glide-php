@@ -76,7 +76,7 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
         $this->assertCount(3, $results);
         $this->assertIsInt($results[0]); // CLIENT ID result (integer)
         // CLIENT GETNAME might return null if no name is set
-        $this->assertEquals('valkey-glide-php', $results[1]); // CLIENT SETNAME result
+        $this->assertFalse($results[1]); // No default client name set
 
         $this->assertGT(0, $results[0]); // Client ID should be positive
     }
