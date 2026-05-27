@@ -4,6 +4,7 @@
 
 ### Changes
 
+* PHP: Set CLIENT SETINFO lib-name=GlidePHP and lib-ver to extension version for proper client identification
 * PHP: Fix script injection vulnerability in create-version-pr action (CWE-829)
 * PHP: Add Sigstore-based artifact attestation for published PECL packages
 * PHP: Pin all third-party GitHub Actions to SHA commit hashes to mitigate supply chain attacks (CWE-829)

@@ -35,7 +35,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         // Verify that CLIENT INFO reports the correct lib-name and lib-ver
         $info_str = $this->valkey_glide->rawcommand(
             ['type' => 'primarySlotKey', 'key' => 'test'],
-            "CLIENT", "INFO"
+            "CLIENT",
+            "INFO"
         );
         $this->assertIsString($info_str);
         $this->assertTrue(
