@@ -434,7 +434,8 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
         AC_MSG_RESULT([Debug: Using fallback CARGO_HOME=$CARGO_HOME_DIR])
       fi
       
-      cd valkey-glide/ffi && CARGO_HOME="$CARGO_HOME_DIR" PATH="$CARGO_DIR:$PATH" CARGO_BUILD_JOBS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") ../../cargo build --release && CARGO_HOME="$CARGO_HOME_DIR" PATH="$CARGO_DIR:$PATH" ../../cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
+      GLIDE_PHP_VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' common.h | sed 's/.*"\([^"]*\)"/\1/' 2>/dev/null || echo "unknown")
+      cd valkey-glide/ffi && GLIDE_NAME=GlidePHP GLIDE_VERSION="$GLIDE_PHP_VERSION" CARGO_HOME="$CARGO_HOME_DIR" PATH="$CARGO_DIR:$PATH" CARGO_BUILD_JOBS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") ../../cargo build --release && CARGO_HOME="$CARGO_HOME_DIR" PATH="$CARGO_DIR:$PATH" ../../cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
       
       dnl Add include guards to the generated header immediately
       if test -f "include/glide_bindings.h"; then

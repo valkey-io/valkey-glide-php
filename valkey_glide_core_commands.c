@@ -185,7 +185,7 @@ uint8_t* create_connection_request(size_t*                                   len
     }
 
     /* Set client name */
-    conn_req.client_name = config->client_name ? config->client_name : "valkey-glide-php";
+    conn_req.client_name = config->client_name ? config->client_name : NULL;
 
     /* Set client AZ */
     if (config->client_az) {
