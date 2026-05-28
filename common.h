@@ -220,6 +220,7 @@ typedef struct {
     zval*     context;           /* Stream context for TLS */
     zval*     compression;       /* Compression configuration */
     zval*     client_side_cache; /* Client-side cache configuration */
+    zval*     address_resolver;  /* Address resolver callable */
     char*     client_name;
     char*     client_az;
     size_t    client_name_len;
@@ -279,6 +280,9 @@ typedef struct {
 
     /* Runtime options (like PHPRedis OPT_* settings) */
     bool opt_reply_literal; /* OPT_REPLY_LITERAL: return "OK" string instead of true */
+
+    /* Address resolver callback (PHP callable) */
+    zval address_resolver; /* PHP callable or IS_UNDEF if not set */
 
     zend_object std; /* MUST be last - PHP allocates extra memory after this */
 } valkey_glide_object;

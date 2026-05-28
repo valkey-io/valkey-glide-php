@@ -411,6 +411,7 @@ class ValkeyGlide
         resource|array|null $context = null,
         ?array $compression = null,
         ?array $client_side_cache = null,
+        ?callable $address_resolver = null,
     ): bool;
 
     public function __destruct();

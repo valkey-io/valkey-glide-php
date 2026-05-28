@@ -42,6 +42,92 @@ extern zend_class_entry* get_valkey_glide_exception_ce();
 extern char* long_to_string(long value, size_t* len);
 extern char* double_to_string(double value, size_t* len);
 
+/*
+ * Address resolver support.
+ *
+ * The FFI AddressResolverCallback is a plain C function pointer with no userdata/context
+ * parameter. We use a process-global to store the PHP callable that the C callback
+ * will invoke. This is safe because:
+ * - During create_client(), the PHP thread is blocked by block_on(), so no PHP code
+ *   is executing when the Rust worker thread calls our callback.
+ * - For background cluster reconnections (after create_client returns), the callback
+ *   will return 0 (fallback to original address) since g_address_resolver_callable
+ *   is cleared after create_client returns.
+ */
+static zval* g_address_resolver_callable = NULL;
+
+/* C callback that bridges to the PHP address resolver callable */
+static uint16_t valkey_glide_address_resolver_callback(
+    const uint8_t* host,
+    uintptr_t      host_len,
+    uint16_t       port,
+    uint8_t*       resolved_host_buf,
+    uintptr_t      resolved_host_buf_len,
+    uintptr_t*     resolved_host_len) {
+
+    if (!g_address_resolver_callable || Z_TYPE_P(g_address_resolver_callable) == IS_UNDEF) {
+        return 0; /* Fallback to original address */
+    }
+
+    /* Build arguments: host (string), port (int) */
+    zval args[2];
+    ZVAL_STRINGL(&args[0], (const char*) host, host_len);
+    ZVAL_LONG(&args[1], port);
+
+    zval retval;
+    ZVAL_UNDEF(&retval);
+
+    /* Call the PHP callable */
+    if (call_user_function(NULL, NULL, g_address_resolver_callable, &retval, 2, args) != SUCCESS ||
+        Z_TYPE(retval) == IS_UNDEF) {
+        zval_ptr_dtor(&args[0]);
+        return 0; /* Fallback to original address */
+    }
+
+    zval_ptr_dtor(&args[0]);
+
+    /* Expect return value to be an array ['host' => string, 'port' => int] */
+    if (Z_TYPE(retval) != IS_ARRAY) {
+        zval_ptr_dtor(&retval);
+        return 0;
+    }
+
+    zval* resolved_host_zval = zend_hash_str_find(Z_ARRVAL(retval), "host", sizeof("host") - 1);
+    zval* resolved_port_zval = zend_hash_str_find(Z_ARRVAL(retval), "port", sizeof("port") - 1);
+
+    if (!resolved_host_zval || Z_TYPE_P(resolved_host_zval) != IS_STRING ||
+        !resolved_port_zval) {
+        zval_ptr_dtor(&retval);
+        return 0;
+    }
+
+    /* Copy resolved host into the buffer */
+    size_t resolved_len = Z_STRLEN_P(resolved_host_zval);
+    if (resolved_len > resolved_host_buf_len) {
+        resolved_len = resolved_host_buf_len;
+    }
+    memcpy(resolved_host_buf, Z_STRVAL_P(resolved_host_zval), resolved_len);
+    *resolved_host_len = resolved_len;
+
+    uint16_t resolved_port = (uint16_t) zval_get_long(resolved_port_zval);
+
+    zval_ptr_dtor(&retval);
+    return resolved_port;
+}
+
+
+/* Set the thread-local PHP callable for the address resolver */
+void valkey_glide_set_address_resolver(zval* callable) {
+    g_address_resolver_callable = callable;
+}
+
+/* Get the C callback pointer if a PHP callable is set, otherwise return NULL (0) */
+AddressResolverCallback valkey_glide_get_address_resolver_callback(zval* callable) {
+    if (callable && Z_TYPE_P(callable) != IS_UNDEF && Z_TYPE_P(callable) != IS_NULL) {
+        return valkey_glide_address_resolver_callback;
+    }
+    return (AddressResolverCallback) 0;
+}
 
 /* Create a connection request in protobuf format. Made visible for testing. */
 uint8_t* create_connection_request(size_t*                                   len,
@@ -263,7 +349,8 @@ static const ConnectionResponse* create_base_glide_client(
     valkey_glide_base_client_configuration_t* config,
     valkey_glide_periodic_checks_status_t     periodic_checks,
     bool                                      is_cluster,
-    bool                                      refresh_topology_from_initial_nodes) {
+    bool                                      refresh_topology_from_initial_nodes,
+    AddressResolverCallback                   address_resolver) {
     size_t   len;
     uint8_t* request_bytes = create_connection_request(
         &len, config, periodic_checks, is_cluster, refresh_topology_from_initial_nodes);
@@ -276,9 +363,10 @@ static const ConnectionResponse* create_base_glide_client(
     ClientType client_type;
     client_type.tag = SyncClient;
 
-    /* Create the client with pubsub callback registered at creation time */
+    /* Create the client with pubsub callback and address resolver registered at creation time */
     const ConnectionResponse* conn_resp =
-        create_client(request_bytes, len, &client_type, valkey_glide_pubsub_callback);
+        create_client(request_bytes, len, &client_type, valkey_glide_pubsub_callback,
+                      address_resolver);
 
     /* Free the request bytes as they're no longer needed */
     efree(request_bytes);
@@ -292,16 +380,20 @@ static const ConnectionResponse* create_base_glide_client(
 }
 
 /* Create a Valkey Glide client */
-const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config) {
-    return create_base_glide_client(config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false);
+const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config,
+                                              AddressResolverCallback address_resolver) {
+    return create_base_glide_client(config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false,
+                                    address_resolver);
 }
 
 const ConnectionResponse* create_glide_cluster_client(
-    valkey_glide_cluster_client_configuration_t* config) {
+    valkey_glide_cluster_client_configuration_t* config,
+    AddressResolverCallback                      address_resolver) {
     return create_base_glide_client(&config->base,
                                     config->periodic_checks_status,
                                     true,
-                                    config->refresh_topology_from_initial_nodes);
+                                    config->refresh_topology_from_initial_nodes,
+                                    address_resolver);
 }
 
 /* Custom result processor for SET commands with GET option support */

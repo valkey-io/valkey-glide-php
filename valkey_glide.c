@@ -182,6 +182,7 @@ void valkey_glide_init_common_constructor_params(
     params->context                 = NULL;
     params->compression             = NULL;
     params->client_side_cache       = NULL;
+    params->address_resolver        = NULL;
 }
 
 int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
@@ -662,6 +663,12 @@ void free_valkey_glide_object(zend_object* object) {
         valkey_glide->glide_client = NULL;
     }
 
+    /* Clean up address resolver callable */
+    if (Z_TYPE(valkey_glide->address_resolver) != IS_UNDEF) {
+        zval_ptr_dtor(&valkey_glide->address_resolver);
+        ZVAL_UNDEF(&valkey_glide->address_resolver);
+    }
+
     /* Clean up the standard object */
     zend_object_std_dtor(&valkey_glide->std);
 }
@@ -818,7 +825,8 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
                                           zval*                lazy_connect_zval,
                                           zval*                context,
                                           zval*                compression,
-                                          zval*                client_side_cache) {
+                                          zval*                client_side_cache,
+                                          zval*                address_resolver) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
 
@@ -917,7 +925,11 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     }
 
     /* Issue the connection request. */
-    const ConnectionResponse* conn_resp = create_glide_client(&client_config);
+    valkey_glide_set_address_resolver(address_resolver);
+    AddressResolverCallback resolver_cb =
+        valkey_glide_get_address_resolver_callback(address_resolver);
+    const ConnectionResponse* conn_resp = create_glide_client(&client_config, resolver_cb);
+    valkey_glide_set_address_resolver(NULL);
 
     /* Clean up temporary addresses array if we created it */
     if (created_addresses) {
@@ -935,6 +947,12 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
 
     VALKEY_LOG_INFO("valkey_glide_create_connection", "ValkeyGlide client connected successfully");
     valkey_glide->glide_client = conn_resp->conn_ptr;
+
+    /* Store the address resolver callable for the lifetime of the client */
+    if (address_resolver && Z_TYPE_P(address_resolver) != IS_NULL &&
+        Z_TYPE_P(address_resolver) != IS_UNDEF) {
+        ZVAL_COPY(&valkey_glide->address_resolver, address_resolver);
+    }
 
     free_connection_response((ConnectionResponse*) conn_resp);
 
@@ -979,8 +997,9 @@ PHP_METHOD(ValkeyGlide, connect) {
     zval*  context              = NULL;
     zval*  compression          = NULL;
     zval*  client_side_cache    = NULL;
+    zval*  address_resolver     = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(0, 20)
+    ZEND_PARSE_PARAMETERS_START(0, 21)
     Z_PARAM_OPTIONAL
     Z_PARAM_STRING_OR_NULL(host, host_len)
     Z_PARAM_ZVAL_OR_NULL(port_zval)
@@ -1002,6 +1021,7 @@ PHP_METHOD(ValkeyGlide, connect) {
     Z_PARAM_ZVAL_OR_NULL(context)
     Z_PARAM_ARRAY_OR_NULL(compression)
     Z_PARAM_ARRAY_OR_NULL(client_side_cache)
+    Z_PARAM_ZVAL_OR_NULL(address_resolver)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* Apply defaults for nullable parameters */
@@ -1074,7 +1094,8 @@ PHP_METHOD(ValkeyGlide, connect) {
                                                 lazy_connect_zval,
                                                 context,
                                                 compression,
-                                                client_side_cache);
+                                                client_side_cache,
+                                                address_resolver);
 
     /* Clean up temporary addresses array if we created it */
     if (host != NULL) {

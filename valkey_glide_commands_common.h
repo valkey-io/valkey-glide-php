@@ -116,10 +116,12 @@ void free_command_response(CommandResponse* command_response_ptr);
 void free_command_result(CommandResult* command_result_ptr);
 
 /* Helper functions for Valkey Glide integration */
-const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config);
+const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config,
+                                              AddressResolverCallback address_resolver);
 
 const ConnectionResponse* create_glide_cluster_client(
-    valkey_glide_cluster_client_configuration_t* config);
+    valkey_glide_cluster_client_configuration_t* config,
+    AddressResolverCallback                      address_resolver);
 
 /* Return the protobuf message representing the connection request. Caller must free the result with
  * efree() */
@@ -128,6 +130,13 @@ uint8_t* create_connection_request(size_t*                                   len
                                    valkey_glide_periodic_checks_status_t     periodic_checks,
                                    bool                                      is_cluster,
                                    bool refresh_topology_from_initial_nodes);
+
+/* Address resolver support.
+ * Sets the thread-local PHP callable used by the address resolver C callback.
+ * Must be called before create_glide_client/create_glide_cluster_client.
+ * Pass NULL to clear. */
+void                    valkey_glide_set_address_resolver(zval* callable);
+AddressResolverCallback valkey_glide_get_address_resolver_callback(zval* callable);
 
 /* Bit operations - UNIFIED SIGNATURES */
 int execute_bitcount_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
