@@ -185,34 +185,26 @@ $not_supported_in_valkey = [
 // ============================================================================
 
 $not_compatible = [
-    // PHPRedis hexpire/hpexpire/hexpireat/hpexpireat take (key, ttl, fields_array, mode)
-    // Glide takes (key, ttl, mode, field, ...other_fields) - different argument order
+    // PHPRedis: hExpire(key, fields_array, ttl, mode) - fields as array, mode after ttl
+    // Glide:    hExpire(key, ttl, mode, field, ...other_fields) - mode before fields, variadic fields
+    // Differences: (1) argument order (mode before fields), (2) variadic fields instead of array
     'hexpire', 'hpexpire', 'hexpireat', 'hpexpireat',
 
-    // PHPRedis httl/hpttl/hexpiretime/hpexpiretime take (key, fields_array)
-    // Glide takes (key, field, ...other_fields) - variadic vs array
+    // PHPRedis: hTtl(key, fields_array) - fields as array
+    // Glide:    hTtl(key, field, ...other_fields) - variadic fields instead of array
     'httl', 'hpttl', 'hexpiretime', 'hpexpiretime',
 
-    // PHPRedis hpersist takes (key, fields_array)
-    // Glide takes (key, field, ...other_fields)
+    // PHPRedis: hPersist(key, fields_array) - fields as array
+    // Glide:    hPersist(key, field, ...other_fields) - variadic fields instead of array
     'hpersist',
 
-    // PHPRedis hgetex takes (key, fields_array, expiry)
-    // Glide takes (key, fields_array, options) - similar but options format differs
+    // PHPRedis: hGetEx(key, fields_array, expiry) - expiry as positional args
+    // Glide:    hGetEx(key, fields_array, options) - options as associative array
     'hgetex',
 
-    // PHPRedis hsetex takes (key, fields_array, expiry)
-    // Glide has hSetEx with different signature (key, seconds, mode, field, value, ...)
+    // PHPRedis: hSetEx(key, fields_array, expiry) - fields as associative array
+    // Glide:    hSetEx(key, seconds, mode, field, value, ...) - variadic field/value pairs
     'hsetex',
-
-    // PHPRedis hgetdel takes (key, fields_array)
-    // Glide doesn't have hgetdel (it has hGetDel but not in the stub - actually not listed)
-    // Actually let's check - removing from here if not implemented
-
-    // PHPRedis connect() has completely different signature than Glide's connect()
-    // PHPRedis: connect(host, port, timeout, persistent_id, retry_interval, read_timeout, context)
-    // Glide: connect(host, port, addresses, use_tls, credentials, ...)
-    // But connect is not in our command list - it's connection management
 ];
 
 // ============================================================================
@@ -451,10 +443,14 @@ $cluster_not_supported_in_valkey = [
 ];
 
 $cluster_not_compatible = [
-    // PHPRedis cluster hexpire/hpexpire/etc take (key, ttl, fields_array, mode)
-    // Glide cluster takes (key, ttl, mode, field, ...other_fields)
+    // PHPRedis: hExpire(key, fields_array, ttl, mode) - fields as array, mode after ttl
+    // Glide:    hExpire(key, ttl, mode, field, ...other_fields) - mode before fields, variadic fields
     'hexpire', 'hpexpire', 'hexpireat', 'hpexpireat',
+    // PHPRedis: hTtl(key, fields_array) / hPersist(key, fields_array) - fields as array
+    // Glide:    hTtl(key, field, ...other_fields) - variadic fields instead of array
     'httl', 'hpttl', 'hexpiretime', 'hpexpiretime', 'hpersist',
+    // PHPRedis: hGetEx(key, fields_array, expiry) / hSetEx(key, fields_array, expiry)
+    // Glide:    hGetEx(key, fields, options) / hSetEx(key, seconds, mode, field, value, ...)
     'hgetex', 'hsetex',
 ];
 
