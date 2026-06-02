@@ -2,17 +2,11 @@
 
 defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
 
-require_once __DIR__ . '/ValkeyGlideBaseTest.php';
+require_once __DIR__ . '/ValkeyGlideClusterBaseTest.php';
 require_once __DIR__ . '/TestConstants.php';
 
-/**
- * Integration tests for the AddressResolver feature.
- */
-class AddressResolverTest extends ValkeyGlideBaseTest
+class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
 {
-    /**
-     * Resolver maps a fake host/port to the real server — ping() succeeds.
-     */
     public function testAddressResolverWithFakeAddress()
     {
         $this->skipIfTlsEnabled();
@@ -24,8 +18,7 @@ class AddressResolverTest extends ValkeyGlideBaseTest
             return ['host' => $realHost, 'port' => $realPort];
         };
 
-        $client = new ValkeyGlide();
-        $client->connect(
+        $client = new ValkeyGlideCluster(
             addresses: [['host' => 'fake.nonexistent.host', 'port' => 9999]],
             address_resolver: $resolver,
         );
@@ -34,9 +27,6 @@ class AddressResolverTest extends ValkeyGlideBaseTest
         $client->close();
     }
 
-    /**
-     * Resolver throws an exception — client falls back to original address, ping() succeeds.
-     */
     public function testAddressResolverExceptionFallsBackToOriginal()
     {
         $this->skipIfTlsEnabled();
@@ -47,8 +37,7 @@ class AddressResolverTest extends ValkeyGlideBaseTest
             throw new RuntimeException("resolver error");
         };
 
-        $client = new ValkeyGlide();
-        $client->connect(
+        $client = new ValkeyGlideCluster(
             addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
             address_resolver: $resolver,
         );
@@ -58,9 +47,6 @@ class AddressResolverTest extends ValkeyGlideBaseTest
         $client->close();
     }
 
-    /**
-     * Resolver returns invalid data (null) — client falls back to original address, ping() succeeds.
-     */
     public function testAddressResolverReturnsInvalidFallsBackToOriginal()
     {
         $this->skipIfTlsEnabled();
@@ -71,8 +57,7 @@ class AddressResolverTest extends ValkeyGlideBaseTest
             return null;
         };
 
-        $client = new ValkeyGlide();
-        $client->connect(
+        $client = new ValkeyGlideCluster(
             addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
             address_resolver: $resolver,
         );
@@ -83,7 +68,7 @@ class AddressResolverTest extends ValkeyGlideBaseTest
     }
 
     /**
-     * Two clients with different resolvers don't interfere with each other.
+     * Two cluster clients with different resolvers don't interfere with each other.
      */
     public function testMultiClientResolversAreIsolated()
     {
@@ -104,14 +89,12 @@ class AddressResolverTest extends ValkeyGlideBaseTest
             return ['host' => $realHost, 'port' => $realPort];
         };
 
-        $clientA = new ValkeyGlide();
-        $clientA->connect(
+        $clientA = new ValkeyGlideCluster(
             addresses: [['host' => 'fake-a.nonexistent', 'port' => 9998]],
             address_resolver: $resolverA,
         );
 
-        $clientB = new ValkeyGlide();
-        $clientB->connect(
+        $clientB = new ValkeyGlideCluster(
             addresses: [['host' => 'fake-b.nonexistent', 'port' => 9999]],
             address_resolver: $resolverB,
         );
@@ -125,15 +108,11 @@ class AddressResolverTest extends ValkeyGlideBaseTest
         $clientB->close();
     }
 
-    /**
-     * No resolver — normal connection works.
-     */
     public function testNullAddressResolverConnectsNormally()
     {
         $this->skipIfTlsEnabled();
 
-        $client = new ValkeyGlide();
-        $client->connect(
+        $client = new ValkeyGlideCluster(
             addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
             address_resolver: null,
         );
