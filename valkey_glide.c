@@ -636,12 +636,12 @@ PHP_MINIT_FUNCTION(valkey_glide) {
 
 PHP_MSHUTDOWN_FUNCTION(valkey_glide) {
     valkey_glide_pubsub_shutdown();
-    valkey_glide_clear_address_resolver();
+    valkey_glide_resolver_shutdown();
     return SUCCESS;
 }
 
 PHP_RSHUTDOWN_FUNCTION(valkey_glide) {
-    valkey_glide_clear_address_resolver();
+    valkey_glide_resolver_shutdown();
     return SUCCESS;
 }
 
@@ -665,6 +665,12 @@ void free_valkey_glide_object(zend_object* object) {
 
     /* Free buffered batch commands if object is destroyed mid-batch */
     valkey_glide_clear_batch_state(valkey_glide);
+
+    /* Release address resolver slot before closing client */
+    if (valkey_glide->resolver_cb) {
+        valkey_glide_resolver_release(valkey_glide->resolver_cb);
+        valkey_glide->resolver_cb = NULL;
+    }
 
     /* Free the Valkey Glide client if it exists */
     if (valkey_glide->glide_client) {
@@ -932,7 +938,8 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     }
 
     /* Issue the connection request. */
-    const ConnectionResponse* conn_resp = create_glide_client(&client_config);
+    AddressResolverCallback resolver_cb = NULL;
+    const ConnectionResponse* conn_resp = create_glide_client(&client_config, &resolver_cb);
 
     /* Clean up temporary addresses array if we created it */
     if (created_addresses) {
@@ -943,6 +950,7 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
         VALKEY_LOG_ERROR("valkey_glide_create_connection", conn_resp->connection_error_message);
         zend_throw_exception(
             get_valkey_glide_exception_ce(), conn_resp->connection_error_message, 0);
+        valkey_glide_resolver_release(resolver_cb);
         free_connection_response((ConnectionResponse*) conn_resp);
         valkey_glide_cleanup_client_config(&client_config);
         return FAILURE;
@@ -950,6 +958,7 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
 
     VALKEY_LOG_INFO("valkey_glide_create_connection", "ValkeyGlide client connected successfully");
     valkey_glide->glide_client = conn_resp->conn_ptr;
+    valkey_glide->resolver_cb  = resolver_cb;
 
     free_connection_response((ConnectionResponse*) conn_resp);
 
@@ -1124,6 +1133,11 @@ PHP_METHOD(ValkeyGlide, close) {
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
 
     valkey_glide_clear_batch_state(valkey_glide);
+
+    if (valkey_glide->resolver_cb) {
+        valkey_glide_resolver_release(valkey_glide->resolver_cb);
+        valkey_glide->resolver_cb = NULL;
+    }
 
     if (valkey_glide->glide_client) {
         close_glide_client(valkey_glide->glide_client);

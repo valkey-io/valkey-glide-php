@@ -103,14 +103,20 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
   dnl Add FFI library only for macOS (keep Mac working as before)
   case $host_os in
     darwin*)
-      VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD \$(top_builddir)/valkey-glide/ffi/target/release/libglide_ffi.a -lresolv"
+      VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD \$(top_builddir)/valkey-glide/ffi/target/release/libglide_ffi.a -lresolv -lffi"
       LDFLAGS="$LDFLAGS -Wl,-undefined,dynamic_lookup"
       ;;
     *)
       dnl Add Rust FFI library linking for Linux (like working commit)
-      VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD \$(top_builddir)/valkey-glide/ffi/target/release/libglide_ffi.a -lresolv"
+      VALKEY_GLIDE_SHARED_LIBADD="$VALKEY_GLIDE_SHARED_LIBADD \$(top_builddir)/valkey-glide/ffi/target/release/libglide_ffi.a -lresolv -lffi"
       ;;
   esac
+
+  dnl Add libffi headers
+  LIBFFI_INCDIR=$(pkg-config --variable=includedir libffi 2>/dev/null)
+  if test -n "$LIBFFI_INCDIR"; then
+    PHP_ADD_INCLUDE($LIBFFI_INCDIR)
+  fi
   
   PHP_SUBST(VALKEY_GLIDE_SHARED_LIBADD)
 

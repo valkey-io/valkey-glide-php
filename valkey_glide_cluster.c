@@ -90,18 +90,21 @@ static int valkey_glide_cluster_create_connection(
     }
 
     /* Issue the connection request. */
-    const ConnectionResponse* conn_resp = create_glide_cluster_client(&client_config);
+    AddressResolverCallback   resolver_cb = NULL;
+    const ConnectionResponse* conn_resp = create_glide_cluster_client(&client_config, &resolver_cb);
 
     if (conn_resp->connection_error_message) {
         VALKEY_LOG_ERROR("cluster_construct", conn_resp->connection_error_message);
         zend_throw_exception(
             get_valkey_glide_exception_ce(), conn_resp->connection_error_message, 0);
+        valkey_glide_resolver_release(resolver_cb);
         free_connection_response((ConnectionResponse*) conn_resp);
         valkey_glide_cleanup_client_config(&client_config.base);
         return FAILURE;
     } else {
         VALKEY_LOG_INFO("cluster_construct", "ValkeyGlide cluster client created successfully");
         valkey_glide->glide_client = conn_resp->conn_ptr;
+        valkey_glide->resolver_cb  = resolver_cb;
     }
 
     free_connection_response((ConnectionResponse*) conn_resp);
@@ -288,6 +291,11 @@ PHP_METHOD(ValkeyGlideCluster, close) {
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
 
     valkey_glide_clear_batch_state(valkey_glide);
+
+    if (valkey_glide->resolver_cb) {
+        valkey_glide_resolver_release(valkey_glide->resolver_cb);
+        valkey_glide->resolver_cb = NULL;
+    }
 
     if (valkey_glide->glide_client) {
         close_glide_client(valkey_glide->glide_client);

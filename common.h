@@ -8,6 +8,7 @@
 #include <zend_smart_str.h>
 
 #include "include/glide_bindings.h"
+#include "valkey_glide_address_resolver.h"
 
 /* ValkeyGlidePHP version */
 #define VALKEY_GLIDE_PHP_VERSION "1.0.0"
@@ -281,6 +282,8 @@ typedef struct {
 
     /* Runtime options (like PHPRedis OPT_* settings) */
     bool opt_reply_literal; /* OPT_REPLY_LITERAL: return "OK" string instead of true */
+
+    AddressResolverCallback resolver_cb; /* NULL if no address resolver */
 
     zend_object std; /* MUST be last - PHP allocates extra memory after this */
 } valkey_glide_object;
