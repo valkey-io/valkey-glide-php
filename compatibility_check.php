@@ -8,7 +8,7 @@
  * Categories:
  * 1. Compatible APIs - Methods implemented in Glide that match PHPRedis
  * 2. Not Compatible APIs - Methods in PHPRedis with different signatures/behavior in Glide
- * 3. Not Supported in Valkey - PHPRedis methods for commands not supported by Valkey engine
+ * 3. Excluded from Comparison - PHPRedis methods not applicable (Redis/KeyDB-only or Valkey-only)
  * 4. Not Implemented - Commands supported by Valkey but not yet implemented in Glide
  *
  * Usage: php compatibility_check.php
@@ -113,63 +113,44 @@ $phpredis_commands = [
 ];
 
 // ============================================================================
-// Glide PHP implemented methods (from valkey_glide.stub.php)
+// Glide PHP implemented methods (derived dynamically via reflection)
 // ============================================================================
 
-$glide_commands = [
-    'append', 'bitcount', 'bitop', 'bitpos', 'blPop', 'brPop', 'bzPopMax', 'bzPopMin',
-    'bzmpop', 'zmpop', 'blmpop', 'lmpop', 'client', 'close', 'config', 'copy',
-    'dbSize', 'decr', 'decrBy', 'del', 'discard', 'dump', 'echo', 'eval', 'evalsha',
-    'eval_ro', 'evalsha_ro', 'exec', 'exists', 'expire', 'expireAt', 'expiretime',
-    'pexpiretime', 'fcall', 'fcall_ro', 'flushAll', 'flushDB', 'function', 'geoadd',
-    'geodist', 'geohash', 'geopos', 'geosearch', 'geosearchstore', 'get', 'getBit',
-    'getEx', 'getDel', 'getRange', 'lcs', 'getset', 'hDel', 'hExists', 'hGet',
-    'hGetAll', 'hIncrBy', 'hIncrByFloat', 'hKeys', 'hLen', 'hMget', 'hMset',
-    'hRandField', 'hSet', 'hSetNx', 'hStrLen', 'hVals', 'hSetEx', 'hPSetEx',
-    'hGetEx', 'hExpire', 'hPExpire', 'hExpireAt', 'hPExpireAt', 'hTtl', 'hPTtl',
-    'hExpireTime', 'hPExpireTime', 'hPersist', 'hscan', 'incr', 'incrBy',
-    'incrByFloat', 'info', 'lInsert', 'lLen', 'lMove', 'blmove', 'lPop', 'lPos',
-    'lPush', 'rPush', 'lPushx', 'rPushx', 'lSet', 'lindex', 'lrange', 'lrem',
-    'ltrim', 'mget', 'move', 'mset', 'msetnx', 'multi', 'object', 'persist',
-    'pexpire', 'pexpireAt', 'pfadd', 'pfcount', 'pfmerge', 'ping', 'pipeline',
-    'psetex', 'psubscribe', 'pttl', 'publish', 'pubsub', 'punsubscribe', 'rPop',
-    'randomKey', 'rawcommand', 'rename', 'renameNx', 'restore', 'sAdd', 'sDiff',
-    'sDiffStore', 'sInter', 'sintercard', 'sInterStore', 'sMembers', 'sMisMember',
-    'sMove', 'sPop', 'sRandMember', 'sUnion', 'sUnionStore', 'scan', 'scard',
-    'select', 'set', 'setBit', 'setRange', 'setex', 'setnx', 'sismember', 'touch',
-    'sort', 'sort_ro', 'srem', 'sscan', 'strlen', 'subscribe', 'time', 'ttl',
-    'type', 'unlink', 'unsubscribe', 'unwatch', 'watch', 'wait', 'xack', 'xadd',
-    'xautoclaim', 'xclaim', 'xdel', 'xgroup', 'xinfo', 'xlen', 'xpending',
-    'xrange', 'xread', 'xreadgroup', 'xrevrange', 'xtrim', 'zAdd', 'zCard',
-    'zCount', 'zIncrBy', 'zLexCount', 'zMscore', 'zPopMax', 'zPopMin', 'zRange',
-    'zRangeByLex', 'zRangeByScore', 'zrangestore', 'zRandMember', 'zRank', 'zRem',
-    'zRemRangeByLex', 'zRemRangeByRank', 'zRemRangeByScore', 'zRevRangeByScore',
-    'zRevRank', 'zScore', 'zdiff', 'zdiffstore', 'zinter', 'zintercard',
-    'zinterstore', 'zscan', 'zunion', 'zunionstore', 'setOption', 'getOption',
-    'script', 'functionLoad', 'functionList', 'functionFlush', 'functionDelete',
-    'functionDump', 'functionRestore', 'functionKill', 'functionStats',
-    'scriptExists', 'scriptFlush', 'scriptKill', 'scriptShow',
-];
+$glide_internal_methods = ['__construct', '__destruct', 'connect', 'registerPHPRedisAliases', 'setOtelSamplePercentage'];
+
+if (!extension_loaded('valkey_glide')) {
+    fprintf(STDERR, "Error: valkey_glide extension is not loaded. Install it first.\n");
+    exit(1);
+}
+
+$glide_commands = array_values(array_diff(
+    array_map(fn($m) => $m->getName(), (new ReflectionClass('ValkeyGlide'))->getMethods(ReflectionMethod::IS_PUBLIC)),
+    $glide_internal_methods
+));
 
 // ============================================================================
-// Commands NOT supported in Valkey itself (Redis-only, KeyDB-only, or too new)
-// These are PHPRedis methods that target features not available in Valkey
+// Commands excluded from compatibility comparison
+// These PHPRedis methods are not meaningful compatibility targets because they
+// are either: not available in Valkey (Redis 8+/KeyDB-only), or available in
+// Valkey but not present in PHPRedis (Valkey-specific commands).
 // ============================================================================
 
-$not_supported_in_valkey = [
+$excluded_from_comparison = [
     // Vector set commands (Redis 8+ only, not in Valkey)
     'vadd', 'vsim', 'vcard', 'vdim', 'vinfo', 'vismember', 'vemb', 'vrandmember',
     'vrange', 'vrem', 'vsetattr', 'vgetattr', 'vlinks',
 
-    // Redis 8+ specific commands not in Valkey
+    // Redis 8+ specific commands (not in Valkey)
     'msetex',       // MSETEX - Redis 8+
     'delex',        // DELEX - Redis 8+
-    'delifeq',      // DELIFEQ - Valkey 9+ (but not standard PHPRedis target)
     'xdelex',       // XDELEX - Redis 8+
     'digest',       // DIGEST - Redis 8+
     'getWithMeta',  // GETWITHMETA - Redis 8+
     'hGetWithMeta', // HGETWITHMETA - Redis 8+
-    'waitaof',      // WAITAOF - Redis 7.2+ (available in Valkey but not core PHPRedis compat target)
+
+    // Valkey-specific commands (supported in Valkey but not in PHPRedis)
+    'delifeq',      // DELIFEQ - Valkey 9+
+    'waitaof',      // WAITAOF - available in Valkey, not a PHPRedis compat target
 
     // KeyDB-specific commands
     'expiremember',   // KeyDB only
@@ -221,7 +202,7 @@ function normalize($commands) {
 
 $phpredis_norm = normalize($phpredis_commands);
 $glide_norm = normalize($glide_commands);
-$not_supported_norm = normalize($not_supported_in_valkey);
+$not_supported_norm = normalize($excluded_from_comparison);
 $not_compatible_norm = normalize($not_compatible);
 
 // ============================================================================
@@ -266,7 +247,7 @@ printf("║  1. Compatible APIs:              %3d / %3d  (%5.1f%%)              
     count($compatible), $total, count($compatible) / $total * 100);
 printf("║  2. Not Compatible APIs:          %3d / %3d  (%5.1f%%)              ║\n",
     count($incompatible), $total, count($incompatible) / $total * 100);
-printf("║  3. Not Supported in Valkey:      %3d / %3d  (%5.1f%%)              ║\n",
+printf("║  3. Excluded from Comparison:     %3d / %3d  (%5.1f%%)              ║\n",
     count($unsupported), $total, count($unsupported) / $total * 100);
 printf("║  4. Not Implemented:              %3d / %3d  (%5.1f%%)              ║\n",
     count($not_implemented), $total, count($not_implemented) / $total * 100);
@@ -293,7 +274,7 @@ foreach ($incompatible as $cmd) {
 echo "\n";
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-echo "3. NOT SUPPORTED IN VALKEY (" . count($unsupported) . ") - Redis/KeyDB only\n";
+echo "3. EXCLUDED FROM COMPARISON (" . count($unsupported) . ") - Redis/KeyDB-only or Valkey-only\n";
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 foreach ($unsupported as $cmd) {
     echo "  - $cmd\n";
@@ -319,7 +300,7 @@ $md .= "| Category | Count | Percentage |\n";
 $md .= "|----------|------:|-----------:|\n";
 $md .= sprintf("| Compatible APIs | %d | %.1f%% |\n", count($compatible), count($compatible) / $total * 100);
 $md .= sprintf("| Not Compatible APIs | %d | %.1f%% |\n", count($incompatible), count($incompatible) / $total * 100);
-$md .= sprintf("| Not Supported in Valkey | %d | %.1f%% |\n", count($unsupported), count($unsupported) / $total * 100);
+$md .= sprintf("| Excluded from Comparison | %d | %.1f%% |\n", count($unsupported), count($unsupported) / $total * 100);
 $md .= sprintf("| Not Implemented | %d | %.1f%% |\n", count($not_implemented), count($not_implemented) / $total * 100);
 $md .= sprintf("| **Total** | **%d** | **100.0%%** |\n", $total);
 
@@ -333,8 +314,8 @@ foreach ($incompatible as $cmd) {
     $md .= "- `$cmd`\n";
 }
 
-$md .= "\n## 3. Not Supported in Valkey (" . count($unsupported) . ")\n\n";
-$md .= "PHPRedis commands for features not available in the Valkey engine (Redis 8+, KeyDB, etc.).\n\n";
+$md .= "\n## 3. Excluded from Comparison (" . count($unsupported) . ")\n\n";
+$md .= "PHPRedis commands excluded from compatibility comparison (Redis 8+/KeyDB-only, or Valkey-only commands not in PHPRedis).\n\n";
 foreach ($unsupported as $cmd) {
     $md .= "- `$cmd`\n";
 }
@@ -392,52 +373,12 @@ $phpredis_cluster_commands = [
     'getWithMeta', 'hgetWithMeta',
 ];
 
-$glide_cluster_commands = [
-    'append', 'bitcount', 'bitop', 'bitpos', 'blPop', 'brPop', 'lMove', 'blmove',
-    'bzPopMax', 'bzPopMin', 'bzmpop', 'zmpop', 'blmpop', 'lmpop', 'client', 'close',
-    'copy', 'dbSize', 'decr', 'decrBy', 'del', 'discard', 'dump', 'echo', 'eval',
-    'eval_ro', 'evalsha', 'evalsha_ro', 'exec', 'exists', 'touch', 'expire',
-    'expireAt', 'expiretime', 'pexpiretime', 'flushAll', 'flushDB', 'geoadd',
-    'geodist', 'geohash', 'geopos', 'geosearch', 'geosearchstore', 'get', 'getDel',
-    'getEx', 'getBit', 'getRange', 'lcs', 'getset', 'hDel', 'hExists', 'hGet',
-    'hGetAll', 'hIncrBy', 'hIncrByFloat', 'hKeys', 'hLen', 'hMget', 'hMset',
-    'hscan', 'hRandField', 'hSet', 'hSetNx', 'hStrLen', 'hVals', 'hSetEx',
-    'hPSetEx', 'hGetEx', 'hExpire', 'hPExpire', 'hExpireAt', 'hPExpireAt', 'hTtl',
-    'hPTtl', 'hExpireTime', 'hPExpireTime', 'hPersist', 'incr', 'incrBy',
-    'incrByFloat', 'info', 'lindex', 'lInsert', 'lLen', 'lPop', 'lPos', 'lPush',
-    'lPushx', 'lrange', 'lrem', 'lSet', 'ltrim', 'mget', 'mset', 'msetnx',
-    'multi', 'pipeline', 'object', 'persist', 'pexpire', 'pexpireAt', 'pfadd',
-    'pfcount', 'pfmerge', 'ping', 'psetex', 'psubscribe', 'pttl', 'publish',
-    'pubsub', 'punsubscribe', 'randomKey', 'rawcommand', 'rename', 'renameNx',
-    'restore', 'rPop', 'rPush', 'rPushx', 'sAdd', 'scan', 'scard', 'script',
-    'sDiff', 'sDiffStore', 'set', 'setBit', 'setex', 'setnx', 'setRange',
-    'sInter', 'sintercard', 'sInterStore', 'sismember', 'sMisMember', 'sMembers',
-    'sMove', 'sort', 'sort_ro', 'sPop', 'sRandMember', 'srem', 'sscan', 'strlen',
-    'subscribe', 'sUnion', 'sUnionStore', 'time', 'ttl', 'type', 'unsubscribe',
-    'unlink', 'unwatch', 'watch', 'xack', 'xadd', 'xautoclaim', 'xclaim', 'xdel',
-    'xgroup', 'xinfo', 'xlen', 'xpending', 'xrange', 'xread', 'xreadgroup',
-    'xrevrange', 'xtrim', 'zAdd', 'zCard', 'zCount', 'zIncrBy', 'zinterstore',
-    'zintercard', 'zLexCount', 'zPopMax', 'zPopMin', 'zRange', 'zrangestore',
-    'zRandMember', 'zRangeByLex', 'zRangeByScore', 'zRank', 'zRem',
-    'zRemRangeByLex', 'zRemRangeByRank', 'zRemRangeByScore', 'zRevRangeByScore',
-    'zRevRank', 'zscan', 'zScore', 'zMscore', 'zunionstore', 'zinter',
-    'zdiffstore', 'zunion', 'zdiff', 'fcall', 'fcall_ro', 'function', 'select',
-    'move', 'setOption', 'getOption', 'scriptExists', 'scriptFlush', 'scriptKill',
-    'scriptShow', 'functionLoad', 'functionList', 'functionFlush',
-    'functionDelete', 'functionDump', 'functionRestore', 'functionKill',
-    'functionStats',
-    // JSON
-    'jsonSet', 'jsonGet', 'jsonDel', 'jsonForget', 'jsonClear', 'jsonMGet',
-    'jsonType', 'jsonNumIncrBy', 'jsonNumMultBy', 'jsonToggle', 'jsonStrAppend',
-    'jsonStrLen', 'jsonObjLen', 'jsonObjKeys', 'jsonResp', 'jsonDebugMemory',
-    'jsonDebugFields', 'jsonArrAppend', 'jsonArrInsert', 'jsonArrIndex',
-    'jsonArrPop', 'jsonArrTrim', 'jsonArrLen',
-    // Search
-    'ftCreate', 'ftDropIndex', 'ftList', 'ftSearch', 'ftAggregate', 'ftInfo',
-    'ftAliasAdd', 'ftAliasDel', 'ftAliasUpdate', 'ftAliasList',
-];
+$glide_cluster_commands = array_values(array_diff(
+    array_map(fn($m) => $m->getName(), (new ReflectionClass('ValkeyGlideCluster'))->getMethods(ReflectionMethod::IS_PUBLIC)),
+    ['__construct', '__destruct']
+));
 
-$cluster_not_supported_in_valkey = [
+$cluster_excluded_from_comparison = [
     'delex', 'delifeq', 'msetex', 'expiremember', 'expirememberat',
     'waitaof', 'getWithMeta', 'hgetWithMeta',
 ];
@@ -456,7 +397,7 @@ $cluster_not_compatible = [
 
 $phpredis_cluster_norm = normalize($phpredis_cluster_commands);
 $glide_cluster_norm = normalize($glide_cluster_commands);
-$cluster_unsupported_norm = normalize($cluster_not_supported_in_valkey);
+$cluster_unsupported_norm = normalize($cluster_excluded_from_comparison);
 $cluster_incompat_norm = normalize($cluster_not_compatible);
 
 $cl_compatible = [];
@@ -493,7 +434,7 @@ printf("║  1. Compatible APIs:              %3d / %3d  (%5.1f%%)              
     count($cl_compatible), $cl_total, count($cl_compatible) / $cl_total * 100);
 printf("║  2. Not Compatible APIs:          %3d / %3d  (%5.1f%%)              ║\n",
     count($cl_incompatible), $cl_total, count($cl_incompatible) / $cl_total * 100);
-printf("║  3. Not Supported in Valkey:      %3d / %3d  (%5.1f%%)              ║\n",
+printf("║  3. Excluded from Comparison:     %3d / %3d  (%5.1f%%)              ║\n",
     count($cl_unsupported), $cl_total, count($cl_unsupported) / $cl_total * 100);
 printf("║  4. Not Implemented:              %3d / %3d  (%5.1f%%)              ║\n",
     count($cl_not_implemented), $cl_total, count($cl_not_implemented) / $cl_total * 100);
@@ -522,7 +463,7 @@ $md .= "| Category | Count | Percentage |\n";
 $md .= "|----------|------:|-----------:|\n";
 $md .= sprintf("| Compatible APIs | %d | %.1f%% |\n", count($cl_compatible), count($cl_compatible) / $cl_total * 100);
 $md .= sprintf("| Not Compatible APIs | %d | %.1f%% |\n", count($cl_incompatible), count($cl_incompatible) / $cl_total * 100);
-$md .= sprintf("| Not Supported in Valkey | %d | %.1f%% |\n", count($cl_unsupported), count($cl_unsupported) / $cl_total * 100);
+$md .= sprintf("| Excluded from Comparison | %d | %.1f%% |\n", count($cl_unsupported), count($cl_unsupported) / $cl_total * 100);
 $md .= sprintf("| Not Implemented | %d | %.1f%% |\n", count($cl_not_implemented), count($cl_not_implemented) / $cl_total * 100);
 $md .= sprintf("| **Total** | **%d** | **100.0%%** |\n", $cl_total);
 
@@ -534,7 +475,7 @@ foreach ($cl_incompatible as $cmd) {
     $md .= "- `$cmd`\n";
 }
 
-$md .= "\n## Not Supported in Valkey (" . count($cl_unsupported) . ")\n\n";
+$md .= "\n## Excluded from Comparison (" . count($cl_unsupported) . ")\n\n";
 foreach ($cl_unsupported as $cmd) {
     $md .= "- `$cmd`\n";
 }
