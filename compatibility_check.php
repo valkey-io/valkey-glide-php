@@ -20,8 +20,8 @@
 // _prefix, _serialize, _unserialize, _pack, _unpack, _digest)
 // Excludes: deprecated aliases (open, popen, delete, sortAsc, sortAscAlpha, sortDesc, sortDescAlpha)
 // Excludes: connection management internals (getHost, getPort, getAuth, getDBNum,
-// getReadTimeout, getTimeout, getPersistentID, getMode, getLastError,
-// clearLastError, isConnected, getTransferredBytes, clearTransferredBytes)
+// getReadTimeout, getTimeout, getPersistentID, getMode, isConnected,
+// getTransferredBytes, clearTransferredBytes)
 // ============================================================================
 
 $phpredis_commands = [
@@ -88,6 +88,10 @@ $phpredis_commands = [
 
     // Connection
     'auth', 'client', 'close', 'echo', 'ping', 'rawcommand', 'setOption', 'getOption',
+
+    // Error introspection (required by PHPRedis-compatible libraries, e.g. Symfony
+    // Lock RedisStore calls clearLastError()/getLastError() on every evaluate())
+    'getLastError', 'clearLastError',
 
     // Bit commands
     'bitcount', 'bitop', 'bitpos',
@@ -368,6 +372,8 @@ $phpredis_cluster_commands = [
     // Cluster-specific
     'cluster', 'command', 'role', 'acl', 'bgsave', 'bgrewriteaof', 'waitaof',
     'setoption', 'getoption',
+    // Error introspection (RedisCluster exposes the same getLastError/clearLastError API)
+    'getLastError', 'clearLastError',
     // Redis 8+ / KeyDB
     'delex', 'delifeq', 'msetex', 'expiremember', 'expirememberat',
     'getWithMeta', 'hgetWithMeta',
