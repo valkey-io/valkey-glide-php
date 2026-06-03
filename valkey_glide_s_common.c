@@ -834,7 +834,11 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
     /* Execute the command synchronously */
     result = execute_command(valkey_glide->glide_client, cmd_type, arg_count, cmd_args, args_len);
     if (result) {
-        status = process_result(result->response, scan_data, return_value);
+        if (result->command_error) {
+            valkey_glide_record_command_error(valkey_glide, result);
+        } else {
+            status = process_result(result->response, scan_data, return_value);
+        }
     }
     free_command_result(result);
 

@@ -660,11 +660,60 @@ zend_module_entry valkey_glide_module_entry = {STANDARD_MODULE_HEADER,
 ZEND_GET_MODULE(valkey_glide)
 #endif
 
+/* Store the last command error message on the object (PHPRedis getLastError semantics):
+ * a new error overwrites the previous one; successful commands do not clear it.
+ *
+ * glide-core (redis-rs) reformats server errors as
+ * "An error was signalled by the server: - <ErrorKind>: <detail>". PHPRedis-compatible
+ * consumers pattern-match the raw RESP error code instead (e.g. Symfony Lock RedisStore
+ * checks str_starts_with($err, 'NOSCRIPT') to reload missing scripts), so strip the
+ * glide prefix and restore the RESP code for the error kinds that lose it. */
+void valkey_glide_set_last_error(valkey_glide_object* valkey_glide, const char* msg) {
+    static const char server_prefix[] = "An error was signalled by the server: - ";
+    static const char noscript_kind[] = "NoScriptError: ";
+
+    if (!valkey_glide || !msg) {
+        return;
+    }
+    valkey_glide_clear_last_error(valkey_glide);
+
+    if (strncmp(msg, server_prefix, sizeof(server_prefix) - 1) == 0) {
+        msg += sizeof(server_prefix) - 1;
+        if (strncmp(msg, noscript_kind, sizeof(noscript_kind) - 1) == 0) {
+            msg += sizeof(noscript_kind) - 1;
+            valkey_glide->last_error = zend_strpprintf(0, "NOSCRIPT %s", msg);
+            return;
+        }
+    }
+    valkey_glide->last_error = zend_string_init(msg, strlen(msg), 0);
+}
+
+void valkey_glide_clear_last_error(valkey_glide_object* valkey_glide) {
+    if (valkey_glide && valkey_glide->last_error) {
+        zend_string_release(valkey_glide->last_error);
+        valkey_glide->last_error = NULL;
+    }
+}
+
+/* Record the error carried by a CommandResult, if any. Shared by all command
+ * execution paths that report failures by returning false. */
+void valkey_glide_record_command_error(valkey_glide_object* valkey_glide, CommandResult* result) {
+    if (valkey_glide && result && result->command_error) {
+        valkey_glide_set_last_error(valkey_glide,
+                                    result->command_error->command_error_message
+                                        ? result->command_error->command_error_message
+                                        : "Command execution failed");
+    }
+}
+
 void free_valkey_glide_object(zend_object* object) {
     valkey_glide_object* valkey_glide = VALKEY_GLIDE_PHP_GET_OBJECT(valkey_glide_object, object);
 
     /* Free buffered batch commands if object is destroyed mid-batch */
     valkey_glide_clear_batch_state(valkey_glide);
+
+    /* Free the last error message if set */
+    valkey_glide_clear_last_error(valkey_glide);
 
     /* Free the Valkey Glide client if it exists */
     if (valkey_glide->glide_client) {

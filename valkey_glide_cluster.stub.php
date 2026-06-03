@@ -299,6 +299,16 @@ class ValkeyGlideCluster
     public function getOption(int $option): mixed;
 
     /**
+     * @see ValkeyGlide::getLastError()
+     */
+    public function getLastError(): ?string;
+
+    /**
+     * @see ValkeyGlide::clearLastError()
+     */
+    public function clearLastError(): bool;
+
+    /**
      * @see ValkeyGlide::append()
      */
     public function append(string $key, mixed $value): ValkeyGlideCluster|bool|int;
