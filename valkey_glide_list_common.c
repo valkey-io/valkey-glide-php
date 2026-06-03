@@ -279,6 +279,8 @@ int execute_list_generic_command(valkey_glide_object* valkey_glide,
     if (result) {
         if (!result->command_error && result->response && process_result) {
             status = process_result(result->response, result_ptr, return_value);
+        } else {
+            valkey_glide_record_command_error(valkey_glide, result);
         }
         free_command_result(result);
     }

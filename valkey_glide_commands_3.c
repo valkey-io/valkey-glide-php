@@ -59,7 +59,7 @@ static int execute_function_list_command_with_args(zval*             object,
         result = execute_command(valkey_glide->glide_client, FunctionList, 0, NULL, NULL);
     }
 
-    return handle_function_command_result_or_return_false(result, return_value);
+    return handle_function_command_result_or_return_false(valkey_glide, result, return_value);
 }
 
 /* Helper functions to reduce code duplication */
@@ -771,11 +771,13 @@ static int process_script_operation(valkey_glide_object* valkey_glide,
                 unsigned long  args_len[1] = {mode_len};
                 CommandResult* result =
                     execute_command(valkey_glide->glide_client, ScriptFlush, 1, cmd_args, args_len);
-                return handle_function_command_result_or_return_false(result, return_value);
+                return handle_function_command_result_or_return_false(
+                    valkey_glide, result, return_value);
             } else {
                 CommandResult* result =
                     execute_command(valkey_glide->glide_client, ScriptFlush, 0, NULL, NULL);
-                return handle_function_command_result_or_return_false(result, return_value);
+                return handle_function_command_result_or_return_false(
+                    valkey_glide, result, return_value);
             }
         } else if (strcasecmp(operation, "LOAD") == 0) {
             if (args_count < 1 || Z_TYPE(z_args[0]) != IS_STRING) {
@@ -993,6 +995,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     if (result) {
         if (result->command_error) {
             /* Command failed */
+            valkey_glide_record_command_error(valkey_glide, result);
             free_command_result(result);
             valkey_glide_clear_batch_state(valkey_glide);
             ZVAL_FALSE(return_value);

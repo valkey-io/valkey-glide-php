@@ -1272,6 +1272,14 @@ SETOPTION_METHOD_IMPL(ValkeyGlideCluster)
 GETOPTION_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto string|null ValkeyGlideCluster::getLastError() */
+GETLASTERROR_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto bool ValkeyGlideCluster::clearLastError() */
+CLEARLASTERROR_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto bool ValkeyGlideCluster::jsonSet(string key, string path, string value [, string
  * condition]) */
 JSON_SET_METHOD_IMPL(ValkeyGlideCluster)

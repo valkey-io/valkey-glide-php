@@ -147,6 +147,7 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
         if (!result->command_error && result->response && process_result) {
             status = process_result(result->response, result_ptr, return_value);
         } else {
+            valkey_glide_record_command_error(valkey_glide, result);
             if (result_ptr) {
                 efree(args->fields);
                 efree(result_ptr);
@@ -276,6 +277,8 @@ int execute_h_simple_command(valkey_glide_object* valkey_glide,
     if (result && Z_TYPE_P(return_value) != IS_FALSE) {
         if (!result->command_error && result->response && processor) {
             status = processor(result->response, result_ptr, return_value);
+        } else {
+            valkey_glide_record_command_error(valkey_glide, result);
         }
         free_command_result(result);
     } else {

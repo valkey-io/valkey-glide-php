@@ -434,6 +434,24 @@ class ValkeyGlide
     public function getOption(int $option): mixed;
 
     /**
+     * Get the last error message returned by the server, if any.
+     *
+     * The message is recorded when a command fails and returns false; it is
+     * overwritten by subsequent errors and is not cleared by successful
+     * commands. Use clearLastError() to reset it.
+     *
+     * @return string|null The last error message, or NULL if there is no error
+     */
+    public function getLastError(): ?string;
+
+    /**
+     * Clear the last error message, if any.
+     *
+     * @return bool Always true
+     */
+    public function clearLastError(): bool;
+
+    /**
      * Append data to a ValkeyGlide STRING key.
      *
      * @param string $key   The key in question

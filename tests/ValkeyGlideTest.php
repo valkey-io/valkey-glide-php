@@ -5328,6 +5328,66 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key);
     }
 
+    public function testGetLastErrorAndClearLastError()
+    {
+        // Fresh client: no error recorded
+        $this->assertNull($this->valkey_glide->getLastError());
+
+        // A failing script records the server error message
+        $this->assertFalse($this->valkey_glide->eval('this is not valid lua {{{'));
+        $err = $this->valkey_glide->getLastError();
+        $this->assertIsString($err);
+
+        // A successful command does NOT clear the last error (PHPRedis semantics)
+        $this->assertTrue($this->valkey_glide->set('{lasterror}key', 'value'));
+        $this->assertEquals($err, $this->valkey_glide->getLastError());
+
+        // clearLastError() resets it and always returns true
+        $this->assertTrue($this->valkey_glide->clearLastError());
+        $this->assertNull($this->valkey_glide->getLastError());
+
+        // A command error via the core execution path is recorded too
+        $this->assertEquals(1, $this->valkey_glide->rPush('{lasterror}list', 'a'));
+        $this->assertFalse($this->valkey_glide->incr('{lasterror}list'));
+        $err = $this->valkey_glide->getLastError();
+        $this->assertIsString($err);
+        $this->assertStringContains('WRONGTYPE', $err);
+
+        // Command families with their own execution paths record errors too
+        $this->assertTrue($this->valkey_glide->set('{lasterror}str', 'v'));
+        foreach (
+            [
+                'zAdd'  => fn() => $this->valkey_glide->zAdd('{lasterror}str', 1.0, 'm'),
+                'rPush' => fn() => $this->valkey_glide->rPush('{lasterror}str', 'x'),
+                'hSet'  => fn() => $this->valkey_glide->hSet('{lasterror}str', 'f', 'v'),
+                'xAdd'  => fn() => $this->valkey_glide->xAdd('{lasterror}str', '*', ['f' => 'v']),
+                'geoadd' => fn() => $this->valkey_glide->geoadd('{lasterror}str', 13.36, 38.11, 'P'),
+                'sAdd'  => fn() => $this->valkey_glide->sAdd('{lasterror}str', 'x'),
+            ] as $cmd => $fn
+        ) {
+            $this->assertTrue($this->valkey_glide->clearLastError());
+            $this->assertFalse($fn());
+            $err = $this->valkey_glide->getLastError();
+            $this->assertIsString($err);
+            $this->assertStringContains('WRONGTYPE', $err);
+        }
+
+        // A new error overwrites the previous one
+        $this->assertFalse($this->valkey_glide->eval('return redis.call("NOSUCHCOMMAND")'));
+        $this->assertNotEquals($err, $this->valkey_glide->getLastError());
+
+        // NOSCRIPT errors keep their RESP code prefix (PHPRedis-compatible consumers
+        // like Symfony Lock RedisStore rely on it to reload missing scripts)
+        $this->valkey_glide->clearLastError();
+        $this->assertFalse($this->valkey_glide->evalsha(str_repeat('a', 40)));
+        $err = $this->valkey_glide->getLastError();
+        $this->assertIsString($err);
+        $this->assertPatternMatch('/^NOSCRIPT/', $err);
+
+        // Clean up
+        $this->assertTrue($this->valkey_glide->clearLastError());
+        $this->valkey_glide->del('{lasterror}key', '{lasterror}list', '{lasterror}str');
+    }
 
     public function testEvalSHA()
     {

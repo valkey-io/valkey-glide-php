@@ -487,6 +487,7 @@ int execute_x_generic_command(valkey_glide_object* valkey_glide,
 
     /* Check if there was an error */
     if (result->command_error) {
+        valkey_glide_record_command_error(valkey_glide, result);
         free_command_result(result);
         return 0;
     }

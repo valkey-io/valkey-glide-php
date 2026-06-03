@@ -285,10 +285,16 @@ typedef struct {
 
     AddressResolverCallback resolver_cb; /* NULL if no address resolver */
 
+    /* Last command error message (PHPRedis getLastError/clearLastError), NULL if none */
+    zend_string* last_error;
+
     zend_object std; /* MUST be last - PHP allocates extra memory after this */
 } valkey_glide_object;
 
 void valkey_glide_clear_batch_state(valkey_glide_object* valkey_glide);
+void valkey_glide_set_last_error(valkey_glide_object* valkey_glide, const char* msg);
+void valkey_glide_clear_last_error(valkey_glide_object* valkey_glide);
+void valkey_glide_record_command_error(valkey_glide_object* valkey_glide, CommandResult* result);
 
 /* For convenience we store the salt as a printable hex string which requires 2
  * characters per byte + 1 for the NULL terminator */
