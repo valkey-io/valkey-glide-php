@@ -90,18 +90,21 @@ static int valkey_glide_cluster_create_connection(
     }
 
     /* Issue the connection request. */
-    const ConnectionResponse* conn_resp = create_glide_cluster_client(&client_config);
+    AddressResolverCallback   resolver_cb = NULL;
+    const ConnectionResponse* conn_resp = create_glide_cluster_client(&client_config, &resolver_cb);
 
     if (conn_resp->connection_error_message) {
         VALKEY_LOG_ERROR("cluster_construct", conn_resp->connection_error_message);
         zend_throw_exception(
             get_valkey_glide_exception_ce(), conn_resp->connection_error_message, 0);
+        valkey_glide_resolver_release(resolver_cb);
         free_connection_response((ConnectionResponse*) conn_resp);
         valkey_glide_cleanup_client_config(&client_config.base);
         return FAILURE;
     } else {
         VALKEY_LOG_INFO("cluster_construct", "ValkeyGlide cluster client created successfully");
         valkey_glide->glide_client = conn_resp->conn_ptr;
+        valkey_glide->resolver_cb  = resolver_cb;
     }
 
     free_connection_response((ConnectionResponse*) conn_resp);
@@ -180,12 +183,13 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     zend_bool database_id_is_null     = 1;
     zval*     compression             = NULL;
     zval*     client_side_cache       = NULL;
+    zval*     address_resolver        = NULL;
 
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
     valkey_glide_object* valkey_glide;
 
-    ZEND_PARSE_PARAMETERS_START(0, 21)
+    ZEND_PARSE_PARAMETERS_START(0, 22)
     Z_PARAM_OPTIONAL
     Z_PARAM_STRING_OR_NULL(name, name_len)
     Z_PARAM_ARRAY_OR_NULL(seeds)
@@ -208,6 +212,7 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     Z_PARAM_LONG_OR_NULL(database_id, database_id_is_null)
     Z_PARAM_ARRAY_OR_NULL(compression)
     Z_PARAM_ARRAY_OR_NULL(client_side_cache)
+    Z_PARAM_ZVAL_OR_NULL(address_resolver)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
@@ -267,6 +272,7 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     common_params.database_id_is_null     = database_id_is_null;
     common_params.compression             = compression;
     common_params.client_side_cache       = client_side_cache;
+    common_params.address_resolver        = address_resolver;
 
     /* Call helper function to create cluster connection */
     valkey_glide_cluster_create_connection(
@@ -289,6 +295,11 @@ PHP_METHOD(ValkeyGlideCluster, close) {
     if (valkey_glide->glide_client) {
         close_glide_client(valkey_glide->glide_client);
         valkey_glide->glide_client = NULL;
+    }
+
+    if (valkey_glide->resolver_cb) {
+        valkey_glide_resolver_release(valkey_glide->resolver_cb);
+        valkey_glide->resolver_cb = NULL;
     }
 
     RETURN_TRUE;

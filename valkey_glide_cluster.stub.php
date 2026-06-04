@@ -277,6 +277,7 @@ class ValkeyGlideCluster
         ?int $database_id = null,
         ?array $compression = null,
         ?array $client_side_cache = null,
+        ?callable $address_resolver = null,
     ) {
     }
 

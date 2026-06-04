@@ -13,6 +13,7 @@
 * PHP: Add JSON.SET and JSON.GET commands for standalone and cluster clients ([#184](https://github.com/valkey-io/valkey-glide-php/pull/184))
 * PHP: Add transparent compression support for string values ([#186](https://github.com/valkey-io/valkey-glide-php/pull/186))
 * PHP: implement client-side caching with TTL-based expiration ([#180](https://github.com/valkey-io/valkey-glide-php/pull/180))
+* PHP: Add address resolver support for standalone and cluster clients, allowing custom host/port remapping at connection time ([#196](https://github.com/valkey-io/valkey-glide-php/pull/196))
 
 ## 1.0.0
 
