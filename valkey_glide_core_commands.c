@@ -283,11 +283,14 @@ static const ConnectionResponse* create_base_glide_client(
     if (config->address_resolver && !Z_ISNULL_P(config->address_resolver)) {
         address_resolver_cb = valkey_glide_resolver_acquire(config->address_resolver);
         if (!address_resolver_cb) {
-            php_error_docref(NULL, E_WARNING,
-                "address_resolver: all resolver slots occupied (max 16 concurrent clients with resolvers)");
+            php_error_docref(NULL,
+                             E_WARNING,
+                             "address_resolver: all resolver slots occupied (max 16 concurrent "
+                             "clients with resolvers)");
         }
     }
-    if (out_resolver_cb) *out_resolver_cb = address_resolver_cb;
+    if (out_resolver_cb)
+        *out_resolver_cb = address_resolver_cb;
 
     /* Create the client with pubsub callback registered at creation time */
     const ConnectionResponse* conn_resp = create_client(
@@ -306,14 +309,13 @@ static const ConnectionResponse* create_base_glide_client(
 
 /* Create a Valkey Glide client */
 const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config,
-                                               AddressResolverCallback* out_resolver_cb) {
+                                              AddressResolverCallback* out_resolver_cb) {
     return create_base_glide_client(
         config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false, out_resolver_cb);
 }
 
 const ConnectionResponse* create_glide_cluster_client(
-    valkey_glide_cluster_client_configuration_t* config,
-    AddressResolverCallback*                     out_resolver_cb) {
+    valkey_glide_cluster_client_configuration_t* config, AddressResolverCallback* out_resolver_cb) {
     return create_base_glide_client(&config->base,
                                     config->periodic_checks_status,
                                     true,

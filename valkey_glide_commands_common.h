@@ -117,11 +117,10 @@ void free_command_result(CommandResult* command_result_ptr);
 
 /* Helper functions for Valkey Glide integration */
 const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config,
-                                               AddressResolverCallback* out_resolver_cb);
+                                              AddressResolverCallback* out_resolver_cb);
 
 const ConnectionResponse* create_glide_cluster_client(
-    valkey_glide_cluster_client_configuration_t* config,
-    AddressResolverCallback*                     out_resolver_cb);
+    valkey_glide_cluster_client_configuration_t* config, AddressResolverCallback* out_resolver_cb);
 
 /* Return the protobuf message representing the connection request. Caller must free the result with
  * efree() */
