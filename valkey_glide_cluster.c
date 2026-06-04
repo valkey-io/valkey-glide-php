@@ -292,14 +292,14 @@ PHP_METHOD(ValkeyGlideCluster, close) {
 
     valkey_glide_clear_batch_state(valkey_glide);
 
-    if (valkey_glide->resolver_cb) {
-        valkey_glide_resolver_release(valkey_glide->resolver_cb);
-        valkey_glide->resolver_cb = NULL;
-    }
-
     if (valkey_glide->glide_client) {
         close_glide_client(valkey_glide->glide_client);
         valkey_glide->glide_client = NULL;
+    }
+
+    if (valkey_glide->resolver_cb) {
+        valkey_glide_resolver_release(valkey_glide->resolver_cb);
+        valkey_glide->resolver_cb = NULL;
     }
 
     RETURN_TRUE;

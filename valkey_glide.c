@@ -666,16 +666,17 @@ void free_valkey_glide_object(zend_object* object) {
     /* Free buffered batch commands if object is destroyed mid-batch */
     valkey_glide_clear_batch_state(valkey_glide);
 
-    /* Release address resolver slot before closing client */
-    if (valkey_glide->resolver_cb) {
-        valkey_glide_resolver_release(valkey_glide->resolver_cb);
-        valkey_glide->resolver_cb = NULL;
-    }
-
     /* Free the Valkey Glide client if it exists */
     if (valkey_glide->glide_client) {
         close_glide_client(valkey_glide->glide_client);
         valkey_glide->glide_client = NULL;
+    }
+
+    /* Release address resolver slot after closing client (Rust may call the
+       resolver during reconnect; freeing the closure first causes SIGSEGV) */
+    if (valkey_glide->resolver_cb) {
+        valkey_glide_resolver_release(valkey_glide->resolver_cb);
+        valkey_glide->resolver_cb = NULL;
     }
 
     /* Clean up the standard object */
@@ -938,8 +939,8 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     }
 
     /* Issue the connection request. */
-    AddressResolverCallback resolver_cb = NULL;
-    const ConnectionResponse* conn_resp = create_glide_client(&client_config, &resolver_cb);
+    AddressResolverCallback   resolver_cb = NULL;
+    const ConnectionResponse* conn_resp   = create_glide_client(&client_config, &resolver_cb);
 
     /* Clean up temporary addresses array if we created it */
     if (created_addresses) {
@@ -1134,14 +1135,14 @@ PHP_METHOD(ValkeyGlide, close) {
 
     valkey_glide_clear_batch_state(valkey_glide);
 
-    if (valkey_glide->resolver_cb) {
-        valkey_glide_resolver_release(valkey_glide->resolver_cb);
-        valkey_glide->resolver_cb = NULL;
-    }
-
     if (valkey_glide->glide_client) {
         close_glide_client(valkey_glide->glide_client);
         valkey_glide->glide_client = NULL;
+    }
+
+    if (valkey_glide->resolver_cb) {
+        valkey_glide_resolver_release(valkey_glide->resolver_cb);
+        valkey_glide->resolver_cb = NULL;
     }
 
     RETURN_TRUE;
