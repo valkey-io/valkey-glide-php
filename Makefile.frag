@@ -68,6 +68,9 @@ logger_arginfo.h: logger.stub.php
 src/client_constructor_mock_arginfo.h: src/client_constructor_mock.stub.php
 	@php -f $(top_srcdir)/build/gen_stub.php src/client_constructor_mock.stub.php || echo "client_constructor_mock arginfo generation failed"
 
+GLIDE_NAME = GlidePHP
+GLIDE_VERSION ?= $(shell grep -o '\#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' common.h | sed 's/.*"\([^"]*\)"/\1/')
+
 valkey-glide/ffi/target/release/libglide_ffi.a: ensure-submodules
 	@echo "=== BUILDING FFI LIBRARY ==="
 	@if [ ! -f valkey-glide/ffi/target/release/libglide_ffi.a ]; then \
@@ -77,7 +80,7 @@ valkey-glide/ffi/target/release/libglide_ffi.a: ensure-submodules
 			echo "Using sccache for Rust compilation"; \
 		fi && \
 		if [ -d valkey-glide/ffi ]; then \
-			cd valkey-glide/ffi && CARGO_BUILD_JOBS=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") cargo build --release && cd ../..; \
+			cd valkey-glide/ffi && GLIDE_NAME=$(GLIDE_NAME) GLIDE_VERSION=$(GLIDE_VERSION) CARGO_BUILD_JOBS=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") cargo build --release && cd ../..; \
 		fi; \
 	else \
 		echo "FFI library already exists, skipping cargo build"; \

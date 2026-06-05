@@ -28,6 +28,7 @@
 #include "common.h"
 #include "include/glide_bindings.h"
 #include "logger.h"
+#include "valkey_glide_address_resolver.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
 #include "valkey_glide_list_common.h"
@@ -185,7 +186,7 @@ uint8_t* create_connection_request(size_t*                                   len
     }
 
     /* Set client name */
-    conn_req.client_name = config->client_name ? config->client_name : "valkey-glide-php";
+    conn_req.client_name = config->client_name ? config->client_name : NULL;
 
     /* Set client AZ */
     if (config->client_az) {
@@ -263,7 +264,8 @@ static const ConnectionResponse* create_base_glide_client(
     valkey_glide_base_client_configuration_t* config,
     valkey_glide_periodic_checks_status_t     periodic_checks,
     bool                                      is_cluster,
-    bool                                      refresh_topology_from_initial_nodes) {
+    bool                                      refresh_topology_from_initial_nodes,
+    AddressResolverCallback*                  out_resolver_cb) {
     size_t   len;
     uint8_t* request_bytes = create_connection_request(
         &len, config, periodic_checks, is_cluster, refresh_topology_from_initial_nodes);
@@ -276,9 +278,23 @@ static const ConnectionResponse* create_base_glide_client(
     ClientType client_type;
     client_type.tag = SyncClient;
 
+    /* Acquire a per-client resolver slot if configured */
+    AddressResolverCallback address_resolver_cb = NULL;
+    if (config->address_resolver && !Z_ISNULL_P(config->address_resolver)) {
+        address_resolver_cb = valkey_glide_resolver_acquire(config->address_resolver);
+        if (!address_resolver_cb) {
+            php_error_docref(NULL,
+                             E_WARNING,
+                             "address_resolver: all resolver slots occupied (max 16 concurrent "
+                             "clients with resolvers)");
+        }
+    }
+    if (out_resolver_cb)
+        *out_resolver_cb = address_resolver_cb;
+
     /* Create the client with pubsub callback registered at creation time */
-    const ConnectionResponse* conn_resp =
-        create_client(request_bytes, len, &client_type, valkey_glide_pubsub_callback);
+    const ConnectionResponse* conn_resp = create_client(
+        request_bytes, len, &client_type, valkey_glide_pubsub_callback, address_resolver_cb);
 
     /* Free the request bytes as they're no longer needed */
     efree(request_bytes);
@@ -292,16 +308,19 @@ static const ConnectionResponse* create_base_glide_client(
 }
 
 /* Create a Valkey Glide client */
-const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config) {
-    return create_base_glide_client(config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false);
+const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config,
+                                              AddressResolverCallback* out_resolver_cb) {
+    return create_base_glide_client(
+        config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false, out_resolver_cb);
 }
 
 const ConnectionResponse* create_glide_cluster_client(
-    valkey_glide_cluster_client_configuration_t* config) {
+    valkey_glide_cluster_client_configuration_t* config, AddressResolverCallback* out_resolver_cb) {
     return create_base_glide_client(&config->base,
                                     config->periodic_checks_status,
                                     true,
-                                    config->refresh_topology_from_initial_nodes);
+                                    config->refresh_topology_from_initial_nodes,
+                                    out_resolver_cb);
 }
 
 /* Custom result processor for SET commands with GET option support */

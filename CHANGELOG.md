@@ -1,8 +1,15 @@
 # Changelog
 
-## 1.1.0
+## Unreleased
 
 ### Changes
+
+* PHP: Set CLIENT SETINFO lib-name=GlidePHP and lib-ver to extension version for proper client identification
+* PHP: Add address resolver support for standalone and cluster clients, allowing custom host/port remapping at connection time ([#196](https://github.com/valkey-io/valkey-glide-php/pull/196))
+
+## 1.1.0
+
+### Changes (1.1.0)
 
 * PHP: Fix script injection vulnerability in create-version-pr action (CWE-829) ([#206](https://github.com/valkey-io/valkey-glide-php/pull/206))
 * PHP: Add Sigstore-based artifact attestation for published PECL packages ([#189](https://github.com/valkey-io/valkey-glide-php/pull/189))

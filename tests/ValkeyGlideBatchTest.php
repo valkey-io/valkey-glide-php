@@ -336,7 +336,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertIsArray($results[0]); // INFO result (array of server info)
         $this->assertIsInt($results[1]); // CLIENT ID result (integer)
         // CLIENT GETNAME might return null if no name is set
-        $this->assertEquals('valkey-glide-php', $results[2]); // CLIENT SETNAME result
+        $this->assertFalse($results[2]); // No default client name set
         // Verify server info contains expected keys
         $this->assertArrayHasKey('server_name', $results[0]);
         $this->assertGT(0, $results[1]); // Client ID should be positive

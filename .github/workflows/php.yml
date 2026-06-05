@@ -232,12 +232,12 @@ jobs:
         run: |
           echo "=== Pre-building Rust components for make ==="
           cd valkey-glide/ffi
-          cargo build --release
+          GLIDE_NAME=GlidePHP GLIDE_VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' ../../common.h | sed 's/.*"\([^"]*\)"/\1/') cargo build --release
           echo "Rust pre-build completed"
 
       - name: Build FFI library
         working-directory: valkey-glide/ffi
-        run: cargo build --release
+        run: GLIDE_NAME=GlidePHP GLIDE_VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' ../../common.h | sed 's/.*"\([^"]*\)"/\1/') cargo build --release
 
       - name: Set up PHP
         uses: shivammathur/setup-php@728c6c6b8cf02c2e48117716a91ee48313958a19 # v2
@@ -440,14 +440,14 @@ jobs:
         run: |
           echo "=== Pre-building Rust components for make ==="
           cd valkey-glide/ffi
-          cargo build --release
+          GLIDE_NAME=GlidePHP GLIDE_VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' ../../common.h | sed 's/.*"\([^"]*\)"/\1/') cargo build --release
           echo "Rust pre-build completed"
 
       - name: Build FFI library with debug symbols
         working-directory: valkey-glide/ffi
         run: |
           # Build with debug symbols for better Valgrind analysis
-          CFLAGS="-g -O0" cargo build --target x86_64-unknown-linux-gnu --release
+          GLIDE_NAME=GlidePHP GLIDE_VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' ../../common.h | sed 's/.*"\([^"]*\)"/\1/') CFLAGS="-g -O0" cargo build --target x86_64-unknown-linux-gnu --release
 
       - name: Set up PHP
         uses: shivammathur/setup-php@728c6c6b8cf02c2e48117716a91ee48313958a19 # v2

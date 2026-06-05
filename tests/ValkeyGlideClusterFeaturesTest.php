@@ -30,6 +30,20 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $valkey_glide->close();
     }
 
+    public function testClientLibNameAndVersion()
+    {
+        // Verify that CLIENT INFO reports the correct lib-name and lib-ver
+        $info_str = $this->valkey_glide->rawcommand(
+            ['type' => 'primarySlotKey', 'key' => 'test'],
+            "CLIENT",
+            "INFO"
+        );
+        $this->assertIsString($info_str);
+        $this->assertTrue(str_contains($info_str, "lib-name=GlidePHP"));
+        $expected_version = phpversion('valkey_glide');
+        $this->assertTrue(str_contains($info_str, "lib-ver=" . $expected_version));
+    }
+
     // ==============================================
     // ADDRESSES PARAMETER TESTS
     // ==============================================

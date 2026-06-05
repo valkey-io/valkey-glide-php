@@ -8,6 +8,7 @@
 #include <zend_smart_str.h>
 
 #include "include/glide_bindings.h"
+#include "valkey_glide_address_resolver.h"
 
 /* ValkeyGlidePHP version */
 #define VALKEY_GLIDE_PHP_VERSION "1.1.0"
@@ -193,6 +194,7 @@ typedef struct {
     int                                                database_id;             /* -1 if not set */
     bool                                               use_tls;
     bool                                               lazy_connect; /* false if not set */
+    zval* address_resolver; /* NULL if not set - PHP callable */
 } valkey_glide_base_client_configuration_t;
 
 typedef struct {
@@ -232,6 +234,7 @@ typedef struct {
     zend_bool lazy_connect;
     zend_bool lazy_connect_is_null;
     zend_bool database_id_is_null;
+    zval*     address_resolver; /* PHP callable or NULL */
 } valkey_glide_php_common_constructor_params_t;
 
 void valkey_glide_init_common_constructor_params(
@@ -279,6 +282,8 @@ typedef struct {
 
     /* Runtime options (like PHPRedis OPT_* settings) */
     bool opt_reply_literal; /* OPT_REPLY_LITERAL: return "OK" string instead of true */
+
+    AddressResolverCallback resolver_cb; /* NULL if no address resolver */
 
     zend_object std; /* MUST be last - PHP allocates extra memory after this */
 } valkey_glide_object;

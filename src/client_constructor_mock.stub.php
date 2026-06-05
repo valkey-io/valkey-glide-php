@@ -117,6 +117,7 @@ class ClientConstructorMock
         mixed $context = null,
         ?array $compression = null,
         ?array $client_side_cache = null,
+        ?callable $address_resolver = null,
     ): \Connection_request\ConnectionRequest;
 
     /**
@@ -162,5 +163,6 @@ class ClientConstructorMock
         mixed $context = null,
         ?array $compression = null,
         ?array $client_side_cache = null,
+        ?callable $address_resolver = null,
     ): \Connection_request\ConnectionRequest;
 }
