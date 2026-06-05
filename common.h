@@ -11,7 +11,7 @@
 #include "valkey_glide_address_resolver.h"
 
 /* ValkeyGlidePHP version */
-#define VALKEY_GLIDE_PHP_VERSION "1.0.0"
+#define VALKEY_GLIDE_PHP_VERSION "1.1.0"
 
 #define VALKEY_GLIDE_PHP_GET_OBJECT(class_entry, o) \
     (class_entry*) ((char*) o - XtOffsetOf(class_entry, std))
