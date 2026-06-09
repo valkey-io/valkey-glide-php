@@ -82,7 +82,7 @@ runs:
         brew install protobuf-c
 
     - name: Install shared software dependencies
-      uses: ./.github/workflows/install-shared-dependencies
+      uses: ./.github/actions/install-shared-dependencies
       with:
         os: ${{ inputs.os }}
         target: ${{ inputs.target }}
@@ -96,11 +96,6 @@ runs:
         python3 utils/remove_optional_from_proto.py
         echo "=== Proto file cleanup completed ==="
 
-    - name: Install Rust and Cargo
-      uses: ./.github/workflows/install-rust-and-protoc
-      with:
-        github-token: ${{ inputs.github-token }}
-
     - name: Install cbindgen
       shell: bash
       run: |
@@ -109,9 +104,6 @@ runs:
         else
           cargo install cbindgen
         fi
-
-    - name: Install zig
-      uses: ./.github/workflows/install-zig
 
     - name: Setup sccache
       uses: mozilla-actions/sccache-action@2e7f9ec7921547d4b46598398ca573513895d0bd # v0.0.4

@@ -1,24 +1,17 @@
+name: Create test matrices
+description: "Create test matrices for CI workflows"
+
 inputs:
   language-name:
-    description: "Language name"
+    description: "Language name (rust, java, node, python, go, C#, php)"
     required: true
-    type: choice
-    options:
-      - rust
-      - java
-      - node
-      - python
-      - go
-      - C#
   run-full-matrix:
     description: "Run the full matrix"
     required: true
-    type: boolean
   containers:
     description: "Run in containers"
-    required: true
-    default: false
-    type: boolean
+    required: false
+    default: "false"
 
 outputs:
   engine-matrix-output:

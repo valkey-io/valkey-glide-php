@@ -1,14 +1,13 @@
 name: Run the OSS review tool
+description: "Run the OSS review tool for license compliance"
 
 inputs:
   folder_path:
     description: "The root folder to run the ORT tool from"
     required: true
-    type: string
   config_file:
     description: "ORT configuration file to use"
     required: false
-    type: string
     default: "config.yml"
 
 runs:
