@@ -96,18 +96,18 @@ runs:
         EOF
 
     - name: Install Rust and protoc
-      uses: ./.github/workflows/install-rust-and-protoc
+      uses: ./valkey-glide/.github/actions/install-rust-and-protoc
       with:
         github-token: ${{ inputs.github-token }}
 
     - name: Install Valkey engine
-      uses: ./.github/workflows/install-engine
+      uses: ./valkey-glide/.github/actions/install-engine
       with:
         engine-version: ${{ inputs.engine-version }}
         target: x86_64-unknown-linux-gnu
 
     - name: Install zig
-      uses: ./.github/workflows/install-zig
+      uses: ./valkey-glide/.github/actions/install-zig
 
     - name: Install cbindgen (cached)
       shell: bash
