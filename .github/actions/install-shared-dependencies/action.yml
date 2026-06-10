@@ -73,6 +73,7 @@ runs:
       uses: ./valkey-glide/.github/actions/start-valkey-docker
       with:
         engine-version: ${{ inputs.engine-version }}
+        cluster-port-start: "9001"
 
     - name: Install zig
       if: ${{ contains(inputs.target, 'linux-gnu') }}
