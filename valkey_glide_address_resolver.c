@@ -16,7 +16,8 @@ typedef struct resolver_closure {
 
 static resolver_closure_t* g_closures = NULL;
 
-static ffi_type* arg_types[6] = {
+static ffi_type* arg_types[7] = {
+    &ffi_type_pointer, /* uintptr_t client_id */
     &ffi_type_pointer, /* const uint8_t *host */
     &ffi_type_pointer, /* uintptr_t host_len */
     &ffi_type_uint16,  /* uint16_t port */
@@ -36,12 +37,13 @@ static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void
      */
     resolver_closure_t* ctx = (resolver_closure_t*) userdata;
 
-    const uint8_t* host     = *(const uint8_t**) args[0];
-    uintptr_t      host_len = *(uintptr_t*) args[1];
-    uint16_t       port     = *(uint16_t*) args[2];
-    uint8_t*       out_buf  = *(uint8_t**) args[3];
-    uintptr_t      buf_len  = *(uintptr_t*) args[4];
-    uintptr_t*     written  = *(uintptr_t**) args[5];
+    /* client_id is args[0] but we don't need it - PHP uses closure userdata for routing */
+    const uint8_t* host     = *(const uint8_t**) args[1];
+    uintptr_t      host_len = *(uintptr_t*) args[2];
+    uint16_t       port     = *(uint16_t*) args[3];
+    uint8_t*       out_buf  = *(uint8_t**) args[4];
+    uintptr_t      buf_len  = *(uintptr_t*) args[5];
+    uintptr_t*     written  = *(uintptr_t**) args[6];
 
     *(uint16_t*) ret = 0;
 
@@ -104,7 +106,7 @@ AddressResolverCallback valkey_glide_resolver_acquire(zval* callable) {
     if (!ctx->closure)
         goto fail;
 
-    if (ffi_prep_cif(&ctx->cif, FFI_DEFAULT_ABI, 6, &ffi_type_uint16, arg_types) != FFI_OK)
+    if (ffi_prep_cif(&ctx->cif, FFI_DEFAULT_ABI, 7, &ffi_type_uint16, arg_types) != FFI_OK)
         goto fail;
 
     if (ffi_prep_closure_loc(
