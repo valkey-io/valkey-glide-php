@@ -63,17 +63,10 @@ runs:
         engine-version: ${{ inputs.engine-version }}
         target: ${{ inputs.target }}
 
-    # For valkey 9.0 on ubuntu, also start Docker containers with the
-    # valkey-bundle image (includes modules: Search, JSON, Bloom, LDAP) on
-    # dedicated ports. Regular tests use the source-built server; module
-    # tests connect to these Docker containers via MODULES_STANDALONE_ENDPOINT
-    # and MODULES_CLUSTER_ENDPOINTS env vars.
-    - name: Start module servers via Docker (valkey 9.0, ubuntu)
-      if: "${{ inputs.engine-version == '9.0' && inputs.os == 'ubuntu' }}"
-      uses: ./valkey-glide/.github/actions/start-valkey-docker
-      with:
-        engine-version: ${{ inputs.engine-version }}
-        cluster-port-start: "9001"
+    # NOTE: Docker module servers are NOT started automatically here because
+    # PHP workflows manage their own server lifecycle explicitly. Each test
+    # workflow calls start-valkey-docker directly when needed to avoid
+    # duplicate container name conflicts.
 
     - name: Install zig
       if: ${{ contains(inputs.target, 'linux-gnu') }}
