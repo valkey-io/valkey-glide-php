@@ -247,6 +247,7 @@ def patch_ffi_lib_rs(ffi_lib_file):
     - request.pubsub_reconciliation_interval_ms = Some(...) -> direct assignment
     - config.compression_level = Some(...) -> direct assignment
     - iam_creds.refresh_interval_seconds = Some(...) -> direct assignment
+    - config.eviction_policy = Some(...) -> direct assignment
     """
 
     if not os.path.exists(ffi_lib_file):
@@ -333,6 +334,16 @@ def patch_ffi_lib_rs(ffi_lib_file):
             needs_patching = True
             log_message("Applied FFI refresh_interval_seconds patch")
 
+        # Fix eviction_policy: Some(::protobuf::EnumOrUnknown::new(policy_enum)) -> ::protobuf::EnumOrUnknown::new(policy_enum)
+        eviction_pattern = r'config\.eviction_policy = Some\(::protobuf::EnumOrUnknown::new\(policy_enum\)\);'
+        eviction_replacement = 'config.eviction_policy = ::protobuf::EnumOrUnknown::new(policy_enum);'
+        if re.search(eviction_pattern, new_content):
+            if not needs_patching:
+                create_backup(ffi_lib_file)
+            new_content = re.sub(eviction_pattern, eviction_replacement, new_content)
+            needs_patching = True
+            log_message("Applied FFI eviction_policy patch")
+
         if needs_patching:
             with open(ffi_lib_file, 'w') as f:
                 f.write(new_content)
@@ -359,6 +370,7 @@ def verify_ffi_patch(ffi_lib_file):
             "pubsub_reconciliation_interval_ms": 'request.pubsub_reconciliation_interval_ms = Some(interval_ms)' not in content,
             "compression_level": 'config.compression_level = Some(level_val)' not in content,
             "refresh_interval_seconds": 'iam_creds.refresh_interval_seconds = Some(interval_val)' not in content,
+            "eviction_policy": 'config.eviction_policy = Some(::protobuf::EnumOrUnknown::new(policy_enum))' not in content,
         }
 
         missing = [name for name, fixed in checks.items() if not fixed]
