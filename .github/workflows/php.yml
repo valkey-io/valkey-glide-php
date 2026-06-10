@@ -472,6 +472,7 @@ jobs:
         uses: ./valkey-glide/.github/actions/start-valkey-docker
         with:
           engine-version: ${{ matrix.engine.version }}
+          cluster-port-start: "9001"
 
       # Start native servers on default ports (6379, 7001-7006, etc.)
       # needed by the main test suite. For 9.0 these run alongside Docker.
@@ -1085,6 +1086,7 @@ jobs:
         uses: ./valkey-glide/.github/actions/start-valkey-docker
         with:
           engine-version: "9.0"
+          cluster-port-start: "9001"
 
       - name: Run modules tests
         run: |

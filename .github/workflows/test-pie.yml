@@ -395,6 +395,7 @@ jobs:
         uses: ./valkey-glide/.github/actions/start-valkey-docker
         with:
           engine-version: ${{ matrix.engine.version }}
+          cluster-port-start: "9001"
 
       - name: Run PHP Extension Tests
         uses: ./.github/workflows/run-php-tests
