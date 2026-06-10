@@ -1082,11 +1082,8 @@ jobs:
         run: |
           composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Start module servers via Docker
-        uses: ./valkey-glide/.github/actions/start-valkey-docker
-        with:
-          engine-version: "9.0"
-          cluster-port-start: "9001"
+      # Docker containers already started by build-php-wrapper via install-shared-dependencies
+      # with cluster on ports 9001-9006 and standalone on 6389
 
       - name: Run modules tests
         run: |
