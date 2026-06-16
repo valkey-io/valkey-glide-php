@@ -455,7 +455,7 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         config->compression_config = ecalloc(1, sizeof(valkey_glide_compression_config_t));
 
         /* Parse enabled (default: false) */
-        zval* enabled_zv                    = zend_hash_str_find(compression_ht,
+        zval* enabled_zv = zend_hash_str_find(compression_ht,
                                               VALKEY_GLIDE_COMPRESSION_ENABLED,
                                               sizeof(VALKEY_GLIDE_COMPRESSION_ENABLED) - 1);
         config->compression_config->enabled = enabled_zv ? zval_is_true(enabled_zv) : false;
@@ -469,7 +469,7 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
                        : VALKEY_GLIDE_COMPRESSION_BACKEND_ZSTD;
 
         /* Parse compression_level (optional) */
-        zval* level_zv                                    = zend_hash_str_find(compression_ht,
+        zval* level_zv = zend_hash_str_find(compression_ht,
                                             VALKEY_GLIDE_COMPRESSION_LEVEL,
                                             sizeof(VALKEY_GLIDE_COMPRESSION_LEVEL) - 1);
         config->compression_config->has_compression_level = (level_zv != NULL);
@@ -673,19 +673,22 @@ void free_valkey_glide_object(zend_object* object) {
     }
 
     /* NOTE: We intentionally do NOT release the resolver callback here.
-       The Rust client uses a background runtime with multi-threaded tasks that may
-       outlive the close_client() call. Since close_client() only decrements the Arc
-       reference count, background tasks (like cluster topology refresh or reconnection)
-       may still hold references and could call the resolver callback after this point.
-       
-       Releasing the FFI closure here would cause use-after-free bugs when those
-       background tasks eventually try to call the freed callback.
-       
-       Instead, all resolvers are cleaned up in PHP_RSHUTDOWN_FUNCTION when the
-       request ends, ensuring all Rust clients have been fully destroyed first.
-       
-       The resolver_cb pointer is cleared to prevent double-free if this object
-       is somehow finalized twice, but the actual closure remains alive. */
+       The Rust client uses a background runtime with multi-threaded tasks
+       that may outlive the close_client() call. Since close_client() only
+       decrements the Arc reference count, background tasks (like cluster
+       topology refresh or reconnection) may still hold references and could
+       call the resolver callback after this point.
+
+       Releasing the FFI closure here would cause use-after-free bugs when
+       those background tasks eventually try to call the freed callback.
+
+       Instead, all resolvers are cleaned up in PHP_RSHUTDOWN_FUNCTION when
+       the request ends, ensuring all Rust clients have been fully destroyed
+       first.
+
+       The resolver_cb pointer is cleared to prevent double-free if this
+       object is somehow finalized twice, but the actual closure remains
+       alive. */
     valkey_glide->resolver_cb = NULL;
 
     /* Clean up the standard object */
