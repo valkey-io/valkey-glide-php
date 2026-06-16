@@ -84,7 +84,7 @@ runs:
       run: |
         mkdir -p ~/.cargo
         CONFIG_FILE="$HOME/.cargo/config.toml"
-        
+
         # Only add config if not already present (avoid duplicate entries)
         if [ ! -f "$CONFIG_FILE" ] || ! grep -q '\[registries.crates-io\]' "$CONFIG_FILE"; then
           echo "Adding Cargo speed configuration..."
