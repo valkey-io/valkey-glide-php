@@ -455,7 +455,7 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         config->compression_config = ecalloc(1, sizeof(valkey_glide_compression_config_t));
 
         /* Parse enabled (default: false) */
-        zval* enabled_zv = zend_hash_str_find(compression_ht,
+        zval* enabled_zv                    = zend_hash_str_find(compression_ht,
                                               VALKEY_GLIDE_COMPRESSION_ENABLED,
                                               sizeof(VALKEY_GLIDE_COMPRESSION_ENABLED) - 1);
         config->compression_config->enabled = enabled_zv ? zval_is_true(enabled_zv) : false;
@@ -469,7 +469,7 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
                        : VALKEY_GLIDE_COMPRESSION_BACKEND_ZSTD;
 
         /* Parse compression_level (optional) */
-        zval* level_zv = zend_hash_str_find(compression_ht,
+        zval* level_zv                                    = zend_hash_str_find(compression_ht,
                                             VALKEY_GLIDE_COMPRESSION_LEVEL,
                                             sizeof(VALKEY_GLIDE_COMPRESSION_LEVEL) - 1);
         config->compression_config->has_compression_level = (level_zv != NULL);
