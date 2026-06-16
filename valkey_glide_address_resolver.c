@@ -17,12 +17,12 @@ typedef struct resolver_closure {
 static resolver_closure_t* g_closures = NULL;
 
 static ffi_type* arg_types[7] = {
-    &ffi_type_pointer, /* uintptr_t client_id */
+    &ffi_type_pointer, /* usize client_id - using pointer type for ABI compat (same size on 64-bit) */
     &ffi_type_pointer, /* const uint8_t *host */
-    &ffi_type_pointer, /* uintptr_t host_len */
+    &ffi_type_pointer, /* usize host_len - using pointer type for ABI compat */
     &ffi_type_uint16,  /* uint16_t port */
     &ffi_type_pointer, /* uint8_t *resolved_host_buf */
-    &ffi_type_pointer, /* uintptr_t resolved_host_buf_len */
+    &ffi_type_pointer, /* usize resolved_host_buf_len - using pointer type for ABI compat */
     &ffi_type_pointer, /* uintptr_t *resolved_host_len */
 };
 
@@ -51,6 +51,7 @@ static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void
         return;
 
     zval args_z[2], retval;
+    ZVAL_UNDEF(&retval);  /* Initialize retval before use */
     ZVAL_STRINGL(&args_z[0], (const char*) host, host_len);
     ZVAL_LONG(&args_z[1], port);
 
@@ -58,8 +59,11 @@ static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void
     zval_ptr_dtor(&args_z[0]);
     zval_ptr_dtor(&args_z[1]);
 
-    if (EG(exception))
+    if (EG(exception)) {
         zend_clear_exception();
+        zval_ptr_dtor(&retval);  /* Safe to call on ZVAL_UNDEF */
+        return;
+    }
     if (call_result != SUCCESS || Z_TYPE(retval) != IS_ARRAY) {
         zval_ptr_dtor(&retval);
         return;

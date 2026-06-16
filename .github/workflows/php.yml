@@ -1082,8 +1082,12 @@ jobs:
         run: |
           composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      # Docker containers already started by build-php-wrapper via install-shared-dependencies
-      # with cluster on ports 9001-9006 and standalone on 6389
+      # Start Docker containers with modules (JSON, Search) for modules tests
+      - name: Start Valkey servers via Docker
+        uses: ./valkey-glide/.github/actions/start-valkey-docker
+        with:
+          engine-version: "9.0"
+          cluster-port-start: "9001"
 
       - name: Run modules tests
         run: |
