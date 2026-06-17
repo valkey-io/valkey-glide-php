@@ -656,7 +656,7 @@ jobs:
               --verbose \
               --error-exitcode=1 \
               $SUPPRESSIONS_FLAG \
-              php -n -c ext.ini -d max_execution_time=0 tests/TestValkeyGlide.php 2>&1 | tee ./valgrind_logs/valgrind_output.log
+              php -n -c ext.ini -d max_execution_time=0 -d disable_functions=set_time_limit tests/TestValkeyGlide.php 2>&1 | tee ./valgrind_logs/valgrind_output.log
 
           VALGRIND_EXIT_CODE=${PIPESTATUS[0]}
           echo ""
@@ -847,6 +847,12 @@ jobs:
               libprotobuf-c1
 
           # Install clang-format-18 and set it as default.
+          # Add LLVM repo if clang-format-18 isn't available in default repos
+          if ! apt-cache show clang-format-18 > /dev/null 2>&1; then
+            wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+            echo "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
+            sudo apt-get update
+          fi
           sudo apt-get install -y clang-format-18
           sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
 
