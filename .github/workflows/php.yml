@@ -853,8 +853,11 @@ jobs:
           # Install markdownlint-cli for markdown linting.
           npm install -g markdownlint-cli@0.44.0
 
+      - name: Install Rust
+        uses: ./valkey-glide/.github/actions/install-rust
+
       - name: Install protoc
-        uses: ./valkey-glide/.github/actions/install-rust-and-protoc
+        uses: ./valkey-glide/.github/actions/install-protoc
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -1126,8 +1129,11 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Rust and protoc
-        uses: ./valkey-glide/.github/actions/install-rust-and-protoc
+      - name: Install Rust
+        uses: ./valkey-glide/.github/actions/install-rust
+
+      - name: Install protoc
+        uses: ./valkey-glide/.github/actions/install-protoc
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 

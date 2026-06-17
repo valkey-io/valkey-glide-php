@@ -49,11 +49,16 @@ runs:
         yum install -y gcc pkgconfig openssl openssl-devel which curl gettext libasan tar --allowerasing
 
     # Shared actions from valkey-glide submodule
-    - name: Install Rust toolchain and protoc
+    - name: Install Rust toolchain
       if: "${{ !contains(inputs.target, 'musl') }}"
-      uses: ./valkey-glide/.github/actions/install-rust-and-protoc
+      uses: ./valkey-glide/.github/actions/install-rust
       with:
         target: ${{ inputs.target }}
+
+    - name: Install protoc
+      if: "${{ !contains(inputs.target, 'musl') }}"
+      uses: ./valkey-glide/.github/actions/install-protoc
+      with:
         github-token: ${{ inputs.github-token }}
 
     - name: Install engine

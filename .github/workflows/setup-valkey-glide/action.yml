@@ -103,8 +103,11 @@ runs:
           echo "Cargo config already contains registries.crates-io, skipping to avoid duplicates"
         fi
 
-    - name: Install Rust and protoc
-      uses: ./valkey-glide/.github/actions/install-rust-and-protoc
+    - name: Install Rust
+      uses: ./valkey-glide/.github/actions/install-rust
+
+    - name: Install protoc
+      uses: ./valkey-glide/.github/actions/install-protoc
       with:
         github-token: ${{ inputs.github-token }}
 
