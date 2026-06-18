@@ -672,24 +672,14 @@ void free_valkey_glide_object(zend_object* object) {
         valkey_glide->glide_client = NULL;
     }
 
-    /* NOTE: We intentionally do NOT release the resolver callback here.
-       The Rust client uses a background runtime with multi-threaded tasks
-       that may outlive the close_client() call. Since close_client() only
-       decrements the Arc reference count, background tasks (like cluster
-       topology refresh or reconnection) may still hold references and could
-       call the resolver callback after this point.
-
-       Releasing the FFI closure here would cause use-after-free bugs when
-       those background tasks eventually try to call the freed callback.
-
-       Instead, all resolvers are cleaned up in PHP_RSHUTDOWN_FUNCTION when
-       the request ends, ensuring all Rust clients have been fully destroyed
-       first.
-
-       The resolver_cb pointer is cleared to prevent double-free if this
-       object is somehow finalized twice, but the actual closure remains
-       alive. */
-    valkey_glide->resolver_cb = NULL;
+    /* Mark the resolver callback as closed. After this, any Rust background
+       thread that calls the resolver will get an immediate 0 return (fallback
+       to original address) without touching PHP internals. The actual FFI
+       closure memory is freed later in PHP_RSHUTDOWN_FUNCTION. */
+    if (valkey_glide->resolver_cb) {
+        valkey_glide_resolver_close(valkey_glide->resolver_cb);
+        valkey_glide->resolver_cb = NULL;
+    }
 
     /* Clean up the standard object */
     zend_object_std_dtor(&valkey_glide->std);
@@ -1152,10 +1142,12 @@ PHP_METHOD(ValkeyGlide, close) {
         valkey_glide->glide_client = NULL;
     }
 
-    /* NOTE: We intentionally do NOT release the resolver callback here.
-       See comment in free_valkey_glide_object for detailed explanation.
-       The resolver will be cleaned up at request shutdown. */
-    valkey_glide->resolver_cb = NULL;
+    /* Mark resolver as closed so background Rust threads get immediate
+       fallback instead of calling into PHP. Memory freed at RSHUTDOWN. */
+    if (valkey_glide->resolver_cb) {
+        valkey_glide_resolver_close(valkey_glide->resolver_cb);
+        valkey_glide->resolver_cb = NULL;
+    }
 
     RETURN_TRUE;
 }

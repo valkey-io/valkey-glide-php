@@ -3,6 +3,7 @@
 #include "valkey_glide_address_resolver.h"
 
 #include <ffi.h>
+#include <stdatomic.h>
 #include <string.h>
 #include <zend_exceptions.h>
 
@@ -11,6 +12,7 @@ typedef struct resolver_closure {
     ffi_cif                  cif;
     ffi_closure*             closure;
     void*                    fn_ptr;
+    atomic_int               closed; /* 1 = client closed, callback becomes no-op */
     struct resolver_closure* next;
 } resolver_closure_t;
 
@@ -28,6 +30,17 @@ static ffi_type* arg_types[7] = {
 };
 
 static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void* userdata) {
+    resolver_closure_t* ctx = (resolver_closure_t*) userdata;
+
+    /* If the client has been closed, return 0 (fallback to original address).
+     * This is safe to call from any thread — atomic_load is lock-free.
+     * This prevents use-after-free when Rust background threads call the
+     * resolver after PHP has closed the client. */
+    if (atomic_load(&ctx->closed)) {
+        *(uint16_t*) ret = 0;
+        return;
+    }
+
     /*
      * THREAD SAFETY: The Rust FFI layer invokes this callback synchronously
      * during create_client() and during reconnection attempts. PHP's Zend Engine
@@ -36,7 +49,6 @@ static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void
      * Glide sync client (SyncClient type) which blocks the calling thread for
      * all operations including reconnects.
      */
-    resolver_closure_t* ctx = (resolver_closure_t*) userdata;
 
     /* client_id is args[0] but we don't need it - PHP uses closure userdata for routing */
     const uint8_t* host     = *(const uint8_t**) args[1];
@@ -106,6 +118,7 @@ AddressResolverCallback valkey_glide_resolver_acquire(zval* callable) {
     memset(ctx, 0, sizeof(*ctx));
 
     ZVAL_COPY(&ctx->callable, callable);
+    atomic_init(&ctx->closed, 0);
 
     ctx->closure = ffi_closure_alloc(sizeof(ffi_closure), &ctx->fn_ptr);
     if (!ctx->closure)
@@ -129,6 +142,20 @@ fail:
     zval_ptr_dtor(&ctx->callable);
     pefree(ctx, 1);
     return NULL;
+}
+
+void valkey_glide_resolver_close(AddressResolverCallback cb) {
+    if (!cb)
+        return;
+
+    resolver_closure_t* cur = g_closures;
+    while (cur) {
+        if ((AddressResolverCallback) cur->fn_ptr == cb) {
+            atomic_store(&cur->closed, 1);
+            return;
+        }
+        cur = cur->next;
+    }
 }
 
 void valkey_glide_resolver_release(AddressResolverCallback cb) {
