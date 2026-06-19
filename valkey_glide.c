@@ -672,10 +672,12 @@ void free_valkey_glide_object(zend_object* object) {
         valkey_glide->glide_client = NULL;
     }
 
-    /* Release address resolver slot after closing client (Rust may call the
-       resolver during reconnect; freeing the closure first causes SIGSEGV) */
+    /* Mark the resolver callback as closed. After this, any Rust background
+       thread that calls the resolver will get an immediate 0 return (fallback
+       to original address) without touching PHP internals. The actual FFI
+       closure memory is freed later in PHP_RSHUTDOWN_FUNCTION. */
     if (valkey_glide->resolver_cb) {
-        valkey_glide_resolver_release(valkey_glide->resolver_cb);
+        valkey_glide_resolver_close(valkey_glide->resolver_cb);
         valkey_glide->resolver_cb = NULL;
     }
 
@@ -1140,8 +1142,10 @@ PHP_METHOD(ValkeyGlide, close) {
         valkey_glide->glide_client = NULL;
     }
 
+    /* Mark resolver as closed so background Rust threads get immediate
+       fallback instead of calling into PHP. Memory freed at RSHUTDOWN. */
     if (valkey_glide->resolver_cb) {
-        valkey_glide_resolver_release(valkey_glide->resolver_cb);
+        valkey_glide_resolver_close(valkey_glide->resolver_cb);
         valkey_glide->resolver_cb = NULL;
     }
 

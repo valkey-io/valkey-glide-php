@@ -3,6 +3,7 @@
 #include "valkey_glide_address_resolver.h"
 
 #include <ffi.h>
+#include <stdatomic.h>
 #include <string.h>
 #include <zend_exceptions.h>
 
@@ -11,21 +12,35 @@ typedef struct resolver_closure {
     ffi_cif                  cif;
     ffi_closure*             closure;
     void*                    fn_ptr;
+    atomic_int               closed; /* 1 = client closed, callback becomes no-op */
     struct resolver_closure* next;
 } resolver_closure_t;
 
 static resolver_closure_t* g_closures = NULL;
 
-static ffi_type* arg_types[6] = {
+static ffi_type* arg_types[7] = {
+    &ffi_type_pointer, /* usize client_id - using pointer type for ABI compat (same size on 64-bit)
+                        */
     &ffi_type_pointer, /* const uint8_t *host */
-    &ffi_type_pointer, /* uintptr_t host_len */
+    &ffi_type_pointer, /* usize host_len - using pointer type for ABI compat */
     &ffi_type_uint16,  /* uint16_t port */
     &ffi_type_pointer, /* uint8_t *resolved_host_buf */
-    &ffi_type_pointer, /* uintptr_t resolved_host_buf_len */
+    &ffi_type_pointer, /* usize resolved_host_buf_len - using pointer type for ABI compat */
     &ffi_type_pointer, /* uintptr_t *resolved_host_len */
 };
 
 static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void* userdata) {
+    resolver_closure_t* ctx = (resolver_closure_t*) userdata;
+
+    /* If the client has been closed, return 0 (fallback to original address).
+     * This is safe to call from any thread — atomic_load is lock-free.
+     * This prevents use-after-free when Rust background threads call the
+     * resolver after PHP has closed the client. */
+    if (atomic_load(&ctx->closed)) {
+        *(uint16_t*) ret = 0;
+        return;
+    }
+
     /*
      * THREAD SAFETY: The Rust FFI layer invokes this callback synchronously
      * during create_client() and during reconnection attempts. PHP's Zend Engine
@@ -34,14 +49,14 @@ static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void
      * Glide sync client (SyncClient type) which blocks the calling thread for
      * all operations including reconnects.
      */
-    resolver_closure_t* ctx = (resolver_closure_t*) userdata;
 
-    const uint8_t* host     = *(const uint8_t**) args[0];
-    uintptr_t      host_len = *(uintptr_t*) args[1];
-    uint16_t       port     = *(uint16_t*) args[2];
-    uint8_t*       out_buf  = *(uint8_t**) args[3];
-    uintptr_t      buf_len  = *(uintptr_t*) args[4];
-    uintptr_t*     written  = *(uintptr_t**) args[5];
+    /* client_id is args[0] but we don't need it - PHP uses closure userdata for routing */
+    const uint8_t* host     = *(const uint8_t**) args[1];
+    uintptr_t      host_len = *(uintptr_t*) args[2];
+    uint16_t       port     = *(uint16_t*) args[3];
+    uint8_t*       out_buf  = *(uint8_t**) args[4];
+    uintptr_t      buf_len  = *(uintptr_t*) args[5];
+    uintptr_t*     written  = *(uintptr_t**) args[6];
 
     *(uint16_t*) ret = 0;
 
@@ -49,6 +64,7 @@ static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void
         return;
 
     zval args_z[2], retval;
+    ZVAL_UNDEF(&retval); /* Initialize retval before use */
     ZVAL_STRINGL(&args_z[0], (const char*) host, host_len);
     ZVAL_LONG(&args_z[1], port);
 
@@ -56,8 +72,11 @@ static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void
     zval_ptr_dtor(&args_z[0]);
     zval_ptr_dtor(&args_z[1]);
 
-    if (EG(exception))
+    if (EG(exception)) {
         zend_clear_exception();
+        zval_ptr_dtor(&retval); /* Safe to call on ZVAL_UNDEF */
+        return;
+    }
     if (call_result != SUCCESS || Z_TYPE(retval) != IS_ARRAY) {
         zval_ptr_dtor(&retval);
         return;
@@ -99,12 +118,13 @@ AddressResolverCallback valkey_glide_resolver_acquire(zval* callable) {
     memset(ctx, 0, sizeof(*ctx));
 
     ZVAL_COPY(&ctx->callable, callable);
+    atomic_init(&ctx->closed, 0);
 
     ctx->closure = ffi_closure_alloc(sizeof(ffi_closure), &ctx->fn_ptr);
     if (!ctx->closure)
         goto fail;
 
-    if (ffi_prep_cif(&ctx->cif, FFI_DEFAULT_ABI, 6, &ffi_type_uint16, arg_types) != FFI_OK)
+    if (ffi_prep_cif(&ctx->cif, FFI_DEFAULT_ABI, 7, &ffi_type_uint16, arg_types) != FFI_OK)
         goto fail;
 
     if (ffi_prep_closure_loc(
@@ -122,6 +142,20 @@ fail:
     zval_ptr_dtor(&ctx->callable);
     pefree(ctx, 1);
     return NULL;
+}
+
+void valkey_glide_resolver_close(AddressResolverCallback cb) {
+    if (!cb)
+        return;
+
+    resolver_closure_t* cur = g_closures;
+    while (cur) {
+        if ((AddressResolverCallback) cur->fn_ptr == cb) {
+            atomic_store(&cur->closed, 1);
+            return;
+        }
+        cur = cur->next;
+    }
 }
 
 void valkey_glide_resolver_release(AddressResolverCallback cb) {

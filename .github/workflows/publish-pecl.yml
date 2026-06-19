@@ -232,8 +232,11 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && needs.prepare-version-bump.outputs.release-branch || github.ref }}
           submodules: recursive
 
-      - name: Install Rust and protoc
-        uses: ./.github/workflows/install-rust-and-protoc
+      - name: Install Rust
+        uses: ./valkey-glide/.github/actions/install-rust
+
+      - name: Install protoc
+        uses: ./valkey-glide/.github/actions/install-protoc
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 

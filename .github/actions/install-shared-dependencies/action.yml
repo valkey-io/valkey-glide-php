@@ -1,34 +1,20 @@
 name: Install shared software dependencies
+description: "Install shared software dependencies like OS packages, Rust toolchain, and Valkey server."
 
 inputs:
   os:
     description: "The current operating system"
     required: true
-    type: string
-    options:
-      - amazon-linux
-      - macos
-      - ubuntu
   target:
     description: "Specified target for rust toolchain, ex. x86_64-apple-darwin"
-    type: string
     required: false
-    defalt: "x86_64-unknown-linux-gnu"
-    options:
-      - x86_64-unknown-linux-gnu
-      - aarch64-unknown-linux-gnu
-      - x86_64-apple-darwin
-      - aarch64-apple-darwin
-      - aarch64-unknown-linux-musl
-      - x86_64-unknown-linux-musl
+    default: "x86_64-unknown-linux-gnu"
   engine-version:
     description: "Engine version to install"
     required: false
-    type: string
   github-token:
     description: "GITHUB_TOKEN, GitHub App installation access token"
     required: true
-    type: string
 
 runs:
   using: "composite"
@@ -42,7 +28,7 @@ runs:
 
     - name: Install software dependencies for Ubuntu GNU
       shell: bash
-      if: "${{ inputs.os == 'ubuntu' && !contains(inputs.target, 'musl')}}"
+      if: "${{ inputs.os == 'ubuntu' && !contains(inputs.target, 'musl') }}"
       run: |
         sudo apt update -y
         sudo apt install -y git gcc pkg-config openssl libssl-dev
@@ -54,7 +40,7 @@ runs:
         apk update
         wget -O - https://sh.rustup.rs | sh -s -- -y
         source "$HOME/.cargo/env"
-        apk add protobuf-dev musl-dev make gcc envsubst openssl libressl-dev
+        apk add protobuf-dev musl-dev make gcc envsubst openssl libressl-dev py3-pip
 
     - name: Install software dependencies for Amazon-Linux
       shell: bash
@@ -62,20 +48,33 @@ runs:
       run: |
         yum install -y gcc pkgconfig openssl openssl-devel which curl gettext libasan tar --allowerasing
 
-    - name: Install Rust toolchain and protoc
+    # Shared actions from valkey-glide submodule
+    - name: Install Rust toolchain
       if: "${{ !contains(inputs.target, 'musl') }}"
-      uses: ./.github/workflows/install-rust-and-protoc
+      uses: ./valkey-glide/.github/actions/install-rust
       with:
         target: ${{ inputs.target }}
+
+    - name: Install protoc
+      if: "${{ !contains(inputs.target, 'musl') }}"
+      uses: ./valkey-glide/.github/actions/install-protoc
+      with:
         github-token: ${{ inputs.github-token }}
 
     - name: Install engine
       if: "${{ inputs.engine-version }}"
-      uses: ./.github/workflows/install-engine
+      uses: ./valkey-glide/.github/actions/install-engine
       with:
         engine-version: ${{ inputs.engine-version }}
         target: ${{ inputs.target }}
 
+    # NOTE: Docker module servers are NOT started automatically here because
+    # PHP workflows manage their own server lifecycle explicitly. Each test
+    # workflow calls start-valkey-docker directly when needed to avoid
+    # duplicate container name conflicts.
+
     - name: Install zig
       if: ${{ contains(inputs.target, 'linux-gnu') }}
-      uses: ./.github/workflows/install-zig
+      uses: ./valkey-glide/.github/actions/install-zig
+      with:
+        target: ${{ inputs.target }}

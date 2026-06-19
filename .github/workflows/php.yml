@@ -11,12 +11,11 @@ on:
       - valkey-glide/glide-core/redis-rs/redis/src/**
       - valkey-glide/ffi/src/**
       - valkey-glide/utils/cluster_manager.py
+      - valkey-glide/.github/actions/**
       - .github/workflows/php.yml
-      - .github/workflows/install-shared-dependencies/action.yml
+      - .github/actions/install-shared-dependencies/action.yml
       - .github/workflows/build-php-wrapper/action.yml
       - .github/workflows/test-benchmark/action.yml
-      - .github/workflows/install-engine/action.yml
-      - .github/workflows/start-valkey-docker/action.yml
       - .github/workflows/create-test-matrices/action.yml
       - .github/json_matrices/**
   pull_request:
@@ -25,12 +24,11 @@ on:
       - valkey-glide/glide-core/redis-rs/redis/src/**
       - valkey-glide/ffi/src/**
       - valkey-glide/utils/cluster_manager.py
+      - valkey-glide/.github/actions/**
       - .github/workflows/php.yml
-      - .github/workflows/install-shared-dependencies/action.yml
+      - .github/actions/install-shared-dependencies/action.yml
       - .github/workflows/build-php-wrapper/action.yml
       - .github/workflows/test-benchmark/action.yml
-      - .github/workflows/install-engine/action.yml
-      - .github/workflows/start-valkey-docker/action.yml
       - .github/workflows/create-test-matrices/action.yml
       - .github/json_matrices/**
       # PHP-specific paths
@@ -201,17 +199,12 @@ jobs:
             macos-latest
 
       - name: Install shared dependencies
-        uses: ./.github/workflows/install-shared-dependencies
+        uses: ./.github/actions/install-shared-dependencies
         with:
-          os: ${{ inputs.os }}
+          os: macos
           target: x86_64-apple-darwin
           github-token: ${{ secrets.GITHUB_TOKEN }}
           engine-version: ${{ matrix.engine.version }}
-
-      - name: Install Rust and protoc
-        uses: ./.github/workflows/install-rust-and-protoc
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install cbindgen
         run: |
@@ -476,9 +469,10 @@ jobs:
       # alongside native servers on default ports for the main test suite.
       - name: Start Valkey servers via Docker (9.0)
         if: ${{ matrix.engine.version == '9.0' }}
-        uses: ./.github/workflows/start-valkey-docker
+        uses: ./valkey-glide/.github/actions/start-valkey-docker
         with:
           engine-version: ${{ matrix.engine.version }}
+          cluster-port-start: "9001"
 
       # Start native servers on default ports (6379, 7001-7006, etc.)
       # needed by the main test suite. For 9.0 these run alongside Docker.
@@ -654,6 +648,7 @@ jobs:
             echo "No suppressions file found"
           fi
 
+          export VALGRIND_TEST=1
           valgrind \
               --tool=memcheck \
               --leak-check=full \
@@ -662,7 +657,7 @@ jobs:
               --verbose \
               --error-exitcode=1 \
               $SUPPRESSIONS_FLAG \
-              php -n -c ext.ini tests/TestValkeyGlide.php 2>&1 | tee ./valgrind_logs/valgrind_output.log
+              php -n -c ext.ini -d max_execution_time=0 tests/TestValkeyGlide.php 2>&1 | tee ./valgrind_logs/valgrind_output.log
 
           VALGRIND_EXIT_CODE=${PIPESTATUS[0]}
           echo ""
@@ -839,6 +834,8 @@ jobs:
 
       - name: Install system dependencies
         run: |
+          # Add ondrej/php PPA for PHP versions not in default Ubuntu 24.04 repos
+          sudo add-apt-repository -y ppa:ondrej/php || true
           sudo apt-get update
           sudo apt-get install -y \
               php${{ env.BASE_PHP_VERSION }}-dev \
@@ -853,14 +850,23 @@ jobs:
               libprotobuf-c1
 
           # Install clang-format-18 and set it as default.
+          # Add LLVM repo if clang-format-18 isn't available in default repos
+          if ! apt-cache show clang-format-18 > /dev/null 2>&1; then
+            wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+            echo "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
+            sudo apt-get update
+          fi
           sudo apt-get install -y clang-format-18
           sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
 
           # Install markdownlint-cli for markdown linting.
           npm install -g markdownlint-cli@0.44.0
 
+      - name: Install Rust
+        uses: ./valkey-glide/.github/actions/install-rust
+
       - name: Install protoc
-        uses: ./.github/workflows/install-rust-and-protoc
+        uses: ./valkey-glide/.github/actions/install-protoc
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -1088,10 +1094,12 @@ jobs:
         run: |
           composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Start module servers via Docker
-        uses: ./.github/workflows/start-valkey-docker
+      # Start Docker containers with modules (JSON, Search) for modules tests
+      - name: Start Valkey servers via Docker
+        uses: ./valkey-glide/.github/actions/start-valkey-docker
         with:
           engine-version: "9.0"
+          cluster-port-start: "9001"
 
       - name: Run modules tests
         run: |
@@ -1130,8 +1138,11 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Rust and protoc
-        uses: ./.github/workflows/install-rust-and-protoc
+      - name: Install Rust
+        uses: ./valkey-glide/.github/actions/install-rust
+
+      - name: Install protoc
+        uses: ./valkey-glide/.github/actions/install-protoc
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 

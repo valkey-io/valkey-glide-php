@@ -5606,7 +5606,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testScan()
     {
-        set_time_limit(10); // Enforce a 10-second limit on this test
+        set_time_limit(getenv("VALGRIND_TEST") ? 300 : 10); // Enforce a 10-second limit on this test
         if (version_compare($this->version, '2.8.0') < 0) {
             $this->markTestSkipped();
         }
@@ -5712,7 +5712,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testHScan()
     {
-        set_time_limit(10); // Enforce a 10-second limit on this test
+        set_time_limit(getenv("VALGRIND_TEST") ? 300 : 10); // Enforce a 10-second limit on this test
         if (version_compare($this->version, '2.8.0') < 0) {
             $this->markTestSkipped();
         }
@@ -5765,7 +5765,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testSScan()
     {
-        set_time_limit(10); // Enforce a 10-second limit on this test
+        set_time_limit(getenv("VALGRIND_TEST") ? 300 : 10); // Enforce a 10-second limit on this test
         if (version_compare($this->version, '2.8.0') < 0) {
             $this->markTestSkipped();
         }
@@ -5807,7 +5807,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testZScan()
     {
-        set_time_limit(10); // Enforce a 10-second limit on this test
+        set_time_limit(getenv("VALGRIND_TEST") ? 300 : 10); // Enforce a 10-second limit on this test
         if (version_compare($this->version, '2.8.0') < 0) {
             $this->markTestSkipped();
         }

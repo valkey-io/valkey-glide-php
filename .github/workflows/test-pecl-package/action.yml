@@ -137,7 +137,7 @@ runs:
 
     - name: Install shared dependencies
       if: steps.package-info.outputs.is-rc != 'true'
-      uses: ./.github/workflows/install-shared-dependencies
+      uses: ./.github/actions/install-shared-dependencies
       with:
         os: ubuntu
         target: x86_64-unknown-linux-gnu
@@ -390,9 +390,10 @@ runs:
 
     - name: Start Valkey servers via Docker
       if: steps.package-info.outputs.is-rc != 'true'
-      uses: ./.github/workflows/start-valkey-docker
+      uses: ./valkey-glide/.github/actions/start-valkey-docker
       with:
         engine-version: ${{ inputs.engine-version }}
+        cluster-port-start: "9001"
 
     - name: Run PHP Extension Tests
       if: steps.package-info.outputs.is-rc != 'true'

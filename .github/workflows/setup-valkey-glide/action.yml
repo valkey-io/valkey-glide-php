@@ -83,7 +83,12 @@ runs:
       shell: bash
       run: |
         mkdir -p ~/.cargo
-        cat >> ~/.cargo/config.toml << EOF
+        CONFIG_FILE="$HOME/.cargo/config.toml"
+
+        # Only add config if not already present (avoid duplicate entries)
+        if [ ! -f "$CONFIG_FILE" ] || ! grep -q '\[registries.crates-io\]' "$CONFIG_FILE"; then
+          echo "Adding Cargo speed configuration..."
+          cat >> "$CONFIG_FILE" << 'EOF'
         [registries.crates-io]
         protocol = "sparse"
 
@@ -94,20 +99,26 @@ runs:
         codegen-units = 1
         lto = true
         EOF
+        else
+          echo "Cargo config already contains registries.crates-io, skipping to avoid duplicates"
+        fi
 
-    - name: Install Rust and protoc
-      uses: ./.github/workflows/install-rust-and-protoc
+    - name: Install Rust
+      uses: ./valkey-glide/.github/actions/install-rust
+
+    - name: Install protoc
+      uses: ./valkey-glide/.github/actions/install-protoc
       with:
         github-token: ${{ inputs.github-token }}
 
     - name: Install Valkey engine
-      uses: ./.github/workflows/install-engine
+      uses: ./valkey-glide/.github/actions/install-engine
       with:
         engine-version: ${{ inputs.engine-version }}
         target: x86_64-unknown-linux-gnu
 
     - name: Install zig
-      uses: ./.github/workflows/install-zig
+      uses: ./valkey-glide/.github/actions/install-zig
 
     - name: Install cbindgen (cached)
       shell: bash

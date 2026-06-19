@@ -292,9 +292,11 @@ static const ConnectionResponse* create_base_glide_client(
     if (out_resolver_cb)
         *out_resolver_cb = address_resolver_cb;
 
-    /* Create the client with pubsub callback registered at creation time */
+    /* Create the client with pubsub callback registered at creation time.
+     * client_id is passed to the address resolver callback - we use 0 since PHP's
+     * resolver slot mechanism handles routing callbacks to the correct client. */
     const ConnectionResponse* conn_resp = create_client(
-        request_bytes, len, &client_type, valkey_glide_pubsub_callback, address_resolver_cb);
+        request_bytes, len, &client_type, valkey_glide_pubsub_callback, address_resolver_cb, 0);
 
     /* Free the request bytes as they're no longer needed */
     efree(request_bytes);
