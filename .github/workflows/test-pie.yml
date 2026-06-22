@@ -58,8 +58,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Output Matrix Parameters for this job
         run: |
