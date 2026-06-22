@@ -346,7 +346,7 @@ jobs:
           fi
 
   test-pie-install-from-packagist:
-    name: PIE Install from Packagist (v${{ steps.get-version.outputs.version || 'unknown' }})
+    name: PIE Install from Packagist
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
