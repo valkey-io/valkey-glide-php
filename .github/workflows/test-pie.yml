@@ -344,3 +344,43 @@ jobs:
           if [ -f server.pid ]; then
             kill $(cat server.pid) || true
           fi
+
+  test-pie-install-from-packagist:
+    name: PIE Install from Packagist (v${{ matrix.version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ["1.0.0"]
+        php: ["8.2"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup PHP Extension Build Environment
+        uses: ./.github/workflows/setup-php-extension
+        with:
+          php-version: ${{ matrix.php }}
+          install-composer-deps: "false"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: "9.0"
+
+      - name: Install from Packagist
+        run: |
+          echo "=== Installing valkey-glide-php v${{ matrix.version }} from Packagist ==="
+          sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$(nproc)" \
+            pie install valkey-io/valkey-glide-php:${{ matrix.version }} --force --no-interaction -vvv 2>&1 | tee pie_install.log
+          PIE_EXIT_CODE=${PIPESTATUS[0]}
+
+          if [ $PIE_EXIT_CODE -ne 0 ]; then
+            echo "ERROR: PIE install failed with exit code $PIE_EXIT_CODE"
+            exit 1
+          fi
+
+          echo "=== Verifying extension loads ==="
+          php -d extension=valkey_glide -r "
+            if (!class_exists('ValkeyGlide')) { echo 'FAIL: ValkeyGlide class not found'; exit(1); }
+            echo 'SUCCESS: Extension loaded from Packagist install' . PHP_EOL;
+          "
