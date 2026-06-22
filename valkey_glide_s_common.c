@@ -836,9 +836,11 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
     if (result) {
         if (result->command_error) {
             valkey_glide_record_command_error(valkey_glide, result);
-        } else {
-            status = process_result(result->response, scan_data, return_value);
         }
+        /* Always run the processor: on the SCAN path it resets the scan iterator
+         * and frees the emalloc'd scan_data, which would otherwise leak on error.
+         * The processors handle a NULL response by returning a false/empty value. */
+        status = process_result(result->command_error ? NULL : result->response, scan_data, return_value);
     }
     free_command_result(result);
 
