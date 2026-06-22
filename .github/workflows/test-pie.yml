@@ -346,18 +346,24 @@ jobs:
           fi
 
   test-pie-install-from-packagist:
-    name: PIE Install from Packagist (v${{ matrix.version }})
+    name: PIE Install from Packagist (v${{ steps.get-version.outputs.version || 'unknown' }})
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
-        version: ["1.0.0"]
         php: ["8.2"]
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Get release version from common.h
+        id: get-version
+        run: |
+          VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' common.h | sed 's/.*"\([^"]*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
 
       - name: Setup PHP Extension Build Environment
         uses: ./.github/workflows/setup-php-extension
@@ -369,9 +375,10 @@ jobs:
 
       - name: Install from Packagist
         run: |
-          echo "=== Installing valkey-glide-php v${{ matrix.version }} from Packagist ==="
+          VERSION="${{ steps.get-version.outputs.version }}"
+          echo "=== Installing valkey-glide-php v${VERSION} from Packagist ==="
           sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$(nproc)" \
-            pie install valkey-io/valkey-glide-php:${{ matrix.version }} --force --no-interaction -vvv 2>&1 | tee pie_install.log
+            pie install valkey-io/valkey-glide-php:${VERSION} --force --no-interaction -vvv 2>&1 | tee pie_install.log
           PIE_EXIT_CODE=${PIPESTATUS[0]}
 
           if [ $PIE_EXIT_CODE -ne 0 ]; then
