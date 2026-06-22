@@ -412,3 +412,44 @@ jobs:
           if [ -f server.pid ]; then
             kill $(cat server.pid) || true
           fi
+
+  # This job installs the released version from Packagist to verify real user experience.
+  # Run manually via "Actions > Run workflow" AFTER the version is published to Packagist.
+  # See: https://bitquill.atlassian.net/wiki/spaces/AMZ/pages/4428562450/PHP+release+process
+  test-pie-install-from-packagist:
+    name: PIE Install from Packagist
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Get release version
+        id: get-version
+        run: |
+          VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' common.h | sed 's/.*"\([^"]*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Testing Packagist install for v$VERSION"
+
+      - name: Setup PHP Extension Build Environment
+        uses: ./.github/workflows/setup-php-extension
+        with:
+          php-version: "8.2"
+          install-composer-deps: "false"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: "9.0"
+
+      - name: Install from Packagist
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          echo "=== Installing valkey-glide-php v${VERSION} from Packagist ==="
+          sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$(nproc)" \
+            pie install valkey-io/valkey-glide-php:${VERSION} --force --no-interaction -vvv
+
+          echo "=== Verifying extension loads ==="
+          php -d extension=valkey_glide -r "
+            if (!class_exists('ValkeyGlide')) { echo 'FAIL'; exit(1); }
+            echo 'SUCCESS: Extension loaded from Packagist install' . PHP_EOL;
+          "
