@@ -92,44 +92,12 @@ ensure-submodules:
 		if [ -d .git ]; then \
 			echo "Git repository detected - using submodules"; \
 			if ! git submodule update --init --recursive 2>/dev/null; then \
-				echo "git submodule update failed, falling back to manual clone"; \
-				grep -E "^\s*path\s*=" .gitmodules | sed 's/.*=[ \t]*//' | while read path; do \
-					if [ ! -d "$$path/.git" ] && [ ! -f "$$path/.git" ]; then \
-						url=$$(grep -A1 "path = $$path" .gitmodules | grep url | sed 's/^[^=]*=[ \t]*//'); \
-						commit=$$(git ls-tree HEAD "$$path" 2>/dev/null | awk '{print $$3}'); \
-						echo "Cloning $$url into $$path at commit $$commit"; \
-						rm -rf "$$path"; \
-						git clone "$$url" "$$path" || exit 1; \
-						if [ -n "$$commit" ]; then \
-							cd "$$path" && git fetch origin "$$commit" && git checkout "$$commit" && cd ..; \
-						fi; \
-					fi; \
-				done; \
+				echo "git submodule update failed, falling back to resolve script"; \
+				bash utils/resolve_submodule.sh || exit 1; \
 			fi; \
 		else \
-			echo "PECL package detected - cloning submodules manually"; \
-			if ! command -v git >/dev/null 2>&1; then \
-				echo "ERROR: Git is required to build this extension"; \
-				exit 1; \
-			fi; \
-			grep -E "^\s*path\s*=" .gitmodules | sed 's/.*=[ \t]*//' | while read path; do \
-				url=$$(grep -A1 "path = $$path" .gitmodules | grep url | sed 's/^[^=]*=[ \t]*//'); \
-				if [ ! -d "$$path/.git" ]; then \
-					echo "Cloning $$url into $$path"; \
-					rm -rf "$$path"; \
-					if ! git clone "$$url" "$$path"; then \
-						echo "ERROR: Failed to clone submodule from $$url"; \
-						exit 1; \
-					fi; \
-					if [ -f .submodule-commits ]; then \
-						commit=$$(grep "^$$path=" .submodule-commits | cut -d= -f2); \
-						if [ -n "$$commit" ]; then \
-							echo "Checking out recorded commit $$commit for $$path"; \
-							cd "$$path" && git checkout "$$commit" && cd ..; \
-						fi; \
-					fi; \
-				fi; \
-			done; \
+			echo "PECL package detected - resolving submodule manually"; \
+			bash utils/resolve_submodule.sh || exit 1; \
 		fi; \
 	fi
 	@echo "Submodules ready"

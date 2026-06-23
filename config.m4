@@ -139,35 +139,12 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       if test -d ".git"; then
         dnl Git repository - use submodules
         if ! git submodule update --init --recursive >/dev/null 2>&1; then
-          AC_MSG_RESULT([git submodule update failed, falling back to manual clone])
-          if test ! -d "valkey-glide/.git"; then
-            SUBMODULE_COMMIT=$(git ls-tree HEAD valkey-glide 2>/dev/null | awk '{print $3}')
-            url=$(grep -A1 "path = valkey-glide" .gitmodules | grep url | sed 's/^[[^=]]*=[[[:space:]]]*//')
-            if test -n "$url"; then
-              rm -rf valkey-glide
-              git clone "$url" valkey-glide >/dev/null 2>&1 || true
-              if test -n "$SUBMODULE_COMMIT" && test -d "valkey-glide/.git"; then
-                cd valkey-glide && git fetch origin "$SUBMODULE_COMMIT" >/dev/null 2>&1 && git checkout "$SUBMODULE_COMMIT" >/dev/null 2>&1; cd ..
-              fi
-            fi
-          fi
+          AC_MSG_RESULT([git submodule update failed, falling back to resolve script])
+          bash utils/resolve_submodule.sh || true
         fi
       else
-        dnl build - clone submodules manually during configure
-        if test ! -d "valkey-glide/.git"; then
-          AC_MSG_RESULT([cloning submodules for build])
-          url=$(grep -A1 "path = valkey-glide" .gitmodules | grep url | sed 's/^[[^=]]*=[[[:space:]]]*//')
-          if test -n "$url"; then
-            git clone "$url" valkey-glide >/dev/null 2>&1 || true
-            dnl Try to checkout the correct commit from .submodule-commits
-            if test -f ".submodule-commits"; then
-              SUBMODULE_COMMIT=$(grep "^valkey-glide=" .submodule-commits | cut -d= -f2)
-              if test -n "$SUBMODULE_COMMIT" && test -d "valkey-glide/.git"; then
-                cd valkey-glide && git fetch origin "$SUBMODULE_COMMIT" >/dev/null 2>&1 && git checkout "$SUBMODULE_COMMIT" >/dev/null 2>&1; cd ..
-              fi
-            fi
-          fi
-        fi
+        dnl PECL build - resolve submodule manually
+        bash utils/resolve_submodule.sh || true
       fi
     fi
     
@@ -372,41 +349,10 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       AC_MSG_ERROR([python3 not found - please install Python 3])
     fi
     
-    dnl For PECL builds, handle submodules using .submodule-commits file
-    dnl For PIE builds, handle submodules using git submodule update
+    dnl Resolve submodule if not already initialized
     if test ! -d "valkey-glide/.git"; then
-      dnl Determine the correct submodule commit
-      SUBMODULE_COMMIT=""
-      if test -d ".git"; then
-        dnl PIE/git build - get commit from git tree (most reliable)
-        SUBMODULE_COMMIT=$(git ls-tree HEAD valkey-glide 2>/dev/null | awk '{print $3}')
-        AC_MSG_RESULT([Debug: commit from git tree=$SUBMODULE_COMMIT])
-      fi
-      if test -z "$SUBMODULE_COMMIT" && test -f ".submodule-commits"; then
-        dnl PECL build - get commit from .submodule-commits file
-        SUBMODULE_LINE=$(cat .submodule-commits | head -1)
-        SUBMODULE_COMMIT=$(echo "$SUBMODULE_LINE" | cut -d'=' -f2)
-        AC_MSG_RESULT([Debug: commit from .submodule-commits=$SUBMODULE_COMMIT])
-      fi
-
-      if test -z "$SUBMODULE_COMMIT"; then
-        AC_MSG_ERROR([Cannot determine submodule commit. Neither git tree nor .submodule-commits has a valid commit hash.])
-      fi
-
-      AC_MSG_RESULT([cloning submodule at commit $SUBMODULE_COMMIT])
-      
-      dnl Remove existing directory if it exists but isn't a git repo
-      if test -d "valkey-glide"; then
-        AC_MSG_RESULT([removing existing valkey-glide directory])
-        rm -rf valkey-glide
-      fi
-      
-      dnl Clone the submodule at the specific commit
-      git clone https://github.com/valkey-io/valkey-glide.git valkey-glide || AC_MSG_ERROR([Failed to clone valkey-glide])
-      cd valkey-glide
-      git fetch origin "$SUBMODULE_COMMIT" || AC_MSG_ERROR([Failed to fetch commit $SUBMODULE_COMMIT])
-      git checkout "$SUBMODULE_COMMIT" || AC_MSG_ERROR([Failed to checkout commit $SUBMODULE_COMMIT])
-      cd ..
+      AC_MSG_RESULT([resolving submodule via script])
+      bash utils/resolve_submodule.sh || AC_MSG_ERROR([Failed to resolve submodule])
     elif test -f ".gitmodules" && test -d ".git"; then
       AC_MSG_RESULT([submodules already initialized via git submodule update])
     else
