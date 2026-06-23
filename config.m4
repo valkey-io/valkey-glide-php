@@ -140,11 +140,11 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
         dnl Git repository - use submodules
         if ! git submodule update --init --recursive >/dev/null 2>&1; then
           AC_MSG_RESULT([git submodule update failed, falling back to resolve script])
-          bash utils/resolve_submodule.sh || true
+          bash "$srcdir/utils/resolve_submodule.sh" || true
         fi
       else
         dnl PECL build - resolve submodule manually
-        bash utils/resolve_submodule.sh || true
+        bash "$srcdir/utils/resolve_submodule.sh" || true
       fi
     fi
     
@@ -352,7 +352,7 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     dnl Resolve submodule if not already initialized
     if test ! -d "valkey-glide/.git"; then
       AC_MSG_RESULT([resolving submodule via script])
-      bash utils/resolve_submodule.sh || AC_MSG_ERROR([Failed to resolve submodule])
+      bash "$srcdir/utils/resolve_submodule.sh" || AC_MSG_ERROR([Failed to resolve submodule])
     elif test -f ".gitmodules" && test -d ".git"; then
       AC_MSG_RESULT([submodules already initialized via git submodule update])
     else
