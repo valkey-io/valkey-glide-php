@@ -92,12 +92,30 @@ ensure-submodules:
 		if [ -d .git ]; then \
 			echo "Git repository detected - using submodules"; \
 			if ! git submodule update --init --recursive 2>/dev/null; then \
-				echo "git submodule update failed, falling back to resolve script"; \
-				bash utils/resolve_submodule.sh || exit 1; \
+				echo "git submodule update failed, falling back to manual resolve"; \
+				if [ ! -d "valkey-glide/.git" ] && [ ! -f "valkey-glide/.git" ]; then \
+					commit=$$(git ls-tree HEAD valkey-glide 2>/dev/null | awk '{print $$3}'); \
+					if [ -n "$$commit" ]; then \
+						echo "Resolving submodule at commit $$commit"; \
+						rm -rf valkey-glide; \
+						git clone --depth 1 https://github.com/valkey-io/valkey-glide.git valkey-glide || exit 1; \
+						cd valkey-glide && git fetch --depth 1 origin "$$commit" && git checkout "$$commit" && cd ..; \
+					fi; \
+				fi; \
 			fi; \
 		else \
 			echo "PECL package detected - resolving submodule manually"; \
-			bash utils/resolve_submodule.sh || exit 1; \
+			if [ ! -d "valkey-glide/.git" ]; then \
+				commit=""; \
+				if [ -f .submodule-commits ]; then \
+					commit=$$(grep "^valkey-glide=" .submodule-commits | cut -d= -f2); \
+				fi; \
+				if [ -n "$$commit" ]; then \
+					rm -rf valkey-glide; \
+					git clone --depth 1 https://github.com/valkey-io/valkey-glide.git valkey-glide || exit 1; \
+					cd valkey-glide && git fetch --depth 1 origin "$$commit" && git checkout "$$commit" && cd ..; \
+				fi; \
+			fi; \
 		fi; \
 	fi
 	@echo "Submodules ready"

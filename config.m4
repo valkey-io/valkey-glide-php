@@ -134,17 +134,37 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     dnl Generate protobuf files for all builds to avoid make dependency issues
     AC_MSG_CHECKING([for protobuf file generation])
     
+    dnl Shell function to resolve submodule at the correct commit
+    resolve_valkey_glide_submodule() {
+      if test -d "valkey-glide/.git" || test -f "valkey-glide/.git"; then
+        return 0
+      fi
+      SUBMODULE_COMMIT=""
+      if test -d ".git"; then
+        SUBMODULE_COMMIT=$(git ls-tree HEAD valkey-glide 2>/dev/null | awk '{print $3}')
+      fi
+      if test -z "$SUBMODULE_COMMIT" && test -f ".submodule-commits"; then
+        SUBMODULE_COMMIT=$(grep "^valkey-glide=" .submodule-commits | cut -d= -f2)
+      fi
+      if test -z "$SUBMODULE_COMMIT"; then
+        return 1
+      fi
+      rm -rf valkey-glide
+      git clone --depth 1 https://github.com/valkey-io/valkey-glide.git valkey-glide || return 1
+      cd valkey-glide && git fetch --depth 1 origin "$SUBMODULE_COMMIT" && git checkout "$SUBMODULE_COMMIT" && cd .. || return 1
+    }
+
     dnl Ensure submodules are available
     if test -f ".gitmodules"; then
       if test -d ".git"; then
         dnl Git repository - use submodules
         if ! git submodule update --init --recursive >/dev/null 2>&1; then
-          AC_MSG_RESULT([git submodule update failed, falling back to resolve script])
-          bash "$PECL_SOURCE_DIR/utils/resolve_submodule.sh" || true
+          AC_MSG_RESULT([git submodule update failed, falling back to manual resolve])
+          resolve_valkey_glide_submodule || true
         fi
       else
         dnl PECL build - resolve submodule manually
-        bash "$PECL_SOURCE_DIR/utils/resolve_submodule.sh" || true
+        resolve_valkey_glide_submodule || true
       fi
     fi
     
@@ -351,8 +371,8 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     
     dnl Resolve submodule if not already initialized
     if test ! -d "valkey-glide/.git"; then
-      AC_MSG_RESULT([resolving submodule via script])
-      bash "$PECL_SOURCE_DIR/utils/resolve_submodule.sh" || AC_MSG_ERROR([Failed to resolve submodule])
+      AC_MSG_RESULT([resolving submodule])
+      resolve_valkey_glide_submodule || AC_MSG_ERROR([Failed to resolve submodule])
     elif test -f ".gitmodules" && test -d ".git"; then
       AC_MSG_RESULT([submodules already initialized via git submodule update])
     else
