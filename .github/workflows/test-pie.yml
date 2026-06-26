@@ -125,74 +125,6 @@ jobs:
           echo $! > ../server.pid
           sleep 3
 
-      - name: Setup sccache for cross-user Rust caching
-        run: |
-          echo "=== Setting up sccache for cross-user Rust compilation caching ==="
-
-          # Install sccache
-          curl -L https://github.com/mozilla/sccache/releases/download/v0.7.4/sccache-v0.7.4-x86_64-unknown-linux-musl.tar.gz | tar xz
-          sudo mv sccache-v0.7.4-x86_64-unknown-linux-musl/sccache /usr/local/bin/
-          sudo chmod +x /usr/local/bin/sccache
-
-          # Set up sccache environment for all users
-          echo 'export RUSTC_WRAPPER=sccache' | sudo tee /etc/profile.d/sccache.sh
-          echo 'export SCCACHE_DIR=/opt/sccache' | sudo tee -a /etc/profile.d/sccache.sh
-          sudo chmod +x /etc/profile.d/sccache.sh
-
-          # Create sccache directory accessible to all users
-          sudo mkdir -p /opt/sccache
-          sudo chmod 777 /opt/sccache
-
-          # Set environment for current session
-          export RUSTC_WRAPPER=sccache
-          export SCCACHE_DIR=/opt/sccache
-
-          echo "sccache setup complete"
-
-      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
-        with:
-          workspaces: |
-            valkey-glide/ffi
-            valkey-glide/glide-core
-          key: pie
-
-      - name: Setup Cargo cache for root user
-        run: |
-          echo "=== Setting up Cargo cache for root user ==="
-          # Copy Cargo cache to root's home directory so PIE can use it
-          sudo mkdir -p /root/.cargo
-          if [ -d "$HOME/.cargo/registry" ]; then
-            echo "Copying Cargo registry cache to root..."
-            sudo cp -r "$HOME/.cargo/registry" /root/.cargo/ || echo "Failed to copy registry cache"
-          fi
-          if [ -d "$HOME/.cargo/git" ]; then
-            echo "Copying Cargo git cache to root..."
-            sudo cp -r "$HOME/.cargo/git" /root/.cargo/ || echo "Failed to copy git cache"
-          fi
-
-          # Set up shared target directory for compiled dependencies
-          echo "=== Setting up shared compilation cache for PIE ==="
-
-          # Create a shared target directory that root can access
-          sudo mkdir -p /opt/cargo-target
-          sudo chmod 755 /opt/cargo-target
-
-          # Copy existing compiled dependencies (not our project code)
-          if [ -d "valkey-glide/ffi/target/release/deps" ]; then
-            echo "Copying compiled dependencies..."
-            sudo mkdir -p /opt/cargo-target/release
-            sudo cp -r valkey-glide/ffi/target/release/deps /opt/cargo-target/release/
-            sudo chmod -R 755 /opt/cargo-target/release/deps
-          fi
-
-          # Set CARGO_TARGET_DIR for all processes
-          echo 'export CARGO_TARGET_DIR=/opt/cargo-target' | sudo tee /etc/profile.d/cargo.sh
-          echo 'export CARGO_HOME=/root/.cargo' | sudo tee -a /etc/profile.d/cargo.sh
-          echo 'export PATH="/root/.cargo/bin:$PATH"' | sudo tee -a /etc/profile.d/cargo.sh
-          sudo chmod +x /etc/profile.d/cargo.sh
-
-          echo "Shared compilation cache setup complete"
-
       - name: Test PIE with manual repository
         run: |
           # Allow HTTP for localhost for both user and root
@@ -412,3 +344,44 @@ jobs:
           if [ -f server.pid ]; then
             kill $(cat server.pid) || true
           fi
+
+  # This job installs the released version from Packagist to verify real user experience.
+  # Run manually via "Actions > Run workflow" AFTER the version is published to Packagist.
+  # See: https://bitquill.atlassian.net/wiki/spaces/AMZ/pages/4428562450/PHP+release+process
+  test-pie-install-from-packagist:
+    name: PIE Install from Packagist
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Get release version
+        id: get-version
+        run: |
+          VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' common.h | sed 's/.*"\([^"]*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Testing Packagist install for v$VERSION"
+
+      - name: Setup PHP Extension Build Environment
+        uses: ./.github/workflows/setup-php-extension
+        with:
+          php-version: "8.2"
+          install-composer-deps: "false"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          engine-version: "9.0"
+
+      - name: Install from Packagist
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          echo "=== Installing valkey-glide-php v${VERSION} from Packagist ==="
+          sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$(nproc)" \
+            pie install valkey-io/valkey-glide-php:${VERSION} --force --no-interaction -vvv
+
+          echo "=== Verifying extension loads ==="
+          php -d extension=valkey_glide -r "
+            if (!class_exists('ValkeyGlide')) { echo 'FAIL'; exit(1); }
+            echo 'SUCCESS: Extension loaded from Packagist install' . PHP_EOL;
+          "

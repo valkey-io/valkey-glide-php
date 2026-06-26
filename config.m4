@@ -134,20 +134,37 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
     dnl Generate protobuf files for all builds to avoid make dependency issues
     AC_MSG_CHECKING([for protobuf file generation])
     
+    dnl Shell function to resolve submodule at the correct commit
+    resolve_valkey_glide_submodule() {
+      if test -d "valkey-glide/.git" || test -f "valkey-glide/.git"; then
+        return 0
+      fi
+      SUBMODULE_COMMIT=""
+      if test -d ".git"; then
+        SUBMODULE_COMMIT=$(git ls-tree HEAD valkey-glide 2>/dev/null | awk '{print $3}')
+      fi
+      if test -z "$SUBMODULE_COMMIT" && test -f ".submodule-commits"; then
+        SUBMODULE_COMMIT=$(grep "^valkey-glide=" .submodule-commits | cut -d= -f2)
+      fi
+      if test -z "$SUBMODULE_COMMIT"; then
+        return 1
+      fi
+      rm -rf valkey-glide
+      git clone --depth 1 https://github.com/valkey-io/valkey-glide.git valkey-glide || return 1
+      cd valkey-glide && git fetch --depth 1 origin "$SUBMODULE_COMMIT" && git checkout "$SUBMODULE_COMMIT" && cd .. || return 1
+    }
+
     dnl Ensure submodules are available
     if test -f ".gitmodules"; then
       if test -d ".git"; then
         dnl Git repository - use submodules
-        git submodule update --init --recursive >/dev/null 2>&1 || true
-      else
-        dnl build - clone submodules manually during configure
-        if test ! -d "valkey-glide/.git"; then
-          AC_MSG_RESULT([cloning submodules for build])
-          url=$(grep -A1 "path = valkey-glide" .gitmodules | grep url | sed 's/^[[^=]]*=[[[:space:]]]*//')
-          if test -n "$url"; then
-            git clone "$url" valkey-glide >/dev/null 2>&1 || true
-          fi
+        if ! git submodule update --init --recursive >/dev/null 2>&1; then
+          AC_MSG_RESULT([git submodule update failed, falling back to manual resolve])
+          resolve_valkey_glide_submodule || true
         fi
+      else
+        dnl PECL build - resolve submodule manually
+        resolve_valkey_glide_submodule || true
       fi
     fi
     
@@ -352,32 +369,12 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       AC_MSG_ERROR([python3 not found - please install Python 3])
     fi
     
-    dnl For PECL builds, handle submodules using .submodule-commits file
-    dnl For PIE builds, handle submodules using git submodule update
-    if test -f ".submodule-commits" && test ! -d "valkey-glide/.git"; then
-      AC_MSG_RESULT([cloning submodules from .submodule-commits])
-      
-      dnl Read and parse the commit hash from .submodule-commits (format: valkey-glide=HASH)
-      SUBMODULE_LINE=$(cat .submodule-commits | head -1)
-      SUBMODULE_COMMIT=$(echo "$SUBMODULE_LINE" | cut -d'=' -f2)
-      AC_MSG_RESULT([Debug: submodule line=$SUBMODULE_LINE])
-      AC_MSG_RESULT([Debug: parsed commit=$SUBMODULE_COMMIT])
-      
-      dnl Remove existing directory if it exists but isn't a git repo
-      if test -d "valkey-glide"; then
-        AC_MSG_RESULT([removing existing valkey-glide directory])
-        rm -rf valkey-glide
-      fi
-      
-      dnl Clone the submodule at the specific commit
-      git clone --depth 1 https://github.com/valkey-io/valkey-glide.git valkey-glide || AC_MSG_ERROR([Failed to clone valkey-glide])
-      cd valkey-glide
-      git fetch --depth 1 origin "$SUBMODULE_COMMIT" || AC_MSG_ERROR([Failed to fetch commit $SUBMODULE_COMMIT])
-      git checkout "$SUBMODULE_COMMIT" || AC_MSG_ERROR([Failed to checkout commit $SUBMODULE_COMMIT])
-      cd ..
+    dnl Resolve submodule if not already initialized
+    if test ! -d "valkey-glide/.git"; then
+      AC_MSG_RESULT([resolving submodule])
+      resolve_valkey_glide_submodule || AC_MSG_ERROR([Failed to resolve submodule])
     elif test -f ".gitmodules" && test -d ".git"; then
-      AC_MSG_RESULT([updating submodules using git submodule update])
-      git submodule update --init --recursive || AC_MSG_ERROR([Failed to update submodules])
+      AC_MSG_RESULT([submodules already initialized via git submodule update])
     else
       AC_MSG_RESULT([submodules already exist or no submodule info found])
     fi

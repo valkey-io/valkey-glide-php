@@ -91,31 +91,31 @@ ensure-submodules:
 	@if [ -f .gitmodules ]; then \
 		if [ -d .git ]; then \
 			echo "Git repository detected - using submodules"; \
-			git submodule update --init --recursive; \
-		else \
-			echo "PECL package detected - cloning submodules manually"; \
-			if ! command -v git >/dev/null 2>&1; then \
-				echo "ERROR: Git is required to build this extension"; \
-				exit 1; \
-			fi; \
-			grep -E "^\s*path\s*=" .gitmodules | sed 's/.*=[ \t]*//' | while read path; do \
-				url=$$(grep -A1 "path = $$path" .gitmodules | grep url | sed 's/^[^=]*=[ \t]*//'); \
-				if [ ! -d "$$path/.git" ]; then \
-					echo "Cloning $$url into $$path"; \
-					rm -rf "$$path"; \
-					if ! git clone "$$url" "$$path"; then \
-						echo "ERROR: Failed to clone submodule from $$url"; \
-						exit 1; \
-					fi; \
-					if [ -f .submodule-commits ]; then \
-						commit=$$(grep "^$$path=" .submodule-commits | cut -d= -f2); \
-						if [ -n "$$commit" ]; then \
-							echo "Checking out recorded commit $$commit for $$path"; \
-							cd "$$path" && git checkout "$$commit" && cd ..; \
-						fi; \
+			if ! git submodule update --init --recursive 2>/dev/null; then \
+				echo "git submodule update failed, falling back to manual resolve"; \
+				if [ ! -d "valkey-glide/.git" ] && [ ! -f "valkey-glide/.git" ]; then \
+					commit=$$(git ls-tree HEAD valkey-glide 2>/dev/null | awk '{print $$3}'); \
+					if [ -n "$$commit" ]; then \
+						echo "Resolving submodule at commit $$commit"; \
+						rm -rf valkey-glide; \
+						git clone --depth 1 https://github.com/valkey-io/valkey-glide.git valkey-glide || exit 1; \
+						cd valkey-glide && git fetch --depth 1 origin "$$commit" && git checkout "$$commit" && cd ..; \
 					fi; \
 				fi; \
-			done; \
+			fi; \
+		else \
+			echo "PECL package detected - resolving submodule manually"; \
+			if [ ! -d "valkey-glide/.git" ]; then \
+				commit=""; \
+				if [ -f .submodule-commits ]; then \
+					commit=$$(grep "^valkey-glide=" .submodule-commits | cut -d= -f2); \
+				fi; \
+				if [ -n "$$commit" ]; then \
+					rm -rf valkey-glide; \
+					git clone --depth 1 https://github.com/valkey-io/valkey-glide.git valkey-glide || exit 1; \
+					cd valkey-glide && git fetch --depth 1 origin "$$commit" && git checkout "$$commit" && cd ..; \
+				fi; \
+			fi; \
 		fi; \
 	fi
 	@echo "Submodules ready"

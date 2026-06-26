@@ -76,6 +76,10 @@ runs:
       if: inputs.install-composer-deps == 'true'
       shell: bash
       run: |
+        # Initialize submodule if not already present (needed for proto files)
+        if [ ! -d "valkey-glide/glide-core/src/protobuf" ]; then
+          git submodule update --init --recursive
+        fi
         protoc --proto_path=./valkey-glide/glide-core/src/protobuf --php_out=./tests/ ./valkey-glide/glide-core/src/protobuf/connection_request.proto
         echo "tests directory contents:"
         cd tests
