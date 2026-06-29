@@ -62,7 +62,6 @@
     },
     "config": {
         "sort-packages": true,
-        "preferred-install": "source",
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true
         },
