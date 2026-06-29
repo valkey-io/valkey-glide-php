@@ -4,6 +4,8 @@
 
 ### Changes
 
+* PHP: Fix pie install from Packagist by setting preferred-install to source for submodule resolution ([#232](https://github.com/valkey-io/valkey-glide-php/pull/232))
+* PHP: Fix pie install ([#229](https://github.com/valkey-io/valkey-glide-php/pull/229))
 * PHP: Set CLIENT SETINFO lib-name=GlidePHP and lib-ver to extension version for proper client identification
 * PHP: Add address resolver support for standalone and cluster clients, allowing custom host/port remapping at connection time ([#196](https://github.com/valkey-io/valkey-glide-php/pull/196))
 
