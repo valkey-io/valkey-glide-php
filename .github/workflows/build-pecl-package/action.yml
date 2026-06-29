@@ -9,9 +9,6 @@ outputs:
   package-file:
     description: "Path to the created PECL package file"
     value: ${{ steps.create-package.outputs.package-file }}
-  pie-package-file:
-    description: "Path to the PIE-compatible source package file"
-    value: ${{ steps.create-package.outputs.pie-package-file }}
   package-version:
     description: "Version of the created package"
     value: ${{ steps.create-package.outputs.package-version }}
@@ -202,11 +199,6 @@ runs:
         echo "=== Creating tarball ==="
         tar czf "$PACKAGE_FILE" "$PACKAGE_DIR"
 
-        # Create PIE-compatible source package (same content, different name)
-        PIE_PACKAGE_FILE="php_valkey_glide-$VERSION-src.tgz"
-        cp "$PACKAGE_FILE" "$PIE_PACKAGE_FILE"
-        echo "=== PIE source package created: $PIE_PACKAGE_FILE ==="
-
         echo "=== PECL package created successfully ==="
         ls -la "$PACKAGE_FILE"
 
@@ -218,5 +210,4 @@ runs:
 
         # Set outputs
         echo "package-file=$PACKAGE_FILE" >> $GITHUB_OUTPUT
-        echo "pie-package-file=$PIE_PACKAGE_FILE" >> $GITHUB_OUTPUT
         echo "package-version=$VERSION" >> $GITHUB_OUTPUT

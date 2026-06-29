@@ -364,8 +364,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url || steps.create-release.outputs.upload_url }}
-          asset_path: ${{ steps.build-package.outputs.pie-package-file }}
-          asset_name: ${{ steps.build-package.outputs.pie-package-file }}
+          asset_path: ${{ steps.build-package.outputs.package-file }}
+          asset_name: php_valkey_glide-${{ steps.build-package.outputs.package-version }}-src.tgz
           asset_content_type: application/gzip
 
       - name: Attest package provenance
