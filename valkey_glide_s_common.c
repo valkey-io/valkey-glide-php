@@ -653,7 +653,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
                     efree(args->cursor);
                 }
                 args->cursor = emalloc(2);
-                strcpy(args->cursor, "0");
+                memcpy(args->cursor, "0", 2);
             }
 
             return status;
@@ -672,7 +672,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
                     efree(args->cursor);
                 }
                 args->cursor = emalloc(2);
-                strcpy(args->cursor, "0");
+                memcpy(args->cursor, "0", 2);
             }
 
             return 1;
