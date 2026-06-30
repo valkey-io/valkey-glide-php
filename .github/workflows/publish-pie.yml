@@ -19,6 +19,9 @@ jobs:
           submodules: recursive
 
       - name: Build PECL package
+        # Reuses the PECL build action to produce the .tgz with resolved submodules.
+        # PIE requires the same package content but with a different asset name
+        # (php_valkey_glide-{VERSION}-src.tgz) on the GitHub Release.
         id: build-package
         uses: ./.github/workflows/build-pecl-package
 
