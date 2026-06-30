@@ -559,6 +559,11 @@ class ValkeyGlideCluster
     public function flushDB(mixed $route, bool $async = false): ValkeyGlideCluster|bool;
 
     /**
+     * @see ValkeyGlide::bgSave
+     */
+    public function bgSave(mixed $route, ?string $mode = null): ValkeyGlideCluster|string|false;
+
+    /**
      * @see ValkeyGlide::geoadd
      */
     public function geoadd(string $key, float $lng, float $lat, string $member, mixed ...$other_triples_and_options): ValkeyGlideCluster|int|false;

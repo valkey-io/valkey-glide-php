@@ -977,6 +977,11 @@ FLUSHDB_METHOD_IMPL(ValkeyGlideCluster)
 FLUSHALL_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto ValkeyGlideCluster::bgSave(mixed route, [string mode])
+ *     Asynchronously saves the dataset to disk in the background. */
+BGSAVE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto ValkeyGlideCluster::dbsize(string key)
  *     proto ValkeyGlideCluster::dbsize(array host_port) */
 DBSIZE_METHOD_IMPL(ValkeyGlideCluster)

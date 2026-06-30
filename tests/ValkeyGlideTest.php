@@ -2585,6 +2585,69 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(0, $this->valkey_glide->dbSize());
     }
 
+    public function testBgSave()
+    {
+        // Wait for any in-progress save to complete
+        $this->waitForSaveNotInProgress();
+
+        // BGSAVE with no mode - returns a non-empty status string
+        $result = $this->valkey_glide->bgSave();
+        $this->assertIsString($result);
+        $this->assertNotEquals('', $result);
+
+        // Wait for the bgsave to complete before next test
+        $this->waitForSaveNotInProgress();
+    }
+
+    public function testBgSaveSchedule()
+    {
+        // Wait for any in-progress save to complete
+        $this->waitForSaveNotInProgress();
+
+        // BGSAVE SCHEDULE - returns a non-empty status string
+        $result = $this->valkey_glide->bgSave('SCHEDULE');
+        $this->assertIsString($result);
+        $this->assertNotEquals('', $result);
+
+        // Wait for the scheduled bgsave to complete
+        $this->waitForSaveNotInProgress();
+    }
+
+    public function testBgSaveCancel()
+    {
+        // BGSAVE CANCEL requires Valkey 8.1+
+        if (!$this->minVersionCheck('8.1.0')) {
+            $this->markTestSkipped('BGSAVE CANCEL requires Valkey 8.1.0+');
+            return;
+        }
+
+        // Wait for any in-progress save to complete
+        $this->waitForSaveNotInProgress();
+
+        // When no save is in progress, BGSAVE CANCEL should return an error (false)
+        $result = $this->valkey_glide->bgSave('CANCEL');
+        $this->assertFalse($result);
+    }
+
+    /**
+     * Helper method to wait for any background save operations to complete.
+     */
+    protected function waitForSaveNotInProgress()
+    {
+        $maxWait = 10; // seconds
+        $start   = time();
+        while (time() - $start < $maxWait) {
+            $info = $this->valkey_glide->info('persistence');
+            if (is_array($info)) {
+                $info = implode("\n", $info);
+            }
+            if (strpos($info, 'rdb_bgsave_in_progress:1') === false) {
+                return;
+            }
+            usleep(100000); // 100ms
+        }
+    }
+
     public function testTTL()
     {
         $this->valkey_glide->set('x', 'y');
