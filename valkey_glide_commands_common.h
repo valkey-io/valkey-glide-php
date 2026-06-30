@@ -690,18 +690,18 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         RETURN_FALSE;                                                               \
     }
 
-#define BGSAVE_METHOD_IMPL(class_name)                                             \
-    PHP_METHOD(class_name, bgSave) {                                               \
-        if (execute_bgsave_command(getThis(),                                      \
-                                    ZEND_NUM_ARGS(),                                \
-                                    return_value,                                   \
-                                    strcmp(#class_name, "ValkeyGlideCluster") == 0  \
-                                        ? get_valkey_glide_cluster_ce()             \
-                                        : get_valkey_glide_ce())) {                 \
-            return;                                                                 \
-        }                                                                           \
-        zval_dtor(return_value);                                                    \
-        RETURN_FALSE;                                                               \
+#define BGSAVE_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, bgSave) {                                              \
+        if (execute_bgsave_command(getThis(),                                     \
+                                   ZEND_NUM_ARGS(),                               \
+                                   return_value,                                  \
+                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                       ? get_valkey_glide_cluster_ce()            \
+                                       : get_valkey_glide_ce())) {                \
+            return;                                                               \
+        }                                                                         \
+        zval_dtor(return_value);                                                  \
+        RETURN_FALSE;                                                             \
     }
 
 #define TIME_METHOD_IMPL(class_name)                                            \
