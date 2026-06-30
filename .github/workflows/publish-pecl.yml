@@ -357,17 +357,6 @@ jobs:
           asset_name: ${{ steps.build-package.outputs.package-file }}
           asset_content_type: application/gzip
 
-      - name: Upload PIE source package
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.create-release == 'true')
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url || steps.create-release.outputs.upload_url }}
-          asset_path: ${{ steps.build-package.outputs.package-file }}
-          asset_name: php_valkey_glide-${{ steps.build-package.outputs.package-version }}-src.tgz
-          asset_content_type: application/gzip
-
       - name: Attest package provenance
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.create-release == 'true')
         uses: actions/attest-build-provenance@v2

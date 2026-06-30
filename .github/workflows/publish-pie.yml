@@ -1,0 +1,53 @@
+name: Upload PIE source package
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish-pie:
+    name: Build and upload PIE source package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build PECL package
+        id: build-package
+        uses: ./.github/workflows/build-pecl-package
+
+      - name: Determine if prerelease
+        id: release-type
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if echo "$TAG" | grep -qE '(rc|alpha|beta)'; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release (if not exists)
+        id: create-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          prerelease: ${{ steps.release-type.outputs.prerelease == 'true' }}
+          generate_release_notes: false
+          make_latest: false
+
+      - name: Upload PIE source package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.build-package.outputs.package-file }}
+          asset_name: php_valkey_glide-${{ steps.build-package.outputs.package-version }}-src.tgz
+          asset_content_type: application/gzip
