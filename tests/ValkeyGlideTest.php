@@ -2590,10 +2590,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Wait for any in-progress save to complete
         $this->waitForSaveNotInProgress();
 
-        // BGSAVE with no mode - returns a non-empty status string
+        // BGSAVE with no mode - returns true on success (PHPRedis compatible)
         $result = $this->valkey_glide->bgSave();
-        $this->assertIsString($result);
-        $this->assertContains($result, $this->bgsaveResponses());
+        $this->assertTrue($result);
 
         // Wait for the bgsave to complete before next test
         $this->waitForSaveNotInProgress();
@@ -2604,10 +2603,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Wait for any in-progress save to complete
         $this->waitForSaveNotInProgress();
 
-        // BGSAVE SCHEDULE - returns a non-empty status string
+        // BGSAVE SCHEDULE - returns true on success
         $result = $this->valkey_glide->bgSave('SCHEDULE');
-        $this->assertIsString($result);
-        $this->assertContains($result, $this->bgsaveResponses());
+        $this->assertTrue($result);
 
         // Wait for the scheduled bgsave to complete
         $this->waitForSaveNotInProgress();
@@ -2624,13 +2622,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Wait for any in-progress save to complete
         $this->waitForSaveNotInProgress();
 
-        // When no save is in progress, BGSAVE CANCEL should return an error (false)
+        // When no save is in progress, BGSAVE CANCEL should return false
         $result = $this->valkey_glide->bgSave('CANCEL');
         $this->assertFalse($result);
     }
 
     /**
-     * Valid BGSAVE response strings.
+     * Valid BGSAVE response strings (used when OPT_REPLY_LITERAL is enabled).
      */
     protected function bgsaveResponses(): array
     {

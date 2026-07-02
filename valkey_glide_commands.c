@@ -325,6 +325,13 @@ int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_clas
             return 1;
         }
 
+        /* PHPRedis compatibility: bgSave returns bool by default,
+         * string only when OPT_REPLY_LITERAL is enabled */
+        if (!valkey_glide->opt_reply_literal && Z_TYPE_P(return_value) == IS_STRING) {
+            zval_dtor(return_value);
+            ZVAL_TRUE(return_value);
+        }
+
         return 1;
     } else {
         return 0;

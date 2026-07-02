@@ -1162,11 +1162,12 @@ class ValkeyGlide
      *
      * @param  string|null  $mode  Optional mode: null for default, "SCHEDULE" to schedule,
      *                             or "CANCEL" to abort (requires Valkey 8.1+).
-     * @return ValkeyGlide|string  A non-empty status string on success.
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns the status string instead.
      *
      * @see https://valkey.io/commands/bgsave
      */
-    public function bgSave(?string $mode = null): ValkeyGlide|string|false;
+    public function bgSave(?string $mode = null): ValkeyGlide|bool|string;
 
     /**
      * Functions is an API for managing code to be executed on the server.
