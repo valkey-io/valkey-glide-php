@@ -29,8 +29,8 @@ jobs:
         id: release-type
         run: |
           TAG="${GITHUB_REF_NAME}"
-          # Strip 'v' prefix to get the version
-          VERSION="${TAG#v}"
+          # Keep the full tag name as PIE expects the 'v' prefix in the asset name
+          VERSION="${TAG}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           if echo "$TAG" | grep -qE '(rc|alpha|beta)'; then
             echo "prerelease=true" >> $GITHUB_OUTPUT
