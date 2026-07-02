@@ -25,10 +25,13 @@ jobs:
         id: build-package
         uses: ./.github/workflows/build-pecl-package
 
-      - name: Determine if prerelease
+      - name: Determine version and prerelease
         id: release-type
         run: |
           TAG="${GITHUB_REF_NAME}"
+          # Strip 'v' prefix to get the version
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           if echo "$TAG" | grep -qE '(rc|alpha|beta)'; then
             echo "prerelease=true" >> $GITHUB_OUTPUT
           else
@@ -52,5 +55,5 @@ jobs:
         with:
           upload_url: ${{ steps.create-release.outputs.upload_url }}
           asset_path: ${{ steps.build-package.outputs.package-file }}
-          asset_name: php_valkey_glide-${{ steps.build-package.outputs.package-version }}-src.tgz
+          asset_name: php_valkey_glide-${{ steps.release-type.outputs.version }}-src.tgz
           asset_content_type: application/gzip
