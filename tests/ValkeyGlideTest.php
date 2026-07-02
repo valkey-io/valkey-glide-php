@@ -2593,7 +2593,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // BGSAVE with no mode - returns a non-empty status string
         $result = $this->valkey_glide->bgSave();
         $this->assertIsString($result);
-        $this->assertNotEquals('', $result);
+        $this->assertContains($result, $this->bgsaveResponses());
 
         // Wait for the bgsave to complete before next test
         $this->waitForSaveNotInProgress();
@@ -2607,7 +2607,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // BGSAVE SCHEDULE - returns a non-empty status string
         $result = $this->valkey_glide->bgSave('SCHEDULE');
         $this->assertIsString($result);
-        $this->assertNotEquals('', $result);
+        $this->assertContains($result, $this->bgsaveResponses());
 
         // Wait for the scheduled bgsave to complete
         $this->waitForSaveNotInProgress();
@@ -2627,6 +2627,17 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // When no save is in progress, BGSAVE CANCEL should return an error (false)
         $result = $this->valkey_glide->bgSave('CANCEL');
         $this->assertFalse($result);
+    }
+
+    /**
+     * Valid BGSAVE response strings.
+     */
+    protected function bgsaveResponses(): array
+    {
+        return [
+            'Background saving started',
+            'Background saving scheduled',
+        ];
     }
 
     /**

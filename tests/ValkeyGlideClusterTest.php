@@ -406,6 +406,18 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
+    /**
+     * Valid BGSAVE response strings for cluster (includes "OK" from aggregated multi-node response).
+     */
+    protected function bgsaveResponses(): array
+    {
+        return [
+            'Background saving started',
+            'Background saving scheduled',
+            'OK',
+        ];
+    }
+
     public function testBgSave()
     {
         // Wait for any in-progress save to complete
@@ -413,10 +425,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $route = 'allPrimaries';
 
-        // BGSAVE with route - returns a non-empty status string
+        // BGSAVE with route - returns a valid status string
         $result = $this->valkey_glide->bgSave($route);
         $this->assertIsString($result);
-        $this->assertNotEquals('', $result);
+        $this->assertContains($result, $this->bgsaveResponses());
 
         // Wait for the bgsave to complete before next test
         $this->waitForSaveNotInProgress();
@@ -432,7 +444,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // BGSAVE SCHEDULE with route
         $result = $this->valkey_glide->bgSave($route, 'SCHEDULE');
         $this->assertIsString($result);
-        $this->assertNotEquals('', $result);
+        $this->assertContains($result, $this->bgsaveResponses());
 
         // Wait for the scheduled bgsave to complete
         $this->waitForSaveNotInProgress();
