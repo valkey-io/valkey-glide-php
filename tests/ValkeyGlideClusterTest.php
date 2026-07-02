@@ -418,6 +418,30 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         ];
     }
 
+    /**
+     * Override for cluster - info() requires a route parameter.
+     */
+    protected function waitForSaveNotInProgress()
+    {
+        $route  = 'randomNode';
+        $maxWait = 10; // seconds
+        $start   = time();
+        while (time() - $start < $maxWait) {
+            $info = $this->valkey_glide->info($route, 'persistence');
+            if (is_array($info)) {
+                if (
+                    (!isset($info['rdb_bgsave_in_progress']) || $info['rdb_bgsave_in_progress'] != '1') &&
+                    (!isset($info['aof_rewrite_in_progress']) || $info['aof_rewrite_in_progress'] != '1')
+                ) {
+                    return;
+                }
+            } else {
+                return;
+            }
+            usleep(100000); // 100ms
+        }
+    }
+
     public function testBgSave()
     {
         // Wait for any in-progress save to complete
