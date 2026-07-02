@@ -1591,6 +1591,9 @@ int process_core_string_result(CommandResponse* response, void* output, zval* re
         }
 
         return 1;
+    } else if (response->response_type == Ok) {
+        ZVAL_STRING(return_value, "OK");
+        return 1;
     } else if (response->response_type == Null) {
         ZVAL_FALSE(return_value);
         return 1;
