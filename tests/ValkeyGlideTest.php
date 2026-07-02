@@ -2639,9 +2639,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         while (time() - $start < $maxWait) {
             $info = $this->valkey_glide->info('persistence');
             if (is_array($info)) {
-                $info = implode("\n", $info);
-            }
-            if (strpos($info, 'rdb_bgsave_in_progress:1') === false) {
+                if (
+                    (!isset($info['rdb_bgsave_in_progress']) || $info['rdb_bgsave_in_progress'] != '1') &&
+                    (!isset($info['aof_rewrite_in_progress']) || $info['aof_rewrite_in_progress'] != '1')
+                ) {
+                    return;
+                }
+            } else {
                 return;
             }
             usleep(100000); // 100ms
