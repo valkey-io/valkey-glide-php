@@ -407,14 +407,13 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     /**
-     * Valid BGSAVE response strings for cluster (includes "OK" from aggregated multi-node response).
+     * Valid BGSAVE response strings for cluster.
      */
     protected function bgsaveResponses(): array
     {
         return [
             'Background saving started',
             'Background saving scheduled',
-            'OK',
         ];
     }
 
@@ -423,16 +422,33 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
      */
     protected function waitForSaveNotInProgress()
     {
-        $route  = 'randomNode';
+        $route   = 'allPrimaries';
         $maxWait = 10; // seconds
         $start   = time();
         while (time() - $start < $maxWait) {
             $info = $this->valkey_glide->info($route, 'persistence');
             if (is_array($info)) {
-                if (
-                    (!isset($info['rdb_bgsave_in_progress']) || $info['rdb_bgsave_in_progress'] != '1') &&
-                    (!isset($info['aof_rewrite_in_progress']) || $info['aof_rewrite_in_progress'] != '1')
-                ) {
+                $saveInProgress = false;
+                foreach ($info as $nodeInfo) {
+                    if (is_array($nodeInfo)) {
+                        if (
+                            (isset($nodeInfo['rdb_bgsave_in_progress']) && $nodeInfo['rdb_bgsave_in_progress'] == '1') ||
+                            (isset($nodeInfo['aof_rewrite_in_progress']) && $nodeInfo['aof_rewrite_in_progress'] == '1')
+                        ) {
+                            $saveInProgress = true;
+                            break;
+                        }
+                    } elseif (is_string($nodeInfo)) {
+                        if (
+                            strpos($nodeInfo, 'rdb_bgsave_in_progress:1') !== false ||
+                            strpos($nodeInfo, 'aof_rewrite_in_progress:1') !== false
+                        ) {
+                            $saveInProgress = true;
+                            break;
+                        }
+                    }
+                }
+                if (!$saveInProgress) {
                     return;
                 }
             } else {

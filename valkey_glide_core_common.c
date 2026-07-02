@@ -1594,6 +1594,27 @@ int process_core_string_result(CommandResponse* response, void* output, zval* re
     } else if (response->response_type == Ok) {
         ZVAL_STRING(return_value, "OK");
         return 1;
+    } else if (response->response_type == Map && response->map_value &&
+               response->array_value_len > 0) {
+        /* Multi-node response (cluster routing) - return first string value */
+        CommandResponse* first_value = &response->map_value[0];
+        if (first_value->response_type == String && first_value->string_value_len > 0) {
+            result = emalloc(first_value->string_value_len + 1);
+            if (!result) {
+                ZVAL_NULL(return_value);
+                return 0;
+            }
+            memcpy(result, first_value->string_value, first_value->string_value_len);
+            result[first_value->string_value_len] = '\0';
+            ZVAL_STRINGL(return_value, result, first_value->string_value_len);
+            efree(result);
+            return 1;
+        } else if (first_value->response_type == Ok) {
+            ZVAL_STRING(return_value, "OK");
+            return 1;
+        }
+        ZVAL_NULL(return_value);
+        return 0;
     } else if (response->response_type == Null) {
         ZVAL_FALSE(return_value);
         return 1;
