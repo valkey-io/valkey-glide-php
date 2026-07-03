@@ -2639,15 +2639,25 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     /**
+     * Returns true if a background save (RDB or AOF) is currently in progress.
+     */
+    protected function isSaveInProgress(): bool
+    {
+        $info = $this->valkey_glide->info('persistence');
+        return $info['rdb_bgsave_in_progress'] == '1'
+            || $info['aof_rewrite_in_progress'] == '1';
+    }
+
+    /**
      * Helper method to wait for any background save operations to complete.
      */
     protected function waitForSaveNotInProgress()
     {
-        $this->waitFor(function () {
-            $info = $this->valkey_glide->info('persistence');
-            return $info['rdb_bgsave_in_progress'] != '1'
-                && $info['aof_rewrite_in_progress'] != '1';
-        }, 10, 'Timed out waiting for background save to complete');
+        $this->waitFor(
+            fn() => !$this->isSaveInProgress(),
+            10,
+            'Timed out waiting for background save to complete'
+        );
     }
 
     public function testTTL()

@@ -418,20 +418,32 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     /**
+     * Override for cluster - info() requires a route parameter and checks all primaries.
+     */
+    protected function isSaveInProgress(): bool
+    {
+        $info = $this->valkey_glide->info('allPrimaries', 'persistence');
+        foreach ($info as $nodeInfo) {
+            if (
+                $nodeInfo['rdb_bgsave_in_progress'] == '1'
+                || $nodeInfo['aof_rewrite_in_progress'] == '1'
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Override for cluster - info() requires a route parameter.
      */
     protected function waitForSaveNotInProgress()
     {
-        $this->waitFor(function () {
-            $info = $this->valkey_glide->info('allPrimaries', 'persistence');
-            foreach ($info as $nodeInfo) {
-                if ($nodeInfo['rdb_bgsave_in_progress'] == '1'
-                    || $nodeInfo['aof_rewrite_in_progress'] == '1') {
-                    return false;
-                }
-            }
-            return true;
-        }, 10, 'Timed out waiting for background save to complete on cluster');
+        $this->waitFor(
+            fn() => !$this->isSaveInProgress(),
+            10,
+            'Timed out waiting for background save to complete on cluster'
+        );
     }
 
     public function testBgSave()
