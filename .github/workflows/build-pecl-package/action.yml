@@ -20,6 +20,7 @@ runs:
       shell: bash
       run: |
         echo "=== Generating submodule commit info ==="
+        > .submodule-commits
         git submodule status | while read commit path extra; do
           # Remove leading - or + from commit hash
           clean_commit=$(echo "$commit" | sed 's/^[-+]//')
