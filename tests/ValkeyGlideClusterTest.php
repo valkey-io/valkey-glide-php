@@ -424,20 +424,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitFor(function () {
             $info = $this->valkey_glide->info('allPrimaries', 'persistence');
-            if (!is_array($info)) {
-                return true;
-            }
             foreach ($info as $nodeInfo) {
-                if (is_array($nodeInfo)) {
-                    if (($nodeInfo['rdb_bgsave_in_progress'] ?? '0') == '1'
-                        || ($nodeInfo['aof_rewrite_in_progress'] ?? '0') == '1') {
-                        return false;
-                    }
-                } elseif (is_string($nodeInfo)) {
-                    if (strpos($nodeInfo, 'rdb_bgsave_in_progress:1') !== false
-                        || strpos($nodeInfo, 'aof_rewrite_in_progress:1') !== false) {
-                        return false;
-                    }
+                if ($nodeInfo['rdb_bgsave_in_progress'] == '1'
+                    || $nodeInfo['aof_rewrite_in_progress'] == '1') {
+                    return false;
                 }
             }
             return true;

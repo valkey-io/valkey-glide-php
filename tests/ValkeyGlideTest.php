@@ -2645,11 +2645,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         $this->waitFor(function () {
             $info = $this->valkey_glide->info('persistence');
-            if (!is_array($info)) {
-                return true;
-            }
-            return ($info['rdb_bgsave_in_progress'] ?? '0') != '1'
-                && ($info['aof_rewrite_in_progress'] ?? '0') != '1';
+            return $info['rdb_bgsave_in_progress'] != '1'
+                && $info['aof_rewrite_in_progress'] != '1';
         }, 10, 'Timed out waiting for background save to complete');
     }
 
