@@ -120,6 +120,7 @@ runs:
         PHP_VER: ${{ inputs.php-version }}
       run: |
         echo "=== Installing system dependencies for PECL testing ==="
+        sudo add-apt-repository -y ppa:ondrej/php
         sudo apt-get update
         sudo apt-get install -y \
             php$PHP_VER-dev \
