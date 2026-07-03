@@ -2614,6 +2614,25 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($result);
     }
 
+    public function testBgSaveWithReplyLiteral()
+    {
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+
+        $result = $this->valkey_glide->bgSave();
+        $this->assertIsString($result);
+        $this->assertContains($result, $this->bgsaveResponses());
+
+        $this->waitForSaveNotInProgress();
+
+        $result = $this->valkey_glide->bgSave('SCHEDULE');
+        $this->assertIsString($result);
+        $this->assertContains($result, $this->bgsaveResponses());
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+    }
+
     /**
      * Valid BGSAVE response strings (used when OPT_REPLY_LITERAL is enabled).
      */

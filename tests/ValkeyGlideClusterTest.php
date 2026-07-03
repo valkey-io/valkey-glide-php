@@ -407,17 +407,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     /**
-     * Valid BGSAVE response strings for cluster.
-     */
-    protected function bgsaveResponses(): array
-    {
-        return [
-            'Background saving started',
-            'Background saving scheduled',
-        ];
-    }
-
-    /**
      * Override for cluster - info() requires a route parameter and checks all primaries.
      */
     protected function isSaveInProgress(): bool
@@ -450,9 +439,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        $route = 'allPrimaries';
+        // Test with allPrimaries route
+        $result = $this->valkey_glide->bgSave('allPrimaries');
+        $this->assertTrue($result);
 
-        $result = $this->valkey_glide->bgSave($route);
+        $this->waitForSaveNotInProgress();
+
+        // Test with randomNode route
+        $result = $this->valkey_glide->bgSave('randomNode');
         $this->assertTrue($result);
     }
 
@@ -460,9 +454,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        $route = 'allPrimaries';
+        // Test with allPrimaries route
+        $result = $this->valkey_glide->bgSave('allPrimaries', 'SCHEDULE');
+        $this->assertTrue($result);
 
-        $result = $this->valkey_glide->bgSave($route, 'SCHEDULE');
+        $this->waitForSaveNotInProgress();
+
+        // Test with randomNode route
+        $result = $this->valkey_glide->bgSave('randomNode', 'SCHEDULE');
         $this->assertTrue($result);
     }
 
@@ -473,12 +472,43 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             return;
         }
 
-        $route = 'allPrimaries';
+        $this->waitForSaveNotInProgress();
+
+        // Test with allPrimaries route
+        $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
+        $this->assertFalse($result);
+
+        // Test with randomNode route
+        $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
+        $this->assertFalse($result);
+    }
+
+    public function testBgSaveWithReplyLiteral()
+    {
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+
+        // Test with allPrimaries route
+        $result = $this->valkey_glide->bgSave('allPrimaries');
+        $this->assertIsString($result);
+        $this->assertContains($result, $this->bgsaveResponses());
 
         $this->waitForSaveNotInProgress();
 
-        $result = $this->valkey_glide->bgSave($route, 'CANCEL');
-        $this->assertFalse($result);
+        // Test with randomNode route
+        $result = $this->valkey_glide->bgSave('randomNode');
+        $this->assertIsString($result);
+        $this->assertContains($result, $this->bgsaveResponses());
+
+        $this->waitForSaveNotInProgress();
+
+        // Test SCHEDULE with allPrimaries route
+        $result = $this->valkey_glide->bgSave('allPrimaries', 'SCHEDULE');
+        $this->assertIsString($result);
+        $this->assertContains($result, $this->bgsaveResponses());
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
 
     public function testInfo()
