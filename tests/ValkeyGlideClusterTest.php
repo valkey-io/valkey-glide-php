@@ -448,37 +448,26 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testBgSave()
     {
-        // Wait for any in-progress save to complete
         $this->waitForSaveNotInProgress();
 
         $route = 'allPrimaries';
 
-        // BGSAVE with route - returns true on success (PHPRedis compatible)
         $result = $this->valkey_glide->bgSave($route);
         $this->assertTrue($result);
-
-        // Wait for the bgsave to complete before next test
-        $this->waitForSaveNotInProgress();
     }
 
     public function testBgSaveSchedule()
     {
-        // Wait for any in-progress save to complete
         $this->waitForSaveNotInProgress();
 
         $route = 'allPrimaries';
 
-        // BGSAVE SCHEDULE with route - returns true on success
         $result = $this->valkey_glide->bgSave($route, 'SCHEDULE');
         $this->assertTrue($result);
-
-        // Wait for the scheduled bgsave to complete
-        $this->waitForSaveNotInProgress();
     }
 
     public function testBgSaveCancel()
     {
-        // BGSAVE CANCEL requires Valkey 8.1+
         if (!$this->minVersionCheck('8.1.0')) {
             $this->markTestSkipped('BGSAVE CANCEL requires Valkey 8.1.0+');
             return;
@@ -486,10 +475,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $route = 'allPrimaries';
 
-        // Wait for any in-progress save to complete
         $this->waitForSaveNotInProgress();
 
-        // When no save is in progress, BGSAVE CANCEL should return false
         $result = $this->valkey_glide->bgSave($route, 'CANCEL');
         $this->assertFalse($result);
     }

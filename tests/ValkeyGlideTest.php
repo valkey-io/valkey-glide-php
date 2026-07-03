@@ -2587,42 +2587,29 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testBgSave()
     {
-        // Wait for any in-progress save to complete
         $this->waitForSaveNotInProgress();
 
-        // BGSAVE with no mode - returns true on success (PHPRedis compatible)
         $result = $this->valkey_glide->bgSave();
         $this->assertTrue($result);
-
-        // Wait for the bgsave to complete before next test
-        $this->waitForSaveNotInProgress();
     }
 
     public function testBgSaveSchedule()
     {
-        // Wait for any in-progress save to complete
         $this->waitForSaveNotInProgress();
 
-        // BGSAVE SCHEDULE - returns true on success
         $result = $this->valkey_glide->bgSave('SCHEDULE');
         $this->assertTrue($result);
-
-        // Wait for the scheduled bgsave to complete
-        $this->waitForSaveNotInProgress();
     }
 
     public function testBgSaveCancel()
     {
-        // BGSAVE CANCEL requires Valkey 8.1+
         if (!$this->minVersionCheck('8.1.0')) {
             $this->markTestSkipped('BGSAVE CANCEL requires Valkey 8.1.0+');
             return;
         }
 
-        // Wait for any in-progress save to complete
         $this->waitForSaveNotInProgress();
 
-        // When no save is in progress, BGSAVE CANCEL should return false
         $result = $this->valkey_glide->bgSave('CANCEL');
         $this->assertFalse($result);
     }
