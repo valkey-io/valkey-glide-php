@@ -422,40 +422,26 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
      */
     protected function waitForSaveNotInProgress()
     {
-        $route   = 'allPrimaries';
-        $maxWait = 10; // seconds
-        $start   = time();
-        while (time() - $start < $maxWait) {
-            $info = $this->valkey_glide->info($route, 'persistence');
-            if (is_array($info)) {
-                $saveInProgress = false;
-                foreach ($info as $nodeInfo) {
-                    if (is_array($nodeInfo)) {
-                        if (
-                            (isset($nodeInfo['rdb_bgsave_in_progress']) && $nodeInfo['rdb_bgsave_in_progress'] == '1') ||
-                            (isset($nodeInfo['aof_rewrite_in_progress']) && $nodeInfo['aof_rewrite_in_progress'] == '1')
-                        ) {
-                            $saveInProgress = true;
-                            break;
-                        }
-                    } elseif (is_string($nodeInfo)) {
-                        if (
-                            strpos($nodeInfo, 'rdb_bgsave_in_progress:1') !== false ||
-                            strpos($nodeInfo, 'aof_rewrite_in_progress:1') !== false
-                        ) {
-                            $saveInProgress = true;
-                            break;
-                        }
+        $this->waitFor(function () {
+            $info = $this->valkey_glide->info('allPrimaries', 'persistence');
+            if (!is_array($info)) {
+                return true;
+            }
+            foreach ($info as $nodeInfo) {
+                if (is_array($nodeInfo)) {
+                    if (($nodeInfo['rdb_bgsave_in_progress'] ?? '0') == '1'
+                        || ($nodeInfo['aof_rewrite_in_progress'] ?? '0') == '1') {
+                        return false;
+                    }
+                } elseif (is_string($nodeInfo)) {
+                    if (strpos($nodeInfo, 'rdb_bgsave_in_progress:1') !== false
+                        || strpos($nodeInfo, 'aof_rewrite_in_progress:1') !== false) {
+                        return false;
                     }
                 }
-                if (!$saveInProgress) {
-                    return;
-                }
-            } else {
-                return;
             }
-            usleep(100000); // 100ms
-        }
+            return true;
+        }, 10, 'Timed out waiting for background save to complete on cluster');
     }
 
     public function testBgSave()

@@ -2643,22 +2643,14 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
      */
     protected function waitForSaveNotInProgress()
     {
-        $maxWait = 10; // seconds
-        $start   = time();
-        while (time() - $start < $maxWait) {
+        $this->waitFor(function () {
             $info = $this->valkey_glide->info('persistence');
-            if (is_array($info)) {
-                if (
-                    (!isset($info['rdb_bgsave_in_progress']) || $info['rdb_bgsave_in_progress'] != '1') &&
-                    (!isset($info['aof_rewrite_in_progress']) || $info['aof_rewrite_in_progress'] != '1')
-                ) {
-                    return;
-                }
-            } else {
-                return;
+            if (!is_array($info)) {
+                return true;
             }
-            usleep(100000); // 100ms
-        }
+            return ($info['rdb_bgsave_in_progress'] ?? '0') != '1'
+                && ($info['aof_rewrite_in_progress'] ?? '0') != '1';
+        }, 10, 'Timed out waiting for background save to complete');
     }
 
     public function testTTL()
