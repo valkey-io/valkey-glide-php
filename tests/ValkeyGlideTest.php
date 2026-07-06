@@ -2630,6 +2630,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertIsString($result);
         $this->assertContains($result, $this->bgsaveResponses());
 
+        if ($this->minVersionCheck('8.1.0')) {
+            $this->waitForSaveNotInProgress();
+
+            $result = $this->valkey_glide->bgSave('CANCEL');
+            $this->assertFalse($result);
+        }
+
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
 

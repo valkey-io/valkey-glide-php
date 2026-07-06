@@ -508,6 +508,18 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertIsString($result);
         $this->assertContains($result, $this->bgsaveResponses());
 
+        if ($this->minVersionCheck('8.1.0')) {
+            $this->waitForSaveNotInProgress();
+
+            // Test CANCEL with allPrimaries route
+            $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
+            $this->assertFalse($result);
+
+            // Test CANCEL with randomNode route
+            $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
+            $this->assertFalse($result);
+        }
+
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
 
