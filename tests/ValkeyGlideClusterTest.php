@@ -423,18 +423,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         return false;
     }
 
-    /**
-     * Override for cluster - info() requires a route parameter.
-     */
-    protected function waitForSaveNotInProgress()
-    {
-        $this->waitFor(
-            fn() => !$this->isSaveInProgress(),
-            10,
-            'Timed out waiting for background save to complete on cluster'
-        );
-    }
-
     public function testBgSave()
     {
         $this->waitForSaveNotInProgress();
