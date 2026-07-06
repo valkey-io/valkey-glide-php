@@ -1596,24 +1596,11 @@ int process_core_string_result(CommandResponse* response, void* output, zval* re
         return 1;
     } else if (response->response_type == Map && response->array_value &&
                response->array_value_len > 0) {
-        /* Multi-node response (cluster routing) - return first string value */
+        /* Multi-node response (cluster routing) - process first node's value recursively */
         CommandResponse* element     = &response->array_value[0];
         CommandResponse* first_value = element->map_value;
-        if (first_value && first_value->response_type == String &&
-            first_value->string_value_len > 0) {
-            result = emalloc(first_value->string_value_len + 1);
-            if (!result) {
-                ZVAL_NULL(return_value);
-                return 0;
-            }
-            memcpy(result, first_value->string_value, first_value->string_value_len);
-            result[first_value->string_value_len] = '\0';
-            ZVAL_STRINGL(return_value, result, first_value->string_value_len);
-            efree(result);
-            return 1;
-        } else if (first_value && first_value->response_type == Ok) {
-            ZVAL_STRING(return_value, "OK");
-            return 1;
+        if (first_value) {
+            return process_core_string_result(first_value, output, return_value);
         }
         ZVAL_NULL(return_value);
         return 0;
