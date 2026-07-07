@@ -1591,19 +1591,6 @@ int process_core_string_result(CommandResponse* response, void* output, zval* re
         }
 
         return 1;
-    } else if (response->response_type == Ok) {
-        ZVAL_STRING(return_value, "OK");
-        return 1;
-    } else if (response->response_type == Map && response->array_value &&
-               response->array_value_len > 0) {
-        /* Multi-node response (cluster routing) - process first node's value recursively */
-        CommandResponse* element     = &response->array_value[0];
-        CommandResponse* first_value = element->map_value;
-        if (first_value) {
-            return process_core_string_result(first_value, output, return_value);
-        }
-        ZVAL_NULL(return_value);
-        return 0;
     } else if (response->response_type == Null) {
         ZVAL_FALSE(return_value);
         return 1;
@@ -1658,10 +1645,13 @@ int process_core_bgsave_bool_result(CommandResponse* response, void* output, zva
         for (long i = 0; i < response->array_value_len; i++) {
             CommandResponse* element = &response->array_value[i];
             CommandResponse* value   = element->map_value;
-            if (element->string_value && value) {
+            if (element->map_key && element->map_key->string_value && value) {
                 zval node_result;
                 process_core_bgsave_bool_result(value, output, &node_result);
-                add_assoc_zval(return_value, element->string_value, &node_result);
+                add_assoc_zval_ex(return_value,
+                                  element->map_key->string_value,
+                                  element->map_key->string_value_len,
+                                  &node_result);
             }
         }
         return 1;
@@ -1698,10 +1688,13 @@ int process_core_bgsave_string_result(CommandResponse* response, void* output, z
         for (long i = 0; i < response->array_value_len; i++) {
             CommandResponse* element = &response->array_value[i];
             CommandResponse* value   = element->map_value;
-            if (element->string_value && value) {
+            if (element->map_key && element->map_key->string_value && value) {
                 zval node_result;
                 process_core_bgsave_string_result(value, output, &node_result);
-                add_assoc_zval(return_value, element->string_value, &node_result);
+                add_assoc_zval_ex(return_value,
+                                  element->map_key->string_value,
+                                  element->map_key->string_value_len,
+                                  &node_result);
             }
         }
         return 1;
