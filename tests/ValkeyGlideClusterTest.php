@@ -427,13 +427,16 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        // Test with allPrimaries route
+        // Test with allPrimaries route - returns array of node => bool
         $result = $this->valkey_glide->bgSave('allPrimaries');
-        $this->assertTrue($result);
+        $this->assertIsArray($result);
+        foreach ($result as $nodeResult) {
+            $this->assertTrue($nodeResult);
+        }
 
         $this->waitForSaveNotInProgress();
 
-        // Test with randomNode route
+        // Test with randomNode route - returns scalar bool
         $result = $this->valkey_glide->bgSave('randomNode');
         $this->assertTrue($result);
     }
@@ -442,13 +445,16 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        // Test with allPrimaries route
+        // Test with allPrimaries route - returns array of node => bool
         $result = $this->valkey_glide->bgSave('allPrimaries', 'SCHEDULE');
-        $this->assertTrue($result);
+        $this->assertIsArray($result);
+        foreach ($result as $nodeResult) {
+            $this->assertTrue($nodeResult);
+        }
 
         $this->waitForSaveNotInProgress();
 
-        // Test with randomNode route
+        // Test with randomNode route - returns scalar bool
         $result = $this->valkey_glide->bgSave('randomNode', 'SCHEDULE');
         $this->assertTrue($result);
     }
@@ -462,11 +468,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $this->waitForSaveNotInProgress();
 
-        // Test with allPrimaries route
+        // Test with allPrimaries route - returns array of node => bool
         $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
-        $this->assertFalse($result);
+        $this->assertIsArray($result);
+        foreach ($result as $nodeResult) {
+            $this->assertFalse($nodeResult);
+        }
 
-        // Test with randomNode route
+        // Test with randomNode route - returns scalar bool
         $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
         $this->assertFalse($result);
     }
@@ -477,28 +486,34 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
 
-        // Test with allPrimaries route
+        // Test with allPrimaries route - returns array of node => string
         $result = $this->valkey_glide->bgSave('allPrimaries');
-        $this->assertIsString($result);
-        $this->assertContains($result, $this->bgsaveResponses());
+        $this->assertIsArray($result);
+        foreach ($result as $nodeResult) {
+            $this->assertIsString($nodeResult);
+            $this->assertContains($nodeResult, $this->bgsaveResponses());
+        }
 
         $this->waitForSaveNotInProgress();
 
-        // Test with randomNode route
+        // Test with randomNode route - returns scalar string
         $result = $this->valkey_glide->bgSave('randomNode');
         $this->assertIsString($result);
         $this->assertContains($result, $this->bgsaveResponses());
 
         $this->waitForSaveNotInProgress();
 
-        // Test SCHEDULE with allPrimaries route
+        // Test SCHEDULE with allPrimaries route - returns array of node => string
         $result = $this->valkey_glide->bgSave('allPrimaries', 'SCHEDULE');
-        $this->assertIsString($result);
-        $this->assertContains($result, $this->bgsaveResponses());
+        $this->assertIsArray($result);
+        foreach ($result as $nodeResult) {
+            $this->assertIsString($nodeResult);
+            $this->assertContains($nodeResult, $this->bgsaveResponses());
+        }
 
         $this->waitForSaveNotInProgress();
 
-        // Test SCHEDULE with randomNode route
+        // Test SCHEDULE with randomNode route - returns scalar string
         $result = $this->valkey_glide->bgSave('randomNode', 'SCHEDULE');
         $this->assertIsString($result);
         $this->assertContains($result, $this->bgsaveResponses());
@@ -506,11 +521,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         if ($this->minVersionCheck('8.1.0')) {
             $this->waitForSaveNotInProgress();
 
-            // Test CANCEL with allPrimaries route
+            // Test CANCEL with allPrimaries route - returns array of node => bool
             $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
-            $this->assertFalse($result);
+            $this->assertIsArray($result);
+            foreach ($result as $nodeResult) {
+                $this->assertFalse($nodeResult);
+            }
 
-            // Test CANCEL with randomNode route
+            // Test CANCEL with randomNode route - returns scalar bool
             $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
             $this->assertFalse($result);
         }
@@ -530,14 +548,20 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->valkey_glide->pipeline();
         $this->valkey_glide->bgSave('allPrimaries');
         $result = $this->valkey_glide->exec();
-        $this->assertTrue($result[0]);
+        $this->assertIsArray($result[0]);
+        foreach ($result[0] as $nodeResult) {
+            $this->assertTrue($nodeResult);
+        }
 
         $this->waitForSaveNotInProgress();
 
         $this->valkey_glide->pipeline();
         $this->valkey_glide->bgSave('allPrimaries', 'SCHEDULE');
         $result = $this->valkey_glide->exec();
-        $this->assertTrue($result[0]);
+        $this->assertIsArray($result[0]);
+        foreach ($result[0] as $nodeResult) {
+            $this->assertTrue($nodeResult);
+        }
 
         if ($this->minVersionCheck('8.1.0')) {
             $this->waitForSaveNotInProgress();
@@ -545,7 +569,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             $this->valkey_glide->pipeline();
             $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
             $result = $this->valkey_glide->exec();
-            $this->assertFalse($result[0]);
+            $this->assertIsArray($result[0]);
+            foreach ($result[0] as $nodeResult) {
+                $this->assertFalse($nodeResult);
+            }
         }
     }
 

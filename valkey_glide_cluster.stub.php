@@ -561,7 +561,7 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::bgSave
      */
-    public function bgSave(mixed $route, ?string $mode = null): ValkeyGlideCluster|bool|string;
+    public function bgSave(mixed $route, ?string $mode = null): ValkeyGlideCluster|array|bool|string;
 
     /**
      * @see ValkeyGlide::geoadd
