@@ -1596,18 +1596,14 @@ int process_core_string_result(CommandResponse* response, void* output, zval* re
         return 1;
     } else if (response->response_type == Map && response->array_value &&
                response->array_value_len > 0) {
-        /* Multi-node response (cluster routing) - return associative array of node responses */
-        array_init(return_value);
-        for (long i = 0; i < response->array_value_len; i++) {
-            CommandResponse* element = &response->array_value[i];
-            CommandResponse* value   = element->map_value;
-            if (element->string_value && value) {
-                zval node_result;
-                process_core_string_result(value, output, &node_result);
-                add_assoc_zval(return_value, element->string_value, &node_result);
-            }
+        /* Multi-node response (cluster routing) - process first node's value recursively */
+        CommandResponse* element     = &response->array_value[0];
+        CommandResponse* first_value = element->map_value;
+        if (first_value) {
+            return process_core_string_result(first_value, output, return_value);
         }
-        return 1;
+        ZVAL_NULL(return_value);
+        return 0;
     } else if (response->response_type == Null) {
         ZVAL_FALSE(return_value);
         return 1;
@@ -1673,6 +1669,49 @@ int process_core_bgsave_bool_result(CommandResponse* response, void* output, zva
 
     ZVAL_FALSE(return_value);
     return 1;
+}
+
+/**
+ * Batch-compatible wrapper for BGSAVE string results (OPT_REPLY_LITERAL mode).
+ * Returns string for single-node, associative array for multi-node routes.
+ */
+int process_core_bgsave_string_result(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        ZVAL_NULL(return_value);
+        return 0;
+    }
+
+    if (response->response_type == String) {
+        if (response->string_value_len > 0) {
+            ZVAL_STRINGL(return_value, response->string_value, response->string_value_len);
+        } else {
+            ZVAL_EMPTY_STRING(return_value);
+        }
+        return 1;
+    } else if (response->response_type == Ok) {
+        ZVAL_STRING(return_value, "OK");
+        return 1;
+    } else if (response->response_type == Map && response->array_value &&
+               response->array_value_len > 0) {
+        /* Multi-node response - return associative array of node => string */
+        array_init(return_value);
+        for (long i = 0; i < response->array_value_len; i++) {
+            CommandResponse* element = &response->array_value[i];
+            CommandResponse* value   = element->map_value;
+            if (element->string_value && value) {
+                zval node_result;
+                process_core_bgsave_string_result(value, output, &node_result);
+                add_assoc_zval(return_value, element->string_value, &node_result);
+            }
+        }
+        return 1;
+    } else if (response->response_type == Null) {
+        ZVAL_FALSE(return_value);
+        return 1;
+    }
+
+    ZVAL_NULL(return_value);
+    return 0;
 }
 
 

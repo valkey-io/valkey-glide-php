@@ -321,7 +321,7 @@ int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_clas
      * - Without OPT_REPLY_LITERAL: return bool (process_core_bgsave_bool_result)
      * This ensures correct types in both normal and batch/pipeline mode. */
     z_result_processor_t processor = valkey_glide->opt_reply_literal
-                                         ? process_core_string_result
+                                         ? process_core_bgsave_string_result
                                          : process_core_bgsave_bool_result;
 
     /* Execute using unified core framework */

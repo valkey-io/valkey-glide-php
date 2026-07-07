@@ -207,6 +207,7 @@ int process_core_string_result(CommandResponse* response, void* output, zval* re
 /* Boolean result processor */
 int process_core_bool_result(CommandResponse* response, void* output, zval* return_value);
 int process_core_bgsave_bool_result(CommandResponse* response, void* output, zval* return_value);
+int process_core_bgsave_string_result(CommandResponse* response, void* output, zval* return_value);
 
 /* Array result processor */
 int process_core_array_result(CommandResponse* response, void* output, zval* return_value);
