@@ -430,7 +430,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Test with allPrimaries route - returns array of node => bool
         $result = $this->valkey_glide->bgSave('allPrimaries');
         $this->assertIsArray($result);
-        foreach ($result as $nodeResult) {
+        $this->assertGT(0, count($result));
+        foreach ($result as $nodeAddress => $nodeResult) {
+            $this->assertIsString($nodeAddress);
+            $this->assertStringContains(':', $nodeAddress);
             $this->assertTrue($nodeResult);
         }
 
@@ -448,7 +451,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Test with allPrimaries route - returns array of node => bool
         $result = $this->valkey_glide->bgSave('allPrimaries', 'SCHEDULE');
         $this->assertIsArray($result);
-        foreach ($result as $nodeResult) {
+        $this->assertGT(0, count($result));
+        foreach ($result as $nodeAddress => $nodeResult) {
+            $this->assertIsString($nodeAddress);
+            $this->assertStringContains(':', $nodeAddress);
             $this->assertTrue($nodeResult);
         }
 
@@ -471,7 +477,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Test with allPrimaries route - returns array of node => bool
         $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
         $this->assertIsArray($result);
-        foreach ($result as $nodeResult) {
+        $this->assertGT(0, count($result));
+        foreach ($result as $nodeAddress => $nodeResult) {
+            $this->assertIsString($nodeAddress);
+            $this->assertStringContains(':', $nodeAddress);
             $this->assertFalse($nodeResult);
         }
 
