@@ -474,17 +474,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $this->waitForSaveNotInProgress();
 
-        // Test with allPrimaries route - returns array of node => bool
+        // When no save is in progress, CANCEL returns false (error response)
         $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
-        $this->assertIsArray($result);
-        $this->assertGT(0, count($result));
-        foreach ($result as $nodeAddress => $nodeResult) {
-            $this->assertIsString($nodeAddress);
-            $this->assertStringContains(':', $nodeAddress);
-            $this->assertFalse($nodeResult);
-        }
+        $this->assertFalse($result);
 
-        // Test with randomNode route - returns scalar bool
         $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
         $this->assertFalse($result);
     }
@@ -530,14 +523,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         if ($this->minVersionCheck('8.1.0')) {
             $this->waitForSaveNotInProgress();
 
-            // Test CANCEL with allPrimaries route - returns array of node => bool
             $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
-            $this->assertIsArray($result);
-            foreach ($result as $nodeResult) {
-                $this->assertFalse($nodeResult);
-            }
+            $this->assertFalse($result);
 
-            // Test CANCEL with randomNode route - returns scalar bool
             $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
             $this->assertFalse($result);
         }
@@ -578,10 +566,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             $this->valkey_glide->pipeline();
             $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
             $result = $this->valkey_glide->exec();
-            $this->assertIsArray($result[0]);
-            foreach ($result[0] as $nodeResult) {
-                $this->assertFalse($nodeResult);
-            }
+            $this->assertFalse($result[0]);
         }
     }
 
