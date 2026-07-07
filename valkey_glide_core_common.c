@@ -1637,6 +1637,33 @@ int process_core_bool_result(CommandResponse* response, void* output, zval* retu
     return 1;
 }
 
+/**
+ * Batch-compatible wrapper for BGSAVE boolean results.
+ * Converts String/Ok responses to true, Null to false.
+ */
+int process_core_bgsave_bool_result(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        ZVAL_FALSE(return_value);
+        return 0;
+    }
+
+    if (response->response_type == String || response->response_type == Ok) {
+        ZVAL_TRUE(return_value);
+        return 1;
+    } else if (response->response_type == Map && response->array_value &&
+               response->array_value_len > 0) {
+        /* Multi-node response (cluster routing) - process first node's value recursively */
+        CommandResponse* element     = &response->array_value[0];
+        CommandResponse* first_value = element->map_value;
+        if (first_value) {
+            return process_core_bgsave_bool_result(first_value, output, return_value);
+        }
+    }
+
+    ZVAL_FALSE(return_value);
+    return 1;
+}
+
 
 /* ====================================================================
  * SPECIALIZED COMMAND HELPERS

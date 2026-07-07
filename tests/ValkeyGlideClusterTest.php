@@ -496,6 +496,13 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertIsString($result);
         $this->assertContains($result, $this->bgsaveResponses());
 
+        $this->waitForSaveNotInProgress();
+
+        // Test SCHEDULE with randomNode route
+        $result = $this->valkey_glide->bgSave('randomNode', 'SCHEDULE');
+        $this->assertIsString($result);
+        $this->assertContains($result, $this->bgsaveResponses());
+
         if ($this->minVersionCheck('8.1.0')) {
             $this->waitForSaveNotInProgress();
 
@@ -523,14 +530,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->valkey_glide->pipeline();
         $this->valkey_glide->bgSave('allPrimaries');
         $result = $this->valkey_glide->exec();
-        $this->assertContains($result[0], $this->bgsaveResponses());
+        $this->assertTrue($result[0]);
 
         $this->waitForSaveNotInProgress();
 
         $this->valkey_glide->pipeline();
         $this->valkey_glide->bgSave('allPrimaries', 'SCHEDULE');
         $result = $this->valkey_glide->exec();
-        $this->assertContains($result[0], $this->bgsaveResponses());
+        $this->assertTrue($result[0]);
 
         if ($this->minVersionCheck('8.1.0')) {
             $this->waitForSaveNotInProgress();

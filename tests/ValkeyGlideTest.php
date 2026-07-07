@@ -2652,14 +2652,14 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->pipeline();
         $this->valkey_glide->bgSave();
         $result = $this->valkey_glide->exec();
-        $this->assertContains($result[0], $this->bgsaveResponses());
+        $this->assertTrue($result[0]);
 
         $this->waitForSaveNotInProgress();
 
         $this->valkey_glide->pipeline();
         $this->valkey_glide->bgSave('SCHEDULE');
         $result = $this->valkey_glide->exec();
-        $this->assertContains($result[0], $this->bgsaveResponses());
+        $this->assertTrue($result[0]);
 
         if ($this->minVersionCheck('8.1.0')) {
             $this->waitForSaveNotInProgress();

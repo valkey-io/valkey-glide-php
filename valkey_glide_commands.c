@@ -316,20 +316,20 @@ int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_clas
         core_args.arg_count                     = 1;
     }
 
+    /* Select processor based on OPT_REPLY_LITERAL:
+     * - With OPT_REPLY_LITERAL: return raw string (process_core_string_result)
+     * - Without OPT_REPLY_LITERAL: return bool (process_core_bgsave_bool_result)
+     * This ensures correct types in both normal and batch/pipeline mode. */
+    z_result_processor_t processor = valkey_glide->opt_reply_literal
+                                         ? process_core_string_result
+                                         : process_core_bgsave_bool_result;
+
     /* Execute using unified core framework */
-    if (execute_core_command(
-            valkey_glide, &core_args, NULL, process_core_string_result, return_value)) {
+    if (execute_core_command(valkey_glide, &core_args, NULL, processor, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
             return 1;
-        }
-
-        /* PHPRedis compatibility: bgSave returns bool by default,
-         * string only when OPT_REPLY_LITERAL is enabled */
-        if (!valkey_glide->opt_reply_literal && Z_TYPE_P(return_value) == IS_STRING) {
-            zval_dtor(return_value);
-            ZVAL_TRUE(return_value);
         }
 
         return 1;
