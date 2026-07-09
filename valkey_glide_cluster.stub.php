@@ -559,6 +559,35 @@ class ValkeyGlideCluster
     public function flushDB(mixed $route, bool $async = false): ValkeyGlideCluster|bool;
 
     /**
+     * Asynchronously saves the dataset to disk in the background.
+     *
+     * When called without a mode argument, initiates a background save immediately.
+     * When called with "SCHEDULE", schedules a background save to run when possible.
+     * When called with "CANCEL", aborts all in-progress and scheduled background saves (Valkey 8.1+).
+     *
+     * For multi-node routes (allPrimaries, allNodes), returns an associative array mapping
+     * node addresses to individual results. For single-node routes (randomNode, slot-based,
+     * or address-based), returns a scalar value.
+     *
+     * @param mixed        $route  The routing configuration that determines which node(s) to send the
+     *                             command to. Can be:
+     *                             - string "randomNode" to route to a random node
+     *                             - string "allPrimaries" to route to all primary nodes
+     *                             - string "allNodes" to route to all nodes (primaries and replicas)
+     *                             - string containing a key name for slot-based routing
+     *                             - array ['type' => 'primarySlotKey', 'key' => 'keyName'] for slot key routing
+     *                             - array ['type' => 'routeByAddress', 'host' => 'hostname', 'port' => port]
+     *                               for specific node routing
+     * @param string|null  $mode   Optional mode: null for default, "SCHEDULE" to schedule,
+     *                             or "CANCEL" to abort (requires Valkey 8.1+).
+     *
+     * @return ValkeyGlideCluster|array|bool|string
+     *         - Multi-node route: array<string, bool> (or array<string, string> with OPT_REPLY_LITERAL)
+     *         - Single-node route: bool (true on success, false on failure)
+     *         - Single-node route with OPT_REPLY_LITERAL: string (status message)
+     *         - In batch/pipeline mode: ValkeyGlideCluster ($this for chaining)
+     *
+     * @see https://valkey.io/commands/bgsave
      * @see ValkeyGlide::bgSave
      */
     public function bgSave(mixed $route, ?string $mode = null): ValkeyGlideCluster|array|bool|string;
