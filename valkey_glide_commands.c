@@ -317,7 +317,7 @@ int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_clas
     }
 
     /* Select processor based on OPT_REPLY_LITERAL:
-     * - With OPT_REPLY_LITERAL: return raw string (process_core_string_result)
+     * - With OPT_REPLY_LITERAL: return raw string (process_core_bgsave_string_result)
      * - Without OPT_REPLY_LITERAL: return bool (process_core_bgsave_bool_result)
      * This ensures correct types in both normal and batch/pipeline mode. */
     z_result_processor_t processor = valkey_glide->opt_reply_literal
@@ -325,17 +325,14 @@ int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_clas
                                          : process_core_bgsave_bool_result;
 
     /* Execute using unified core framework */
-    if (execute_core_command(valkey_glide, &core_args, NULL, processor, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-
-        return 1;
-    } else {
+    if (!execute_core_command(valkey_glide, &core_args, NULL, processor, return_value)) {
         return 0;
     }
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+    }
+    return 1;
 }
 
 /* Execute a TIME command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
