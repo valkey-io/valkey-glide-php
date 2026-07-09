@@ -1630,17 +1630,16 @@ int process_core_bool_result(CommandResponse* response, void* output, zval* retu
  * For multi-node (Map) responses, builds an associative array of node => result
  * by applying single_node_processor to each node's value.
  */
-int process_core_cluster_result(CommandResponse*      response,
-                                void*                 output,
-                                zval*                 return_value,
-                                z_result_processor_t  single_node_processor) {
+int process_core_cluster_result(CommandResponse*     response,
+                                void*                output,
+                                zval*                return_value,
+                                z_result_processor_t single_node_processor) {
     if (!response) {
         ZVAL_FALSE(return_value);
         return 0;
     }
 
-    if (response->response_type == Map && response->array_value &&
-        response->array_value_len > 0) {
+    if (response->response_type == Map && response->array_value && response->array_value_len > 0) {
         /* Multi-node response - return associative array of node => result */
         array_init(return_value);
         for (long i = 0; i < response->array_value_len; i++) {
@@ -1720,8 +1719,8 @@ static int process_bgsave_single_node_string(CommandResponse* response,
  * For multi-node routes: returns an associative array of node => bool.
  */
 int process_core_bgsave_bool_result(CommandResponse* response, void* output, zval* return_value) {
-    return process_core_cluster_result(response, output, return_value,
-                                       process_bgsave_single_node_bool);
+    return process_core_cluster_result(
+        response, output, return_value, process_bgsave_single_node_bool);
 }
 
 /**
@@ -1730,8 +1729,8 @@ int process_core_bgsave_bool_result(CommandResponse* response, void* output, zva
  * For multi-node routes: returns an associative array of node => string.
  */
 int process_core_bgsave_string_result(CommandResponse* response, void* output, zval* return_value) {
-    return process_core_cluster_result(response, output, return_value,
-                                       process_bgsave_single_node_string);
+    return process_core_cluster_result(
+        response, output, return_value, process_bgsave_single_node_string);
 }
 
 
