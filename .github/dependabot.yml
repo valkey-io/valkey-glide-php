@@ -8,6 +8,9 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 10
+    # Wait 7 days before proposing updates to newly published package versions.
+    # Protects against supply-chain attacks from malicious/unstable early releases.
+    # See: https://semgrep.dev/r?q=dependabot-missing-cooldown
     cooldown:
       default-days: 7
     reviewers:
@@ -27,6 +30,9 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
+    # Wait 7 days before proposing updates to newly published package versions.
+    # Protects against supply-chain attacks from malicious/unstable early releases.
+    # See: https://semgrep.dev/r?q=dependabot-missing-cooldown
     cooldown:
       default-days: 7
     reviewers:
