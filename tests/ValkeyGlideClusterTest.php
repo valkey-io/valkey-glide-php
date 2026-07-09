@@ -474,7 +474,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $this->waitForSaveNotInProgress();
 
-        // When no save is in progress, CANCEL returns false (error response)
+        // When no save is in progress, CANCEL returns false (not an array) even for
+        // multi-node routes. This is because the glide-core's response aggregation
+        // checks all node responses for errors before building the Map result. When
+        // ALL nodes return a ServerError (no save in progress), the core collapses
+        // them into a single command_error rather than returning a per-node Map.
+        // This matches PHPRedis semantics where bgSave() returns false on failure.
+        // A successful CANCEL (when a save IS in progress) would return an array
+        // for multi-node routes since at least one node returns a success response.
         $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
         $this->assertFalse($result);
 
@@ -523,6 +530,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         if ($this->minVersionCheck('8.1.0')) {
             $this->waitForSaveNotInProgress();
 
+            // CANCEL with no save in progress returns false (see testBgSaveCancel comment)
             $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
             $this->assertFalse($result);
 
