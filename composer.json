@@ -8,7 +8,7 @@
     },
     "php-ext": {
         "extension-name": "valkey_glide",
-        "download-url-method": ["pre-packaged-source", "composer-default"]
+        "download-url-method": "pre-packaged-source"
     },
     "authors": [
         {
@@ -63,6 +63,7 @@
     },
     "config": {
         "sort-packages": true,
+        "preferred-install": "source",
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true
         },

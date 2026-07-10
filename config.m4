@@ -144,7 +144,7 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
         SUBMODULE_COMMIT=$(git ls-tree HEAD valkey-glide 2>/dev/null | awk '{print $3}')
       fi
       if test -z "$SUBMODULE_COMMIT" && test -f ".submodule-commits"; then
-        SUBMODULE_COMMIT=$(grep "^valkey-glide=" .submodule-commits | cut -d= -f2)
+        SUBMODULE_COMMIT=$(grep "^valkey-glide=" .submodule-commits | head -1 | cut -d= -f2)
       fi
       if test -z "$SUBMODULE_COMMIT"; then
         return 1

@@ -13,4 +13,5 @@ jobs:
     uses: ./.github/workflows/test.yml
     with:
       profile: full
-    secrets: inherit
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

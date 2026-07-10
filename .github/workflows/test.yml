@@ -31,7 +31,7 @@ jobs:
       engine-matrix: ${{ steps.load.outputs.engine-matrix }}
       php-matrix: ${{ steps.load.outputs.php-matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           sparse-checkout: .github/json_matrices
       - name: Load and filter matrices
@@ -53,7 +53,7 @@ jobs:
         host: ${{ fromJson(needs.load-matrix.outputs.host-matrix) }}
     runs-on: ${{ matrix.host.RUNNER }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           submodules: recursive
       - name: Output matrix parameters
@@ -81,7 +81,7 @@ jobs:
       - name: Upload test reports
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-report-php-${{ matrix.php }}-${{ matrix.engine.type }}-${{ matrix.engine.version }}-${{ matrix.host.OS }}-${{ matrix.host.ARCH }}
           path: |
@@ -114,10 +114,10 @@ jobs:
           yum install -y git tar php php-devel gcc make autoconf automake libtool pkgconfig openssl openssl-devel unzip
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           echo IMAGE=${{ matrix.host.IMAGE }} | sed -r 's/:/-/g' >> $GITHUB_ENV
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           submodules: recursive
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             valkey-glide/ffi/target
@@ -152,7 +152,7 @@ jobs:
       - name: Upload test reports
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-reports-php-${{ matrix.php }}-${{ matrix.engine.type }}-${{ matrix.engine.version }}-${{ env.IMAGE }}-${{ matrix.host.ARCH }}
           path: |
