@@ -32,20 +32,15 @@ runs:
     - name: Install system dependencies (Ubuntu)
       if: ${{ inputs.os == 'ubuntu' }}
       shell: bash
-      env:
-        PHP_VER: ${{ inputs.php-version }}
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-            php$PHP_VER-dev \
-            php$PHP_VER-cli \
             build-essential \
             autoconf \
             automake \
             libtool \
             pkg-config \
             libssl-dev \
-            php-bcmath \
             unzip \
             clang-format \
             cppcheck \

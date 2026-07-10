@@ -44,7 +44,7 @@ jobs:
           fi
 
       - name: Checkout target branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           ref: ${{ env.TARGET_BRANCH }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
@@ -57,13 +57,13 @@ jobs:
           echo "TARGET_COMMIT=`git rev-parse HEAD`" >> $GITHUB_ENV
 
       - name: Set up JDK 11 for the ORT package
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: "temurin"
           java-version: 11
 
       - name: Cache ORT and Gradle packages
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: cache-ort
         with:
           path: |
@@ -74,7 +74,7 @@ jobs:
 
       - name: Checkout ORT Repository
         if: steps.cache-ort.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           repository: "oss-review-toolkit/ort"
           path: "./ort"
@@ -307,7 +307,7 @@ jobs:
 
       - name: Upload the final package list
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: final-package-list-${{ steps.date.outputs.date }}
           path: |
@@ -316,7 +316,7 @@ jobs:
 
       - name: Upload the skipped package list
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: skipped-package-list-${{ steps.date.outputs.date }}
           path: |
@@ -325,7 +325,7 @@ jobs:
 
       - name: Upload the unknown/unapproved package list
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: unapproved-package-list-${{ steps.date.outputs.date }}
           path: |
