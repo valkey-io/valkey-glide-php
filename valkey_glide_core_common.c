@@ -1591,6 +1591,9 @@ int process_core_string_result(CommandResponse* response, void* output, zval* re
         }
 
         return 1;
+    } else if (response->response_type == Ok) {
+        ZVAL_STRING(return_value, "OK");
+        return 1;
     } else if (response->response_type == Null) {
         ZVAL_FALSE(return_value);
         return 1;
@@ -1683,37 +1686,6 @@ static int process_bgsave_single_node_bool(CommandResponse* response,
 }
 
 /**
- * Single-node BGSAVE string processor (OPT_REPLY_LITERAL mode).
- * Returns the status string, or false for Null responses.
- */
-static int process_bgsave_single_node_string(CommandResponse* response,
-                                             void*            output,
-                                             zval*            return_value) {
-    if (!response) {
-        ZVAL_NULL(return_value);
-        return 0;
-    }
-
-    if (response->response_type == String) {
-        if (response->string_value_len > 0) {
-            ZVAL_STRINGL(return_value, response->string_value, response->string_value_len);
-        } else {
-            ZVAL_EMPTY_STRING(return_value);
-        }
-        return 1;
-    } else if (response->response_type == Ok) {
-        ZVAL_STRING(return_value, "OK");
-        return 1;
-    } else if (response->response_type == Null) {
-        ZVAL_FALSE(return_value);
-        return 1;
-    }
-
-    ZVAL_NULL(return_value);
-    return 0;
-}
-
-/**
  * BGSAVE boolean result processor.
  * For single-node: returns true on success (String/Ok), false otherwise.
  * For multi-node routes: returns an associative array of node => bool.
@@ -1729,8 +1701,7 @@ int process_core_bgsave_bool_result(CommandResponse* response, void* output, zva
  * For multi-node routes: returns an associative array of node => string.
  */
 int process_core_bgsave_string_result(CommandResponse* response, void* output, zval* return_value) {
-    return process_core_cluster_result(
-        response, output, return_value, process_bgsave_single_node_string);
+    return process_core_cluster_result(response, output, return_value, process_core_string_result);
 }
 
 
