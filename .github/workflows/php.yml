@@ -151,7 +151,7 @@ jobs:
       - name: Upload logs and reports
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-report-php-${{ matrix.php }}-${{ matrix.engine.type }}-${{ matrix.engine.version }}-${{ matrix.host.RUNNER }}
           path: |
@@ -343,7 +343,7 @@ jobs:
       - name: Upload ASAN logs and reports
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: asan-test-report-php-${{ matrix.engine.type }}-${{ matrix.engine.version }}
           path: |
@@ -806,7 +806,7 @@ jobs:
       - name: Upload Valgrind logs and reports
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: valgrind-test-report-php-${{ matrix.engine.type }}-${{ matrix.engine.version }}
           path: |
@@ -1055,7 +1055,7 @@ jobs:
       - name: Upload test reports
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-reports-php-${{ matrix.php }}-${{ matrix.engine.type }}-${{ matrix.engine.version }}-${{ env.IMAGE }}-${{ matrix.host.ARCH }}
           path: |
@@ -1117,7 +1117,7 @@ jobs:
       - name: Upload test reports
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-reports-modules-php-docker
           path: |
@@ -1223,7 +1223,7 @@ jobs:
       - name: Upload test reports
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-reports-modules
           path: |
