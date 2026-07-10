@@ -323,4 +323,23 @@ abstract class ValkeyGlideBaseTest extends TestSuite
             $this->markTestSkipped('DNS tests are disabled. Set VALKEY_GLIDE_DNS_TESTS_ENABLED=1 to enable.');
         }
     }
+
+    /**
+     * Waits until the given condition callback returns true, polling every 100ms.
+     *
+     * @param callable $condition  A callback that returns true when the condition is met.
+     * @param int      $timeoutSeconds  Maximum time to wait in seconds.
+     * @param string   $message  Failure message if timeout is reached.
+     */
+    protected function waitFor(callable $condition, int $timeoutSeconds = 10, string $message = 'waitFor timed out'): void
+    {
+        $start = time();
+        while (time() - $start < $timeoutSeconds) {
+            if ($condition()) {
+                return;
+            }
+            usleep(100000); // 100ms
+        }
+        $this->fail($message);
+    }
 }

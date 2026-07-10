@@ -313,6 +313,7 @@ int prepare_core_args(core_command_args_t* args,
         case Wait:
         case FlushDB:
         case FlushAll:
+        case BgSave:
         case Select:
         case SwapDb:
             return prepare_message_args(
@@ -1590,6 +1591,9 @@ int process_core_string_result(CommandResponse* response, void* output, zval* re
         }
 
         return 1;
+    } else if (response->response_type == Ok) {
+        ZVAL_STRING(return_value, "OK");
+        return 1;
     } else if (response->response_type == Null) {
         ZVAL_FALSE(return_value);
         return 1;
@@ -1621,6 +1625,83 @@ int process_core_bool_result(CommandResponse* response, void* output, zval* retu
     ZVAL_BOOL(return_value, result_val);
 
     return 1;
+}
+
+/**
+ * Generic cluster result processor.
+ * For single-node responses, delegates to the provided single_node_processor.
+ * For multi-node (Map) responses, builds an associative array of node => result
+ * by applying single_node_processor to each node's value.
+ */
+int process_core_cluster_result(CommandResponse*     response,
+                                void*                output,
+                                zval*                return_value,
+                                z_result_processor_t single_node_processor) {
+    if (!response) {
+        ZVAL_FALSE(return_value);
+        return 0;
+    }
+
+    if (response->response_type == Map && response->array_value && response->array_value_len > 0) {
+        /* Multi-node response - return associative array of node => result */
+        array_init(return_value);
+        for (long i = 0; i < response->array_value_len; i++) {
+            CommandResponse* element = &response->array_value[i];
+            CommandResponse* value   = element->map_value;
+            if (element->map_key && element->map_key->string_value && value) {
+                zval node_result;
+                single_node_processor(value, output, &node_result);
+                add_assoc_zval_ex(return_value,
+                                  element->map_key->string_value,
+                                  element->map_key->string_value_len,
+                                  &node_result);
+            }
+        }
+        return 1;
+    }
+
+    /* Single-node response - delegate directly */
+    return single_node_processor(response, output, return_value);
+}
+
+/**
+ * Single-node BGSAVE bool processor.
+ * Converts String/Ok responses to true, anything else to false.
+ */
+static int process_bgsave_single_node_bool(CommandResponse* response,
+                                           void*            output,
+                                           zval*            return_value) {
+    if (!response) {
+        ZVAL_FALSE(return_value);
+        return 0;
+    }
+
+    if (response->response_type == String || response->response_type == Ok) {
+        ZVAL_TRUE(return_value);
+        return 1;
+    }
+
+    ZVAL_FALSE(return_value);
+    return 1;
+}
+
+/**
+ * BGSAVE boolean result processor.
+ * For single-node: returns true on success (String/Ok), false otherwise.
+ * For multi-node routes: returns an associative array of node => bool.
+ */
+int process_core_bgsave_bool_result(CommandResponse* response, void* output, zval* return_value) {
+    return process_core_cluster_result(
+        response, output, return_value, process_bgsave_single_node_bool);
+}
+
+/**
+ * BGSAVE string result processor (OPT_REPLY_LITERAL mode).
+ * For single-node: returns the status string.
+ * For multi-node routes: returns an associative array of node => string.
+ */
+int process_core_bgsave_string_result(CommandResponse* response, void* output, zval* return_value) {
+    return process_core_cluster_result(response, output, return_value, process_core_string_result);
 }
 
 

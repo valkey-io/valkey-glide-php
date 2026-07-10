@@ -207,6 +207,17 @@ int process_core_string_result(CommandResponse* response, void* output, zval* re
 /* Boolean result processor */
 int process_core_bool_result(CommandResponse* response, void* output, zval* return_value);
 
+/* Generic cluster result processor - applies single_node_processor per node for multi-node routes
+ */
+int process_core_cluster_result(CommandResponse*     response,
+                                void*                output,
+                                zval*                return_value,
+                                z_result_processor_t single_node_processor);
+
+/* BGSAVE result processors (use process_core_cluster_result internally) */
+int process_core_bgsave_bool_result(CommandResponse* response, void* output, zval* return_value);
+int process_core_bgsave_string_result(CommandResponse* response, void* output, zval* return_value);
+
 /* Array result processor */
 int process_core_array_result(CommandResponse* response, void* output, zval* return_value);
 

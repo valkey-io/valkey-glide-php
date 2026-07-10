@@ -2585,6 +2585,125 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(0, $this->valkey_glide->dbSize());
     }
 
+    public function testBgSave()
+    {
+        $this->waitForSaveNotInProgress();
+
+        $result = $this->valkey_glide->bgSave();
+        $this->assertTrue($result);
+    }
+
+    public function testBgSaveSchedule()
+    {
+        $this->waitForSaveNotInProgress();
+
+        $result = $this->valkey_glide->bgSave('SCHEDULE');
+        $this->assertTrue($result);
+    }
+
+    public function testBgSaveCancel()
+    {
+        if (!$this->minVersionCheck('8.1.0')) {
+            $this->markTestSkipped('BGSAVE CANCEL requires Valkey 8.1.0+');
+            return;
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        $result = $this->valkey_glide->bgSave('CANCEL');
+        $this->assertFalse($result);
+    }
+
+    public function testBgSaveWithReplyLiteral()
+    {
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+
+        $result = $this->valkey_glide->bgSave();
+        $this->assertIsString($result);
+        $this->assertContains($result, $this->bgsaveResponses());
+
+        $this->waitForSaveNotInProgress();
+
+        $result = $this->valkey_glide->bgSave('SCHEDULE');
+        $this->assertIsString($result);
+        $this->assertContains($result, $this->bgsaveResponses());
+
+        if ($this->minVersionCheck('8.1.0')) {
+            $this->waitForSaveNotInProgress();
+
+            $result = $this->valkey_glide->bgSave('CANCEL');
+            $this->assertFalse($result);
+        }
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+    }
+
+    public function testBgSaveBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->bgSave();
+        $result = $this->valkey_glide->exec();
+        $this->assertTrue($result[0]);
+
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->bgSave('SCHEDULE');
+        $result = $this->valkey_glide->exec();
+        $this->assertTrue($result[0]);
+
+        if ($this->minVersionCheck('8.1.0')) {
+            $this->waitForSaveNotInProgress();
+
+            $this->valkey_glide->pipeline();
+            $this->valkey_glide->bgSave('CANCEL');
+            $result = $this->valkey_glide->exec();
+            $this->assertFalse($result[0]);
+        }
+    }
+
+    /**
+     * Valid BGSAVE response strings (used when OPT_REPLY_LITERAL is enabled).
+     */
+    protected function bgsaveResponses(): array
+    {
+        return [
+            'Background saving started',
+            'Background saving scheduled',
+        ];
+    }
+
+    /**
+     * Returns true if a background save (RDB or AOF) is currently in progress.
+     */
+    protected function isSaveInProgress(): bool
+    {
+        $info = $this->valkey_glide->info('persistence');
+        return $info['rdb_bgsave_in_progress'] == '1'
+            || $info['aof_rewrite_in_progress'] == '1';
+    }
+
+    /**
+     * Helper method to wait for any background save operations to complete.
+     */
+    protected function waitForSaveNotInProgress()
+    {
+        $this->waitFor(
+            fn() => !$this->isSaveInProgress(),
+            10,
+            'Timed out waiting for background save to complete'
+        );
+    }
+
     public function testTTL()
     {
         $this->valkey_glide->set('x', 'y');

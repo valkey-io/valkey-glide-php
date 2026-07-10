@@ -1154,6 +1154,22 @@ class ValkeyGlide
     public function flushDB(?bool $sync = null): ValkeyGlide|bool;
 
     /**
+     * Asynchronously saves the dataset to disk in the background.
+     *
+     * When called without a mode argument, initiates a background save immediately.
+     * When called with "SCHEDULE", schedules a background save to run when possible.
+     * When called with "CANCEL", aborts all in-progress and scheduled background saves (Valkey 8.1+).
+     *
+     * @param  string|null  $mode  Optional mode: null for default, "SCHEDULE" to schedule,
+     *                             or "CANCEL" to abort (requires Valkey 8.1+).
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns the status string instead.
+     *
+     * @see https://valkey.io/commands/bgsave
+     */
+    public function bgSave(?string $mode = null): ValkeyGlide|bool|string;
+
+    /**
      * Functions is an API for managing code to be executed on the server.
      *
      * @param string $operation         The subcommand you intend to execute.  Valid options are as follows

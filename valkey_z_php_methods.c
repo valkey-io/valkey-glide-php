@@ -814,6 +814,10 @@ FLUSHDB_METHOD_IMPL(ValkeyGlide)
 FLUSHALL_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto string ValkeyGlide::bgSave([string mode]) */
+BGSAVE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto array ValkeyGlide::time() */
 TIME_METHOD_IMPL(ValkeyGlide)
 /* }}} */

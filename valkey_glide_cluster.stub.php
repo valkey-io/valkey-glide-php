@@ -559,6 +559,14 @@ class ValkeyGlideCluster
     public function flushDB(mixed $route, bool $async = false): ValkeyGlideCluster|bool;
 
     /**
+     * @see ValkeyGlide::bgSave
+     *
+     * For multi-node routes, returns an associative array mapping node addresses to results.
+     * For single-node routes, returns a scalar (bool or string).
+     */
+    public function bgSave(mixed $route, ?string $mode = null): ValkeyGlideCluster|array|bool|string;
+
+    /**
      * @see ValkeyGlide::geoadd
      */
     public function geoadd(string $key, float $lng, float $lat, string $member, mixed ...$other_triples_and_options): ValkeyGlideCluster|int|false;
