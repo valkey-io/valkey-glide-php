@@ -357,33 +357,18 @@ jobs:
         ### Create PR, Note a potential race on the source branch ###
       - name: Create pull request
         if: ${{ env.FOUND_DIFF  == 'true' && github.event_name != 'pull_request' }}
-        run: |
-          export ORT_DIFF_BRANCH_NAME="ort-diff-for-$TARGET_BRANCH"
-          echo "Creating pull request from branch $ORT_DIFF_BRANCH_NAME to branch $TARGET_BRANCH"
-          git config --global user.email "valkey-glide@lists.valkey.io"
-          git config --global user.name "ort-bot"
-          git checkout -b ${ORT_DIFF_BRANCH_NAME}
-          git add $PHP_ATTRIBUTIONS
-          git commit -m "Updated attribution files" -s
-          git push --set-upstream origin ${ORT_DIFF_BRANCH_NAME} -f
-
-          # Check if PR already exists
-          existing_pr=$(gh pr list --base ${TARGET_BRANCH} --head ${ORT_DIFF_BRANCH_NAME} --json number --jq '.[0].number')
-
-          if [ -z "$existing_pr" ]; then
-            # Create a new PR if none exists
-            title="Updated attribution files for commit ${TARGET_COMMIT}"
-            gh pr create -B ${TARGET_BRANCH} -H ${ORT_DIFF_BRANCH_NAME} --title "${title}" --body "Created by Github action. ${{ env.LICENSES_LIST }}"
-            echo "Pull request created successfully."
-          else
-            # Update the existing PR
-            echo "Pull request #$existing_pr already exists. Updating branch."
-            gh pr edit $existing_pr --title "Updated attribution files for commit ${TARGET_COMMIT}" --body "Created by Github action. ${{ env.LICENSES_LIST }}"
-            echo "Pull request updated successfully."
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          INPUT_VERSION: ${{ github.event.inputs.version }}
+        id: create-pr
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          sign-commits: true
+          commit-message: "Updated attribution files\n\nSigned-off-by: ort-bot <valkey-glide@lists.valkey.io>"
+          branch: "ort-diff-for-${{ env.TARGET_BRANCH }}"
+          base: ${{ env.TARGET_BRANCH }}
+          title: "Updated attribution files for commit ${{ env.TARGET_COMMIT }}"
+          body: "Created by Github action. ${{ env.LICENSES_LIST }}"
+          add-paths: |
+            ${{ env.PHP_ATTRIBUTIONS }}
 
       ### Warn of outdated attributions for PR ###
       - name: Warn of outdated attributions due to the PR

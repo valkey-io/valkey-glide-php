@@ -14,7 +14,8 @@ Add a summary describing the changes
 
 ### Issue link
 
-This Pull Request is linked to issue (URL): [REPLACE ME]
+This Pull Request is linked to issue: [<Issue Title>](<Issue URL>)
+Closes <Issue #>
 
 ### Features / Behaviour Changes
 
