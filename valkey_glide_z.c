@@ -1721,6 +1721,7 @@ int execute_zmpop_command_internal(valkey_glide_object* valkey_glide,
 
         /* Check if there was an error */
         if (cmd_result->command_error) {
+            valkey_glide_record_command_error(valkey_glide, cmd_result);
             free_command_result(cmd_result);
             return 0;
         }

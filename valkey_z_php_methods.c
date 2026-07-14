@@ -858,6 +858,14 @@ SETOPTION_METHOD_IMPL(ValkeyGlide)
 GETOPTION_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto string|null ValkeyGlide::getLastError() */
+GETLASTERROR_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto bool ValkeyGlide::clearLastError() */
+CLEARLASTERROR_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto bool ValkeyGlide::jsonSet(string key, string path, string value [, string condition])
  */
 JSON_SET_METHOD_IMPL(ValkeyGlide)
