@@ -977,6 +977,11 @@ FLUSHDB_METHOD_IMPL(ValkeyGlideCluster)
 FLUSHALL_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto ValkeyGlideCluster::bgSave(mixed route, [string mode])
+ *     Asynchronously saves the dataset to disk in the background. */
+BGSAVE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto ValkeyGlideCluster::dbsize(string key)
  *     proto ValkeyGlideCluster::dbsize(array host_port) */
 DBSIZE_METHOD_IMPL(ValkeyGlideCluster)
@@ -1270,6 +1275,14 @@ SETOPTION_METHOD_IMPL(ValkeyGlideCluster)
 
 /* {{{ proto mixed ValkeyGlideCluster::getOption(int option) */
 GETOPTION_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string|null ValkeyGlideCluster::getLastError() */
+GETLASTERROR_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto bool ValkeyGlideCluster::clearLastError() */
+CLEARLASTERROR_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto bool ValkeyGlideCluster::jsonSet(string key, string path, string value [, string

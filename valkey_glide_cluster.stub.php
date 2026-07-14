@@ -299,6 +299,16 @@ class ValkeyGlideCluster
     public function getOption(int $option): mixed;
 
     /**
+     * @see ValkeyGlide::getLastError()
+     */
+    public function getLastError(): ?string;
+
+    /**
+     * @see ValkeyGlide::clearLastError()
+     */
+    public function clearLastError(): bool;
+
+    /**
      * @see ValkeyGlide::append()
      */
     public function append(string $key, mixed $value): ValkeyGlideCluster|bool|int;
@@ -557,6 +567,14 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::flushdb
      */
     public function flushDB(mixed $route, bool $async = false): ValkeyGlideCluster|bool;
+
+    /**
+     * @see ValkeyGlide::bgSave
+     *
+     * For multi-node routes, returns an associative array mapping node addresses to results.
+     * For single-node routes, returns a scalar (bool or string).
+     */
+    public function bgSave(mixed $route, ?string $mode = null): ValkeyGlideCluster|array|bool|string;
 
     /**
      * @see ValkeyGlide::geoadd

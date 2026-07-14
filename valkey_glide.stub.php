@@ -434,6 +434,24 @@ class ValkeyGlide
     public function getOption(int $option): mixed;
 
     /**
+     * Get the last error message returned by the server, if any.
+     *
+     * The message is recorded when a command fails and returns false; it is
+     * overwritten by subsequent errors and is not cleared by successful
+     * commands. Use clearLastError() to reset it.
+     *
+     * @return string|null The last error message, or NULL if there is no error
+     */
+    public function getLastError(): ?string;
+
+    /**
+     * Clear the last error message, if any.
+     *
+     * @return bool Always true
+     */
+    public function clearLastError(): bool;
+
+    /**
      * Append data to a ValkeyGlide STRING key.
      *
      * @param string $key   The key in question
@@ -1152,6 +1170,22 @@ class ValkeyGlide
      * @see https://valkey.io/commands/flushdb
      */
     public function flushDB(?bool $sync = null): ValkeyGlide|bool;
+
+    /**
+     * Asynchronously saves the dataset to disk in the background.
+     *
+     * When called without a mode argument, initiates a background save immediately.
+     * When called with "SCHEDULE", schedules a background save to run when possible.
+     * When called with "CANCEL", aborts all in-progress and scheduled background saves (Valkey 8.1+).
+     *
+     * @param  string|null  $mode  Optional mode: null for default, "SCHEDULE" to schedule,
+     *                             or "CANCEL" to abort (requires Valkey 8.1+).
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns the status string instead.
+     *
+     * @see https://valkey.io/commands/bgsave
+     */
+    public function bgSave(?string $mode = null): ValkeyGlide|bool|string;
 
     /**
      * Functions is an API for managing code to be executed on the server.

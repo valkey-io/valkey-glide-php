@@ -406,6 +406,178 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
+    /**
+     * Override for cluster - info() requires a route parameter and checks all primaries.
+     */
+    protected function isSaveInProgress(): bool
+    {
+        $info = $this->valkey_glide->info('allPrimaries', 'persistence');
+        foreach ($info as $nodeInfo) {
+            if (
+                $nodeInfo['rdb_bgsave_in_progress'] == '1'
+                || $nodeInfo['aof_rewrite_in_progress'] == '1'
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public function testBgSave()
+    {
+        $this->waitForSaveNotInProgress();
+
+        // Test with allPrimaries route - returns array of node => bool
+        $result = $this->valkey_glide->bgSave('allPrimaries');
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+        foreach ($result as $nodeAddress => $nodeResult) {
+            $this->assertIsString($nodeAddress);
+            $this->assertStringContains(':', $nodeAddress);
+            $this->assertTrue($nodeResult);
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        // Test with randomNode route - returns scalar bool
+        $result = $this->valkey_glide->bgSave('randomNode');
+        $this->assertTrue($result);
+    }
+
+    public function testBgSaveSchedule()
+    {
+        $this->waitForSaveNotInProgress();
+
+        // Test with allPrimaries route - returns array of node => bool
+        $result = $this->valkey_glide->bgSave('allPrimaries', 'SCHEDULE');
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+        foreach ($result as $nodeAddress => $nodeResult) {
+            $this->assertIsString($nodeAddress);
+            $this->assertStringContains(':', $nodeAddress);
+            $this->assertTrue($nodeResult);
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        // Test with randomNode route - returns scalar bool
+        $result = $this->valkey_glide->bgSave('randomNode', 'SCHEDULE');
+        $this->assertTrue($result);
+    }
+
+    public function testBgSaveCancel()
+    {
+        if (!$this->minVersionCheck('8.1.0')) {
+            $this->markTestSkipped('BGSAVE CANCEL requires Valkey 8.1.0+');
+            return;
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        // When no save is in progress, CANCEL returns false (not an array) even for
+        // multi-node routes. This is because the glide-core's response aggregation
+        // checks all node responses for errors before building the Map result. When
+        // ALL nodes return a ServerError (no save in progress), the core collapses
+        // them into a single command_error rather than returning a per-node Map.
+        // This matches PHPRedis semantics where bgSave() returns false on failure.
+        // A successful CANCEL (when a save IS in progress) would return an array
+        // for multi-node routes since at least one node returns a success response.
+        $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
+        $this->assertFalse($result);
+
+        $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
+        $this->assertFalse($result);
+    }
+
+    public function testBgSaveWithReplyLiteral()
+    {
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+
+        // Test with allPrimaries route - returns array of node => string
+        $result = $this->valkey_glide->bgSave('allPrimaries');
+        $this->assertIsArray($result);
+        foreach ($result as $nodeResult) {
+            $this->assertIsString($nodeResult);
+            $this->assertContains($nodeResult, $this->bgsaveResponses());
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        // Test with randomNode route - returns scalar string
+        $result = $this->valkey_glide->bgSave('randomNode');
+        $this->assertIsString($result);
+        $this->assertContains($result, $this->bgsaveResponses());
+
+        $this->waitForSaveNotInProgress();
+
+        // Test SCHEDULE with allPrimaries route - returns array of node => string
+        $result = $this->valkey_glide->bgSave('allPrimaries', 'SCHEDULE');
+        $this->assertIsArray($result);
+        foreach ($result as $nodeResult) {
+            $this->assertIsString($nodeResult);
+            $this->assertContains($nodeResult, $this->bgsaveResponses());
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        // Test SCHEDULE with randomNode route - returns scalar string
+        $result = $this->valkey_glide->bgSave('randomNode', 'SCHEDULE');
+        $this->assertIsString($result);
+        $this->assertContains($result, $this->bgsaveResponses());
+
+        if ($this->minVersionCheck('8.1.0')) {
+            $this->waitForSaveNotInProgress();
+
+            // CANCEL with no save in progress returns false (see testBgSaveCancel comment)
+            $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
+            $this->assertFalse($result);
+
+            $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
+            $this->assertFalse($result);
+        }
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+    }
+
+    public function testBgSaveBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->bgSave('allPrimaries');
+        $result = $this->valkey_glide->exec();
+        $this->assertIsArray($result[0]);
+        foreach ($result[0] as $nodeResult) {
+            $this->assertTrue($nodeResult);
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->bgSave('allPrimaries', 'SCHEDULE');
+        $result = $this->valkey_glide->exec();
+        $this->assertIsArray($result[0]);
+        foreach ($result[0] as $nodeResult) {
+            $this->assertTrue($nodeResult);
+        }
+
+        if ($this->minVersionCheck('8.1.0')) {
+            $this->waitForSaveNotInProgress();
+
+            $this->valkey_glide->pipeline();
+            $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
+            $result = $this->valkey_glide->exec();
+            $this->assertFalse($result[0]);
+        }
+    }
+
     public function testInfo()
     {
         $fields = [

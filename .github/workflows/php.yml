@@ -83,7 +83,7 @@ jobs:
       host-matrix-output: ${{ steps.get-matrices.outputs.host-matrix-output }}
       version-matrix-output: ${{ steps.get-matrices.outputs.version-matrix-output }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4
         with:
           submodules: recursive
       - id: get-matrices
@@ -106,7 +106,7 @@ jobs:
     runs-on: ${{ matrix.host.RUNNER }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4
         with:
           submodules: recursive
 
@@ -151,7 +151,7 @@ jobs:
       - name: Upload logs and reports
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-report-php-${{ matrix.php }}-${{ matrix.engine.type }}-${{ matrix.engine.version }}-${{ matrix.host.RUNNER }}
           path: |
@@ -174,7 +174,7 @@ jobs:
         engine: ${{ fromJson(needs.get-matrices.outputs.engine-matrix-output) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4
         with:
           submodules: recursive
 
@@ -183,7 +183,7 @@ jobs:
           echo "Job running with the following matrix configuration:"
           echo "${{ toJson(matrix) }}"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             valkey-glide/ffi/target
@@ -343,7 +343,7 @@ jobs:
       - name: Upload ASAN logs and reports
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: asan-test-report-php-${{ matrix.engine.type }}-${{ matrix.engine.version }}
           path: |
@@ -365,7 +365,7 @@ jobs:
         engine: ${{ fromJson(needs.get-matrices.outputs.engine-matrix-output) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4
         with:
           submodules: recursive
 
@@ -374,7 +374,7 @@ jobs:
           echo "Job running with the following matrix configuration:"
           echo "${{ toJson(matrix) }}"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index/
@@ -396,7 +396,7 @@ jobs:
             ubuntu-latest
 
       - name: Cache Cargo dependencies (early)
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index/
@@ -806,7 +806,7 @@ jobs:
       - name: Upload Valgrind logs and reports
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: valgrind-test-report-php-${{ matrix.engine.type }}-${{ matrix.engine.version }}
           path: |
@@ -821,7 +821,7 @@ jobs:
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4
         with:
           submodules: recursive
 
@@ -885,7 +885,7 @@ jobs:
           python3 utils/remove_optional_from_proto.py
           echo "=== Proto file cleanup completed ==="
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             valkey-glide/ffi/target
@@ -918,7 +918,7 @@ jobs:
       version-matrix-output: ${{ steps.get-matrices.outputs.version-matrix-output }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4
         with:
           submodules: recursive
       - id: get-matrices
@@ -949,11 +949,11 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           echo IMAGE=amazonlinux:latest | sed -r 's/:/-/g' >> $GITHUB_ENV
       # Replace `:` in the variable otherwise it can't be used in `upload-artifact`
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4
         with:
           submodules: recursive
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             valkey-glide/ffi/target
@@ -1055,7 +1055,7 @@ jobs:
       - name: Upload test reports
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-reports-php-${{ matrix.php }}-${{ matrix.engine.type }}-${{ matrix.engine.version }}-${{ env.IMAGE }}-${{ matrix.host.ARCH }}
           path: |
@@ -1073,7 +1073,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4
         with:
           submodules: recursive
 
@@ -1117,7 +1117,7 @@ jobs:
       - name: Upload test reports
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-reports-modules-php-docker
           path: |
@@ -1134,7 +1134,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4
         with:
           submodules: recursive
 
@@ -1223,7 +1223,7 @@ jobs:
       - name: Upload test reports
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-reports-modules
           path: |

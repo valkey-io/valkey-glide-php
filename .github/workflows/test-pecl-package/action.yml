@@ -116,14 +116,10 @@ runs:
     - name: Install system dependencies
       if: steps.package-info.outputs.is-rc != 'true'
       shell: bash
-      env:
-        PHP_VER: ${{ inputs.php-version }}
       run: |
         echo "=== Installing system dependencies for PECL testing ==="
         sudo apt-get update
         sudo apt-get install -y \
-            php$PHP_VER-dev \
-            php$PHP_VER-cli \
             build-essential \
             autoconf \
             automake \

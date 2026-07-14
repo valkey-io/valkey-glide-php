@@ -108,7 +108,7 @@ ensure-submodules:
 			if [ ! -d "valkey-glide/.git" ]; then \
 				commit=""; \
 				if [ -f .submodule-commits ]; then \
-					commit=$$(grep "^valkey-glide=" .submodule-commits | cut -d= -f2); \
+					commit=$$(grep "^valkey-glide=" .submodule-commits | head -1 | cut -d= -f2); \
 				fi; \
 				if [ -n "$$commit" ]; then \
 					rm -rf valkey-glide; \

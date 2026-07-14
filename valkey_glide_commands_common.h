@@ -92,9 +92,11 @@ static inline void handle_command_result_or_throw(CommandResult* result,
 }
 
 // Helper that returns false on errors instead of throwing exceptions
-static inline int handle_function_command_result_or_return_false(CommandResult* result,
-                                                                 zval*          return_value) {
+static inline int handle_function_command_result_or_return_false(valkey_glide_object* valkey_glide,
+                                                                 CommandResult*       result,
+                                                                 zval* return_value) {
     if (!result || result->command_error || !result->response) {
+        valkey_glide_record_command_error(valkey_glide, result);
         ZVAL_FALSE(return_value);
         if (result) {
             free_command_result(result);
@@ -203,6 +205,7 @@ int execute_watch_command(zval* object, int argc, zval* return_value, zend_class
 int execute_unwatch_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_flushall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_cluster_scan_command(const void* glide_client,
@@ -687,6 +690,20 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         }                                                                           \
         zval_dtor(return_value);                                                    \
         RETURN_FALSE;                                                               \
+    }
+
+#define BGSAVE_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, bgSave) {                                              \
+        if (execute_bgsave_command(getThis(),                                     \
+                                   ZEND_NUM_ARGS(),                               \
+                                   return_value,                                  \
+                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                       ? get_valkey_glide_cluster_ce()            \
+                                       : get_valkey_glide_ce())) {                \
+            return;                                                               \
+        }                                                                         \
+        zval_dtor(return_value);                                                  \
+        RETURN_FALSE;                                                             \
     }
 
 #define TIME_METHOD_IMPL(class_name)                                            \
@@ -1543,6 +1560,31 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
             default:                                                          \
                 RETURN_FALSE;                                                 \
         }                                                                     \
+    }
+
+/* Error introspection methods - matching PHPRedis getLastError/clearLastError API */
+#define GETLASTERROR_METHOD_IMPL(class_name)                                  \
+    PHP_METHOD(class_name, getLastError) {                                    \
+        ZEND_PARSE_PARAMETERS_NONE();                                         \
+                                                                              \
+        valkey_glide_object* valkey_glide =                                   \
+            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis()); \
+        if (!valkey_glide || !valkey_glide->last_error) {                     \
+            RETURN_NULL();                                                    \
+        }                                                                     \
+                                                                              \
+        RETURN_STR_COPY(valkey_glide->last_error);                            \
+    }
+
+#define CLEARLASTERROR_METHOD_IMPL(class_name)                                \
+    PHP_METHOD(class_name, clearLastError) {                                  \
+        ZEND_PARSE_PARAMETERS_NONE();                                         \
+                                                                              \
+        valkey_glide_object* valkey_glide =                                   \
+            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis()); \
+        valkey_glide_clear_last_error(valkey_glide);                          \
+                                                                              \
+        RETURN_TRUE;                                                          \
     }
 
 /* FFI Compression functions - Statistics struct already defined in glide_bindings.h */

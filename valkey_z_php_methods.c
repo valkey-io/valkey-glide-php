@@ -814,6 +814,10 @@ FLUSHDB_METHOD_IMPL(ValkeyGlide)
 FLUSHALL_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto string ValkeyGlide::bgSave([string mode]) */
+BGSAVE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto array ValkeyGlide::time() */
 TIME_METHOD_IMPL(ValkeyGlide)
 /* }}} */
@@ -852,6 +856,14 @@ SETOPTION_METHOD_IMPL(ValkeyGlide)
 
 /* {{{ proto mixed ValkeyGlide::getOption(int option) */
 GETOPTION_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto string|null ValkeyGlide::getLastError() */
+GETLASTERROR_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto bool ValkeyGlide::clearLastError() */
+CLEARLASTERROR_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
 /* {{{ proto bool ValkeyGlide::jsonSet(string key, string path, string value [, string condition])

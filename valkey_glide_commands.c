@@ -258,6 +258,83 @@ int execute_flushall_command(zval* object, int argc, zval* return_value, zend_cl
     }
 }
 
+/* Execute a BGSAVE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    zval*                args       = NULL;
+    int                  args_count = 0;
+    zend_bool            is_cluster = (ce == get_valkey_glide_cluster_ce());
+    char*                mode       = NULL;
+    size_t               mode_len   = 0;
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    /* Setup core command arguments */
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = BgSave;
+    core_args.is_cluster          = is_cluster;
+
+    if (is_cluster) {
+        /* Parse parameters for cluster - first parameter is route, optional second is mode */
+        if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &args, &args_count) ==
+            FAILURE) {
+            return 0;
+        }
+
+        if (args_count == 0) {
+            /* Need at least the route parameter */
+            return 0;
+        }
+
+        /* Set up routing */
+        core_args.has_route   = 1;
+        core_args.route_param = &args[0];
+
+        /* Get optional mode parameter */
+        if (args_count > 1 && Z_TYPE(args[1]) == IS_STRING) {
+            mode     = Z_STRVAL(args[1]);
+            mode_len = Z_STRLEN(args[1]);
+        }
+    } else {
+        /* Non-cluster case - parse optional mode parameter */
+        if (zend_parse_method_parameters(argc, object, "O|s!", &object, ce, &mode, &mode_len) ==
+            FAILURE) {
+            return 0;
+        }
+    }
+
+    /* Add mode option if provided (SCHEDULE or CANCEL) */
+    if (mode && mode_len > 0) {
+        core_args.args[0].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[0].data.string_arg.value = mode;
+        core_args.args[0].data.string_arg.len   = mode_len;
+        core_args.arg_count                     = 1;
+    }
+
+    /* Select processor based on OPT_REPLY_LITERAL:
+     * - With OPT_REPLY_LITERAL: return raw string (process_core_bgsave_string_result)
+     * - Without OPT_REPLY_LITERAL: return bool (process_core_bgsave_bool_result)
+     * This ensures correct types in both normal and batch/pipeline mode. */
+    z_result_processor_t processor = valkey_glide->opt_reply_literal
+                                         ? process_core_bgsave_string_result
+                                         : process_core_bgsave_bool_result;
+
+    /* Execute using unified core framework */
+    if (!execute_core_command(valkey_glide, &core_args, NULL, processor, return_value)) {
+        return 0;
+    }
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+    }
+    return 1;
+}
+
 /* Execute a TIME command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
