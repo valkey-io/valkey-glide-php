@@ -4,6 +4,7 @@
 
 ### Changes
 
+* PHP: Add `BGREWRITEAOF` command for standalone and cluster clients ([#271](https://github.com/valkey-io/valkey-glide-php/pull/271))
 * PHP: Add `BGSAVE`, `BGSAVE SCHEDULE`, and `BGSAVE CANCEL` commands for standalone and cluster clients ([#236](https://github.com/valkey-io/valkey-glide-php/issues/236))
 * PHP: Fix pie install from Packagist using PIE pre-packaged-source download method ([#233](https://github.com/valkey-io/valkey-glide-php/pull/233))
 * PHP: Fix pie install from Packagist by setting preferred-install to source for submodule resolution ([#232](https://github.com/valkey-io/valkey-glide-php/pull/232))
