@@ -578,6 +578,32 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
+    public function testBgRewriteAof()
+    {
+        $this->waitForSaveNotInProgress();
+
+        // Test with allPrimaries route - returns array of node => string
+        $result = $this->valkey_glide->bgRewriteAof('allPrimaries');
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+        foreach ($result as $nodeAddress => $nodeResult) {
+            $this->assertIsString($nodeAddress);
+            $this->assertStringContains(':', $nodeAddress);
+            $this->assertIsString($nodeResult);
+            $this->assertContains($nodeResult, $this->bgRewriteAofResponses());
+        }
+    }
+
+    public function testBgRewriteAofWithRoute()
+    {
+        $this->waitForSaveNotInProgress();
+
+        // Test with randomNode route - returns scalar string
+        $result = $this->valkey_glide->bgRewriteAof('randomNode');
+        $this->assertIsString($result);
+        $this->assertContains($result, $this->bgRewriteAofResponses());
+    }
+
     public function testInfo()
     {
         $fields = [

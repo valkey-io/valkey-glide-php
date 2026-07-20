@@ -335,6 +335,64 @@ int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_clas
     return 1;
 }
 
+/* Execute a BGREWRITEAOF command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    zval*                args       = NULL;
+    int                  args_count = 0;
+    zend_bool            is_cluster = (ce == get_valkey_glide_cluster_ce());
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    if (is_cluster && valkey_glide->is_in_batch_mode) {
+        /* BGREWRITEAOF cannot be used in batch mode for cluster */
+        return 0;
+    }
+
+    /* Setup core command arguments */
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = BgRewriteAof;
+    core_args.is_cluster          = is_cluster;
+
+    if (is_cluster) {
+        /* Parse parameters for cluster - route parameter is required */
+        if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &args, &args_count) ==
+            FAILURE) {
+            return 0;
+        }
+
+        if (args_count == 0) {
+            /* Need the route parameter */
+            return 0;
+        }
+
+        /* Set up routing */
+        core_args.has_route   = 1;
+        core_args.route_param = &args[0];
+    } else {
+        /* Non-cluster case - no parameters */
+        if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
+            return 0;
+        }
+    }
+
+    /* Execute using unified core framework - always returns string */
+    if (!execute_core_command(
+            valkey_glide, &core_args, NULL, process_core_string_result, return_value)) {
+        return 0;
+    }
+    if (valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+    }
+    return 1;
+}
+
 /* Execute a TIME command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;

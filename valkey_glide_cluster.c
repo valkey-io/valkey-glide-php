@@ -982,6 +982,11 @@ FLUSHALL_METHOD_IMPL(ValkeyGlideCluster)
 BGSAVE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto ValkeyGlideCluster::bgRewriteAof(mixed route)
+ *     Initiates a background rewrite of the append-only file (AOF). */
+BGREWRITEAOF_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto ValkeyGlideCluster::dbsize(string key)
  *     proto ValkeyGlideCluster::dbsize(array host_port) */
 DBSIZE_METHOD_IMPL(ValkeyGlideCluster)
