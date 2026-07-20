@@ -2676,8 +2676,20 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->waitForSaveNotInProgress();
 
         $result = $this->valkey_glide->bgRewriteAof();
+        $this->assertTrue($result);
+    }
+
+    public function testBgRewriteAofWithReplyLiteral()
+    {
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+
+        $result = $this->valkey_glide->bgRewriteAof();
         $this->assertIsString($result);
         $this->assertContains($result, $this->bgRewriteAofResponses());
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
 
     /**

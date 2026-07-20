@@ -579,10 +579,10 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::bgRewriteAof
      *
-     * For multi-node routes, returns an associative array mapping node addresses to status strings.
-     * For single-node routes, returns a scalar string.
+     * For multi-node routes, returns an associative array mapping node addresses to results.
+     * For single-node routes, returns a scalar (bool or string).
      */
-    public function bgRewriteAof(mixed $route): ValkeyGlideCluster|array|string;
+    public function bgRewriteAof(mixed $route): ValkeyGlideCluster|array|bool|string;
 
     /**
      * @see ValkeyGlide::geoadd

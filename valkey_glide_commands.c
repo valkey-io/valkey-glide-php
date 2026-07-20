@@ -381,9 +381,16 @@ int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zen
         }
     }
 
-    /* Execute using unified core framework - always returns string */
-    if (!execute_core_command(
-            valkey_glide, &core_args, NULL, process_core_string_result, return_value)) {
+    /* Select processor based on OPT_REPLY_LITERAL:
+     * - With OPT_REPLY_LITERAL: return raw string (process_core_bgsave_string_result)
+     * - Without OPT_REPLY_LITERAL: return bool (process_core_bgsave_bool_result)
+     * This matches PHPRedis behavior where bgrewriteaof() returns bool. */
+    z_result_processor_t processor = valkey_glide->opt_reply_literal
+                                         ? process_core_bgsave_string_result
+                                         : process_core_bgsave_bool_result;
+
+    /* Execute using unified core framework */
+    if (!execute_core_command(valkey_glide, &core_args, NULL, processor, return_value)) {
         return 0;
     }
     if (valkey_glide->is_in_batch_mode) {

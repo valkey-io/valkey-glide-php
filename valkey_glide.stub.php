@@ -1193,13 +1193,12 @@ class ValkeyGlide
      * The server will fork a child process to rewrite the AOF in the background.
      * The response indicates whether the rewrite was started or scheduled.
      *
-     * @return ValkeyGlide|string  Returns a status string such as
-     *                             "Background append only file rewriting started" or
-     *                             "Background append only file rewriting scheduled".
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns the status string instead.
      *
      * @see https://valkey.io/commands/bgrewriteaof
      */
-    public function bgRewriteAof(): ValkeyGlide|string;
+    public function bgRewriteAof(): ValkeyGlide|bool|string;
 
     /**
      * Functions is an API for managing code to be executed on the server.
