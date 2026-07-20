@@ -348,11 +348,6 @@ int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zen
         return 0;
     }
 
-    if (is_cluster && valkey_glide->is_in_batch_mode) {
-        /* BGREWRITEAOF cannot be used in batch mode for cluster */
-        return 0;
-    }
-
     /* Setup core command arguments */
     core_command_args_t core_args = {0};
     core_args.glide_client        = valkey_glide->glide_client;
