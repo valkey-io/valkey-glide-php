@@ -626,6 +626,24 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
 
+    public function testBgRewriteAofBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->bgRewriteAof('allPrimaries');
+        $result = $this->valkey_glide->exec();
+        $this->assertIsArray($result[0]);
+        foreach ($result[0] as $nodeResult) {
+            $this->assertTrue($nodeResult);
+        }
+    }
+
     public function testInfo()
     {
         $fields = [

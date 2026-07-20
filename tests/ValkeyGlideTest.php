@@ -2692,6 +2692,21 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
 
+    public function testBgRewriteAofBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->bgRewriteAof();
+        $result = $this->valkey_glide->exec();
+        $this->assertTrue($result[0]);
+    }
+
     /**
      * Valid BGSAVE response strings (used when OPT_REPLY_LITERAL is enabled).
      */
