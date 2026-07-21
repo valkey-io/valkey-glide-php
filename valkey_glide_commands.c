@@ -26,6 +26,32 @@
 #include "valkey_glide_z_common.h"
 #include "zend_exceptions.h"
 
+/**
+ * Parse cluster route from method parameters.
+ * Parses variadic args, validates that at least one arg (the route) is present,
+ * and populates core_args routing fields.
+ *
+ * Returns 1 on success, 0 on failure.
+ * On success, *args and *args_count are set for further argument processing.
+ */
+static int parse_cluster_route(int                  argc,
+                               zval**               object,
+                               zend_class_entry*    ce,
+                               zval**               args,
+                               int*                 args_count,
+                               core_command_args_t* core_args) {
+    if (zend_parse_method_parameters(argc, *object, "O*", object, ce, args, args_count) ==
+        FAILURE) {
+        return 0;
+    }
+    if (*args_count == 0) {
+        return 0;
+    }
+    core_args->has_route   = 1;
+    core_args->route_param = &(*args)[0];
+    return 1;
+}
+
 /* Execute an MSET command using the Valkey Glide client - MIGRATED TO CORE FRAMEWORK */
 int execute_mset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -355,20 +381,9 @@ int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zen
     core_args.is_cluster          = is_cluster;
 
     if (is_cluster) {
-        /* Parse parameters for cluster - route parameter is required */
-        if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &args, &args_count) ==
-            FAILURE) {
+        if (!parse_cluster_route(argc, &object, ce, &args, &args_count, &core_args)) {
             return 0;
         }
-
-        if (args_count == 0) {
-            /* Need the route parameter */
-            return 0;
-        }
-
-        /* Set up routing */
-        core_args.has_route   = 1;
-        core_args.route_param = &args[0];
     } else {
         /* Non-cluster case - no parameters */
         if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
