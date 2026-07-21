@@ -202,6 +202,7 @@ int prepare_core_args(core_command_args_t* args,
         case Time:
         case Role:
         case DBSize:
+        case BgRewriteAof:
             return prepare_zero_args(args, cmd_args, cmd_args_len);
 
         /* Single key operations */
@@ -1666,10 +1667,11 @@ int process_core_cluster_result(CommandResponse*     response,
 }
 
 /**
- * Single-node BGSAVE bool processor.
+ * Status-to-bool single-node processor.
  * Converts String/Ok responses to true, anything else to false.
+ * Used by commands like BGSAVE and BGREWRITEAOF that return status strings.
  */
-static int process_bgsave_single_node_bool(CommandResponse* response,
+static int process_status_single_node_bool(CommandResponse* response,
                                            void*            output,
                                            zval*            return_value) {
     if (!response) {
@@ -1687,21 +1689,23 @@ static int process_bgsave_single_node_bool(CommandResponse* response,
 }
 
 /**
- * BGSAVE boolean result processor.
+ * Status-to-bool result processor.
  * For single-node: returns true on success (String/Ok), false otherwise.
  * For multi-node routes: returns an associative array of node => bool.
+ * Used by commands like BGSAVE and BGREWRITEAOF.
  */
-int process_core_bgsave_bool_result(CommandResponse* response, void* output, zval* return_value) {
+int process_core_status_bool_result(CommandResponse* response, void* output, zval* return_value) {
     return process_core_cluster_result(
-        response, output, return_value, process_bgsave_single_node_bool);
+        response, output, return_value, process_status_single_node_bool);
 }
 
 /**
- * BGSAVE string result processor (OPT_REPLY_LITERAL mode).
+ * Status-to-string result processor (OPT_REPLY_LITERAL mode).
  * For single-node: returns the status string.
  * For multi-node routes: returns an associative array of node => string.
+ * Used by commands like BGSAVE and BGREWRITEAOF.
  */
-int process_core_bgsave_string_result(CommandResponse* response, void* output, zval* return_value) {
+int process_core_status_string_result(CommandResponse* response, void* output, zval* return_value) {
     return process_core_cluster_result(response, output, return_value, process_core_string_result);
 }
 

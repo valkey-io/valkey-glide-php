@@ -818,6 +818,10 @@ FLUSHALL_METHOD_IMPL(ValkeyGlide)
 BGSAVE_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto string ValkeyGlide::bgRewriteAof() */
+BGREWRITEAOF_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto array ValkeyGlide::time() */
 TIME_METHOD_IMPL(ValkeyGlide)
 /* }}} */

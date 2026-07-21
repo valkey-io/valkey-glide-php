@@ -1188,6 +1188,19 @@ class ValkeyGlide
     public function bgSave(?string $mode = null): ValkeyGlide|bool|string;
 
     /**
+     * Initiates a background rewrite of the append-only file (AOF).
+     *
+     * The server will fork a child process to rewrite the AOF in the background.
+     * The response indicates whether the rewrite was started or scheduled.
+     *
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns the status string instead.
+     *
+     * @see https://valkey.io/commands/bgrewriteaof
+     */
+    public function bgRewriteAof(): ValkeyGlide|bool|string;
+
+    /**
      * Functions is an API for managing code to be executed on the server.
      *
      * @param string $operation         The subcommand you intend to execute.  Valid options are as follows

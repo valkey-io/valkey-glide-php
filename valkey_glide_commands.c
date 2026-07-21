@@ -26,6 +26,52 @@
 #include "valkey_glide_z_common.h"
 #include "zend_exceptions.h"
 
+/**
+ * Parse cluster route from method parameters.
+ * Parses variadic args, validates that at least one arg (the route) is present,
+ * and populates core_args routing fields.
+ *
+ * Returns 1 on success, 0 on failure.
+ * On success, *args and *args_count are set for further argument processing.
+ */
+static int parse_cluster_route(int                  argc,
+                               zval**               object,
+                               zend_class_entry*    ce,
+                               zval**               args,
+                               int*                 args_count,
+                               core_command_args_t* core_args) {
+    if (zend_parse_method_parameters(argc, *object, "O*", object, ce, args, args_count) ==
+        FAILURE) {
+        return 0;
+    }
+    if (*args_count == 0) {
+        return 0;
+    }
+    core_args->has_route   = 1;
+    core_args->route_param = &(*args)[0];
+    return 1;
+}
+
+/**
+ * Execute a core command and handle batch mode.
+ * If in batch mode, copies the object to return_value for method chaining.
+ *
+ * Returns 1 on success, 0 on failure.
+ */
+static int execute_and_handle_batch(valkey_glide_object* valkey_glide,
+                                    core_command_args_t* core_args,
+                                    z_result_processor_t processor,
+                                    zval*                return_value,
+                                    zval*                object) {
+    if (!execute_core_command(valkey_glide, core_args, NULL, processor, return_value)) {
+        return 0;
+    }
+    if (valkey_glide->is_in_batch_mode) {
+        ZVAL_COPY(return_value, object);
+    }
+    return 1;
+}
+
 /* Execute an MSET command using the Valkey Glide client - MIGRATED TO CORE FRAMEWORK */
 int execute_mset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -131,20 +177,9 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
     core_args.is_cluster          = is_cluster;
 
     if (is_cluster) {
-        /* Parse parameters for cluster - first parameter is route, optional second is async */
-        if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &args, &args_count) ==
-            FAILURE) {
+        if (!parse_cluster_route(argc, &object, ce, &args, &args_count, &core_args)) {
             return 0;
         }
-
-        if (args_count == 0) {
-            /* Need at least the route parameter */
-            return 0;
-        }
-
-        /* Set up routing */
-        core_args.has_route   = 1;
-        core_args.route_param = &args[0];
 
         /* Get optional async parameter */
         if (args_count > 1) {
@@ -168,18 +203,8 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
     }
 
     /* Execute using unified core framework */
-    if (execute_core_command(
-            valkey_glide, &core_args, NULL, process_core_bool_result, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-
-        return 1;
-    } else {
-        return 0;
-    }
+    return execute_and_handle_batch(
+        valkey_glide, &core_args, process_core_bool_result, return_value, object);
 }
 
 /* Execute a FLUSHALL command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
@@ -207,20 +232,9 @@ int execute_flushall_command(zval* object, int argc, zval* return_value, zend_cl
     core_args.is_cluster          = is_cluster;
 
     if (is_cluster) {
-        /* Parse parameters for cluster - first parameter is route, optional second is async */
-        if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &args, &args_count) ==
-            FAILURE) {
+        if (!parse_cluster_route(argc, &object, ce, &args, &args_count, &core_args)) {
             return 0;
         }
-
-        if (args_count == 0) {
-            /* Need at least the route parameter */
-            return 0;
-        }
-
-        /* Set up routing */
-        core_args.has_route   = 1;
-        core_args.route_param = &args[0];
 
         /* Get optional async parameter */
         if (args_count > 1) {
@@ -244,18 +258,8 @@ int execute_flushall_command(zval* object, int argc, zval* return_value, zend_cl
     }
 
     /* Execute using unified core framework */
-    if (execute_core_command(
-            valkey_glide, &core_args, NULL, process_core_bool_result, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-
-        return 1;
-    } else {
-        return 0;
-    }
+    return execute_and_handle_batch(
+        valkey_glide, &core_args, process_core_bool_result, return_value, object);
 }
 
 /* Execute a BGSAVE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
@@ -280,20 +284,9 @@ int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_clas
     core_args.is_cluster          = is_cluster;
 
     if (is_cluster) {
-        /* Parse parameters for cluster - first parameter is route, optional second is mode */
-        if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &args, &args_count) ==
-            FAILURE) {
+        if (!parse_cluster_route(argc, &object, ce, &args, &args_count, &core_args)) {
             return 0;
         }
-
-        if (args_count == 0) {
-            /* Need at least the route parameter */
-            return 0;
-        }
-
-        /* Set up routing */
-        core_args.has_route   = 1;
-        core_args.route_param = &args[0];
 
         /* Get optional mode parameter */
         if (args_count > 1 && Z_TYPE(args[1]) == IS_STRING) {
@@ -317,22 +310,57 @@ int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_clas
     }
 
     /* Select processor based on OPT_REPLY_LITERAL:
-     * - With OPT_REPLY_LITERAL: return raw string (process_core_bgsave_string_result)
-     * - Without OPT_REPLY_LITERAL: return bool (process_core_bgsave_bool_result)
+     * - With OPT_REPLY_LITERAL: return raw string (process_core_status_string_result)
+     * - Without OPT_REPLY_LITERAL: return bool (process_core_status_bool_result)
      * This ensures correct types in both normal and batch/pipeline mode. */
     z_result_processor_t processor = valkey_glide->opt_reply_literal
-                                         ? process_core_bgsave_string_result
-                                         : process_core_bgsave_bool_result;
+                                         ? process_core_status_string_result
+                                         : process_core_status_bool_result;
 
     /* Execute using unified core framework */
-    if (!execute_core_command(valkey_glide, &core_args, NULL, processor, return_value)) {
+    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+}
+
+/* Execute a BGREWRITEAOF command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    zval*                args       = NULL;
+    int                  args_count = 0;
+    zend_bool            is_cluster = (ce == get_valkey_glide_cluster_ce());
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
-    if (valkey_glide->is_in_batch_mode) {
-        /* In batch mode, return $this for method chaining */
-        ZVAL_COPY(return_value, object);
+
+    /* Setup core command arguments */
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = BgRewriteAof;
+    core_args.is_cluster          = is_cluster;
+
+    if (is_cluster) {
+        if (!parse_cluster_route(argc, &object, ce, &args, &args_count, &core_args)) {
+            return 0;
+        }
+    } else {
+        /* Non-cluster case - no parameters */
+        if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
+            return 0;
+        }
     }
-    return 1;
+
+    /* Select processor based on OPT_REPLY_LITERAL:
+     * - With OPT_REPLY_LITERAL: return raw string (process_core_status_string_result)
+     * - Without OPT_REPLY_LITERAL: return bool (process_core_status_bool_result)
+     * This matches PHPRedis behavior where bgrewriteaof() returns bool. */
+    z_result_processor_t processor = valkey_glide->opt_reply_literal
+                                         ? process_core_status_string_result
+                                         : process_core_status_bool_result;
+
+    /* Execute using unified core framework */
+    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
 /* Execute a TIME command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
@@ -359,20 +387,9 @@ int execute_time_command(zval* object, int argc, zval* return_value, zend_class_
     core_args.is_cluster          = is_cluster;
 
     if (is_cluster) {
-        /* Parse parameters for cluster - route parameter is required */
-        if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &args, &args_count) ==
-            FAILURE) {
+        if (!parse_cluster_route(argc, &object, ce, &args, &args_count, &core_args)) {
             return 0;
         }
-
-        if (args_count == 0) {
-            /* Need the route parameter */
-            return 0;
-        }
-
-        /* Set up routing */
-        core_args.has_route   = 1;
-        core_args.route_param = &args[0];
     } else {
         /* Non-cluster case - parse no parameters */
         if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
@@ -381,18 +398,8 @@ int execute_time_command(zval* object, int argc, zval* return_value, zend_class_
     }
 
     /* Execute using unified core framework */
-    if (execute_core_command(
-            valkey_glide, &core_args, NULL, process_core_array_result, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-
-        return 1;
-    } else {
-        return 0;
-    }
+    return execute_and_handle_batch(
+        valkey_glide, &core_args, process_core_array_result, return_value, object);
 }
 
 /* Execute a WATCH command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
@@ -781,19 +788,8 @@ int execute_pfadd_command(zval* object, int argc, zval* return_value, zend_class
     args.args[0].data.array_arg.count = elements_count;
     args.arg_count                    = 1;
 
-    if (execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-
-        return 1;
-    } else {
-        return 0;
-    }
-
-    return 0;
+    return execute_and_handle_batch(
+        valkey_glide, &args, process_core_int_result, return_value, object);
 }
 
 /* Unified PFCOUNT command implementation */
@@ -862,18 +858,8 @@ int execute_pfmerge_command(zval* object, int argc, zval* return_value, zend_cla
     args.args[0].data.array_arg.count = keys_count;
     args.arg_count                    = 1;
 
-    if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-
-        return 1;
-    }
-
-
-    return 0;
+    return execute_and_handle_batch(
+        valkey_glide, &args, process_core_bool_result, return_value, object);
 }
 
 /* Execute a SELECT command using the Valkey Glide client */
