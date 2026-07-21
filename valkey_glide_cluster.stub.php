@@ -587,10 +587,9 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::save
      *
-     * For multi-node routes, returns an associative array mapping node addresses to results.
-     * For single-node routes, returns a scalar (bool or string).
+     * Returns true on success (or "OK" with OPT_REPLY_LITERAL enabled).
      */
-    public function save(mixed $route): ValkeyGlideCluster|array|bool|string;
+    public function save(mixed $route): ValkeyGlideCluster|bool|string;
 
     /**
      * @see ValkeyGlide::geoadd
