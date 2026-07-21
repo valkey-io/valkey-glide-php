@@ -203,18 +203,8 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
     }
 
     /* Execute using unified core framework */
-    if (execute_core_command(
-            valkey_glide, &core_args, NULL, process_core_bool_result, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-
-        return 1;
-    } else {
-        return 0;
-    }
+    return execute_and_handle_batch(
+        valkey_glide, &core_args, process_core_bool_result, return_value, object);
 }
 
 /* Execute a FLUSHALL command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
@@ -268,18 +258,8 @@ int execute_flushall_command(zval* object, int argc, zval* return_value, zend_cl
     }
 
     /* Execute using unified core framework */
-    if (execute_core_command(
-            valkey_glide, &core_args, NULL, process_core_bool_result, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-
-        return 1;
-    } else {
-        return 0;
-    }
+    return execute_and_handle_batch(
+        valkey_glide, &core_args, process_core_bool_result, return_value, object);
 }
 
 /* Execute a BGSAVE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
@@ -338,14 +318,7 @@ int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_clas
                                          : process_core_status_bool_result;
 
     /* Execute using unified core framework */
-    if (!execute_core_command(valkey_glide, &core_args, NULL, processor, return_value)) {
-        return 0;
-    }
-    if (valkey_glide->is_in_batch_mode) {
-        /* In batch mode, return $this for method chaining */
-        ZVAL_COPY(return_value, object);
-    }
-    return 1;
+    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
 /* Execute a BGREWRITEAOF command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
@@ -425,18 +398,8 @@ int execute_time_command(zval* object, int argc, zval* return_value, zend_class_
     }
 
     /* Execute using unified core framework */
-    if (execute_core_command(
-            valkey_glide, &core_args, NULL, process_core_array_result, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-
-        return 1;
-    } else {
-        return 0;
-    }
+    return execute_and_handle_batch(
+        valkey_glide, &core_args, process_core_array_result, return_value, object);
 }
 
 /* Execute a WATCH command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
@@ -825,19 +788,8 @@ int execute_pfadd_command(zval* object, int argc, zval* return_value, zend_class
     args.args[0].data.array_arg.count = elements_count;
     args.arg_count                    = 1;
 
-    if (execute_core_command(valkey_glide, &args, NULL, process_core_int_result, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-
-        return 1;
-    } else {
-        return 0;
-    }
-
-    return 0;
+    return execute_and_handle_batch(
+        valkey_glide, &args, process_core_int_result, return_value, object);
 }
 
 /* Unified PFCOUNT command implementation */
@@ -906,18 +858,8 @@ int execute_pfmerge_command(zval* object, int argc, zval* return_value, zend_cla
     args.args[0].data.array_arg.count = keys_count;
     args.arg_count                    = 1;
 
-    if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            /* In batch mode, return $this for method chaining */
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-
-        return 1;
-    }
-
-
-    return 0;
+    return execute_and_handle_batch(
+        valkey_glide, &args, process_core_bool_result, return_value, object);
 }
 
 /* Execute a SELECT command using the Valkey Glide client */
