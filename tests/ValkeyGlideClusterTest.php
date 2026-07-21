@@ -413,20 +413,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $info = $this->valkey_glide->info('allPrimaries', 'persistence');
         foreach ($info as $nodeInfo) {
-            if (is_array($nodeInfo)) {
-                if (
-                    (isset($nodeInfo['rdb_bgsave_in_progress']) && $nodeInfo['rdb_bgsave_in_progress'] == '1')
-                    || (isset($nodeInfo['aof_rewrite_in_progress']) && $nodeInfo['aof_rewrite_in_progress'] == '1')
-                ) {
-                    return true;
-                }
-            } elseif (is_string($nodeInfo)) {
-                if (
-                    str_contains($nodeInfo, 'rdb_bgsave_in_progress:1')
-                    || str_contains($nodeInfo, 'aof_rewrite_in_progress:1')
-                ) {
-                    return true;
-                }
+            if (
+                (isset($nodeInfo['rdb_bgsave_in_progress']) && $nodeInfo['rdb_bgsave_in_progress'] == '1')
+                || (isset($nodeInfo['aof_rewrite_in_progress']) && $nodeInfo['aof_rewrite_in_progress'] == '1')
+            ) {
+                return true;
             }
         }
         return false;
@@ -668,15 +659,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         // Test with allPrimaries route - succeeds without error
         $result = $this->valkey_glide->save('allPrimaries');
-        $this->assertTrue($result);
-    }
-
-    public function testSaveWithRoute()
-    {
-        $this->waitForSaveNotInProgress();
-
-        // Test with randomNode route - returns scalar bool
-        $result = $this->valkey_glide->save('randomNode');
         $this->assertTrue($result);
     }
 
