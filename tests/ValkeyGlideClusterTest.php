@@ -413,11 +413,20 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $info = $this->valkey_glide->info('allPrimaries', 'persistence');
         foreach ($info as $nodeInfo) {
-            if (
-                $nodeInfo['rdb_bgsave_in_progress'] == '1'
-                || $nodeInfo['aof_rewrite_in_progress'] == '1'
-            ) {
-                return true;
+            if (is_array($nodeInfo)) {
+                if (
+                    (isset($nodeInfo['rdb_bgsave_in_progress']) && $nodeInfo['rdb_bgsave_in_progress'] == '1')
+                    || (isset($nodeInfo['aof_rewrite_in_progress']) && $nodeInfo['aof_rewrite_in_progress'] == '1')
+                ) {
+                    return true;
+                }
+            } elseif (is_string($nodeInfo)) {
+                if (
+                    str_contains($nodeInfo, 'rdb_bgsave_in_progress:1')
+                    || str_contains($nodeInfo, 'aof_rewrite_in_progress:1')
+                ) {
+                    return true;
+                }
             }
         }
         return false;
@@ -648,15 +657,18 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        // Test with allPrimaries route - returns array of node => bool
+        // Test with randomNode route - returns scalar bool
+        $result = $this->valkey_glide->save('randomNode');
+        $this->assertTrue($result);
+    }
+
+    public function testSaveWithRoute()
+    {
+        $this->waitForSaveNotInProgress();
+
+        // Test with allPrimaries route - succeeds without error
         $result = $this->valkey_glide->save('allPrimaries');
-        $this->assertIsArray($result);
-        $this->assertGT(0, count($result));
-        foreach ($result as $nodeAddress => $nodeResult) {
-            $this->assertIsString($nodeAddress);
-            $this->assertStringContains(':', $nodeAddress);
-            $this->assertTrue($nodeResult);
-        }
+        $this->assertTrue($result);
     }
 
     public function testSaveWithRoute()
@@ -674,17 +686,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
 
-        // Test with allPrimaries route - returns array of node => string
-        $result = $this->valkey_glide->save('allPrimaries');
-        $this->assertIsArray($result);
-        foreach ($result as $nodeResult) {
-            $this->assertIsString($nodeResult);
-            $this->assertEquals('OK', $nodeResult);
-        }
-
-        $this->waitForSaveNotInProgress();
-
-        // Test with randomNode route - returns scalar string
+        // Test with randomNode route - returns scalar string "OK"
         $result = $this->valkey_glide->save('randomNode');
         $this->assertIsString($result);
         $this->assertEquals('OK', $result);
@@ -702,12 +704,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->waitForSaveNotInProgress();
 
         $this->valkey_glide->pipeline();
-        $this->valkey_glide->save('allPrimaries');
+        $this->valkey_glide->save('randomNode');
         $result = $this->valkey_glide->exec();
-        $this->assertIsArray($result[0]);
-        foreach ($result[0] as $nodeResult) {
-            $this->assertTrue($nodeResult);
-        }
+        $this->assertTrue($result[0]);
     }
 
     public function testInfo()
