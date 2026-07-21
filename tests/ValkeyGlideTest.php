@@ -2729,6 +2729,42 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         ];
     }
 
+    public function testSave()
+    {
+        $this->waitForSaveNotInProgress();
+
+        $result = $this->valkey_glide->save();
+        $this->assertTrue($result);
+    }
+
+    public function testSaveWithReplyLiteral()
+    {
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+
+        $result = $this->valkey_glide->save();
+        $this->assertIsString($result);
+        $this->assertEquals('OK', $result);
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+    }
+
+    public function testSaveBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->save();
+        $result = $this->valkey_glide->exec();
+        $this->assertTrue($result[0]);
+    }
+
     /**
      * Returns true if a background save (RDB or AOF) is currently in progress.
      */

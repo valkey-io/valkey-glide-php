@@ -585,6 +585,14 @@ class ValkeyGlideCluster
     public function bgRewriteAof(mixed $route): ValkeyGlideCluster|array|bool|string;
 
     /**
+     * @see ValkeyGlide::save
+     *
+     * For multi-node routes, returns an associative array mapping node addresses to results.
+     * For single-node routes, returns a scalar (bool or string).
+     */
+    public function save(mixed $route): ValkeyGlideCluster|array|bool|string;
+
+    /**
      * @see ValkeyGlide::geoadd
      */
     public function geoadd(string $key, float $lng, float $lat, string $member, mixed ...$other_triples_and_options): ValkeyGlideCluster|int|false;

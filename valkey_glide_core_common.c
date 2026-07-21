@@ -203,6 +203,7 @@ int prepare_core_args(core_command_args_t* args,
         case Role:
         case DBSize:
         case BgRewriteAof:
+        case Save:
             return prepare_zero_args(args, cmd_args, cmd_args_len);
 
         /* Single key operations */

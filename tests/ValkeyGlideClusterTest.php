@@ -644,6 +644,72 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
+    public function testSave()
+    {
+        $this->waitForSaveNotInProgress();
+
+        // Test with allPrimaries route - returns array of node => bool
+        $result = $this->valkey_glide->save('allPrimaries');
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+        foreach ($result as $nodeAddress => $nodeResult) {
+            $this->assertIsString($nodeAddress);
+            $this->assertStringContains(':', $nodeAddress);
+            $this->assertTrue($nodeResult);
+        }
+    }
+
+    public function testSaveWithRoute()
+    {
+        $this->waitForSaveNotInProgress();
+
+        // Test with randomNode route - returns scalar bool
+        $result = $this->valkey_glide->save('randomNode');
+        $this->assertTrue($result);
+    }
+
+    public function testSaveWithReplyLiteral()
+    {
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+
+        // Test with allPrimaries route - returns array of node => string
+        $result = $this->valkey_glide->save('allPrimaries');
+        $this->assertIsArray($result);
+        foreach ($result as $nodeResult) {
+            $this->assertIsString($nodeResult);
+            $this->assertEquals('OK', $nodeResult);
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        // Test with randomNode route - returns scalar string
+        $result = $this->valkey_glide->save('randomNode');
+        $this->assertIsString($result);
+        $this->assertEquals('OK', $result);
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+    }
+
+    public function testSaveBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->save('allPrimaries');
+        $result = $this->valkey_glide->exec();
+        $this->assertIsArray($result[0]);
+        foreach ($result[0] as $nodeResult) {
+            $this->assertTrue($nodeResult);
+        }
+    }
+
     public function testInfo()
     {
         $fields = [
