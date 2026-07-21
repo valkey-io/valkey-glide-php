@@ -977,13 +977,11 @@ FLUSHDB_METHOD_IMPL(ValkeyGlideCluster)
 FLUSHALL_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto ValkeyGlideCluster::bgSave(mixed route, [string mode])
- *     Asynchronously saves the dataset to disk in the background. */
+/* {{{ proto ValkeyGlideCluster::bgSave(mixed route, [string mode]) */
 BGSAVE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto ValkeyGlideCluster::bgRewriteAof(mixed route)
- *     Initiates a background rewrite of the append-only file (AOF). */
+/* {{{ proto ValkeyGlideCluster::bgRewriteAof(mixed route) */
 BGREWRITEAOF_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
