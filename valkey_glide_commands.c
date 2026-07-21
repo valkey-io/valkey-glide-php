@@ -157,20 +157,9 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
     core_args.is_cluster          = is_cluster;
 
     if (is_cluster) {
-        /* Parse parameters for cluster - first parameter is route, optional second is async */
-        if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &args, &args_count) ==
-            FAILURE) {
+        if (!parse_cluster_route(argc, &object, ce, &args, &args_count, &core_args)) {
             return 0;
         }
-
-        if (args_count == 0) {
-            /* Need at least the route parameter */
-            return 0;
-        }
-
-        /* Set up routing */
-        core_args.has_route   = 1;
-        core_args.route_param = &args[0];
 
         /* Get optional async parameter */
         if (args_count > 1) {
@@ -233,20 +222,9 @@ int execute_flushall_command(zval* object, int argc, zval* return_value, zend_cl
     core_args.is_cluster          = is_cluster;
 
     if (is_cluster) {
-        /* Parse parameters for cluster - first parameter is route, optional second is async */
-        if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &args, &args_count) ==
-            FAILURE) {
+        if (!parse_cluster_route(argc, &object, ce, &args, &args_count, &core_args)) {
             return 0;
         }
-
-        if (args_count == 0) {
-            /* Need at least the route parameter */
-            return 0;
-        }
-
-        /* Set up routing */
-        core_args.has_route   = 1;
-        core_args.route_param = &args[0];
 
         /* Get optional async parameter */
         if (args_count > 1) {
@@ -306,20 +284,9 @@ int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_clas
     core_args.is_cluster          = is_cluster;
 
     if (is_cluster) {
-        /* Parse parameters for cluster - first parameter is route, optional second is mode */
-        if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &args, &args_count) ==
-            FAILURE) {
+        if (!parse_cluster_route(argc, &object, ce, &args, &args_count, &core_args)) {
             return 0;
         }
-
-        if (args_count == 0) {
-            /* Need at least the route parameter */
-            return 0;
-        }
-
-        /* Set up routing */
-        core_args.has_route   = 1;
-        core_args.route_param = &args[0];
 
         /* Get optional mode parameter */
         if (args_count > 1 && Z_TYPE(args[1]) == IS_STRING) {
@@ -434,20 +401,9 @@ int execute_time_command(zval* object, int argc, zval* return_value, zend_class_
     core_args.is_cluster          = is_cluster;
 
     if (is_cluster) {
-        /* Parse parameters for cluster - route parameter is required */
-        if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &args, &args_count) ==
-            FAILURE) {
+        if (!parse_cluster_route(argc, &object, ce, &args, &args_count, &core_args)) {
             return 0;
         }
-
-        if (args_count == 0) {
-            /* Need the route parameter */
-            return 0;
-        }
-
-        /* Set up routing */
-        core_args.has_route   = 1;
-        core_args.route_param = &args[0];
     } else {
         /* Non-cluster case - parse no parameters */
         if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
