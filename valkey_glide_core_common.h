@@ -215,8 +215,8 @@ int process_core_cluster_result(CommandResponse*     response,
                                 z_result_processor_t single_node_processor);
 
 /* BGSAVE result processors (use process_core_cluster_result internally) */
-int process_core_bgsave_bool_result(CommandResponse* response, void* output, zval* return_value);
-int process_core_bgsave_string_result(CommandResponse* response, void* output, zval* return_value);
+int process_core_status_bool_result(CommandResponse* response, void* output, zval* return_value);
+int process_core_status_string_result(CommandResponse* response, void* output, zval* return_value);
 
 /* Array result processor */
 int process_core_array_result(CommandResponse* response, void* output, zval* return_value);

@@ -1692,7 +1692,7 @@ static int process_bgsave_single_node_bool(CommandResponse* response,
  * For single-node: returns true on success (String/Ok), false otherwise.
  * For multi-node routes: returns an associative array of node => bool.
  */
-int process_core_bgsave_bool_result(CommandResponse* response, void* output, zval* return_value) {
+int process_core_status_bool_result(CommandResponse* response, void* output, zval* return_value) {
     return process_core_cluster_result(
         response, output, return_value, process_bgsave_single_node_bool);
 }
@@ -1702,7 +1702,7 @@ int process_core_bgsave_bool_result(CommandResponse* response, void* output, zva
  * For single-node: returns the status string.
  * For multi-node routes: returns an associative array of node => string.
  */
-int process_core_bgsave_string_result(CommandResponse* response, void* output, zval* return_value) {
+int process_core_status_string_result(CommandResponse* response, void* output, zval* return_value) {
     return process_core_cluster_result(response, output, return_value, process_core_string_result);
 }
 
