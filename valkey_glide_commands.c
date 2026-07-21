@@ -52,6 +52,26 @@ static int parse_cluster_route(int                  argc,
     return 1;
 }
 
+/**
+ * Execute a core command and handle batch mode.
+ * If in batch mode, copies the object to return_value for method chaining.
+ *
+ * Returns 1 on success, 0 on failure.
+ */
+static int execute_and_handle_batch(valkey_glide_object* valkey_glide,
+                                    core_command_args_t* core_args,
+                                    z_result_processor_t processor,
+                                    zval*                return_value,
+                                    zval*                object) {
+    if (!execute_core_command(valkey_glide, core_args, NULL, processor, return_value)) {
+        return 0;
+    }
+    if (valkey_glide->is_in_batch_mode) {
+        ZVAL_COPY(return_value, object);
+    }
+    return 1;
+}
+
 /* Execute an MSET command using the Valkey Glide client - MIGRATED TO CORE FRAMEWORK */
 int execute_mset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -367,14 +387,7 @@ int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zen
                                          : process_core_status_bool_result;
 
     /* Execute using unified core framework */
-    if (!execute_core_command(valkey_glide, &core_args, NULL, processor, return_value)) {
-        return 0;
-    }
-    if (valkey_glide->is_in_batch_mode) {
-        /* In batch mode, return $this for method chaining */
-        ZVAL_COPY(return_value, object);
-    }
-    return 1;
+    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
 /* Execute a TIME command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
