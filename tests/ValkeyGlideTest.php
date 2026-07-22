@@ -2795,6 +2795,39 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result[0]);
     }
 
+    public function testMigrateBatchMultiKey()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->migrate(
+            'nonexistent.invalid',
+            6379,
+            ['nonexistent_key_1', 'nonexistent_key_2'],
+            0,
+            1000
+        );
+        $result = $this->valkey_glide->exec();
+        // Non-existent keys return NOKEY status (processed as true without literal)
+        $this->assertTrue($result[0]);
+    }
+
+    public function testMigrateEmptyKeys()
+    {
+        // Empty keys array should fail
+        $result = $this->valkey_glide->migrate(
+            'nonexistent.invalid',
+            6379,
+            [],
+            0,
+            1000
+        );
+        $this->assertFalse($result);
+    }
+
     /**
      * Valid BGSAVE response strings (used when OPT_REPLY_LITERAL is enabled).
      */
