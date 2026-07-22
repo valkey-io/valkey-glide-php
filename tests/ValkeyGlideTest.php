@@ -89,6 +89,20 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     /**
+     * Execute a callable with OPT_REPLY_LITERAL enabled, ensuring it is
+     * always disabled afterwards even if an exception is thrown.
+     */
+    protected function withOptReplyLiteralEnabled(callable $fn)
+    {
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+        try {
+            return $fn();
+        } finally {
+            $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+        }
+    }
+
+    /**
      * Compare major version number against a minimum required version
      *
      * @param int $minMajorVersion Minimum required major version
@@ -2618,26 +2632,24 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         $this->waitForSaveNotInProgress();
 
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->bgSave();
+            $this->assertIsString($result);
+            $this->assertContains($result, $this->bgsaveResponses());
 
-        $result = $this->valkey_glide->bgSave();
-        $this->assertIsString($result);
-        $this->assertContains($result, $this->bgsaveResponses());
-
-        $this->waitForSaveNotInProgress();
-
-        $result = $this->valkey_glide->bgSave('SCHEDULE');
-        $this->assertIsString($result);
-        $this->assertContains($result, $this->bgsaveResponses());
-
-        if ($this->minVersionCheck('8.1.0')) {
             $this->waitForSaveNotInProgress();
 
-            $result = $this->valkey_glide->bgSave('CANCEL');
-            $this->assertFalse($result);
-        }
+            $result = $this->valkey_glide->bgSave('SCHEDULE');
+            $this->assertIsString($result);
+            $this->assertContains($result, $this->bgsaveResponses());
 
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+            if ($this->minVersionCheck('8.1.0')) {
+                $this->waitForSaveNotInProgress();
+
+                $result = $this->valkey_glide->bgSave('CANCEL');
+                $this->assertFalse($result);
+            }
+        });
     }
 
     public function testBgSaveBatch()
@@ -2683,13 +2695,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         $this->waitForSaveNotInProgress();
 
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
-
-        $result = $this->valkey_glide->bgRewriteAof();
-        $this->assertIsString($result);
-        $this->assertContains($result, $this->bgRewriteAofResponses());
-
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->bgRewriteAof();
+            $this->assertIsString($result);
+            $this->assertContains($result, $this->bgRewriteAofResponses());
+        });
     }
 
     public function testBgRewriteAofBatch()
@@ -2741,13 +2751,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         $this->waitForSaveNotInProgress();
 
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
-
-        $result = $this->valkey_glide->save();
-        $this->assertIsString($result);
-        $this->assertEquals('OK', $result);
-
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->save();
+            $this->assertIsString($result);
+            $this->assertEquals('OK', $result);
+        });
     }
 
     public function testSaveBatch()
