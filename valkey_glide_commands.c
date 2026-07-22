@@ -363,6 +363,207 @@ int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zen
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
+/* Execute a MIGRATE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+int execute_migrate_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                host     = NULL;
+    size_t               host_len = 0;
+    long                 port;
+    zval*                z_key = NULL;
+    long                 dstdb;
+    long                 timeout;
+    zend_bool            copy          = 0;
+    zend_bool            replace       = 0;
+    zval*                z_credentials = NULL;
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    /* Parse parameters: host, port, key (string|array), dstdb, timeout, copy, replace, credentials
+     */
+    if (zend_parse_method_parameters(argc,
+                                     object,
+                                     "Oslzll|bbz!",
+                                     &object,
+                                     ce,
+                                     &host,
+                                     &host_len,
+                                     &port,
+                                     &z_key,
+                                     &dstdb,
+                                     &timeout,
+                                     &copy,
+                                     &replace,
+                                     &z_credentials) == FAILURE) {
+        return 0;
+    }
+
+    /* Setup core command arguments */
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = Migrate;
+    core_args.is_cluster          = (ce == get_valkey_glide_cluster_ce());
+
+    int arg_idx = 0;
+
+    /* arg[0]: host */
+    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+    core_args.args[arg_idx].data.string_arg.value = host;
+    core_args.args[arg_idx].data.string_arg.len   = host_len;
+    arg_idx++;
+
+    /* arg[1]: port */
+    core_args.args[arg_idx].type                = CORE_ARG_TYPE_LONG;
+    core_args.args[arg_idx].data.long_arg.value = port;
+    arg_idx++;
+
+    /* arg[2]: key or "" for multi-key */
+    if (Z_TYPE_P(z_key) == IS_STRING) {
+        /* Single key */
+        core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_key);
+        core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_key);
+    } else if (Z_TYPE_P(z_key) == IS_ARRAY) {
+        /* Multi-key: pass empty string, keys will be appended via KEYS keyword */
+        core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[arg_idx].data.string_arg.value = "";
+        core_args.args[arg_idx].data.string_arg.len   = 0;
+    } else {
+        return 0;
+    }
+    arg_idx++;
+
+    /* arg[3]: destination db */
+    core_args.args[arg_idx].type                = CORE_ARG_TYPE_LONG;
+    core_args.args[arg_idx].data.long_arg.value = dstdb;
+    arg_idx++;
+
+    /* arg[4]: timeout */
+    core_args.args[arg_idx].type                = CORE_ARG_TYPE_LONG;
+    core_args.args[arg_idx].data.long_arg.value = timeout;
+    arg_idx++;
+
+    /* arg[5]: COPY (optional) */
+    if (copy) {
+        core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[arg_idx].data.string_arg.value = "COPY";
+        core_args.args[arg_idx].data.string_arg.len   = 4;
+        arg_idx++;
+    }
+
+    /* arg[6]: REPLACE (optional) */
+    if (replace) {
+        core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[arg_idx].data.string_arg.value = "REPLACE";
+        core_args.args[arg_idx].data.string_arg.len   = 7;
+        arg_idx++;
+    }
+
+    /* Handle credentials: AUTH password or AUTH2 username password */
+    if (z_credentials && Z_TYPE_P(z_credentials) != IS_NULL) {
+        if (Z_TYPE_P(z_credentials) == IS_STRING) {
+            /* Simple password: AUTH password */
+            if (arg_idx < 7) {
+                core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                core_args.args[arg_idx].data.string_arg.value = "AUTH";
+                core_args.args[arg_idx].data.string_arg.len   = 4;
+                arg_idx++;
+            }
+            if (arg_idx < 8) {
+                core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_credentials);
+                core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_credentials);
+                arg_idx++;
+            }
+        } else if (Z_TYPE_P(z_credentials) == IS_ARRAY) {
+            /* Array: [username, password] for AUTH2 */
+            HashTable* ht           = Z_ARRVAL_P(z_credentials);
+            zval*      z_val        = NULL;
+            int        idx          = 0;
+            char*      username     = NULL;
+            size_t     username_len = 0;
+            char*      password     = NULL;
+            size_t     password_len = 0;
+
+            ZEND_HASH_FOREACH_VAL(ht, z_val) {
+                if (Z_TYPE_P(z_val) == IS_STRING) {
+                    if (idx == 0) {
+                        username     = Z_STRVAL_P(z_val);
+                        username_len = Z_STRLEN_P(z_val);
+                    } else if (idx == 1) {
+                        password     = Z_STRVAL_P(z_val);
+                        password_len = Z_STRLEN_P(z_val);
+                    }
+                }
+                idx++;
+            }
+            ZEND_HASH_FOREACH_END();
+
+            if (password && arg_idx + 2 < 8) {
+                if (username) {
+                    /* AUTH2 username password */
+                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                    core_args.args[arg_idx].data.string_arg.value = "AUTH2";
+                    core_args.args[arg_idx].data.string_arg.len   = 5;
+                    arg_idx++;
+                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                    core_args.args[arg_idx].data.string_arg.value = username;
+                    core_args.args[arg_idx].data.string_arg.len   = username_len;
+                    arg_idx++;
+                    if (arg_idx < 8) {
+                        core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                        core_args.args[arg_idx].data.string_arg.value = password;
+                        core_args.args[arg_idx].data.string_arg.len   = password_len;
+                        arg_idx++;
+                    }
+                } else {
+                    /* AUTH password (array with single element) */
+                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                    core_args.args[arg_idx].data.string_arg.value = "AUTH";
+                    core_args.args[arg_idx].data.string_arg.len   = 4;
+                    arg_idx++;
+                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                    core_args.args[arg_idx].data.string_arg.value = password;
+                    core_args.args[arg_idx].data.string_arg.len   = password_len;
+                    arg_idx++;
+                }
+            }
+        }
+    }
+
+    /* For multi-key: append KEYS keyword and keys as an array arg */
+    if (Z_TYPE_P(z_key) == IS_ARRAY && arg_idx < 8) {
+        core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[arg_idx].data.string_arg.value = "KEYS";
+        core_args.args[arg_idx].data.string_arg.len   = 4;
+        arg_idx++;
+
+        /* Add keys as array */
+        if (arg_idx < 8) {
+            core_args.args[arg_idx].type                 = CORE_ARG_TYPE_ARRAY;
+            core_args.args[arg_idx].data.array_arg.array = z_key;
+            core_args.args[arg_idx].data.array_arg.count =
+                zend_hash_num_elements(Z_ARRVAL_P(z_key));
+            arg_idx++;
+        }
+    }
+
+    core_args.arg_count = arg_idx;
+
+    /* Select processor based on OPT_REPLY_LITERAL:
+     * - With OPT_REPLY_LITERAL: return raw string ("OK" or "NOKEY")
+     * - Without OPT_REPLY_LITERAL: return bool true on success */
+    z_result_processor_t processor = valkey_glide->opt_reply_literal
+                                         ? process_core_status_string_result
+                                         : process_core_status_bool_result;
+
+    /* Execute using unified core framework */
+    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+}
+
 /* Execute a TIME command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;

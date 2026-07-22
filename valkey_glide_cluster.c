@@ -985,6 +985,11 @@ BGSAVE_METHOD_IMPL(ValkeyGlideCluster)
 BGREWRITEAOF_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto ValkeyGlideCluster::migrate(string host, int port, string key, int dstdb, int timeout
+ * [, bool copy, bool replace, mixed credentials]) */
+MIGRATE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto ValkeyGlideCluster::dbsize(string key)
  *     proto ValkeyGlideCluster::dbsize(array host_port) */
 DBSIZE_METHOD_IMPL(ValkeyGlideCluster)

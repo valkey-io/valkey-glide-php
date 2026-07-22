@@ -644,6 +644,62 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
+    public function testMigrate()
+    {
+        $key = '{migrate_test}_' . uniqid();
+        $this->valkey_glide->set($key, 'test_value');
+
+        // Attempt to migrate to a non-existent host - should return false (error)
+        $result = $this->valkey_glide->migrate('nonexistent.invalid', 6379, $key, 0, 1000);
+        $this->assertFalse($result);
+
+        // Clean up
+        $this->valkey_glide->del($key);
+    }
+
+    public function testMigrateWithOptions()
+    {
+        $key = '{migrate_opts}_' . uniqid();
+        $this->valkey_glide->set($key, 'test_value');
+
+        // Attempt to migrate with COPY and REPLACE options
+        $result = $this->valkey_glide->migrate(
+            'nonexistent.invalid', 6379, $key, 0, 1000, true, true
+        );
+        $this->assertFalse($result);
+
+        // Clean up
+        $this->valkey_glide->del($key);
+    }
+
+    public function testMigrateSingleKeyNokey()
+    {
+        // Single non-existent key returns NOKEY
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+
+        $result = $this->valkey_glide->migrate(
+            'nonexistent.invalid', 6379, 'nonexistent_key', 0, 1000
+        );
+        $this->assertEquals('NOKEY', $result);
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+    }
+
+    public function testMigrateBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->migrate(
+            'nonexistent.invalid', 6379, 'nonexistent_key', 0, 1000
+        );
+        $result = $this->valkey_glide->exec();
+        $this->assertFalse($result[0]);
+    }
+
     public function testInfo()
     {
         $fields = [

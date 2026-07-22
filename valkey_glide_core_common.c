@@ -316,6 +316,7 @@ int prepare_core_args(core_command_args_t* args,
         case FlushDB:
         case FlushAll:
         case BgSave:
+        case Migrate:
         case Select:
         case SwapDb:
             return prepare_message_args(
