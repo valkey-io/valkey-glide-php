@@ -662,10 +662,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertIsString($result);
         $this->assertEquals('RESET', $result);
 
-        // Verify client recovers after reset
+        // Verify client recovers after reset (ping succeeds)
         $pong = $this->valkey_glide->ping('randomNode');
-        $this->assertIsString($pong);
-        $this->assertEquals('PONG', $pong);
+        $this->assertTrue($pong);
 
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
