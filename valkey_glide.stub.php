@@ -2347,6 +2347,20 @@ class ValkeyGlide
     public function ping(?string $message = null): ValkeyGlide|string|bool;
 
     /**
+     * Reset the connection's server-side context.
+     *
+     * This command resets the connection state, clearing any subscriptions,
+     * watches, and other server-side state associated with the connection.
+     * The client remains connected and can issue new commands after reset.
+     *
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "RESET" instead.
+     *
+     * @see https://valkey.io/commands/reset
+     */
+    public function reset(): ValkeyGlide|bool|string;
+
+    /**
      * Enter into pipeline mode.
      *
      * Pipeline mode is the highest performance way to send many commands to ValkeyGlide

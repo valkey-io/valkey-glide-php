@@ -207,6 +207,7 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
 int execute_flushall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_valkey_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_cluster_scan_command(const void* glide_client,
@@ -710,6 +711,20 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 #define BGREWRITEAOF_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, bgRewriteAof) {                                              \
         if (execute_bgrewriteaof_command(getThis(),                                     \
+                                         ZEND_NUM_ARGS(),                               \
+                                         return_value,                                  \
+                                         strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                             ? get_valkey_glide_cluster_ce()            \
+                                             : get_valkey_glide_ce())) {                \
+            return;                                                                     \
+        }                                                                               \
+        zval_dtor(return_value);                                                        \
+        RETURN_FALSE;                                                                   \
+    }
+
+#define RESET_METHOD_IMPL(class_name)                                                   \
+    PHP_METHOD(class_name, reset) {                                                     \
+        if (execute_valkey_reset_command(getThis(),                                     \
                                          ZEND_NUM_ARGS(),                               \
                                          return_value,                                  \
                                          strcmp(#class_name, "ValkeyGlideCluster") == 0 \

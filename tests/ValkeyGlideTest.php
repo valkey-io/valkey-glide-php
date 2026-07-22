@@ -2707,6 +2707,45 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result[0]);
     }
 
+    public function testReset()
+    {
+        $result = $this->valkey_glide->reset();
+        $this->assertTrue($result);
+
+        // Verify client recovers after reset
+        $pong = $this->valkey_glide->ping();
+        $this->assertTrue($pong);
+    }
+
+    public function testResetWithReplyLiteral()
+    {
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+
+        $result = $this->valkey_glide->reset();
+        $this->assertIsString($result);
+        $this->assertEquals('RESET', $result);
+
+        // Verify client recovers after reset
+        $pong = $this->valkey_glide->ping();
+        $this->assertIsString($pong);
+        $this->assertEquals('PONG', $pong);
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+    }
+
+    public function testResetBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->reset();
+        $result = $this->valkey_glide->exec();
+        $this->assertTrue($result[0]);
+    }
+
     /**
      * Valid BGSAVE response strings (used when OPT_REPLY_LITERAL is enabled).
      */

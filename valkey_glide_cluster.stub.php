@@ -967,6 +967,13 @@ class ValkeyGlideCluster
     public function ping(mixed $route, ?string $message = null): mixed;
 
     /**
+     * @see ValkeyGlide::reset
+     *
+     * Returns true on success (or "RESET" with OPT_REPLY_LITERAL enabled).
+     */
+    public function reset(): ValkeyGlideCluster|bool|string;
+
+    /**
      * @see ValkeyGlide::psetex
      */
     public function psetex(string $key, int $timeout, string $value): ValkeyGlideCluster|bool;
