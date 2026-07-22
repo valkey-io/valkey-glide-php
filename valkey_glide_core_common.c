@@ -203,6 +203,7 @@ int prepare_core_args(core_command_args_t* args,
         case Role:
         case DBSize:
         case BgRewriteAof:
+        case ClientUnpause:
             return prepare_zero_args(args, cmd_args, cmd_args_len);
 
         /* Single key operations */
@@ -316,6 +317,7 @@ int prepare_core_args(core_command_args_t* args,
         case FlushDB:
         case FlushAll:
         case BgSave:
+        case ClientPause:
         case Select:
         case SwapDb:
             return prepare_message_args(

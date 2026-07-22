@@ -2707,6 +2707,65 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result[0]);
     }
 
+    public function testClientPause()
+    {
+        $result = $this->valkey_glide->clientPause(100);
+        $this->assertTrue($result);
+    }
+
+    public function testClientPauseWithMode()
+    {
+        // Test with WRITE mode - reads still allowed
+        $result = $this->valkey_glide->clientPause(100, 'WRITE');
+        $this->assertTrue($result);
+
+        // Reads should still work during WRITE pause
+        $this->valkey_glide->set('client_pause_test', 'value');
+    }
+
+    public function testClientUnpause()
+    {
+        $result = $this->valkey_glide->clientUnpause();
+        $this->assertTrue($result);
+    }
+
+    public function testClientPauseAndUnpause()
+    {
+        // Pause then immediately unpause
+        $this->assertTrue($this->valkey_glide->clientPause(5000));
+        $this->assertTrue($this->valkey_glide->clientUnpause());
+    }
+
+    public function testClientPauseWithReplyLiteral()
+    {
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+
+        $result = $this->valkey_glide->clientPause(100);
+        $this->assertIsString($result);
+        $this->assertEquals('OK', $result);
+
+        $result = $this->valkey_glide->clientUnpause();
+        $this->assertIsString($result);
+        $this->assertEquals('OK', $result);
+
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+    }
+
+    public function testClientPauseBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->clientPause(100);
+        $this->valkey_glide->clientUnpause();
+        $result = $this->valkey_glide->exec();
+        $this->assertTrue($result[0]);
+        $this->assertTrue($result[1]);
+    }
+
     /**
      * Valid BGSAVE response strings (used when OPT_REPLY_LITERAL is enabled).
      */

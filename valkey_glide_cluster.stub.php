@@ -967,6 +967,20 @@ class ValkeyGlideCluster
     public function ping(mixed $route, ?string $message = null): mixed;
 
     /**
+     * @see ValkeyGlide::clientPause
+     *
+     * Routes to all primary nodes by default.
+     */
+    public function clientPause(int $timeout, ?string $mode = null): ValkeyGlideCluster|bool|string;
+
+    /**
+     * @see ValkeyGlide::clientUnpause
+     *
+     * Routes to all primary nodes by default.
+     */
+    public function clientUnpause(): ValkeyGlideCluster|bool|string;
+
+    /**
      * @see ValkeyGlide::psetex
      */
     public function psetex(string $key, int $timeout, string $value): ValkeyGlideCluster|bool;

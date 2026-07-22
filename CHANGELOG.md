@@ -4,6 +4,7 @@
 
 ### Changes
 
+* Add `CLIENT PAUSE` and `CLIENT UNPAUSE` commands for standalone and cluster clients ([#274](https://github.com/valkey-io/valkey-glide-php/pull/274))
 * Add `BGREWRITEAOF` command for standalone and cluster clients ([#271](https://github.com/valkey-io/valkey-glide-php/pull/271))
 * Add `BGSAVE`, `BGSAVE SCHEDULE`, and `BGSAVE CANCEL` commands for standalone and cluster clients ([#236](https://github.com/valkey-io/valkey-glide-php/issues/236))
 * Fix pie install from Packagist using PIE pre-packaged-source download method ([#233](https://github.com/valkey-io/valkey-glide-php/pull/233))
