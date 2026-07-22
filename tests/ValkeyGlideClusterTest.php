@@ -427,7 +427,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        // Test with allPrimaries route - returns array of node => bool
         $result = $this->valkey_glide->bgSave('allPrimaries');
         $this->assertIsArray($result);
         $this->assertGT(0, count($result));
@@ -439,7 +438,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $this->waitForSaveNotInProgress();
 
-        // Test with randomNode route - returns scalar bool
         $result = $this->valkey_glide->bgSave('randomNode');
         $this->assertTrue($result);
     }
@@ -448,7 +446,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        // Test with allPrimaries route - returns array of node => bool
         $result = $this->valkey_glide->bgSave('allPrimaries', 'SCHEDULE');
         $this->assertIsArray($result);
         $this->assertGT(0, count($result));
@@ -460,7 +457,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $this->waitForSaveNotInProgress();
 
-        // Test with randomNode route - returns scalar bool
         $result = $this->valkey_glide->bgSave('randomNode', 'SCHEDULE');
         $this->assertTrue($result);
     }
@@ -575,7 +571,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        // Test with allPrimaries route - returns array of node => bool
         $result = $this->valkey_glide->bgRewriteAof('allPrimaries');
         $this->assertIsArray($result);
         $this->assertGT(0, count($result));
@@ -590,7 +585,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        // Test with randomNode route - returns scalar bool
         $result = $this->valkey_glide->bgRewriteAof('randomNode');
         $this->assertTrue($result);
     }
@@ -637,7 +631,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        // Test with randomNode route - returns scalar bool
         $result = $this->valkey_glide->save('randomNode');
         $this->assertTrue($result);
     }
@@ -646,7 +639,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        // Test with allPrimaries route - succeeds without error
         $result = $this->valkey_glide->save('allPrimaries');
         $this->assertTrue($result);
     }
