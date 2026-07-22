@@ -466,13 +466,13 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
     if (z_credentials && Z_TYPE_P(z_credentials) != IS_NULL) {
         if (Z_TYPE_P(z_credentials) == IS_STRING) {
             /* Simple password: AUTH password */
-            if (arg_idx < 7) {
+            if (arg_idx < 11) {
                 core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
                 core_args.args[arg_idx].data.string_arg.value = "AUTH";
                 core_args.args[arg_idx].data.string_arg.len   = 4;
                 arg_idx++;
             }
-            if (arg_idx < 8) {
+            if (arg_idx < 12) {
                 core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
                 core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_credentials);
                 core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_credentials);
@@ -502,7 +502,7 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
             }
             ZEND_HASH_FOREACH_END();
 
-            if (password && arg_idx + 2 < 8) {
+            if (password && arg_idx + 2 < 12) {
                 if (username) {
                     /* AUTH2 username password */
                     core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
@@ -513,7 +513,7 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
                     core_args.args[arg_idx].data.string_arg.value = username;
                     core_args.args[arg_idx].data.string_arg.len   = username_len;
                     arg_idx++;
-                    if (arg_idx < 8) {
+                    if (arg_idx < 12) {
                         core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
                         core_args.args[arg_idx].data.string_arg.value = password;
                         core_args.args[arg_idx].data.string_arg.len   = password_len;
@@ -535,7 +535,7 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
     }
 
     /* For multi-key: append KEYS keyword and individual keys */
-    if (Z_TYPE_P(z_key) == IS_ARRAY && arg_idx < 8) {
+    if (Z_TYPE_P(z_key) == IS_ARRAY && arg_idx < 12) {
         core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
         core_args.args[arg_idx].data.string_arg.value = "KEYS";
         core_args.args[arg_idx].data.string_arg.len   = 4;

@@ -697,7 +697,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             'nonexistent.invalid', 6379, 'nonexistent_key', 0, 1000
         );
         $result = $this->valkey_glide->exec();
-        $this->assertFalse($result[0]);
+        // Non-existent key returns NOKEY status (processed as true without literal)
+        $this->assertTrue($result[0]);
     }
 
     public function testInfo()

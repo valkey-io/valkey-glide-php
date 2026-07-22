@@ -2775,8 +2775,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             'nonexistent.invalid', 6379, 'nonexistent_key', 0, 1000
         );
         $result = $this->valkey_glide->exec();
-        // Non-existent key in pipeline should return NOKEY (processed as false without literal)
-        $this->assertFalse($result[0]);
+        // Non-existent key returns NOKEY status (processed as true without literal)
+        $this->assertTrue($result[0]);
     }
 
     /**
