@@ -1207,7 +1207,8 @@ class ValkeyGlide
      * alternative, use {@see bgSave()}.
      *
      * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
-     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" instead.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" on success,
+     *                                  false on failure.
      *
      * @see https://valkey.io/commands/save
      */
