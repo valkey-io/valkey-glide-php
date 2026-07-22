@@ -587,7 +587,8 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::save
      *
-     * Returns true on success (or "OK" with OPT_REPLY_LITERAL enabled).
+     * Returns true on success, false on failure.
+     * With OPT_REPLY_LITERAL enabled, returns "OK" on success, false on failure.
      */
     public function save(mixed $route): ValkeyGlideCluster|bool|string;
 
