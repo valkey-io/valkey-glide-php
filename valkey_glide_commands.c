@@ -544,7 +544,7 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
         /* Add individual keys from the array */
         zval* z_val;
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(z_key), z_val) {
-            if (arg_idx >= 8)
+            if (arg_idx >= 12)
                 break;
             if (Z_TYPE_P(z_val) == IS_STRING) {
                 core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
