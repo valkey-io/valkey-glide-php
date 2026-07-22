@@ -496,38 +496,46 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
                 $this->assertIsString($nodeResult);
                 $this->assertContains($nodeResult, $this->bgsaveResponses());
             }
+        });
 
-            $this->waitForSaveNotInProgress();
+        $this->waitForSaveNotInProgress();
 
+        $this->withOptReplyLiteralEnabled(function () {
             $result = $this->valkey_glide->bgSave('randomNode');
             $this->assertIsString($result);
             $this->assertContains($result, $this->bgsaveResponses());
+        });
 
-            $this->waitForSaveNotInProgress();
+        $this->waitForSaveNotInProgress();
 
+        $this->withOptReplyLiteralEnabled(function () {
             $result = $this->valkey_glide->bgSave('allPrimaries', 'SCHEDULE');
             $this->assertIsArray($result);
             foreach ($result as $nodeResult) {
                 $this->assertIsString($nodeResult);
                 $this->assertContains($nodeResult, $this->bgsaveResponses());
             }
+        });
 
-            $this->waitForSaveNotInProgress();
+        $this->waitForSaveNotInProgress();
 
+        $this->withOptReplyLiteralEnabled(function () {
             $result = $this->valkey_glide->bgSave('randomNode', 'SCHEDULE');
             $this->assertIsString($result);
             $this->assertContains($result, $this->bgsaveResponses());
+        });
 
-            if ($this->minVersionCheck('8.1.0')) {
-                $this->waitForSaveNotInProgress();
+        if ($this->minVersionCheck('8.1.0')) {
+            $this->waitForSaveNotInProgress();
 
+            $this->withOptReplyLiteralEnabled(function () {
                 $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
                 $this->assertFalse($result);
 
                 $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
                 $this->assertFalse($result);
-            }
-        });
+            });
+        }
     }
 
     public function testBgSaveBatch()
@@ -600,9 +608,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
                 $this->assertIsString($nodeResult);
                 $this->assertContains($nodeResult, $this->bgRewriteAofResponses());
             }
+        });
 
-            $this->waitForSaveNotInProgress();
+        $this->waitForSaveNotInProgress();
 
+        $this->withOptReplyLiteralEnabled(function () {
             $result = $this->valkey_glide->bgRewriteAof('randomNode');
             $this->assertIsString($result);
             $this->assertContains($result, $this->bgRewriteAofResponses());

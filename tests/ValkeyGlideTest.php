@@ -2636,20 +2636,24 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $result = $this->valkey_glide->bgSave();
             $this->assertIsString($result);
             $this->assertContains($result, $this->bgsaveResponses());
+        });
 
-            $this->waitForSaveNotInProgress();
+        $this->waitForSaveNotInProgress();
 
+        $this->withOptReplyLiteralEnabled(function () {
             $result = $this->valkey_glide->bgSave('SCHEDULE');
             $this->assertIsString($result);
             $this->assertContains($result, $this->bgsaveResponses());
+        });
 
-            if ($this->minVersionCheck('8.1.0')) {
-                $this->waitForSaveNotInProgress();
+        if ($this->minVersionCheck('8.1.0')) {
+            $this->waitForSaveNotInProgress();
 
+            $this->withOptReplyLiteralEnabled(function () {
                 $result = $this->valkey_glide->bgSave('CANCEL');
                 $this->assertFalse($result);
-            }
-        });
+            });
+        }
     }
 
     public function testBgSaveBatch()
