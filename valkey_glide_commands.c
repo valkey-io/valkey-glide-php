@@ -534,21 +534,26 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
         }
     }
 
-    /* For multi-key: append KEYS keyword and keys as an array arg */
+    /* For multi-key: append KEYS keyword and individual keys */
     if (Z_TYPE_P(z_key) == IS_ARRAY && arg_idx < 8) {
         core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
         core_args.args[arg_idx].data.string_arg.value = "KEYS";
         core_args.args[arg_idx].data.string_arg.len   = 4;
         arg_idx++;
 
-        /* Add keys as array */
-        if (arg_idx < 8) {
-            core_args.args[arg_idx].type                 = CORE_ARG_TYPE_ARRAY;
-            core_args.args[arg_idx].data.array_arg.array = z_key;
-            core_args.args[arg_idx].data.array_arg.count =
-                zend_hash_num_elements(Z_ARRVAL_P(z_key));
-            arg_idx++;
+        /* Add individual keys from the array */
+        zval* z_val;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(z_key), z_val) {
+            if (arg_idx >= 8)
+                break;
+            if (Z_TYPE_P(z_val) == IS_STRING) {
+                core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_val);
+                core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_val);
+                arg_idx++;
+            }
         }
+        ZEND_HASH_FOREACH_END();
     }
 
     core_args.arg_count = arg_idx;
