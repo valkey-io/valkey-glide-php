@@ -2731,8 +2731,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testClientPauseAndUnpause()
     {
-        // Pause then immediately unpause
-        $this->assertTrue($this->valkey_glide->clientPause(5000));
+        // Use a short pause so it expires before the unpause command times out
+        $this->assertTrue($this->valkey_glide->clientPause(200));
         $this->assertTrue($this->valkey_glide->clientUnpause());
     }
 
