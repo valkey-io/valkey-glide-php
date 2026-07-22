@@ -664,7 +664,13 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         // Attempt to migrate with COPY and REPLACE options
         $result = $this->valkey_glide->migrate(
-            'nonexistent.invalid', 6379, $key, 0, 1000, true, true
+            'nonexistent.invalid',
+            6379,
+            $key,
+            0,
+            1000,
+            true,
+            true
         );
         $this->assertFalse($result);
 
@@ -678,7 +684,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
 
         $result = $this->valkey_glide->migrate(
-            'nonexistent.invalid', 6379, 'nonexistent_key', 0, 1000
+            'nonexistent.invalid',
+            6379,
+            'nonexistent_key',
+            0,
+            1000
         );
         $this->assertEquals('NOKEY', $result);
 
@@ -694,7 +704,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $this->valkey_glide->pipeline();
         $this->valkey_glide->migrate(
-            'nonexistent.invalid', 6379, 'nonexistent_key', 0, 1000
+            'nonexistent.invalid',
+            6379,
+            'nonexistent_key',
+            0,
+            1000
         );
         $result = $this->valkey_glide->exec();
         // Non-existent key returns NOKEY status (processed as true without literal)
