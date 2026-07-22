@@ -427,7 +427,11 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
         core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_key);
         core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_key);
     } else if (Z_TYPE_P(z_key) == IS_ARRAY) {
-        /* Multi-key: pass empty string, keys will be appended via KEYS keyword */
+        /* Multi-key: validate non-empty */
+        if (zend_hash_num_elements(Z_ARRVAL_P(z_key)) == 0) {
+            return 0;
+        }
+        /* Pass empty string as key placeholder, keys will be appended via KEYS keyword */
         core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
         core_args.args[arg_idx].data.string_arg.value = "";
         core_args.args[arg_idx].data.string_arg.len   = 0;
