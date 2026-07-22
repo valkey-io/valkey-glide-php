@@ -2715,12 +2715,19 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testClientPauseWithMode()
     {
-        // Test with WRITE mode - reads still allowed
-        $result = $this->valkey_glide->clientPause(100, 'WRITE');
+        // Set a value before pausing
+        $this->valkey_glide->set('client_pause_test', 'value');
+
+        // Pause with WRITE mode - only writes are blocked, reads still allowed
+        $result = $this->valkey_glide->clientPause(2000, 'WRITE');
         $this->assertTrue($result);
 
         // Reads should still work during WRITE pause
-        $this->valkey_glide->set('client_pause_test', 'value');
+        $value = $this->valkey_glide->get('client_pause_test');
+        $this->assertEquals('value', $value);
+
+        // Unpause to restore normal operation
+        $this->valkey_glide->clientUnpause();
     }
 
     public function testClientUnpause()
