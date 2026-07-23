@@ -989,6 +989,10 @@ BGREWRITEAOF_METHOD_IMPL(ValkeyGlideCluster)
 RESET_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto ValkeyGlideCluster::save(mixed route) */
+SAVE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto ValkeyGlideCluster::dbsize(string key)
  *     proto ValkeyGlideCluster::dbsize(array host_port) */
 DBSIZE_METHOD_IMPL(ValkeyGlideCluster)

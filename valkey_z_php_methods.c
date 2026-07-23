@@ -826,6 +826,10 @@ BGREWRITEAOF_METHOD_IMPL(ValkeyGlide)
 RESET_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto bool ValkeyGlide::save() */
+SAVE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto array ValkeyGlide::time() */
 TIME_METHOD_IMPL(ValkeyGlide)
 /* }}} */
