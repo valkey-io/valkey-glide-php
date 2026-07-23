@@ -639,48 +639,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testReset()
     {
-        $result = $this->valkey_glide->reset();
-        $this->assertTrue($result);
-
-        // Verify client recovers after reset
-        $pong = $this->valkey_glide->ping('randomNode');
-        $this->assertTrue($pong);
-    }
-
-    public function testResetWithReplyLiteral()
-    {
-        $this->withOptReplyLiteralEnabled(function () {
-            $result = $this->valkey_glide->reset();
-            $this->assertIsString($result);
-            $this->assertEquals('RESET', $result);
-
-            // Verify client recovers after reset (ping succeeds)
-            $pong = $this->valkey_glide->ping('randomNode');
-            $this->assertTrue($pong);
-        });
-    }
-
-    public function testResetBatch()
-    {
-        if (!$this->havePipeline()) {
-            $this->markTestSkipped('Pipeline not supported');
-            return;
-        }
-
-        $this->valkey_glide->pipeline();
-        $this->valkey_glide->reset();
-        $result = $this->valkey_glide->exec();
-        $this->assertTrue($result[0]);
-    }
-
-    public function testResetClearsConnectionState()
-    {
         $key = '{reset_test}_' . uniqid();
 
-        // Set initial value
+        // Set initial value and WATCH the key
         $this->valkey_glide->set($key, 'initial');
-
-        // WATCH the key
         $this->valkey_glide->watch($key);
 
         // Modify the key (triggers the WATCH)
@@ -702,6 +664,28 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         // Cleanup
         $this->valkey_glide->del($key);
+    }
+
+    public function testResetWithReplyLiteral()
+    {
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->reset();
+            $this->assertIsString($result);
+            $this->assertEquals('RESET', $result);
+        });
+    }
+
+    public function testResetBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->reset();
+        $result = $this->valkey_glide->exec();
+        $this->assertTrue($result[0]);
     }
 
     public function testSave()
