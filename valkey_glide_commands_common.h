@@ -207,6 +207,7 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
 int execute_flushall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_save_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_cluster_scan_command(const void* glide_client,
@@ -320,104 +321,40 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
  * METHOD IMPLEMENTATION MACROS
  * ==================================================================== */
 
-#define ECHO_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, echo) {                                              \
-        if (execute_echo_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
+/* Generic helper for commands that follow the standard pattern:
+ * call execute function, return on success, RETURN_FALSE on failure. */
+#define STANDARD_METHOD_IMPL(class_name, method_name, execute_fn)     \
+    PHP_METHOD(class_name, method_name) {                             \
+        if (execute_fn(getThis(),                                     \
+                       ZEND_NUM_ARGS(),                               \
+                       return_value,                                  \
+                       strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                           ? get_valkey_glide_cluster_ce()            \
+                           : get_valkey_glide_ce())) {                \
+            return;                                                   \
+        }                                                             \
+        zval_dtor(return_value);                                      \
+        RETURN_FALSE;                                                 \
     }
 
-#define BITOP_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, bitop) {                                              \
-        if (execute_bitop_command(getThis(),                                     \
-                                  ZEND_NUM_ARGS(),                               \
-                                  return_value,                                  \
-                                  strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                      ? get_valkey_glide_cluster_ce()            \
-                                      : get_valkey_glide_ce())) {                \
-            return;                                                              \
-        }                                                                        \
-        zval_dtor(return_value);                                                 \
-        RETURN_FALSE;                                                            \
-    }
+#define ECHO_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, echo, execute_echo_command)
 
-#define GETBIT_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, getBit) {                                              \
-        if (execute_getbit_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define BITOP_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, bitop, execute_bitop_command)
 
-#define SETBIT_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, setBit) {                                              \
-        if (execute_setbit_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define GETBIT_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, getBit, execute_getbit_command)
 
-#define BITCOUNT_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, bitcount) {                                              \
-        if (execute_bitcount_command(getThis(),                                     \
-                                     ZEND_NUM_ARGS(),                               \
-                                     return_value,                                  \
-                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                         ? get_valkey_glide_cluster_ce()            \
-                                         : get_valkey_glide_ce())) {                \
-            return;                                                                 \
-        }                                                                           \
-        zval_dtor(return_value);                                                    \
-        RETURN_FALSE;                                                               \
-    }
+#define SETBIT_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, setBit, execute_setbit_command)
 
-#define BITPOS_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, bitpos) {                                              \
-        if (execute_bitpos_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define BITCOUNT_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, bitcount, execute_bitcount_command)
+
+#define BITPOS_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, bitpos, execute_bitpos_command)
 
 /* DEL command needs special handling since it has different signature */
-#define DEL_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, del) {                                              \
-        if (execute_del_command(getThis(),                                     \
-                                ZEND_NUM_ARGS(),                               \
-                                return_value,                                  \
-                                strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                    ? get_valkey_glide_cluster_ce()            \
-                                    : get_valkey_glide_ce())) {                \
-            return;                                                            \
-        }                                                                      \
-        zval_dtor(return_value);                                               \
-        RETURN_FALSE;                                                          \
-    }
+#define DEL_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, del, execute_del_command)
 
 /* Additional unified macros for new converted commands */
 #define SELECT_METHOD_IMPL(class_name)                                            \
@@ -435,103 +372,21 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         RETURN_FALSE;                                                             \
     }
 
-#define GET_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, get) {                                              \
-        if (execute_get_command(getThis(),                                     \
-                                ZEND_NUM_ARGS(),                               \
-                                return_value,                                  \
-                                strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                    ? get_valkey_glide_cluster_ce()            \
-                                    : get_valkey_glide_ce())) {                \
-            return;                                                            \
-        }                                                                      \
-        zval_dtor(return_value);                                               \
-        RETURN_FALSE;                                                          \
-    }
+#define GET_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, get, execute_get_command)
 
-#define RANDOMKEY_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, randomKey) {                                              \
-        if (execute_randomkey_command(getThis(),                                     \
-                                      ZEND_NUM_ARGS(),                               \
-                                      return_value,                                  \
-                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                          ? get_valkey_glide_cluster_ce()            \
-                                          : get_valkey_glide_ce())) {                \
-            return;                                                                  \
-        }                                                                            \
-        zval_dtor(return_value);                                                     \
-        RETURN_FALSE;                                                                \
-    }
+#define RANDOMKEY_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, randomKey, execute_randomkey_command)
 
-#define STRLEN_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, strlen) {                                              \
-        if (execute_strlen_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define STRLEN_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, strlen, execute_strlen_command)
 
-#define TTL_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, ttl) {                                              \
-        if (execute_ttl_command(getThis(),                                     \
-                                ZEND_NUM_ARGS(),                               \
-                                return_value,                                  \
-                                strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                    ? get_valkey_glide_cluster_ce()            \
-                                    : get_valkey_glide_ce())) {                \
-            return;                                                            \
-        }                                                                      \
-        zval_dtor(return_value);                                               \
-        RETURN_FALSE;                                                          \
-    }
+#define TTL_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, ttl, execute_ttl_command)
 
-#define PTTL_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, pttl) {                                              \
-        if (execute_pttl_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
+#define PTTL_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, pttl, execute_pttl_command)
 
-#define PING_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, ping) {                                              \
-        if (execute_ping_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
+#define PING_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, ping, execute_ping_command)
 
-#define INFO_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, info) {                                              \
-        if (execute_info_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
+#define INFO_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, info, execute_info_command)
 
 /* Additional SET family macros */
 #define SETEX_METHOD_IMPL(class_name)                                            \
@@ -564,47 +419,13 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         RETURN_FALSE;                                                             \
     }
 
-#define SETNX_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, setnx) {                                              \
-        if (execute_setnx_command(getThis(),                                     \
-                                  ZEND_NUM_ARGS(),                               \
-                                  return_value,                                  \
-                                  strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                      ? get_valkey_glide_cluster_ce()            \
-                                      : get_valkey_glide_ce())) {                \
-            return;                                                              \
-        }                                                                        \
-        zval_dtor(return_value);                                                 \
-        RETURN_FALSE;                                                            \
-    }
+#define SETNX_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, setnx, execute_setnx_command)
 
-#define SETRANGE_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, setRange) {                                              \
-        if (execute_setrange_command(getThis(),                                     \
-                                     ZEND_NUM_ARGS(),                               \
-                                     return_value,                                  \
-                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                         ? get_valkey_glide_cluster_ce()            \
-                                         : get_valkey_glide_ce())) {                \
-            return;                                                                 \
-        }                                                                           \
-        zval_dtor(return_value);                                                    \
-        RETURN_FALSE;                                                               \
-    }
+#define SETRANGE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, setRange, execute_setrange_command)
 
-#define GETSET_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, getset) {                                              \
-        if (execute_getset_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define GETSET_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, getset, execute_getset_command)
 
 #define SET_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, set) {                                              \
@@ -621,47 +442,12 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         RETURN_FALSE;                                                          \
     }
 
-#define LCS_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, lcs) {                                              \
-        if (execute_lcs_command(getThis(),                                     \
-                                ZEND_NUM_ARGS(),                               \
-                                return_value,                                  \
-                                strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                    ? get_valkey_glide_cluster_ce()            \
-                                    : get_valkey_glide_ce())) {                \
-            return;                                                            \
-        }                                                                      \
-        zval_dtor(return_value);                                               \
-        RETURN_FALSE;                                                          \
-    }
+#define LCS_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, lcs, execute_lcs_command)
 
-#define WATCH_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, watch) {                                              \
-        if (execute_watch_command(getThis(),                                     \
-                                  ZEND_NUM_ARGS(),                               \
-                                  return_value,                                  \
-                                  strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                      ? get_valkey_glide_cluster_ce()            \
-                                      : get_valkey_glide_ce())) {                \
-            return;                                                              \
-        }                                                                        \
-        zval_dtor(return_value);                                                 \
-        RETURN_FALSE;                                                            \
-    }
+#define WATCH_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, watch, execute_watch_command)
 
-#define UNWATCH_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, unwatch) {                                              \
-        if (execute_unwatch_command(getThis(),                                     \
-                                    ZEND_NUM_ARGS(),                               \
-                                    return_value,                                  \
-                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                        ? get_valkey_glide_cluster_ce()            \
-                                        : get_valkey_glide_ce())) {                \
-            return;                                                                \
-        }                                                                          \
-        zval_dtor(return_value);                                                   \
-        RETURN_FALSE;                                                              \
-    }
+#define UNWATCH_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, unwatch, execute_unwatch_command)
 
 #define FLUSHDB_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, flushDB) {                                              \
@@ -693,216 +479,46 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         RETURN_FALSE;                                                               \
     }
 
-#define BGSAVE_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, bgSave) {                                              \
-        if (execute_bgsave_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define BGSAVE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, bgSave, execute_bgsave_command)
 
-#define BGREWRITEAOF_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, bgRewriteAof) {                                              \
-        if (execute_bgrewriteaof_command(getThis(),                                     \
-                                         ZEND_NUM_ARGS(),                               \
-                                         return_value,                                  \
-                                         strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                             ? get_valkey_glide_cluster_ce()            \
-                                             : get_valkey_glide_ce())) {                \
-            return;                                                                     \
-        }                                                                               \
-        zval_dtor(return_value);                                                        \
-        RETURN_FALSE;                                                                   \
-    }
+#define BGREWRITEAOF_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, bgRewriteAof, execute_bgrewriteaof_command)
 
-#define TIME_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, time) {                                              \
-        if (execute_time_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
+#define SAVE_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, save, execute_save_command)
+
+#define TIME_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, time, execute_time_command)
 
 
-#define SCAN_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, scan) {                                              \
-        if (execute_scan_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
+#define SCAN_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, scan, execute_scan_command)
 
-#define SSCAN_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, sscan) {                                              \
-        if (execute_sscan_command(getThis(),                                     \
-                                  ZEND_NUM_ARGS(),                               \
-                                  return_value,                                  \
-                                  strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                      ? get_valkey_glide_cluster_ce()            \
-                                      : get_valkey_glide_ce())) {                \
-            return;                                                              \
-        }                                                                        \
-        zval_dtor(return_value);                                                 \
-        RETURN_FALSE;                                                            \
-    }
+#define SSCAN_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, sscan, execute_sscan_command)
 
-#define COPY_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, copy) {                                              \
-        if (execute_copy_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
+#define COPY_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, copy, execute_copy_command)
 
-#define HSCAN_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, hscan) {                                              \
-        if (execute_hscan_command(getThis(),                                     \
-                                  ZEND_NUM_ARGS(),                               \
-                                  return_value,                                  \
-                                  strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                      ? get_valkey_glide_cluster_ce()            \
-                                      : get_valkey_glide_ce())) {                \
-            return;                                                              \
-        }                                                                        \
-        zval_dtor(return_value);                                                 \
-        RETURN_FALSE;                                                            \
-    }
+#define HSCAN_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, hscan, execute_hscan_command)
 
-#define PFADD_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, pfadd) {                                              \
-        if (execute_pfadd_command(getThis(),                                     \
-                                  ZEND_NUM_ARGS(),                               \
-                                  return_value,                                  \
-                                  strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                      ? get_valkey_glide_cluster_ce()            \
-                                      : get_valkey_glide_ce())) {                \
-            return;                                                              \
-        }                                                                        \
-        zval_dtor(return_value);                                                 \
-        RETURN_FALSE;                                                            \
-    }
+#define PFADD_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, pfadd, execute_pfadd_command)
 
-#define PFCOUNT_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, pfcount) {                                              \
-        if (execute_pfcount_command(getThis(),                                     \
-                                    ZEND_NUM_ARGS(),                               \
-                                    return_value,                                  \
-                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                        ? get_valkey_glide_cluster_ce()            \
-                                        : get_valkey_glide_ce())) {                \
-            return;                                                                \
-        }                                                                          \
-        zval_dtor(return_value);                                                   \
-        RETURN_FALSE;                                                              \
-    }
+#define PFCOUNT_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, pfcount, execute_pfcount_command)
 
-#define PFMERGE_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, pfmerge) {                                              \
-        if (execute_pfmerge_command(getThis(),                                     \
-                                    ZEND_NUM_ARGS(),                               \
-                                    return_value,                                  \
-                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                        ? get_valkey_glide_cluster_ce()            \
-                                        : get_valkey_glide_ce())) {                \
-            return;                                                                \
-        }                                                                          \
-        zval_dtor(return_value);                                                   \
-        RETURN_FALSE;                                                              \
-    }
+#define PFMERGE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, pfmerge, execute_pfmerge_command)
 
-#define CLIENT_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, client) {                                              \
-        if (execute_client_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define CLIENT_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, client, execute_client_command)
 
-#define RAWCOMMAND_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, rawcommand) {                                              \
-        if (execute_rawcommand_command(getThis(),                                     \
-                                       ZEND_NUM_ARGS(),                               \
-                                       return_value,                                  \
-                                       strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                           ? get_valkey_glide_cluster_ce()            \
-                                           : get_valkey_glide_ce())) {                \
-            return;                                                                   \
-        }                                                                             \
-        zval_dtor(return_value);                                                      \
-        RETURN_FALSE;                                                                 \
-    }
+#define RAWCOMMAND_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, rawcommand, execute_rawcommand_command)
 
-#define DBSIZE_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, dbSize) {                                              \
-        if (execute_dbsize_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define DBSIZE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, dbSize, execute_dbsize_command)
 
-#define MOVE_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, move) {                                              \
-        if (execute_move_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
+#define MOVE_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, move, execute_move_command)
 
-#define DECRBY_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, decrBy) {                                              \
-        if (execute_decrby_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define DECRBY_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, decrBy, execute_decrby_command)
 
 #define RENAME_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, rename) {                                              \
@@ -919,173 +535,35 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         RETURN_FALSE;                                                             \
     }
 
-#define RENAMENX_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, renameNx) {                                              \
-        if (execute_renamenx_command(getThis(),                                     \
-                                     ZEND_NUM_ARGS(),                               \
-                                     return_value,                                  \
-                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                         ? get_valkey_glide_cluster_ce()            \
-                                         : get_valkey_glide_ce())) {                \
-            return;                                                                 \
-        }                                                                           \
-        zval_dtor(return_value);                                                    \
-        RETURN_FALSE;                                                               \
-    }
+#define RENAMENX_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, renameNx, execute_renamenx_command)
 
-#define GETDEL_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, getDel) {                                              \
-        if (execute_getdel_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define GETDEL_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, getDel, execute_getdel_command)
 
-#define GETEX_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, getEx) {                                              \
-        if (execute_getex_command(getThis(),                                     \
-                                  ZEND_NUM_ARGS(),                               \
-                                  return_value,                                  \
-                                  strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                      ? get_valkey_glide_cluster_ce()            \
-                                      : get_valkey_glide_ce())) {                \
-            return;                                                              \
-        }                                                                        \
-        zval_dtor(return_value);                                                 \
-        RETURN_FALSE;                                                            \
-    }
+#define GETEX_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, getEx, execute_getex_command)
 
-#define INCR_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, incr) {                                              \
-        if (execute_incr_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
+#define INCR_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, incr, execute_incr_command)
 
-#define INCRBY_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, incrBy) {                                              \
-        if (execute_incrby_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define INCRBY_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, incrBy, execute_incrby_command)
 
-#define INCRBYFLOAT_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, incrByFloat) {                                              \
-        if (execute_incrbyfloat_command(getThis(),                                     \
-                                        ZEND_NUM_ARGS(),                               \
-                                        return_value,                                  \
-                                        strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                            ? get_valkey_glide_cluster_ce()            \
-                                            : get_valkey_glide_ce())) {                \
-            return;                                                                    \
-        }                                                                              \
-        zval_dtor(return_value);                                                       \
-        RETURN_FALSE;                                                                  \
-    }
+#define INCRBYFLOAT_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, incrByFloat, execute_incrbyfloat_command)
 
-#define DECR_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, decr) {                                              \
-        if (execute_decr_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
+#define DECR_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, decr, execute_decr_command)
 
-#define MGET_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, mget) {                                              \
-        if (execute_mget_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
+#define MGET_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, mget, execute_mget_command)
 
-#define EXISTS_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, exists) {                                              \
-        if (execute_exists_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define EXISTS_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, exists, execute_exists_command)
 
-#define TOUCH_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, touch) {                                              \
-        if (execute_touch_command(getThis(),                                     \
-                                  ZEND_NUM_ARGS(),                               \
-                                  return_value,                                  \
-                                  strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                      ? get_valkey_glide_cluster_ce()            \
-                                      : get_valkey_glide_ce())) {                \
-            return;                                                              \
-        }                                                                        \
-        zval_dtor(return_value);                                                 \
-        RETURN_FALSE;                                                            \
-    }
+#define TOUCH_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, touch, execute_touch_command)
 
-#define UNLINK_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, unlink) {                                              \
-        if (execute_unlink_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define UNLINK_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, unlink, execute_unlink_command)
 
-#define WAIT_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, wait) {                                              \
-        if (execute_wait_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
+#define WAIT_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, wait, execute_wait_command)
 
 #define CONFIG_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, config) {                                              \
@@ -1102,19 +580,8 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         RETURN_FALSE;                                                             \
     }
 
-#define FUNCTION_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, function) {                                              \
-        if (execute_function_command(getThis(),                                     \
-                                     ZEND_NUM_ARGS(),                               \
-                                     return_value,                                  \
-                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                         ? get_valkey_glide_cluster_ce()            \
-                                         : get_valkey_glide_ce())) {                \
-            return;                                                                 \
-        }                                                                           \
-        zval_dtor(return_value);                                                    \
-        RETURN_FALSE;                                                               \
-    }
+#define FUNCTION_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, function, execute_function_command)
 
 #define SCRIPT_METHOD_IMPL(class_name)                                        \
     PHP_METHOD(class_name, script) {                                          \
@@ -1158,89 +625,20 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
                                    strcmp(#class_name, "ValkeyGlideCluster") == 0); \
     }
 
-#define MULTI_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, multi) {                                              \
-        if (execute_multi_command(getThis(),                                     \
-                                  ZEND_NUM_ARGS(),                               \
-                                  return_value,                                  \
-                                  strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                      ? get_valkey_glide_cluster_ce()            \
-                                      : get_valkey_glide_ce())) {                \
-            return;                                                              \
-        }                                                                        \
-        zval_dtor(return_value);                                                 \
-        RETURN_FALSE;                                                            \
-    }
+#define MULTI_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, multi, execute_multi_command)
 
-#define PIPELINE_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, pipeline) {                                              \
-        if (execute_pipeline_command(getThis(),                                     \
-                                     ZEND_NUM_ARGS(),                               \
-                                     return_value,                                  \
-                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                         ? get_valkey_glide_cluster_ce()            \
-                                         : get_valkey_glide_ce())) {                \
-            return;                                                                 \
-        }                                                                           \
-        zval_dtor(return_value);                                                    \
-        RETURN_FALSE;                                                               \
-    }
+#define PIPELINE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, pipeline, execute_pipeline_command)
 
-#define DISCARD_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, discard) {                                              \
-        if (execute_discard_command(getThis(),                                     \
-                                    ZEND_NUM_ARGS(),                               \
-                                    return_value,                                  \
-                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                        ? get_valkey_glide_cluster_ce()            \
-                                        : get_valkey_glide_ce())) {                \
-            return;                                                                \
-        }                                                                          \
-        zval_dtor(return_value);                                                   \
-        RETURN_FALSE;                                                              \
-    }
+#define DISCARD_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, discard, execute_discard_command)
 
-#define EXEC_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, exec) {                                              \
-        if (execute_exec_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
+#define EXEC_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, exec, execute_exec_command)
 
-#define FCALL_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, fcall) {                                              \
-        if (execute_fcall_command(getThis(),                                     \
-                                  ZEND_NUM_ARGS(),                               \
-                                  return_value,                                  \
-                                  strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                      ? get_valkey_glide_cluster_ce()            \
-                                      : get_valkey_glide_ce())) {                \
-            return;                                                              \
-        }                                                                        \
-        zval_dtor(return_value);                                                 \
-        RETURN_FALSE;                                                            \
-    }
+#define FCALL_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, fcall, execute_fcall_command)
 
-#define FCALL_RO_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, fcall_ro) {                                              \
-        if (execute_fcall_ro_command(getThis(),                                     \
-                                     ZEND_NUM_ARGS(),                               \
-                                     return_value,                                  \
-                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                         ? get_valkey_glide_cluster_ce()            \
-                                         : get_valkey_glide_ce())) {                \
-            return;                                                                 \
-        }                                                                           \
-        zval_dtor(return_value);                                                    \
-        RETURN_FALSE;                                                               \
-    }
+#define FCALL_RO_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, fcall_ro, execute_fcall_ro_command)
 
 #define SCRIPT_EXISTS_METHOD_IMPL(class_name)                                 \
     PHP_METHOD(class_name, scriptExists) {                                    \
@@ -1271,19 +669,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         execute_script_flush_command(getThis(), return_value, false); \
     }
 
-#define DUMP_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, dump) {                                              \
-        if (execute_dump_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
+#define DUMP_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, dump, execute_dump_command)
 
 #define RESTORE_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, restore) {                                              \
@@ -1300,103 +686,26 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         RETURN_FALSE;                                                              \
     }
 
-#define EXPIRE_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, expire) {                                              \
-        if (execute_expire_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define EXPIRE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, expire, execute_expire_command)
 
-#define EXPIREAT_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, expireAt) {                                              \
-        if (execute_expireat_command(getThis(),                                     \
-                                     ZEND_NUM_ARGS(),                               \
-                                     return_value,                                  \
-                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                         ? get_valkey_glide_cluster_ce()            \
-                                         : get_valkey_glide_ce())) {                \
-            return;                                                                 \
-        }                                                                           \
-        zval_dtor(return_value);                                                    \
-        RETURN_FALSE;                                                               \
-    }
+#define EXPIREAT_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, expireAt, execute_expireat_command)
 
-#define PEXPIRE_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, pexpire) {                                              \
-        if (execute_pexpire_command(getThis(),                                     \
-                                    ZEND_NUM_ARGS(),                               \
-                                    return_value,                                  \
-                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                        ? get_valkey_glide_cluster_ce()            \
-                                        : get_valkey_glide_ce())) {                \
-            return;                                                                \
-        }                                                                          \
-        zval_dtor(return_value);                                                   \
-        RETURN_FALSE;                                                              \
-    }
+#define PEXPIRE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, pexpire, execute_pexpire_command)
 
-#define PEXPIREAT_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, pexpireAt) {                                              \
-        if (execute_pexpireat_command(getThis(),                                     \
-                                      ZEND_NUM_ARGS(),                               \
-                                      return_value,                                  \
-                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                          ? get_valkey_glide_cluster_ce()            \
-                                          : get_valkey_glide_ce())) {                \
-            return;                                                                  \
-        }                                                                            \
-        zval_dtor(return_value);                                                     \
-        RETURN_FALSE;                                                                \
-    }
+#define PEXPIREAT_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, pexpireAt, execute_pexpireat_command)
 
-#define PERSIST_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, persist) {                                              \
-        if (execute_persist_command(getThis(),                                     \
-                                    ZEND_NUM_ARGS(),                               \
-                                    return_value,                                  \
-                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                        ? get_valkey_glide_cluster_ce()            \
-                                        : get_valkey_glide_ce())) {                \
-            return;                                                                \
-        }                                                                          \
-        zval_dtor(return_value);                                                   \
-        RETURN_FALSE;                                                              \
-    }
+#define PERSIST_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, persist, execute_persist_command)
 
-#define EXPIRETIME_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, expiretime) {                                              \
-        if (execute_expiretime_command(getThis(),                                     \
-                                       ZEND_NUM_ARGS(),                               \
-                                       return_value,                                  \
-                                       strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                           ? get_valkey_glide_cluster_ce()            \
-                                           : get_valkey_glide_ce())) {                \
-            return;                                                                   \
-        }                                                                             \
-        zval_dtor(return_value);                                                      \
-        RETURN_FALSE;                                                                 \
-    }
+#define EXPIRETIME_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, expiretime, execute_expiretime_command)
 
-#define PEXPIRETIME_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, pexpiretime) {                                              \
-        if (execute_pexpiretime_command(getThis(),                                     \
-                                        ZEND_NUM_ARGS(),                               \
-                                        return_value,                                  \
-                                        strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                            ? get_valkey_glide_cluster_ce()            \
-                                            : get_valkey_glide_ce())) {                \
-            return;                                                                    \
-        }                                                                              \
-        zval_dtor(return_value);                                                       \
-        RETURN_FALSE;                                                                  \
-    }
+#define PEXPIRETIME_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, pexpiretime, execute_pexpiretime_command)
 
 #define MSET_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, mset) {                                              \
@@ -1413,104 +722,25 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         RETURN_FALSE;                                                           \
     }
 
-#define MSETNX_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, msetnx) {                                              \
-        if (execute_msetnx_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define MSETNX_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, msetnx, execute_msetnx_command)
 
-#define TYPE_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, type) {                                              \
-        if (execute_type_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
+#define TYPE_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, type, execute_type_command)
 
-#define APPEND_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, append) {                                              \
-        if (execute_append_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define APPEND_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, append, execute_append_command)
 
-#define GETRANGE_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, getRange) {                                              \
-        if (execute_getrange_command(getThis(),                                     \
-                                     ZEND_NUM_ARGS(),                               \
-                                     return_value,                                  \
-                                     strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                         ? get_valkey_glide_cluster_ce()            \
-                                         : get_valkey_glide_ce())) {                \
-            return;                                                                 \
-        }                                                                           \
-        zval_dtor(return_value);                                                    \
-        RETURN_FALSE;                                                               \
-    }
+#define GETRANGE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, getRange, execute_getrange_command)
 
-#define SORT_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, sort) {                                              \
-        if (execute_sort_command(getThis(),                                     \
-                                 ZEND_NUM_ARGS(),                               \
-                                 return_value,                                  \
-                                 strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                     ? get_valkey_glide_cluster_ce()            \
-                                     : get_valkey_glide_ce())) {                \
-            return;                                                             \
-        }                                                                       \
-        zval_dtor(return_value);                                                \
-        RETURN_FALSE;                                                           \
-    }
+#define SORT_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, sort, execute_sort_command)
 
-#define SORT_RO_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, sort_ro) {                                              \
-        if (execute_sort_ro_command(getThis(),                                     \
-                                    ZEND_NUM_ARGS(),                               \
-                                    return_value,                                  \
-                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                        ? get_valkey_glide_cluster_ce()            \
-                                        : get_valkey_glide_ce())) {                \
-            return;                                                                \
-        }                                                                          \
-        zval_dtor(return_value);                                                   \
-        RETURN_FALSE;                                                              \
-    }
+#define SORT_RO_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, sort_ro, execute_sort_ro_command)
 
 
-#define OBJECT_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, object) {                                              \
-        if (execute_object_command(getThis(),                                     \
-                                   ZEND_NUM_ARGS(),                               \
-                                   return_value,                                  \
-                                   strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                       ? get_valkey_glide_cluster_ce()            \
-                                       : get_valkey_glide_ce())) {                \
-            return;                                                               \
-        }                                                                         \
-        zval_dtor(return_value);                                                  \
-        RETURN_FALSE;                                                             \
-    }
+#define OBJECT_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, object, execute_object_command)
 
 /* Function command declarations */
 int  execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);

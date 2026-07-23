@@ -202,7 +202,6 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
         core_args.arg_count                     = 1;
     }
 
-    /* Execute using unified core framework */
     return execute_and_handle_batch(
         valkey_glide, &core_args, process_core_bool_result, return_value, object);
 }
@@ -257,7 +256,6 @@ int execute_flushall_command(zval* object, int argc, zval* return_value, zend_cl
         core_args.arg_count                     = 1;
     }
 
-    /* Execute using unified core framework */
     return execute_and_handle_batch(
         valkey_glide, &core_args, process_core_bool_result, return_value, object);
 }
@@ -317,7 +315,6 @@ int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_clas
                                          ? process_core_status_string_result
                                          : process_core_status_bool_result;
 
-    /* Execute using unified core framework */
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
@@ -359,7 +356,47 @@ int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zen
                                          ? process_core_status_string_result
                                          : process_core_status_bool_result;
 
-    /* Execute using unified core framework */
+    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+}
+
+/* Execute a SAVE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+int execute_save_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    zval*                args       = NULL;
+    int                  args_count = 0;
+    zend_bool            is_cluster = (ce == get_valkey_glide_cluster_ce());
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    /* Setup core command arguments */
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = Save;
+    core_args.is_cluster          = is_cluster;
+
+    if (is_cluster) {
+        if (!parse_cluster_route(argc, &object, ce, &args, &args_count, &core_args)) {
+            return 0;
+        }
+    } else {
+        /* Non-cluster case - no parameters */
+        if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
+            return 0;
+        }
+    }
+
+    /* Select processor based on OPT_REPLY_LITERAL:
+     * - With OPT_REPLY_LITERAL: return raw string (process_core_status_string_result)
+     * - Without OPT_REPLY_LITERAL: return bool (process_core_status_bool_result)
+     * This matches PHPRedis behavior where save() returns bool. */
+    z_result_processor_t processor = valkey_glide->opt_reply_literal
+                                         ? process_core_status_string_result
+                                         : process_core_status_bool_result;
+
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
@@ -397,7 +434,6 @@ int execute_time_command(zval* object, int argc, zval* return_value, zend_class_
         }
     }
 
-    /* Execute using unified core framework */
     return execute_and_handle_batch(
         valkey_glide, &core_args, process_core_array_result, return_value, object);
 }
