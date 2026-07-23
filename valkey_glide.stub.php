@@ -2363,12 +2363,9 @@ class ValkeyGlide
     /**
      * Reset the connection's server-side context.
      *
-     * This command resets the connection state, clearing any subscriptions,
-     * watches, and other server-side state associated with the connection.
-     * The client remains connected and can issue new commands after reset.
-     *
      * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
-     *                                  With OPT_REPLY_LITERAL enabled, returns "RESET" instead.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "RESET" on success,
+     *                                  false on failure.
      *
      * @see https://valkey.io/commands/reset
      */
