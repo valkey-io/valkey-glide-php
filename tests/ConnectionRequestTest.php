@@ -75,6 +75,7 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests
 require_once __DIR__ . "/TestSuite.php";
 require_once __DIR__ . "/../vendor/autoload.php";
 require_once __DIR__ . "/Connection_request/AuthenticationInfo.php";
+require_once __DIR__ . "/Connection_request/ClientCircuitBreakerConfig.php";
 require_once __DIR__ . "/Connection_request/CompressionBackend.php";
 require_once __DIR__ . "/Connection_request/CompressionConfig.php";
 require_once __DIR__ . "/Connection_request/ConnectionRequest.php";
@@ -741,5 +742,95 @@ class ConnectionRequestTest extends \TestSuite
     private function get_addresses(\Connection_request\ConnectionRequest $request): array
     {
         return array_map(fn($a) => $a->getHost(), iterator_to_array($request->getAddresses()));
+    }
+
+    // ================================================================
+    // Circuit Breaker Tests
+    // ================================================================
+
+    public function testCircuitBreakerStandaloneDefaults()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            circuit_breaker: []
+        );
+
+        $cb = $request->getClientCircuitBreaker();
+        $this->assertNotNull($cb);
+        $this->assertEquals(10000, $cb->getWindowSizeMs());
+        $this->assertTrue(abs($cb->getFailureRateThreshold() - 0.5) < 0.001);
+        $this->assertEquals(50, $cb->getMinErrors());
+        $this->assertEquals(5000, $cb->getOpenTimeoutMs());
+        $this->assertFalse($cb->getCountTimeouts());
+        $this->assertEquals(3, $cb->getConsecutiveSuccesses());
+    }
+
+    public function testCircuitBreakerClusterDefaults()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            circuit_breaker: []
+        );
+
+        $cb = $request->getClientCircuitBreaker();
+        $this->assertNotNull($cb);
+        $this->assertEquals(10000, $cb->getWindowSizeMs());
+        $this->assertTrue(abs($cb->getFailureRateThreshold() - 0.5) < 0.001);
+        $this->assertEquals(50, $cb->getMinErrors());
+        $this->assertEquals(5000, $cb->getOpenTimeoutMs());
+        $this->assertFalse($cb->getCountTimeouts());
+        $this->assertEquals(3, $cb->getConsecutiveSuccesses());
+    }
+
+    public function testCircuitBreakerStandaloneCustomValues()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            circuit_breaker: [
+                'window_size_ms' => 20000,
+                'failure_rate_threshold' => 0.8,
+                'min_errors' => 10,
+                'open_timeout_ms' => 3000,
+                'count_timeouts' => true,
+                'consecutive_successes' => 5,
+            ]
+        );
+
+        $cb = $request->getClientCircuitBreaker();
+        $this->assertNotNull($cb);
+        $this->assertEquals(20000, $cb->getWindowSizeMs());
+        $this->assertTrue(abs($cb->getFailureRateThreshold() - 0.8) < 0.001);
+        $this->assertEquals(10, $cb->getMinErrors());
+        $this->assertEquals(3000, $cb->getOpenTimeoutMs());
+        $this->assertTrue($cb->getCountTimeouts());
+        $this->assertEquals(5, $cb->getConsecutiveSuccesses());
+    }
+
+    public function testCircuitBreakerClusterCustomValues()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            circuit_breaker: [
+                'window_size_ms' => 15000,
+                'failure_rate_threshold' => 0.3,
+                'min_errors' => 25,
+                'open_timeout_ms' => 10000,
+                'count_timeouts' => true,
+                'consecutive_successes' => 2,
+            ]
+        );
+
+        $cb = $request->getClientCircuitBreaker();
+        $this->assertNotNull($cb);
+        $this->assertEquals(15000, $cb->getWindowSizeMs());
+        $this->assertTrue(abs($cb->getFailureRateThreshold() - 0.3) < 0.001);
+        $this->assertEquals(25, $cb->getMinErrors());
+        $this->assertEquals(10000, $cb->getOpenTimeoutMs());
+        $this->assertTrue($cb->getCountTimeouts());
+        $this->assertEquals(2, $cb->getConsecutiveSuccesses());
+    }
+
+    public function testCircuitBreakerNotSetByDefault()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor();
+
+        $cb = $request->getClientCircuitBreaker();
+        $this->assertNull($cb);
     }
 }

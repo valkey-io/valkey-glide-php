@@ -77,6 +77,7 @@ static const size_t      SSL_PREFIX_LEN = 6;
 
 zend_class_entry* valkey_glide_ce;
 zend_class_entry* valkey_glide_exception_ce;
+zend_class_entry* valkey_glide_circuit_breaker_exception_ce;
 
 zend_class_entry* valkey_glide_cluster_ce;
 
@@ -90,6 +91,10 @@ zend_class_entry* get_valkey_glide_ce(void) {
 
 zend_class_entry* get_valkey_glide_exception_ce(void) {
     return valkey_glide_exception_ce;
+}
+
+zend_class_entry* get_valkey_glide_circuit_breaker_exception_ce(void) {
+    return valkey_glide_circuit_breaker_exception_ce;
 }
 
 zend_class_entry* get_valkey_glide_cluster_ce(void) {
@@ -183,6 +188,7 @@ void valkey_glide_init_common_constructor_params(
     params->context                 = NULL;
     params->compression             = NULL;
     params->client_side_cache       = NULL;
+    params->circuit_breaker         = NULL;
     params->address_resolver        = NULL;
 }
 
@@ -573,6 +579,60 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         config->client_side_cache = NULL;
     }
 
+    /* Process circuit breaker configuration if provided */
+    if (params->circuit_breaker && Z_TYPE_P(params->circuit_breaker) == IS_ARRAY) {
+        HashTable* cb_ht = Z_ARRVAL_P(params->circuit_breaker);
+
+        config->circuit_breaker = ecalloc(1, sizeof(valkey_glide_circuit_breaker_config_t));
+
+        /* Parse window_size_ms (optional, default 10000) */
+        zval* window_zv = zend_hash_str_find(
+            cb_ht, VALKEY_GLIDE_CB_WINDOW_SIZE_MS, sizeof(VALKEY_GLIDE_CB_WINDOW_SIZE_MS) - 1);
+        config->circuit_breaker->window_size_ms = window_zv
+                                                      ? (uint32_t) zval_get_long(window_zv)
+                                                      : VALKEY_GLIDE_CB_DEFAULT_WINDOW_SIZE_MS;
+
+        /* Parse failure_rate_threshold (optional, default 0.5) */
+        zval* threshold_zv = zend_hash_str_find(cb_ht,
+                                                VALKEY_GLIDE_CB_FAILURE_RATE_THRESHOLD,
+                                                sizeof(VALKEY_GLIDE_CB_FAILURE_RATE_THRESHOLD) - 1);
+        config->circuit_breaker->failure_rate_threshold =
+            threshold_zv ? (float) zval_get_double(threshold_zv)
+                         : VALKEY_GLIDE_CB_DEFAULT_FAILURE_RATE_THRESHOLD;
+
+        /* Parse min_errors (optional, default 50) */
+        zval* min_errors_zv = zend_hash_str_find(
+            cb_ht, VALKEY_GLIDE_CB_MIN_ERRORS, sizeof(VALKEY_GLIDE_CB_MIN_ERRORS) - 1);
+        config->circuit_breaker->min_errors = min_errors_zv
+                                                  ? (uint32_t) zval_get_long(min_errors_zv)
+                                                  : VALKEY_GLIDE_CB_DEFAULT_MIN_ERRORS;
+
+        /* Parse open_timeout_ms (optional, default 5000) */
+        zval* open_timeout_zv = zend_hash_str_find(
+            cb_ht, VALKEY_GLIDE_CB_OPEN_TIMEOUT_MS, sizeof(VALKEY_GLIDE_CB_OPEN_TIMEOUT_MS) - 1);
+        config->circuit_breaker->open_timeout_ms = open_timeout_zv
+                                                       ? (uint32_t) zval_get_long(open_timeout_zv)
+                                                       : VALKEY_GLIDE_CB_DEFAULT_OPEN_TIMEOUT_MS;
+
+        /* Parse count_timeouts (optional, default false) */
+        zval* count_timeouts_zv = zend_hash_str_find(
+            cb_ht, VALKEY_GLIDE_CB_COUNT_TIMEOUTS, sizeof(VALKEY_GLIDE_CB_COUNT_TIMEOUTS) - 1);
+        config->circuit_breaker->count_timeouts = count_timeouts_zv
+                                                      ? zval_is_true(count_timeouts_zv)
+                                                      : VALKEY_GLIDE_CB_DEFAULT_COUNT_TIMEOUTS;
+
+        /* Parse consecutive_successes (optional, default 3) */
+        zval* consecutive_zv =
+            zend_hash_str_find(cb_ht,
+                               VALKEY_GLIDE_CB_CONSECUTIVE_SUCCESSES,
+                               sizeof(VALKEY_GLIDE_CB_CONSECUTIVE_SUCCESSES) - 1);
+        config->circuit_breaker->consecutive_successes =
+            consecutive_zv ? (uint32_t) zval_get_long(consecutive_zv)
+                           : VALKEY_GLIDE_CB_DEFAULT_CONSECUTIVE_SUCCESSES;
+    } else {
+        config->circuit_breaker = NULL;
+    }
+
     config->address_resolver = params->address_resolver;
 
     _initialize_open_telemetry(params, is_cluster);
@@ -620,6 +680,14 @@ PHP_MINIT_FUNCTION(valkey_glide) {
     valkey_glide_exception_ce = register_class_ValkeyGlideException(spl_ce_RuntimeException);
     if (!valkey_glide_exception_ce) {
         php_error_docref(NULL, E_ERROR, "Failed to register ValkeyGlideException class");
+        return FAILURE;
+    }
+
+    /* CircuitBreakerException class */
+    valkey_glide_circuit_breaker_exception_ce =
+        register_class_CircuitBreakerException(valkey_glide_exception_ce);
+    if (!valkey_glide_circuit_breaker_exception_ce) {
+        php_error_docref(NULL, E_ERROR, "Failed to register CircuitBreakerException class");
         return FAILURE;
     }
 
@@ -780,6 +848,11 @@ void valkey_glide_cleanup_client_config(valkey_glide_base_client_configuration_t
         config->client_side_cache = NULL;
     }
 
+    if (config->circuit_breaker) {
+        efree(config->circuit_breaker);
+        config->circuit_breaker = NULL;
+    }
+
     /* address_resolver is a borrowed reference from PHP, don't free it */
     config->address_resolver = NULL;
 }
@@ -890,7 +963,8 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
                                           zval*                context,
                                           zval*                compression,
                                           zval*                client_side_cache,
-                                          zval*                address_resolver) {
+                                          zval*                address_resolver,
+                                          zval*                circuit_breaker) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
 
@@ -937,6 +1011,7 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     common_params.compression       = compression;
     common_params.client_side_cache = client_side_cache;
     common_params.address_resolver  = address_resolver;
+    common_params.circuit_breaker   = circuit_breaker;
 
     /* Default to localhost:6379 if no addresses provided */
     zval      addresses_array;
@@ -1056,8 +1131,9 @@ PHP_METHOD(ValkeyGlide, connect) {
     zval*  compression          = NULL;
     zval*  client_side_cache    = NULL;
     zval*  address_resolver     = NULL;
+    zval*  circuit_breaker      = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(0, 21)
+    ZEND_PARSE_PARAMETERS_START(0, 22)
     Z_PARAM_OPTIONAL
     Z_PARAM_STRING_OR_NULL(host, host_len)
     Z_PARAM_ZVAL_OR_NULL(port_zval)
@@ -1080,6 +1156,7 @@ PHP_METHOD(ValkeyGlide, connect) {
     Z_PARAM_ARRAY_OR_NULL(compression)
     Z_PARAM_ARRAY_OR_NULL(client_side_cache)
     Z_PARAM_ZVAL_OR_NULL(address_resolver)
+    Z_PARAM_ARRAY_OR_NULL(circuit_breaker)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* Apply defaults for nullable parameters */
@@ -1153,7 +1230,8 @@ PHP_METHOD(ValkeyGlide, connect) {
                                                 context,
                                                 compression,
                                                 client_side_cache,
-                                                address_resolver);
+                                                address_resolver,
+                                                circuit_breaker);
 
     /* Clean up temporary addresses array if we created it */
     if (host != NULL) {

@@ -53,8 +53,9 @@ int execute_ft_command_internal(const void*      glide_client,
         return 0;
     }
     if (result->command_error) {
-        zend_throw_exception(
-            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
+        zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
+                             result->command_error->command_error_message,
+                             0);
         free_command_result(result);
         return 0;
     }

@@ -243,6 +243,20 @@ uint8_t* create_connection_request(size_t*                                   len
         conn_req.client_side_cache = &client_side_cache_msg;
     }
 
+    /* Set circuit breaker configuration */
+    ConnectionRequest__ClientCircuitBreakerConfig circuit_breaker_msg =
+        CONNECTION_REQUEST__CLIENT_CIRCUIT_BREAKER_CONFIG__INIT;
+    if (config->circuit_breaker) {
+        circuit_breaker_msg.window_size_ms = config->circuit_breaker->window_size_ms;
+        circuit_breaker_msg.failure_rate_threshold =
+            config->circuit_breaker->failure_rate_threshold;
+        circuit_breaker_msg.min_errors            = config->circuit_breaker->min_errors;
+        circuit_breaker_msg.open_timeout_ms       = config->circuit_breaker->open_timeout_ms;
+        circuit_breaker_msg.count_timeouts        = config->circuit_breaker->count_timeouts;
+        circuit_breaker_msg.consecutive_successes = config->circuit_breaker->consecutive_successes;
+        conn_req.client_circuit_breaker           = &circuit_breaker_msg;
+    }
+
     /* Calculate the size of the serialized message */
     *len = connection_request__connection_request__get_packed_size(&conn_req);
 
@@ -2275,8 +2289,9 @@ void execute_update_connection_password(zval*             object,
                              result->command_error->command_error_message
                                  ? result->command_error->command_error_message
                                  : "Unknown error");
-        zend_throw_exception(
-            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
+        zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
+                             result->command_error->command_error_message,
+                             0);
         free_command_result(result);
         return;
     }
@@ -2350,8 +2365,9 @@ void execute_refresh_iam_token(zval* object, zval* return_value, zend_class_entr
                              result->command_error->command_error_message
                                  ? result->command_error->command_error_message
                                  : "Unknown error");
-        zend_throw_exception(
-            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
+        zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
+                             result->command_error->command_error_message,
+                             0);
         free_command_result(result);
         return;
     }
@@ -2429,8 +2445,9 @@ void execute_get_cache_metrics(zval*             object,
                              result->command_error->command_error_message
                                  ? result->command_error->command_error_message
                                  : "Unknown error");
-        zend_throw_exception(
-            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
+        zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
+                             result->command_error->command_error_message,
+                             0);
         free_command_result(result);
         return;
     }

@@ -62,6 +62,14 @@ static inline bool is_sha1_hash(const char* str, size_t len) {
     return len == SHA1_HASH_LENGTH && strspn(str, "0123456789abcdefABCDEF") == SHA1_HASH_LENGTH;
 }
 
+/* Helper to select the correct exception class based on command error type */
+static inline zend_class_entry* get_exception_ce_for_command_error(CommandError* error) {
+    if (error->command_error_type == VALKEY_GLIDE_ERROR_TYPE_CIRCUIT_BREAKER_OPEN) {
+        return get_valkey_glide_circuit_breaker_exception_ce();
+    }
+    return get_valkey_glide_exception_ce();
+}
+
 /* Helper function to handle command result with consistent error handling */
 static inline void handle_command_result_or_throw(CommandResult* result,
                                                   const char*    command_name,
@@ -74,8 +82,8 @@ static inline void handle_command_result_or_throw(CommandResult* result,
         return;
     }
     if (result->command_error) {
-        zend_throw_exception(
-            get_valkey_glide_exception_ce(), result->command_error->command_error_message, 0);
+        zend_class_entry* exception_ce = get_exception_ce_for_command_error(result->command_error);
+        zend_throw_exception(exception_ce, result->command_error->command_error_message, 0);
         free_command_result(result);
         return;
     }
