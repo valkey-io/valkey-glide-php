@@ -2752,11 +2752,26 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testResetWithReplyLiteral()
     {
-        $this->withOptReplyLiteralEnabled(function () {
+        $key = '{reset_test}_' . $this->createRandomString();
+
+        $this->valkey_glide->set($key, 'initial');
+        $this->valkey_glide->watch($key);
+        $this->valkey_glide->set($key, 'modified');
+
+        $this->withOptReplyLiteralEnabled(function () use ($key) {
             $result = $this->valkey_glide->reset();
             $this->assertIsString($result);
             $this->assertEquals('RESET', $result);
         });
+
+        // Verify RESET cleared the WATCH
+        $this->valkey_glide->multi();
+        $this->valkey_glide->set($key, 'in_transaction');
+        $execResult = $this->valkey_glide->exec();
+        $this->assertIsArray($execResult);
+        $this->assertTrue($execResult[0]);
+
+        $this->valkey_glide->del($key);
     }
 
     public function testResetBatch()
