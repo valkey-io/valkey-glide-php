@@ -401,7 +401,7 @@ int execute_save_command(zval* object, int argc, zval* return_value, zend_class_
 }
 
 /* Execute a RESET command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
-int execute_valkey_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+int execute_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
 
     /* Get ValkeyGlide object */

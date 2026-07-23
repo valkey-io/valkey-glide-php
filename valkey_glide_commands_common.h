@@ -160,7 +160,6 @@ int execute_randomkey_command(zval* object, int argc, zval* return_value, zend_c
 /* Server operations */
 int execute_echo_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_ping_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_reset_command(const void* glide_client);
 int execute_info_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 /* Additional operations */
@@ -207,7 +206,7 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
 int execute_flushall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_valkey_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_save_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -489,7 +488,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 #define SAVE_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, save, execute_save_command)
 
 #define RESET_METHOD_IMPL(class_name) \
-    STANDARD_METHOD_IMPL(class_name, reset, execute_valkey_reset_command)
+    STANDARD_METHOD_IMPL(class_name, reset, execute_reset_command)
 
 #define TIME_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, time, execute_time_command)
 
