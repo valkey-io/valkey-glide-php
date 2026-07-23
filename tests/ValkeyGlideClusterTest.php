@@ -673,6 +673,37 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertTrue($result[0]);
     }
 
+    public function testResetClearsConnectionState()
+    {
+        $key = '{reset_test}_' . uniqid();
+
+        // Set initial value
+        $this->valkey_glide->set($key, 'initial');
+
+        // WATCH the key
+        $this->valkey_glide->watch($key);
+
+        // Modify the key (triggers the WATCH)
+        $this->valkey_glide->set($key, 'modified');
+
+        // RESET should clear the WATCH
+        $result = $this->valkey_glide->reset();
+        $this->assertTrue($result);
+
+        // Start a transaction on the same key
+        $this->valkey_glide->multi();
+        $this->valkey_glide->set($key, 'in_transaction');
+        $execResult = $this->valkey_glide->exec();
+
+        // If RESET cleared the WATCH, EXEC succeeds.
+        // If WATCH was still active, EXEC would return false (transaction aborted).
+        $this->assertIsArray($execResult);
+        $this->assertTrue($execResult[0]);
+
+        // Cleanup
+        $this->valkey_glide->del($key);
+    }
+
     public function testSave()
     {
         $this->waitForSaveNotInProgress();
