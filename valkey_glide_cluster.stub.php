@@ -973,8 +973,6 @@ class ValkeyGlideCluster
 
     /**
      * @see ValkeyGlide::reset
-     *
-     * Returns true on success (or "RESET" with OPT_REPLY_LITERAL enabled).
      */
     public function reset(): ValkeyGlideCluster|bool|string;
 

@@ -201,8 +201,8 @@ int prepare_core_args(core_command_args_t* args,
         case Discard:
         case Exec:
         case RandomKey:
-        case Role:
         case Reset:
+        case Role:
         case Save:
         case Time:
             return prepare_zero_args(args, cmd_args, cmd_args_len);

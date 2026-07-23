@@ -649,17 +649,15 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testResetWithReplyLiteral()
     {
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->reset();
+            $this->assertIsString($result);
+            $this->assertEquals('RESET', $result);
 
-        $result = $this->valkey_glide->reset();
-        $this->assertIsString($result);
-        $this->assertEquals('RESET', $result);
-
-        // Verify client recovers after reset (ping succeeds)
-        $pong = $this->valkey_glide->ping('randomNode');
-        $this->assertTrue($pong);
-
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+            // Verify client recovers after reset (ping succeeds)
+            $pong = $this->valkey_glide->ping('randomNode');
+            $this->assertTrue($pong);
+        });
     }
 
     public function testResetBatch()

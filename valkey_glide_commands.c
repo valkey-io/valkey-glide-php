@@ -429,7 +429,6 @@ int execute_valkey_reset_command(zval* object, int argc, zval* return_value, zen
                                          ? process_core_status_string_result
                                          : process_core_status_bool_result;
 
-    /* Execute using unified core framework */
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
