@@ -488,6 +488,9 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 
 #define SAVE_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, save, execute_save_command)
 
+#define RESET_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, reset, execute_valkey_reset_command)
+
 #define TIME_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, time, execute_time_command)
 
 #define SCAN_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, scan, execute_scan_command)
