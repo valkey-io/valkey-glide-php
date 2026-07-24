@@ -731,7 +731,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertTrue($result[0]);
         $this->assertTrue($result[1]);
     }
-  
+
     public function testReset()
     {
         $key = '{reset_test}_' . uniqid();

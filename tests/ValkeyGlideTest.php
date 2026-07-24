@@ -2815,7 +2815,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result[0]);
         $this->assertTrue($result[1]);
     }
-  
+
     public function testReset()
     {
         $key = '{reset_test}_' . $this->createRandomString();

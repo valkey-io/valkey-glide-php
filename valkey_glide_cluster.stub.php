@@ -981,7 +981,7 @@ class ValkeyGlideCluster
      */
     public function clientUnpause(): ValkeyGlideCluster|bool|string;
 
-    /**  
+    /**
      * @see ValkeyGlide::reset
      */
     public function reset(): ValkeyGlideCluster|bool|string;
