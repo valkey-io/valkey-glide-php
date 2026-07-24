@@ -414,8 +414,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $info = $this->valkey_glide->info('allPrimaries', 'persistence');
         foreach ($info as $nodeInfo) {
             if (
-                $nodeInfo['rdb_bgsave_in_progress'] == '1'
-                || $nodeInfo['aof_rewrite_in_progress'] == '1'
+                (isset($nodeInfo['rdb_bgsave_in_progress']) && $nodeInfo['rdb_bgsave_in_progress'] == '1')
+                || (isset($nodeInfo['aof_rewrite_in_progress']) && $nodeInfo['aof_rewrite_in_progress'] == '1')
             ) {
                 return true;
             }
@@ -427,7 +427,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        // Test with allPrimaries route - returns array of node => bool
         $result = $this->valkey_glide->bgSave('allPrimaries');
         $this->assertIsArray($result);
         $this->assertGT(0, count($result));
@@ -439,7 +438,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $this->waitForSaveNotInProgress();
 
-        // Test with randomNode route - returns scalar bool
         $result = $this->valkey_glide->bgSave('randomNode');
         $this->assertTrue($result);
     }
@@ -448,7 +446,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        // Test with allPrimaries route - returns array of node => bool
         $result = $this->valkey_glide->bgSave('allPrimaries', 'SCHEDULE');
         $this->assertIsArray($result);
         $this->assertGT(0, count($result));
@@ -460,7 +457,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $this->waitForSaveNotInProgress();
 
-        // Test with randomNode route - returns scalar bool
         $result = $this->valkey_glide->bgSave('randomNode', 'SCHEDULE');
         $this->assertTrue($result);
     }
@@ -493,52 +489,53 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
-
-        // Test with allPrimaries route - returns array of node => string
-        $result = $this->valkey_glide->bgSave('allPrimaries');
-        $this->assertIsArray($result);
-        foreach ($result as $nodeResult) {
-            $this->assertIsString($nodeResult);
-            $this->assertContains($nodeResult, $this->bgsaveResponses());
-        }
-
-        $this->waitForSaveNotInProgress();
-
-        // Test with randomNode route - returns scalar string
-        $result = $this->valkey_glide->bgSave('randomNode');
-        $this->assertIsString($result);
-        $this->assertContains($result, $this->bgsaveResponses());
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->bgSave('allPrimaries');
+            $this->assertIsArray($result);
+            foreach ($result as $nodeResult) {
+                $this->assertIsString($nodeResult);
+                $this->assertContains($nodeResult, $this->bgsaveResponses());
+            }
+        });
 
         $this->waitForSaveNotInProgress();
 
-        // Test SCHEDULE with allPrimaries route - returns array of node => string
-        $result = $this->valkey_glide->bgSave('allPrimaries', 'SCHEDULE');
-        $this->assertIsArray($result);
-        foreach ($result as $nodeResult) {
-            $this->assertIsString($nodeResult);
-            $this->assertContains($nodeResult, $this->bgsaveResponses());
-        }
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->bgSave('randomNode');
+            $this->assertIsString($result);
+            $this->assertContains($result, $this->bgsaveResponses());
+        });
 
         $this->waitForSaveNotInProgress();
 
-        // Test SCHEDULE with randomNode route - returns scalar string
-        $result = $this->valkey_glide->bgSave('randomNode', 'SCHEDULE');
-        $this->assertIsString($result);
-        $this->assertContains($result, $this->bgsaveResponses());
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->bgSave('allPrimaries', 'SCHEDULE');
+            $this->assertIsArray($result);
+            foreach ($result as $nodeResult) {
+                $this->assertIsString($nodeResult);
+                $this->assertContains($nodeResult, $this->bgsaveResponses());
+            }
+        });
+
+        $this->waitForSaveNotInProgress();
+
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->bgSave('randomNode', 'SCHEDULE');
+            $this->assertIsString($result);
+            $this->assertContains($result, $this->bgsaveResponses());
+        });
 
         if ($this->minVersionCheck('8.1.0')) {
             $this->waitForSaveNotInProgress();
 
-            // CANCEL with no save in progress returns false (see testBgSaveCancel comment)
-            $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
-            $this->assertFalse($result);
+            $this->withOptReplyLiteralEnabled(function () {
+                $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
+                $this->assertFalse($result);
 
-            $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
-            $this->assertFalse($result);
+                $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
+                $this->assertFalse($result);
+            });
         }
-
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
 
     public function testBgSaveBatch()
@@ -582,7 +579,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        // Test with allPrimaries route - returns array of node => bool
         $result = $this->valkey_glide->bgRewriteAof('allPrimaries');
         $this->assertIsArray($result);
         $this->assertGT(0, count($result));
@@ -597,7 +593,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        // Test with randomNode route - returns scalar bool
         $result = $this->valkey_glide->bgRewriteAof('randomNode');
         $this->assertTrue($result);
     }
@@ -606,24 +601,22 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->waitForSaveNotInProgress();
 
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
-
-        // Test with allPrimaries route - returns array of node => string
-        $result = $this->valkey_glide->bgRewriteAof('allPrimaries');
-        $this->assertIsArray($result);
-        foreach ($result as $nodeResult) {
-            $this->assertIsString($nodeResult);
-            $this->assertContains($nodeResult, $this->bgRewriteAofResponses());
-        }
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->bgRewriteAof('allPrimaries');
+            $this->assertIsArray($result);
+            foreach ($result as $nodeResult) {
+                $this->assertIsString($nodeResult);
+                $this->assertContains($nodeResult, $this->bgRewriteAofResponses());
+            }
+        });
 
         $this->waitForSaveNotInProgress();
 
-        // Test with randomNode route - returns scalar string
-        $result = $this->valkey_glide->bgRewriteAof('randomNode');
-        $this->assertIsString($result);
-        $this->assertContains($result, $this->bgRewriteAofResponses());
-
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->bgRewriteAof('randomNode');
+            $this->assertIsString($result);
+            $this->assertContains($result, $this->bgRewriteAofResponses());
+        });
     }
 
     public function testBgRewriteAofBatch()
@@ -708,6 +701,114 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $result = $this->valkey_glide->exec();
         $this->assertTrue($result[0]);
         $this->assertTrue($result[1]);
+    }
+  
+      public function testReset()
+    {
+        $key = '{reset_test}_' . uniqid();
+
+        // Set initial value and WATCH the key
+        $this->valkey_glide->set($key, 'initial');
+        $this->valkey_glide->watch($key);
+
+        // Modify the key (triggers the WATCH)
+        $this->valkey_glide->set($key, 'modified');
+
+        // RESET should clear the WATCH
+        $result = $this->valkey_glide->reset();
+        $this->assertTrue($result);
+
+        // Start a transaction on the same key
+        $this->valkey_glide->multi();
+        $this->valkey_glide->set($key, 'in_transaction');
+        $execResult = $this->valkey_glide->exec();
+
+        // If RESET cleared the WATCH, EXEC succeeds.
+        // If WATCH was still active, EXEC would return false (transaction aborted).
+        $this->assertIsArray($execResult);
+        $this->assertTrue($execResult[0]);
+
+        // Cleanup
+        $this->valkey_glide->del($key);
+    }
+
+    public function testResetWithReplyLiteral()
+    {
+        $key = '{reset_test}_' . uniqid();
+
+        $this->valkey_glide->set($key, 'initial');
+        $this->valkey_glide->watch($key);
+        $this->valkey_glide->set($key, 'modified');
+
+        $this->withOptReplyLiteralEnabled(function () use ($key) {
+            $result = $this->valkey_glide->reset();
+            $this->assertIsString($result);
+            $this->assertEquals('RESET', $result);
+        });
+
+        // Verify RESET cleared the WATCH
+        $this->valkey_glide->multi();
+        $this->valkey_glide->set($key, 'in_transaction');
+        $execResult = $this->valkey_glide->exec();
+        $this->assertIsArray($execResult);
+        $this->assertTrue($execResult[0]);
+
+        $this->valkey_glide->del($key);
+    }
+
+    public function testResetBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->reset();
+        $result = $this->valkey_glide->exec();
+        $this->assertTrue($result[0]);
+    }
+
+    public function testSave()
+    {
+        $this->waitForSaveNotInProgress();
+
+        $result = $this->valkey_glide->save('randomNode');
+        $this->assertTrue($result);
+    }
+
+    public function testSaveWithRoute()
+    {
+        $this->waitForSaveNotInProgress();
+
+        $result = $this->valkey_glide->save('allPrimaries');
+        $this->assertTrue($result);
+    }
+
+    public function testSaveWithReplyLiteral()
+    {
+        $this->waitForSaveNotInProgress();
+
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->save('randomNode');
+            $this->assertIsString($result);
+            $this->assertEquals('OK', $result);
+        });
+    }
+
+    public function testSaveBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->save('randomNode');
+        $result = $this->valkey_glide->exec();
+        $this->assertTrue($result[0]);
     }
 
     public function testInfo()
@@ -1473,15 +1574,13 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $rv = $this->valkey_glide->eval("return {redis.call('set', KEYS[1], 'bar'), redis.call('ping')}", ['foo'], 1);
         $this->assertEquals([true, true], $rv);
 
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
-        $this->assertEquals('OK', $this->valkey_glide->rawCommand('foo', 'set', 'foo', 'bar'));
-        $this->assertEquals('OK', $this->valkey_glide->eval("return redis.call('set', KEYS[1], 'bar')", ['foo'], 1));
+        $this->withOptReplyLiteralEnabled(function () {
+            $this->assertEquals('OK', $this->valkey_glide->rawCommand('foo', 'set', 'foo', 'bar'));
+            $this->assertEquals('OK', $this->valkey_glide->eval("return redis.call('set', KEYS[1], 'bar')", ['foo'], 1));
 
-        $rv = $this->valkey_glide->eval("return {redis.call('set', KEYS[1], 'bar'), redis.call('ping')}", ['foo'], 1);
-        $this->assertEquals(['OK', 'PONG'], $rv);
-
-        // Reset
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+            $rv = $this->valkey_glide->eval("return {redis.call('set', KEYS[1], 'bar'), redis.call('ping')}", ['foo'], 1);
+            $this->assertEquals(['OK', 'PONG'], $rv);
+        });
     }
 
     public function testCopyCluster()
