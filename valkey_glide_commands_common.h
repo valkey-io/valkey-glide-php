@@ -494,6 +494,12 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 
 #define RESET_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, reset, execute_reset_command)
 
+#define CLIENT_PAUSE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, clientPause, execute_client_pause_command)
+
+#define CLIENT_UNPAUSE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, clientUnpause, execute_client_unpause_command)
+
 #define TIME_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, time, execute_time_command)
 
 #define SCAN_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, scan, execute_scan_command)

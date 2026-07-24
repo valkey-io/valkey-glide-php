@@ -675,17 +675,15 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testClientPauseWithReplyLiteral()
     {
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->clientPause(100);
+            $this->assertIsString($result);
+            $this->assertEquals('OK', $result);
 
-        $result = $this->valkey_glide->clientPause(100);
-        $this->assertIsString($result);
-        $this->assertEquals('OK', $result);
-
-        $result = $this->valkey_glide->clientUnpause();
-        $this->assertIsString($result);
-        $this->assertEquals('OK', $result);
-
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+            $result = $this->valkey_glide->clientUnpause();
+            $this->assertIsString($result);
+            $this->assertEquals('OK', $result);
+        });
     }
 
     public function testClientPauseBatch()

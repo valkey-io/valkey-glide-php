@@ -973,15 +973,11 @@ class ValkeyGlideCluster
 
     /**
      * @see ValkeyGlide::clientPause
-     *
-     * Routes to all primary nodes by default.
      */
     public function clientPause(int $timeout, ?string $mode = null): ValkeyGlideCluster|bool|string;
 
     /**
      * @see ValkeyGlide::clientUnpause
-     *
-     * Routes to all primary nodes by default.
      */
     public function clientUnpause(): ValkeyGlideCluster|bool|string;
 

@@ -2371,7 +2371,8 @@ class ValkeyGlide
      *                              "WRITE" pauses only write commands (reads still allowed).
      *
      * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
-     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" instead.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" on success,
+     *                                  false on failure.
      *
      * @see https://valkey.io/commands/client-pause
      */
@@ -2381,7 +2382,8 @@ class ValkeyGlide
      * Resume processing commands on all clients that were paused by CLIENT PAUSE.
      *
      * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
-     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" instead.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" on success,
+     *                                  false on failure.
      *
      * @see https://valkey.io/commands/client-unpause
      */

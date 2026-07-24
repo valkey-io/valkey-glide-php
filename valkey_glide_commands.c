@@ -475,7 +475,6 @@ int execute_client_pause_command(zval* object, int argc, zval* return_value, zen
                                          ? process_core_status_string_result
                                          : process_core_status_bool_result;
 
-    /* Execute using unified core framework */
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
@@ -508,7 +507,6 @@ int execute_client_unpause_command(zval*             object,
                                          ? process_core_status_string_result
                                          : process_core_status_bool_result;
 
-    /* Execute using unified core framework */
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
@@ -611,7 +609,6 @@ int execute_unwatch_command(zval* object, int argc, zval* return_value, zend_cla
         return 0;
     }
 
-    /* Execute using core framework */
     core_command_args_t args = {0};
     args.glide_client        = valkey_glide->glide_client;
     args.cmd_type            = UnWatch;
