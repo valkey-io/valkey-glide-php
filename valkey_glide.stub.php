@@ -2361,6 +2361,17 @@ class ValkeyGlide
     public function ping(?string $message = null): ValkeyGlide|string|bool;
 
     /**
+     * Reset the connection's server-side context.
+     *
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "RESET" on success,
+     *                                  false on failure.
+     *
+     * @see https://valkey.io/commands/reset
+     */
+    public function reset(): ValkeyGlide|bool|string;
+
+    /**
      * Enter into pipeline mode.
      *
      * Pipeline mode is the highest performance way to send many commands to ValkeyGlide

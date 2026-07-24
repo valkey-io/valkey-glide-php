@@ -972,6 +972,11 @@ class ValkeyGlideCluster
     public function ping(mixed $route, ?string $message = null): mixed;
 
     /**
+     * @see ValkeyGlide::reset
+     */
+    public function reset(): ValkeyGlideCluster|bool|string;
+
+    /**
      * @see ValkeyGlide::psetex
      */
     public function psetex(string $key, int $timeout, string $value): ValkeyGlideCluster|bool;
