@@ -2723,38 +2723,69 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testClientPause()
     {
-        $result = $this->valkey_glide->clientPause(100);
+        $key = 'client_pause_all_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'before');
+
+        $pauseMs = 2000;
+        $result = $this->valkey_glide->clientPause($pauseMs);
         $this->assertTrue($result);
+
+        // Verify that reads are blocked until the pause expires
+        $start = microtime(true);
+        $value = $this->valkey_glide->get($key);
+        $elapsed = (microtime(true) - $start) * 1000;
+
+        $this->assertEquals('before', $value);
+        $this->assertGTE($pauseMs * 0.8, $elapsed);
+
+        $this->valkey_glide->del($key);
     }
 
     public function testClientPauseWithMode()
     {
-        // Set a value before pausing
-        $this->valkey_glide->set('client_pause_test', 'value');
+        $key = 'client_pause_write_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'value');
 
         // Pause with WRITE mode - only writes are blocked, reads still allowed
-        $result = $this->valkey_glide->clientPause(2000, 'WRITE');
+        $pauseMs = 60000;
+        $result = $this->valkey_glide->clientPause($pauseMs, 'WRITE');
         $this->assertTrue($result);
 
-        // Reads should still work during WRITE pause
-        $value = $this->valkey_glide->get('client_pause_test');
+        // Reads should still work quickly during WRITE pause
+        $start = microtime(true);
+        $value = $this->valkey_glide->get($key);
+        $elapsed = (microtime(true) - $start) * 1000;
+
         $this->assertEquals('value', $value);
+        $this->assertLT($pauseMs, $elapsed);
 
         // Unpause to restore normal operation
         $this->valkey_glide->clientUnpause();
+        $this->valkey_glide->del($key);
     }
 
     public function testClientUnpause()
     {
+        $key = 'client_unpause_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'before');
+
+        // Pause writes for a long time
+        $pauseMs = 60000;
+        $this->valkey_glide->clientPause($pauseMs, 'WRITE');
+
+        // Unpause should unblock immediately
         $result = $this->valkey_glide->clientUnpause();
         $this->assertTrue($result);
-    }
 
-    public function testClientPauseAndUnpause()
-    {
-        // Use a short pause so it expires before the unpause command times out
-        $this->assertTrue($this->valkey_glide->clientPause(200));
-        $this->assertTrue($this->valkey_glide->clientUnpause());
+        // Verify writes work quickly after unpause
+        $start = microtime(true);
+        $this->valkey_glide->set($key, 'after');
+        $elapsed = (microtime(true) - $start) * 1000;
+
+        $this->assertLT($pauseMs, $elapsed);
+        $this->assertEquals('after', $this->valkey_glide->get($key));
+
+        $this->valkey_glide->del($key);
     }
 
     public function testClientPauseWithReplyLiteral()
