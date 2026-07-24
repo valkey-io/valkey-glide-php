@@ -828,7 +828,7 @@ CLIENT_PAUSE_METHOD_IMPL(ValkeyGlide)
 
 /* {{{ proto bool ValkeyGlide::clientUnpause() */
 CLIENT_UNPAUSE_METHOD_IMPL(ValkeyGlide)
-/* }}} */  
+/* }}} */
 
 /* {{{ proto bool ValkeyGlide::reset() */
 RESET_METHOD_IMPL(ValkeyGlide)
