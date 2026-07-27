@@ -2720,7 +2720,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $result = $this->valkey_glide->exec();
         $this->assertTrue($result[0]);
     }
-  
+
     public function testMigrate()
     {
         $key = '{migrate_test}_' . uniqid();
@@ -2803,7 +2803,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         $this->markTestSkipped('Multi-key migration not supported in cluster mode');
     }
-  
+
     public function testReset()
     {
         $key = '{reset_test}_' . $this->createRandomString();
@@ -2869,7 +2869,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $result = $this->valkey_glide->exec();
         $this->assertTrue($result[0]);
     }
-  
+
     /**
      * Valid BGSAVE response strings (used when OPT_REPLY_LITERAL is enabled).
      */
