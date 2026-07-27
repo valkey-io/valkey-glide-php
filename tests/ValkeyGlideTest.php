@@ -89,6 +89,32 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     /**
+     * Start a destination Valkey server for migrate tests.
+     * Returns the port number of the new server.
+     */
+    protected function startDestinationServer(): int
+    {
+        $script = __DIR__ . '/../valkey-glide/utils/cluster_manager.py';
+        $folderPath = sys_get_temp_dir() . '/migrate_dest_' . getmypid();
+        $output = shell_exec("python3 $script start --prefix migrate-dest -r 0 --folder-path $folderPath 2>&1");
+        if (preg_match('/CLUSTER_NODES=(.+)/', $output, $matches)) {
+            $hostPort = trim($matches[1]);
+            return (int) explode(':', $hostPort)[1];
+        }
+        return 0;
+    }
+
+    /**
+     * Stop the destination Valkey server used for migrate tests.
+     */
+    protected function stopDestinationServer(): void
+    {
+        $script = __DIR__ . '/../valkey-glide/utils/cluster_manager.py';
+        $folderPath = sys_get_temp_dir() . '/migrate_dest_' . getmypid();
+        shell_exec("python3 $script stop --prefix migrate-dest --folder-path $folderPath 2>&1");
+    }
+
+    /**
      * Execute a callable with OPT_REPLY_LITERAL enabled, ensuring it is
      * always disabled afterwards even if an exception is thrown.
      */
@@ -2723,50 +2749,143 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testMigrate()
     {
-        $key = '{migrate_test}_' . uniqid();
+        $key = 'migrate_' . $this->createRandomString();
         $this->valkey_glide->set($key, 'test_value');
 
-        // Attempt to migrate to a non-existent host - should return false (error)
-        $result = $this->valkey_glide->migrate('nonexistent.invalid', 6379, $key, 0, 1000);
+        // Existing key + invalid host returns false (connection error)
+        $result = $this->valkey_glide->migrate('nonexistent.invalid', 9999, $key, 0, 1000);
         $this->assertFalse($result);
 
-        // Clean up
         $this->valkey_glide->del($key);
     }
 
-    public function testMigrateWithOptions()
+    public function testMigrateNonExistentKeyReturnsFalse()
     {
-        $key = '{migrate_opts}_' . uniqid();
-        $this->valkey_glide->set($key, 'test_value');
-
-        // Attempt to migrate with COPY and REPLACE options
+        // Non-existent key returns true (NOKEY is treated as success without literal)
         $result = $this->valkey_glide->migrate(
             'nonexistent.invalid',
             6379,
-            $key,
+            'nonexistent_key_' . $this->createRandomString(),
             0,
-            1000,
-            true,
-            true
+            1000
         );
-        $this->assertFalse($result);
-
-        // Clean up
-        $this->valkey_glide->del($key);
+        $this->assertTrue($result);
     }
 
-    public function testMigrateSingleKeyNokey()
+    public function testMigrateMultiKeyNonExistentReturnsFalse()
+    {
+        // Multi non-existent keys returns true (NOKEY)
+        $result = $this->valkey_glide->migrate(
+            'nonexistent.invalid',
+            6379,
+            ['nonexistent_key1_' . $this->createRandomString(), 'nonexistent_key2_' . $this->createRandomString()],
+            0,
+            1000
+        );
+        $this->assertTrue($result);
+    }
+
+    public function testMigrateEmptyKeys()
+    {
+        // Empty keys array should return false (client-side validation)
+        $result = $this->valkey_glide->migrate(
+            'nonexistent.invalid',
+            6379,
+            [],
+            0,
+            1000
+        );
+        $this->assertFalse($result);
+    }
+
+    public function testMigrateNonExistentKeyWithReplyLiteral()
     {
         $this->withOptReplyLiteralEnabled(function () {
             $result = $this->valkey_glide->migrate(
                 'nonexistent.invalid',
                 6379,
-                'nonexistent_key',
+                'nonexistent_key_' . $this->createRandomString(),
                 0,
                 1000
             );
             $this->assertEquals('NOKEY', $result);
         });
+    }
+
+    public function testMigrateSingleKeySuccess()
+    {
+        $port = $this->startDestinationServer();
+
+        $key = 'migrate_success_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'migrate_value');
+
+        $result = $this->valkey_glide->migrate('127.0.0.1', $port, $key, 0, 5000);
+        $this->assertTrue($result);
+
+        // Key should be removed from source
+        $this->assertFalse($this->valkey_glide->exists($key));
+
+        $this->stopDestinationServer();
+    }
+
+    public function testMigrateMultiKeySuccess()
+    {
+        $port = $this->startDestinationServer();
+
+        $key1 = 'migrate_multi1_' . $this->createRandomString();
+        $key2 = 'migrate_multi2_' . $this->createRandomString();
+        $this->valkey_glide->set($key1, 'value1');
+        $this->valkey_glide->set($key2, 'value2');
+
+        $result = $this->valkey_glide->migrate('127.0.0.1', $port, [$key1, $key2], 0, 5000);
+        $this->assertTrue($result);
+
+        // Keys should be removed from source
+        $this->assertFalse($this->valkey_glide->exists($key1));
+        $this->assertFalse($this->valkey_glide->exists($key2));
+
+        $this->stopDestinationServer();
+    }
+
+    public function testMigrateWithCopyKeyRemainsAtSource()
+    {
+        $port = $this->startDestinationServer();
+
+        $key = 'migrate_copy_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'copy_value');
+
+        $result = $this->valkey_glide->migrate('127.0.0.1', $port, $key, 0, 5000, true);
+        $this->assertTrue($result);
+
+        // Key should remain at source with COPY flag
+        $this->assertTrue($this->valkey_glide->exists($key));
+        $this->assertEquals('copy_value', $this->valkey_glide->get($key));
+
+        $this->valkey_glide->del($key);
+        $this->stopDestinationServer();
+    }
+
+    public function testMigrateWithReplaceOverwritesDestination()
+    {
+        $port = $this->startDestinationServer();
+
+        $key = 'migrate_replace_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'source_value');
+
+        // First migrate to create key at destination
+        $this->valkey_glide->migrate('127.0.0.1', $port, $key, 0, 5000, true);
+
+        // Set a new value at source
+        $this->valkey_glide->set($key, 'new_source_value');
+
+        // Migrate with REPLACE - should overwrite destination
+        $result = $this->valkey_glide->migrate('127.0.0.1', $port, $key, 0, 5000, false, true);
+        $this->assertTrue($result);
+
+        // Key should be removed from source (no COPY flag)
+        $this->assertFalse($this->valkey_glide->exists($key));
+
+        $this->stopDestinationServer();
     }
 
     public function testMigrateBatch()
@@ -2780,28 +2899,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->migrate(
             'nonexistent.invalid',
             6379,
-            'nonexistent_key',
+            'nonexistent_key_' . $this->createRandomString(),
             0,
             1000
         );
         $result = $this->valkey_glide->exec();
-        // Non-existent key returns NOKEY status (processed as true without literal)
         $this->assertTrue($result[0]);
-    }
-
-    public function testMigrateMultiKeyNokey()
-    {
-        $this->markTestSkipped('Multi-key migration not supported in cluster mode');
-    }
-
-    public function testMigrateBatchMultiKey()
-    {
-        $this->markTestSkipped('Multi-key migration not supported in cluster mode');
-    }
-
-    public function testMigrateEmptyKeys()
-    {
-        $this->markTestSkipped('Multi-key migration not supported in cluster mode');
     }
 
     public function testReset()
