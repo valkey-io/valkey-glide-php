@@ -2899,6 +2899,108 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
 
 
+    public function testReplicaofAndReplicaofNoOne()
+    {
+        $replica = new ValkeyGlide();
+        $replica->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6381]]
+        );
+
+        // Verify it's currently a replica
+        $info = $replica->info(['REPLICATION']);
+        $this->assertStringContains('role:slave', $info);
+
+        // Promote to primary with REPLICAOF NO ONE
+        $result = $replica->replicaof();
+        $this->assertTrue($result);
+
+        // Verify role changed to master
+        $info = $replica->info(['REPLICATION']);
+        $this->assertStringContains('role:master', $info);
+
+        // Restore back to replica of 6379
+        $result = $replica->replicaof('127.0.0.1', 6379);
+        $this->assertTrue($result);
+
+        usleep(500000);
+
+        // Verify role changed back to slave
+        $info = $replica->info(['REPLICATION']);
+        $this->assertStringContains('role:slave', $info);
+
+        $replica->close();
+    }
+
+    public function testReplicaofWithReplyLiteral()
+    {
+        $replica = new ValkeyGlide();
+        $replica->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6381]]
+        );
+
+        $this->withOptReplyLiteralEnabled($replica, function () use ($replica) {
+            $result = $replica->replicaof();
+            $this->assertEquals('OK', $result);
+
+            $result = $replica->replicaof('127.0.0.1', 6379);
+            $this->assertEquals('OK', $result);
+        });
+
+        usleep(500000);
+        $replica->close();
+    }
+
+    public function testFailoverAbortNoFailoverInProgress()
+    {
+        $threw = false;
+        try {
+            $this->valkey_glide->failover(null, true);
+        } catch (\Exception $e) {
+            $threw = true;
+            $this->assertStringContains('No failover in progress', $e->getMessage());
+        }
+        $this->assertTrue($threw);
+    }
+
+    public function testFailoverSucceeds()
+    {
+        // Verify primary has replicas before attempting failover
+        $info = $this->valkey_glide->info(['REPLICATION']);
+        $this->assertStringContains('role:master', $info);
+
+        // FAILOVER returns OK immediately (failover is async)
+        $result = $this->valkey_glide->failover();
+        $this->assertTrue($result);
+
+        // Wait for failover to complete
+        usleep(3000000);
+
+        // Restore original replication topology
+        $this->valkey_glide->replicaof();
+
+        $replica1 = new ValkeyGlide();
+        $replica1->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6380]]
+        );
+        $replica2 = new ValkeyGlide();
+        $replica2->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6381]]
+        );
+
+        $replica1->replicaof('127.0.0.1', 6379);
+        $replica2->replicaof('127.0.0.1', 6379);
+
+        usleep(1000000);
+
+        // Verify topology restored
+        $info = $this->valkey_glide->info(['REPLICATION']);
+        $this->assertStringContains('role:master', $info);
+
+        $replica1->close();
+        $replica2->close();
+    }
+
+
     public function testWait()
     {
         // Closest we can check based on redis commit history

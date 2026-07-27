@@ -206,6 +206,8 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
 int execute_flushall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_failover_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_replicaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_save_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -486,6 +488,12 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
     STANDARD_METHOD_IMPL(class_name, bgRewriteAof, execute_bgrewriteaof_command)
 
 #define SAVE_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, save, execute_save_command)
+
+#define FAILOVER_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, failover, execute_failover_command)
+
+#define REPLICAOF_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, replicaof, execute_replicaof_command)
 
 #define RESET_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, reset, execute_reset_command)
 
