@@ -39,11 +39,12 @@ valkey-server --port 6381 \
 
 # Start independent standalone server for migrate tests (6382)
 valkey-server --port 6382 \
-  --bind 127.0.0.1 ::1 \
+  --bind 0.0.0.0 \
   --dir "$BASE_DIR/6382" \
   --daemonize yes \
   --logfile "$BASE_DIR/6382/valkey.log" \
-  --enable-debug-command yes
+  --enable-debug-command yes \
+  --protected-mode no
 
 # Handle TLS setup with graceful failure
 echo "Setting up TLS standalone server..."
