@@ -9,7 +9,7 @@ cd "$SCRIPT_DIR"
 BASE_DIR="$(pwd)/valkey_data"
 
 # Create data directories with full path
-for port in 6379 6380 6381; do
+for port in 6379 6380 6381 6382; do
   mkdir -p "$BASE_DIR/$port"
 done
 
@@ -35,6 +35,14 @@ valkey-server --port 6381 \
   --dir "$BASE_DIR/6381" \
   --daemonize yes \
   --logfile "$BASE_DIR/6381/valkey.log" \
+  --enable-debug-command yes
+
+# Start independent standalone server for migrate tests (6382)
+valkey-server --port 6382 \
+  --bind 127.0.0.1 ::1 \
+  --dir "$BASE_DIR/6382" \
+  --daemonize yes \
+  --logfile "$BASE_DIR/6382/valkey.log" \
   --enable-debug-command yes
 
 # Handle TLS setup with graceful failure

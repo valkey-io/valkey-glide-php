@@ -89,29 +89,25 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     /**
-     * Start a destination Valkey server for migrate tests.
-     * Returns the port number of the new server.
+     * Port for the destination Valkey server used in migrate tests.
      */
-    protected function startDestinationServer(): int
-    {
-        $script = __DIR__ . '/../valkey-glide/utils/cluster_manager.py';
-        $folderPath = sys_get_temp_dir() . '/migrate_dest_' . getmypid();
-        $output = shell_exec("python3 $script start --prefix migrate-dest -r 0 --folder-path $folderPath 2>&1");
-        if (preg_match('/CLUSTER_NODES=(.+)/', $output, $matches)) {
-            $hostPort = trim($matches[1]);
-            return (int) explode(':', $hostPort)[1];
-        }
-        return 0;
-    }
+    protected const MIGRATE_DEST_PORT = 6382;
 
     /**
-     * Stop the destination Valkey server used for migrate tests.
+     * Shared destination client for migrate tests.
      */
-    protected function stopDestinationServer(): void
+    protected ?ValkeyGlide $migrateDestClient = null;
+
+    protected function getMigrateDestClient(): ValkeyGlide
     {
-        $script = __DIR__ . '/../valkey-glide/utils/cluster_manager.py';
-        $folderPath = sys_get_temp_dir() . '/migrate_dest_' . getmypid();
-        shell_exec("python3 $script stop --prefix migrate-dest --folder-path $folderPath 2>&1");
+        if ($this->migrateDestClient === null) {
+            $this->migrateDestClient = new ValkeyGlide();
+            $this->migrateDestClient->connect(
+                addresses: [['host' => '127.0.0.1', 'port' => self::MIGRATE_DEST_PORT]]
+            );
+        }
+        $this->migrateDestClient->flushDb();
+        return $this->migrateDestClient;
     }
 
     /**
@@ -2814,78 +2810,76 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testMigrateSingleKeySuccess()
     {
-        $port = $this->startDestinationServer();
+        $dest = $this->getMigrateDestClient();
 
         $key = 'migrate_success_' . $this->createRandomString();
         $this->valkey_glide->set($key, 'migrate_value');
 
-        $result = $this->valkey_glide->migrate('127.0.0.1', $port, $key, 0, 5000);
+        $result = $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, $key, 0, 5000);
         $this->assertTrue($result);
 
-        // Key should be removed from source
+        // Key should be removed from source and exist at destination
         $this->assertFalse($this->valkey_glide->exists($key));
-
-        $this->stopDestinationServer();
+        $this->assertEquals('migrate_value', $dest->get($key));
     }
 
     public function testMigrateMultiKeySuccess()
     {
-        $port = $this->startDestinationServer();
+        $dest = $this->getMigrateDestClient();
 
         $key1 = 'migrate_multi1_' . $this->createRandomString();
         $key2 = 'migrate_multi2_' . $this->createRandomString();
         $this->valkey_glide->set($key1, 'value1');
         $this->valkey_glide->set($key2, 'value2');
 
-        $result = $this->valkey_glide->migrate('127.0.0.1', $port, [$key1, $key2], 0, 5000);
+        $result = $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, [$key1, $key2], 0, 5000);
         $this->assertTrue($result);
 
-        // Keys should be removed from source
+        // Keys should be removed from source and exist at destination
         $this->assertFalse($this->valkey_glide->exists($key1));
         $this->assertFalse($this->valkey_glide->exists($key2));
-
-        $this->stopDestinationServer();
+        $this->assertEquals('value1', $dest->get($key1));
+        $this->assertEquals('value2', $dest->get($key2));
     }
 
     public function testMigrateWithCopyKeyRemainsAtSource()
     {
-        $port = $this->startDestinationServer();
+        $dest = $this->getMigrateDestClient();
 
         $key = 'migrate_copy_' . $this->createRandomString();
         $this->valkey_glide->set($key, 'copy_value');
 
-        $result = $this->valkey_glide->migrate('127.0.0.1', $port, $key, 0, 5000, true);
+        $result = $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, $key, 0, 5000, true);
         $this->assertTrue($result);
 
-        // Key should remain at source with COPY flag
+        // Key should remain at source and also exist at destination
         $this->assertTrue($this->valkey_glide->exists($key));
         $this->assertEquals('copy_value', $this->valkey_glide->get($key));
+        $this->assertEquals('copy_value', $dest->get($key));
 
         $this->valkey_glide->del($key);
-        $this->stopDestinationServer();
     }
 
     public function testMigrateWithReplaceOverwritesDestination()
     {
-        $port = $this->startDestinationServer();
+        $dest = $this->getMigrateDestClient();
 
         $key = 'migrate_replace_' . $this->createRandomString();
         $this->valkey_glide->set($key, 'source_value');
 
-        // First migrate to create key at destination
-        $this->valkey_glide->migrate('127.0.0.1', $port, $key, 0, 5000, true);
+        // First migrate with COPY to create key at destination
+        $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, $key, 0, 5000, true);
 
         // Set a new value at source
         $this->valkey_glide->set($key, 'new_source_value');
 
         // Migrate with REPLACE - should overwrite destination
-        $result = $this->valkey_glide->migrate('127.0.0.1', $port, $key, 0, 5000, false, true);
+        $result = $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, $key, 0, 5000, false, true);
         $this->assertTrue($result);
 
-        // Key should be removed from source (no COPY flag)
+        // Key should be removed from source, destination has new value
         $this->assertFalse($this->valkey_glide->exists($key));
-
-        $this->stopDestinationServer();
+        $this->assertEquals('new_source_value', $dest->get($key));
     }
 
     public function testMigrateBatch()

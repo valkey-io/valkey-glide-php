@@ -677,59 +677,57 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testMigrateSingleKeySuccess()
     {
-        $port = $this->startDestinationServer();
+        $dest = $this->getMigrateDestClient();
 
         $key = '{migrate_success}_' . uniqid();
         $this->valkey_glide->set($key, 'migrate_value');
 
-        $result = $this->valkey_glide->migrate('127.0.0.1', $port, $key, 0, 5000);
+        $result = $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, $key, 0, 5000);
         $this->assertTrue($result);
 
-        // Key should be removed from source
+        // Key should be removed from source and exist at destination
         $this->assertFalse($this->valkey_glide->exists($key));
-
-        $this->stopDestinationServer();
+        $this->assertEquals('migrate_value', $dest->get($key));
     }
 
     public function testMigrateWithCopyKeyRemainsAtSource()
     {
-        $port = $this->startDestinationServer();
+        $dest = $this->getMigrateDestClient();
 
         $key = '{migrate_copy}_' . uniqid();
         $this->valkey_glide->set($key, 'copy_value');
 
-        $result = $this->valkey_glide->migrate('127.0.0.1', $port, $key, 0, 5000, true);
+        $result = $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, $key, 0, 5000, true);
         $this->assertTrue($result);
 
-        // Key should remain at source with COPY flag
+        // Key should remain at source and also exist at destination
         $this->assertTrue($this->valkey_glide->exists($key));
         $this->assertEquals('copy_value', $this->valkey_glide->get($key));
+        $this->assertEquals('copy_value', $dest->get($key));
 
         $this->valkey_glide->del($key);
-        $this->stopDestinationServer();
     }
 
     public function testMigrateWithReplaceOverwritesDestination()
     {
-        $port = $this->startDestinationServer();
+        $dest = $this->getMigrateDestClient();
 
         $key = '{migrate_replace}_' . uniqid();
         $this->valkey_glide->set($key, 'source_value');
 
         // First migrate with COPY to create key at destination
-        $this->valkey_glide->migrate('127.0.0.1', $port, $key, 0, 5000, true);
+        $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, $key, 0, 5000, true);
 
         // Set a new value at source
         $this->valkey_glide->set($key, 'new_source_value');
 
         // Migrate with REPLACE - should overwrite destination
-        $result = $this->valkey_glide->migrate('127.0.0.1', $port, $key, 0, 5000, false, true);
+        $result = $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, $key, 0, 5000, false, true);
         $this->assertTrue($result);
 
-        // Key should be removed from source (no COPY flag)
+        // Key should be removed from source, destination has new value
         $this->assertFalse($this->valkey_glide->exists($key));
-
-        $this->stopDestinationServer();
+        $this->assertEquals('new_source_value', $dest->get($key));
     }
 
     public function testMigrateBatch()
