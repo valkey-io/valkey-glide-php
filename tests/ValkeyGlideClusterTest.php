@@ -649,7 +649,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->valkey_glide->del($key);
     }
 
-    public function testMigrateNonExistentKeyReturnsFalse()
+    public function testMigrateNonExistentKeyReturnsTrue()
     {
         $result = $this->valkey_glide->migrate(
             'nonexistent.invalid',
@@ -754,12 +754,17 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->markTestSkipped('Multi-key migration not supported in cluster mode');
     }
 
-    public function testMigrateMultiKeyNonExistentReturnsFalse()
+    public function testMigrateMultiKeyNonExistentReturnsTrue()
     {
         $this->markTestSkipped('Multi-key migration not supported in cluster mode');
     }
 
     public function testMigrateMultiKeySuccess()
+    {
+        $this->markTestSkipped('Multi-key migration not supported in cluster mode');
+    }
+
+    public function testMigrateBatchMultiKey()
     {
         $this->markTestSkipped('Multi-key migration not supported in cluster mode');
     }

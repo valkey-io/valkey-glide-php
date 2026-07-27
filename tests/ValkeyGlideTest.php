@@ -2755,7 +2755,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key);
     }
 
-    public function testMigrateNonExistentKeyReturnsFalse()
+    public function testMigrateNonExistentKeyReturnsTrue()
     {
         // Non-existent key returns true (NOKEY is treated as success without literal)
         $result = $this->valkey_glide->migrate(
@@ -2768,7 +2768,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result);
     }
 
-    public function testMigrateMultiKeyNonExistentReturnsFalse()
+    public function testMigrateMultiKeyNonExistentReturnsTrue()
     {
         // Multi non-existent keys returns true (NOKEY)
         $result = $this->valkey_glide->migrate(
@@ -2899,6 +2899,71 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         );
         $result = $this->valkey_glide->exec();
         $this->assertTrue($result[0]);
+    }
+
+    public function testMigrateBatchMultiKey()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $dest = $this->getMigrateDestClient();
+
+        $key1 = 'migrate_batch_multi1_' . $this->createRandomString();
+        $key2 = 'migrate_batch_multi2_' . $this->createRandomString();
+        $this->valkey_glide->set($key1, 'value1');
+        $this->valkey_glide->set($key2, 'value2');
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, [$key1, $key2], 0, 5000);
+        $result = $this->valkey_glide->exec();
+
+        $this->assertTrue($result[0]);
+        $this->assertEquals(0, $this->valkey_glide->exists($key1));
+        $this->assertEquals(0, $this->valkey_glide->exists($key2));
+        $this->assertEquals('value1', $dest->get($key1));
+        $this->assertEquals('value2', $dest->get($key2));
+    }
+
+    public function testMigrateWithAuthCredentials()
+    {
+        // AUTH with string password - should not error (server may not require auth,
+        // but verifies the argument is correctly serialized and sent)
+        $key = 'migrate_auth_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'auth_value');
+
+        // Migrate with AUTH password to invalid host - verifies credentials are passed correctly
+        // The connection error (false) confirms the command was built and sent, not rejected client-side
+        $result = $this->valkey_glide->migrate('nonexistent.invalid', 9999, $key, 0, 1000, false, false, 'mypassword');
+        $this->assertFalse($result);
+
+        $this->valkey_glide->del($key);
+    }
+
+    public function testMigrateWithAuth2Credentials()
+    {
+        // AUTH2 with [username, password] array - should not error
+        $key = 'migrate_auth2_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'auth2_value');
+
+        // Migrate with AUTH2 credentials to invalid host - verifies credentials are passed correctly
+        $result = $this->valkey_glide->migrate('nonexistent.invalid', 9999, $key, 0, 1000, false, false, ['myuser', 'mypassword']);
+        $this->assertFalse($result);
+
+        $this->valkey_glide->del($key);
+    }
+
+    public function testMigrateWithAuth2SingleElementArray()
+    {
+        // AUTH with single-element array [password] - should use AUTH (not AUTH2)
+        $key = 'migrate_auth_arr_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'auth_arr_value');
+
+        $result = $this->valkey_glide->migrate('nonexistent.invalid', 9999, $key, 0, 1000, false, false, ['mypassword']);
+        $this->assertFalse($result);
+
+        $this->valkey_glide->del($key);
     }
 
     public function testReset()

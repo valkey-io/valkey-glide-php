@@ -4,7 +4,7 @@
 
 ### Changes
 
-* Add `MIGRATE` command for standalone and cluster clients ([#275](https://github.com/valkey-io/valkey-glide-php/pull/275))
+* Add `MIGRATE` command for standalone and cluster clients ([#276](https://github.com/valkey-io/valkey-glide-php/pull/276))
 * Add `RESET` command for standalone and cluster clients ([#273](https://github.com/valkey-io/valkey-glide-php/pull/273))
 * Add `SAVE` command for standalone and cluster clients ([#272](https://github.com/valkey-io/valkey-glide-php/pull/272))
 * Add `BGREWRITEAOF` command for standalone and cluster clients ([#271](https://github.com/valkey-io/valkey-glide-php/pull/271))

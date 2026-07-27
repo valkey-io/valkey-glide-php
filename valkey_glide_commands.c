@@ -465,14 +465,12 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
     /* Handle credentials: AUTH password or AUTH2 username password */
     if (z_credentials && Z_TYPE_P(z_credentials) != IS_NULL) {
         if (Z_TYPE_P(z_credentials) == IS_STRING) {
-            /* Simple password: AUTH password */
-            if (arg_idx < 11) {
+            /* Simple password: AUTH password (need 2 slots) */
+            if (arg_idx + 1 < 12) {
                 core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
                 core_args.args[arg_idx].data.string_arg.value = "AUTH";
                 core_args.args[arg_idx].data.string_arg.len   = 4;
                 arg_idx++;
-            }
-            if (arg_idx < 12) {
                 core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
                 core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_credentials);
                 core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_credentials);
@@ -534,26 +532,62 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
         }
     }
 
-    /* For multi-key: append KEYS keyword and individual keys */
-    if (Z_TYPE_P(z_key) == IS_ARRAY && arg_idx < 12) {
-        core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
-        core_args.args[arg_idx].data.string_arg.value = "KEYS";
-        core_args.args[arg_idx].data.string_arg.len   = 4;
-        arg_idx++;
+    /* For multi-key: append KEYS keyword and individual keys using dynamic args */
+    if (Z_TYPE_P(z_key) == IS_ARRAY) {
+        int num_keys = zend_hash_num_elements(Z_ARRVAL_P(z_key));
 
-        /* Add individual keys from the array */
+        /* Total items to append: 1 (KEYS keyword) + num_keys */
+        int total_to_append       = 1 + num_keys;
+        int fixed_slots_remaining = 12 - arg_idx;
+        int items_in_fixed =
+            (fixed_slots_remaining > total_to_append) ? total_to_append : fixed_slots_remaining;
+        int items_in_dynamic = total_to_append - items_in_fixed;
+
+        /* Allocate dynamic overflow if needed */
+        core_arg_t* dyn_buf = NULL;
+        if (items_in_dynamic > 0) {
+            dyn_buf = (core_arg_t*) ecalloc(items_in_dynamic, sizeof(core_arg_t));
+        }
+
+        int dyn_idx  = 0;
+        int item_num = 0;
+
+        /* Append KEYS keyword */
+        if (item_num < items_in_fixed) {
+            core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+            core_args.args[arg_idx].data.string_arg.value = "KEYS";
+            core_args.args[arg_idx].data.string_arg.len   = 4;
+            arg_idx++;
+        } else {
+            dyn_buf[dyn_idx].type                  = CORE_ARG_TYPE_STRING;
+            dyn_buf[dyn_idx].data.string_arg.value = "KEYS";
+            dyn_buf[dyn_idx].data.string_arg.len   = 4;
+            dyn_idx++;
+        }
+        item_num++;
+
+        /* Append individual keys */
         zval* z_val;
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(z_key), z_val) {
-            if (arg_idx >= 12)
-                break;
             if (Z_TYPE_P(z_val) == IS_STRING) {
-                core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
-                core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_val);
-                core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_val);
-                arg_idx++;
+                if (item_num < items_in_fixed) {
+                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                    core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_val);
+                    core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_val);
+                    arg_idx++;
+                } else {
+                    dyn_buf[dyn_idx].type                  = CORE_ARG_TYPE_STRING;
+                    dyn_buf[dyn_idx].data.string_arg.value = Z_STRVAL_P(z_val);
+                    dyn_buf[dyn_idx].data.string_arg.len   = Z_STRLEN_P(z_val);
+                    dyn_idx++;
+                }
+                item_num++;
             }
         }
         ZEND_HASH_FOREACH_END();
+
+        core_args.dyn_args      = dyn_buf;
+        core_args.dyn_arg_count = dyn_idx;
     }
 
     core_args.arg_count = arg_idx;
@@ -565,7 +599,15 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
                                          ? process_core_status_string_result
                                          : process_core_status_bool_result;
 
-    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+    int result =
+        execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+
+    /* Free dynamic args if allocated */
+    if (core_args.dyn_args) {
+        efree(core_args.dyn_args);
+    }
+
+    return result;
 }
 
 /* Execute a SAVE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
