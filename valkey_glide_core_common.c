@@ -196,26 +196,26 @@ int prepare_core_args(core_command_args_t* args,
     /* Determine preparation strategy based on command type */
     switch (args->cmd_type) {
         /* Zero argument operations */
-        case RandomKey:
+        case BgRewriteAof:
+        case DBSize:
         case Discard:
         case Exec:
-        case Time:
+        case RandomKey:
         case Role:
-        case DBSize:
-        case BgRewriteAof:
+        case Time:
             return prepare_zero_args(args, cmd_args, cmd_args_len);
 
         /* Single key operations */
-        case GetDel:
-        case Get:
-        case Strlen:
-        case Type:
-        case TTL:
-        case PTTL:
-        case ExpireTime:
-        case PExpireTime:
-        case Persist:
         case Dump:
+        case ExpireTime:
+        case Get:
+        case GetDel:
+        case PExpireTime:
+        case PTTL:
+        case Persist:
+        case Strlen:
+        case TTL:
+        case Type:
             return prepare_key_only_args(args, cmd_args, cmd_args_len);
 
         /* Pattern-based operations */
@@ -228,24 +228,22 @@ int prepare_core_args(core_command_args_t* args,
             return prepare_zero_args(args, cmd_args, cmd_args_len);
 
         /* Key-value operations */
-        case Set:
-        case SetEx:
-        case PSetEx:
-        case SetNX:
-
-        case GetSet:
-
-        case GetEx:
         case Append:
-        case Incr:
+        case Copy:
         case Decr:
-        case IncrBy:
         case DecrBy:
-        case Rename:
-        case RenameNX:
+        case GetEx:
+        case GetSet:
+        case Incr:
+        case IncrBy:
         case IncrByFloat:
         case Move:
-        case Copy:
+        case PSetEx:
+        case Rename:
+        case RenameNX:
+        case Set:
+        case SetEx:
+        case SetNX:
             return prepare_key_value_args(
                 args, cmd_args, cmd_args_len, allocated_strings, allocated_count);
 
@@ -266,10 +264,10 @@ int prepare_core_args(core_command_args_t* args,
 
         /* Multi-key operations */
         case Exists:
-        case Touch:
         case MGet:
-        case Watch:
         case PfCount:
+        case Touch:
+        case Watch:
             /* Check if single key or multi-key operation */
             if (args->key && args->key_len > 0 && args->arg_count == 0) {
                 /* Single key: PFCOUNT key */
@@ -288,10 +286,10 @@ int prepare_core_args(core_command_args_t* args,
 
         /* Bit operations */
         case BitCount:
+        case BitOp:
         case BitPos:
         case GetBit:
         case SetBit:
-        case BitOp:
             return prepare_bit_operation_args(
                 args, cmd_args, cmd_args_len, allocated_strings, allocated_count);
 
@@ -310,15 +308,15 @@ int prepare_core_args(core_command_args_t* args,
                 args, cmd_args, cmd_args_len, allocated_strings, allocated_count);
 
         /* Message operations (no key, just arguments) */
-        case Ping:
-        case Echo:
-        case Wait:
-        case FlushDB:
-        case FlushAll:
         case BgSave:
+        case Echo:
+        case FlushAll:
+        case FlushDB:
         case Migrate:
+        case Ping:
         case Select:
         case SwapDb:
+        case Wait:
             return prepare_message_args(
                 args, cmd_args, cmd_args_len, allocated_strings, allocated_count);
 

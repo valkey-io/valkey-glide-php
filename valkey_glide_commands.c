@@ -202,7 +202,6 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
         core_args.arg_count                     = 1;
     }
 
-    /* Execute using unified core framework */
     return execute_and_handle_batch(
         valkey_glide, &core_args, process_core_bool_result, return_value, object);
 }
@@ -257,7 +256,6 @@ int execute_flushall_command(zval* object, int argc, zval* return_value, zend_cl
         core_args.arg_count                     = 1;
     }
 
-    /* Execute using unified core framework */
     return execute_and_handle_batch(
         valkey_glide, &core_args, process_core_bool_result, return_value, object);
 }
@@ -317,7 +315,6 @@ int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_clas
                                          ? process_core_status_string_result
                                          : process_core_status_bool_result;
 
-    /* Execute using unified core framework */
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
@@ -359,7 +356,6 @@ int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zen
                                          ? process_core_status_string_result
                                          : process_core_status_bool_result;
 
-    /* Execute using unified core framework */
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
@@ -569,7 +565,6 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
                                          ? process_core_status_string_result
                                          : process_core_status_bool_result;
 
-    /* Execute using unified core framework */
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
@@ -607,7 +602,6 @@ int execute_time_command(zval* object, int argc, zval* return_value, zend_class_
         }
     }
 
-    /* Execute using unified core framework */
     return execute_and_handle_batch(
         valkey_glide, &core_args, process_core_array_result, return_value, object);
 }
@@ -673,7 +667,6 @@ int execute_unwatch_command(zval* object, int argc, zval* return_value, zend_cla
         return 0;
     }
 
-    /* Execute using core framework */
     core_command_args_t args = {0};
     args.glide_client        = valkey_glide->glide_client;
     args.cmd_type            = UnWatch;

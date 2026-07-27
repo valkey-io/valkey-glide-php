@@ -2228,7 +2228,8 @@ class ValkeyGlide
      *                                  an array [username, password] for AUTH2.
      *
      * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
-     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" or "NOKEY".
+     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" or "NOKEY" on success,
+     *                                  false on failure.
      *
      * @see https://valkey.io/commands/migrate
      */

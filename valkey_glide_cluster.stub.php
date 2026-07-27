@@ -488,8 +488,6 @@ class ValkeyGlideCluster
 
     /**
      * @see ValkeyGlide::migrate
-     *
-     * In cluster mode, only single-key migration is supported.
      */
     public function migrate(string $host, int $port, string $key, int $dstdb, int $timeout, bool $copy = false, bool $replace = false, mixed $credentials = null): ValkeyGlideCluster|bool|string;
 
