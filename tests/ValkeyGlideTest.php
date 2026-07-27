@@ -2808,54 +2808,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         });
     }
 
-    public function testMigrateDebugDiagnostic()
-    {
-        // Diagnostic test to debug MIGRATE IOERR in CI
-        $dest = $this->getMigrateDestClient();
-
-        // 1. Verify dest client can connect and operate
-        $dest->set('test_connectivity', 'works');
-        $connResult = $dest->get('test_connectivity');
-        echo "\n[DIAG] Dest connectivity: " . var_export($connResult, true) . "\n";
-
-        // 2. Try MIGRATE with rawCommand to bypass our C wrapper
-        $key = 'migrate_diag_' . $this->createRandomString();
-        $this->valkey_glide->set($key, 'diag_value');
-
-        $rawResult = $this->valkey_glide->rawCommand(
-            $key, 'MIGRATE', '127.0.0.1', '6382', $key, '0', '5000'
-        );
-        echo "[DIAG] MIGRATE rawCommand result: " . var_export($rawResult, true) . "\n";
-
-        // 3. Try with our wrapper
-        $key2 = 'migrate_diag2_' . $this->createRandomString();
-        $this->valkey_glide->set($key2, 'diag_value2');
-        $wrapperResult = $this->valkey_glide->migrate('127.0.0.1', 6382, $key2, 0, 5000);
-        echo "[DIAG] MIGRATE wrapper result: " . var_export($wrapperResult, true) . "\n";
-
-        // 4. Check if keys exist after migration
-        $existsKey1 = $this->valkey_glide->exists($key);
-        $existsKey2 = $this->valkey_glide->exists($key2);
-        echo "[DIAG] Key1 exists at source: " . var_export($existsKey1, true) . "\n";
-        echo "[DIAG] Key2 exists at source: " . var_export($existsKey2, true) . "\n";
-
-        // 5. Check if keys arrived at destination
-        $destKey1 = $dest->get($key);
-        $destKey2 = $dest->get($key2);
-        echo "[DIAG] Key1 at dest: " . var_export($destKey1, true) . "\n";
-        echo "[DIAG] Key2 at dest: " . var_export($destKey2, true) . "\n";
-
-        // 6. Try with localhost instead of 127.0.0.1
-        $key3 = 'migrate_diag3_' . $this->createRandomString();
-        $this->valkey_glide->set($key3, 'diag_value3');
-        $localhostResult = $this->valkey_glide->rawCommand(
-            $key3, 'MIGRATE', 'localhost', '6382', $key3, '0', '5000'
-        );
-        echo "[DIAG] MIGRATE localhost rawCommand: " . var_export($localhostResult, true) . "\n";
-
-        $this->assertTrue(true); // Always pass - this is diagnostic
-    }
-
     public function testMigrateSingleKeySuccess()
     {
         $dest = $this->getMigrateDestClient();
@@ -2867,7 +2819,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result);
 
         // Key should be removed from source and exist at destination
-        $this->assertFalse($this->valkey_glide->exists($key));
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
         $this->assertEquals('migrate_value', $dest->get($key));
     }
 
@@ -2884,8 +2836,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result);
 
         // Keys should be removed from source and exist at destination
-        $this->assertFalse($this->valkey_glide->exists($key1));
-        $this->assertFalse($this->valkey_glide->exists($key2));
+        $this->assertEquals(0, $this->valkey_glide->exists($key1));
+        $this->assertEquals(0, $this->valkey_glide->exists($key2));
         $this->assertEquals('value1', $dest->get($key1));
         $this->assertEquals('value2', $dest->get($key2));
     }
@@ -2901,7 +2853,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result);
 
         // Key should remain at source and also exist at destination
-        $this->assertTrue($this->valkey_glide->exists($key));
+        $this->assertEquals(1, $this->valkey_glide->exists($key));
         $this->assertEquals('copy_value', $this->valkey_glide->get($key));
         $this->assertEquals('copy_value', $dest->get($key));
 
@@ -2926,7 +2878,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result);
 
         // Key should be removed from source, destination has new value
-        $this->assertFalse($this->valkey_glide->exists($key));
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
         $this->assertEquals('new_source_value', $dest->get($key));
     }
 

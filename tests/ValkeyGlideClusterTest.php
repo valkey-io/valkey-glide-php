@@ -686,7 +686,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertTrue($result);
 
         // Key should be removed from source and exist at destination
-        $this->assertFalse($this->valkey_glide->exists($key));
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
         $this->assertEquals('migrate_value', $dest->get($key));
     }
 
@@ -701,7 +701,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertTrue($result);
 
         // Key should remain at source and also exist at destination
-        $this->assertTrue($this->valkey_glide->exists($key));
+        $this->assertEquals(1, $this->valkey_glide->exists($key));
         $this->assertEquals('copy_value', $this->valkey_glide->get($key));
         $this->assertEquals('copy_value', $dest->get($key));
 
@@ -726,7 +726,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertTrue($result);
 
         // Key should be removed from source, destination has new value
-        $this->assertFalse($this->valkey_glide->exists($key));
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
         $this->assertEquals('new_source_value', $dest->get($key));
     }
 
