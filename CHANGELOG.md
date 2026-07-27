@@ -5,6 +5,8 @@
 ### Changes
 
 * Add `MIGRATE` command for standalone and cluster clients ([#275](https://github.com/valkey-io/valkey-glide-php/pull/275))
+* Add `RESET` command for standalone and cluster clients ([#273](https://github.com/valkey-io/valkey-glide-php/pull/273))
+* Add `SAVE` command for standalone and cluster clients ([#272](https://github.com/valkey-io/valkey-glide-php/pull/272))
 * Add `BGREWRITEAOF` command for standalone and cluster clients ([#271](https://github.com/valkey-io/valkey-glide-php/pull/271))
 * Add `BGSAVE`, `BGSAVE SCHEDULE`, and `BGSAVE CANCEL` commands for standalone and cluster clients ([#236](https://github.com/valkey-io/valkey-glide-php/issues/236))
 * Fix pie install from Packagist using PIE pre-packaged-source download method ([#233](https://github.com/valkey-io/valkey-glide-php/pull/233))

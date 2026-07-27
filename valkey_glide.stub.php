@@ -1201,6 +1201,20 @@ class ValkeyGlide
     public function bgRewriteAof(): ValkeyGlide|bool|string;
 
     /**
+     * Synchronously saves the dataset to disk (blocking).
+     *
+     * This command blocks the server until the save is complete. For a non-blocking
+     * alternative, use {@see bgSave()}.
+     *
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" on success,
+     *                                  false on failure.
+     *
+     * @see https://valkey.io/commands/save
+     */
+    public function save(): ValkeyGlide|bool|string;
+
+    /**
      * Functions is an API for managing code to be executed on the server.
      *
      * @param string $operation         The subcommand you intend to execute.  Valid options are as follows
@@ -2369,6 +2383,17 @@ class ValkeyGlide
      * @example $valkey_glide->ping('beep boop');
      */
     public function ping(?string $message = null): ValkeyGlide|string|bool;
+
+    /**
+     * Reset the connection's server-side context.
+     *
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "RESET" on success,
+     *                                  false on failure.
+     *
+     * @see https://valkey.io/commands/reset
+     */
+    public function reset(): ValkeyGlide|bool|string;
 
     /**
      * Enter into pipeline mode.

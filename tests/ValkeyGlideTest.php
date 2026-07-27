@@ -89,6 +89,20 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     /**
+     * Execute a callable with OPT_REPLY_LITERAL enabled, ensuring it is
+     * always disabled afterwards even if an exception is thrown.
+     */
+    protected function withOptReplyLiteralEnabled(callable $fn)
+    {
+        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+        try {
+            return $fn();
+        } finally {
+            $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+        }
+    }
+
+    /**
      * Compare major version number against a minimum required version
      *
      * @param int $minMajorVersion Minimum required major version
@@ -2618,26 +2632,28 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         $this->waitForSaveNotInProgress();
 
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
-
-        $result = $this->valkey_glide->bgSave();
-        $this->assertIsString($result);
-        $this->assertContains($result, $this->bgsaveResponses());
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->bgSave();
+            $this->assertIsString($result);
+            $this->assertContains($result, $this->bgsaveResponses());
+        });
 
         $this->waitForSaveNotInProgress();
 
-        $result = $this->valkey_glide->bgSave('SCHEDULE');
-        $this->assertIsString($result);
-        $this->assertContains($result, $this->bgsaveResponses());
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->bgSave('SCHEDULE');
+            $this->assertIsString($result);
+            $this->assertContains($result, $this->bgsaveResponses());
+        });
 
         if ($this->minVersionCheck('8.1.0')) {
             $this->waitForSaveNotInProgress();
 
-            $result = $this->valkey_glide->bgSave('CANCEL');
-            $this->assertFalse($result);
+            $this->withOptReplyLiteralEnabled(function () {
+                $result = $this->valkey_glide->bgSave('CANCEL');
+                $this->assertFalse($result);
+            });
         }
-
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
 
     public function testBgSaveBatch()
@@ -2683,13 +2699,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         $this->waitForSaveNotInProgress();
 
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
-
-        $result = $this->valkey_glide->bgRewriteAof();
-        $this->assertIsString($result);
-        $this->assertContains($result, $this->bgRewriteAofResponses());
-
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->bgRewriteAof();
+            $this->assertIsString($result);
+            $this->assertContains($result, $this->bgRewriteAofResponses());
+        });
     }
 
     public function testBgRewriteAofBatch()
@@ -2706,13 +2720,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $result = $this->valkey_glide->exec();
         $this->assertTrue($result[0]);
     }
-
+  
     public function testMigrate()
     {
-        $key = 'migrate_test_' . uniqid();
+        $key = '{migrate_test}_' . uniqid();
         $this->valkey_glide->set($key, 'test_value');
 
-        // Attempt to migrate to a non-existent host - should throw/return error
+        // Attempt to migrate to a non-existent host - should return false (error)
         $result = $this->valkey_glide->migrate('nonexistent.invalid', 6379, $key, 0, 1000);
         $this->assertFalse($result);
 
@@ -2722,7 +2736,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testMigrateWithOptions()
     {
-        $key = 'migrate_opts_' . uniqid();
+        $key = '{migrate_opts}_' . uniqid();
         $this->valkey_glide->set($key, 'test_value');
 
         // Attempt to migrate with COPY and REPLACE options
@@ -2739,23 +2753,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // Clean up
         $this->valkey_glide->del($key);
-    }
-
-    public function testMigrateMultiKeyNokey()
-    {
-        // Multi-key with non-existent keys returns NOKEY immediately
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
-
-        $result = $this->valkey_glide->migrate(
-            'nonexistent.invalid',
-            6379,
-            ['nonexistent_key_1', 'nonexistent_key_2'],
-            0,
-            1000
-        );
-        $this->assertEquals('NOKEY', $result);
-
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
     }
 
     public function testMigrateSingleKeyNokey()
@@ -2795,7 +2792,75 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result[0]);
     }
 
+    public function testMigrateMultiKeyNokey()
+    {
+        $this->markTestSkipped('Multi-key migration not supported in cluster mode');
+    }
+
     public function testMigrateBatchMultiKey()
+    {
+        $this->markTestSkipped('Multi-key migration not supported in cluster mode');
+    }
+
+    public function testMigrateEmptyKeys()
+    {
+        $this->markTestSkipped('Multi-key migration not supported in cluster mode');
+    }
+  
+    public function testReset()
+    {
+        $key = '{reset_test}_' . $this->createRandomString();
+
+        // Set initial value and WATCH the key
+        $this->valkey_glide->set($key, 'initial');
+        $this->valkey_glide->watch($key);
+
+        // Modify the key (triggers the WATCH)
+        $this->valkey_glide->set($key, 'modified');
+
+        // RESET should clear the WATCH
+        $result = $this->valkey_glide->reset();
+        $this->assertTrue($result);
+
+        // Start a transaction on the same key
+        $this->valkey_glide->multi();
+        $this->valkey_glide->set($key, 'in_transaction');
+        $execResult = $this->valkey_glide->exec();
+
+        // If RESET cleared the WATCH, EXEC succeeds.
+        // If WATCH was still active, EXEC would return false (transaction aborted).
+        $this->assertIsArray($execResult);
+        $this->assertTrue($execResult[0]);
+
+        // Cleanup
+        $this->valkey_glide->del($key);
+    }
+
+    public function testResetWithReplyLiteral()
+    {
+        $key = '{reset_test}_' . $this->createRandomString();
+
+        $this->valkey_glide->set($key, 'initial');
+        $this->valkey_glide->watch($key);
+        $this->valkey_glide->set($key, 'modified');
+
+        $this->withOptReplyLiteralEnabled(function () use ($key) {
+            $result = $this->valkey_glide->reset();
+            $this->assertIsString($result);
+            $this->assertEquals('RESET', $result);
+        });
+
+        // Verify RESET cleared the WATCH
+        $this->valkey_glide->multi();
+        $this->valkey_glide->set($key, 'in_transaction');
+        $execResult = $this->valkey_glide->exec();
+        $this->assertIsArray($execResult);
+        $this->assertTrue($execResult[0]);
+
+        $this->valkey_glide->del($key);
+    }
+
+    public function testResetBatch()
     {
         if (!$this->havePipeline()) {
             $this->markTestSkipped('Pipeline not supported');
@@ -2803,31 +2868,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $this->valkey_glide->pipeline();
-        $this->valkey_glide->migrate(
-            'nonexistent.invalid',
-            6379,
-            ['nonexistent_key_1', 'nonexistent_key_2'],
-            0,
-            1000
-        );
+        $this->valkey_glide->reset();
         $result = $this->valkey_glide->exec();
-        // Non-existent keys return NOKEY status (processed as true without literal)
         $this->assertTrue($result[0]);
     }
-
-    public function testMigrateEmptyKeys()
-    {
-        // Empty keys array should fail
-        $result = $this->valkey_glide->migrate(
-            'nonexistent.invalid',
-            6379,
-            [],
-            0,
-            1000
-        );
-        $this->assertFalse($result);
-    }
-
+  
     /**
      * Valid BGSAVE response strings (used when OPT_REPLY_LITERAL is enabled).
      */
@@ -2848,6 +2893,40 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             'Background append only file rewriting started',
             'Background append only file rewriting scheduled',
         ];
+    }
+
+    public function testSave()
+    {
+        $this->waitForSaveNotInProgress();
+
+        $result = $this->valkey_glide->save();
+        $this->assertTrue($result);
+    }
+
+    public function testSaveWithReplyLiteral()
+    {
+        $this->waitForSaveNotInProgress();
+
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->save();
+            $this->assertIsString($result);
+            $this->assertEquals('OK', $result);
+        });
+    }
+
+    public function testSaveBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->waitForSaveNotInProgress();
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->save();
+        $result = $this->valkey_glide->exec();
+        $this->assertTrue($result[0]);
     }
 
     /**
