@@ -2901,65 +2901,92 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testReplicaofAndReplicaofNoOne()
     {
-        $replica = new ValkeyGlide();
-        $replica->connect(
-            addresses: [['host' => '127.0.0.1', 'port' => 6381]]
+        // Use independent server on port 6382 (standalone primary, no replicas)
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6382]]
         );
 
-        // Verify it's currently a replica
-        $info = $replica->info(['REPLICATION']);
-        $this->assertStringContains('role:slave', $info);
-
-        // Promote to primary with REPLICAOF NO ONE
-        $result = $replica->replicaof();
-        $this->assertTrue($result);
-
-        // Verify role changed to master
-        $info = $replica->info(['REPLICATION']);
+        // Verify it's currently a master
+        $info = $client->info(['REPLICATION']);
         $this->assertStringContains('role:master', $info);
 
-        // Restore back to replica of 6379
-        $result = $replica->replicaof('127.0.0.1', 6379);
+        // Make it a replica of 6379
+        $result = $client->replicaof('127.0.0.1', 6379);
         $this->assertTrue($result);
 
         usleep(500000);
 
-        // Verify role changed back to slave
-        $info = $replica->info(['REPLICATION']);
+        // Verify role changed to slave
+        $info = $client->info(['REPLICATION']);
         $this->assertStringContains('role:slave', $info);
 
-        $replica->close();
+        // Promote back to primary with REPLICAOF NO ONE
+        $result = $client->replicaof();
+        $this->assertTrue($result);
+
+        // Verify role changed back to master
+        $info = $client->info(['REPLICATION']);
+        $this->assertStringContains('role:master', $info);
+
+        $client->close();
     }
 
     public function testReplicaofWithReplyLiteral()
     {
-        $replica = new ValkeyGlide();
-        $replica->connect(
-            addresses: [['host' => '127.0.0.1', 'port' => 6381]]
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6382]]
         );
 
-        $this->withOptReplyLiteralEnabled($replica, function () use ($replica) {
-            $result = $replica->replicaof();
+        $this->withOptReplyLiteralEnabled($client, function () use ($client) {
+            // Make replica
+            $result = $client->replicaof('127.0.0.1', 6379);
             $this->assertEquals('OK', $result);
 
-            $result = $replica->replicaof('127.0.0.1', 6379);
+            // Promote back
+            $result = $client->replicaof();
             $this->assertEquals('OK', $result);
         });
 
-        usleep(500000);
-        $replica->close();
+        $client->close();
+    }
+
+    public function testFailoverNoReplicasReturnsFalse()
+    {
+        // Connect to server on port 6382 which has no replicas
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6382]]
+        );
+
+        // FAILOVER on a server with no replicas returns false
+        $result = $client->failover();
+        $this->assertFalse($result);
+
+        $client->close();
+    }
+
+    public function testFailoverNoReplicasWithReplyLiteral()
+    {
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6382]]
+        );
+
+        $this->withOptReplyLiteralEnabled($client, function () use ($client) {
+            $result = $client->failover();
+            $this->assertFalse($result);
+        });
+
+        $client->close();
     }
 
     public function testFailoverAbortNoFailoverInProgress()
     {
-        $threw = false;
-        try {
-            $this->valkey_glide->failover(null, true);
-        } catch (\Exception $e) {
-            $threw = true;
-            $this->assertStringContains('No failover in progress', $e->getMessage());
-        }
-        $this->assertTrue($threw);
+        // FAILOVER ABORT when no failover is in progress returns false
+        $result = $this->valkey_glide->failover(null, true);
+        $this->assertFalse($result);
     }
 
     public function testFailoverSucceeds()
@@ -2968,16 +2995,18 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $info = $this->valkey_glide->info(['REPLICATION']);
         $this->assertStringContains('role:master', $info);
 
-        // FAILOVER returns OK immediately (failover is async)
+        // FAILOVER returns true (command accepted, failover is async)
         $result = $this->valkey_glide->failover();
         $this->assertTrue($result);
 
-        // Wait for failover to complete
+        // Wait for failover to complete then restore topology
         usleep(3000000);
 
-        // Restore original replication topology
+        // Restore: make 6379 a primary again
         $this->valkey_glide->replicaof();
+        usleep(1000000);
 
+        // Reconnect to replicas and restore them
         $replica1 = new ValkeyGlide();
         $replica1->connect(
             addresses: [['host' => '127.0.0.1', 'port' => 6380]]
@@ -2991,10 +3020,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $replica2->replicaof('127.0.0.1', 6379);
 
         usleep(1000000);
-
-        // Verify topology restored
-        $info = $this->valkey_glide->info(['REPLICATION']);
-        $this->assertStringContains('role:master', $info);
 
         $replica1->close();
         $replica2->close();

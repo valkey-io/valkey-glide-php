@@ -128,6 +128,16 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->markTestSkipped('REPLICAOF not supported in cluster mode');
     }
 
+    public function testFailoverNoReplicasReturnsFalse()
+    {
+        $this->markTestSkipped('FAILOVER not supported in cluster mode');
+    }
+
+    public function testFailoverNoReplicasWithReplyLiteral()
+    {
+        $this->markTestSkipped('FAILOVER not supported in cluster mode');
+    }
+
     public function testFailoverAbortNoFailoverInProgress()
     {
         $this->markTestSkipped('FAILOVER not supported in cluster mode');
