@@ -511,12 +511,10 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
                     core_args.args[arg_idx].data.string_arg.value = username;
                     core_args.args[arg_idx].data.string_arg.len   = username_len;
                     arg_idx++;
-                    if (arg_idx < 12) {
-                        core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
-                        core_args.args[arg_idx].data.string_arg.value = password;
-                        core_args.args[arg_idx].data.string_arg.len   = password_len;
-                        arg_idx++;
-                    }
+                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                    core_args.args[arg_idx].data.string_arg.value = password;
+                    core_args.args[arg_idx].data.string_arg.len   = password_len;
+                    arg_idx++;
                 } else {
                     /* AUTH password (array with single element) */
                     core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
