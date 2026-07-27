@@ -826,7 +826,7 @@ BGREWRITEAOF_METHOD_IMPL(ValkeyGlide)
  * timeout [, bool copy, bool replace, mixed credentials]) */
 MIGRATE_METHOD_IMPL(ValkeyGlide)
 /* }}} */
-  
+
 /* {{{ proto bool ValkeyGlide::reset() */
 RESET_METHOD_IMPL(ValkeyGlide)
 /* }}} */

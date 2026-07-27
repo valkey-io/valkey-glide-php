@@ -673,19 +673,16 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testMigrateSingleKeyNokey()
     {
-        // Single non-existent key returns NOKEY
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
-
-        $result = $this->valkey_glide->migrate(
-            'nonexistent.invalid',
-            6379,
-            'nonexistent_key',
-            0,
-            1000
-        );
-        $this->assertEquals('NOKEY', $result);
-
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->migrate(
+                'nonexistent.invalid',
+                6379,
+                'nonexistent_key',
+                0,
+                1000
+            );
+            $this->assertEquals('NOKEY', $result);
+        });
     }
 
     public function testMigrateBatch()
