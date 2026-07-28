@@ -3002,27 +3002,35 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Wait for failover to complete then restore topology
         usleep(3000000);
 
-        // Restore: make 6379 a primary again
-        $this->valkey_glide->replicaof();
+        // Best-effort restore: make 6379 a primary again
+        // After failover, 6379 became a slave. replicaof() promotes it back.
+        @$this->valkey_glide->replicaof();
         usleep(1000000);
 
-        // Reconnect to replicas and restore them
-        $replica1 = new ValkeyGlide();
-        $replica1->connect(
-            addresses: [['host' => '127.0.0.1', 'port' => 6380]]
-        );
-        $replica2 = new ValkeyGlide();
-        $replica2->connect(
-            addresses: [['host' => '127.0.0.1', 'port' => 6381]]
-        );
+        // Reconnect to replicas and restore them (may fail if they're still replicas)
+        try {
+            $replica1 = new ValkeyGlide();
+            $replica1->connect(
+                addresses: [['host' => '127.0.0.1', 'port' => 6380]]
+            );
+            $replica1->replicaof('127.0.0.1', 6379);
+            $replica1->close();
+        } catch (\Exception $e) {
+            // Best-effort
+        }
 
-        $replica1->replicaof('127.0.0.1', 6379);
-        $replica2->replicaof('127.0.0.1', 6379);
+        try {
+            $replica2 = new ValkeyGlide();
+            $replica2->connect(
+                addresses: [['host' => '127.0.0.1', 'port' => 6381]]
+            );
+            $replica2->replicaof('127.0.0.1', 6379);
+            $replica2->close();
+        } catch (\Exception $e) {
+            // Best-effort
+        }
 
         usleep(1000000);
-
-        $replica1->close();
-        $replica2->close();
     }
 
 
