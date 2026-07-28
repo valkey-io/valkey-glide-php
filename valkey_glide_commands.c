@@ -610,6 +610,99 @@ int execute_save_command(zval* object, int argc, zval* return_value, zend_class_
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
+int execute_memory_doctor_command(zval*             object,
+                                  int               argc,
+                                  zval*             return_value,
+                                  zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
+        return 0;
+    }
+
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = MemoryDoctor;
+    core_args.is_cluster          = (ce == get_valkey_glide_cluster_ce());
+
+    return execute_and_handle_batch(
+        valkey_glide, &core_args, process_core_string_result, return_value, object);
+}
+
+int execute_memory_malloc_stats_command(zval*             object,
+                                        int               argc,
+                                        zval*             return_value,
+                                        zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
+        return 0;
+    }
+
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = MemoryMallocStats;
+    core_args.is_cluster          = (ce == get_valkey_glide_cluster_ce());
+
+    return execute_and_handle_batch(
+        valkey_glide, &core_args, process_core_string_result, return_value, object);
+}
+
+int execute_memory_purge_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
+        return 0;
+    }
+
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = MemoryPurge;
+    core_args.is_cluster          = (ce == get_valkey_glide_cluster_ce());
+
+    z_result_processor_t processor = valkey_glide->opt_reply_literal
+                                         ? process_core_status_string_result
+                                         : process_core_status_bool_result;
+
+    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+}
+
+int execute_memory_stats_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
+        return 0;
+    }
+
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = MemoryStats;
+    core_args.is_cluster          = (ce == get_valkey_glide_cluster_ce());
+
+    return execute_and_handle_batch(
+        valkey_glide, &core_args, process_core_array_result, return_value, object);
+}
+
 /* Execute a RESET command using the Valkey Glide client */
 int execute_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;

@@ -999,6 +999,22 @@ CLIENT_PAUSE_METHOD_IMPL(ValkeyGlideCluster)
 CLIENT_UNPAUSE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto string ValkeyGlideCluster::memoryDoctor() */
+MEMORY_DOCTOR_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string ValkeyGlideCluster::memoryMallocStats() */
+MEMORY_MALLOC_STATS_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto bool ValkeyGlideCluster::memoryPurge() */
+MEMORY_PURGE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::memoryStats() */
+MEMORY_STATS_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto ValkeyGlideCluster::reset() */
 RESET_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */

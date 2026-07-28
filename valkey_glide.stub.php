@@ -2434,6 +2434,47 @@ class ValkeyGlide
     public function reset(): ValkeyGlide|bool|string;
 
     /**
+     * Returns a report about memory problems detected by the server.
+     *
+     * @return ValkeyGlide|string|false  Returns the memory diagnostic report string.
+     *                                   Returns false on failure.
+     *
+     * @see https://valkey.io/commands/memory-doctor
+     */
+    public function memoryDoctor(): ValkeyGlide|string|false;
+
+    /**
+     * Returns the internal statistics of the memory allocator.
+     *
+     * @return ValkeyGlide|string|false  Returns the memory allocator statistics string.
+     *                                   Returns false on failure.
+     *
+     * @see https://valkey.io/commands/memory-malloc-stats
+     */
+    public function memoryMallocStats(): ValkeyGlide|string|false;
+
+    /**
+     * Asks the server to reclaim memory from the allocator back to the operating system.
+     *
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" on success,
+     *                                  false on failure.
+     *
+     * @see https://valkey.io/commands/memory-purge
+     */
+    public function memoryPurge(): ValkeyGlide|bool|string;
+
+    /**
+     * Returns detailed memory consumption statistics of the server.
+     *
+     * @return ValkeyGlide|array|false  Returns an associative array containing memory usage statistics.
+     *                                  Returns false on failure.
+     *
+     * @see https://valkey.io/commands/memory-stats
+     */
+    public function memoryStats(): ValkeyGlide|array|false;
+
+    /**
      * Enter into pipeline mode.
      *
      * Pipeline mode is the highest performance way to send many commands to ValkeyGlide

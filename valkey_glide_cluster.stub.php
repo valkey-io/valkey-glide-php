@@ -1003,6 +1003,26 @@ class ValkeyGlideCluster
     public function reset(): ValkeyGlideCluster|bool|string;
 
     /**
+     * @see ValkeyGlide::memoryDoctor
+     */
+    public function memoryDoctor(): ValkeyGlideCluster|string|false;
+
+    /**
+     * @see ValkeyGlide::memoryMallocStats
+     */
+    public function memoryMallocStats(): ValkeyGlideCluster|string|false;
+
+    /**
+     * @see ValkeyGlide::memoryPurge
+     */
+    public function memoryPurge(): ValkeyGlideCluster|bool|string;
+
+    /**
+     * @see ValkeyGlide::memoryStats
+     */
+    public function memoryStats(): ValkeyGlideCluster|array|false;
+
+    /**
      * @see ValkeyGlide::psetex
      */
     public function psetex(string $key, int $timeout, string $value): ValkeyGlideCluster|bool;

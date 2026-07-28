@@ -3197,6 +3197,77 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         ];
     }
 
+
+    public function testMemoryDoctor()
+    {
+        $result = $this->valkey_glide->memoryDoctor();
+        $this->assertIsString($result);
+        $this->assertGT(0, strlen($result));
+    }
+
+    public function testMemoryMallocStats()
+    {
+        $result = $this->valkey_glide->memoryMallocStats();
+        $this->assertIsString($result);
+        $this->assertGT(0, strlen($result));
+    }
+
+    public function testMemoryPurge()
+    {
+        $result = $this->valkey_glide->memoryPurge();
+        $this->assertTrue($result);
+    }
+
+    public function testMemoryPurgeWithReplyLiteral()
+    {
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->memoryPurge();
+            $this->assertEquals('OK', $result);
+        });
+    }
+
+    public function testMemoryStats()
+    {
+        // Write a key to ensure stats have data
+        $key = '{memory_stats_test}_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'value');
+
+        $stats = $this->valkey_glide->memoryStats();
+        $this->assertIsArray($stats);
+
+        // Verify key fields exist and have valid values
+        $this->assertGT(0, $stats['peak.allocated']);
+        $this->assertGT(0, $stats['total.allocated']);
+        $this->assertGT(0, $stats['startup.allocated']);
+        $this->assertGT(0, $stats['overhead.total']);
+        $this->assertGTE(0, $stats['keys.count']);
+        $this->assertGTE(0, $stats['dataset.bytes']);
+        $this->assertGTE(0, $stats['replication.backlog']);
+        $this->assertGTE(0, $stats['clients.normal']);
+
+        $this->valkey_glide->del($key);
+    }
+
+    public function testMemoryBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->memoryDoctor();
+        $this->valkey_glide->memoryMallocStats();
+        $this->valkey_glide->memoryPurge();
+        $this->valkey_glide->memoryStats();
+        $result = $this->valkey_glide->exec();
+
+        $this->assertIsString($result[0]); // memoryDoctor
+        $this->assertIsString($result[1]); // memoryMallocStats
+        $this->assertTrue($result[2]);     // memoryPurge
+        $this->assertIsArray($result[3]);  // memoryStats
+    }
+
     public function testSave()
     {
         $this->waitForSaveNotInProgress();
