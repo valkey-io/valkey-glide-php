@@ -478,53 +478,39 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
                 arg_idx++;
             }
         } else if (Z_TYPE_P(z_credentials) == IS_ARRAY) {
-            /* Array: [username, password] for AUTH2 */
-            HashTable* ht           = Z_ARRVAL_P(z_credentials);
-            zval*      z_val        = NULL;
-            int        idx          = 0;
-            char*      username     = NULL;
-            size_t     username_len = 0;
-            char*      password     = NULL;
-            size_t     password_len = 0;
+            /* Array: [password] for AUTH, or [username, password] for AUTH2 */
+            HashTable* ht       = Z_ARRVAL_P(z_credentials);
+            int        num_elem = zend_hash_num_elements(ht);
+            zval*      z_elem0  = zend_hash_index_find(ht, 0);
+            zval*      z_elem1  = zend_hash_index_find(ht, 1);
 
-            ZEND_HASH_FOREACH_VAL(ht, z_val) {
-                if (Z_TYPE_P(z_val) == IS_STRING) {
-                    if (idx == 0) {
-                        username     = Z_STRVAL_P(z_val);
-                        username_len = Z_STRLEN_P(z_val);
-                    } else if (idx == 1) {
-                        password     = Z_STRVAL_P(z_val);
-                        password_len = Z_STRLEN_P(z_val);
-                    }
-                }
-                idx++;
-            }
-            ZEND_HASH_FOREACH_END();
-
-            if (password && arg_idx + 2 < 12) {
-                if (username) {
-                    /* AUTH2 username password */
-                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
-                    core_args.args[arg_idx].data.string_arg.value = "AUTH2";
-                    core_args.args[arg_idx].data.string_arg.len   = 5;
-                    arg_idx++;
-                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
-                    core_args.args[arg_idx].data.string_arg.value = username;
-                    core_args.args[arg_idx].data.string_arg.len   = username_len;
-                    arg_idx++;
-                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
-                    core_args.args[arg_idx].data.string_arg.value = password;
-                    core_args.args[arg_idx].data.string_arg.len   = password_len;
-                    arg_idx++;
-                } else {
-                    /* AUTH password (array with single element) */
+            if (num_elem == 1 && z_elem0 && Z_TYPE_P(z_elem0) == IS_STRING) {
+                /* Single element: AUTH password */
+                if (arg_idx + 2 <= 12) {
                     core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
                     core_args.args[arg_idx].data.string_arg.value = "AUTH";
                     core_args.args[arg_idx].data.string_arg.len   = 4;
                     arg_idx++;
                     core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
-                    core_args.args[arg_idx].data.string_arg.value = password;
-                    core_args.args[arg_idx].data.string_arg.len   = password_len;
+                    core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_elem0);
+                    core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_elem0);
+                    arg_idx++;
+                }
+            } else if (num_elem >= 2 && z_elem0 && Z_TYPE_P(z_elem0) == IS_STRING && z_elem1 &&
+                       Z_TYPE_P(z_elem1) == IS_STRING) {
+                /* Two elements: AUTH2 username password */
+                if (arg_idx + 3 <= 12) {
+                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                    core_args.args[arg_idx].data.string_arg.value = "AUTH2";
+                    core_args.args[arg_idx].data.string_arg.len   = 5;
+                    arg_idx++;
+                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                    core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_elem0);
+                    core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_elem0);
+                    arg_idx++;
+                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                    core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_elem1);
+                    core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_elem1);
                     arg_idx++;
                 }
             }
@@ -547,15 +533,16 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
         all[arg_idx].data.string_arg.len   = 4;
         arg_idx++;
 
-        /* Append individual keys */
+        /* Append individual keys, converting non-string values to strings */
         zval* z_val;
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(z_key), z_val) {
-            if (Z_TYPE_P(z_val) == IS_STRING) {
-                all[arg_idx].type                  = CORE_ARG_TYPE_STRING;
-                all[arg_idx].data.string_arg.value = Z_STRVAL_P(z_val);
-                all[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_val);
-                arg_idx++;
+            if (Z_TYPE_P(z_val) != IS_STRING) {
+                convert_to_string(z_val);
             }
+            all[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+            all[arg_idx].data.string_arg.value = Z_STRVAL_P(z_val);
+            all[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_val);
+            arg_idx++;
         }
         ZEND_HASH_FOREACH_END();
 
