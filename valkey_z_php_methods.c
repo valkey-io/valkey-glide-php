@@ -822,8 +822,8 @@ BGSAVE_METHOD_IMPL(ValkeyGlide)
 BGREWRITEAOF_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto bool ValkeyGlide::migrate(string host, int port, string|array key, int destinationDb, int
- * timeout [, bool copy, bool replace, mixed credentials]) */
+/* {{{ proto bool ValkeyGlide::migrate(string host, int port, string|array key, int destinationDb,
+ * int timeout [, bool copy, bool replace, mixed credentials]) */
 MIGRATE_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 

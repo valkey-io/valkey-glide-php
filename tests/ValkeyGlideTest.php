@@ -2843,6 +2843,42 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals('value2', $dest->get($key2));
     }
 
+    public function testMigrateMultiKeyManyKeys()
+    {
+        $dest = $this->getMigrateDestClient();
+
+        // Create 10 keys to exercise dynamic allocation (total args > 12)
+        $keys = [];
+        for ($i = 0; $i < 10; $i++) {
+            $key = 'migrate_many_' . $i . '_' . $this->createRandomString();
+            $this->valkey_glide->set($key, "value_$i");
+            $keys[] = $key;
+        }
+
+        // Migrate with COPY + REPLACE — args: host, port, "", db, timeout, COPY, REPLACE, KEYS, key0..key9
+        $result = $this->valkey_glide->migrate(
+            '127.0.0.1',
+            self::MIGRATE_DEST_PORT,
+            $keys,
+            0,
+            5000,
+            true,
+            true
+        );
+        $this->assertTrue($result);
+
+        // With COPY, keys remain at source
+        for ($i = 0; $i < 10; $i++) {
+            $this->assertEquals(1, $this->valkey_glide->exists($keys[$i]));
+            $this->assertEquals("value_$i", $dest->get($keys[$i]));
+        }
+
+        // Cleanup
+        foreach ($keys as $key) {
+            $this->valkey_glide->del($key);
+        }
+    }
+
     public function testMigrateWithCopyKeyRemainsAtSource()
     {
         $dest = $this->getMigrateDestClient();

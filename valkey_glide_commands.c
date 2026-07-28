@@ -378,7 +378,8 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
         return 0;
     }
 
-    /* Parse parameters: host, port, key (string|array), destinationDb, timeout, copy, replace, credentials
+    /* Parse parameters: host, port, key (string|array), destinationDb, timeout, copy, replace,
+     * credentials
      */
     if (zend_parse_method_parameters(argc,
                                      object,
@@ -530,62 +531,35 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
         }
     }
 
-    /* For multi-key: append KEYS keyword and individual keys using dynamic args */
+    /* For multi-key: allocate a single combined array with all args */
     if (Z_TYPE_P(z_key) == IS_ARRAY) {
-        int num_keys = zend_hash_num_elements(Z_ARRVAL_P(z_key));
+        int num_keys    = zend_hash_num_elements(Z_ARRVAL_P(z_key));
+        int total_count = arg_idx + 1 + num_keys; /* existing args + KEYS keyword + keys */
 
-        /* Total items to append: 1 (KEYS keyword) + num_keys */
-        int total_to_append       = 1 + num_keys;
-        int fixed_slots_remaining = 12 - arg_idx;
-        int items_in_fixed =
-            (fixed_slots_remaining > total_to_append) ? total_to_append : fixed_slots_remaining;
-        int items_in_dynamic = total_to_append - items_in_fixed;
+        core_arg_t* all = (core_arg_t*) ecalloc(total_count, sizeof(core_arg_t));
 
-        /* Allocate dynamic overflow if needed */
-        core_arg_t* dyn_buf = NULL;
-        if (items_in_dynamic > 0) {
-            dyn_buf = (core_arg_t*) ecalloc(items_in_dynamic, sizeof(core_arg_t));
-        }
-
-        int dyn_idx  = 0;
-        int item_num = 0;
+        /* Copy existing fixed args into the combined array */
+        memcpy(all, core_args.args, arg_idx * sizeof(core_arg_t));
 
         /* Append KEYS keyword */
-        if (item_num < items_in_fixed) {
-            core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
-            core_args.args[arg_idx].data.string_arg.value = "KEYS";
-            core_args.args[arg_idx].data.string_arg.len   = 4;
-            arg_idx++;
-        } else {
-            dyn_buf[dyn_idx].type                  = CORE_ARG_TYPE_STRING;
-            dyn_buf[dyn_idx].data.string_arg.value = "KEYS";
-            dyn_buf[dyn_idx].data.string_arg.len   = 4;
-            dyn_idx++;
-        }
-        item_num++;
+        all[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+        all[arg_idx].data.string_arg.value = "KEYS";
+        all[arg_idx].data.string_arg.len   = 4;
+        arg_idx++;
 
         /* Append individual keys */
         zval* z_val;
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(z_key), z_val) {
             if (Z_TYPE_P(z_val) == IS_STRING) {
-                if (item_num < items_in_fixed) {
-                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
-                    core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_val);
-                    core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_val);
-                    arg_idx++;
-                } else {
-                    dyn_buf[dyn_idx].type                  = CORE_ARG_TYPE_STRING;
-                    dyn_buf[dyn_idx].data.string_arg.value = Z_STRVAL_P(z_val);
-                    dyn_buf[dyn_idx].data.string_arg.len   = Z_STRLEN_P(z_val);
-                    dyn_idx++;
-                }
-                item_num++;
+                all[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                all[arg_idx].data.string_arg.value = Z_STRVAL_P(z_val);
+                all[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_val);
+                arg_idx++;
             }
         }
         ZEND_HASH_FOREACH_END();
 
-        core_args.dyn_args      = dyn_buf;
-        core_args.dyn_arg_count = dyn_idx;
+        core_args.all_args = all;
     }
 
     core_args.arg_count = arg_idx;
@@ -601,8 +575,8 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
         execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 
     /* Free dynamic args if allocated */
-    if (core_args.dyn_args) {
-        efree(core_args.dyn_args);
+    if (core_args.all_args) {
+        efree(core_args.all_args);
     }
 
     return result;

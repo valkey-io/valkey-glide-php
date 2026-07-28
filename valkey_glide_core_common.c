@@ -639,27 +639,18 @@ int prepare_message_args(core_command_args_t* args,
                          unsigned long**      cmd_args_len,
                          char***              allocated_strings,
                          int*                 allocated_count) {
-    if (args->arg_count == 0 && args->dyn_arg_count == 0) {
+    if (args->arg_count == 0) {
         return 0;
     }
 
-    /* Calculate total argument count - fixed args + dynamic overflow args */
+    /* Determine which arg array to iterate */
+    core_arg_t* arg_array = args->all_args ? args->all_args : args->args;
+
+    /* Calculate total argument count */
     int total_args = 0;
 
     for (int i = 0; i < args->arg_count; i++) {
-        switch (args->args[i].type) {
-            case CORE_ARG_TYPE_STRING:
-            case CORE_ARG_TYPE_LONG:
-            case CORE_ARG_TYPE_DOUBLE:
-                total_args++;
-                break;
-            default:
-                break;
-        }
-    }
-
-    for (int i = 0; i < args->dyn_arg_count; i++) {
-        switch (args->dyn_args[i].type) {
+        switch (arg_array[i].type) {
             case CORE_ARG_TYPE_STRING:
             case CORE_ARG_TYPE_LONG:
             case CORE_ARG_TYPE_DOUBLE:
@@ -680,18 +671,18 @@ int prepare_message_args(core_command_args_t* args,
 
     int arg_idx = 0;
 
-    /* Add fixed arguments */
+    /* Add all arguments from the single array */
     for (int i = 0; i < args->arg_count; i++) {
-        switch (args->args[i].type) {
+        switch (arg_array[i].type) {
             case CORE_ARG_TYPE_STRING:
-                (*cmd_args)[arg_idx]     = (uintptr_t) args->args[i].data.string_arg.value;
-                (*cmd_args_len)[arg_idx] = args->args[i].data.string_arg.len;
+                (*cmd_args)[arg_idx]     = (uintptr_t) arg_array[i].data.string_arg.value;
+                (*cmd_args_len)[arg_idx] = arg_array[i].data.string_arg.len;
                 arg_idx++;
                 break;
 
             case CORE_ARG_TYPE_LONG: {
                 size_t len;
-                char*  str = core_long_to_string(args->args[i].data.long_arg.value, &len);
+                char*  str = core_long_to_string(arg_array[i].data.long_arg.value, &len);
                 if (str) {
                     (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
@@ -703,45 +694,7 @@ int prepare_message_args(core_command_args_t* args,
 
             case CORE_ARG_TYPE_DOUBLE: {
                 size_t len;
-                char*  str = core_double_to_string(args->args[i].data.double_arg.value, &len);
-                if (str) {
-                    (*cmd_args)[arg_idx]     = (uintptr_t) str;
-                    (*cmd_args_len)[arg_idx] = len;
-                    add_tracked_string(*allocated_strings, allocated_count, str);
-                    arg_idx++;
-                }
-                break;
-            }
-
-            default:
-                break;
-        }
-    }
-
-    /* Add dynamic overflow arguments (used by MIGRATE multi-key) */
-    for (int i = 0; i < args->dyn_arg_count; i++) {
-        switch (args->dyn_args[i].type) {
-            case CORE_ARG_TYPE_STRING:
-                (*cmd_args)[arg_idx]     = (uintptr_t) args->dyn_args[i].data.string_arg.value;
-                (*cmd_args_len)[arg_idx] = args->dyn_args[i].data.string_arg.len;
-                arg_idx++;
-                break;
-
-            case CORE_ARG_TYPE_LONG: {
-                size_t len;
-                char*  str = core_long_to_string(args->dyn_args[i].data.long_arg.value, &len);
-                if (str) {
-                    (*cmd_args)[arg_idx]     = (uintptr_t) str;
-                    (*cmd_args_len)[arg_idx] = len;
-                    add_tracked_string(*allocated_strings, allocated_count, str);
-                    arg_idx++;
-                }
-                break;
-            }
-
-            case CORE_ARG_TYPE_DOUBLE: {
-                size_t len;
-                char*  str = core_double_to_string(args->dyn_args[i].data.double_arg.value, &len);
+                char*  str = core_double_to_string(arg_array[i].data.double_arg.value, &len);
                 if (str) {
                     (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;

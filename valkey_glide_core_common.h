@@ -99,19 +99,18 @@ typedef struct {
 /* Argument allocation type */
 /* Core command arguments structure - simplified without dynamic support */
 typedef struct {
-    const void*      glide_client;
-    const char*      key;
-    zval*            route_param; /* Route parameter for cluster commands */
-    zval*            raw_options; /* Raw PHP options array for complex parsing */
-    size_t           key_len;
-    core_options_t   options;
-    core_arg_t       args[12]; /* Fixed arguments array - supports most commands */
-    core_arg_t*      dyn_args; /* Dynamic overflow args (heap-allocated, for MIGRATE multi-key) */
+    const void*    glide_client;
+    const char*    key;
+    zval*          route_param; /* Route parameter for cluster commands */
+    zval*          raw_options; /* Raw PHP options array for complex parsing */
+    size_t         key_len;
+    core_options_t options;
+    core_arg_t     args[12]; /* Fixed arguments array - supports most commands */
+    core_arg_t* all_args; /* If non-NULL, use this dynamically allocated array instead of args[] */
     enum RequestType cmd_type;
     int              arg_count;
-    int              dyn_arg_count; /* Number of dynamic overflow args */
-    zend_bool        is_cluster;    /* Flag to indicate cluster mode */
-    zend_bool        has_route;     /* Flag to indicate route is provided */
+    zend_bool        is_cluster; /* Flag to indicate cluster mode */
+    zend_bool        has_route;  /* Flag to indicate route is provided */
 } core_command_args_t;
 
 /* ====================================================================
