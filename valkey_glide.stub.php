@@ -2385,6 +2385,35 @@ class ValkeyGlide
     public function ping(?string $message = null): ValkeyGlide|string|bool;
 
     /**
+     * Suspend all clients for the specified timeout.
+     *
+     * All subsequent commands from all clients will be blocked until the timeout expires
+     * or CLIENT UNPAUSE is called.
+     *
+     * @param int         $timeout  The time in milliseconds to pause clients.
+     * @param string|null $mode     Optional pause mode: "ALL" (default) pauses all commands,
+     *                              "WRITE" pauses only write commands (reads still allowed).
+     *
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" on success,
+     *                                  false on failure.
+     *
+     * @see https://valkey.io/commands/client-pause
+     */
+    public function clientPause(int $timeout, ?string $mode = null): ValkeyGlide|bool|string;
+
+    /**
+     * Resume processing commands on all clients that were paused by CLIENT PAUSE.
+     *
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" on success,
+     *                                  false on failure.
+     *
+     * @see https://valkey.io/commands/client-unpause
+     */
+    public function clientUnpause(): ValkeyGlide|bool|string;
+
+    /**
      * Reset the connection's server-side context.
      *
      * @return ValkeyGlide|bool|string  Returns true on success, false on failure.

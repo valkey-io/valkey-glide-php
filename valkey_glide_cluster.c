@@ -989,6 +989,14 @@ BGREWRITEAOF_METHOD_IMPL(ValkeyGlideCluster)
  * [, bool copy, bool replace, mixed credentials]) */
 MIGRATE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
+  
+/* {{{ proto ValkeyGlideCluster::clientPause(int timeout [, string mode]) */
+CLIENT_PAUSE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto ValkeyGlideCluster::clientUnpause() */
+CLIENT_UNPAUSE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
 
 /* {{{ proto ValkeyGlideCluster::reset() */
 RESET_METHOD_IMPL(ValkeyGlideCluster)

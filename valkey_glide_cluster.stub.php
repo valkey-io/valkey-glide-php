@@ -979,6 +979,16 @@ class ValkeyGlideCluster
     public function ping(mixed $route, ?string $message = null): mixed;
 
     /**
+     * @see ValkeyGlide::clientPause
+     */
+    public function clientPause(int $timeout, ?string $mode = null): ValkeyGlideCluster|bool|string;
+
+    /**
+     * @see ValkeyGlide::clientUnpause
+     */
+    public function clientUnpause(): ValkeyGlideCluster|bool|string;
+
+    /**
      * @see ValkeyGlide::reset
      */
     public function reset(): ValkeyGlideCluster|bool|string;

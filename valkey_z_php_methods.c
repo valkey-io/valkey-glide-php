@@ -827,6 +827,14 @@ BGREWRITEAOF_METHOD_IMPL(ValkeyGlide)
 MIGRATE_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto bool ValkeyGlide::clientPause(int timeout [, string mode]) */
+CLIENT_PAUSE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto bool ValkeyGlide::clientUnpause() */
+CLIENT_UNPAUSE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto bool ValkeyGlide::reset() */
 RESET_METHOD_IMPL(ValkeyGlide)
 /* }}} */

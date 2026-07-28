@@ -207,6 +207,11 @@ int execute_flushall_command(zval* object, int argc, zval* return_value, zend_cl
 int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_migrate_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_client_pause_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_client_unpause_command(zval*             object,
+                                   int               argc,
+                                   zval*             return_value,
+                                   zend_class_entry* ce);
 int execute_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_save_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -492,6 +497,12 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 #define SAVE_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, save, execute_save_command)
 
 #define RESET_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, reset, execute_reset_command)
+
+#define CLIENT_PAUSE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, clientPause, execute_client_pause_command)
+
+#define CLIENT_UNPAUSE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, clientUnpause, execute_client_unpause_command)
 
 #define TIME_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, time, execute_time_command)
 
