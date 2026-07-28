@@ -152,9 +152,7 @@ int execute_json_set_command(zval* object, int argc, zval* return_value, zend_cl
 
     if (result) {
         if (result->command_error) {
-            zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
-                                 result->command_error->command_error_message,
-                                 0);
+            throw_command_error(result->command_error);
             free_command_result(result);
             return 0;
         }
@@ -334,9 +332,7 @@ int execute_json_get_command(zval* object, int argc, zval* return_value, zend_cl
 
     if (result) {
         if (result->command_error) {
-            zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
-                                 result->command_error->command_error_message,
-                                 0);
+            throw_command_error(result->command_error);
             free_command_result(result);
             return 0;
         }
@@ -416,9 +412,7 @@ static int execute_json_key_path_command(
 
     if (result) {
         if (result->command_error) {
-            zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
-                                 result->command_error->command_error_message,
-                                 0);
+            throw_command_error(result->command_error);
             free_command_result(result);
             return 0;
         }
@@ -549,9 +543,7 @@ int execute_json_mget_command(zval* object, int argc, zval* return_value, zend_c
 
     if (result) {
         if (result->command_error) {
-            zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
-                                 result->command_error->command_error_message,
-                                 0);
+            throw_command_error(result->command_error);
             free_command_result(result);
             return 0;
         }
@@ -628,9 +620,7 @@ static int execute_json_num_command(
 
     if (result) {
         if (result->command_error) {
-            zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
-                                 result->command_error->command_error_message,
-                                 0);
+            throw_command_error(result->command_error);
             free_command_result(result);
             return 0;
         }
@@ -741,9 +731,7 @@ int execute_json_strappend_command(zval*             object,
 
     if (result) {
         if (result->command_error) {
-            zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
-                                 result->command_error->command_error_message,
-                                 0);
+            throw_command_error(result->command_error);
             free_command_result(result);
             return 0;
         }
@@ -822,9 +810,7 @@ static int execute_json_debug_command(zval*             object,
 
     if (result) {
         if (result->command_error) {
-            zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
-                                 result->command_error->command_error_message,
-                                 0);
+            throw_command_error(result->command_error);
             free_command_result(result);
             return 0;
         }
@@ -933,9 +919,7 @@ int execute_json_arrappend_command(zval*             object,
 
     if (result) {
         if (result->command_error) {
-            zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
-                                 result->command_error->command_error_message,
-                                 0);
+            throw_command_error(result->command_error);
             free_command_result(result);
             return 0;
         }
@@ -1037,9 +1021,7 @@ int execute_json_arrinsert_command(zval*             object,
 
     if (result) {
         if (result->command_error) {
-            zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
-                                 result->command_error->command_error_message,
-                                 0);
+            throw_command_error(result->command_error);
             free_command_result(result);
             return 0;
         }
@@ -1148,9 +1130,7 @@ int execute_json_arrindex_command(zval*             object,
 
     if (result) {
         if (result->command_error) {
-            zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
-                                 result->command_error->command_error_message,
-                                 0);
+            throw_command_error(result->command_error);
             free_command_result(result);
             return 0;
         }
@@ -1236,9 +1216,7 @@ int execute_json_arrpop_command(zval* object, int argc, zval* return_value, zend
 
     if (result) {
         if (result->command_error) {
-            zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
-                                 result->command_error->command_error_message,
-                                 0);
+            throw_command_error(result->command_error);
             free_command_result(result);
             return 0;
         }
@@ -1304,9 +1282,7 @@ int execute_json_arrtrim_command(zval* object, int argc, zval* return_value, zen
 
     if (result) {
         if (result->command_error) {
-            zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
-                                 result->command_error->command_error_message,
-                                 0);
+            throw_command_error(result->command_error);
             free_command_result(result);
             return 0;
         }

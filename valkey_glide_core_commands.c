@@ -2289,9 +2289,7 @@ void execute_update_connection_password(zval*             object,
                              result->command_error->command_error_message
                                  ? result->command_error->command_error_message
                                  : "Unknown error");
-        zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
-                             result->command_error->command_error_message,
-                             0);
+        throw_command_error(result->command_error);
         free_command_result(result);
         return;
     }
@@ -2365,9 +2363,7 @@ void execute_refresh_iam_token(zval* object, zval* return_value, zend_class_entr
                              result->command_error->command_error_message
                                  ? result->command_error->command_error_message
                                  : "Unknown error");
-        zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
-                             result->command_error->command_error_message,
-                             0);
+        throw_command_error(result->command_error);
         free_command_result(result);
         return;
     }
@@ -2445,9 +2441,7 @@ void execute_get_cache_metrics(zval*             object,
                              result->command_error->command_error_message
                                  ? result->command_error->command_error_message
                                  : "Unknown error");
-        zend_throw_exception(get_exception_ce_for_command_error(result->command_error),
-                             result->command_error->command_error_message,
-                             0);
+        throw_command_error(result->command_error);
         free_command_result(result);
         return;
     }
