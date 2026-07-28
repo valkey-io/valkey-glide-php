@@ -2908,8 +2908,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         );
 
         // Verify it's currently a master
-        $info = $client->info(['REPLICATION']);
-        $this->assertStringContains('role:master', $info);
+        $info = $client->info('REPLICATION');
+        $this->assertEquals('master', $info['role']);
 
         // Make it a replica of 6379
         $result = $client->replicaof('127.0.0.1', 6379);
@@ -2918,16 +2918,16 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         usleep(500000);
 
         // Verify role changed to slave
-        $info = $client->info(['REPLICATION']);
-        $this->assertStringContains('role:slave', $info);
+        $info = $client->info('REPLICATION');
+        $this->assertEquals('slave', $info['role']);
 
         // Promote back to primary with REPLICAOF NO ONE
         $result = $client->replicaof();
         $this->assertTrue($result);
 
         // Verify role changed back to master
-        $info = $client->info(['REPLICATION']);
-        $this->assertStringContains('role:master', $info);
+        $info = $client->info('REPLICATION');
+        $this->assertEquals('master', $info['role']);
 
         $client->close();
     }
@@ -2996,8 +2996,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     public function testFailoverSucceeds()
     {
         // Verify primary has replicas before attempting failover
-        $info = $this->valkey_glide->info(['REPLICATION']);
-        $this->assertStringContains('role:master', $info);
+        $info = $this->valkey_glide->info('REPLICATION');
+        $this->assertEquals('master', $info['role']);
 
         // FAILOVER returns true (command accepted, failover is async)
         $result = $this->valkey_glide->failover();
