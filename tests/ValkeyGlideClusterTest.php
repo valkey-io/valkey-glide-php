@@ -659,6 +659,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testClientPauseWithMode()
     {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT PAUSE WRITE requires 6.2.0+');
+            return;
+        }
+
         $key = '{client_pause_write}_' . uniqid();
         $this->valkey_glide->set($key, 'value');
 
@@ -682,6 +687,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testClientUnpause()
     {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT PAUSE WRITE requires 6.2.0+');
+            return;
+        }
+
         $key = '{client_unpause}_' . uniqid();
         $this->valkey_glide->set($key, 'before');
 
