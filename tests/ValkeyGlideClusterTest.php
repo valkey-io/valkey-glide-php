@@ -672,16 +672,18 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $result = $this->valkey_glide->clientPause($pauseMs, 'WRITE');
         $this->assertTrue($result);
 
-        // Reads should still work quickly during WRITE pause
-        $start = microtime(true);
-        $value = $this->valkey_glide->get($key);
-        $elapsed = (microtime(true) - $start) * 1000;
+        try {
+            // Reads should still work quickly during WRITE pause
+            $start = microtime(true);
+            $value = $this->valkey_glide->get($key);
+            $elapsed = (microtime(true) - $start) * 1000;
 
-        $this->assertEquals('value', $value);
-        $this->assertLT($pauseMs, $elapsed);
+            $this->assertEquals('value', $value);
+            $this->assertLT($pauseMs, $elapsed);
+        } finally {
+            $this->valkey_glide->clientUnpause();
+        }
 
-        // Unpause to restore normal operation
-        $this->valkey_glide->clientUnpause();
         $this->valkey_glide->del($key);
     }
 
