@@ -637,7 +637,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
-    public function testMigrate()
+    public function testMigrateToInvalidHostReturnsFalse()
     {
         $key = '{migrate_test}_' . uniqid();
         $this->valkey_glide->set($key, 'test_value');

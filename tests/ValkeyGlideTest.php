@@ -2744,7 +2744,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result[0]);
     }
 
-    public function testMigrate()
+    public function testMigrateToInvalidHostReturnsFalse()
     {
         $key = 'migrate_' . $this->createRandomString();
         $this->valkey_glide->set($key, 'test_value');
