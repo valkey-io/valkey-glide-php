@@ -2939,15 +2939,16 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             addresses: [['host' => '127.0.0.1', 'port' => 6382]]
         );
 
-        $this->withOptReplyLiteralEnabled($client, function () use ($client) {
-            // Make replica
+        $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+        try {
             $result = $client->replicaof('127.0.0.1', 6379);
             $this->assertEquals('OK', $result);
 
-            // Promote back
             $result = $client->replicaof();
             $this->assertEquals('OK', $result);
-        });
+        } finally {
+            $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+        }
 
         $client->close();
     }
@@ -2974,10 +2975,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             addresses: [['host' => '127.0.0.1', 'port' => 6382]]
         );
 
-        $this->withOptReplyLiteralEnabled($client, function () use ($client) {
+        $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+        try {
             $result = $client->failover();
             $this->assertFalse($result);
-        });
+        } finally {
+            $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+        }
 
         $client->close();
     }
