@@ -985,11 +985,12 @@ BGSAVE_METHOD_IMPL(ValkeyGlideCluster)
 BGREWRITEAOF_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto ValkeyGlideCluster::migrate(string host, int port, string key, int destinationDb, int timeout
+/* {{{ proto ValkeyGlideCluster::migrate(string host, int port, string key, int destinationDb, int
+ * timeout
  * [, bool copy, bool replace, mixed credentials]) */
 MIGRATE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
-  
+
 /* {{{ proto ValkeyGlideCluster::clientPause(int timeout [, string mode]) */
 CLIENT_PAUSE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
