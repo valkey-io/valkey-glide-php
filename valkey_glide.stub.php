@@ -2247,7 +2247,16 @@ class ValkeyGlide
      *
      * @see https://valkey.io/commands/migrate
      */
-    public function migrate(string $host, int $port, string|array $key, int $destinationDb, int $timeout, bool $copy = false, bool $replace = false, mixed $credentials = null): ValkeyGlide|bool|string;
+    public function migrate(
+        string $host,
+        int $port,
+        string|array $key,
+        int $destinationDb,
+        int $timeout,
+        bool $copy = false,
+        bool $replace = false,
+        mixed $credentials = null
+    ): ValkeyGlide|bool|string;
 
     /**
      * Set one or more string keys.
