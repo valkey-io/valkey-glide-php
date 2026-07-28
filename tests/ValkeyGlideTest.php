@@ -90,6 +90,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     /**
      * Port for the destination Valkey server used in migrate tests.
+     * See also "tests/start_valkey_with_replicas.sh".
      */
     protected const MIGRATE_DEST_PORT = 6382;
 

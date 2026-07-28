@@ -152,7 +152,7 @@ int execute_msetnx_command(zval* object, int argc, zval* return_value, zend_clas
     return 0;
 }
 
-/* Execute a FLUSHDB command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a FLUSHDB command using the Valkey Glide client */
 int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
@@ -206,7 +206,7 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
         valkey_glide, &core_args, process_core_bool_result, return_value, object);
 }
 
-/* Execute a FLUSHALL command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a FLUSHALL command using the Valkey Glide client */
 int execute_flushall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
@@ -260,7 +260,7 @@ int execute_flushall_command(zval* object, int argc, zval* return_value, zend_cl
         valkey_glide, &core_args, process_core_bool_result, return_value, object);
 }
 
-/* Execute a BGSAVE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a BGSAVE command using the Valkey Glide client */
 int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
@@ -318,7 +318,7 @@ int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_clas
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
-/* Execute a BGREWRITEAOF command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a BGREWRITEAOF command using the Valkey Glide client */
 int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
@@ -359,14 +359,14 @@ int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zen
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
-/* Execute a MIGRATE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a MIGRATE command using the Valkey Glide client */
 int execute_migrate_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                host     = NULL;
     size_t               host_len = 0;
     long                 port;
     zval*                z_key = NULL;
-    long                 dstdb;
+    long                 destination_db;
     long                 timeout;
     zend_bool            copy          = 0;
     zend_bool            replace       = 0;
@@ -378,7 +378,7 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
         return 0;
     }
 
-    /* Parse parameters: host, port, key (string|array), dstdb, timeout, copy, replace, credentials
+    /* Parse parameters: host, port, key (string|array), destinationDb, timeout, copy, replace, credentials
      */
     if (zend_parse_method_parameters(argc,
                                      object,
@@ -389,7 +389,7 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
                                      &host_len,
                                      &port,
                                      &z_key,
-                                     &dstdb,
+                                     &destination_db,
                                      &timeout,
                                      &copy,
                                      &replace,
@@ -438,7 +438,7 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* arg[3]: destination db */
     core_args.args[arg_idx].type                = CORE_ARG_TYPE_LONG;
-    core_args.args[arg_idx].data.long_arg.value = dstdb;
+    core_args.args[arg_idx].data.long_arg.value = destination_db;
     arg_idx++;
 
     /* arg[4]: timeout */
@@ -608,7 +608,7 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
     return result;
 }
 
-/* Execute a SAVE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a SAVE command using the Valkey Glide client */
 int execute_save_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
@@ -649,7 +649,7 @@ int execute_save_command(zval* object, int argc, zval* return_value, zend_class_
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
-/* Execute a RESET command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a RESET command using the Valkey Glide client */
 int execute_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
 
@@ -681,7 +681,7 @@ int execute_reset_command(zval* object, int argc, zval* return_value, zend_class
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
-/* Execute a TIME command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a TIME command using the Valkey Glide client */
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
@@ -719,7 +719,7 @@ int execute_time_command(zval* object, int argc, zval* return_value, zend_class_
         valkey_glide, &core_args, process_core_array_result, return_value, object);
 }
 
-/* Execute a WATCH command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a WATCH command using the Valkey Glide client */
 int execute_watch_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                z_args    = NULL;
@@ -765,7 +765,7 @@ int execute_watch_command(zval* object, int argc, zval* return_value, zend_class
     return 0;
 }
 
-/* Execute an UNWATCH command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute an UNWATCH command using the Valkey Glide client */
 int execute_unwatch_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
 
@@ -1194,7 +1194,7 @@ int execute_select_command_internal(valkey_glide_object* valkey_glide,
     return execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value);
 }
 
-/* Execute a SELECT command - UNIFIED IMPLEMENTATION */
+/* Execute a SELECT command */
 int execute_select_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     long                 dbindex;
@@ -1245,7 +1245,7 @@ int execute_move_command_internal(valkey_glide_object* valkey_glide,
     return execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value);
 }
 
-/* Execute a MOVE command - UNIFIED IMPLEMENTATION */
+/* Execute a MOVE command */
 int execute_move_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
