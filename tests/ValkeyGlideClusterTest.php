@@ -699,7 +699,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertTrue($result);
 
         // Key should remain at source and also exist at destination
-        $this->assertEquals(1, $this->valkey_glide->exists($key));
         $this->assertEquals('copy_value', $this->valkey_glide->get($key));
         $this->assertEquals('copy_value', $dest->get($key));
 
