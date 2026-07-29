@@ -2965,13 +2965,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testMigrateWithAuthCredentials()
     {
-        // AUTH with string password - should not error (server may not require auth,
-        // but verifies the argument is correctly serialized and sent)
+        // Verifies the command does not error when AUTH credentials are provided.
+        // Does not verify credentials are correctly received by the destination.
+        // See: https://github.com/valkey-io/valkey-glide-php/issues/286
         $key = 'migrate_auth_' . $this->createRandomString();
         $this->valkey_glide->set($key, 'auth_value');
 
-        // Migrate with AUTH password to invalid host - verifies credentials are passed correctly
-        // The connection error (false) confirms the command was built and sent, not rejected client-side
+        // Connection error (false) confirms the command was built and sent, not rejected client-side
         $result = $this->valkey_glide->migrate('nonexistent.invalid', 9999, $key, 0, 1000, false, false, 'mypassword');
         $this->assertFalse($result);
 
@@ -2980,11 +2980,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testMigrateWithAuth2Credentials()
     {
-        // AUTH2 with [username, password] array - should not error
+        // Verifies the command does not error when AUTH2 credentials are provided.
+        // Does not verify credentials are correctly received by the destination.
+        // See: https://github.com/valkey-io/valkey-glide-php/issues/286
         $key = 'migrate_auth2_' . $this->createRandomString();
         $this->valkey_glide->set($key, 'auth2_value');
 
-        // Migrate with AUTH2 credentials to invalid host - verifies credentials are passed correctly
         $result = $this->valkey_glide->migrate('nonexistent.invalid', 9999, $key, 0, 1000, false, false, ['myuser', 'mypassword']);
         $this->assertFalse($result);
 
@@ -2993,7 +2994,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testMigrateWithAuth2SingleElementArray()
     {
-        // AUTH with single-element array [password] - should use AUTH (not AUTH2)
+        // Verifies single-element array [password] uses AUTH (not AUTH2) without error.
+        // See: https://github.com/valkey-io/valkey-glide-php/issues/286
         $key = 'migrate_auth_arr_' . $this->createRandomString();
         $this->valkey_glide->set($key, 'auth_arr_value');
 
