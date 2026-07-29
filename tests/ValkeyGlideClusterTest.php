@@ -650,8 +650,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     public function testMigrateNonExistentKeyReturnsTrue()
     {
         $result = $this->valkey_glide->migrate(
-            'nonexistent.invalid',
-            6379,
+            '127.0.0.1',
+            self::MIGRATE_DEST_PORT,
             'nonexistent_key_' . uniqid(),
             0,
             1000
@@ -663,8 +663,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->withOptReplyLiteralEnabled(function () {
             $result = $this->valkey_glide->migrate(
-                'nonexistent.invalid',
-                6379,
+                '127.0.0.1',
+                self::MIGRATE_DEST_PORT,
                 'nonexistent_key_' . uniqid(),
                 0,
                 1000
