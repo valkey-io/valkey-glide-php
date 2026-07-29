@@ -2855,7 +2855,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $keys[] = $key;
         }
 
-        // Migrate with COPY + REPLACE — args: host, port, "", db, timeout, COPY, REPLACE, KEYS, key0..key9
+        // Migrate with COPY + REPLACE to exercise dynamic allocation (total args > 12)
         $result = $this->valkey_glide->migrate(
             '127.0.0.1',
             self::MIGRATE_DEST_PORT,
