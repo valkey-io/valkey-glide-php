@@ -2226,9 +2226,9 @@ class ValkeyGlide
     public function move(string $key, int $index): ValkeyGlide|bool;
 
     /**
-     * Atomically transfer a key from the connected instance to a destination instance.
+     * Atomically transfers one or more keys from the connected instance to a destination instance.
      *
-     * On success, the key is deleted from the source instance (unless COPY is set).
+     * On success, the keys are deleted from the source instance (unless COPY is set).
      * The command is atomic and blocks both instances during the transfer.
      *
      * @param string       $host        The destination host.
@@ -2236,8 +2236,8 @@ class ValkeyGlide
      * @param string|array $key         The key to migrate, or an array of keys for multi-key migration.
      * @param int          $dstdb       The destination database index.
      * @param int          $timeout     The maximum idle time in milliseconds for the transfer.
-     * @param bool         $copy        If true, do not remove the key from the source instance.
-     * @param bool         $replace     If true, replace existing key on the destination instance.
+     * @param bool         $copy        If true, do not remove the key(s) from the source instance.
+     * @param bool         $replace     If true, replace existing key(s) on the destination instance.
      * @param mixed        $credentials Optional authentication: a string password, or
      *                                  an array [username, password] for AUTH2.
      *
