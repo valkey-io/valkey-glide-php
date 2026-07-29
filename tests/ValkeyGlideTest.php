@@ -2760,8 +2760,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         // Non-existent key returns true (NOKEY is treated as success without literal)
         $result = $this->valkey_glide->migrate(
-            'nonexistent.invalid',
-            6379,
+            '127.0.0.1',
+            self::MIGRATE_DEST_PORT,
             'nonexistent_key_' . $this->createRandomString(),
             0,
             1000
@@ -2773,8 +2773,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         // Multi non-existent keys returns true (NOKEY)
         $result = $this->valkey_glide->migrate(
-            'nonexistent.invalid',
-            6379,
+            '127.0.0.1',
+            self::MIGRATE_DEST_PORT,
             ['nonexistent_key1_' . $this->createRandomString(), 'nonexistent_key2_' . $this->createRandomString()],
             0,
             1000
@@ -2799,8 +2799,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         $this->withOptReplyLiteralEnabled(function () {
             $result = $this->valkey_glide->migrate(
-                'nonexistent.invalid',
-                6379,
+                '127.0.0.1',
+                self::MIGRATE_DEST_PORT,
                 'nonexistent_key_' . $this->createRandomString(),
                 0,
                 1000
@@ -2928,8 +2928,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         $this->valkey_glide->pipeline();
         $this->valkey_glide->migrate(
-            'nonexistent.invalid',
-            6379,
+            '127.0.0.1',
+            self::MIGRATE_DEST_PORT,
             'nonexistent_key_' . $this->createRandomString(),
             0,
             1000
