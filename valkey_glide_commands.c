@@ -400,6 +400,84 @@ int execute_save_command(zval* object, int argc, zval* return_value, zend_class_
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
+/* Execute a CLIENT PAUSE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+int execute_client_pause_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    long                 timeout;
+    char*                mode     = NULL;
+    size_t               mode_len = 0;
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    /* Parse parameters: timeout (required), mode (optional) */
+    if (zend_parse_method_parameters(
+            argc, object, "Ol|s!", &object, ce, &timeout, &mode, &mode_len) == FAILURE) {
+        return 0;
+    }
+
+    /* Setup core command arguments */
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = ClientPause;
+    core_args.is_cluster          = (ce == get_valkey_glide_cluster_ce());
+
+    /* Add timeout argument */
+    core_args.args[0].type                = CORE_ARG_TYPE_LONG;
+    core_args.args[0].data.long_arg.value = timeout;
+    core_args.arg_count                   = 1;
+
+    /* Add optional mode argument (ALL or WRITE) */
+    if (mode && mode_len > 0) {
+        core_args.args[1].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[1].data.string_arg.value = mode;
+        core_args.args[1].data.string_arg.len   = mode_len;
+        core_args.arg_count                     = 2;
+    }
+
+    /* Select processor based on OPT_REPLY_LITERAL */
+    z_result_processor_t processor = valkey_glide->opt_reply_literal
+                                         ? process_core_status_string_result
+                                         : process_core_status_bool_result;
+
+    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+}
+
+/* Execute a CLIENT UNPAUSE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+int execute_client_unpause_command(zval*             object,
+                                   int               argc,
+                                   zval*             return_value,
+                                   zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    /* No parameters - validate object only */
+    if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
+        return 0;
+    }
+
+    /* Setup core command arguments */
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = ClientUnpause;
+    core_args.is_cluster          = (ce == get_valkey_glide_cluster_ce());
+
+    /* Select processor based on OPT_REPLY_LITERAL */
+    z_result_processor_t processor = valkey_glide->opt_reply_literal
+                                         ? process_core_status_string_result
+                                         : process_core_status_bool_result;
+
+    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+}
+
 /* Execute a RESET command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
 int execute_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -668,7 +746,6 @@ int execute_unwatch_command(zval* object, int argc, zval* return_value, zend_cla
         return 0;
     }
 
-    /* Execute using core framework */
     core_command_args_t args = {0};
     args.glide_client        = valkey_glide->glide_client;
     args.cmd_type            = UnWatch;
