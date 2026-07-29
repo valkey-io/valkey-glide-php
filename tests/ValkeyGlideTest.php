@@ -2904,11 +2904,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $key = 'migrate_replace_' . $this->createRandomString();
         $this->valkey_glide->set($key, 'source_value');
 
-        // First migrate with COPY to create key at destination
-        $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, $key, 0, 5000, true);
-
-        // Set a new value at source
-        $this->valkey_glide->set($key, 'new_source_value');
+        // Set existing value directly on destination
+        $dest->set($key, 'old_dest_value');
 
         // Migrate with REPLACE - should overwrite destination
         $result = $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, $key, 0, 5000, false, true);
@@ -2916,7 +2913,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // Key should be removed from source, destination has new value
         $this->assertEquals(0, $this->valkey_glide->exists($key));
-        $this->assertEquals('new_source_value', $dest->get($key));
+        $this->assertEquals('source_value', $dest->get($key));
     }
 
     public function testMigrateBatch()
