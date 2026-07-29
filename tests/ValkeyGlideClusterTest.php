@@ -645,8 +645,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // Existing key + invalid host returns false (connection error)
         $result = $this->valkey_glide->migrate('nonexistent.invalid', 9999, $key, 0, 1000);
         $this->assertFalse($result);
-
-        $this->valkey_glide->del($key);
     }
 
     public function testMigrateNonExistentKeyReturnsTrue()
