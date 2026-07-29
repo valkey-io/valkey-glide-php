@@ -495,7 +495,7 @@ class ValkeyGlideCluster
         string $host,
         int $port,
         string $key,
-        int $destinationDb,
+        int $dstdb,
         int $timeout,
         bool $copy = false,
         bool $replace = false,

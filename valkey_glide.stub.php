@@ -2234,7 +2234,7 @@ class ValkeyGlide
      * @param string       $host        The destination host.
      * @param int          $port        The destination port.
      * @param string|array $key         The key to migrate, or an array of keys for multi-key migration.
-     * @param int          $destinationDb       The destination database index.
+     * @param int          $dstdb       The destination database index.
      * @param int          $timeout     The maximum idle time in milliseconds for the transfer.
      * @param bool         $copy        If true, do not remove the key from the source instance.
      * @param bool         $replace     If true, replace existing key on the destination instance.
@@ -2251,7 +2251,7 @@ class ValkeyGlide
         string $host,
         int $port,
         string|array $key,
-        int $destinationDb,
+        int $dstdb,
         int $timeout,
         bool $copy = false,
         bool $replace = false,

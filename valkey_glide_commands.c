@@ -366,7 +366,7 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
     size_t               host_len = 0;
     long                 port;
     zval*                z_key = NULL;
-    long                 destination_db;
+    long                 dstdb;
     long                 timeout;
     zend_bool            copy          = 0;
     zend_bool            replace       = 0;
@@ -378,7 +378,7 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
         return 0;
     }
 
-    /* Parse parameters: host, port, key (string|array), destinationDb, timeout, copy, replace,
+    /* Parse parameters: host, port, key (string|array), dstdb, timeout, copy, replace,
      * credentials
      */
     if (zend_parse_method_parameters(argc,
@@ -390,7 +390,7 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
                                      &host_len,
                                      &port,
                                      &z_key,
-                                     &destination_db,
+                                     &dstdb,
                                      &timeout,
                                      &copy,
                                      &replace,
@@ -439,7 +439,7 @@ int execute_migrate_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* arg[3]: destination db */
     core_args.args[arg_idx].type                = CORE_ARG_TYPE_LONG;
-    core_args.args[arg_idx].data.long_arg.value = destination_db;
+    core_args.args[arg_idx].data.long_arg.value = dstdb;
     arg_idx++;
 
     /* arg[4]: timeout */
