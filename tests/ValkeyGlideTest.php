@@ -3349,10 +3349,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testFailoverNoReplicasReturnsFalse()
     {
-        // Connect to server on port 6382 which has no replicas
+        // Connect to server on port 6384 which has no replicas
         $client = new ValkeyGlide();
         $client->connect(
-            addresses: [['host' => '127.0.0.1', 'port' => 6382]]
+            addresses: [['host' => '127.0.0.1', 'port' => 6384]]
         );
 
         // FAILOVER on a server with no replicas returns false
@@ -3366,7 +3366,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         $client = new ValkeyGlide();
         $client->connect(
-            addresses: [['host' => '127.0.0.1', 'port' => 6382]]
+            addresses: [['host' => '127.0.0.1', 'port' => 6384]]
         );
 
         $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);

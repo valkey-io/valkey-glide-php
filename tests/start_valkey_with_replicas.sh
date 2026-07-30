@@ -9,7 +9,7 @@ cd "$SCRIPT_DIR"
 BASE_DIR="$(pwd)/valkey_data"
 
 # Create data directories with full path
-for port in 6379 6380 6381 6382 6383; do
+for port in 6379 6380 6381 6382 6383 6384; do
   mkdir -p "$BASE_DIR/$port"
 done
 
@@ -52,6 +52,15 @@ valkey-server --port 6383 \
   --dir "$BASE_DIR/6383" \
   --daemonize yes \
   --logfile "$BASE_DIR/6383/valkey.log" \
+  --enable-debug-command yes \
+  --protected-mode no
+
+# Start independent standalone server with no replicas (6384)
+valkey-server --port 6384 \
+  --bind 0.0.0.0 \
+  --dir "$BASE_DIR/6384" \
+  --daemonize yes \
+  --logfile "$BASE_DIR/6384/valkey.log" \
   --enable-debug-command yes \
   --protected-mode no
 
