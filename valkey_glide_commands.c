@@ -610,6 +610,38 @@ int execute_save_command(zval* object, int argc, zval* return_value, zend_class_
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
+/* Execute a RESET command using the Valkey Glide client */
+int execute_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    /* No parameters - validate object only */
+    if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
+        return 0;
+    }
+
+    /* Setup core command arguments */
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = Reset;
+    core_args.is_cluster          = (ce == get_valkey_glide_cluster_ce());
+
+    /* Select processor based on OPT_REPLY_LITERAL:
+     * - With OPT_REPLY_LITERAL: return raw string "RESET"
+     * - Without OPT_REPLY_LITERAL: return bool true
+     * This matches PHPRedis behavior where reset() returns bool. */
+    z_result_processor_t processor = valkey_glide->opt_reply_literal
+                                         ? process_core_status_string_result
+                                         : process_core_status_bool_result;
+
+    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+}
+
 /* Execute a CLIENT PAUSE command using the Valkey Glide client */
 int execute_client_pause_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -681,38 +713,6 @@ int execute_client_unpause_command(zval*             object,
     core_args.is_cluster          = (ce == get_valkey_glide_cluster_ce());
 
     /* Select processor based on OPT_REPLY_LITERAL */
-    z_result_processor_t processor = valkey_glide->opt_reply_literal
-                                         ? process_core_status_string_result
-                                         : process_core_status_bool_result;
-
-    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
-}
-
-/* Execute a RESET command using the Valkey Glide client */
-int execute_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    valkey_glide_object* valkey_glide;
-
-    /* Get ValkeyGlide object */
-    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
-    if (!valkey_glide || !valkey_glide->glide_client) {
-        return 0;
-    }
-
-    /* No parameters - validate object only */
-    if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
-        return 0;
-    }
-
-    /* Setup core command arguments */
-    core_command_args_t core_args = {0};
-    core_args.glide_client        = valkey_glide->glide_client;
-    core_args.cmd_type            = Reset;
-    core_args.is_cluster          = (ce == get_valkey_glide_cluster_ce());
-
-    /* Select processor based on OPT_REPLY_LITERAL:
-     * - With OPT_REPLY_LITERAL: return raw string "RESET"
-     * - Without OPT_REPLY_LITERAL: return bool true
-     * This matches PHPRedis behavior where reset() returns bool. */
     z_result_processor_t processor = valkey_glide->opt_reply_literal
                                          ? process_core_status_string_result
                                          : process_core_status_bool_result;
