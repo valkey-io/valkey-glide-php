@@ -317,6 +317,7 @@ int prepare_core_args(core_command_args_t* args,
         case FailOver:
         case FlushAll:
         case FlushDB:
+        case Migrate:
         case Ping:
         case ReplicaOf:
         case Select:
@@ -646,11 +647,14 @@ int prepare_message_args(core_command_args_t* args,
         return 0;
     }
 
-    /* Calculate total argument count - just the arguments, no key */
+    /* Determine which arg array to iterate */
+    core_arg_t* arg_array = args->all_args ? args->all_args : args->args;
+
+    /* Calculate total argument count */
     int total_args = 0;
 
     for (int i = 0; i < args->arg_count; i++) {
-        switch (args->args[i].type) {
+        switch (arg_array[i].type) {
             case CORE_ARG_TYPE_STRING:
             case CORE_ARG_TYPE_LONG:
             case CORE_ARG_TYPE_DOUBLE:
@@ -671,18 +675,18 @@ int prepare_message_args(core_command_args_t* args,
 
     int arg_idx = 0;
 
-    /* Add all arguments */
+    /* Add all arguments from the single array */
     for (int i = 0; i < args->arg_count; i++) {
-        switch (args->args[i].type) {
+        switch (arg_array[i].type) {
             case CORE_ARG_TYPE_STRING:
-                (*cmd_args)[arg_idx]     = (uintptr_t) args->args[i].data.string_arg.value;
-                (*cmd_args_len)[arg_idx] = args->args[i].data.string_arg.len;
+                (*cmd_args)[arg_idx]     = (uintptr_t) arg_array[i].data.string_arg.value;
+                (*cmd_args_len)[arg_idx] = arg_array[i].data.string_arg.len;
                 arg_idx++;
                 break;
 
             case CORE_ARG_TYPE_LONG: {
                 size_t len;
-                char*  str = core_long_to_string(args->args[i].data.long_arg.value, &len);
+                char*  str = core_long_to_string(arg_array[i].data.long_arg.value, &len);
                 if (str) {
                     (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
@@ -694,7 +698,7 @@ int prepare_message_args(core_command_args_t* args,
 
             case CORE_ARG_TYPE_DOUBLE: {
                 size_t len;
-                char*  str = core_double_to_string(args->args[i].data.double_arg.value, &len);
+                char*  str = core_double_to_string(arg_array[i].data.double_arg.value, &len);
                 if (str) {
                     (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;

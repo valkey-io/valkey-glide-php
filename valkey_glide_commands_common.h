@@ -208,6 +208,7 @@ int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_clas
 int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_failover_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_replicaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_migrate_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_client_pause_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_client_unpause_command(zval*             object,
                                    int               argc,
@@ -485,6 +486,9 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
         zval_dtor(return_value);                                                    \
         RETURN_FALSE;                                                               \
     }
+
+#define MIGRATE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, migrate, execute_migrate_command)
 
 #define BGSAVE_METHOD_IMPL(class_name) \
     STANDARD_METHOD_IMPL(class_name, bgSave, execute_bgsave_command)

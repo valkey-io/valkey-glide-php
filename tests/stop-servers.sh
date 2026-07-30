@@ -12,7 +12,7 @@ echo "Stopping all Valkey servers..."
 # ------------------
 
 # Non-TLS standalone servers.
-for port in 6379 6380 6381; do
+for port in 6379 6380 6381 6382; do
     valkey-cli -p $port shutdown nosave 2>/dev/null || true
 done
 

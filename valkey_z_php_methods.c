@@ -830,6 +830,11 @@ FAILOVER_METHOD_IMPL(ValkeyGlide)
 REPLICAOF_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto bool ValkeyGlide::migrate(string host, int port, string|array key, int dstdb,
+ * int timeout [, bool copy, bool replace, mixed credentials]) */
+MIGRATE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto bool ValkeyGlide::clientPause(int timeout [, string mode]) */
 CLIENT_PAUSE_METHOD_IMPL(ValkeyGlide)
 /* }}} */

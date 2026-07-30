@@ -667,6 +667,36 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
+    public function testMigrateMultiKeyNotSupported()
+    {
+        $this->markTestSkipped('Multi-key migration not supported in cluster mode');
+    }
+
+    public function testMigrateMultiKeyNonExistentReturnsTrue()
+    {
+        $this->markTestSkipped('Multi-key migration not supported in cluster mode');
+    }
+
+    public function testMigrateMultiKeySuccess()
+    {
+        $this->markTestSkipped('Multi-key migration not supported in cluster mode');
+    }
+
+    public function testMigrateMultiKeyManyKeys()
+    {
+        $this->markTestSkipped('Multi-key migration not supported in cluster mode');
+    }
+
+    public function testMigrateBatchMultiKey()
+    {
+        $this->markTestSkipped('Multi-key migration not supported in cluster mode');
+    }
+
+    public function testMigrateEmptyKeys()
+    {
+        $this->markTestSkipped('Multi-key migration not supported in cluster mode');
+    }
+
     public function testClientPause()
     {
         $key = '{client_pause_all}_' . uniqid();

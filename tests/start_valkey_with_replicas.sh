@@ -37,7 +37,7 @@ valkey-server --port 6381 \
   --logfile "$BASE_DIR/6381/valkey.log" \
   --enable-debug-command yes
 
-# Start independent standalone server for replicaof/failover tests (6382)
+# Start independent standalone server for replicaof/failover tests and migrate tests (6382)
 valkey-server --port 6382 \
   --bind 0.0.0.0 \
   --dir "$BASE_DIR/6382" \

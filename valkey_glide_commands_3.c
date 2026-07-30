@@ -2004,7 +2004,7 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
     return 0;
 }
 
-/* Execute rawcommand command - UNIFIED IMPLEMENTATION */
+/* Execute rawcommand command */
 int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                z_args     = NULL;
@@ -2057,7 +2057,7 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
     return 0;
 }
 
-/* Execute dbSize command - UNIFIED IMPLEMENTATION */
+/* Execute dbSize command */
 int execute_dbsize_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
