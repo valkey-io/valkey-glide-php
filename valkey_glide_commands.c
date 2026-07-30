@@ -152,7 +152,7 @@ int execute_msetnx_command(zval* object, int argc, zval* return_value, zend_clas
     return 0;
 }
 
-/* Execute a FLUSHDB command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a FLUSHDB command using the Valkey Glide client */
 int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
@@ -206,7 +206,7 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
         valkey_glide, &core_args, process_core_bool_result, return_value, object);
 }
 
-/* Execute a FLUSHALL command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a FLUSHALL command using the Valkey Glide client */
 int execute_flushall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
@@ -260,7 +260,7 @@ int execute_flushall_command(zval* object, int argc, zval* return_value, zend_cl
         valkey_glide, &core_args, process_core_bool_result, return_value, object);
 }
 
-/* Execute a BGSAVE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a BGSAVE command using the Valkey Glide client */
 int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
@@ -318,7 +318,7 @@ int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_clas
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
-/* Execute a BGREWRITEAOF command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a BGREWRITEAOF command using the Valkey Glide client */
 int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
@@ -359,7 +359,217 @@ int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zen
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
-/* Execute a SAVE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a MIGRATE command using the Valkey Glide client */
+int execute_migrate_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                host     = NULL;
+    size_t               host_len = 0;
+    long                 port;
+    zval*                z_key = NULL;
+    long                 dstdb;
+    long                 timeout;
+    zend_bool            copy          = 0;
+    zend_bool            replace       = 0;
+    zval*                z_credentials = NULL;
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    /* Parse parameters: host, port, key (string|array), dstdb, timeout, copy, replace,
+     * credentials
+     */
+    if (zend_parse_method_parameters(argc,
+                                     object,
+                                     "Oslzll|bbz!",
+                                     &object,
+                                     ce,
+                                     &host,
+                                     &host_len,
+                                     &port,
+                                     &z_key,
+                                     &dstdb,
+                                     &timeout,
+                                     &copy,
+                                     &replace,
+                                     &z_credentials) == FAILURE) {
+        return 0;
+    }
+
+    /* Setup core command arguments */
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = Migrate;
+    core_args.is_cluster          = (ce == get_valkey_glide_cluster_ce());
+
+    int arg_idx = 0;
+
+    /* arg[0]: host */
+    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+    core_args.args[arg_idx].data.string_arg.value = host;
+    core_args.args[arg_idx].data.string_arg.len   = host_len;
+    arg_idx++;
+
+    /* arg[1]: port */
+    core_args.args[arg_idx].type                = CORE_ARG_TYPE_LONG;
+    core_args.args[arg_idx].data.long_arg.value = port;
+    arg_idx++;
+
+    /* arg[2]: key or "" for multi-key */
+    if (Z_TYPE_P(z_key) == IS_STRING) {
+        /* Single key */
+        core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_key);
+        core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_key);
+    } else if (Z_TYPE_P(z_key) == IS_ARRAY) {
+        /* Multi-key: validate non-empty */
+        if (zend_hash_num_elements(Z_ARRVAL_P(z_key)) == 0) {
+            return 0;
+        }
+        /* Pass empty string as key placeholder, keys will be appended via KEYS keyword */
+        core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[arg_idx].data.string_arg.value = "";
+        core_args.args[arg_idx].data.string_arg.len   = 0;
+    } else {
+        return 0;
+    }
+    arg_idx++;
+
+    /* arg[3]: destination db */
+    core_args.args[arg_idx].type                = CORE_ARG_TYPE_LONG;
+    core_args.args[arg_idx].data.long_arg.value = dstdb;
+    arg_idx++;
+
+    /* arg[4]: timeout */
+    core_args.args[arg_idx].type                = CORE_ARG_TYPE_LONG;
+    core_args.args[arg_idx].data.long_arg.value = timeout;
+    arg_idx++;
+
+    /* arg[5]: COPY (optional) */
+    if (copy) {
+        core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[arg_idx].data.string_arg.value = "COPY";
+        core_args.args[arg_idx].data.string_arg.len   = 4;
+        arg_idx++;
+    }
+
+    /* arg[6]: REPLACE (optional) */
+    if (replace) {
+        core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[arg_idx].data.string_arg.value = "REPLACE";
+        core_args.args[arg_idx].data.string_arg.len   = 7;
+        arg_idx++;
+    }
+
+    /* Handle credentials: AUTH password or AUTH2 username password */
+    if (z_credentials && Z_TYPE_P(z_credentials) != IS_NULL) {
+        if (Z_TYPE_P(z_credentials) == IS_STRING) {
+            /* Simple password: AUTH password (need 2 slots) */
+            if (arg_idx + 1 < 12) {
+                core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                core_args.args[arg_idx].data.string_arg.value = "AUTH";
+                core_args.args[arg_idx].data.string_arg.len   = 4;
+                arg_idx++;
+                core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_credentials);
+                core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_credentials);
+                arg_idx++;
+            }
+        } else if (Z_TYPE_P(z_credentials) == IS_ARRAY) {
+            /* Array: [password] for AUTH, or [username, password] for AUTH2 */
+            HashTable* ht       = Z_ARRVAL_P(z_credentials);
+            int        num_elem = zend_hash_num_elements(ht);
+            zval*      z_elem0  = zend_hash_index_find(ht, 0);
+            zval*      z_elem1  = zend_hash_index_find(ht, 1);
+
+            if (num_elem == 1 && z_elem0 && Z_TYPE_P(z_elem0) == IS_STRING) {
+                /* Single element: AUTH password */
+                if (arg_idx + 2 <= 12) {
+                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                    core_args.args[arg_idx].data.string_arg.value = "AUTH";
+                    core_args.args[arg_idx].data.string_arg.len   = 4;
+                    arg_idx++;
+                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                    core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_elem0);
+                    core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_elem0);
+                    arg_idx++;
+                }
+            } else if (num_elem >= 2 && z_elem0 && Z_TYPE_P(z_elem0) == IS_STRING && z_elem1 &&
+                       Z_TYPE_P(z_elem1) == IS_STRING) {
+                /* Two elements: AUTH2 username password */
+                if (arg_idx + 3 <= 12) {
+                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                    core_args.args[arg_idx].data.string_arg.value = "AUTH2";
+                    core_args.args[arg_idx].data.string_arg.len   = 5;
+                    arg_idx++;
+                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                    core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_elem0);
+                    core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_elem0);
+                    arg_idx++;
+                    core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                    core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_elem1);
+                    core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_elem1);
+                    arg_idx++;
+                }
+            }
+        }
+    }
+
+    /* For multi-key: allocate a single combined array with all args */
+    if (Z_TYPE_P(z_key) == IS_ARRAY) {
+        int num_keys    = zend_hash_num_elements(Z_ARRVAL_P(z_key));
+        int total_count = arg_idx + 1 + num_keys; /* existing args + KEYS keyword + keys */
+
+        core_arg_t* all = (core_arg_t*) ecalloc(total_count, sizeof(core_arg_t));
+
+        /* Copy existing fixed args into the combined array */
+        memcpy(all, core_args.args, arg_idx * sizeof(core_arg_t));
+
+        /* Append KEYS keyword */
+        all[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+        all[arg_idx].data.string_arg.value = "KEYS";
+        all[arg_idx].data.string_arg.len   = 4;
+        arg_idx++;
+
+        /* Append individual keys, converting non-string values to strings */
+        zval* z_val;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(z_key), z_val) {
+            if (Z_TYPE_P(z_val) != IS_STRING) {
+                convert_to_string(z_val);
+            }
+            all[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+            all[arg_idx].data.string_arg.value = Z_STRVAL_P(z_val);
+            all[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_val);
+            arg_idx++;
+        }
+        ZEND_HASH_FOREACH_END();
+
+        core_args.all_args = all;
+    }
+
+    core_args.arg_count = arg_idx;
+
+    /* Select processor based on OPT_REPLY_LITERAL:
+     * - With OPT_REPLY_LITERAL: return raw string ("OK" or "NOKEY")
+     * - Without OPT_REPLY_LITERAL: return bool true on success */
+    z_result_processor_t processor = valkey_glide->opt_reply_literal
+                                         ? process_core_status_string_result
+                                         : process_core_status_bool_result;
+
+    int result =
+        execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+
+    /* Free dynamic args if allocated */
+    if (core_args.all_args) {
+        efree(core_args.all_args);
+    }
+
+    return result;
+}
+
+/* Execute a SAVE command using the Valkey Glide client */
 int execute_save_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
@@ -400,7 +610,7 @@ int execute_save_command(zval* object, int argc, zval* return_value, zend_class_
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
-/* Execute a RESET command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a RESET command using the Valkey Glide client */
 int execute_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
 
@@ -432,7 +642,7 @@ int execute_reset_command(zval* object, int argc, zval* return_value, zend_class
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
-/* Execute a CLIENT PAUSE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a CLIENT PAUSE command using the Valkey Glide client */
 int execute_client_pause_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     long                 timeout;
@@ -478,7 +688,7 @@ int execute_client_pause_command(zval* object, int argc, zval* return_value, zen
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
-/* Execute a CLIENT UNPAUSE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a CLIENT UNPAUSE command using the Valkey Glide client */
 int execute_client_unpause_command(zval*             object,
                                    int               argc,
                                    zval*             return_value,
@@ -510,7 +720,7 @@ int execute_client_unpause_command(zval*             object,
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
-/* Execute a TIME command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a TIME command using the Valkey Glide client */
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
@@ -548,7 +758,7 @@ int execute_time_command(zval* object, int argc, zval* return_value, zend_class_
         valkey_glide, &core_args, process_core_array_result, return_value, object);
 }
 
-/* Execute a WATCH command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a WATCH command using the Valkey Glide client */
 int execute_watch_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                z_args    = NULL;
@@ -594,7 +804,7 @@ int execute_watch_command(zval* object, int argc, zval* return_value, zend_class
     return 0;
 }
 
-/* Execute an UNWATCH command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute an UNWATCH command using the Valkey Glide client */
 int execute_unwatch_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
 
@@ -1023,7 +1233,7 @@ int execute_select_command_internal(valkey_glide_object* valkey_glide,
     return execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value);
 }
 
-/* Execute a SELECT command - UNIFIED IMPLEMENTATION */
+/* Execute a SELECT command */
 int execute_select_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     long                 dbindex;
@@ -1074,7 +1284,7 @@ int execute_move_command_internal(valkey_glide_object* valkey_glide,
     return execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value);
 }
 
-/* Execute a MOVE command - UNIFIED IMPLEMENTATION */
+/* Execute a MOVE command */
 int execute_move_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;

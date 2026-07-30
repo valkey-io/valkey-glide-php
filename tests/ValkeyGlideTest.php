@@ -89,6 +89,29 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     /**
+     * Port for the destination Valkey server used in migrate tests.
+     * See also "tests/start_valkey_with_replicas.sh".
+     */
+    protected const MIGRATE_DEST_PORT = 6382;
+
+    /**
+     * Shared destination client for migrate tests.
+     */
+    protected ?ValkeyGlide $migrateDestClient = null;
+
+    protected function getMigrateDestClient(): ValkeyGlide
+    {
+        if ($this->migrateDestClient === null) {
+            $this->migrateDestClient = new ValkeyGlide();
+            $this->migrateDestClient->connect(
+                addresses: [['host' => '127.0.0.1', 'port' => self::MIGRATE_DEST_PORT]]
+            );
+        }
+        $this->migrateDestClient->flushDb();
+        return $this->migrateDestClient;
+    }
+
+    /**
      * Execute a callable with OPT_REPLY_LITERAL enabled, ensuring it is
      * always disabled afterwards even if an exception is thrown.
      */
@@ -2719,6 +2742,264 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->bgRewriteAof();
         $result = $this->valkey_glide->exec();
         $this->assertTrue($result[0]);
+    }
+
+    public function testMigrateToInvalidHostReturnsFalse()
+    {
+        $key = 'migrate_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'test_value');
+
+        // Existing key + invalid host returns false (connection error)
+        $result = $this->valkey_glide->migrate('nonexistent.invalid', 9999, $key, 0, 1000);
+        $this->assertFalse($result);
+
+        $this->valkey_glide->del($key);
+    }
+
+    public function testMigrateNonExistentKeyReturnsTrue()
+    {
+        // Non-existent key returns true (NOKEY is treated as success without literal)
+        $result = $this->valkey_glide->migrate(
+            '127.0.0.1',
+            self::MIGRATE_DEST_PORT,
+            'nonexistent_key_' . $this->createRandomString(),
+            0,
+            1000
+        );
+        $this->assertTrue($result);
+    }
+
+    public function testMigrateMultiKeyNonExistentReturnsTrue()
+    {
+        // Multi non-existent keys returns true (NOKEY)
+        $result = $this->valkey_glide->migrate(
+            '127.0.0.1',
+            self::MIGRATE_DEST_PORT,
+            ['nonexistent_key1_' . $this->createRandomString(), 'nonexistent_key2_' . $this->createRandomString()],
+            0,
+            1000
+        );
+        $this->assertTrue($result);
+    }
+
+    public function testMigrateEmptyKeys()
+    {
+        // Empty keys array should return false (client-side validation)
+        $result = $this->valkey_glide->migrate(
+            'nonexistent.invalid',
+            6379,
+            [],
+            0,
+            1000
+        );
+        $this->assertFalse($result);
+    }
+
+    public function testMigrateNonExistentKeyWithReplyLiteral()
+    {
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->migrate(
+                '127.0.0.1',
+                self::MIGRATE_DEST_PORT,
+                'nonexistent_key_' . $this->createRandomString(),
+                0,
+                1000
+            );
+            $this->assertEquals('NOKEY', $result);
+        });
+    }
+
+    public function testMigrateSingleKeySuccess()
+    {
+        $dest = $this->getMigrateDestClient();
+
+        $key = 'migrate_success_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'migrate_value');
+
+        $result = $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, $key, 0, 5000);
+        $this->assertTrue($result);
+
+        // Key should be removed from source and exist at destination
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
+        $this->assertEquals('migrate_value', $dest->get($key));
+    }
+
+    public function testMigrateMultiKeySuccess()
+    {
+        $dest = $this->getMigrateDestClient();
+
+        $key1 = 'migrate_multi1_' . $this->createRandomString();
+        $key2 = 'migrate_multi2_' . $this->createRandomString();
+        $this->valkey_glide->set($key1, 'value1');
+        $this->valkey_glide->set($key2, 'value2');
+
+        $result = $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, [$key1, $key2], 0, 5000);
+        $this->assertTrue($result);
+
+        // Keys should be removed from source and exist at destination
+        $this->assertEquals(0, $this->valkey_glide->exists($key1));
+        $this->assertEquals(0, $this->valkey_glide->exists($key2));
+        $this->assertEquals('value1', $dest->get($key1));
+        $this->assertEquals('value2', $dest->get($key2));
+    }
+
+    public function testMigrateMultiKeyManyKeys()
+    {
+        $dest = $this->getMigrateDestClient();
+
+        // Create 10 keys to exercise dynamic allocation (total args > 12)
+        $keys = [];
+        for ($i = 0; $i < 10; $i++) {
+            $key = 'migrate_many_' . $i . '_' . $this->createRandomString();
+            $this->valkey_glide->set($key, "value_$i");
+            $keys[] = $key;
+        }
+
+        // Migrate with COPY + REPLACE to exercise dynamic allocation (total args > 12)
+        $result = $this->valkey_glide->migrate(
+            '127.0.0.1',
+            self::MIGRATE_DEST_PORT,
+            $keys,
+            0,
+            5000,
+            true,
+            true
+        );
+        $this->assertTrue($result);
+
+        // With COPY, keys remain at source
+        for ($i = 0; $i < 10; $i++) {
+            $this->assertEquals(1, $this->valkey_glide->exists($keys[$i]));
+            $this->assertEquals("value_$i", $dest->get($keys[$i]));
+        }
+
+        // Cleanup
+        foreach ($keys as $key) {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testMigrateWithCopyKeyRemainsAtSource()
+    {
+        $dest = $this->getMigrateDestClient();
+
+        $key = 'migrate_copy_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'copy_value');
+
+        $result = $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, $key, 0, 5000, true);
+        $this->assertTrue($result);
+
+        // Key should remain at source and also exist at destination
+        $this->assertEquals(1, $this->valkey_glide->exists($key));
+        $this->assertEquals('copy_value', $this->valkey_glide->get($key));
+        $this->assertEquals('copy_value', $dest->get($key));
+
+        $this->valkey_glide->del($key);
+    }
+
+    public function testMigrateWithReplaceOverwritesDestination()
+    {
+        $dest = $this->getMigrateDestClient();
+
+        $key = 'migrate_replace_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'source_value');
+
+        // Set existing value directly on destination
+        $dest->set($key, 'old_dest_value');
+
+        // Migrate with REPLACE - should overwrite destination
+        $result = $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, $key, 0, 5000, false, true);
+        $this->assertTrue($result);
+
+        // Key should be removed from source, destination has new value
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
+        $this->assertEquals('source_value', $dest->get($key));
+    }
+
+    public function testMigrateBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->migrate(
+            '127.0.0.1',
+            self::MIGRATE_DEST_PORT,
+            'nonexistent_key_' . $this->createRandomString(),
+            0,
+            1000
+        );
+        $result = $this->valkey_glide->exec();
+        $this->assertTrue($result[0]);
+    }
+
+    public function testMigrateBatchMultiKey()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $dest = $this->getMigrateDestClient();
+
+        $key1 = 'migrate_batch_multi1_' . $this->createRandomString();
+        $key2 = 'migrate_batch_multi2_' . $this->createRandomString();
+        $this->valkey_glide->set($key1, 'value1');
+        $this->valkey_glide->set($key2, 'value2');
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, [$key1, $key2], 0, 5000);
+        $result = $this->valkey_glide->exec();
+
+        $this->assertTrue($result[0]);
+        $this->assertEquals(0, $this->valkey_glide->exists($key1));
+        $this->assertEquals(0, $this->valkey_glide->exists($key2));
+        $this->assertEquals('value1', $dest->get($key1));
+        $this->assertEquals('value2', $dest->get($key2));
+    }
+
+    public function testMigrateWithAuthCredentials()
+    {
+        // Verifies the command does not error when AUTH credentials are provided.
+        // Does not verify credentials are correctly received by the destination.
+        // See: https://github.com/valkey-io/valkey-glide-php/issues/286
+        $key = 'migrate_auth_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'auth_value');
+
+        // Connection error (false) confirms the command was built and sent, not rejected client-side
+        $result = $this->valkey_glide->migrate('nonexistent.invalid', 9999, $key, 0, 1000, false, false, 'mypassword');
+        $this->assertFalse($result);
+
+        $this->valkey_glide->del($key);
+    }
+
+    public function testMigrateWithAuth2Credentials()
+    {
+        // Verifies the command does not error when AUTH2 credentials are provided.
+        // Does not verify credentials are correctly received by the destination.
+        // See: https://github.com/valkey-io/valkey-glide-php/issues/286
+        $key = 'migrate_auth2_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'auth2_value');
+
+        $result = $this->valkey_glide->migrate('nonexistent.invalid', 9999, $key, 0, 1000, false, false, ['myuser', 'mypassword']);
+        $this->assertFalse($result);
+
+        $this->valkey_glide->del($key);
+    }
+
+    public function testMigrateWithAuth2SingleElementArray()
+    {
+        // Verifies single-element array [password] uses AUTH (not AUTH2) without error.
+        // See: https://github.com/valkey-io/valkey-glide-php/issues/286
+        $key = 'migrate_auth_arr_' . $this->createRandomString();
+        $this->valkey_glide->set($key, 'auth_arr_value');
+
+        $result = $this->valkey_glide->migrate('nonexistent.invalid', 9999, $key, 0, 1000, false, false, ['mypassword']);
+        $this->assertFalse($result);
+
+        $this->valkey_glide->del($key);
     }
 
     public function testClientPause()

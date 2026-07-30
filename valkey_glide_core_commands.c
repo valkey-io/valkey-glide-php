@@ -439,7 +439,7 @@ int process_ping_result(CommandResponse* response, void* output, zval* return_va
 
 /* These functions are now defined in command_response.c */
 
-/* Execute a BITCOUNT command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a BITCOUNT command using the Valkey Glide client */
 int execute_bitcount_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
@@ -486,7 +486,7 @@ int execute_bitcount_command(zval* object, int argc, zval* return_value, zend_cl
     return 0;
 }
 
-/* Execute a BITOP command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a BITOP command using the Valkey Glide client */
 int execute_bitop_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char *               op = NULL, *key = NULL;
@@ -551,7 +551,7 @@ int execute_bitop_command(zval* object, int argc, zval* return_value, zend_class
     return 0;
 }
 
-/* Execute a BITPOS command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a BITPOS command using the Valkey Glide client */
 int execute_bitpos_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
@@ -605,7 +605,7 @@ int execute_bitpos_command(zval* object, int argc, zval* return_value, zend_clas
     return 0;
 }
 
-/* Execute a SET command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a SET command using the Valkey Glide client */
 int execute_set_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval *               z_value, *z_expire = NULL, *z_opts = NULL;
@@ -786,7 +786,7 @@ int execute_set_command_internal(valkey_glide_object* valkey_glide,
     return execute_core_command(valkey_glide, &args, result_data, process_set_result, return_value);
 }
 
-/* Execute a SETEX command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a SETEX command using the Valkey Glide client */
 int execute_setex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char *               key = NULL, *val = NULL;
@@ -822,7 +822,7 @@ int execute_setex_command(zval* object, int argc, zval* return_value, zend_class
     }
 }
 
-/* Execute a PSETEX command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a PSETEX command using the Valkey Glide client */
 int execute_psetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char *               key = NULL, *val = NULL;
@@ -868,7 +868,7 @@ int execute_psetex_command(zval* object, int argc, zval* return_value, zend_clas
     }
 }
 
-/* Execute a SETNX command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a SETNX command using the Valkey Glide client */
 int execute_setnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char *               key = NULL, *val = NULL;
@@ -923,7 +923,7 @@ void close_glide_client(const void* glide_client) {
     close_client(glide_client);
 }
 
-/* Execute an ECHO command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute an ECHO command using the Valkey Glide client */
 int execute_echo_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
@@ -1006,7 +1006,7 @@ int execute_echo_command(zval* object, int argc, zval* return_value, zend_class_
     return 0;
 }
 
-/* Execute a PING command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a PING command using the Valkey Glide client */
 int execute_ping_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args         = NULL;
@@ -1388,7 +1388,7 @@ int execute_info_command(zval* object, int argc, zval* return_value, zend_class_
     return 0;
 }
 
-/* Execute a GET command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a GET command using the Valkey Glide client */
 int execute_get_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
@@ -1429,7 +1429,7 @@ int execute_get_command(zval* object, int argc, zval* return_value, zend_class_e
     return 0;
 }
 
-/* Execute a RANDOMKEY command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a RANDOMKEY command using the Valkey Glide client */
 int execute_randomkey_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
@@ -1512,7 +1512,7 @@ int execute_randomkey_command(zval* object, int argc, zval* return_value, zend_c
     return 0;
 }
 
-/* Execute a GETBIT command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a GETBIT command using the Valkey Glide client */
 int execute_getbit_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
@@ -1557,7 +1557,7 @@ int execute_getbit_command(zval* object, int argc, zval* return_value, zend_clas
     return 0;
 }
 
-/* Execute a SETBIT command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a SETBIT command using the Valkey Glide client */
 int execute_setbit_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
@@ -1657,7 +1657,7 @@ int execute_del_array(const void* glide_client,
     return result;
 }
 
-/* Execute a DEL command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a DEL command using the Valkey Glide client */
 int execute_del_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     long                 result_value = 0;
@@ -1744,7 +1744,7 @@ int execute_unlink_array(const void* glide_client,
     return result;
 }
 
-/* Execute a STRLEN command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a STRLEN command using the Valkey Glide client */
 int execute_strlen_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
@@ -1783,7 +1783,7 @@ int execute_strlen_command(zval* object, int argc, zval* return_value, zend_clas
     return 0;
 }
 
-/* Execute a SETRANGE command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a SETRANGE command using the Valkey Glide client */
 int execute_setrange_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char *               key = NULL, *val = NULL;
@@ -1868,7 +1868,7 @@ static void process_sorted_set_elements(struct CommandResponse* elements_resp,
     }
 }
 
-/* Execute a TTL command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a TTL command using the Valkey Glide client */
 int execute_ttl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
@@ -1906,7 +1906,7 @@ int execute_ttl_command(zval* object, int argc, zval* return_value, zend_class_e
     return 0;
 }
 
-/* Execute a PTTL command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a PTTL command using the Valkey Glide client */
 int execute_pttl_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
@@ -1944,7 +1944,7 @@ int execute_pttl_command(zval* object, int argc, zval* return_value, zend_class_
     return 0;
 }
 
-/* Execute a GETSET command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute a GETSET command using the Valkey Glide client */
 int execute_getset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char *               key = NULL, *val = NULL;
@@ -2058,7 +2058,7 @@ static int process_lcs_result(CommandResponse* response, void* output, zval* ret
     return ret_val;
 }
 
-/* Execute an LCS command using the Valkey Glide client - UNIFIED IMPLEMENTATION */
+/* Execute an LCS command using the Valkey Glide client */
 int execute_lcs_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char *               key1 = NULL, *key2 = NULL;

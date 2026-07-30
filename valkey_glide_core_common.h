@@ -99,13 +99,14 @@ typedef struct {
 /* Argument allocation type */
 /* Core command arguments structure - simplified without dynamic support */
 typedef struct {
-    const void*      glide_client;
-    const char*      key;
-    zval*            route_param; /* Route parameter for cluster commands */
-    zval*            raw_options; /* Raw PHP options array for complex parsing */
-    size_t           key_len;
-    core_options_t   options;
-    core_arg_t       args[8]; /* Fixed arguments array - sufficient for current usage */
+    const void*    glide_client;
+    const char*    key;
+    zval*          route_param; /* Route parameter for cluster commands */
+    zval*          raw_options; /* Raw PHP options array for complex parsing */
+    size_t         key_len;
+    core_options_t options;
+    core_arg_t     args[12]; /* Fixed arguments array - supports most commands */
+    core_arg_t* all_args; /* If non-NULL, use this dynamically allocated array instead of args[] */
     enum RequestType cmd_type;
     int              arg_count;
     zend_bool        is_cluster; /* Flag to indicate cluster mode */
