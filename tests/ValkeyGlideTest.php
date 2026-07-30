@@ -3303,11 +3303,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $result = $client->replicaof('127.0.0.1', 6379);
         $this->assertTrue($result);
 
-        usleep(500000);
-
-        // Verify role changed to slave
-        $info = $client->info('REPLICATION');
-        $this->assertEquals('slave', $info['role']);
+        // Wait for replication to establish and verify role changed
+        $this->waitForRole($client, 'slave');
 
         // Promote back to primary with REPLICAOF NO ONE
         $result = $client->replicaof();
@@ -3332,11 +3329,20 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $result = $client->replicaof('127.0.0.1', 6379);
             $this->assertEquals('OK', $result);
 
+            // Wait for replication to establish
+            $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+            $this->waitForRole($client, 'slave');
+            $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+
             $result = $client->replicaof();
             $this->assertEquals('OK', $result);
         } finally {
             $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
         }
+
+        // Verify role restored to master
+        $info = $client->info('REPLICATION');
+        $this->assertEquals('master', $info['role']);
 
         $client->close();
     }
@@ -3383,48 +3389,63 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testFailoverSucceeds()
     {
-        // Verify primary has replicas before attempting failover
-        $info = $this->valkey_glide->info('REPLICATION');
-        $this->assertEquals('master', $info['role']);
+        // Use port 6382 as primary with 6379 as its replica for isolated failover test.
+        // This avoids disrupting the shared 6379 primary used by other tests.
+        $primary = new ValkeyGlide();
+        $primary->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6382]]
+        );
 
-        // FAILOVER returns true (command accepted, failover is async)
-        $result = $this->valkey_glide->failover();
-        $this->assertTrue($result);
-
-        // Wait for failover to complete then restore topology
-        usleep(3000000);
-
-        // Best-effort restore: make 6379 a primary again
-        // After failover, 6379 became a slave. replicaof() promotes it back.
-        @$this->valkey_glide->replicaof();
-        usleep(1000000);
-
-        // Reconnect to replicas and restore them (may fail if they're still replicas)
-        try {
-            $replica1 = new ValkeyGlide();
-            $replica1->connect(
-                addresses: [['host' => '127.0.0.1', 'port' => 6380]]
-            );
-            $replica1->replicaof('127.0.0.1', 6379);
-            $replica1->close();
-        } catch (\Exception $e) {
-            // Best-effort
-        }
+        // Make 6379 a temporary replica of 6382
+        $replica = new ValkeyGlide();
+        $replica->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6380]]
+        );
+        $replica->replicaof('127.0.0.1', 6382);
+        $this->waitForRole($replica, 'slave');
 
         try {
-            $replica2 = new ValkeyGlide();
-            $replica2->connect(
-                addresses: [['host' => '127.0.0.1', 'port' => 6381]]
-            );
-            $replica2->replicaof('127.0.0.1', 6379);
-            $replica2->close();
-        } catch (\Exception $e) {
-            // Best-effort
-        }
+            // Verify 6382 is master with a connected replica
+            $info = $primary->info('REPLICATION');
+            $this->assertEquals('master', $info['role']);
 
-        usleep(1000000);
+            // FAILOVER returns true (command accepted, failover is async)
+            $result = $primary->failover();
+            $this->assertTrue($result);
+
+            // Wait for 6382 to become slave (failover completed)
+            $this->waitForRole($primary, 'slave');
+        } finally {
+            // Restore topology: promote 6382 back to independent primary
+            $primary->replicaof();
+            $this->waitForRole($primary, 'master');
+
+            // Restore 6380 as replica of 6379
+            $replica->replicaof('127.0.0.1', 6379);
+            $this->waitForRole($replica, 'slave');
+
+            $primary->close();
+            $replica->close();
+        }
     }
 
+    /**
+     * Poll until a server reaches the expected role, or fail after timeout.
+     */
+    protected function waitForRole(ValkeyGlide $client, string $expectedRole, int $timeoutMs = 5000): void
+    {
+        $start = microtime(true) * 1000;
+        while (true) {
+            $info = $client->info('REPLICATION');
+            if ($info['role'] === $expectedRole) {
+                return;
+            }
+            if ((microtime(true) * 1000) - $start > $timeoutMs) {
+                $this->assertTrue(false, "Timed out waiting for role to become '$expectedRole'");
+            }
+            usleep(100000); // 100ms
+        }
+    }
 
     public function testWait()
     {
