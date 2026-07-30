@@ -3389,44 +3389,38 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testFailoverSucceeds()
     {
-        // Use port 6382 as primary with 6379 as its replica for isolated failover test.
+        // Use isolated server on port 6382 which has 6383 as its replica.
         // This avoids disrupting the shared 6379 primary used by other tests.
-        $primary = new ValkeyGlide();
-        $primary->connect(
+        $client = new ValkeyGlide();
+        $client->connect(
             addresses: [['host' => '127.0.0.1', 'port' => 6382]]
         );
 
-        // Make 6379 a temporary replica of 6382
+        // Verify 6382 is a master with connected replicas
+        $info = $client->info('REPLICATION');
+        $this->assertEquals('master', $info['role']);
+        $this->assertGTE(1, (int) $info['connected_slaves']);
+
+        // FAILOVER returns true (command accepted, failover is async)
+        $result = $client->failover();
+        $this->assertTrue($result);
+
+        // Wait for 6382 to become slave (failover completed)
+        $this->waitForRole($client, 'slave');
+
+        // Restore: promote 6382 back to primary
+        $client->replicaof();
+        $this->waitForRole($client, 'master');
+
+        // Restore 6383 as replica of 6382 (6383 became primary during failover)
         $replica = new ValkeyGlide();
         $replica->connect(
-            addresses: [['host' => '127.0.0.1', 'port' => 6380]]
+            addresses: [['host' => '127.0.0.1', 'port' => 6383]]
         );
         $replica->replicaof('127.0.0.1', 6382);
-        $this->waitForRole($replica, 'slave');
+        $replica->close();
 
-        try {
-            // Verify 6382 is master with a connected replica
-            $info = $primary->info('REPLICATION');
-            $this->assertEquals('master', $info['role']);
-
-            // FAILOVER returns true (command accepted, failover is async)
-            $result = $primary->failover();
-            $this->assertTrue($result);
-
-            // Wait for 6382 to become slave (failover completed)
-            $this->waitForRole($primary, 'slave');
-        } finally {
-            // Restore topology: promote 6382 back to independent primary
-            $primary->replicaof();
-            $this->waitForRole($primary, 'master');
-
-            // Restore 6380 as replica of 6379
-            $replica->replicaof('127.0.0.1', 6379);
-            $this->waitForRole($replica, 'slave');
-
-            $primary->close();
-            $replica->close();
-        }
+        $client->close();
     }
 
     /**

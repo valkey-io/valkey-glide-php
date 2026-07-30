@@ -9,7 +9,7 @@ cd "$SCRIPT_DIR"
 BASE_DIR="$(pwd)/valkey_data"
 
 # Create data directories with full path
-for port in 6379 6380 6381 6382; do
+for port in 6379 6380 6381 6382 6383; do
   mkdir -p "$BASE_DIR/$port"
 done
 
@@ -46,6 +46,15 @@ valkey-server --port 6382 \
   --enable-debug-command yes \
   --protected-mode no
 
+# Start replica of 6382 for failover tests (6383)
+valkey-server --port 6383 \
+  --bind 0.0.0.0 \
+  --dir "$BASE_DIR/6383" \
+  --daemonize yes \
+  --logfile "$BASE_DIR/6383/valkey.log" \
+  --enable-debug-command yes \
+  --protected-mode no
+
 # Handle TLS setup with graceful failure
 echo "Setting up TLS standalone server..."
 if ../valkey-glide/utils/cluster_manager.py --tls start --prefix tls-standalone -p 6400 -r 0; then
@@ -60,6 +69,9 @@ sleep 2
 # Make 6380 and 6381 replicas of 6379
 valkey-cli -p 6380 REPLICAOF 127.0.0.1 6379
 valkey-cli -p 6381 REPLICAOF 127.0.0.1 6379
+
+# Make 6383 a replica of 6382 (for failover tests)
+valkey-cli -p 6383 REPLICAOF 127.0.0.1 6382
 
 echo "✅ Valkey setup complete:"
 echo "- Primary: 127.0.0.1:6379"
