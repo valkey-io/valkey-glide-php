@@ -145,6 +145,31 @@ typedef struct {
     bool has_max_decompressed_size; /* true if user explicitly set max_decompressed_size */
 } valkey_glide_compression_config_t;
 
+/* Circuit breaker configuration */
+#define VALKEY_GLIDE_CB_WINDOW_SIZE_MS "window_size_ms"
+#define VALKEY_GLIDE_CB_FAILURE_RATE_THRESHOLD "failure_rate_threshold"
+#define VALKEY_GLIDE_CB_MIN_ERRORS "min_errors"
+#define VALKEY_GLIDE_CB_OPEN_TIMEOUT_MS "open_timeout_ms"
+#define VALKEY_GLIDE_CB_COUNT_TIMEOUTS "count_timeouts"
+#define VALKEY_GLIDE_CB_CONSECUTIVE_SUCCESSES "consecutive_successes"
+
+#define VALKEY_GLIDE_CB_DEFAULT_WINDOW_SIZE_MS 10000
+#define VALKEY_GLIDE_CB_DEFAULT_FAILURE_RATE_THRESHOLD 0.5
+#define VALKEY_GLIDE_CB_DEFAULT_MIN_ERRORS 50
+#define VALKEY_GLIDE_CB_DEFAULT_OPEN_TIMEOUT_MS 5000
+#define VALKEY_GLIDE_CB_DEFAULT_COUNT_TIMEOUTS false
+#define VALKEY_GLIDE_CB_DEFAULT_CONSECUTIVE_SUCCESSES 3
+#define VALKEY_GLIDE_ERROR_TYPE_CIRCUIT_BREAKER_OPEN 4
+
+typedef struct {
+    uint32_t window_size_ms;
+    float    failure_rate_threshold;
+    uint32_t min_errors;
+    uint32_t open_timeout_ms;
+    bool     count_timeouts;
+    uint32_t consecutive_successes;
+} valkey_glide_circuit_breaker_config_t;
+
 /* Client-side cache configuration */
 typedef struct {
     char*  cache_id;     /* Unique cache identifier */
@@ -187,6 +212,7 @@ typedef struct {
     valkey_glide_advanced_base_client_configuration_t* advanced_config;    /* NULL if not set */
     valkey_glide_compression_config_t*                 compression_config; /* NULL if not set */
     valkey_glide_client_side_cache_config_t*           client_side_cache;  /* NULL if not set */
+    valkey_glide_circuit_breaker_config_t*             circuit_breaker;    /* NULL if not set */
     valkey_glide_read_from_t                           read_from;
     int                                                addresses_count;
     int                                                request_timeout;         /* -1 if not set */
@@ -222,6 +248,7 @@ typedef struct {
     zval*     context;           /* Stream context for TLS */
     zval*     compression;       /* Compression configuration */
     zval*     client_side_cache; /* Client-side cache configuration */
+    zval*     circuit_breaker;   /* Circuit breaker configuration */
     char*     client_name;
     char*     client_az;
     size_t    client_name_len;
@@ -318,6 +345,7 @@ PHP_MINFO_FUNCTION(redis);
 
 zend_class_entry* get_valkey_glide_ce(void);
 zend_class_entry* get_valkey_glide_exception_ce(void);
+zend_class_entry* get_valkey_glide_circuit_breaker_exception_ce(void);
 
 zend_class_entry* get_valkey_glide_cluster_ce(void);
 
