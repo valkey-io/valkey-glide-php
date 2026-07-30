@@ -808,6 +808,56 @@ int execute_failover_command(zval* object, int argc, zval* return_value, zend_cl
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
+int execute_replicaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                host     = NULL;
+    size_t               host_len = 0;
+    zend_long            port     = 6379;
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    /* Parse parameters: replicaof(?string $host = null, int $port = 6379) */
+    if (zend_parse_method_parameters(argc, object, "O|s!l", &object, ce, &host, &host_len, &port) ==
+        FAILURE) {
+        return 0;
+    }
+
+    /* Setup core command arguments */
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = ReplicaOf;
+    core_args.is_cluster          = 0;
+
+    if (host == NULL) {
+        /* REPLICAOF NO ONE */
+        core_args.args[0].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[0].data.string_arg.value = "NO";
+        core_args.args[0].data.string_arg.len   = 2;
+        core_args.args[1].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[1].data.string_arg.value = "ONE";
+        core_args.args[1].data.string_arg.len   = 3;
+        core_args.arg_count                     = 2;
+    } else {
+        /* REPLICAOF host port */
+        core_args.args[0].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[0].data.string_arg.value = host;
+        core_args.args[0].data.string_arg.len   = host_len;
+        core_args.args[1].type                  = CORE_ARG_TYPE_LONG;
+        core_args.args[1].data.long_arg.value   = port;
+        core_args.arg_count                     = 2;
+    }
+
+    z_result_processor_t processor = valkey_glide->opt_reply_literal
+                                         ? process_core_status_string_result
+                                         : process_core_status_bool_result;
+
+    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+}
+
 /* Execute a TIME command using the Valkey Glide client */
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
