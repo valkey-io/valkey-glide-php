@@ -252,6 +252,10 @@ class ValkeyGlideCluster
      * @param array|null $client_side_cache     Client-side cache configuration array from ClientSideCache::toArray():
      *                                          ['cache_id' => string, 'max_cache_kb' => int, 'entry_ttl_ms' => int,
      *                                          'eviction_policy' => ?int, 'enable_metrics' => bool]
+     * @param array|null $circuit_breaker       Circuit breaker configuration:
+     *                                          ['window_size_ms' => int, 'failure_rate_threshold' => float,
+     *                                           'min_errors' => int, 'open_timeout_ms' => int,
+     *                                           'count_timeouts' => bool, 'consecutive_successes' => int]
      *
      * Note: Cannot mix PHPRedis-style and ValkeyGlide-style parameters.
      */
@@ -278,6 +282,7 @@ class ValkeyGlideCluster
         ?array $compression = null,
         ?array $client_side_cache = null,
         ?callable $address_resolver = null,
+        ?array $circuit_breaker = null,
     ) {
     }
 

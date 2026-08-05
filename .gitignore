@@ -104,7 +104,7 @@ modules/valkey_glide.so
 libtool
 cluster_scan_cursor_legacy_arginfo.h
 cluster_scan_cursor_arginfo.h
-tests/valkey_data/*/valkey.log
+tests/valkey_data/
 composer.lock
 configure
 configure.ac

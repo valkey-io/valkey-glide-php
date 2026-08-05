@@ -631,7 +631,7 @@ int execute_memory_doctor_command(zval*             object,
     core_args.is_cluster          = (ce == get_valkey_glide_cluster_ce());
 
     return execute_and_handle_batch(
-        valkey_glide, &core_args, process_core_string_result, return_value, object);
+        valkey_glide, &core_args, process_core_status_string_result, return_value, object);
 }
 
 int execute_memory_malloc_stats_command(zval*             object,
@@ -655,7 +655,7 @@ int execute_memory_malloc_stats_command(zval*             object,
     core_args.is_cluster          = (ce == get_valkey_glide_cluster_ce());
 
     return execute_and_handle_batch(
-        valkey_glide, &core_args, process_core_string_result, return_value, object);
+        valkey_glide, &core_args, process_core_status_string_result, return_value, object);
 }
 
 int execute_memory_purge_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {

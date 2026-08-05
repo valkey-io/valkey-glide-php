@@ -118,6 +118,7 @@ class ClientConstructorMock
         ?array $compression = null,
         ?array $client_side_cache = null,
         ?callable $address_resolver = null,
+        ?array $circuit_breaker = null,
     ): \Connection_request\ConnectionRequest;
 
     /**
@@ -164,5 +165,6 @@ class ClientConstructorMock
         ?array $compression = null,
         ?array $client_side_cache = null,
         ?callable $address_resolver = null,
+        ?array $circuit_breaker = null,
     ): \Connection_request\ConnectionRequest;
 }
