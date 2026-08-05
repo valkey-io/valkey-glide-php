@@ -774,6 +774,51 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertTrue($result[1]);
     }
 
+    public function testMemoryDoctor()
+    {
+        $result = $this->valkey_glide->memoryDoctor();
+        // Cluster returns per-node array: {node_address => report_string}
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+        foreach ($result as $nodeAddress => $report) {
+            $this->assertIsString($nodeAddress);
+            $this->assertIsString($report);
+            $this->assertGT(0, strlen($report));
+        }
+    }
+
+    public function testMemoryMallocStats()
+    {
+        $result = $this->valkey_glide->memoryMallocStats();
+        // Cluster returns per-node array: {node_address => stats_string}
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+        foreach ($result as $nodeAddress => $stats) {
+            $this->assertIsString($nodeAddress);
+            $this->assertIsString($stats);
+            $this->assertGT(0, strlen($stats));
+        }
+    }
+
+    public function testMemoryStats()
+    {
+        $key = '{memory_stats_test}_' . uniqid();
+        $this->valkey_glide->set($key, 'value');
+
+        $result = $this->valkey_glide->memoryStats();
+        // Cluster returns per-node array: {node_address => stats_array}
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+        foreach ($result as $nodeAddress => $stats) {
+            $this->assertIsString($nodeAddress);
+            $this->assertIsArray($stats);
+            $this->assertGT(0, $stats['peak.allocated']);
+            $this->assertGT(0, $stats['total.allocated']);
+        }
+
+        $this->valkey_glide->del($key);
+    }
+
     public function testReset()
     {
         $key = '{reset_test}_' . uniqid();
