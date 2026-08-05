@@ -1010,12 +1010,12 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::memoryDoctor
      */
-    public function memoryDoctor(): ValkeyGlideCluster|string|false;
+    public function memoryDoctor(): ValkeyGlideCluster|string|array|false;
 
     /**
      * @see ValkeyGlide::memoryMallocStats
      */
-    public function memoryMallocStats(): ValkeyGlideCluster|string|false;
+    public function memoryMallocStats(): ValkeyGlideCluster|string|array|false;
 
     /**
      * @see ValkeyGlide::memoryPurge

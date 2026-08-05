@@ -3235,6 +3235,15 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertIsArray($stats);
 
         // Verify key fields exist and have valid values
+        $this->assertArrayHasKey('peak.allocated', $stats);
+        $this->assertArrayHasKey('total.allocated', $stats);
+        $this->assertArrayHasKey('startup.allocated', $stats);
+        $this->assertArrayHasKey('overhead.total', $stats);
+        $this->assertArrayHasKey('keys.count', $stats);
+        $this->assertArrayHasKey('dataset.bytes', $stats);
+        $this->assertArrayHasKey('replication.backlog', $stats);
+        $this->assertArrayHasKey('clients.normal', $stats);
+
         $this->assertGT(0, $stats['peak.allocated']);
         $this->assertGT(0, $stats['total.allocated']);
         $this->assertGT(0, $stats['startup.allocated']);
