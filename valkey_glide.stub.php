@@ -2452,6 +2452,8 @@ class ValkeyGlide
      *                                  With OPT_REPLY_LITERAL enabled, returns "OK" on success,
      *                                  false on failure.
      *
+     * @throws ValkeyGlideException If the host is an empty string.
+     *
      * @see https://valkey.io/commands/replicaof
      */
     public function replicaof(?string $host = null, int $port = 6379): ValkeyGlide|bool|string;
@@ -2459,13 +2461,16 @@ class ValkeyGlide
     /**
      * Starts a coordinated failover from the connected primary to one of its replicas.
      *
-     * @param array|null $to    Target replica as ['host' => string, 'port' => int], or null for auto-selection.
+     * @param array|null $to Target replica as ['host' => string, 'port' => int], or null for auto-selection.
      * @param bool       $abort If true, aborts an in-progress failover.
      * @param int        $timeout Timeout in milliseconds. 0 means no timeout.
      *
      * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
      *                                  With OPT_REPLY_LITERAL enabled, returns "OK" on success,
      *                                  false on failure.
+     *
+     * @throws ValkeyGlideException If conflicting parameters are specified (e.g. abort with to/timeout)
+     *                              or if the 'to' array is malformed.
      *
      * @see https://valkey.io/commands/failover
      */

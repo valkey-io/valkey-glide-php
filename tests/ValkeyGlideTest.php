@@ -114,14 +114,18 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     /**
      * Execute a callable with OPT_REPLY_LITERAL enabled, ensuring it is
      * always disabled afterwards even if an exception is thrown.
+     *
+     * @param callable        $fn     The callable to execute with OPT_REPLY_LITERAL enabled.
+     * @param ValkeyGlide|null $client Optional client instance. Defaults to $this->valkey_glide.
      */
-    protected function withOptReplyLiteralEnabled(callable $fn)
+    protected function withOptReplyLiteralEnabled(callable $fn, ?ValkeyGlide $client = null)
     {
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+        $client = $client ?? $this->valkey_glide;
+        $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
         try {
             return $fn();
         } finally {
-            $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+            $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
         }
     }
 
@@ -3296,8 +3300,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         );
 
         // Verify it's currently a master
-        $info = $client->info('REPLICATION');
-        $this->assertEquals('master', $info['role']);
+        $this->assertRole($client, 'master');
 
         // Make it a replica of 6379
         $result = $client->replicaof('127.0.0.1', 6379);
@@ -3311,8 +3314,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result);
 
         // Verify role changed back to master
-        $info = $client->info('REPLICATION');
-        $this->assertEquals('master', $info['role']);
+        $this->waitForRole($client, 'master');
 
         $client->close();
     }
@@ -3324,25 +3326,21 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             addresses: [['host' => '127.0.0.1', 'port' => 6382]]
         );
 
-        $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
-        try {
+        $this->withOptReplyLiteralEnabled(function () use ($client) {
             $result = $client->replicaof('127.0.0.1', 6379);
             $this->assertEquals('OK', $result);
+        }, $client);
 
-            // Wait for replication to establish
-            $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
-            $this->waitForRole($client, 'slave');
-            $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+        // Wait for replication to establish
+        $this->waitForRole($client, 'slave');
 
+        $this->withOptReplyLiteralEnabled(function () use ($client) {
             $result = $client->replicaof();
             $this->assertEquals('OK', $result);
-        } finally {
-            $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
-        }
+        }, $client);
 
         // Verify role restored to master
-        $info = $client->info('REPLICATION');
-        $this->assertEquals('master', $info['role']);
+        $this->waitForRole($client, 'master');
 
         $client->close();
     }
@@ -3369,13 +3367,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             addresses: [['host' => '127.0.0.1', 'port' => 6384]]
         );
 
-        $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
-        try {
+        $this->withOptReplyLiteralEnabled(function () use ($client) {
             $result = $client->failover();
             $this->assertFalse($result);
-        } finally {
-            $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
-        }
+        }, $client);
 
         $client->close();
     }
@@ -3397,30 +3392,62 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         );
 
         // Verify 6382 is a master with connected replicas
+        $this->assertRole($client, 'master');
         $info = $client->info('REPLICATION');
-        $this->assertEquals('master', $info['role']);
         $this->assertGTE(1, (int) $info['connected_slaves']);
 
-        // FAILOVER returns true (command accepted, failover is async)
-        $result = $client->failover();
-        $this->assertTrue($result);
+        try {
+            // FAILOVER returns true (command accepted, failover is async)
+            $result = $client->failover();
+            $this->assertTrue($result);
 
-        // Wait for 6382 to become slave (failover completed)
-        $this->waitForRole($client, 'slave');
+            // Wait for 6382 to become slave (failover completed)
+            $this->waitForRole($client, 'slave');
+        } finally {
+            // Restore: promote 6382 back to primary
+            $client->replicaof();
+            $this->waitForRole($client, 'master');
 
-        // Restore: promote 6382 back to primary
-        $client->replicaof();
-        $this->waitForRole($client, 'master');
-
-        // Restore 6383 as replica of 6382 (6383 became primary during failover)
-        $replica = new ValkeyGlide();
-        $replica->connect(
-            addresses: [['host' => '127.0.0.1', 'port' => 6383]]
-        );
-        $replica->replicaof('127.0.0.1', 6382);
-        $replica->close();
+            // Restore 6383 as replica of 6382 (6383 became primary during failover)
+            $replica = new ValkeyGlide();
+            $replica->connect(
+                addresses: [['host' => '127.0.0.1', 'port' => 6383]]
+            );
+            $replica->replicaof('127.0.0.1', 6382);
+            $replica->close();
+        }
 
         $client->close();
+    }
+
+    /**
+     * Assert that a server currently has the expected role.
+     */
+    protected function assertRole(ValkeyGlide $client, string $expectedRole): void
+    {
+        $info = $client->info('REPLICATION');
+        $this->assertEquals($expectedRole, $info['role']);
+    }
+
+    /**
+     * Generic wait helper: polls until a condition callable returns true, or fails after timeout.
+     *
+     * @param callable $condition A callable that returns true when the condition is met.
+     * @param string   $message  Failure message if the condition is not met within timeout.
+     * @param int      $timeoutMs Timeout in milliseconds.
+     */
+    protected function waitFor(callable $condition, string $message = 'Timed out waiting for condition', int $timeoutMs = 5000): void
+    {
+        $start = microtime(true) * 1000;
+        while (true) {
+            if ($condition()) {
+                return;
+            }
+            if ((microtime(true) * 1000) - $start > $timeoutMs) {
+                $this->assertTrue(false, $message);
+            }
+            usleep(100000); // 100ms
+        }
     }
 
     /**
@@ -3428,17 +3455,14 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
      */
     protected function waitForRole(ValkeyGlide $client, string $expectedRole, int $timeoutMs = 5000): void
     {
-        $start = microtime(true) * 1000;
-        while (true) {
-            $info = $client->info('REPLICATION');
-            if ($info['role'] === $expectedRole) {
-                return;
-            }
-            if ((microtime(true) * 1000) - $start > $timeoutMs) {
-                $this->assertTrue(false, "Timed out waiting for role to become '$expectedRole'");
-            }
-            usleep(100000); // 100ms
-        }
+        $this->waitFor(
+            function () use ($client, $expectedRole) {
+                $info = $client->info('REPLICATION');
+                return $info['role'] === $expectedRole;
+            },
+            "Timed out waiting for role to become '$expectedRole'",
+            $timeoutMs
+        );
     }
 
     public function testWait()

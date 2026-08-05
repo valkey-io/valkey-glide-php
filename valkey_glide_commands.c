@@ -739,6 +739,16 @@ int execute_failover_command(zval* object, int argc, zval* return_value, zend_cl
         return 0;
     }
 
+    /* Validate conflicting parameters: abort cannot be combined with $to or $timeout */
+    if (abort && (to_arr || timeout > 0)) {
+        VALKEY_LOG_ERROR("command_validation",
+                         "FAILOVER ABORT cannot be combined with 'to' or 'timeout' parameters");
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "FAILOVER ABORT cannot be combined with 'to' or 'timeout' parameters",
+                             0);
+        return 0;
+    }
+
     /* Setup core command arguments */
     core_command_args_t core_args = {0};
     core_args.glide_client        = valkey_glide->glide_client;
@@ -760,6 +770,11 @@ int execute_failover_command(zval* object, int argc, zval* return_value, zend_cl
             zval* z_port = zend_hash_str_find(Z_ARRVAL_P(to_arr), "port", 4);
 
             if (!z_host || Z_TYPE_P(z_host) != IS_STRING || !z_port) {
+                VALKEY_LOG_ERROR("command_validation",
+                                 "'to' array must contain string 'host' and 'port'");
+                zend_throw_exception(get_valkey_glide_exception_ce(),
+                                     "'to' array must contain string 'host' and 'port'",
+                                     0);
                 return 0;
             }
 
@@ -841,6 +856,12 @@ int execute_replicaof_command(zval* object, int argc, zval* return_value, zend_c
         core_args.args[1].data.string_arg.value = "ONE";
         core_args.args[1].data.string_arg.len   = 3;
         core_args.arg_count                     = 2;
+    } else if (host_len == 0) {
+        /* Reject empty string host */
+        VALKEY_LOG_ERROR("command_validation", "REPLICAOF host must not be an empty string");
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "REPLICAOF host must not be an empty string", 0);
+        return 0;
     } else {
         /* REPLICAOF host port */
         core_args.args[0].type                  = CORE_ARG_TYPE_STRING;
