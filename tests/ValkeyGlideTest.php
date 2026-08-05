@@ -3430,27 +3430,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     /**
-     * Generic wait helper: polls until a condition callable returns true, or fails after timeout.
-     *
-     * @param callable $condition A callable that returns true when the condition is met.
-     * @param string   $message  Failure message if the condition is not met within timeout.
-     * @param int      $timeoutMs Timeout in milliseconds.
-     */
-    protected function waitFor(callable $condition, string $message = 'Timed out waiting for condition', int $timeoutMs = 5000): void
-    {
-        $start = microtime(true) * 1000;
-        while (true) {
-            if ($condition()) {
-                return;
-            }
-            if ((microtime(true) * 1000) - $start > $timeoutMs) {
-                $this->assertTrue(false, $message);
-            }
-            usleep(100000); // 100ms
-        }
-    }
-
-    /**
      * Poll until a server reaches the expected role, or fail after timeout.
      */
     protected function waitForRole(ValkeyGlide $client, string $expectedRole, int $timeoutMs = 5000): void
@@ -3460,8 +3439,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
                 $info = $client->info('REPLICATION');
                 return $info['role'] === $expectedRole;
             },
-            "Timed out waiting for role to become '$expectedRole'",
-            $timeoutMs
+            (int) ceil($timeoutMs / 1000),
+            "Timed out waiting for role to become '$expectedRole'"
         );
     }
 
