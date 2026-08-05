@@ -2439,6 +2439,44 @@ class ValkeyGlide
     public function reset(): ValkeyGlide|bool|string;
 
     /**
+     * Makes the server a replica of the specified primary, or promotes it to a primary.
+     *
+     * When called with a host and port, the server begins replicating from the specified primary.
+     * When called with no arguments (or null host), sends REPLICAOF NO ONE to promote
+     * the server to a primary by stopping replication.
+     *
+     * @param string|null $host The hostname of the primary to replicate, or null to stop replication.
+     * @param int         $port The port of the primary to replicate.
+     *
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" on success,
+     *                                  false on failure.
+     *
+     * @throws ValkeyGlideException If the host is an empty string.
+     *
+     * @see https://valkey.io/commands/replicaof
+     */
+    public function replicaof(?string $host = null, int $port = 6379): ValkeyGlide|bool|string;
+
+    /**
+     * Starts a coordinated failover from the connected primary to one of its replicas.
+     *
+     * @param array|null $to Target replica as ['host' => string, 'port' => int], or null for auto-selection.
+     * @param bool       $abort If true, aborts an in-progress failover.
+     * @param int        $timeout Timeout in milliseconds. 0 means no timeout.
+     *
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" on success,
+     *                                  false on failure.
+     *
+     * @throws ValkeyGlideException If conflicting parameters are specified (e.g. abort with to/timeout)
+     *                              or if the 'to' array is malformed.
+     *
+     * @see https://valkey.io/commands/failover
+     */
+    public function failover(?array $to = null, bool $abort = false, int $timeout = 0): ValkeyGlide|bool|string;
+
+    /**
      * Enter into pipeline mode.
      *
      * Pipeline mode is the highest performance way to send many commands to ValkeyGlide

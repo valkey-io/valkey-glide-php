@@ -4,6 +4,7 @@
 
 ### Changes
 
+* Add `REPLICAOF` and `FAILOVER` commands for standalone client ([#282](https://github.com/valkey-io/valkey-glide-php/pull/282))
 * Add circuit breaker configuration support for standalone and cluster clients ([#238](https://github.com/valkey-io/valkey-glide-php/issues/238))
 * Add `MIGRATE` command for standalone and cluster clients ([#276](https://github.com/valkey-io/valkey-glide-php/pull/276))
 * Add `CLIENT PAUSE` and `CLIENT UNPAUSE` commands for standalone and cluster clients ([#274](https://github.com/valkey-io/valkey-glide-php/pull/274))

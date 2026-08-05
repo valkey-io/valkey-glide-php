@@ -214,6 +214,8 @@ int execute_flushdb_command(zval* object, int argc, zval* return_value, zend_cla
 int execute_flushall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_bgsave_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_bgrewriteaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_failover_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_replicaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_migrate_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_client_pause_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_client_unpause_command(zval*             object,
@@ -502,9 +504,15 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 #define BGREWRITEAOF_METHOD_IMPL(class_name) \
     STANDARD_METHOD_IMPL(class_name, bgRewriteAof, execute_bgrewriteaof_command)
 
-#define SAVE_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, save, execute_save_command)
+#define FAILOVER_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, failover, execute_failover_command)
+
+#define REPLICAOF_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, replicaof, execute_replicaof_command)
 
 #define RESET_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, reset, execute_reset_command)
+
+#define SAVE_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, save, execute_save_command)
 
 #define CLIENT_PAUSE_METHOD_IMPL(class_name) \
     STANDARD_METHOD_IMPL(class_name, clientPause, execute_client_pause_command)
@@ -512,9 +520,9 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 #define CLIENT_UNPAUSE_METHOD_IMPL(class_name) \
     STANDARD_METHOD_IMPL(class_name, clientUnpause, execute_client_unpause_command)
 
-#define TIME_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, time, execute_time_command)
-
 #define SCAN_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, scan, execute_scan_command)
+
+#define TIME_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, time, execute_time_command)
 
 #define SSCAN_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, sscan, execute_sscan_command)
 

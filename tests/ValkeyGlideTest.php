@@ -114,14 +114,18 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     /**
      * Execute a callable with OPT_REPLY_LITERAL enabled, ensuring it is
      * always disabled afterwards even if an exception is thrown.
+     *
+     * @param callable $fn The callable to execute with OPT_REPLY_LITERAL enabled.
+     * @param ValkeyGlide|null $client Optional client instance. Defaults to $this->valkey_glide.
      */
-    protected function withOptReplyLiteralEnabled(callable $fn)
+    protected function withOptReplyLiteralEnabled(callable $fn, ?ValkeyGlide $client = null)
     {
-        $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
+        $client = $client ?? $this->valkey_glide;
+        $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, true);
         try {
             return $fn();
         } finally {
-            $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+            $client->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
         }
     }
 
@@ -3286,6 +3290,162 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
 
 
+
+    public function testReplicaofAndReplicaofNoOne()
+    {
+        // Use independent server on port 6382 (standalone primary, no replicas)
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6382]]
+        );
+
+        // Verify it's currently a master
+        $this->assertRole($client, 'master');
+
+        try {
+            // Make it a replica of 6379
+            $result = $client->replicaof('127.0.0.1', 6379);
+            $this->assertTrue($result);
+
+            // Wait for replication to establish and verify role changed
+            $this->waitForRole($client, 'slave');
+        } finally {
+            // Always promote back to primary to avoid contaminating other tests
+            $client->replicaof();
+            $this->waitForRole($client, 'master');
+        }
+
+        $client->close();
+    }
+
+    public function testReplicaofWithReplyLiteral()
+    {
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6382]]
+        );
+
+        try {
+            $this->withOptReplyLiteralEnabled(function () use ($client) {
+                $result = $client->replicaof('127.0.0.1', 6379);
+                $this->assertEquals('OK', $result);
+            }, $client);
+
+            // Wait for replication to establish
+            $this->waitForRole($client, 'slave');
+
+            $this->withOptReplyLiteralEnabled(function () use ($client) {
+                $result = $client->replicaof();
+                $this->assertEquals('OK', $result);
+            }, $client);
+        } finally {
+            // Always ensure 6382 is promoted back to primary
+            $client->replicaof();
+            $this->waitForRole($client, 'master');
+        }
+
+        $client->close();
+    }
+
+    public function testFailoverNoReplicasReturnsFalse()
+    {
+        // Connect to server on port 6384 which has no replicas
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6384]]
+        );
+
+        // FAILOVER on a server with no replicas returns false
+        $result = $client->failover();
+        $this->assertFalse($result);
+
+        $client->close();
+    }
+
+    public function testFailoverNoReplicasWithReplyLiteral()
+    {
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6384]]
+        );
+
+        $this->withOptReplyLiteralEnabled(function () use ($client) {
+            $result = $client->failover();
+            $this->assertFalse($result);
+        }, $client);
+
+        $client->close();
+    }
+
+    public function testFailoverAbortNoFailoverInProgress()
+    {
+        // FAILOVER ABORT when no failover is in progress returns false
+        $result = $this->valkey_glide->failover(null, true);
+        $this->assertFalse($result);
+    }
+
+    public function testFailoverSucceeds()
+    {
+        // Use isolated server on port 6382 which has 6383 as its replica.
+        // This avoids disrupting the shared 6379 primary used by other tests.
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => 6382]]
+        );
+
+        // Verify 6382 is a master with connected replicas
+        $this->assertRole($client, 'master');
+        $info = $client->info('REPLICATION');
+        $this->assertGTE(1, (int) $info['connected_slaves']);
+
+        try {
+            // FAILOVER returns true (command accepted, failover is async)
+            $result = $client->failover();
+            $this->assertTrue($result);
+
+            // Wait for 6382 to become slave (failover completed)
+            $this->waitForRole($client, 'slave');
+        } finally {
+            // Restore: promote 6382 back to primary
+            $client->replicaof();
+            $this->waitForRole($client, 'master');
+
+            // Restore 6383 as replica of 6382 (6383 became primary during failover)
+            $replica = new ValkeyGlide();
+            $replica->connect(
+                addresses: [['host' => '127.0.0.1', 'port' => 6383]]
+            );
+            $replica->replicaof('127.0.0.1', 6382);
+            $replica->close();
+        }
+
+        $client->close();
+    }
+
+    /**
+     * Assert that a server currently has the expected role.
+     */
+    protected function assertRole(ValkeyGlide $client, string $expectedRole): void
+    {
+        $info = $client->info('REPLICATION');
+        $this->assertIsArray($info);
+        $this->assertEquals($expectedRole, $info['role']);
+    }
+
+    /**
+     * Poll until a server reaches the expected role, or fail after timeout.
+     */
+    protected function waitForRole(ValkeyGlide $client, string $expectedRole, int $timeoutSeconds = 5): void
+    {
+        $this->waitFor(
+            function () use ($client, $expectedRole) {
+                $info = $client->info('REPLICATION');
+                return is_array($info) && ($info['role'] ?? null) === $expectedRole;
+            },
+            $timeoutSeconds,
+            "Timed out waiting for role to become '$expectedRole'"
+        );
+    }
 
     public function testWait()
     {

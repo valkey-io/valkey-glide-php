@@ -814,12 +814,20 @@ FLUSHDB_METHOD_IMPL(ValkeyGlide)
 FLUSHALL_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto string ValkeyGlide::bgSave([string mode]) */
+/* {{{ proto bool ValkeyGlide::bgSave([string mode]) */
 BGSAVE_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
 /* {{{ proto string ValkeyGlide::bgRewriteAof() */
 BGREWRITEAOF_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto bool ValkeyGlide::failover([array to, bool abort, int timeout]) */
+FAILOVER_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto bool ValkeyGlide::replicaof([string host, int port]) */
+REPLICAOF_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
 /* {{{ proto bool ValkeyGlide::migrate(string host, int port, string|array key, int dstdb,
