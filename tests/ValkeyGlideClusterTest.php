@@ -822,20 +822,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     public function testMemoryPurge()
     {
         $result = $this->valkey_glide->memoryPurge();
-        // Cluster returns per-node array: {node_address => bool}
-        $this->assertIsArray($result);
-        $this->assertGT(0, count($result));
-        foreach ($result as $nodeAddress => $nodeResult) {
-            $this->assertIsString($nodeAddress);
-            $this->assertTrue($nodeResult);
-        }
+        $this->assertTrue($result);
     }
 
     public function testMemoryPurgeWithReplyLiteral()
     {
         $this->withOptReplyLiteralEnabled(function () {
             $result = $this->valkey_glide->memoryPurge();
-            // Cluster returns per-node array: {node_address => "OK"}
+            // Cluster with OPT_REPLY_LITERAL returns per-node array: {node_address => "OK"}
             $this->assertIsArray($result);
             $this->assertGT(0, count($result));
             foreach ($result as $nodeAddress => $nodeResult) {
