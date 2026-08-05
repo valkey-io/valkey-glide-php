@@ -863,6 +863,37 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         });
     }
 
+    public function testMemoryDoctorWithRoute()
+    {
+        // Random node returns a single string
+        $result = $this->valkey_glide->memoryDoctor('randomNode');
+        $this->assertIsString($result);
+        $this->assertGT(0, strlen($result));
+    }
+
+    public function testMemoryMallocStatsWithRoute()
+    {
+        // Random node returns a single string
+        $result = $this->valkey_glide->memoryMallocStats('randomNode');
+        $this->assertIsString($result);
+        $this->assertGT(0, strlen($result));
+    }
+
+    public function testMemoryPurgeWithRoute()
+    {
+        // Random node returns scalar true
+        $result = $this->valkey_glide->memoryPurge('randomNode');
+        $this->assertTrue($result);
+    }
+
+    public function testMemoryStatsWithRoute()
+    {
+        $result = $this->valkey_glide->memoryStats('randomNode');
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('peak.allocated', $result);
+        $this->assertGT(0, $result['peak.allocated']);
+    }
+
     public function testReset()
     {
         $key = '{reset_test}_' . uniqid();
