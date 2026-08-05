@@ -819,6 +819,32 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->valkey_glide->del($key);
     }
 
+    public function testMemoryPurge()
+    {
+        $result = $this->valkey_glide->memoryPurge();
+        // Cluster returns per-node array: {node_address => bool}
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+        foreach ($result as $nodeAddress => $nodeResult) {
+            $this->assertIsString($nodeAddress);
+            $this->assertTrue($nodeResult);
+        }
+    }
+
+    public function testMemoryPurgeWithReplyLiteral()
+    {
+        $this->withOptReplyLiteralEnabled(function () {
+            $result = $this->valkey_glide->memoryPurge();
+            // Cluster returns per-node array: {node_address => "OK"}
+            $this->assertIsArray($result);
+            $this->assertGT(0, count($result));
+            foreach ($result as $nodeAddress => $nodeResult) {
+                $this->assertIsString($nodeAddress);
+                $this->assertEquals('OK', $nodeResult);
+            }
+        });
+    }
+
     public function testReset()
     {
         $key = '{reset_test}_' . uniqid();
