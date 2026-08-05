@@ -2457,7 +2457,7 @@ class ValkeyGlide
      * @see https://valkey.io/commands/memory-malloc-stats
      */
     public function memoryMallocStats(): ValkeyGlide|string|false;
-  
+
     /**
      * Makes the server a replica of the specified primary, or promotes it to a primary.
      *
