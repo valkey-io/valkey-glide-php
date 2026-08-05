@@ -610,6 +610,16 @@ int execute_save_command(zval* object, int argc, zval* return_value, zend_class_
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
+static int process_memory_stats_result(CommandResponse* response,
+                                       void*            output,
+                                       zval*            return_value) {
+    if (!response || !return_value) {
+        return 0;
+    }
+    return command_response_to_zval(
+        response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, true);
+}
+
 int execute_memory_doctor_command(zval*             object,
                                   int               argc,
                                   zval*             return_value,
@@ -700,7 +710,7 @@ int execute_memory_stats_command(zval* object, int argc, zval* return_value, zen
     core_args.is_cluster          = (ce == get_valkey_glide_cluster_ce());
 
     return execute_and_handle_batch(
-        valkey_glide, &core_args, process_core_array_result, return_value, object);
+        valkey_glide, &core_args, process_memory_stats_result, return_value, object);
 }
 
 /* Execute a RESET command using the Valkey Glide client */
