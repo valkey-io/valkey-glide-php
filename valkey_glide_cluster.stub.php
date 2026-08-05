@@ -1020,7 +1020,7 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::memoryPurge
      */
-    public function memoryPurge(): ValkeyGlideCluster|bool|string;
+    public function memoryPurge(): ValkeyGlideCluster|bool|array|string;
 
     /**
      * @see ValkeyGlide::memoryStats
