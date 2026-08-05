@@ -644,7 +644,13 @@ int execute_memory_doctor_command(zval*             object,
             FAILURE) {
             return 0;
         }
-        if (args_count > 0) {
+        if (args_count > 1) {
+            zend_throw_exception(get_valkey_glide_exception_ce(),
+                                 "Expected at most 1 argument (route), got extra arguments",
+                                 0);
+            return 0;
+        }
+        if (args_count == 1) {
             core_args.has_route   = 1;
             core_args.route_param = &args[0];
         }
@@ -682,7 +688,13 @@ int execute_memory_malloc_stats_command(zval*             object,
             FAILURE) {
             return 0;
         }
-        if (args_count > 0) {
+        if (args_count > 1) {
+            zend_throw_exception(get_valkey_glide_exception_ce(),
+                                 "Expected at most 1 argument (route), got extra arguments",
+                                 0);
+            return 0;
+        }
+        if (args_count == 1) {
             core_args.has_route   = 1;
             core_args.route_param = &args[0];
         }
@@ -717,7 +729,13 @@ int execute_memory_purge_command(zval* object, int argc, zval* return_value, zen
             FAILURE) {
             return 0;
         }
-        if (args_count > 0) {
+        if (args_count > 1) {
+            zend_throw_exception(get_valkey_glide_exception_ce(),
+                                 "Expected at most 1 argument (route), got extra arguments",
+                                 0);
+            return 0;
+        }
+        if (args_count == 1) {
             core_args.has_route   = 1;
             core_args.route_param = &args[0];
         }
@@ -755,7 +773,13 @@ int execute_memory_stats_command(zval* object, int argc, zval* return_value, zen
             FAILURE) {
             return 0;
         }
-        if (args_count > 0) {
+        if (args_count > 1) {
+            zend_throw_exception(get_valkey_glide_exception_ce(),
+                                 "Expected at most 1 argument (route), got extra arguments",
+                                 0);
+            return 0;
+        }
+        if (args_count == 1) {
             core_args.has_route   = 1;
             core_args.route_param = &args[0];
         }
