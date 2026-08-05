@@ -115,7 +115,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
      * Execute a callable with OPT_REPLY_LITERAL enabled, ensuring it is
      * always disabled afterwards even if an exception is thrown.
      *
-     * @param callable        $fn     The callable to execute with OPT_REPLY_LITERAL enabled.
+     * @param callable $fn The callable to execute with OPT_REPLY_LITERAL enabled.
      * @param ValkeyGlide|null $client Optional client instance. Defaults to $this->valkey_glide.
      */
     protected function withOptReplyLiteralEnabled(callable $fn, ?ValkeyGlide $client = null)
@@ -3435,14 +3435,14 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     /**
      * Poll until a server reaches the expected role, or fail after timeout.
      */
-    protected function waitForRole(ValkeyGlide $client, string $expectedRole, int $timeoutMs = 5000): void
+    protected function waitForRole(ValkeyGlide $client, string $expectedRole, int $timeoutSeconds = 5): void
     {
         $this->waitFor(
             function () use ($client, $expectedRole) {
                 $info = $client->info('REPLICATION');
                 return is_array($info) && ($info['role'] ?? null) === $expectedRole;
             },
-            (int) ceil($timeoutMs / 1000),
+            $timeoutSeconds,
             "Timed out waiting for role to become '$expectedRole'"
         );
     }
