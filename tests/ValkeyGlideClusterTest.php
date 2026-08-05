@@ -829,13 +829,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->withOptReplyLiteralEnabled(function () {
             $result = $this->valkey_glide->memoryPurge();
-            // Cluster with OPT_REPLY_LITERAL returns per-node array: {node_address => "OK"}
-            $this->assertIsArray($result);
-            $this->assertGT(0, count($result));
-            foreach ($result as $nodeAddress => $nodeResult) {
-                $this->assertIsString($nodeAddress);
-                $this->assertEquals('OK', $nodeResult);
-            }
+            $this->assertEquals('OK', $result);
         });
     }
 
