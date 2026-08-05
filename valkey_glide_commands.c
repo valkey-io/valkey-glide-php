@@ -740,6 +740,12 @@ int execute_failover_command(zval* object, int argc, zval* return_value, zend_cl
     }
 
     /* Validate conflicting parameters: abort cannot be combined with $to or $timeout */
+    if (timeout < 0) {
+        VALKEY_LOG_ERROR("command_validation", "FAILOVER timeout must not be negative");
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "FAILOVER timeout must not be negative", 0);
+        return 0;
+    }
     if (abort && (to_arr || timeout > 0)) {
         VALKEY_LOG_ERROR("command_validation",
                          "FAILOVER ABORT cannot be combined with 'to' or 'timeout' parameters");
@@ -769,12 +775,15 @@ int execute_failover_command(zval* object, int argc, zval* return_value, zend_cl
             zval* z_host = zend_hash_str_find(Z_ARRVAL_P(to_arr), "host", 4);
             zval* z_port = zend_hash_str_find(Z_ARRVAL_P(to_arr), "port", 4);
 
-            if (!z_host || Z_TYPE_P(z_host) != IS_STRING || !z_port) {
-                VALKEY_LOG_ERROR("command_validation",
-                                 "'to' array must contain string 'host' and 'port'");
-                zend_throw_exception(get_valkey_glide_exception_ce(),
-                                     "'to' array must contain string 'host' and 'port'",
-                                     0);
+            if (!z_host || Z_TYPE_P(z_host) != IS_STRING || Z_STRLEN_P(z_host) == 0 || !z_port ||
+                Z_TYPE_P(z_port) != IS_LONG) {
+                VALKEY_LOG_ERROR(
+                    "command_validation",
+                    "'to' array must contain a non-empty string 'host' and an int 'port'");
+                zend_throw_exception(
+                    get_valkey_glide_exception_ce(),
+                    "'to' array must contain a non-empty string 'host' and an int 'port'",
+                    0);
                 return 0;
             }
 

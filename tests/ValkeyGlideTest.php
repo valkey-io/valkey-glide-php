@@ -3302,19 +3302,18 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Verify it's currently a master
         $this->assertRole($client, 'master');
 
-        // Make it a replica of 6379
-        $result = $client->replicaof('127.0.0.1', 6379);
-        $this->assertTrue($result);
+        try {
+            // Make it a replica of 6379
+            $result = $client->replicaof('127.0.0.1', 6379);
+            $this->assertTrue($result);
 
-        // Wait for replication to establish and verify role changed
-        $this->waitForRole($client, 'slave');
-
-        // Promote back to primary with REPLICAOF NO ONE
-        $result = $client->replicaof();
-        $this->assertTrue($result);
-
-        // Verify role changed back to master
-        $this->waitForRole($client, 'master');
+            // Wait for replication to establish and verify role changed
+            $this->waitForRole($client, 'slave');
+        } finally {
+            // Always promote back to primary to avoid contaminating other tests
+            $client->replicaof();
+            $this->waitForRole($client, 'master');
+        }
 
         $client->close();
     }
@@ -3326,21 +3325,24 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             addresses: [['host' => '127.0.0.1', 'port' => 6382]]
         );
 
-        $this->withOptReplyLiteralEnabled(function () use ($client) {
-            $result = $client->replicaof('127.0.0.1', 6379);
-            $this->assertEquals('OK', $result);
-        }, $client);
+        try {
+            $this->withOptReplyLiteralEnabled(function () use ($client) {
+                $result = $client->replicaof('127.0.0.1', 6379);
+                $this->assertEquals('OK', $result);
+            }, $client);
 
-        // Wait for replication to establish
-        $this->waitForRole($client, 'slave');
+            // Wait for replication to establish
+            $this->waitForRole($client, 'slave');
 
-        $this->withOptReplyLiteralEnabled(function () use ($client) {
-            $result = $client->replicaof();
-            $this->assertEquals('OK', $result);
-        }, $client);
-
-        // Verify role restored to master
-        $this->waitForRole($client, 'master');
+            $this->withOptReplyLiteralEnabled(function () use ($client) {
+                $result = $client->replicaof();
+                $this->assertEquals('OK', $result);
+            }, $client);
+        } finally {
+            // Always ensure 6382 is promoted back to primary
+            $client->replicaof();
+            $this->waitForRole($client, 'master');
+        }
 
         $client->close();
     }
@@ -3426,6 +3428,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     protected function assertRole(ValkeyGlide $client, string $expectedRole): void
     {
         $info = $client->info('REPLICATION');
+        $this->assertIsArray($info);
         $this->assertEquals($expectedRole, $info['role']);
     }
 
@@ -3437,7 +3440,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->waitFor(
             function () use ($client, $expectedRole) {
                 $info = $client->info('REPLICATION');
-                return $info['role'] === $expectedRole;
+                return is_array($info) && ($info['role'] ?? null) === $expectedRole;
             },
             (int) ceil($timeoutMs / 1000),
             "Timed out waiting for role to become '$expectedRole'"
