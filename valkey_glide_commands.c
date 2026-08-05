@@ -823,6 +823,174 @@ int execute_client_unpause_command(zval*             object,
     return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
 }
 
+/* Execute a failover command using the Valkey Glide client */
+int execute_failover_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    zval*                to_arr  = NULL;
+    zend_bool            abort   = 0;
+    zend_long            timeout = 0;
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    /* Parse parameters: failover(?array $to = null, bool $abort = false, int $timeout = 0) */
+    if (zend_parse_method_parameters(
+            argc, object, "O|a!bl", &object, ce, &to_arr, &abort, &timeout) == FAILURE) {
+        return 0;
+    }
+
+    /* Validate conflicting parameters: abort cannot be combined with $to or $timeout */
+    if (timeout < 0) {
+        VALKEY_LOG_ERROR("command_validation", "FAILOVER timeout must not be negative");
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "FAILOVER timeout must not be negative", 0);
+        return 0;
+    }
+    if (abort && (to_arr || timeout > 0)) {
+        VALKEY_LOG_ERROR("command_validation",
+                         "FAILOVER ABORT cannot be combined with 'to' or 'timeout' parameters");
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "FAILOVER ABORT cannot be combined with 'to' or 'timeout' parameters",
+                             0);
+        return 0;
+    }
+
+    /* Setup core command arguments */
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = FailOver;
+    core_args.is_cluster          = 0;
+
+    int arg_idx = 0;
+
+    if (abort) {
+        /* FAILOVER ABORT */
+        core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[arg_idx].data.string_arg.value = "ABORT";
+        core_args.args[arg_idx].data.string_arg.len   = 5;
+        arg_idx++;
+    } else {
+        if (to_arr) {
+            /* Extract host and port from array */
+            zval* z_host = zend_hash_str_find(Z_ARRVAL_P(to_arr), "host", 4);
+            zval* z_port = zend_hash_str_find(Z_ARRVAL_P(to_arr), "port", 4);
+
+            if (!z_host || Z_TYPE_P(z_host) != IS_STRING || Z_STRLEN_P(z_host) == 0 || !z_port ||
+                Z_TYPE_P(z_port) != IS_LONG) {
+                VALKEY_LOG_ERROR(
+                    "command_validation",
+                    "'to' array must contain a non-empty string 'host' and an int 'port'");
+                zend_throw_exception(
+                    get_valkey_glide_exception_ce(),
+                    "'to' array must contain a non-empty string 'host' and an int 'port'",
+                    0);
+                return 0;
+            }
+
+            core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+            core_args.args[arg_idx].data.string_arg.value = "TO";
+            core_args.args[arg_idx].data.string_arg.len   = 2;
+            arg_idx++;
+
+            core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+            core_args.args[arg_idx].data.string_arg.value = Z_STRVAL_P(z_host);
+            core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN_P(z_host);
+            arg_idx++;
+
+            core_args.args[arg_idx].type                = CORE_ARG_TYPE_LONG;
+            core_args.args[arg_idx].data.long_arg.value = zval_get_long(z_port);
+            arg_idx++;
+
+            /* Check for FORCE in array */
+            zval* z_force = zend_hash_str_find(Z_ARRVAL_P(to_arr), "force", 5);
+            if (z_force && zend_is_true(z_force)) {
+                core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+                core_args.args[arg_idx].data.string_arg.value = "FORCE";
+                core_args.args[arg_idx].data.string_arg.len   = 5;
+                arg_idx++;
+            }
+        }
+
+        if (timeout > 0) {
+            core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+            core_args.args[arg_idx].data.string_arg.value = "TIMEOUT";
+            core_args.args[arg_idx].data.string_arg.len   = 7;
+            arg_idx++;
+
+            core_args.args[arg_idx].type                = CORE_ARG_TYPE_LONG;
+            core_args.args[arg_idx].data.long_arg.value = timeout;
+            arg_idx++;
+        }
+    }
+
+    core_args.arg_count = arg_idx;
+
+    z_result_processor_t processor = valkey_glide->opt_reply_literal
+                                         ? process_core_status_string_result
+                                         : process_core_status_bool_result;
+
+    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+}
+
+int execute_replicaof_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                host     = NULL;
+    size_t               host_len = 0;
+    zend_long            port     = 6379;
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    /* Parse parameters: replicaof(?string $host = null, int $port = 6379) */
+    if (zend_parse_method_parameters(argc, object, "O|s!l", &object, ce, &host, &host_len, &port) ==
+        FAILURE) {
+        return 0;
+    }
+
+    /* Setup core command arguments */
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = ReplicaOf;
+    core_args.is_cluster          = 0;
+
+    if (host == NULL) {
+        /* REPLICAOF NO ONE */
+        core_args.args[0].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[0].data.string_arg.value = "NO";
+        core_args.args[0].data.string_arg.len   = 2;
+        core_args.args[1].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[1].data.string_arg.value = "ONE";
+        core_args.args[1].data.string_arg.len   = 3;
+        core_args.arg_count                     = 2;
+    } else if (host_len == 0) {
+        /* Reject empty string host */
+        VALKEY_LOG_ERROR("command_validation", "REPLICAOF host must not be an empty string");
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "REPLICAOF host must not be an empty string", 0);
+        return 0;
+    } else {
+        /* REPLICAOF host port */
+        core_args.args[0].type                  = CORE_ARG_TYPE_STRING;
+        core_args.args[0].data.string_arg.value = host;
+        core_args.args[0].data.string_arg.len   = host_len;
+        core_args.args[1].type                  = CORE_ARG_TYPE_LONG;
+        core_args.args[1].data.long_arg.value   = port;
+        core_args.arg_count                     = 2;
+    }
+
+    z_result_processor_t processor = valkey_glide->opt_reply_literal
+                                         ? process_core_status_string_result
+                                         : process_core_status_bool_result;
+
+    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+}
+
 /* Execute a TIME command using the Valkey Glide client */
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;

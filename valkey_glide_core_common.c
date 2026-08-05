@@ -318,10 +318,12 @@ int prepare_core_args(core_command_args_t* args,
         case BgSave:
         case ClientPause:
         case Echo:
+        case FailOver:
         case FlushAll:
         case FlushDB:
         case Migrate:
         case Ping:
+        case ReplicaOf:
         case Select:
         case SwapDb:
         case Wait:
