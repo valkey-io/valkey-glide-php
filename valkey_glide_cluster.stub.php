@@ -1058,7 +1058,6 @@ class ValkeyGlideCluster
      * Resets latency data with explicit routing.
      *
      * @param mixed  $route  Routing: 'allPrimaries', 'allNodes', 'randomNode', or a specific node address.
-     * @param string ...$events The event names to reset. If none specified, all events are reset.
      *
      * @return ValkeyGlideCluster|int|false Returns the number of events reset. Returns false on failure.
      *
