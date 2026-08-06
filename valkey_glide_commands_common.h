@@ -231,6 +231,10 @@ int execute_latency_latest_command(zval*             object,
                                    zval*             return_value,
                                    zend_class_entry* ce);
 int execute_latency_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_latency_reset_with_route_command(zval*             object,
+                                             int               argc,
+                                             zval*             return_value,
+                                             zend_class_entry* ce);
 int execute_memory_doctor_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_memory_malloc_stats_command(zval*             object,
                                         int               argc,
@@ -534,6 +538,10 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 
 #define LATENCY_RESET_METHOD_IMPL(class_name) \
     STANDARD_METHOD_IMPL(class_name, latencyReset, execute_latency_reset_command)
+
+#define LATENCY_RESET_WITH_ROUTE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(                                \
+        class_name, latencyResetWithRoute, execute_latency_reset_with_route_command)
 
 #define MEMORY_DOCTOR_METHOD_IMPL(class_name) \
     STANDARD_METHOD_IMPL(class_name, memoryDoctor, execute_memory_doctor_command)

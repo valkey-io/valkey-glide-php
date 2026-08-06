@@ -1030,6 +1030,10 @@ LATENCY_LATEST_METHOD_IMPL(ValkeyGlideCluster)
 LATENCY_RESET_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto int ValkeyGlideCluster::latencyResetWithRoute(mixed route, string ...events) */
+LATENCY_RESET_WITH_ROUTE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto ValkeyGlideCluster::reset() */
 RESET_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */

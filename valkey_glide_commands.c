@@ -716,6 +716,43 @@ int execute_latency_latest_command(zval*             object,
         valkey_glide, &core_args, process_core_array_result, return_value, object);
 }
 
+static int latency_reset_build_and_execute(valkey_glide_object* valkey_glide,
+                                           core_command_args_t* core_args,
+                                           zval*                events,
+                                           int                  event_count,
+                                           zval*                return_value,
+                                           zval*                object) {
+    int arg_idx = 0;
+
+    if (event_count <= 12) {
+        for (int i = 0; i < event_count; i++) {
+            core_args->args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+            core_args->args[arg_idx].data.string_arg.value = Z_STRVAL(events[i]);
+            core_args->args[arg_idx].data.string_arg.len   = Z_STRLEN(events[i]);
+            arg_idx++;
+        }
+    } else {
+        core_arg_t* all = (core_arg_t*) ecalloc(event_count, sizeof(core_arg_t));
+        for (int i = 0; i < event_count; i++) {
+            all[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+            all[arg_idx].data.string_arg.value = Z_STRVAL(events[i]);
+            all[arg_idx].data.string_arg.len   = Z_STRLEN(events[i]);
+            arg_idx++;
+        }
+        core_args->all_args = all;
+    }
+    core_args->arg_count = arg_idx;
+
+    int result = execute_and_handle_batch(
+        valkey_glide, core_args, process_core_int_result, return_value, object);
+
+    if (core_args->all_args) {
+        efree(core_args->all_args);
+    }
+
+    return result;
+}
+
 int execute_latency_reset_command(zval*             object,
                                   int               argc,
                                   zval*             return_value,
@@ -751,36 +788,56 @@ int execute_latency_reset_command(zval*             object,
     core_args.cmd_type            = LatencyReset;
     core_args.is_cluster          = is_cluster;
 
-    /* Add variadic event names as arguments */
-    int arg_idx = 0;
+    return latency_reset_build_and_execute(
+        valkey_glide, &core_args, args, args_count, return_value, object);
+}
 
-    if (args_count <= 12) {
-        for (int i = 0; i < args_count; i++) {
-            core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
-            core_args.args[arg_idx].data.string_arg.value = Z_STRVAL(args[i]);
-            core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN(args[i]);
-            arg_idx++;
-        }
-    } else {
-        core_arg_t* all = (core_arg_t*) ecalloc(args_count, sizeof(core_arg_t));
-        for (int i = 0; i < args_count; i++) {
-            all[arg_idx].type                  = CORE_ARG_TYPE_STRING;
-            all[arg_idx].data.string_arg.value = Z_STRVAL(args[i]);
-            all[arg_idx].data.string_arg.len   = Z_STRLEN(args[i]);
-            arg_idx++;
-        }
-        core_args.all_args = all;
-    }
-    core_args.arg_count = arg_idx;
+int execute_latency_reset_with_route_command(zval*             object,
+                                             int               argc,
+                                             zval*             return_value,
+                                             zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    zval*                args       = NULL;
+    int                  args_count = 0;
 
-    int result = execute_and_handle_batch(
-        valkey_glide, &core_args, process_core_int_result, return_value, object);
-
-    if (core_args.all_args) {
-        efree(core_args.all_args);
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
     }
 
-    return result;
+    if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &args, &args_count) ==
+        FAILURE) {
+        return 0;
+    }
+
+    if (args_count < 1) {
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "latencyResetWithRoute() requires a route argument",
+                             0);
+        return 0;
+    }
+
+    /* Validate remaining args (events) are strings */
+    for (int i = 1; i < args_count; i++) {
+        if (Z_TYPE(args[i]) != IS_STRING) {
+            zend_type_error(
+                "ValkeyGlideCluster::latencyResetWithRoute(): Argument #%d must be of type "
+                "string, %s given",
+                i + 1,
+                zend_zval_value_name(&args[i]));
+            return 0;
+        }
+    }
+
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = LatencyReset;
+    core_args.is_cluster          = 1;
+    core_args.has_route           = 1;
+    core_args.route_param         = &args[0];
+
+    return latency_reset_build_and_execute(
+        valkey_glide, &core_args, &args[1], args_count - 1, return_value, object);
 }
 
 int execute_memory_doctor_command(zval*             object,

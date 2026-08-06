@@ -977,6 +977,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertIsArray($result);
     }
 
+    public function testLatencyResetWithRoute()
+    {
+        $this->triggerLatencySpike();
+
+        $result = $this->valkey_glide->latencyResetWithRoute('randomNode');
+        $this->assertIsInt($result);
+    }
+
     public function testReset()
     {
         $key = '{reset_test}_' . uniqid();
