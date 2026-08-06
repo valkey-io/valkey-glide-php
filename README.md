@@ -42,7 +42,9 @@ Linux:
 
 - Ubuntu 20 (x86_64/amd64 and arm64/aarch64)
 
-**Note: Currently Alpine Linux / MUSL is NOT supported.**
+Alpine Linux:
+
+- Alpine 3.18+ (x86_64/amd64 and arm64/aarch64) — uses musl libc
 
 macOS:
 
@@ -97,6 +99,18 @@ source "$HOME/.cargo/env"
 ```bash
 brew update
 brew install php git gcc make pkgconfig protobuf openssl
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+```
+
+**Alpine Linux:**
+
+```bash
+apk update
+apk add php83-dev php83-cli git gcc g++ make autoconf automake pkgconfig \
+  openssl-dev libffi-dev protobuf-c-dev protobuf-dev cmake perl \
+  linux-headers python3 bash curl tar
+# Install rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
 ```

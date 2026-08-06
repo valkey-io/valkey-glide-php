@@ -79,8 +79,17 @@ valkey-glide/ffi/target/release/libglide_ffi.a: ensure-submodules
 			export RUSTC_WRAPPER=sccache; \
 			echo "Using sccache for Rust compilation"; \
 		fi && \
+		EXTRA_RUSTFLAGS=""; \
+		if ldd --version 2>&1 | grep -q musl || test -f /etc/alpine-release; then \
+			echo "Detected musl/Alpine - setting target-feature=-crt-static"; \
+			EXTRA_RUSTFLAGS="-C target-feature=-crt-static"; \
+		fi && \
 		if [ -d valkey-glide/ffi ]; then \
-			cd valkey-glide/ffi && GLIDE_NAME=$(GLIDE_NAME) GLIDE_VERSION=$(GLIDE_VERSION) CARGO_BUILD_JOBS=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") cargo build --release && cd ../..; \
+			cd valkey-glide/ffi && \
+			GLIDE_NAME=$(GLIDE_NAME) GLIDE_VERSION=$(GLIDE_VERSION) \
+			RUSTFLAGS="$$EXTRA_RUSTFLAGS" \
+			CARGO_BUILD_JOBS=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") \
+			cargo build --release && cd ../..; \
 		fi; \
 	else \
 		echo "FFI library already exists, skipping cargo build"; \
