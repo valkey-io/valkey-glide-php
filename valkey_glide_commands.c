@@ -735,6 +735,17 @@ int execute_latency_reset_command(zval*             object,
         return 0;
     }
 
+    /* Validate all variadic arguments are strings */
+    for (int i = 0; i < args_count; i++) {
+        if (Z_TYPE(args[i]) != IS_STRING) {
+            zend_type_error(
+                "ValkeyGlide::latencyReset(): Argument #%d must be of type string, %s given",
+                i + 1,
+                zend_zval_value_name(&args[i]));
+            return 0;
+        }
+    }
+
     core_command_args_t core_args = {0};
     core_args.glide_client        = valkey_glide->glide_client;
     core_args.cmd_type            = LatencyReset;
@@ -745,22 +756,18 @@ int execute_latency_reset_command(zval*             object,
 
     if (args_count <= 12) {
         for (int i = 0; i < args_count; i++) {
-            if (Z_TYPE(args[i]) == IS_STRING) {
-                core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
-                core_args.args[arg_idx].data.string_arg.value = Z_STRVAL(args[i]);
-                core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN(args[i]);
-                arg_idx++;
-            }
+            core_args.args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+            core_args.args[arg_idx].data.string_arg.value = Z_STRVAL(args[i]);
+            core_args.args[arg_idx].data.string_arg.len   = Z_STRLEN(args[i]);
+            arg_idx++;
         }
     } else {
         core_arg_t* all = (core_arg_t*) ecalloc(args_count, sizeof(core_arg_t));
         for (int i = 0; i < args_count; i++) {
-            if (Z_TYPE(args[i]) == IS_STRING) {
-                all[arg_idx].type                  = CORE_ARG_TYPE_STRING;
-                all[arg_idx].data.string_arg.value = Z_STRVAL(args[i]);
-                all[arg_idx].data.string_arg.len   = Z_STRLEN(args[i]);
-                arg_idx++;
-            }
+            all[arg_idx].type                  = CORE_ARG_TYPE_STRING;
+            all[arg_idx].data.string_arg.value = Z_STRVAL(args[i]);
+            all[arg_idx].data.string_arg.len   = Z_STRLEN(args[i]);
+            arg_idx++;
         }
         core_args.all_args = all;
     }
