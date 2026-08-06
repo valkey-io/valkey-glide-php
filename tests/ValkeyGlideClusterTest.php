@@ -894,6 +894,23 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertGT(0, $result['peak.allocated']);
     }
 
+    protected function triggerLatencySpike()
+    {
+        // Cluster rawCommand requires route as first arg
+        $config = $this->valkey_glide->rawCommand('', 'CONFIG', 'GET', 'latency-monitor-threshold');
+        $prevThreshold = $config['latency-monitor-threshold'] ?? '0';
+
+        $this->valkey_glide->latencyReset();
+
+        $this->valkey_glide->rawCommand('', 'CONFIG', 'SET', 'latency-monitor-threshold', '1');
+
+        try {
+            $this->valkey_glide->rawCommand('', 'DEBUG', 'SLEEP', '0.05');
+        } finally {
+            $this->valkey_glide->rawCommand('', 'CONFIG', 'SET', 'latency-monitor-threshold', $prevThreshold);
+        }
+    }
+
     public function testLatencyHistory()
     {
         $this->triggerLatencySpike();

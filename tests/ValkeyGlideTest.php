@@ -3265,21 +3265,21 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     protected function triggerLatencySpike()
     {
         // Save current threshold
-        $config = $this->valkey_glide->rawCommand('', 'CONFIG', 'GET', 'latency-monitor-threshold');
+        $config = $this->valkey_glide->rawCommand('CONFIG', 'GET', 'latency-monitor-threshold');
         $prevThreshold = $config['latency-monitor-threshold'] ?? '0';
 
         // Reset existing latency data
         $this->valkey_glide->latencyReset();
 
         // Set threshold to 1ms so any command triggers a spike
-        $this->valkey_glide->rawCommand('', 'CONFIG', 'SET', 'latency-monitor-threshold', '1');
+        $this->valkey_glide->rawCommand('CONFIG', 'SET', 'latency-monitor-threshold', '1');
 
         try {
             // Trigger a latency spike using DEBUG SLEEP
-            $this->valkey_glide->rawCommand('', 'DEBUG', 'SLEEP', '0.05');
+            $this->valkey_glide->rawCommand('DEBUG', 'SLEEP', '0.05');
         } finally {
             // Restore original threshold
-            $this->valkey_glide->rawCommand('', 'CONFIG', 'SET', 'latency-monitor-threshold', $prevThreshold);
+            $this->valkey_glide->rawCommand('CONFIG', 'SET', 'latency-monitor-threshold', $prevThreshold);
         }
     }
 
