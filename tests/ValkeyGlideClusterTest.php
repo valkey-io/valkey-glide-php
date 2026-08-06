@@ -900,6 +900,12 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $result = $this->valkey_glide->latencyHistory('command');
         $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+
+        // Non-existent event returns empty array
+        $unknown = $this->valkey_glide->latencyHistory('nonexistent_event');
+        $this->assertIsArray($unknown);
+        $this->assertEquals(0, count($unknown));
     }
 
     public function testLatencyLatest()
@@ -908,14 +914,24 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $result = $this->valkey_glide->latencyLatest();
         $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
     }
 
     public function testLatencyReset()
     {
         $this->triggerLatencySpike();
 
+        // Verify history exists before reset
+        $history = $this->valkey_glide->latencyHistory('command');
+        $this->assertGT(0, count($history));
+
         $result = $this->valkey_glide->latencyReset();
-        $this->assertTrue(is_int($result) || is_array($result));
+        $this->assertIsInt($result);
+        $this->assertGT(0, $result);
+
+        // History should be empty after reset
+        $history = $this->valkey_glide->latencyHistory('command');
+        $this->assertEquals(0, count($history));
     }
 
     public function testLatencyResetSpecificEvent()
@@ -923,15 +939,26 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->triggerLatencySpike();
 
         $result = $this->valkey_glide->latencyReset('command');
-        $this->assertTrue(is_int($result) || is_array($result));
+        $this->assertIsInt($result);
+        $this->assertGT(0, $result);
+
+        // History for "command" should be empty
+        $history = $this->valkey_glide->latencyHistory('command');
+        $this->assertEquals(0, count($history));
     }
 
     public function testLatencyResetUnknownEvent()
     {
         $this->triggerLatencySpike();
 
+        // Reset unknown event returns 0
         $result = $this->valkey_glide->latencyReset('unknown_event');
-        $this->assertTrue(is_int($result) || is_array($result));
+        $this->assertIsInt($result);
+        $this->assertEquals(0, $result);
+
+        // History for "command" should still exist
+        $history = $this->valkey_glide->latencyHistory('command');
+        $this->assertGT(0, count($history));
     }
 
     public function testLatencyHistoryWithRoute()
