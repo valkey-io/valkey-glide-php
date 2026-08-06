@@ -201,6 +201,7 @@ int prepare_core_args(core_command_args_t* args,
         case DBSize:
         case Discard:
         case Exec:
+        case LatencyLatest:
         case MemoryDoctor:
         case MemoryMallocStats:
         case MemoryPurge:
@@ -321,6 +322,8 @@ int prepare_core_args(core_command_args_t* args,
         case FailOver:
         case FlushAll:
         case FlushDB:
+        case LatencyHistory:
+        case LatencyReset:
         case Migrate:
         case Ping:
         case ReplicaOf:

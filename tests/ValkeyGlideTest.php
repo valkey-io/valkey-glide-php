@@ -3260,6 +3260,107 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key);
     }
 
+    // TODO: Replace rawCommand CONFIG calls with config() once config() is available on cluster client.
+    // See: https://github.com/valkey-io/valkey-glide-php/issues/284
+    protected function triggerLatencySpike()
+    {
+        // Save current threshold
+        $config = $this->valkey_glide->rawCommand('', 'CONFIG', 'GET', 'latency-monitor-threshold');
+        $prevThreshold = $config['latency-monitor-threshold'] ?? '0';
+
+        // Reset existing latency data
+        $this->valkey_glide->latencyReset();
+
+        // Set threshold to 1ms so any command triggers a spike
+        $this->valkey_glide->rawCommand('', 'CONFIG', 'SET', 'latency-monitor-threshold', '1');
+
+        try {
+            // Trigger a latency spike using DEBUG SLEEP
+            $this->valkey_glide->rawCommand('', 'DEBUG', 'SLEEP', '0.05');
+        } finally {
+            // Restore original threshold
+            $this->valkey_glide->rawCommand('', 'CONFIG', 'SET', 'latency-monitor-threshold', $prevThreshold);
+        }
+    }
+
+    public function testLatencyHistory()
+    {
+        $this->triggerLatencySpike();
+
+        $history = $this->valkey_glide->latencyHistory('command');
+        $this->assertIsArray($history);
+        $this->assertGT(0, count($history));
+
+        foreach ($history as $entry) {
+            $this->assertIsArray($entry);
+            $this->assertEquals(2, count($entry));
+            $this->assertGT(0, $entry[0]);
+            $this->assertGT(0, $entry[1]);
+        }
+
+        $unknown = $this->valkey_glide->latencyHistory('nonexistent_event');
+        $this->assertIsArray($unknown);
+        $this->assertEquals(0, count($unknown));
+    }
+
+    public function testLatencyLatest()
+    {
+        $this->triggerLatencySpike();
+
+        $latest = $this->valkey_glide->latencyLatest();
+        $this->assertIsArray($latest);
+        $this->assertGT(0, count($latest));
+
+        $found = false;
+        foreach ($latest as $entry) {
+            $this->assertIsArray($entry);
+            $this->assertGTE(4, count($entry));
+            if ($entry[0] === 'command') {
+                $found = true;
+                $this->assertGT(0, $entry[1]);
+                $this->assertGT(0, $entry[2]);
+                $this->assertGTE($entry[2], $entry[3]);
+            }
+        }
+        $this->assertTrue($found);
+    }
+
+    public function testLatencyReset()
+    {
+        $this->triggerLatencySpike();
+
+        $history = $this->valkey_glide->latencyHistory('command');
+        $this->assertGT(0, count($history));
+
+        $resetCount = $this->valkey_glide->latencyReset();
+        $this->assertGT(0, $resetCount);
+
+        $history = $this->valkey_glide->latencyHistory('command');
+        $this->assertEquals(0, count($history));
+    }
+
+    public function testLatencyResetSpecificEvent()
+    {
+        $this->triggerLatencySpike();
+
+        $resetCount = $this->valkey_glide->latencyReset('command');
+        $this->assertGT(0, $resetCount);
+
+        $history = $this->valkey_glide->latencyHistory('command');
+        $this->assertEquals(0, count($history));
+    }
+
+    public function testLatencyResetUnknownEvent()
+    {
+        $this->triggerLatencySpike();
+
+        $resetCount = $this->valkey_glide->latencyReset('unknown_event');
+        $this->assertEquals(0, $resetCount);
+
+        $history = $this->valkey_glide->latencyHistory('command');
+        $this->assertGT(0, count($history));
+    }
+
     public function testSave()
     {
         $this->waitForSaveNotInProgress();

@@ -1036,6 +1036,25 @@ class ValkeyGlideCluster
     public function memoryStats(mixed $route = null): ValkeyGlideCluster|array|false;
 
     /**
+     * @see ValkeyGlide::latencyHistory
+     *
+     * @param mixed $route Optional routing: 'allPrimaries', 'allNodes', 'randomNode', or a specific node address.
+     */
+    public function latencyHistory(string $event, mixed $route = null): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::latencyLatest
+     *
+     * @param mixed $route Optional routing: 'allPrimaries', 'allNodes', 'randomNode', or a specific node address.
+     */
+    public function latencyLatest(mixed $route = null): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::latencyReset
+     */
+    public function latencyReset(string ...$events): ValkeyGlideCluster|int|false;
+
+    /**
      * @see ValkeyGlide::psetex
      */
     public function psetex(string $key, int $timeout, string $value): ValkeyGlideCluster|bool;

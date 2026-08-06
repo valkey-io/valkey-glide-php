@@ -894,6 +894,62 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertGT(0, $result['peak.allocated']);
     }
 
+    public function testLatencyHistory()
+    {
+        $this->triggerLatencySpike();
+
+        $result = $this->valkey_glide->latencyHistory('command');
+        $this->assertIsArray($result);
+    }
+
+    public function testLatencyLatest()
+    {
+        $this->triggerLatencySpike();
+
+        $result = $this->valkey_glide->latencyLatest();
+        $this->assertIsArray($result);
+    }
+
+    public function testLatencyReset()
+    {
+        $this->triggerLatencySpike();
+
+        $result = $this->valkey_glide->latencyReset();
+        $this->assertTrue(is_int($result) || is_array($result));
+    }
+
+    public function testLatencyResetSpecificEvent()
+    {
+        $this->triggerLatencySpike();
+
+        $result = $this->valkey_glide->latencyReset('command');
+        $this->assertTrue(is_int($result) || is_array($result));
+    }
+
+    public function testLatencyResetUnknownEvent()
+    {
+        $this->triggerLatencySpike();
+
+        $result = $this->valkey_glide->latencyReset('unknown_event');
+        $this->assertTrue(is_int($result) || is_array($result));
+    }
+
+    public function testLatencyHistoryWithRoute()
+    {
+        $this->triggerLatencySpike();
+
+        $result = $this->valkey_glide->latencyHistory('command', 'randomNode');
+        $this->assertIsArray($result);
+    }
+
+    public function testLatencyLatestWithRoute()
+    {
+        $this->triggerLatencySpike();
+
+        $result = $this->valkey_glide->latencyLatest('randomNode');
+        $this->assertIsArray($result);
+    }
+
     public function testReset()
     {
         $key = '{reset_test}_' . uniqid();
