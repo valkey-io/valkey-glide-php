@@ -87,7 +87,7 @@ valkey-glide/ffi/target/release/libglide_ffi.a: ensure-submodules
 		if [ -d valkey-glide/ffi ]; then \
 			cd valkey-glide/ffi && \
 			GLIDE_NAME=$(GLIDE_NAME) GLIDE_VERSION=$(GLIDE_VERSION) \
-			RUSTFLAGS="$$EXTRA_RUSTFLAGS" \
+			RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$$EXTRA_RUSTFLAGS" \
 			CARGO_BUILD_JOBS=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") \
 			cargo build --release && cd ../..; \
 		fi; \

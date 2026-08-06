@@ -31,7 +31,7 @@ to the GLIDE Core written in Rust using C FFI headers.
 **Supported Platforms:**
 
 - Linux: Ubuntu 20+, Amazon Linux 2/2023 (x86_64, aarch64)
-- Alpine Linux: 3.18+ (x86_64, aarch64) — uses musl libc
+- Alpine Linux: 3.19+ (x86_64, aarch64) — uses musl libc
 - macOS: 13.7+ (x86_64), 14.7+ (aarch64)
 
 **PHP Versions:** 8.2, 8.3

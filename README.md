@@ -44,7 +44,7 @@ Linux:
 
 Alpine Linux:
 
-- Alpine 3.18+ (x86_64/amd64 and arm64/aarch64) — uses musl libc
+- Alpine 3.19+ (x86_64/amd64 and arm64/aarch64) — uses musl libc
 
 macOS:
 
