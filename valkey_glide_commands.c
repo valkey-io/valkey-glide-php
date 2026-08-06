@@ -778,7 +778,7 @@ int execute_latency_reset_command(zval*             object,
             zend_type_error(
                 "ValkeyGlide::latencyReset(): Argument #%d must be of type string, %s given",
                 i + 1,
-                zend_zval_value_name(&args[i]));
+                zend_zval_type_name(&args[i]));
             return 0;
         }
     }
@@ -824,7 +824,7 @@ int execute_latency_reset_with_route_command(zval*             object,
                 "ValkeyGlideCluster::latencyResetWithRoute(): Argument #%d must be of type "
                 "string, %s given",
                 i + 1,
-                zend_zval_value_name(&args[i]));
+                zend_zval_type_name(&args[i]));
             return 0;
         }
     }
