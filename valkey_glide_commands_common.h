@@ -222,6 +222,13 @@ int execute_client_unpause_command(zval*             object,
                                    int               argc,
                                    zval*             return_value,
                                    zend_class_entry* ce);
+int execute_memory_doctor_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_memory_malloc_stats_command(zval*             object,
+                                        int               argc,
+                                        zval*             return_value,
+                                        zend_class_entry* ce);
+int execute_memory_purge_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_memory_stats_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_save_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -509,6 +516,18 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 
 #define REPLICAOF_METHOD_IMPL(class_name) \
     STANDARD_METHOD_IMPL(class_name, replicaof, execute_replicaof_command)
+
+#define MEMORY_DOCTOR_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, memoryDoctor, execute_memory_doctor_command)
+
+#define MEMORY_MALLOC_STATS_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, memoryMallocStats, execute_memory_malloc_stats_command)
+
+#define MEMORY_PURGE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, memoryPurge, execute_memory_purge_command)
+
+#define MEMORY_STATS_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, memoryStats, execute_memory_stats_command)
 
 #define RESET_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, reset, execute_reset_command)
 

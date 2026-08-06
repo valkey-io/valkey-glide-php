@@ -201,6 +201,10 @@ int prepare_core_args(core_command_args_t* args,
         case DBSize:
         case Discard:
         case Exec:
+        case MemoryDoctor:
+        case MemoryMallocStats:
+        case MemoryPurge:
+        case MemoryStats:
         case RandomKey:
         case Reset:
         case Role:

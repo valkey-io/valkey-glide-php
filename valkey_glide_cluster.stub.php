@@ -1008,6 +1008,34 @@ class ValkeyGlideCluster
     public function reset(): ValkeyGlideCluster|bool|string;
 
     /**
+     * @see ValkeyGlide::memoryDoctor
+     *
+     * @param mixed $route Optional routing: 'allPrimaries', 'allNodes', 'randomNode', or a specific node address.
+     */
+    public function memoryDoctor(mixed $route = null): ValkeyGlideCluster|string|array|false;
+
+    /**
+     * @see ValkeyGlide::memoryMallocStats
+     *
+     * @param mixed $route Optional routing: 'allPrimaries', 'allNodes', 'randomNode', or a specific node address.
+     */
+    public function memoryMallocStats(mixed $route = null): ValkeyGlideCluster|string|array|false;
+
+    /**
+     * @see ValkeyGlide::memoryPurge
+     *
+     * @param mixed $route Optional routing: 'allPrimaries', 'allNodes', 'randomNode', or a specific node address.
+     */
+    public function memoryPurge(mixed $route = null): ValkeyGlideCluster|bool|array|string;
+
+    /**
+     * @see ValkeyGlide::memoryStats
+     *
+     * @param mixed $route Optional routing: 'allPrimaries', 'allNodes', 'randomNode', or a specific node address.
+     */
+    public function memoryStats(mixed $route = null): ValkeyGlideCluster|array|false;
+
+    /**
      * @see ValkeyGlide::psetex
      */
     public function psetex(string $key, int $timeout, string $value): ValkeyGlideCluster|bool;

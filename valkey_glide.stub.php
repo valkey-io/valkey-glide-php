@@ -2439,6 +2439,26 @@ class ValkeyGlide
     public function reset(): ValkeyGlide|bool|string;
 
     /**
+     * Returns a report about memory problems detected by the server.
+     *
+     * @return ValkeyGlide|string|false  Returns the memory diagnostic report string.
+     *                                   Returns false on failure.
+     *
+     * @see https://valkey.io/commands/memory-doctor
+     */
+    public function memoryDoctor(): ValkeyGlide|string|false;
+
+    /**
+     * Returns the internal statistics of the memory allocator.
+     *
+     * @return ValkeyGlide|string|false  Returns the memory allocator statistics string.
+     *                                   Returns false on failure.
+     *
+     * @see https://valkey.io/commands/memory-malloc-stats
+     */
+    public function memoryMallocStats(): ValkeyGlide|string|false;
+
+    /**
      * Makes the server a replica of the specified primary, or promotes it to a primary.
      *
      * When called with a host and port, the server begins replicating from the specified primary.
@@ -2475,6 +2495,31 @@ class ValkeyGlide
      * @see https://valkey.io/commands/failover
      */
     public function failover(?array $to = null, bool $abort = false, int $timeout = 0): ValkeyGlide|bool|string;
+
+    /**
+     * Starts a coordinated failover from the connected primary to one of its replicas.
+     *
+     * @param array|null $to Target replica as ['host' => string, 'port' => int], or null for auto-selection.
+     * @param bool       $abort If true, aborts an in-progress failover.
+     * @param int        $timeout Timeout in milliseconds. 0 means no timeout.
+     *
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" on success,
+     *                                  false on failure.
+     *
+     * @see https://valkey.io/commands/memory-purge
+     */
+    public function memoryPurge(): ValkeyGlide|bool|string;
+
+    /**
+     * Returns detailed memory consumption statistics of the server.
+     *
+     * @return ValkeyGlide|array|false  Returns an associative array containing memory usage statistics.
+     *                                  Returns false on failure.
+     *
+     * @see https://valkey.io/commands/memory-stats
+     */
+    public function memoryStats(): ValkeyGlide|array|false;
 
     /**
      * Enter into pipeline mode.
