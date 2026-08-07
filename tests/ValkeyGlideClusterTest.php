@@ -917,12 +917,12 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->triggerLatencySpike();
 
-        $result = $this->valkey_glide->latencyHistory('command');
+        $result = $this->valkey_glide->latencyHistory('command', 'randomNode');
         $this->assertIsArray($result);
         $this->assertGT(0, count($result));
 
         // Non-existent event returns empty array
-        $unknown = $this->valkey_glide->latencyHistory('nonexistent_event');
+        $unknown = $this->valkey_glide->latencyHistory('nonexistent_event', 'randomNode');
         $this->assertIsArray($unknown);
         $this->assertEquals(0, count($unknown));
     }
@@ -940,8 +940,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->triggerLatencySpike();
 
-        // Verify history exists before reset
-        $history = $this->valkey_glide->latencyHistory('command');
+        // Verify history exists before reset (use randomNode for scalar response)
+        $history = $this->valkey_glide->latencyHistory('command', 'randomNode');
         $this->assertGT(0, count($history));
 
         $result = $this->valkey_glide->latencyReset();
@@ -949,7 +949,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertGT(0, $result);
 
         // History should be empty after reset
-        $history = $this->valkey_glide->latencyHistory('command');
+        $history = $this->valkey_glide->latencyHistory('command', 'randomNode');
         $this->assertEquals(0, count($history));
     }
 
@@ -962,7 +962,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertGT(0, $result);
 
         // History for "command" should be empty
-        $history = $this->valkey_glide->latencyHistory('command');
+        $history = $this->valkey_glide->latencyHistory('command', 'randomNode');
         $this->assertEquals(0, count($history));
     }
 
@@ -976,7 +976,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals(0, $result);
 
         // History for "command" should still exist
-        $history = $this->valkey_glide->latencyHistory('command');
+        $history = $this->valkey_glide->latencyHistory('command', 'randomNode');
         $this->assertGT(0, count($history));
     }
 
