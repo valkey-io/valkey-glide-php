@@ -65,6 +65,7 @@ Before installing Valkey GLIDE PHP extension, ensure you have the following depe
 - Build tools (`gcc`, `make`, `autotools`)
 - Git
 - pkg-config
+- python3
 - protoc (protobuf compiler) >= v3.20.0
 - protobuf-c library and compiler (`libprotobuf-c-dev`, `protobuf-c-compiler`)
 - libffi development headers (`libffi-dev`)
@@ -79,7 +80,7 @@ Before installing Valkey GLIDE PHP extension, ensure you have the following depe
 
 ```bash
 sudo apt update -y
-sudo apt install -y php-dev php-cli git gcc make autotools-dev pkg-config openssl libssl-dev unzip php-bcmath libprotobuf-c-dev protobuf-c-compiler libffi-dev
+sudo apt install -y php-dev php-cli git gcc make autotools-dev pkg-config openssl libssl-dev unzip php-bcmath python3 libprotobuf-c-dev protobuf-c-compiler libffi-dev
 # Install rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
@@ -91,7 +92,7 @@ cargo install cbindgen
 
 ```bash
 sudo yum update -y
-sudo yum install -y php-devel php-cli git gcc make pkgconfig openssl openssl-devel unzip php-bcmath protobuf-c-devel protobuf-c-compiler libffi-devel
+sudo yum install -y php-devel php-cli git gcc make pkgconfig openssl openssl-devel unzip php-bcmath python3 protobuf-c-devel protobuf-c-compiler libffi-devel
 # Install rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
