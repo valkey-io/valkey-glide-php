@@ -1039,6 +1039,13 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::latencyHistory
      *
      * @param mixed $route Optional routing: 'allPrimaries', 'allNodes', 'randomNode', or a specific node address.
+     *                     If omitted, the command is routed to all primary nodes.
+     *
+     * @return ValkeyGlideCluster|array|false For a single-node route, returns a list of
+     *                                        [timestamp, duration] entries. For 'allPrimaries',
+     *                                        'allNodes', or the default route, returns an associative
+     *                                        array that maps each node address to its list of entries.
+     *                                        Returns false on failure.
      */
     public function latencyHistory(string $event, mixed $route = null): ValkeyGlideCluster|array|false;
 
@@ -1046,11 +1053,23 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::latencyLatest
      *
      * @param mixed $route Optional routing: 'allPrimaries', 'allNodes', 'randomNode', or a specific node address.
+     *                     If omitted, the command is routed to all primary nodes.
+     *
+     * @return ValkeyGlideCluster|array|false For a single-node route, returns a list of
+     *                                        [event, timestamp, latest latency, maximum latency]
+     *                                        entries. For 'allPrimaries', 'allNodes', or the default
+     *                                        route, returns an associative array that maps each node
+     *                                        address to its list of entries. Returns false on failure.
      */
     public function latencyLatest(mixed $route = null): ValkeyGlideCluster|array|false;
 
     /**
-     * @see ValkeyGlide::latencyReset
+     * Resets latency data on all primary nodes.
+     *
+     * @return ValkeyGlideCluster|int|false The sum of the numbers of events reset on all primary nodes.
+     *                                      Returns false on failure.
+     *
+     * @see https://valkey.io/commands/latency-reset
      */
     public function latencyReset(string ...$events): ValkeyGlideCluster|int|false;
 
@@ -1059,7 +1078,9 @@ class ValkeyGlideCluster
      *
      * @param mixed  $route  Routing: 'allPrimaries', 'allNodes', 'randomNode', or a specific node address.
      *
-     * @return ValkeyGlideCluster|int|false Returns the number of events reset. Returns false on failure.
+     * @return ValkeyGlideCluster|int|false The number of events reset. When the route targets multiple
+     *                                      nodes, returns the sum of the per-node counts. Returns false
+     *                                      on failure.
      *
      * @see https://valkey.io/commands/latency-reset
      */
