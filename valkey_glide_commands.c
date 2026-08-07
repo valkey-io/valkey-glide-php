@@ -663,7 +663,7 @@ int execute_latency_history_command(zval*             object,
                                  0);
             return 0;
         }
-        if (args_count == 1) {
+        if (args_count == 1 && Z_TYPE(args[0]) != IS_NULL) {
             core_args.has_route   = 1;
             core_args.route_param = &args[0];
         }
@@ -712,7 +712,7 @@ int execute_latency_latest_command(zval*             object,
                 get_valkey_glide_exception_ce(), "Expected at most 1 argument (route)", 0);
             return 0;
         }
-        if (args_count == 1) {
+        if (args_count == 1 && Z_TYPE(args[0]) != IS_NULL) {
             core_args.has_route   = 1;
             core_args.route_param = &args[0];
         }
@@ -880,7 +880,7 @@ int execute_memory_doctor_command(zval*             object,
                                  0);
             return 0;
         }
-        if (args_count == 1) {
+        if (args_count == 1 && Z_TYPE(args[0]) != IS_NULL) {
             core_args.has_route   = 1;
             core_args.route_param = &args[0];
         }
@@ -924,7 +924,7 @@ int execute_memory_malloc_stats_command(zval*             object,
                                  0);
             return 0;
         }
-        if (args_count == 1) {
+        if (args_count == 1 && Z_TYPE(args[0]) != IS_NULL) {
             core_args.has_route   = 1;
             core_args.route_param = &args[0];
         }
@@ -965,7 +965,7 @@ int execute_memory_purge_command(zval* object, int argc, zval* return_value, zen
                                  0);
             return 0;
         }
-        if (args_count == 1) {
+        if (args_count == 1 && Z_TYPE(args[0]) != IS_NULL) {
             core_args.has_route   = 1;
             core_args.route_param = &args[0];
         }
@@ -1009,7 +1009,7 @@ int execute_memory_stats_command(zval* object, int argc, zval* return_value, zen
                                  0);
             return 0;
         }
-        if (args_count == 1) {
+        if (args_count == 1 && Z_TYPE(args[0]) != IS_NULL) {
             core_args.has_route   = 1;
             core_args.route_param = &args[0];
         }
