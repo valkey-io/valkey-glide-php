@@ -2598,3 +2598,73 @@
    fun:*glide_ffi*create_client*
    ...
 }
+
+# Rustls TLS session ticket handling - not a real leak, memory held by async runtime
+{
+   rustls_tls13_new_session_ticket
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*rustls*msgs*handshake*NewSessionTicketPayloadTls13*
+   ...
+}
+
+# Rustls TLS client session persistence - memory held until connection close
+{
+   rustls_client_session_common_new
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*rustls*msgs*persist*ClientSessionCommon*new*
+   ...
+}
+
+# Rustls TLS certificate cloning during session ticket handling
+{
+   rustls_tls13_certificate_clone
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*rustls_pki_types*CertificateDer*clone*
+   ...
+   fun:*rustls*client*tls13*ExpectTraffic*handle_new_ticket_impl*
+   ...
+}
+
+# Rustls TLS session cache key exchange hint
+{
+   rustls_client_session_cache_kx_hint
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*rustls*client*handy*cache*ClientSessionMemoryCache*set_kx_hint*
+   ...
+}
+
+# Rustls TLS payload read during session handling
+{
+   rustls_payload_read_session
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*rustls*msgs*base*PayloadU16*read*
+   ...
+   fun:*rustls*client*tls13*ExpectTraffic*handle_new_ticket_impl*
+   ...
+}
+
+# Rustls TLS client config builder allocation
+{
+   rustls_client_config_builder
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*rustls*client*client_conn*ClientConfig*builder_with_protocol_versions*
+   ...
+}
