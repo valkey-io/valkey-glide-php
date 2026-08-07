@@ -1831,23 +1831,25 @@ void debug_print_core_args(core_command_args_t* args) {
                          args->key_len);
     VALKEY_LOG_DEBUG_FMT("debug_core_args", "  arg_count: %d", args->arg_count);
 
+    core_arg_t* arg_array = args->all_args ? args->all_args : args->args;
+
     for (int i = 0; i < args->arg_count; i++) {
-        VALKEY_LOG_DEBUG_FMT("debug_core_args", "  arg[%d]: type=%d", i, args->args[i].type);
-        switch (args->args[i].type) {
+        VALKEY_LOG_DEBUG_FMT("debug_core_args", "  arg[%d]: type=%d", i, arg_array[i].type);
+        switch (arg_array[i].type) {
             case CORE_ARG_TYPE_STRING:
                 VALKEY_LOG_DEBUG_FMT("debug_core_args",
                                      "    string: %.*s (len: %zu)",
-                                     (int) args->args[i].data.string_arg.len,
-                                     args->args[i].data.string_arg.value,
-                                     args->args[i].data.string_arg.len);
+                                     (int) arg_array[i].data.string_arg.len,
+                                     arg_array[i].data.string_arg.value,
+                                     arg_array[i].data.string_arg.len);
                 break;
             case CORE_ARG_TYPE_LONG:
                 VALKEY_LOG_DEBUG_FMT(
-                    "debug_core_args", "    long: %ld", args->args[i].data.long_arg.value);
+                    "debug_core_args", "    long: %ld", arg_array[i].data.long_arg.value);
                 break;
             case CORE_ARG_TYPE_DOUBLE:
                 VALKEY_LOG_DEBUG_FMT(
-                    "debug_core_args", "    double: %f", args->args[i].data.double_arg.value);
+                    "debug_core_args", "    double: %f", arg_array[i].data.double_arg.value);
                 break;
             default:
                 VALKEY_LOG_DEBUG("debug_core_args", "    (other type)");
