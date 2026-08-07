@@ -2668,3 +2668,16 @@
    fun:*rustls*client*client_conn*ClientConfig*builder_with_protocol_versions*
    ...
 }
+
+# Rustls TLS session resumption cache allocation
+{
+   rustls_resumption_default
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*rustls*client*client_conn*Resumption*default*
+   ...
+   fun:*redis*connection*create_rustls_config*
+   ...
+}
