@@ -1022,24 +1022,42 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->triggerLatencySpike();
 
+        // randomNode returns a flat array of [timestamp, duration] pairs from one node
         $result = $this->valkey_glide->latencyHistory('command', 'randomNode');
         $this->assertIsArray($result);
+        // Verify entries have correct shape if any exist
+        foreach ($result as $entry) {
+            $this->assertIsArray($entry);
+            $this->assertEquals(2, count($entry));
+            $this->assertGT(0, $entry[0]); // timestamp > 0
+            $this->assertGT(0, $entry[1]); // duration > 0
+        }
     }
 
     public function testLatencyLatestWithRoute()
     {
         $this->triggerLatencySpike();
 
+        // randomNode returns a flat array of latest events from one node
         $result = $this->valkey_glide->latencyLatest('randomNode');
         $this->assertIsArray($result);
+        // Verify entries have correct shape if any exist
+        foreach ($result as $entry) {
+            $this->assertIsArray($entry);
+            $this->assertGTE(4, count($entry));
+            $this->assertIsString($entry[0]); // event name
+            $this->assertGT(0, $entry[1]);    // timestamp > 0
+        }
     }
 
     public function testLatencyResetWithRoute()
     {
         $this->triggerLatencySpike();
 
+        // randomNode returns an integer count from one node
         $result = $this->valkey_glide->latencyResetWithRoute('randomNode');
         $this->assertIsInt($result);
+        $this->assertGTE(0, $result);
     }
 
     public function testLatencyHistoryWithNullRoute()
