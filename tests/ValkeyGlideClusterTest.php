@@ -917,11 +917,12 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->triggerLatencySpike();
 
-        $result = $this->valkey_glide->latencyHistory('command', 'randomNode');
+        // Use default route (allPrimaries with Special policy) to ensure we hit the node with the spike
+        $result = $this->valkey_glide->latencyHistory('command');
         $this->assertIsArray($result);
         $this->assertGT(0, count($result));
 
-        // Non-existent event returns empty array
+        // Non-existent event returns empty array on any node
         $unknown = $this->valkey_glide->latencyHistory('nonexistent_event', 'randomNode');
         $this->assertIsArray($unknown);
         $this->assertEquals(0, count($unknown));
@@ -940,15 +941,12 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->triggerLatencySpike();
 
-        // Verify history exists before reset (use randomNode for scalar response)
-        $history = $this->valkey_glide->latencyHistory('command', 'randomNode');
-        $this->assertGT(0, count($history));
-
+        // Assert reset count > 0 (aggregated across all primaries)
         $result = $this->valkey_glide->latencyReset();
         $this->assertIsInt($result);
         $this->assertGT(0, $result);
 
-        // History should be empty after reset
+        // History should be empty after reset on any node
         $history = $this->valkey_glide->latencyHistory('command', 'randomNode');
         $this->assertEquals(0, count($history));
     }
@@ -957,11 +955,12 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->triggerLatencySpike();
 
+        // Assert reset count > 0
         $result = $this->valkey_glide->latencyReset('command');
         $this->assertIsInt($result);
         $this->assertGT(0, $result);
 
-        // History for "command" should be empty
+        // History for "command" should be empty on any node
         $history = $this->valkey_glide->latencyHistory('command', 'randomNode');
         $this->assertEquals(0, count($history));
     }
@@ -970,13 +969,13 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->triggerLatencySpike();
 
-        // Reset unknown event returns 0
+        // Reset unknown event returns 0 (aggregated sum across nodes)
         $result = $this->valkey_glide->latencyReset('unknown_event');
         $this->assertIsInt($result);
         $this->assertEquals(0, $result);
 
-        // History for "command" should still exist
-        $history = $this->valkey_glide->latencyHistory('command', 'randomNode');
+        // History for "command" should still exist (check via default route)
+        $history = $this->valkey_glide->latencyHistory('command');
         $this->assertGT(0, count($history));
     }
 
