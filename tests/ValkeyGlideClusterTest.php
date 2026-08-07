@@ -896,18 +896,20 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     protected function triggerLatencySpike()
     {
-        // Cluster rawCommand requires route as first arg
-        $config = $this->valkey_glide->rawCommand('', 'CONFIG', 'GET', 'latency-monitor-threshold');
+        // Get current threshold from one node (all should have same value)
+        $config = $this->valkey_glide->rawCommand('randomNode', 'CONFIG', 'GET', 'latency-monitor-threshold');
         $prevThreshold = $config['latency-monitor-threshold'] ?? '0';
 
         $this->valkey_glide->latencyReset();
 
-        $this->valkey_glide->rawCommand('', 'CONFIG', 'SET', 'latency-monitor-threshold', '1');
+        // Set threshold on all primaries so any node records spikes
+        $this->valkey_glide->rawCommand('allPrimaries', 'CONFIG', 'SET', 'latency-monitor-threshold', '1');
 
         try {
+            // DEBUG SLEEP on a random node — all nodes have threshold=1 so the spike is recorded
             $this->valkey_glide->rawCommand('', 'DEBUG', 'SLEEP', '0.05');
         } finally {
-            $this->valkey_glide->rawCommand('', 'CONFIG', 'SET', 'latency-monitor-threshold', $prevThreshold);
+            $this->valkey_glide->rawCommand('allPrimaries', 'CONFIG', 'SET', 'latency-monitor-threshold', $prevThreshold);
         }
     }
 
