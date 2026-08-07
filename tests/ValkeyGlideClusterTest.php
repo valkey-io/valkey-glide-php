@@ -907,7 +907,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         try {
             // DEBUG SLEEP on a random node — all nodes have threshold=1 so the spike is recorded
-            $this->valkey_glide->rawCommand('', 'DEBUG', 'SLEEP', '0.05');
+            $this->valkey_glide->rawCommand('randomNode', 'DEBUG', 'SLEEP', '0.05');
         } finally {
             $this->valkey_glide->rawCommand('allPrimaries', 'CONFIG', 'SET', 'latency-monitor-threshold', $prevThreshold);
         }

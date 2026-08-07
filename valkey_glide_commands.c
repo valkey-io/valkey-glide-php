@@ -724,7 +724,7 @@ static int latency_reset_build_and_execute(valkey_glide_object* valkey_glide,
                                            zval*                object) {
     int arg_idx = 0;
 
-    if (event_count <= 12) {
+    if (event_count <= CORE_ARGS_FIXED_MAX) {
         for (int i = 0; i < event_count; i++) {
             core_args->args[arg_idx].type                  = CORE_ARG_TYPE_STRING;
             core_args->args[arg_idx].data.string_arg.value = Z_STRVAL(events[i]);
