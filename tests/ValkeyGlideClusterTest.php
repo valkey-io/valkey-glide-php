@@ -1042,6 +1042,26 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertIsInt($result);
     }
 
+    public function testLatencyHistoryWithNullRoute()
+    {
+        $this->triggerLatencySpike();
+
+        // Explicit null should behave like an omitted route
+        $result = $this->valkey_glide->latencyHistory('command', null);
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+    }
+
+    public function testLatencyLatestWithNullRoute()
+    {
+        $this->triggerLatencySpike();
+
+        // Explicit null should behave like an omitted route
+        $result = $this->valkey_glide->latencyLatest(null);
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+    }
+
     public function testReset()
     {
         $key = '{reset_test}_' . uniqid();
