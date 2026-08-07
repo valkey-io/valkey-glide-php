@@ -620,6 +620,16 @@ static int process_memory_stats_result(CommandResponse* response,
         response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, true);
 }
 
+static int process_cluster_array_result(CommandResponse* response,
+                                        void*            output,
+                                        zval*            return_value) {
+    if (!response || !return_value) {
+        return 0;
+    }
+    return command_response_to_zval(
+        response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, true);
+}
+
 int execute_latency_history_command(zval*             object,
                                     int               argc,
                                     zval*             return_value,
@@ -670,7 +680,7 @@ int execute_latency_history_command(zval*             object,
     core_args.arg_count                     = 1;
 
     return execute_and_handle_batch(
-        valkey_glide, &core_args, process_core_array_result, return_value, object);
+        valkey_glide, &core_args, process_cluster_array_result, return_value, object);
 }
 
 int execute_latency_latest_command(zval*             object,
@@ -713,7 +723,7 @@ int execute_latency_latest_command(zval*             object,
     }
 
     return execute_and_handle_batch(
-        valkey_glide, &core_args, process_core_array_result, return_value, object);
+        valkey_glide, &core_args, process_cluster_array_result, return_value, object);
 }
 
 static int latency_reset_build_and_execute(valkey_glide_object* valkey_glide,
