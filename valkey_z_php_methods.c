@@ -859,6 +859,18 @@ MEMORY_PURGE_METHOD_IMPL(ValkeyGlide)
 MEMORY_STATS_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto array ValkeyGlide::latencyHistory(string event) */
+LATENCY_HISTORY_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::latencyLatest() */
+LATENCY_LATEST_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto int ValkeyGlide::latencyReset(string ...events) */
+LATENCY_RESET_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto bool ValkeyGlide::reset() */
 RESET_METHOD_IMPL(ValkeyGlide)
 /* }}} */

@@ -1018,6 +1018,22 @@ MEMORY_PURGE_METHOD_IMPL(ValkeyGlideCluster)
 MEMORY_STATS_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto array ValkeyGlideCluster::latencyHistory(string event) */
+LATENCY_HISTORY_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::latencyLatest() */
+LATENCY_LATEST_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto int ValkeyGlideCluster::latencyReset(string ...events) */
+LATENCY_RESET_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto int ValkeyGlideCluster::latencyResetWithRoute(mixed route, string ...events) */
+LATENCY_RESET_WITH_ROUTE_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto ValkeyGlideCluster::reset() */
 RESET_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */

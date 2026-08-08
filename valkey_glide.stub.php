@@ -2522,6 +2522,40 @@ class ValkeyGlide
     public function memoryStats(): ValkeyGlide|array|false;
 
     /**
+     * Returns the latency spike time series for the specified event.
+     *
+     * @param string $event The name of the event to get latency history for.
+     *
+     * @return ValkeyGlide|array|false  Returns an array of [timestamp, duration_ms] pairs,
+     *                                  or an empty array if the event does not exist.
+     *                                  Returns false on failure.
+     *
+     * @see https://valkey.io/commands/latency-history
+     */
+    public function latencyHistory(string $event): ValkeyGlide|array|false;
+
+    /**
+     * Reports the latest latency events logged by the server.
+     *
+     * @return ValkeyGlide|array|false  Returns an array of [event_name, timestamp, duration_ms, max_duration_ms]
+     *                                  entries for each event that has recorded latency spikes.
+     *                                  Returns false on failure.
+     *
+     * @see https://valkey.io/commands/latency-latest
+     */
+    public function latencyLatest(): ValkeyGlide|array|false;
+
+    /**
+     * Resets the latency spike time series for the specified events, or all events if none specified.
+     *
+     * @return ValkeyGlide|int|false  Returns the number of events that were reset.
+     *                                Returns false on failure.
+     *
+     * @see https://valkey.io/commands/latency-reset
+     */
+    public function latencyReset(string ...$events): ValkeyGlide|int|false;
+
+    /**
      * Enter into pipeline mode.
      *
      * Pipeline mode is the highest performance way to send many commands to ValkeyGlide

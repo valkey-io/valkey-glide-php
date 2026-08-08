@@ -105,7 +105,8 @@ typedef struct {
     zval*          raw_options; /* Raw PHP options array for complex parsing */
     size_t         key_len;
     core_options_t options;
-    core_arg_t     args[12]; /* Fixed arguments array - supports most commands */
+#define CORE_ARGS_FIXED_MAX 12
+    core_arg_t  args[CORE_ARGS_FIXED_MAX]; /* Fixed arguments array - supports most commands */
     core_arg_t* all_args; /* If non-NULL, use this dynamically allocated array instead of args[] */
     enum RequestType cmd_type;
     int              arg_count;

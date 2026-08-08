@@ -894,6 +894,192 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertGT(0, $result['peak.allocated']);
     }
 
+    protected function triggerLatencySpike()
+    {
+        // Get current threshold from one node (all should have same value)
+        $config = $this->valkey_glide->rawCommand('randomNode', 'CONFIG', 'GET', 'latency-monitor-threshold');
+        $prevThreshold = $config['latency-monitor-threshold'] ?? '0';
+
+        $this->valkey_glide->latencyReset();
+
+        // Set threshold on all primaries so any node records spikes
+        $this->valkey_glide->rawCommand('allPrimaries', 'CONFIG', 'SET', 'latency-monitor-threshold', '1');
+
+        try {
+            // DEBUG SLEEP on a random node — all nodes have threshold=1 so the spike is recorded
+            $this->valkey_glide->rawCommand('randomNode', 'DEBUG', 'SLEEP', '0.05');
+        } finally {
+            $this->valkey_glide->rawCommand('allPrimaries', 'CONFIG', 'SET', 'latency-monitor-threshold', $prevThreshold);
+        }
+    }
+
+    public function testLatencyHistory()
+    {
+        $this->triggerLatencySpike();
+
+        // Default route returns per-node map: {node_address => [[timestamp, duration], ...]}
+        $result = $this->valkey_glide->latencyHistory('command');
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+        // Verify at least one node has history entries
+        $hasEntries = false;
+        foreach ($result as $nodeAddress => $entries) {
+            $this->assertIsString($nodeAddress);
+            $this->assertIsArray($entries);
+            if (count($entries) > 0) {
+                $hasEntries = true;
+                foreach ($entries as $entry) {
+                    $this->assertIsArray($entry);
+                    $this->assertEquals(2, count($entry));
+                }
+            }
+        }
+        $this->assertTrue($hasEntries);
+
+        // Non-existent event — each node returns empty
+        $unknown = $this->valkey_glide->latencyHistory('nonexistent_event', 'randomNode');
+        $this->assertIsArray($unknown);
+        $this->assertEquals(0, count($unknown));
+    }
+
+    public function testLatencyLatest()
+    {
+        $this->triggerLatencySpike();
+
+        // Default route returns per-node map: {node_address => [[event, ts, dur, max], ...]}
+        $result = $this->valkey_glide->latencyLatest();
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+        // Verify at least one node reports latency events
+        $hasEntries = false;
+        foreach ($result as $nodeAddress => $entries) {
+            $this->assertIsString($nodeAddress);
+            $this->assertIsArray($entries);
+            if (count($entries) > 0) {
+                $hasEntries = true;
+            }
+        }
+        $this->assertTrue($hasEntries);
+    }
+
+    public function testLatencyReset()
+    {
+        $this->triggerLatencySpike();
+
+        // Reset count is aggregated (Sum) across all primaries
+        $result = $this->valkey_glide->latencyReset();
+        $this->assertIsInt($result);
+        $this->assertGT(0, $result);
+
+        // After reset, every node's history should be empty
+        $history = $this->valkey_glide->latencyHistory('command');
+        $this->assertIsArray($history);
+        foreach ($history as $nodeAddress => $entries) {
+            $this->assertIsArray($entries);
+            $this->assertEquals(0, count($entries));
+        }
+    }
+
+    public function testLatencyResetSpecificEvent()
+    {
+        $this->triggerLatencySpike();
+
+        $result = $this->valkey_glide->latencyReset('command');
+        $this->assertIsInt($result);
+        $this->assertGT(0, $result);
+
+        // After reset, every node's history should be empty
+        $history = $this->valkey_glide->latencyHistory('command');
+        $this->assertIsArray($history);
+        foreach ($history as $nodeAddress => $entries) {
+            $this->assertIsArray($entries);
+            $this->assertEquals(0, count($entries));
+        }
+    }
+
+    public function testLatencyResetUnknownEvent()
+    {
+        $this->triggerLatencySpike();
+
+        // Reset unknown event returns 0
+        $result = $this->valkey_glide->latencyReset('unknown_event');
+        $this->assertIsInt($result);
+        $this->assertEquals(0, $result);
+
+        // History for "command" should still have entries on at least one node
+        $history = $this->valkey_glide->latencyHistory('command');
+        $this->assertIsArray($history);
+        $hasEntries = false;
+        foreach ($history as $nodeAddress => $entries) {
+            if (count($entries) > 0) {
+                $hasEntries = true;
+            }
+        }
+        $this->assertTrue($hasEntries);
+    }
+
+    public function testLatencyHistoryWithRoute()
+    {
+        $this->triggerLatencySpike();
+
+        // randomNode returns a flat array of [timestamp, duration] pairs from one node
+        $result = $this->valkey_glide->latencyHistory('command', 'randomNode');
+        $this->assertIsArray($result);
+        // Verify entries have correct shape if any exist
+        foreach ($result as $entry) {
+            $this->assertIsArray($entry);
+            $this->assertEquals(2, count($entry));
+            $this->assertGT(0, $entry[0]); // timestamp > 0
+            $this->assertGT(0, $entry[1]); // duration > 0
+        }
+    }
+
+    public function testLatencyLatestWithRoute()
+    {
+        $this->triggerLatencySpike();
+
+        // randomNode returns a flat array of latest events from one node
+        $result = $this->valkey_glide->latencyLatest('randomNode');
+        $this->assertIsArray($result);
+        // Verify entries have correct shape if any exist
+        foreach ($result as $entry) {
+            $this->assertIsArray($entry);
+            $this->assertGTE(4, count($entry));
+            $this->assertIsString($entry[0]); // event name
+            $this->assertGT(0, $entry[1]);    // timestamp > 0
+        }
+    }
+
+    public function testLatencyResetWithRoute()
+    {
+        $this->triggerLatencySpike();
+
+        // randomNode returns an integer count from one node
+        $result = $this->valkey_glide->latencyResetWithRoute('randomNode');
+        $this->assertIsInt($result);
+        $this->assertGTE(0, $result);
+    }
+
+    public function testLatencyHistoryWithNullRoute()
+    {
+        $this->triggerLatencySpike();
+
+        // Explicit null should behave like an omitted route
+        $result = $this->valkey_glide->latencyHistory('command', null);
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+    }
+
+    public function testLatencyLatestWithNullRoute()
+    {
+        $this->triggerLatencySpike();
+
+        // Explicit null should behave like an omitted route
+        $result = $this->valkey_glide->latencyLatest(null);
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+    }
+
     public function testReset()
     {
         $key = '{reset_test}_' . uniqid();
