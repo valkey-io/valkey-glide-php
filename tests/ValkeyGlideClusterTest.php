@@ -875,7 +875,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             return;
         }
 
-        // null route should behave like no route (allNodes)
+        // null route falls back to the single-node default (random node)
         $info = $this->valkey_glide->clientTrackingInfo(null);
         $this->assertIsArray($info);
         $this->assertArrayHasKey('flags', $info);

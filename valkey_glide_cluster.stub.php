@@ -1005,16 +1005,21 @@ class ValkeyGlideCluster
     /**
      * Returns information about the current connection's server-assisted client-side caching state.
      *
-     * When a route is provided, the command is sent to the specified node.
-     * When a single-node route returns data for one node, the result is the array directly.
-     * When a multi-node route is used, the result is an associative array keyed by node address.
+     * When $route is null or omitted, the command is sent to a random node and the result
+     * is a flat associative array (single-node response).
+     * When a single-node route is provided (e.g., 'randomNode' or a specific node address),
+     * the result is the associative array directly.
+     * When a multi-node route is used (e.g., 'allNodes' or 'allPrimaries'), the result is
+     * an associative array keyed by node address, where each value is the tracking info for that node.
      *
-     * @param mixed $route  Optional route parameter for cluster routing.
+     * @param mixed $route  Optional route parameter for cluster routing. Accepts 'randomNode',
+     *                      'allNodes', 'allPrimaries', or a specific node address.
      *
      * @return ValkeyGlideCluster|array|false  Returns an associative array with:
-     *                                         - "flags" (array): Active tracking flags.
+     *                                         - "flags" (array): A list of strings representing active tracking flags.
      *                                         - "redirect" (int): Client ID for redirection, or -1.
-     *                                         - "prefixes" (array): Key prefixes being tracked.
+     *                                         - "prefixes" (array): A list of strings representing key prefixes being
+     *                                           tracked. Empty array (not null) when no prefixes are tracked.
      *                                         Returns false on failure.
      *
      * @see https://valkey.io/commands/client-trackinginfo

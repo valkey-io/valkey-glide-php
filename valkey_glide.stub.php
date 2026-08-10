@@ -2431,9 +2431,11 @@ class ValkeyGlide
      * Returns information about the current connection's server-assisted client-side caching state.
      *
      * @return ValkeyGlide|array|false  Returns an associative array with:
-     *                                  - "flags" (array): Active tracking flags (e.g., ["off"], ["on", "bcast"]).
+     *                                  - "flags" (array): A list of strings representing active tracking flags
+     *                                    (e.g., ["off"], ["on", "bcast"]).
      *                                  - "redirect" (int): Client ID for redirection, or -1 if not set.
-     *                                  - "prefixes" (array): Key prefixes being tracked.
+     *                                  - "prefixes" (array): A list of strings representing key prefixes being
+     *                                    tracked. Empty array (not null) when no prefixes are tracked.
      *                                  Returns false on failure.
      *
      * @see https://valkey.io/commands/client-trackinginfo
