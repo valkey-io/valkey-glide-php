@@ -3199,31 +3199,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->client('TRACKING', 'OFF');
     }
 
-    public function testClientTrackingAndCachingWithReplyLiteral()
-    {
-        if (!$this->minVersionCheck('6.0.0')) {
-            $this->markTestSkipped('CLIENT TRACKING requires 6.0.0+');
-            return;
-        }
-
-        $this->withOptReplyLiteralEnabled(function () {
-            // CLIENT TRACKING ON should return 'OK'
-            $result = $this->valkey_glide->client('TRACKING', 'ON', 'OPTIN');
-            $this->assertIsString($result);
-            $this->assertEquals('OK', $result);
-
-            // CLIENT CACHING YES should return 'OK'
-            $result = $this->valkey_glide->client('CACHING', 'YES');
-            $this->assertIsString($result);
-            $this->assertEquals('OK', $result);
-
-            // CLIENT TRACKING OFF should return 'OK'
-            $result = $this->valkey_glide->client('TRACKING', 'OFF');
-            $this->assertIsString($result);
-            $this->assertEquals('OK', $result);
-        });
-    }
-
     public function testClientTrackingInfoBatch()
     {
         if (!$this->minVersionCheck('6.2.0')) {

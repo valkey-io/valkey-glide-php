@@ -4,7 +4,7 @@
 
 ### Changes
 
-* Add `CLIENT CACHING`, `CLIENT TRACKING`, and `CLIENT TRACKINGINFO` commands for standalone and cluster clients ([#293](https://github.com/valkey-io/valkey-glide-php/pull/293))
+* Add `CLIENT TRACKINGINFO` command for standalone and cluster clients. Add `CLIENT CACHING` and `CLIENT TRACKING` support via the generic `client()` method ([#293](https://github.com/valkey-io/valkey-glide-php/pull/293))
 * Add `LATENCY HISTORY`, `LATENCY LATEST`, and `LATENCY RESET` commands for standalone and cluster clients ([#283](https://github.com/valkey-io/valkey-glide-php/pull/283))
 * Add `MEMORY DOCTOR`, `MEMORY MALLOC-STATS`, `MEMORY PURGE`, and `MEMORY STATS` commands for standalone and cluster clients ([#285](https://github.com/valkey-io/valkey-glide-php/pull/285))
 * Add `REPLICAOF` and `FAILOVER` commands for standalone client ([#282](https://github.com/valkey-io/valkey-glide-php/pull/282))
