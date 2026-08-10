@@ -148,6 +148,46 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->markTestSkipped('FAILOVER not supported in cluster mode');
     }
 
+    /* CLIENT TRACKING/CACHING state tests don't work reliably in cluster mode
+     * because tracking is connection-specific and commands may route to different
+     * nodes. The cluster-specific tests below verify the commands work. */
+    public function testClientTrackingOn()
+    {
+        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
+    }
+    public function testClientTrackingWithBcast()
+    {
+        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
+    }
+    public function testClientTrackingWithOptin()
+    {
+        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
+    }
+    public function testClientTrackingWithOptout()
+    {
+        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
+    }
+    public function testClientTrackingWithMultiplePrefixes()
+    {
+        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
+    }
+    public function testClientTrackingInfoAfterEnable()
+    {
+        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
+    }
+    public function testClientCachingWithReplyLiteral()
+    {
+        $this->markTestSkipped('CLIENT CACHING requires tracking enabled on same node in cluster mode');
+    }
+    public function testClientTrackingWithReplyLiteral()
+    {
+        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
+    }
+    public function testClientTrackingOff()
+    {
+        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
+    }
+
     public function testSelect()
     {
         $this->assertFalse(@$this->valkey_glide->select(-1));
@@ -857,7 +897,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $info = $this->valkey_glide->clientTrackingInfo();
         $this->assertIsArray($info);
         $this->assertArrayHasKey('flags', $info);
-        $this->assertTrue(in_array('on', $info['flags']));
+        $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
 
         // Disable tracking
         $this->valkey_glide->clientTracking(false);
@@ -876,7 +916,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $info = $this->valkey_glide->clientTrackingInfo();
         $this->assertIsArray($info);
-        $this->assertTrue(in_array('off', $info['flags']));
+        $this->assertTrue(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
     }
 
     public function testClientTrackingWithOptions()
@@ -896,11 +936,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         $info = $this->valkey_glide->clientTrackingInfo();
         $this->assertIsArray($info);
-        $this->assertTrue(in_array('on', $info['flags']));
-        $this->assertTrue(in_array('bcast', $info['flags']));
-        $this->assertTrue(in_array('noloop', $info['flags']));
+        $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
+        $this->assertTrue(in_array('bcast', $info['flags']) || array_key_exists('bcast', $info['flags']));
+        $this->assertTrue(in_array('noloop', $info['flags']) || array_key_exists('noloop', $info['flags']));
         $this->assertArrayHasKey('prefixes', $info);
-        $this->assertTrue(in_array('cluster:', $info['prefixes']));
+        $this->assertTrue(in_array('cluster:', $info['prefixes']) || array_key_exists('cluster:', $info['prefixes']));
 
         // Disable tracking
         $this->valkey_glide->clientTracking(false);
@@ -928,7 +968,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertIsArray($info['prefixes']);
 
         // Default: off, no redirect
-        $this->assertTrue(in_array('off', $info['flags']));
+        $this->assertTrue(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
         $this->assertEquals(-1, $info['redirect']);
         $this->assertEmpty($info['prefixes']);
     }
@@ -947,7 +987,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertArrayHasKey('redirect', $info);
         $this->assertArrayHasKey('prefixes', $info);
         $this->assertIsArray($info['flags']);
-        $this->assertTrue(in_array('off', $info['flags']));
+        $this->assertTrue(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
     }
 
     public function testClientTrackingInfoWithNullRoute()

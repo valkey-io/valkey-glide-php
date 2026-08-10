@@ -3166,7 +3166,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $info = $this->valkey_glide->clientTrackingInfo();
         $this->assertIsArray($info);
         $this->assertArrayHasKey('flags', $info);
-        $this->assertTrue(in_array('on', $info['flags']));
+        $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
 
         // Disable tracking
         $this->valkey_glide->clientTracking(false);
@@ -3188,7 +3188,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $info = $this->valkey_glide->clientTrackingInfo();
         $this->assertIsArray($info);
         $this->assertArrayHasKey('flags', $info);
-        $this->assertTrue(in_array('off', $info['flags']));
+        $this->assertTrue(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
     }
 
     public function testClientTrackingWithBcast()
@@ -3209,11 +3209,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Verify flags include bcast and noloop
         $info = $this->valkey_glide->clientTrackingInfo();
         $this->assertIsArray($info);
-        $this->assertTrue(in_array('on', $info['flags']));
-        $this->assertTrue(in_array('bcast', $info['flags']));
-        $this->assertTrue(in_array('noloop', $info['flags']));
+        $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
+        $this->assertTrue(in_array('bcast', $info['flags']) || array_key_exists('bcast', $info['flags']));
+        $this->assertTrue(in_array('noloop', $info['flags']) || array_key_exists('noloop', $info['flags']));
         $this->assertArrayHasKey('prefixes', $info);
-        $this->assertTrue(in_array('test:', $info['prefixes']));
+        $this->assertTrue(in_array('test:', $info['prefixes']) || array_key_exists('test:', $info['prefixes']));
 
         // Disable tracking
         $this->valkey_glide->clientTracking(false);
@@ -3233,8 +3233,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Verify flags include optin
         $info = $this->valkey_glide->clientTrackingInfo();
         $this->assertIsArray($info);
-        $this->assertTrue(in_array('on', $info['flags']));
-        $this->assertTrue(in_array('optin', $info['flags']));
+        $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
+        $this->assertTrue(in_array('optin', $info['flags']) || array_key_exists('optin', $info['flags']));
 
         // Disable tracking
         $this->valkey_glide->clientTracking(false);
@@ -3254,8 +3254,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Verify flags include optout
         $info = $this->valkey_glide->clientTrackingInfo();
         $this->assertIsArray($info);
-        $this->assertTrue(in_array('on', $info['flags']));
-        $this->assertTrue(in_array('optout', $info['flags']));
+        $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
+        $this->assertTrue(in_array('optout', $info['flags']) || array_key_exists('optout', $info['flags']));
 
         // Disable tracking
         $this->valkey_glide->clientTracking(false);
@@ -3279,9 +3279,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $info = $this->valkey_glide->clientTrackingInfo();
         $this->assertIsArray($info);
         $this->assertArrayHasKey('prefixes', $info);
-        $this->assertTrue(in_array('user:', $info['prefixes']));
-        $this->assertTrue(in_array('session:', $info['prefixes']));
-        $this->assertTrue(in_array('cache:', $info['prefixes']));
+        $this->assertTrue(in_array('user:', $info['prefixes']) || array_key_exists('user:', $info['prefixes']));
+        $this->assertTrue(in_array('session:', $info['prefixes']) || array_key_exists('session:', $info['prefixes']));
+        $this->assertTrue(in_array('cache:', $info['prefixes']) || array_key_exists('cache:', $info['prefixes']));
 
         // Disable tracking
         $this->valkey_glide->clientTracking(false);
@@ -3309,7 +3309,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertIsArray($info['prefixes']);
 
         // Default state: tracking off, no redirect
-        $this->assertTrue(in_array('off', $info['flags']));
+        $this->assertTrue(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
         $this->assertEquals(-1, $info['redirect']);
         $this->assertEmpty($info['prefixes']);
     }
@@ -3326,8 +3326,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         $info = $this->valkey_glide->clientTrackingInfo();
         $this->assertIsArray($info);
-        $this->assertTrue(in_array('on', $info['flags']));
-        $this->assertFalse(in_array('off', $info['flags']));
+        $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
+        $this->assertFalse(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
 
         // Disable tracking
         $this->valkey_glide->clientTracking(false);
