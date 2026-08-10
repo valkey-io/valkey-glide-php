@@ -1003,6 +1003,35 @@ class ValkeyGlideCluster
     public function clientUnpause(): ValkeyGlideCluster|bool|string;
 
     /**
+     * @see ValkeyGlide::clientCaching
+     */
+    public function clientCaching(bool $enabled): ValkeyGlideCluster|bool|string;
+
+    /**
+     * @see ValkeyGlide::clientTracking
+     */
+    public function clientTracking(bool $on, ?array $options = null): ValkeyGlideCluster|bool|string;
+
+    /**
+     * Returns information about the current connection's server-assisted client-side caching state.
+     *
+     * When a route is provided, the command is sent to the specified node.
+     * When a single-node route returns data for one node, the result is the array directly.
+     * When a multi-node route is used, the result is an associative array keyed by node address.
+     *
+     * @param mixed $route  Optional route parameter for cluster routing.
+     *
+     * @return ValkeyGlideCluster|array|false  Returns an associative array with:
+     *                                         - "flags" (array): Active tracking flags.
+     *                                         - "redirect" (int): Client ID for redirection, or -1.
+     *                                         - "prefixes" (array): Key prefixes being tracked.
+     *                                         Returns false on failure.
+     *
+     * @see https://valkey.io/commands/client-trackinginfo
+     */
+    public function clientTrackingInfo(mixed $route = null): ValkeyGlideCluster|array|false;
+
+    /**
      * @see ValkeyGlide::reset
      */
     public function reset(): ValkeyGlideCluster|bool|string;

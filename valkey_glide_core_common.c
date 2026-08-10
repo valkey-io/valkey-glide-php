@@ -197,6 +197,7 @@ int prepare_core_args(core_command_args_t* args,
     switch (args->cmd_type) {
         /* Zero argument operations */
         case BgRewriteAof:
+        case ClientTrackingInfo:
         case ClientUnpause:
         case DBSize:
         case Discard:
@@ -317,7 +318,9 @@ int prepare_core_args(core_command_args_t* args,
 
         /* Message operations (no key, just arguments) */
         case BgSave:
+        case ClientCaching:
         case ClientPause:
+        case ClientTracking:
         case Echo:
         case FailOver:
         case FlushAll:

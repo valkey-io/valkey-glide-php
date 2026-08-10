@@ -2428,6 +2428,55 @@ class ValkeyGlide
     public function clientUnpause(): ValkeyGlide|bool|string;
 
     /**
+     * Instruct the server to enable or disable tracking of keys in the next command
+     * for server-assisted client-side caching.
+     *
+     * Used in OPTIN/OPTOUT mode of CLIENT TRACKING:
+     * - In OPTIN mode, CLIENT CACHING YES before a read enables tracking for that command.
+     * - In OPTOUT mode, CLIENT CACHING NO before a read disables tracking for that command.
+     *
+     * @param bool $enabled  true to enable caching (YES), false to disable (NO).
+     *
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" on success.
+     *
+     * @see https://valkey.io/commands/client-caching
+     */
+    public function clientCaching(bool $enabled): ValkeyGlide|bool|string;
+
+    /**
+     * Enable or disable server-assisted client-side caching for the current connection.
+     *
+     * @param bool       $on       true to enable tracking (ON), false to disable (OFF).
+     * @param array|null $options  Optional associative array of tracking options:
+     *                             - "redirect" (int): Client ID to send invalidation messages to.
+     *                             - "prefixes" (array|string): Key prefix(es) to track.
+     *                             - "bcast" (bool): Enable broadcasting mode.
+     *                             - "optin" (bool): Only track keys after CLIENT CACHING YES.
+     *                             - "optout" (bool): Track all keys except after CLIENT CACHING NO.
+     *                             - "noloop" (bool): Don't send invalidations for keys modified by this connection.
+     *
+     * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
+     *                                  With OPT_REPLY_LITERAL enabled, returns "OK" on success.
+     *
+     * @see https://valkey.io/commands/client-tracking
+     */
+    public function clientTracking(bool $on, ?array $options = null): ValkeyGlide|bool|string;
+
+    /**
+     * Returns information about the current connection's server-assisted client-side caching state.
+     *
+     * @return ValkeyGlide|array|false  Returns an associative array with:
+     *                                  - "flags" (array): Active tracking flags (e.g., ["off"], ["on", "bcast"]).
+     *                                  - "redirect" (int): Client ID for redirection, or -1 if not set.
+     *                                  - "prefixes" (array): Key prefixes being tracked.
+     *                                  Returns false on failure.
+     *
+     * @see https://valkey.io/commands/client-trackinginfo
+     */
+    public function clientTrackingInfo(): ValkeyGlide|array|false;
+
+    /**
      * Reset the connection's server-side context.
      *
      * @return ValkeyGlide|bool|string  Returns true on success, false on failure.

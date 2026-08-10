@@ -1002,6 +1002,18 @@ CLIENT_PAUSE_METHOD_IMPL(ValkeyGlideCluster)
 CLIENT_UNPAUSE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto ValkeyGlideCluster::clientCaching(bool enabled) */
+CLIENT_CACHING_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto ValkeyGlideCluster::clientTracking(bool on [, array options]) */
+CLIENT_TRACKING_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto array ValkeyGlideCluster::clientTrackingInfo([mixed route]) */
+CLIENT_TRACKING_INFO_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto string ValkeyGlideCluster::memoryDoctor() */
 MEMORY_DOCTOR_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */

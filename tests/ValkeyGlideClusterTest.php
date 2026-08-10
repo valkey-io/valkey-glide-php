@@ -804,6 +804,167 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertTrue($result[1]);
     }
 
+    public function testClientCachingEnable()
+    {
+        if (!$this->minVersionCheck('6.0.0')) {
+            $this->markTestSkipped('CLIENT CACHING requires 6.0.0+');
+            return;
+        }
+
+        // Enable tracking with OPTIN mode first
+        $result = $this->valkey_glide->clientTracking(true, ['optin' => true]);
+        $this->assertTrue($result);
+
+        // CLIENT CACHING YES should succeed
+        $result = $this->valkey_glide->clientCaching(true);
+        $this->assertTrue($result);
+
+        // Disable tracking
+        $this->valkey_glide->clientTracking(false);
+    }
+
+    public function testClientCachingDisable()
+    {
+        if (!$this->minVersionCheck('6.0.0')) {
+            $this->markTestSkipped('CLIENT CACHING requires 6.0.0+');
+            return;
+        }
+
+        // Enable tracking with OPTOUT mode first
+        $result = $this->valkey_glide->clientTracking(true, ['optout' => true]);
+        $this->assertTrue($result);
+
+        // CLIENT CACHING NO should succeed
+        $result = $this->valkey_glide->clientCaching(false);
+        $this->assertTrue($result);
+
+        // Disable tracking
+        $this->valkey_glide->clientTracking(false);
+    }
+
+    public function testClientTrackingOn()
+    {
+        if (!$this->minVersionCheck('6.0.0')) {
+            $this->markTestSkipped('CLIENT TRACKING requires 6.0.0+');
+            return;
+        }
+
+        // Enable tracking
+        $result = $this->valkey_glide->clientTracking(true);
+        $this->assertTrue($result);
+
+        // Verify tracking is on
+        $info = $this->valkey_glide->clientTrackingInfo();
+        $this->assertIsArray($info);
+        $this->assertArrayHasKey('flags', $info);
+        $this->assertTrue(in_array('on', $info['flags']));
+
+        // Disable tracking
+        $this->valkey_glide->clientTracking(false);
+    }
+
+    public function testClientTrackingOff()
+    {
+        if (!$this->minVersionCheck('6.0.0')) {
+            $this->markTestSkipped('CLIENT TRACKING requires 6.0.0+');
+            return;
+        }
+
+        $this->valkey_glide->clientTracking(true);
+        $result = $this->valkey_glide->clientTracking(false);
+        $this->assertTrue($result);
+
+        $info = $this->valkey_glide->clientTrackingInfo();
+        $this->assertIsArray($info);
+        $this->assertTrue(in_array('off', $info['flags']));
+    }
+
+    public function testClientTrackingWithOptions()
+    {
+        if (!$this->minVersionCheck('6.0.0')) {
+            $this->markTestSkipped('CLIENT TRACKING requires 6.0.0+');
+            return;
+        }
+
+        // Enable tracking with BCAST, PREFIX, and NOLOOP
+        $result = $this->valkey_glide->clientTracking(true, [
+            'bcast' => true,
+            'prefixes' => ['cluster:'],
+            'noloop' => true,
+        ]);
+        $this->assertTrue($result);
+
+        $info = $this->valkey_glide->clientTrackingInfo();
+        $this->assertIsArray($info);
+        $this->assertTrue(in_array('on', $info['flags']));
+        $this->assertTrue(in_array('bcast', $info['flags']));
+        $this->assertTrue(in_array('noloop', $info['flags']));
+        $this->assertArrayHasKey('prefixes', $info);
+        $this->assertTrue(in_array('cluster:', $info['prefixes']));
+
+        // Disable tracking
+        $this->valkey_glide->clientTracking(false);
+    }
+
+    public function testClientTrackingInfoDefault()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKINGINFO requires 6.2.0+');
+            return;
+        }
+
+        // Default state
+        $info = $this->valkey_glide->clientTrackingInfo();
+        $this->assertIsArray($info);
+
+        // Check structure
+        $this->assertArrayHasKey('flags', $info);
+        $this->assertArrayHasKey('redirect', $info);
+        $this->assertArrayHasKey('prefixes', $info);
+
+        // Validate types
+        $this->assertIsArray($info['flags']);
+        $this->assertTrue(is_int($info['redirect']) || is_long($info['redirect']));
+        $this->assertIsArray($info['prefixes']);
+
+        // Default: off, no redirect
+        $this->assertTrue(in_array('off', $info['flags']));
+        $this->assertEquals(-1, $info['redirect']);
+        $this->assertEmpty($info['prefixes']);
+    }
+
+    public function testClientTrackingInfoWithRoute()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKINGINFO requires 6.2.0+');
+            return;
+        }
+
+        // With randomNode route
+        $info = $this->valkey_glide->clientTrackingInfo('randomNode');
+        $this->assertIsArray($info);
+        $this->assertArrayHasKey('flags', $info);
+        $this->assertArrayHasKey('redirect', $info);
+        $this->assertArrayHasKey('prefixes', $info);
+        $this->assertIsArray($info['flags']);
+        $this->assertTrue(in_array('off', $info['flags']));
+    }
+
+    public function testClientTrackingInfoWithNullRoute()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKINGINFO requires 6.2.0+');
+            return;
+        }
+
+        // null route should behave like no route (allNodes)
+        $info = $this->valkey_glide->clientTrackingInfo(null);
+        $this->assertIsArray($info);
+        $this->assertArrayHasKey('flags', $info);
+        $this->assertArrayHasKey('redirect', $info);
+        $this->assertArrayHasKey('prefixes', $info);
+    }
+
     public function testMemoryDoctor()
     {
         $result = $this->valkey_glide->memoryDoctor();

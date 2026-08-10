@@ -843,6 +843,18 @@ CLIENT_PAUSE_METHOD_IMPL(ValkeyGlide)
 CLIENT_UNPAUSE_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto bool ValkeyGlide::clientCaching(bool enabled) */
+CLIENT_CACHING_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto bool ValkeyGlide::clientTracking(bool on [, array options]) */
+CLIENT_TRACKING_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array ValkeyGlide::clientTrackingInfo() */
+CLIENT_TRACKING_INFO_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto string ValkeyGlide::memoryDoctor() */
 MEMORY_DOCTOR_METHOD_IMPL(ValkeyGlide)
 /* }}} */
