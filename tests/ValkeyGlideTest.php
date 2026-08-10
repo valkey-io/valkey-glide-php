@@ -3244,6 +3244,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertArrayHasKey('flags', $result[0]);
         $this->assertArrayHasKey('redirect', $result[0]);
         $this->assertArrayHasKey('prefixes', $result[0]);
+        // Verify values match the non-batch default test expectations
+        $this->assertEquals(-1, $result[0]['redirect']);
+        $this->assertEmpty($result[0]['prefixes']);
+        $this->assertContains('off', $result[0]['flags']);
     }
 
     public function testReset()
