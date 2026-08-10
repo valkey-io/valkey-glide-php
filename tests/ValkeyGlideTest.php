@@ -3113,180 +3113,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result[1]);
     }
 
-    public function testClientCachingEnable()
-    {
-        if (!$this->minVersionCheck('6.0.0')) {
-            $this->markTestSkipped('CLIENT CACHING requires 6.0.0+');
-            return;
-        }
-
-        // First enable tracking with OPTIN mode so CLIENT CACHING YES is valid
-        $result = $this->valkey_glide->clientTracking(true, ['optin' => true]);
-        $this->assertTrue($result);
-
-        // CLIENT CACHING YES should succeed
-        $result = $this->valkey_glide->clientCaching(true);
-        $this->assertTrue($result);
-
-        // Disable tracking
-        $this->valkey_glide->clientTracking(false);
-    }
-
-    public function testClientCachingDisable()
-    {
-        if (!$this->minVersionCheck('6.0.0')) {
-            $this->markTestSkipped('CLIENT CACHING requires 6.0.0+');
-            return;
-        }
-
-        // First enable tracking with OPTOUT mode so CLIENT CACHING NO is valid
-        $result = $this->valkey_glide->clientTracking(true, ['optout' => true]);
-        $this->assertTrue($result);
-
-        // CLIENT CACHING NO should succeed
-        $result = $this->valkey_glide->clientCaching(false);
-        $this->assertTrue($result);
-
-        // Disable tracking
-        $this->valkey_glide->clientTracking(false);
-    }
-
-    public function testClientTrackingOn()
-    {
-        if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('CLIENT TRACKING with TRACKINGINFO requires 6.2.0+');
-            return;
-        }
-
-        // Enable tracking
-        $result = $this->valkey_glide->clientTracking(true);
-        $this->assertTrue($result);
-
-        // Verify tracking is on via trackinginfo
-        $info = $this->valkey_glide->clientTrackingInfo();
-        $this->assertIsArray($info);
-        $this->assertArrayHasKey('flags', $info);
-        $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
-
-        // Disable tracking
-        $this->valkey_glide->clientTracking(false);
-    }
-
-    public function testClientTrackingOff()
-    {
-        if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('CLIENT TRACKING with TRACKINGINFO requires 6.2.0+');
-            return;
-        }
-
-        // Enable then disable tracking
-        $this->valkey_glide->clientTracking(true);
-        $result = $this->valkey_glide->clientTracking(false);
-        $this->assertTrue($result);
-
-        // Verify tracking is off via trackinginfo
-        $info = $this->valkey_glide->clientTrackingInfo();
-        $this->assertIsArray($info);
-        $this->assertArrayHasKey('flags', $info);
-        $this->assertTrue(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
-    }
-
-    public function testClientTrackingWithBcast()
-    {
-        if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('CLIENT TRACKING with TRACKINGINFO requires 6.2.0+');
-            return;
-        }
-
-        // Enable tracking with BCAST and PREFIX
-        $result = $this->valkey_glide->clientTracking(true, [
-            'bcast' => true,
-            'prefixes' => ['test:'],
-            'noloop' => true,
-        ]);
-        $this->assertTrue($result);
-
-        // Verify flags include bcast and noloop
-        $info = $this->valkey_glide->clientTrackingInfo();
-        $this->assertIsArray($info);
-        $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
-        $this->assertTrue(in_array('bcast', $info['flags']) || array_key_exists('bcast', $info['flags']));
-        $this->assertTrue(in_array('noloop', $info['flags']) || array_key_exists('noloop', $info['flags']));
-        $this->assertArrayHasKey('prefixes', $info);
-        $this->assertTrue(in_array('test:', $info['prefixes']) || array_key_exists('test:', $info['prefixes']));
-
-        // Disable tracking
-        $this->valkey_glide->clientTracking(false);
-    }
-
-    public function testClientTrackingWithOptin()
-    {
-        if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('CLIENT TRACKING with TRACKINGINFO requires 6.2.0+');
-            return;
-        }
-
-        // Enable tracking with OPTIN
-        $result = $this->valkey_glide->clientTracking(true, ['optin' => true]);
-        $this->assertTrue($result);
-
-        // Verify flags include optin
-        $info = $this->valkey_glide->clientTrackingInfo();
-        $this->assertIsArray($info);
-        $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
-        $this->assertTrue(in_array('optin', $info['flags']) || array_key_exists('optin', $info['flags']));
-
-        // Disable tracking
-        $this->valkey_glide->clientTracking(false);
-    }
-
-    public function testClientTrackingWithOptout()
-    {
-        if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('CLIENT TRACKING with TRACKINGINFO requires 6.2.0+');
-            return;
-        }
-
-        // Enable tracking with OPTOUT
-        $result = $this->valkey_glide->clientTracking(true, ['optout' => true]);
-        $this->assertTrue($result);
-
-        // Verify flags include optout
-        $info = $this->valkey_glide->clientTrackingInfo();
-        $this->assertIsArray($info);
-        $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
-        $this->assertTrue(in_array('optout', $info['flags']) || array_key_exists('optout', $info['flags']));
-
-        // Disable tracking
-        $this->valkey_glide->clientTracking(false);
-    }
-
-    public function testClientTrackingWithMultiplePrefixes()
-    {
-        if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('CLIENT TRACKING with TRACKINGINFO requires 6.2.0+');
-            return;
-        }
-
-        // Enable tracking with BCAST and multiple prefixes
-        $result = $this->valkey_glide->clientTracking(true, [
-            'bcast' => true,
-            'prefixes' => ['user:', 'session:', 'cache:'],
-        ]);
-        $this->assertTrue($result);
-
-        // Verify prefixes are tracked
-        $info = $this->valkey_glide->clientTrackingInfo();
-        $this->assertIsArray($info);
-        $this->assertArrayHasKey('prefixes', $info);
-        $this->assertTrue(in_array('user:', $info['prefixes']) || array_key_exists('user:', $info['prefixes']));
-        $this->assertTrue(in_array('session:', $info['prefixes']) || array_key_exists('session:', $info['prefixes']));
-        $this->assertTrue(in_array('cache:', $info['prefixes']) || array_key_exists('cache:', $info['prefixes']));
-
-        // Disable tracking
-        $this->valkey_glide->clientTracking(false);
-    }
-
     public function testClientTrackingInfoDefault()
     {
         if (!$this->minVersionCheck('6.2.0')) {
@@ -3321,8 +3147,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             return;
         }
 
-        // Enable tracking
-        $this->valkey_glide->clientTracking(true);
+        // Enable tracking via generic client() method
+        $this->valkey_glide->client('TRACKING', 'ON');
 
         $info = $this->valkey_glide->clientTrackingInfo();
         $this->assertIsArray($info);
@@ -3330,43 +3156,47 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
 
         // Disable tracking
-        $this->valkey_glide->clientTracking(false);
+        $this->valkey_glide->client('TRACKING', 'OFF');
     }
 
-    public function testClientCachingWithReplyLiteral()
+    public function testClientTrackingViaGenericClient()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKING with TRACKINGINFO requires 6.2.0+');
+            return;
+        }
+
+        // Enable tracking with BCAST via generic client() method
+        $result = $this->valkey_glide->client('TRACKING', 'ON', 'BCAST', 'PREFIX', 'test:', 'NOLOOP');
+        $this->assertTrue($result !== false);
+
+        // Verify via trackinginfo
+        $info = $this->valkey_glide->clientTrackingInfo();
+        $this->assertIsArray($info);
+        $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
+        $this->assertTrue(in_array('bcast', $info['flags']) || array_key_exists('bcast', $info['flags']));
+        $this->assertTrue(in_array('noloop', $info['flags']) || array_key_exists('noloop', $info['flags']));
+
+        // Disable tracking
+        $this->valkey_glide->client('TRACKING', 'OFF');
+    }
+
+    public function testClientCachingViaGenericClient()
     {
         if (!$this->minVersionCheck('6.0.0')) {
             $this->markTestSkipped('CLIENT CACHING requires 6.0.0+');
             return;
         }
 
-        $this->withOptReplyLiteralEnabled(function () {
-            // Enable tracking with optin mode first
-            $result = $this->valkey_glide->clientTracking(true, ['optin' => true]);
-            $this->assertEquals('OK', $result);
+        // Enable tracking with OPTIN mode first
+        $this->valkey_glide->client('TRACKING', 'ON', 'OPTIN');
 
-            $result = $this->valkey_glide->clientCaching(true);
-            $this->assertEquals('OK', $result);
+        // CLIENT CACHING YES via generic client() method
+        $result = $this->valkey_glide->client('CACHING', 'YES');
+        $this->assertTrue($result !== false);
 
-            // Disable tracking
-            $this->valkey_glide->clientTracking(false);
-        });
-    }
-
-    public function testClientTrackingWithReplyLiteral()
-    {
-        if (!$this->minVersionCheck('6.0.0')) {
-            $this->markTestSkipped('CLIENT TRACKING requires 6.0.0+');
-            return;
-        }
-
-        $this->withOptReplyLiteralEnabled(function () {
-            $result = $this->valkey_glide->clientTracking(true);
-            $this->assertEquals('OK', $result);
-
-            $result = $this->valkey_glide->clientTracking(false);
-            $this->assertEquals('OK', $result);
-        });
+        // Disable tracking
+        $this->valkey_glide->client('TRACKING', 'OFF');
     }
 
     public function testClientTrackingInfoBatch()
@@ -3389,27 +3219,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertArrayHasKey('flags', $result[0]);
         $this->assertArrayHasKey('redirect', $result[0]);
         $this->assertArrayHasKey('prefixes', $result[0]);
-    }
-
-    public function testClientTrackingBatch()
-    {
-        if (!$this->minVersionCheck('6.0.0')) {
-            $this->markTestSkipped('CLIENT TRACKING requires 6.0.0+');
-            return;
-        }
-        if (!$this->havePipeline()) {
-            $this->markTestSkipped('Pipeline not supported');
-            return;
-        }
-
-        $this->valkey_glide->pipeline();
-        $this->valkey_glide->clientTracking(true);
-        $this->valkey_glide->clientTracking(false);
-        $result = $this->valkey_glide->exec();
-
-        $this->assertIsArray($result);
-        $this->assertTrue($result[0]);
-        $this->assertTrue($result[1]);
     }
 
     public function testReset()

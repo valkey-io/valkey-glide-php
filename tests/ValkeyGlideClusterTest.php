@@ -151,57 +151,21 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     /* CLIENT TRACKING/CACHING state tests don't work reliably in cluster mode
      * because tracking is connection-specific and commands may route to different
      * nodes. The cluster-specific tests below verify the commands work. */
-    public function testClientTrackingOn()
-    {
-        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
-    }
-    public function testClientTrackingWithBcast()
-    {
-        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
-    }
-    public function testClientTrackingWithOptin()
-    {
-        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
-    }
-    public function testClientTrackingWithOptout()
-    {
-        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
-    }
-    public function testClientTrackingWithMultiplePrefixes()
-    {
-        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
-    }
     public function testClientTrackingInfoAfterEnable()
     {
         $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
     }
-    public function testClientCachingWithReplyLiteral()
-    {
-        $this->markTestSkipped('CLIENT CACHING requires tracking enabled on same node in cluster mode');
-    }
-    public function testClientTrackingWithReplyLiteral()
+    public function testClientTrackingViaGenericClient()
     {
         $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
     }
-    public function testClientTrackingOff()
-    {
-        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
-    }
-    public function testClientCachingEnable()
-    {
-        $this->markTestSkipped('CLIENT CACHING requires tracking enabled on same node in cluster mode');
-    }
-    public function testClientCachingDisable()
+    public function testClientCachingViaGenericClient()
     {
         $this->markTestSkipped('CLIENT CACHING requires tracking enabled on same node in cluster mode');
     }
     public function testClientTrackingInfoBatch()
     {
-        $this->markTestSkipped('CLIENT TRACKING batch state verification unreliable in cluster mode');
-    }
-    public function testClientTrackingBatch()
-    {
-        $this->markTestSkipped('CLIENT TRACKING batch state verification unreliable in cluster mode');
+        $this->markTestSkipped('CLIENT TRACKINGINFO batch unreliable in cluster mode');
     }
 
     public function testSelect()

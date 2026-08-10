@@ -1003,16 +1003,6 @@ class ValkeyGlideCluster
     public function clientUnpause(): ValkeyGlideCluster|bool|string;
 
     /**
-     * @see ValkeyGlide::clientCaching
-     */
-    public function clientCaching(bool $enabled): ValkeyGlideCluster|bool|string;
-
-    /**
-     * @see ValkeyGlide::clientTracking
-     */
-    public function clientTracking(bool $on, ?array $options = null): ValkeyGlideCluster|bool|string;
-
-    /**
      * Returns information about the current connection's server-assisted client-side caching state.
      *
      * When a route is provided, the command is sent to the specified node.
