@@ -1990,8 +1990,8 @@ int execute_client_tracking_command(zval*             object,
                     potential_args += 2; /* REDIRECT + id */
                 } else if (zend_string_equals_literal_ci(key, "prefixes")) {
                     if (Z_TYPE_P(val) == IS_ARRAY) {
-                        potential_args +=
-                            1 + zend_hash_num_elements(Z_ARRVAL_P(val)); /* PREFIX + each prefix */
+                        potential_args += 2 * zend_hash_num_elements(
+                                                  Z_ARRVAL_P(val)); /* PREFIX + value per entry */
                     } else if (Z_TYPE_P(val) == IS_STRING) {
                         potential_args += 2; /* PREFIX + prefix */
                     }
@@ -2031,9 +2031,8 @@ int execute_client_tracking_command(zval*             object,
                     args_arr[total_args].type                = CORE_ARG_TYPE_LONG;
                     args_arr[total_args].data.long_arg.value = Z_LVAL_P(val);
                 } else {
-                    convert_to_long(val);
                     args_arr[total_args].type                = CORE_ARG_TYPE_LONG;
-                    args_arr[total_args].data.long_arg.value = Z_LVAL_P(val);
+                    args_arr[total_args].data.long_arg.value = zval_get_long(val);
                 }
                 total_args++;
             } else if (zend_string_equals_literal_ci(key, "prefixes")) {

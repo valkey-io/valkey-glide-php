@@ -3153,8 +3153,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testClientTrackingOn()
     {
-        if (!$this->minVersionCheck('6.0.0')) {
-            $this->markTestSkipped('CLIENT TRACKING requires 6.0.0+');
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKING with TRACKINGINFO requires 6.2.0+');
             return;
         }
 
@@ -3174,8 +3174,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testClientTrackingOff()
     {
-        if (!$this->minVersionCheck('6.0.0')) {
-            $this->markTestSkipped('CLIENT TRACKING requires 6.0.0+');
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKING with TRACKINGINFO requires 6.2.0+');
             return;
         }
 
@@ -3193,8 +3193,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testClientTrackingWithBcast()
     {
-        if (!$this->minVersionCheck('6.0.0')) {
-            $this->markTestSkipped('CLIENT TRACKING requires 6.0.0+');
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKING with TRACKINGINFO requires 6.2.0+');
             return;
         }
 
@@ -3221,8 +3221,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testClientTrackingWithOptin()
     {
-        if (!$this->minVersionCheck('6.0.0')) {
-            $this->markTestSkipped('CLIENT TRACKING requires 6.0.0+');
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKING with TRACKINGINFO requires 6.2.0+');
             return;
         }
 
@@ -3242,8 +3242,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testClientTrackingWithOptout()
     {
-        if (!$this->minVersionCheck('6.0.0')) {
-            $this->markTestSkipped('CLIENT TRACKING requires 6.0.0+');
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKING with TRACKINGINFO requires 6.2.0+');
             return;
         }
 
@@ -3263,8 +3263,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testClientTrackingWithMultiplePrefixes()
     {
-        if (!$this->minVersionCheck('6.0.0')) {
-            $this->markTestSkipped('CLIENT TRACKING requires 6.0.0+');
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKING with TRACKINGINFO requires 6.2.0+');
             return;
         }
 
