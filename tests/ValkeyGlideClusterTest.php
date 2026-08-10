@@ -911,6 +911,30 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertArrayHasKey('prefixes', $info);
     }
 
+    public function testClientTrackingInfoWithAllNodesRoute()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKINGINFO requires 6.2.0+');
+            return;
+        }
+
+        // AllNodes route returns per-node map, each node should be off by default
+        $result = $this->valkey_glide->clientTrackingInfo('allNodes');
+        $this->assertIsArray($result);
+        $this->assertNotEmpty($result);
+
+        // Each entry should be a node with tracking info
+        foreach ($result as $nodeAddress => $info) {
+            $this->assertIsString($nodeAddress);
+            $this->assertIsArray($info);
+            $this->assertArrayHasKey('flags', $info);
+            $this->assertArrayHasKey('redirect', $info);
+            $this->assertArrayHasKey('prefixes', $info);
+            $this->assertTrue(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
+            $this->assertEquals(-1, $info['redirect']);
+        }
+    }
+
     public function testMemoryDoctor()
     {
         $result = $this->valkey_glide->memoryDoctor();
