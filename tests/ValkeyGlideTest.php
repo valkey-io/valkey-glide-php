@@ -3369,6 +3369,49 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         });
     }
 
+    public function testClientTrackingInfoBatch()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKINGINFO requires 6.2.0+');
+            return;
+        }
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->clientTrackingInfo();
+        $result = $this->valkey_glide->exec();
+
+        $this->assertIsArray($result);
+        $this->assertIsArray($result[0]);
+        $this->assertArrayHasKey('flags', $result[0]);
+        $this->assertArrayHasKey('redirect', $result[0]);
+        $this->assertArrayHasKey('prefixes', $result[0]);
+    }
+
+    public function testClientTrackingBatch()
+    {
+        if (!$this->minVersionCheck('6.0.0')) {
+            $this->markTestSkipped('CLIENT TRACKING requires 6.0.0+');
+            return;
+        }
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->clientTracking(true);
+        $this->valkey_glide->clientTracking(false);
+        $result = $this->valkey_glide->exec();
+
+        $this->assertIsArray($result);
+        $this->assertTrue($result[0]);
+        $this->assertTrue($result[1]);
+    }
+
     public function testReset()
     {
         $key = '{reset_test}_' . $this->createRandomString();

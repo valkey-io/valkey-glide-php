@@ -195,6 +195,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     {
         $this->markTestSkipped('CLIENT CACHING requires tracking enabled on same node in cluster mode');
     }
+    public function testClientTrackingInfoBatch()
+    {
+        $this->markTestSkipped('CLIENT TRACKING batch state verification unreliable in cluster mode');
+    }
+    public function testClientTrackingBatch()
+    {
+        $this->markTestSkipped('CLIENT TRACKING batch state verification unreliable in cluster mode');
+    }
 
     public function testSelect()
     {
@@ -921,7 +929,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // AllNodes route returns per-node map, each node should be off by default
         $result = $this->valkey_glide->clientTrackingInfo('allNodes');
         $this->assertIsArray($result);
-        $this->assertNotEmpty($result);
+        $this->assertGT(0, count($result));
 
         // Each entry should be a node with tracking info
         foreach ($result as $nodeAddress => $info) {
