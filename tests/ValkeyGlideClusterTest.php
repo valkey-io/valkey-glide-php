@@ -841,7 +841,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertIsArray($info['prefixes']);
 
         // Default: off, no redirect
-        $this->assertTrue(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
+        $this->assertTrue(in_array('off', $info['flags']));
         $this->assertEquals(-1, $info['redirect']);
         $this->assertEmpty($info['prefixes']);
     }
@@ -860,7 +860,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertArrayHasKey('redirect', $info);
         $this->assertArrayHasKey('prefixes', $info);
         $this->assertIsArray($info['flags']);
-        $this->assertTrue(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
+        $this->assertTrue(in_array('off', $info['flags']));
     }
 
     public function testClientTrackingInfoWithNullRoute()
@@ -897,7 +897,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             $this->assertArrayHasKey('flags', $info);
             $this->assertArrayHasKey('redirect', $info);
             $this->assertArrayHasKey('prefixes', $info);
-            $this->assertTrue(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
+            $this->assertTrue(in_array('off', $info['flags']));
             $this->assertEquals(-1, $info['redirect']);
         }
     }

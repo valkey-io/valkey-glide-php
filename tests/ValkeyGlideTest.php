@@ -3135,7 +3135,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertIsArray($info['prefixes']);
 
         // Default state: tracking off, no redirect
-        $this->assertTrue(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
+        $this->assertTrue(in_array('off', $info['flags']));
         $this->assertEquals(-1, $info['redirect']);
         $this->assertEmpty($info['prefixes']);
     }
