@@ -826,25 +826,24 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             return;
         }
 
-        // Default route in cluster mode returns per-node map: {node_address => tracking_info}
-        $result = $this->valkey_glide->clientTrackingInfo();
-        $this->assertIsArray($result);
-        $this->assertGT(0, count($result));
+        // Default state
+        $info = $this->valkey_glide->clientTrackingInfo();
+        $this->assertIsArray($info);
 
-        // Each entry should be a node with tracking info in default (off) state
-        foreach ($result as $nodeAddress => $info) {
-            $this->assertIsString($nodeAddress);
-            $this->assertIsArray($info);
-            $this->assertArrayHasKey('flags', $info);
-            $this->assertArrayHasKey('redirect', $info);
-            $this->assertArrayHasKey('prefixes', $info);
-            $this->assertIsArray($info['flags']);
-            $this->assertTrue(is_int($info['redirect']) || is_long($info['redirect']));
-            $this->assertIsArray($info['prefixes']);
-            $this->assertTrue(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
-            $this->assertEquals(-1, $info['redirect']);
-            $this->assertEmpty($info['prefixes']);
-        }
+        // Check structure
+        $this->assertArrayHasKey('flags', $info);
+        $this->assertArrayHasKey('redirect', $info);
+        $this->assertArrayHasKey('prefixes', $info);
+
+        // Validate types
+        $this->assertIsArray($info['flags']);
+        $this->assertTrue(is_int($info['redirect']) || is_long($info['redirect']));
+        $this->assertIsArray($info['prefixes']);
+
+        // Default: off, no redirect
+        $this->assertTrue(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
+        $this->assertEquals(-1, $info['redirect']);
+        $this->assertEmpty($info['prefixes']);
     }
 
     public function testClientTrackingInfoWithRoute()
@@ -871,19 +870,12 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             return;
         }
 
-        // null route falls back to default (all nodes in cluster mode)
-        $result = $this->valkey_glide->clientTrackingInfo(null);
-        $this->assertIsArray($result);
-        $this->assertGT(0, count($result));
-
-        // Each entry should be a node with tracking info
-        foreach ($result as $nodeAddress => $info) {
-            $this->assertIsString($nodeAddress);
-            $this->assertIsArray($info);
-            $this->assertArrayHasKey('flags', $info);
-            $this->assertArrayHasKey('redirect', $info);
-            $this->assertArrayHasKey('prefixes', $info);
-        }
+        // null route falls back to the single-node default (random node)
+        $info = $this->valkey_glide->clientTrackingInfo(null);
+        $this->assertIsArray($info);
+        $this->assertArrayHasKey('flags', $info);
+        $this->assertArrayHasKey('redirect', $info);
+        $this->assertArrayHasKey('prefixes', $info);
     }
 
     public function testClientTrackingInfoWithAllNodesRoute()
