@@ -148,25 +148,20 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->markTestSkipped('FAILOVER not supported in cluster mode');
     }
 
-    /* CLIENT TRACKING/CACHING state tests don't work reliably in cluster mode
-     * because tracking is connection-specific and commands may route to different
-     * nodes. The cluster-specific tests below verify the commands work. */
-    public function testClientTrackingInfoAfterEnable()
-    {
-        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
-    }
-    public function testClientTrackingViaGenericClient()
-    {
-        $this->markTestSkipped('CLIENT TRACKING state verification unreliable in cluster mode');
-    }
-    public function testClientCachingViaGenericClient()
-    {
-        $this->markTestSkipped('CLIENT CACHING requires tracking enabled on same node in cluster mode');
-    }
-    public function testClientTrackingInfoBatch()
-    {
-        $this->markTestSkipped('CLIENT TRACKINGINFO batch unreliable in cluster mode');
-    }
+    // TODO: Re-enable CLIENT TRACKING/CACHING tests once server-assisted client-side caching is implemented.
+    //       See: https://github.com/valkey-io/valkey-glide-php/issues/296
+    // public function testClientTrackingInfoAfterEnable()
+    // {
+    // }
+    // public function testClientTrackingViaGenericClient()
+    // {
+    // }
+    // public function testClientCachingViaGenericClient()
+    // {
+    // }
+    // public function testClientTrackingInfoBatch()
+    // {
+    // }
 
     public function testSelect()
     {

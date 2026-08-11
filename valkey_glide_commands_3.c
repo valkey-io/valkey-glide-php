@@ -349,10 +349,12 @@ static enum RequestType determine_client_command_type(zval* args, int args_count
             return ClientInfo;
         } else if (strcasecmp(subcmd, "NO-EVICT") == 0) {
             return ClientNoEvict;
-        } else if (strcasecmp(subcmd, "CACHING") == 0) {
-            return ClientCaching;
-        } else if (strcasecmp(subcmd, "TRACKING") == 0) {
-            return ClientTracking;
+        // TODO: Enable CLIENT CACHING and CLIENT TRACKING once server-assisted client-side caching is implemented.
+        //       See: https://github.com/valkey-io/valkey-glide-php/issues/296
+        // } else if (strcasecmp(subcmd, "CACHING") == 0) {
+        //     return ClientCaching;
+        // } else if (strcasecmp(subcmd, "TRACKING") == 0) {
+        //     return ClientTracking;
         } else if (strcasecmp(subcmd, "TRACKINGINFO") == 0) {
             return ClientTrackingInfo;
         }

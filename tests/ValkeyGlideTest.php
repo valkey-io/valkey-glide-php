@@ -3140,90 +3140,92 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEmpty($info['prefixes']);
     }
 
-    public function testClientTrackingInfoAfterEnable()
-    {
-        if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('CLIENT TRACKINGINFO requires 6.2.0+');
-            return;
-        }
-
-        // Enable tracking via generic client() method
-        $this->valkey_glide->client('TRACKING', 'ON');
-
-        $info = $this->valkey_glide->clientTrackingInfo();
-        $this->assertIsArray($info);
-        $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
-        $this->assertFalse(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
-
-        // Disable tracking
-        $this->valkey_glide->client('TRACKING', 'OFF');
-    }
-
-    public function testClientTrackingViaGenericClient()
-    {
-        if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('CLIENT TRACKING with TRACKINGINFO requires 6.2.0+');
-            return;
-        }
-
-        // Enable tracking with BCAST via generic client() method
-        $result = $this->valkey_glide->client('TRACKING', 'ON', 'BCAST', 'PREFIX', 'test:', 'NOLOOP');
-        $this->assertTrue($result !== false);
-
-        // Verify via trackinginfo
-        $info = $this->valkey_glide->clientTrackingInfo();
-        $this->assertIsArray($info);
-        $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
-        $this->assertTrue(in_array('bcast', $info['flags']) || array_key_exists('bcast', $info['flags']));
-        $this->assertTrue(in_array('noloop', $info['flags']) || array_key_exists('noloop', $info['flags']));
-
-        // Disable tracking
-        $this->valkey_glide->client('TRACKING', 'OFF');
-    }
-
-    public function testClientCachingViaGenericClient()
-    {
-        if (!$this->minVersionCheck('6.0.0')) {
-            $this->markTestSkipped('CLIENT CACHING requires 6.0.0+');
-            return;
-        }
-
-        // Enable tracking with OPTIN mode first
-        $this->valkey_glide->client('TRACKING', 'ON', 'OPTIN');
-
-        // CLIENT CACHING YES via generic client() method
-        $result = $this->valkey_glide->client('CACHING', 'YES');
-        $this->assertTrue($result !== false);
-
-        // Disable tracking
-        $this->valkey_glide->client('TRACKING', 'OFF');
-    }
-
-    public function testClientTrackingInfoBatch()
-    {
-        if (!$this->minVersionCheck('6.2.0')) {
-            $this->markTestSkipped('CLIENT TRACKINGINFO requires 6.2.0+');
-            return;
-        }
-        if (!$this->havePipeline()) {
-            $this->markTestSkipped('Pipeline not supported');
-            return;
-        }
-
-        $this->valkey_glide->pipeline();
-        $this->valkey_glide->clientTrackingInfo();
-        $result = $this->valkey_glide->exec();
-
-        $this->assertIsArray($result);
-        $this->assertIsArray($result[0]);
-        $this->assertArrayHasKey('flags', $result[0]);
-        $this->assertArrayHasKey('redirect', $result[0]);
-        $this->assertArrayHasKey('prefixes', $result[0]);
-        // Verify values match the non-batch default test expectations
-        $this->assertEquals(-1, $result[0]['redirect']);
-        $this->assertEmpty($result[0]['prefixes']);
-        $this->assertContains('off', $result[0]['flags']);
-    }
+    // TODO: Re-enable CLIENT TRACKING/CACHING tests once server-assisted client-side caching is implemented.
+    //       See: https://github.com/valkey-io/valkey-glide-php/issues/296
+    // public function testClientTrackingInfoAfterEnable()
+    // {
+    //     if (!$this->minVersionCheck('6.2.0')) {
+    //         $this->markTestSkipped('CLIENT TRACKINGINFO requires 6.2.0+');
+    //         return;
+    //     }
+    //
+    //     // Enable tracking via generic client() method
+    //     $this->valkey_glide->client('TRACKING', 'ON');
+    //
+    //     $info = $this->valkey_glide->clientTrackingInfo();
+    //     $this->assertIsArray($info);
+    //     $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
+    //     $this->assertFalse(in_array('off', $info['flags']) || array_key_exists('off', $info['flags']));
+    //
+    //     // Disable tracking
+    //     $this->valkey_glide->client('TRACKING', 'OFF');
+    // }
+    //
+    // public function testClientTrackingViaGenericClient()
+    // {
+    //     if (!$this->minVersionCheck('6.2.0')) {
+    //         $this->markTestSkipped('CLIENT TRACKING with TRACKINGINFO requires 6.2.0+');
+    //         return;
+    //     }
+    //
+    //     // Enable tracking with BCAST via generic client() method
+    //     $result = $this->valkey_glide->client('TRACKING', 'ON', 'BCAST', 'PREFIX', 'test:', 'NOLOOP');
+    //     $this->assertTrue($result !== false);
+    //
+    //     // Verify via trackinginfo
+    //     $info = $this->valkey_glide->clientTrackingInfo();
+    //     $this->assertIsArray($info);
+    //     $this->assertTrue(in_array('on', $info['flags']) || array_key_exists('on', $info['flags']));
+    //     $this->assertTrue(in_array('bcast', $info['flags']) || array_key_exists('bcast', $info['flags']));
+    //     $this->assertTrue(in_array('noloop', $info['flags']) || array_key_exists('noloop', $info['flags']));
+    //
+    //     // Disable tracking
+    //     $this->valkey_glide->client('TRACKING', 'OFF');
+    // }
+    //
+    // public function testClientCachingViaGenericClient()
+    // {
+    //     if (!$this->minVersionCheck('6.0.0')) {
+    //         $this->markTestSkipped('CLIENT CACHING requires 6.0.0+');
+    //         return;
+    //     }
+    //
+    //     // Enable tracking with OPTIN mode first
+    //     $this->valkey_glide->client('TRACKING', 'ON', 'OPTIN');
+    //
+    //     // CLIENT CACHING YES via generic client() method
+    //     $result = $this->valkey_glide->client('CACHING', 'YES');
+    //     $this->assertTrue($result !== false);
+    //
+    //     // Disable tracking
+    //     $this->valkey_glide->client('TRACKING', 'OFF');
+    // }
+    //
+    // public function testClientTrackingInfoBatch()
+    // {
+    //     if (!$this->minVersionCheck('6.2.0')) {
+    //         $this->markTestSkipped('CLIENT TRACKINGINFO requires 6.2.0+');
+    //         return;
+    //     }
+    //     if (!$this->havePipeline()) {
+    //         $this->markTestSkipped('Pipeline not supported');
+    //         return;
+    //     }
+    //
+    //     $this->valkey_glide->pipeline();
+    //     $this->valkey_glide->clientTrackingInfo();
+    //     $result = $this->valkey_glide->exec();
+    //
+    //     $this->assertIsArray($result);
+    //     $this->assertIsArray($result[0]);
+    //     $this->assertArrayHasKey('flags', $result[0]);
+    //     $this->assertArrayHasKey('redirect', $result[0]);
+    //     $this->assertArrayHasKey('prefixes', $result[0]);
+    //     // Verify values match the non-batch default test expectations
+    //     $this->assertEquals(-1, $result[0]['redirect']);
+    //     $this->assertEmpty($result[0]['prefixes']);
+    //     $this->assertContains('off', $result[0]['flags']);
+    // }
 
     public function testReset()
     {
