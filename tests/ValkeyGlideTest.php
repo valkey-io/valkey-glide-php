@@ -3140,8 +3140,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEmpty($info['prefixes']);
     }
 
-    // TODO: Re-enable CLIENT TRACKING/CACHING tests once server-assisted client-side caching is implemented.
-    //       See: https://github.com/valkey-io/valkey-glide-php/issues/296
+    // TODO(#296): Re-enable CLIENT TRACKING/CACHING tests once server-assisted client-side caching is implemented.
     // public function testClientTrackingInfoAfterEnable()
     // {
     //     if (!$this->minVersionCheck('6.2.0')) {

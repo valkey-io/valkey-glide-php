@@ -148,8 +148,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->markTestSkipped('FAILOVER not supported in cluster mode');
     }
 
-    // TODO: Re-enable CLIENT TRACKING/CACHING tests once server-assisted client-side caching is implemented.
-    //       See: https://github.com/valkey-io/valkey-glide-php/issues/296
+    // TODO(#296): Re-enable CLIENT TRACKING/CACHING tests once server-assisted client-side caching is implemented.
     // public function testClientTrackingInfoAfterEnable()
     // {
     // }
