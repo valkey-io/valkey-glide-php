@@ -317,12 +317,9 @@ int prepare_core_args(core_command_args_t* args,
                 args, cmd_args, cmd_args_len, allocated_strings, allocated_count);
 
         /* Message operations (no key, just arguments) */
+        /* TODO(#296): Re-add ClientCaching and ClientTracking cases */
         case BgSave:
-        // TODO: Enable CLIENT CACHING and CLIENT TRACKING once server-assisted client-side caching is implemented.
-        //       See: https://github.com/valkey-io/valkey-glide-php/issues/296
-        // case ClientCaching:
         case ClientPause:
-        // case ClientTracking:
         case Echo:
         case FailOver:
         case FlushAll:
