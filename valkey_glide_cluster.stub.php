@@ -1005,8 +1005,9 @@ class ValkeyGlideCluster
     /**
      * Returns information about the current connection's server-assisted client-side caching state.
      *
-     * When $route is null or omitted, the command is sent to a random node and the result
-     * is a flat associative array (single-node response).
+     * When $route is null or omitted, the command uses the default route (all nodes) and the
+     * result is an associative array keyed by node address, where each value is the tracking
+     * info for that node.
      * When a single-node route is provided (e.g., 'randomNode' or a specific node address),
      * the result is the associative array directly.
      * When a multi-node route is used (e.g., 'allNodes' or 'allPrimaries'), the result is
