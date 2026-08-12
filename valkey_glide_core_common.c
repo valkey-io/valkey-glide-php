@@ -317,7 +317,6 @@ int prepare_core_args(core_command_args_t* args,
                 args, cmd_args, cmd_args_len, allocated_strings, allocated_count);
 
         /* Message operations (no key, just arguments) */
-        /* TODO(#296): Re-add ClientCaching and ClientTracking cases */
         case BgSave:
         case ClientPause:
         case Echo:

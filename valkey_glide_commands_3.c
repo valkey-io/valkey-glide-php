@@ -349,8 +349,6 @@ static enum RequestType determine_client_command_type(zval* args, int args_count
             return ClientInfo;
         } else if (strcasecmp(subcmd, "NO-EVICT") == 0) {
             return ClientNoEvict;
-            // TODO(#296): Uncomment CLIENT CACHING and CLIENT TRACKING
-            // once server-assisted client-side caching is implemented.
         } else if (strcasecmp(subcmd, "TRACKINGINFO") == 0) {
             return ClientTrackingInfo;
         }
