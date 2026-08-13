@@ -511,21 +511,43 @@ void valkey_glide_monitor_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
 // Shutdown monitor subsystem - called during module shutdown
 void valkey_glide_monitor_shutdown(void) {
     if (monitor_registry_initialized) {
-        // First pass: close all active monitor clients to stop their background
-        // producer threads. This ensures no callback fires into freed state.
+        // Snapshot active client pointers under the lock, mark inactive, then
+        // release the lock BEFORE closing clients. This avoids a deadlock where
+        // close_monitor_client() waits for the Rust producer task to exit while
+        // that task's callback is blocked trying to acquire monitor_registry_mutex
+        // in native_registry_find().
+        uintptr_t* client_ptrs   = NULL;
+        size_t     client_count  = 0;
+
         mutex_lock(&monitor_registry_mutex);
+        // Count entries
         monitor_registry_entry* entry = monitor_registry_head;
         while (entry) {
-            // Signal the callback info to stop (prevents further enqueue)
-            if (entry->info) {
-                entry->info->is_active = false;
-                cond_signal(&entry->info->queue_cond);
-            }
-            // Close the monitor client (waits for the background task to stop)
-            close_monitor_client((const void*) entry->client_ptr);
+            client_count++;
             entry = entry->next;
         }
+        // Snapshot and mark inactive
+        if (client_count > 0) {
+            client_ptrs = (uintptr_t*) malloc(client_count * sizeof(uintptr_t));
+            entry = monitor_registry_head;
+            for (size_t i = 0; i < client_count && entry; i++) {
+                client_ptrs[i] = entry->client_ptr;
+                if (entry->info) {
+                    entry->info->is_active = false;
+                    cond_signal(&entry->info->queue_cond);
+                }
+                entry = entry->next;
+            }
+        }
         mutex_unlock(&monitor_registry_mutex);
+
+        // Close monitor clients WITHOUT holding the registry mutex.
+        // The producer callback can still safely call native_registry_find() —
+        // it will find info->is_active == false and return early.
+        for (size_t i = 0; i < client_count; i++) {
+            close_monitor_client((const void*) client_ptrs[i]);
+        }
+        free(client_ptrs);
     }
 
     if (monitor_callbacks_initialized) {
