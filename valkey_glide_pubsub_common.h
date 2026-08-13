@@ -75,6 +75,7 @@ void mutex_destroy(mutex_t* m);
 // Condition variable wrapper functions
 void cond_init(cond_t* c);
 void cond_wait(cond_t* c, mutex_t* m);
+void cond_timedwait(cond_t* c, mutex_t* m, unsigned int timeout_ms);
 void cond_signal(cond_t* c);
 void cond_destroy(cond_t* c);
 

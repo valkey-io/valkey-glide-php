@@ -319,6 +319,9 @@ typedef struct {
     uint8_t* connection_request_bytes; /* NULL if not connected */
     size_t   connection_request_len;
 
+    /* Flag indicating this client has an active monitor session */
+    bool in_monitor_mode;
+
     zend_object std; /* MUST be last - PHP allocates extra memory after this */
 } valkey_glide_object;
 

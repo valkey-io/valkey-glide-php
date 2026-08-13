@@ -158,6 +158,13 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
             'Monitor output should contain the key name'
         );
 
+        // Verify the captured line contains the SET command (not just the key
+        // which could also appear in the DEL that follows)
+        $this->assertTrue(
+            stripos($result, 'SET') !== false,
+            'Monitor output should contain SET command: ' . $result
+        );
+
         // Verify format: monitor lines look like "1339877440.333333 [0 127.0.0.1:6379] \"SET\" \"key\" \"value\""
         $this->assertRegex(
             '/^\d+\.\d+/',
@@ -465,36 +472,36 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         }
         proc_close($proc);
 
-        if (file_exists($result_file)) {
-            $result = file_get_contents($result_file);
-            $lines = explode("\n", trim($result));
+        $this->assertTrue(file_exists($result_file), 'Monitor multi-capture should write result file');
 
-            $this->assertGreaterThanOrEqual(
-                3,
-                count($lines),
-                'Monitor should capture at least 3 commands'
-            );
+        $result = file_get_contents($result_file);
+        $lines = explode("\n", trim($result));
 
-            // Verify SET, GET, and DEL are all captured
-            $has_set = false;
-            $has_get = false;
-            $has_del = false;
-            foreach ($lines as $line) {
-                if (stripos($line, 'SET') !== false) {
-                    $has_set = true;
-                }
-                if (stripos($line, 'GET') !== false) {
-                    $has_get = true;
-                }
-                if (stripos($line, 'DEL') !== false) {
-                    $has_del = true;
-                }
+        $this->assertGreaterThanOrEqual(
+            3,
+            count($lines),
+            'Monitor should capture at least 3 commands'
+        );
+
+        // Verify SET, GET, and DEL are all captured
+        $has_set = false;
+        $has_get = false;
+        $has_del = false;
+        foreach ($lines as $line) {
+            if (stripos($line, 'SET') !== false) {
+                $has_set = true;
             }
-
-            $this->assertTrue($has_set, 'Monitor should capture SET command');
-            $this->assertTrue($has_get, 'Monitor should capture GET command');
-            $this->assertTrue($has_del, 'Monitor should capture DEL command');
+            if (stripos($line, 'GET') !== false) {
+                $has_get = true;
+            }
+            if (stripos($line, 'DEL') !== false) {
+                $has_del = true;
+            }
         }
+
+        $this->assertTrue($has_set, 'Monitor should capture SET command');
+        $this->assertTrue($has_get, 'Monitor should capture GET command');
+        $this->assertTrue($has_del, 'Monitor should capture DEL command');
 
         @unlink($sync_file);
         @unlink($result_file);

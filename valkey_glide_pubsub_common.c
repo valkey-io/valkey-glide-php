@@ -2,6 +2,7 @@
 
 #include "valkey_glide_pubsub_common.h"
 
+#include <time.h>
 #include <unistd.h>
 #include <zend_exceptions.h>
 
@@ -59,6 +60,22 @@ void cond_wait(cond_t* c, mutex_t* m) {
     SleepConditionVariableCS(c, m, INFINITE);
 #else
     pthread_cond_wait(c, m);
+#endif
+}
+
+void cond_timedwait(cond_t* c, mutex_t* m, unsigned int timeout_ms) {
+#ifdef _WIN32
+    SleepConditionVariableCS(c, m, timeout_ms);
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += timeout_ms / 1000;
+    ts.tv_nsec += (timeout_ms % 1000) * 1000000L;
+    if (ts.tv_nsec >= 1000000000L) {
+        ts.tv_sec++;
+        ts.tv_nsec -= 1000000000L;
+    }
+    pthread_cond_timedwait(c, m, &ts);
 #endif
 }
 

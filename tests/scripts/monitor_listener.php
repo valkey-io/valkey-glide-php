@@ -8,8 +8,14 @@
 // This script:
 // 1. Connects to Valkey
 // 2. Signals readiness via sync_file
-// 3. Enters monitor mode
+// 3. Enters monitor mode (create_monitor_client is synchronous, so by the time
+//    the blocking loop starts the monitor connection is fully active)
 // 4. When it sees a line containing expected_command, writes it to result_file and exits
+//
+// NOTE: The "ready" signal is written just before monitor() because monitor() is
+// blocking and create_monitor_client() completes synchronously within it. The parent
+// test uses a small delay after receiving the signal to ensure the monitor loop has
+// started receiving events.
 
 if (!extension_loaded('valkey_glide')) {
     echo "ValkeyGlide extension not loaded\n";
@@ -32,7 +38,9 @@ try {
     $monitor_client = new ValkeyGlide();
     $monitor_client->connect(addresses: [['host' => $host, 'port' => $port]]);
 
-    // Signal ready
+    // Signal ready — monitor() is about to be called. create_monitor_client() inside
+    // monitor() is synchronous, so the connection will be fully active by the time
+    // the blocking loop starts.
     file_put_contents($sync_file, 'ready');
 
     $line_count = 0;

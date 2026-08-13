@@ -251,14 +251,22 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
     msg->line_len = offset;
     msg->next     = NULL;
 
-    // Add to queue (thread-safe)
+    // Add to queue (thread-safe) with bounded depth
     mutex_lock(&info->queue_mutex);
+    if (info->queue_depth >= MONITOR_QUEUE_MAX_DEPTH) {
+        // Queue full — drop the message to prevent unbounded memory growth
+        mutex_unlock(&info->queue_mutex);
+        free(line_buf);
+        free(msg);
+        return;
+    }
     if (info->queue_tail) {
         info->queue_tail->next = msg;
     } else {
         info->queue_head = msg;
     }
     info->queue_tail = msg;
+    info->queue_depth++;
     cond_signal(&info->queue_cond);
     mutex_unlock(&info->queue_mutex);
 }
@@ -278,8 +286,9 @@ void php_register_monitor_callback(uintptr_t client_ptr, zval* callback, zval* c
     info->is_active = true;
 
     // Initialize message queue
-    info->queue_head = NULL;
-    info->queue_tail = NULL;
+    info->queue_head  = NULL;
+    info->queue_tail  = NULL;
+    info->queue_depth = 0;
     mutex_init(&info->queue_mutex);
     cond_init(&info->queue_cond);
 
@@ -320,22 +329,6 @@ void php_unregister_monitor_callback(uintptr_t client_ptr) {
     }
 }
 
-// Check if client is in monitor mode
-bool is_client_in_monitor_mode(uintptr_t client_ptr) {
-    if (!monitor_callbacks_initialized)
-        return false;
-
-    char client_key[32];
-    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
-
-    zval* callback_zv = find_monitor_callback(client_key);
-    if (!callback_zv)
-        return false;
-
-    monitor_callback_info* info = (monitor_callback_info*) Z_PTR_P(callback_zv);
-    return info ? info->in_monitor_mode : false;
-}
-
 // Monitor blocking loop - dequeues messages and invokes the PHP callback
 static void monitor_blocking_loop(uintptr_t monitor_client_ptr) {
     char client_key[32];
@@ -351,11 +344,10 @@ static void monitor_blocking_loop(uintptr_t monitor_client_ptr) {
         monitor_message* msg = NULL;
 
         mutex_lock(&info->queue_mutex);
-        // Wait for messages. Woken by:
-        // 1. New message enqueued (cond_signal from callback)
-        // 2. is_active set to false (cond_signal from unregister)
+        // Wait for messages with a timed wait to allow periodic re-checks of
+        // is_active (prevents blocking forever when no traffic arrives).
         while (!info->queue_head && info->is_active) {
-            cond_wait(&info->queue_cond, &info->queue_mutex);
+            cond_timedwait(&info->queue_cond, &info->queue_mutex, 1000);  // 1 second timeout
         }
         if (info->queue_head) {
             msg              = info->queue_head;
@@ -363,6 +355,7 @@ static void monitor_blocking_loop(uintptr_t monitor_client_ptr) {
             if (!info->queue_head) {
                 info->queue_tail = NULL;
             }
+            info->queue_depth--;
         }
         mutex_unlock(&info->queue_mutex);
 
@@ -387,6 +380,14 @@ static void monitor_blocking_loop(uintptr_t monitor_client_ptr) {
             ZVAL_UNDEF(&retval);
 
             if (call_user_function(NULL, NULL, &info->callback, &retval, 2, args) == SUCCESS) {
+                // Check if callback threw an exception
+                if (EG(exception)) {
+                    zval_ptr_dtor(&retval);
+                    zval_ptr_dtor(&php_line);
+                    free(msg->line);
+                    free(msg);
+                    break;
+                }
                 // If callback returns non-null, exit monitor mode (matches PHPRedis behavior)
                 if (Z_TYPE(retval) != IS_NULL) {
                     zval_ptr_dtor(&retval);
@@ -397,15 +398,13 @@ static void monitor_blocking_loop(uintptr_t monitor_client_ptr) {
                 }
                 zval_ptr_dtor(&retval);
             } else {
-                // call_user_function failed — exit loop
-                zval_ptr_dtor(&php_line);
-                free(msg->line);
-                free(msg);
-                break;
-            }
-
-            // Check if callback threw an exception
-            if (EG(exception)) {
+                // call_user_function failed — check for exception and exit loop
+                if (EG(exception)) {
+                    zval_ptr_dtor(&php_line);
+                    free(msg->line);
+                    free(msg);
+                    break;
+                }
                 zval_ptr_dtor(&php_line);
                 free(msg->line);
                 free(msg);
@@ -451,7 +450,7 @@ void valkey_glide_monitor_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
         RETURN_FALSE;
     }
 
-    if (is_client_in_monitor_mode((uintptr_t) connection)) {
+    if (valkey_glide->in_monitor_mode) {
         zend_throw_exception(
             get_valkey_glide_exception_ce(), "Client is already in monitor mode", 0);
         RETURN_FALSE;
@@ -491,6 +490,9 @@ void valkey_glide_monitor_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
     // (not the main client pointer, since the monitor has its own connection)
     php_register_monitor_callback((uintptr_t) monitor_client_ptr, callback, ZEND_THIS);
 
+    // Mark the client object as being in monitor mode
+    valkey_glide->in_monitor_mode = true;
+
     // Enter blocking loop waiting for monitor messages
     monitor_blocking_loop((uintptr_t) monitor_client_ptr);
 
@@ -500,17 +502,40 @@ void valkey_glide_monitor_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
     close_monitor_client(monitor_client_ptr);
     php_unregister_monitor_callback((uintptr_t) monitor_client_ptr);
 
+    // Clear the monitor mode flag
+    valkey_glide->in_monitor_mode = false;
+
     RETURN_TRUE;
 }
 
 // Shutdown monitor subsystem - called during module shutdown
 void valkey_glide_monitor_shutdown(void) {
+    if (monitor_registry_initialized) {
+        // First pass: close all active monitor clients to stop their background
+        // producer threads. This ensures no callback fires into freed state.
+        mutex_lock(&monitor_registry_mutex);
+        monitor_registry_entry* entry = monitor_registry_head;
+        while (entry) {
+            // Signal the callback info to stop (prevents further enqueue)
+            if (entry->info) {
+                entry->info->is_active = false;
+                cond_signal(&entry->info->queue_cond);
+            }
+            // Close the monitor client (waits for the background task to stop)
+            close_monitor_client((const void*) entry->client_ptr);
+            entry = entry->next;
+        }
+        mutex_unlock(&monitor_registry_mutex);
+    }
+
     if (monitor_callbacks_initialized) {
+        // Now safe to destroy callback state — no background thread is active
         zend_hash_destroy(&monitor_callbacks);
         monitor_callbacks_initialized = false;
     }
+
     if (monitor_registry_initialized) {
-        // Free any remaining native registry entries
+        // Free the native registry entries
         mutex_lock(&monitor_registry_mutex);
         monitor_registry_entry* entry = monitor_registry_head;
         while (entry) {
