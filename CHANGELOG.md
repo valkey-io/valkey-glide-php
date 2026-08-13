@@ -4,6 +4,7 @@
 
 ### Changes
 
+* Add `MONITOR` command for standalone client ([#309](https://github.com/valkey-io/valkey-glide-php/pull/309))
 * Add `CLIENT TRACKINGINFO` command for standalone and cluster clients ([#293](https://github.com/valkey-io/valkey-glide-php/pull/293))
 * Add `LATENCY HISTORY`, `LATENCY LATEST`, and `LATENCY RESET` commands for standalone and cluster clients ([#283](https://github.com/valkey-io/valkey-glide-php/pull/283))
 * Add `MEMORY DOCTOR`, `MEMORY MALLOC-STATS`, `MEMORY PURGE`, and `MEMORY STATS` commands for standalone and cluster clients ([#285](https://github.com/valkey-io/valkey-glide-php/pull/285))
