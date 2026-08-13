@@ -2238,6 +2238,9 @@ class ValkeyGlide
      *
      * @return bool True on success.
      *
+     * @throws ValkeyGlideException If the callback is not callable, the client is not
+     *                              connected, or the monitor connection cannot be created.
+     *
      * @see https://valkey.io/commands/monitor
      *
      * @example

@@ -64,21 +64,13 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
 
         $threw = false;
         try {
-            // Passing a non-callable should throw
+            // Passing a non-callable should throw TypeError due to callable type hint
             $client->monitor('not_a_function_that_exists');
-        } catch (\ValkeyGlideException $e) {
-            $threw = true;
-            $this->assertStringContains(
-                'callable',
-                strtolower($e->getMessage()),
-                'Exception should mention callable requirement'
-            );
         } catch (\TypeError $e) {
-            // PHP may throw TypeError for type mismatch
             $threw = true;
         }
 
-        $this->assertTrue($threw, 'monitor() should throw when callback is not callable');
+        $this->assertTrue($threw, 'monitor() should throw TypeError when callback is not callable');
         $client->close();
     }
 
@@ -138,6 +130,11 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         $timeout = time() + 5;
         while (!file_exists($result_file) && time() < $timeout) {
             usleep(100000);
+        }
+
+        // Terminate subprocess if it hasn't exited
+        if (!file_exists($result_file)) {
+            proc_terminate($proc);
         }
 
         // Cleanup subprocess
@@ -222,6 +219,12 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
             usleep(100000);
         }
 
+
+        // Terminate subprocess if it hasn't exited
+        if (!file_exists($result_file)) {
+            proc_terminate($proc);
+        }
+
         foreach ($pipes as $pipe) {
             fclose($pipe);
         }
@@ -292,6 +295,12 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
             usleep(100000);
         }
 
+
+        // Terminate subprocess if it hasn't exited
+        if (!file_exists($result_file)) {
+            proc_terminate($proc);
+        }
+
         foreach ($pipes as $pipe) {
             fclose($pipe);
         }
@@ -358,6 +367,12 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         $timeout = time() + 5;
         while (!file_exists($result_file) && time() < $timeout) {
             usleep(100000);
+        }
+
+
+        // Terminate subprocess if it hasn't exited
+        if (!file_exists($result_file)) {
+            proc_terminate($proc);
         }
 
         foreach ($pipes as $pipe) {
@@ -437,6 +452,12 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         $timeout = time() + 5;
         while (!file_exists($result_file) && time() < $timeout) {
             usleep(100000);
+        }
+
+
+        // Terminate subprocess if it hasn't exited
+        if (!file_exists($result_file)) {
+            proc_terminate($proc);
         }
 
         foreach ($pipes as $pipe) {
@@ -527,6 +548,12 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
             usleep(100000);
         }
 
+
+        // Terminate subprocess if it hasn't exited
+        if (!file_exists($result_file)) {
+            proc_terminate($proc);
+        }
+
         foreach ($pipes as $pipe) {
             fclose($pipe);
         }
@@ -601,6 +628,12 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         $timeout = time() + 5;
         while (!file_exists($result_file) && time() < $timeout) {
             usleep(100000);
+        }
+
+
+        // Terminate subprocess if it hasn't exited
+        if (!file_exists($result_file)) {
+            proc_terminate($proc);
         }
 
         foreach ($pipes as $pipe) {

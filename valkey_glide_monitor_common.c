@@ -2,24 +2,86 @@
 
 #include "valkey_glide_monitor_common.h"
 
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <zend_exceptions.h>
 
 #include "logger.h"
 
-// Global monitor callback storage
+// Native monitor callback registry — accessed from background Rust thread.
+// Uses a simple linked list protected by a native mutex (NOT Zend APIs).
+typedef struct monitor_registry_entry {
+    uintptr_t                      client_ptr;
+    monitor_callback_info*         info;
+    struct monitor_registry_entry* next;
+} monitor_registry_entry;
+
+static monitor_registry_entry* monitor_registry_head = NULL;
+static mutex_t                 monitor_registry_mutex;
+static bool                    monitor_registry_initialized = false;
+
+// Global monitor callback storage (Zend-side, for PHP-thread-only operations)
 static HashTable monitor_callbacks;
 static bool      monitor_callbacks_initialized = false;
 
-// Initialize monitor callbacks
+// Initialize monitor subsystems
 void init_monitor_callbacks(void) {
     if (!monitor_callbacks_initialized) {
         zend_hash_init(&monitor_callbacks, 4, NULL, cleanup_monitor_callback_info, 0);
         monitor_callbacks_initialized = true;
     }
+    if (!monitor_registry_initialized) {
+        mutex_init(&monitor_registry_mutex);
+        monitor_registry_initialized = true;
+    }
 }
 
-// Find monitor callback by client key
+// Native registry: find info by client_ptr (thread-safe, no Zend APIs)
+static monitor_callback_info* native_registry_find(uintptr_t client_ptr) {
+    monitor_callback_info* result = NULL;
+    mutex_lock(&monitor_registry_mutex);
+    monitor_registry_entry* entry = monitor_registry_head;
+    while (entry) {
+        if (entry->client_ptr == client_ptr) {
+            result = entry->info;
+            break;
+        }
+        entry = entry->next;
+    }
+    mutex_unlock(&monitor_registry_mutex);
+    return result;
+}
+
+// Native registry: add entry (thread-safe)
+static void native_registry_add(uintptr_t client_ptr, monitor_callback_info* info) {
+    monitor_registry_entry* entry =
+        (monitor_registry_entry*) malloc(sizeof(monitor_registry_entry));
+    entry->client_ptr = client_ptr;
+    entry->info       = info;
+    mutex_lock(&monitor_registry_mutex);
+    entry->next          = monitor_registry_head;
+    monitor_registry_head = entry;
+    mutex_unlock(&monitor_registry_mutex);
+}
+
+// Native registry: remove entry (thread-safe)
+static void native_registry_remove(uintptr_t client_ptr) {
+    mutex_lock(&monitor_registry_mutex);
+    monitor_registry_entry** pp = &monitor_registry_head;
+    while (*pp) {
+        if ((*pp)->client_ptr == client_ptr) {
+            monitor_registry_entry* to_free = *pp;
+            *pp                             = to_free->next;
+            free(to_free);
+            break;
+        }
+        pp = &((*pp)->next);
+    }
+    mutex_unlock(&monitor_registry_mutex);
+}
+
+// Find monitor callback by client key (Zend-side, main thread only)
 zval* find_monitor_callback(const char* client_key) {
     if (!monitor_callbacks_initialized) {
         return NULL;
@@ -36,15 +98,15 @@ void cleanup_monitor_callback_info(zval* zv) {
         while (msg) {
             monitor_message* next = msg->next;
             if (msg->line)
-                efree(msg->line);
-            efree(msg);
+                free(msg->line);
+            free(msg);
             msg = next;
         }
 
         mutex_destroy(&info->queue_mutex);
         cond_destroy(&info->queue_cond);
         zval_ptr_dtor(&info->callback);
-        Z_DELREF(info->client_obj);
+        zval_ptr_dtor(&info->client_obj);
 
         efree(info);
     }
@@ -52,6 +114,9 @@ void cleanup_monitor_callback_info(zval* zv) {
 
 // C callback handler invoked by the FFI/Rust layer from a background thread
 // when a new parsed MONITOR line arrives.
+//
+// CRITICAL: This runs on a background Rust thread — NO Zend APIs allowed here.
+// We use only native C: malloc, mutex, and the native registry.
 //
 // This matches the MonitorCallback signature from glide_bindings.h:
 //   void (*MonitorCallback)(uintptr_t client_ptr, double timestamp, int64_t db,
@@ -70,19 +135,8 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                                    int64_t        command_len,
                                    const uint8_t* args_json,
                                    int64_t        args_json_len) {
-    if (!monitor_callbacks_initialized) {
-        return;
-    }
-
-    char client_key[32];
-    int  key_len = snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
-
-    zval* callback_zv = zend_hash_str_find(&monitor_callbacks, client_key, key_len);
-    if (!callback_zv) {
-        return;
-    }
-
-    monitor_callback_info* info = (monitor_callback_info*) Z_PTR_P(callback_zv);
+    // Look up callback info using native registry (no Zend APIs)
+    monitor_callback_info* info = native_registry_find(client_ptr);
     if (!info || !info->is_active) {
         return;
     }
@@ -91,29 +145,37 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
     // "1339877440.333333 [0 127.0.0.1:6379] \"COMMAND\" \"arg1\" \"arg2\""
     // We allocate a generous buffer and build the string.
     size_t buf_size = 64 + client_addr_len + command_len + args_json_len + 128;
-    char*  line_buf = (char*) emalloc(buf_size);
+    char*  line_buf = (char*) malloc(buf_size);
     if (!line_buf)
         return;
 
+    int    offset    = 0;
+    size_t remaining = buf_size;
+
     // Format timestamp and header
-    int offset = snprintf(line_buf, buf_size, "%.6f [%lld ", timestamp, (long long) db);
+    int n = snprintf(line_buf, remaining, "%.6f [%lld ", timestamp, (long long) db);
+    if (n < 0) { free(line_buf); return; }
+    if ((size_t)n >= remaining) n = (int)remaining - 1;
+    offset += n;
+    remaining = buf_size - offset;
 
     // Append client address
-    if (client_addr && client_addr_len > 0) {
+    if (client_addr && client_addr_len > 0 && (size_t)client_addr_len < remaining) {
         memcpy(line_buf + offset, client_addr, client_addr_len);
         offset += client_addr_len;
+        remaining = buf_size - offset;
     }
 
     // Close the bracket and add command
-    offset += snprintf(line_buf + offset,
-                       buf_size - offset,
-                       "] \"%.*s\"",
-                       (int) command_len,
-                       (const char*) command_ptr);
+    n = snprintf(line_buf + offset, remaining, "] \"%.*s\"", (int) command_len, (const char*) command_ptr);
+    if (n < 0) { free(line_buf); return; }
+    if ((size_t)n >= remaining) n = (int)remaining - 1;
+    offset += n;
+    remaining = buf_size - offset;
 
     // Parse and append args from JSON array: ["arg1", "arg2", ...]
-    if (args_json && args_json_len > 2) {
-        // Simple JSON array parsing — extract string elements
+    if (args_json && args_json_len > 2 && remaining > 4) {
+        // Simple JSON array parsing — extract string elements and decode escapes
         const char* p   = (const char*) args_json;
         const char* end = p + args_json_len;
 
@@ -121,7 +183,7 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
         if (*p == '[')
             p++;
 
-        while (p < end && *p != ']') {
+        while (p < end && *p != ']' && remaining > 4) {
             // Skip whitespace and commas
             while (p < end && (*p == ' ' || *p == ',' || *p == '\n' || *p == '\r' || *p == '\t'))
                 p++;
@@ -129,41 +191,59 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                 break;
 
             if (*p == '"') {
-                // Parse JSON string
+                // Parse JSON string with escape decoding
                 p++;  // skip opening quote
-                const char* str_start = p;
+                // Decode into a temporary buffer
+                char*  decoded     = (char*) malloc(end - p + 1);
+                int    decoded_len = 0;
+                if (!decoded) break;
+
                 while (p < end && *p != '"') {
-                    if (*p == '\\')
-                        p++;  // skip escaped char
-                    p++;
+                    if (*p == '\\' && (p + 1) < end) {
+                        p++;  // skip backslash
+                        switch (*p) {
+                            case '"':  decoded[decoded_len++] = '"';  break;
+                            case '\\': decoded[decoded_len++] = '\\'; break;
+                            case 'n':  decoded[decoded_len++] = '\n'; break;
+                            case 'r':  decoded[decoded_len++] = '\r'; break;
+                            case 't':  decoded[decoded_len++] = '\t'; break;
+                            case '/':  decoded[decoded_len++] = '/';  break;
+                            default:   decoded[decoded_len++] = *p;   break;
+                        }
+                        p++;
+                    } else {
+                        decoded[decoded_len++] = *p++;
+                    }
                 }
-                int str_len = (int) (p - str_start);
                 if (p < end)
                     p++;  // skip closing quote
 
-                // Append " \"arg\""
-                if (offset + str_len + 4 < (int) buf_size) {
-                    offset += snprintf(
-                        line_buf + offset, buf_size - offset, " \"%.*s\"", str_len, str_start);
-                }
+                // Append " \"decoded_arg\""
+                n = snprintf(line_buf + offset, remaining, " \"%.*s\"", decoded_len, decoded);
+                free(decoded);
+                if (n < 0) break;
+                if ((size_t)n >= remaining) n = (int)remaining - 1;
+                offset += n;
+                remaining = buf_size - offset;
             } else {
                 // Non-string value (number, null, etc) — shouldn't normally happen for args
                 const char* val_start = p;
                 while (p < end && *p != ',' && *p != ']')
                     p++;
                 int val_len = (int) (p - val_start);
-                if (offset + val_len + 2 < (int) buf_size) {
-                    offset +=
-                        snprintf(line_buf + offset, buf_size - offset, " %.*s", val_len, val_start);
-                }
+                n = snprintf(line_buf + offset, remaining, " %.*s", val_len, val_start);
+                if (n < 0) break;
+                if ((size_t)n >= remaining) n = (int)remaining - 1;
+                offset += n;
+                remaining = buf_size - offset;
             }
         }
     }
 
-    // Create message node and enqueue
-    monitor_message* msg = (monitor_message*) emalloc(sizeof(monitor_message));
+    // Create message node and enqueue (using malloc — this is a background thread)
+    monitor_message* msg = (monitor_message*) malloc(sizeof(monitor_message));
     if (!msg) {
-        efree(line_buf);
+        free(line_buf);
         return;
     }
 
@@ -194,8 +274,7 @@ void php_register_monitor_callback(uintptr_t client_ptr, zval* callback, zval* c
 
     // Copy the callback and reference the client object
     ZVAL_COPY(&info->callback, callback);
-    info->client_obj = *client_obj;
-    Z_ADDREF(info->client_obj);
+    ZVAL_COPY(&info->client_obj, client_obj);
     info->is_active = true;
 
     // Initialize message queue
@@ -206,7 +285,10 @@ void php_register_monitor_callback(uintptr_t client_ptr, zval* callback, zval* c
 
     info->in_monitor_mode = false;
 
-    // Store the pointer in a zval using ZVAL_PTR
+    // Register in native registry first (background thread uses this)
+    native_registry_add(client_ptr, info);
+
+    // Store the pointer in a zval using ZVAL_PTR (Zend-side for PHP thread cleanup)
     zval callback_zv;
     ZVAL_PTR(&callback_zv, info);
     zend_hash_str_update(&monitor_callbacks, client_key, key_len, &callback_zv);
@@ -227,7 +309,13 @@ void php_unregister_monitor_callback(uintptr_t client_ptr) {
             info->is_active = false;
             cond_signal(&info->queue_cond);
         }
-        // Delete from hashtable - this will call cleanup_monitor_callback_info
+    }
+
+    // Remove from native registry first (stops background thread from finding it)
+    native_registry_remove(client_ptr);
+
+    // Delete from hashtable - this will call cleanup_monitor_callback_info
+    if (callback_zv) {
         zend_hash_str_del(&monitor_callbacks, client_key, key_len);
     }
 }
@@ -263,6 +351,9 @@ static void monitor_blocking_loop(uintptr_t monitor_client_ptr) {
         monitor_message* msg = NULL;
 
         mutex_lock(&info->queue_mutex);
+        // Wait for messages. Woken by:
+        // 1. New message enqueued (cond_signal from callback)
+        // 2. is_active set to false (cond_signal from unregister)
         while (!info->queue_head && info->is_active) {
             cond_wait(&info->queue_cond, &info->queue_mutex);
         }
@@ -278,8 +369,8 @@ static void monitor_blocking_loop(uintptr_t monitor_client_ptr) {
         if (!info->is_active) {
             if (msg) {
                 if (msg->line)
-                    efree(msg->line);
-                efree(msg);
+                    free(msg->line);
+                free(msg);
             }
             break;
         }
@@ -300,19 +391,31 @@ static void monitor_blocking_loop(uintptr_t monitor_client_ptr) {
                 if (Z_TYPE(retval) != IS_NULL) {
                     zval_ptr_dtor(&retval);
                     zval_ptr_dtor(&php_line);
-                    if (msg->line)
-                        efree(msg->line);
-                    efree(msg);
+                    free(msg->line);
+                    free(msg);
                     break;
                 }
                 zval_ptr_dtor(&retval);
+            } else {
+                // call_user_function failed — exit loop
+                zval_ptr_dtor(&php_line);
+                free(msg->line);
+                free(msg);
+                break;
+            }
+
+            // Check if callback threw an exception
+            if (EG(exception)) {
+                zval_ptr_dtor(&php_line);
+                free(msg->line);
+                free(msg);
+                break;
             }
 
             zval_ptr_dtor(&php_line);
 
-            if (msg->line)
-                efree(msg->line);
-            efree(msg);
+            free(msg->line);
+            free(msg);
         }
     }
 
@@ -391,9 +494,11 @@ void valkey_glide_monitor_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
     // Enter blocking loop waiting for monitor messages
     monitor_blocking_loop((uintptr_t) monitor_client_ptr);
 
-    // Cleanup: stop the monitor client (closes the dedicated connection)
-    php_unregister_monitor_callback((uintptr_t) monitor_client_ptr);
+    // Cleanup: close the monitor client FIRST (stops the stream and prevents
+    // further callbacks), THEN unregister (frees callback state).
+    // This order ensures the background thread can't fire into freed memory.
     close_monitor_client(monitor_client_ptr);
+    php_unregister_monitor_callback((uintptr_t) monitor_client_ptr);
 
     RETURN_TRUE;
 }
@@ -403,5 +508,19 @@ void valkey_glide_monitor_shutdown(void) {
     if (monitor_callbacks_initialized) {
         zend_hash_destroy(&monitor_callbacks);
         monitor_callbacks_initialized = false;
+    }
+    if (monitor_registry_initialized) {
+        // Free any remaining native registry entries
+        mutex_lock(&monitor_registry_mutex);
+        monitor_registry_entry* entry = monitor_registry_head;
+        while (entry) {
+            monitor_registry_entry* next = entry->next;
+            free(entry);
+            entry = next;
+        }
+        monitor_registry_head = NULL;
+        mutex_unlock(&monitor_registry_mutex);
+        mutex_destroy(&monitor_registry_mutex);
+        monitor_registry_initialized = false;
     }
 }

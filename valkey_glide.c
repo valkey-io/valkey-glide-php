@@ -791,6 +791,14 @@ void free_valkey_glide_object(zend_object* object) {
         valkey_glide->glide_client = NULL;
     }
 
+    /* Free stored connection request bytes (may contain credentials) */
+    if (valkey_glide->connection_request_bytes) {
+        memset(valkey_glide->connection_request_bytes, 0, valkey_glide->connection_request_len);
+        efree(valkey_glide->connection_request_bytes);
+        valkey_glide->connection_request_bytes = NULL;
+        valkey_glide->connection_request_len   = 0;
+    }
+
     /* Mark the resolver callback as closed. After this, any Rust background
        thread that calls the resolver will get an immediate 0 return (fallback
        to original address) without touching PHP internals. The actual FFI
@@ -1288,6 +1296,7 @@ PHP_METHOD(ValkeyGlide, close) {
 
     /* Free stored connection request bytes (used by monitor) */
     if (valkey_glide->connection_request_bytes) {
+        memset(valkey_glide->connection_request_bytes, 0, valkey_glide->connection_request_len);
         efree(valkey_glide->connection_request_bytes);
         valkey_glide->connection_request_bytes = NULL;
         valkey_glide->connection_request_len   = 0;
