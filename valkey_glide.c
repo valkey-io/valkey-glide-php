@@ -16,6 +16,7 @@
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
+#include "valkey_glide_monitor_common.h"
 #include "valkey_glide_pubsub_common.h"
 #include "valkey_glide_pubsub_introspection.h"
 
@@ -704,6 +705,7 @@ PHP_MINIT_FUNCTION(valkey_glide) {
 
 PHP_MSHUTDOWN_FUNCTION(valkey_glide) {
     valkey_glide_pubsub_shutdown();
+    valkey_glide_monitor_shutdown();
     valkey_glide_resolver_shutdown();
     return SUCCESS;
 }
@@ -1089,6 +1091,21 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
 
     free_connection_response((ConnectionResponse*) conn_resp);
 
+    /* Store connection request bytes for monitor (needs its own dedicated connection).
+     * We regenerate the bytes here before the config is cleaned up. */
+    {
+        size_t   mon_len      = 0;
+        uint8_t* mon_bytes    = create_connection_request(
+            &mon_len, &client_config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false);
+        if (mon_bytes && mon_len > 0) {
+            valkey_glide->connection_request_bytes = mon_bytes;
+            valkey_glide->connection_request_len   = mon_len;
+        } else {
+            valkey_glide->connection_request_bytes = NULL;
+            valkey_glide->connection_request_len   = 0;
+        }
+    }
+
     /* Clean up temporary configuration structures */
     valkey_glide_cleanup_client_config(&client_config);
 
@@ -1269,6 +1286,13 @@ PHP_METHOD(ValkeyGlide, close) {
         valkey_glide->glide_client = NULL;
     }
 
+    /* Free stored connection request bytes (used by monitor) */
+    if (valkey_glide->connection_request_bytes) {
+        efree(valkey_glide->connection_request_bytes);
+        valkey_glide->connection_request_bytes = NULL;
+        valkey_glide->connection_request_len   = 0;
+    }
+
     /* Mark resolver as closed so background Rust threads get immediate
        fallback instead of calling into PHP. Memory freed at RSHUTDOWN. */
     if (valkey_glide->resolver_cb) {
@@ -1388,6 +1412,16 @@ PHP_METHOD(ValkeyGlide, punsubscribe) {
     valkey_glide_punsubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
 
+
+PHP_METHOD(ValkeyGlide, monitor) {
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_monitor_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
+}
 
 PHP_METHOD(ValkeyGlide, publish) {
     valkey_glide_object* valkey_glide =

@@ -315,6 +315,10 @@ typedef struct {
     /* Last command error message (PHPRedis getLastError/clearLastError), NULL if none */
     zend_string* last_error;
 
+    /* Stored connection request bytes for monitor (separate connection) */
+    uint8_t* connection_request_bytes; /* NULL if not connected */
+    size_t   connection_request_len;
+
     zend_object std; /* MUST be last - PHP allocates extra memory after this */
 } valkey_glide_object;
 
