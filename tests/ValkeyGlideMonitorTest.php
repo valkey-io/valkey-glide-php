@@ -454,6 +454,150 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
     }
 
     /**
+     * Test that calling close() after monitor() completes is safe (idempotent cleanup).
+     * Mirrors Python test_monitor_stop_idempotent and Go TestMonitorCloseIdempotent.
+     */
+    public function testMonitorCloseAfterMonitorIsSafe()
+    {
+        $sync_file = tempnam(sys_get_temp_dir(), 'mon_sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'mon_result_');
+
+        @unlink($sync_file);
+        @unlink($result_file);
+
+        $monitor_script = __DIR__ . '/scripts/monitor_listener.php';
+        $marker = 'CLOSE_SAFE_' . uniqid();
+
+        $cmd = $this->buildMonitorCommand(
+            $monitor_script,
+            $this->getHost(),
+            $this->getPort(),
+            $sync_file,
+            $result_file,
+            $marker,
+            5  // max_lines
+        );
+
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
+
+        $timeout = time() + 5;
+        while (!file_exists($sync_file) && time() < $timeout) {
+            usleep(100000);
+        }
+        usleep(200000);
+
+        // Trigger the monitor to exit
+        $action_client = new ValkeyGlide();
+        $action_client->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $action_client->set($marker, 'test');
+        $action_client->close();
+
+        $timeout = time() + 5;
+        while (!file_exists($result_file) && time() < $timeout) {
+            usleep(100000);
+        }
+
+        foreach ($pipes as $pipe) {
+            fclose($pipe);
+        }
+        $exit_code = proc_close($proc);
+
+        // The monitor subprocess calls close() after monitor() returns — it should not crash
+        $this->assertEquals(0, $exit_code,
+            'Process should exit cleanly after monitor() and close()');
+
+        @unlink($sync_file);
+        @unlink($result_file);
+    }
+
+    /**
+     * Test that monitor is NOT available on cluster client.
+     * MONITOR is only supported for standalone connections.
+     * Mirrors Python test_monitor_rejects_cluster_config.
+     */
+    public function testMonitorNotAvailableOnCluster()
+    {
+        // ValkeyGlideCluster should not have a monitor() method
+        $clusterReflection = new \ReflectionClass('ValkeyGlideCluster');
+        $hasMonitor = $clusterReflection->hasMethod('monitor');
+        $this->assertFalse($hasMonitor);
+    }
+
+    /**
+     * Test that monitor output contains the correct command arguments.
+     * Mirrors Go TestMonitorFields which checks len(line.Args)==2 for SET key value.
+     */
+    public function testMonitorOutputContainsArgs()
+    {
+        $sync_file = tempnam(sys_get_temp_dir(), 'mon_sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'mon_result_');
+
+        @unlink($sync_file);
+        @unlink($result_file);
+
+        $monitor_script = __DIR__ . '/scripts/monitor_listener.php';
+        $test_key = 'ARGS_KEY_' . uniqid();
+        $test_value = 'ARGS_VALUE_' . uniqid();
+
+        $cmd = $this->buildMonitorCommand(
+            $monitor_script,
+            $this->getHost(),
+            $this->getPort(),
+            $sync_file,
+            $result_file,
+            $test_key
+        );
+
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
+
+        $timeout = time() + 5;
+        while (!file_exists($sync_file) && time() < $timeout) {
+            usleep(100000);
+        }
+        usleep(200000);
+
+        $action_client = new ValkeyGlide();
+        $action_client->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $action_client->set($test_key, $test_value);
+        $action_client->close();
+
+        $timeout = time() + 5;
+        while (!file_exists($result_file) && time() < $timeout) {
+            usleep(100000);
+        }
+
+        foreach ($pipes as $pipe) {
+            fclose($pipe);
+        }
+        proc_close($proc);
+
+        $result = file_get_contents($result_file);
+
+        // Verify the output contains both the key AND the value as arguments
+        $this->assertStringContains($test_key, $result,
+            'Monitor output should contain the key argument');
+        $this->assertStringContains($test_value, $result,
+            'Monitor output should contain the value argument');
+
+        // Verify the SET command is present
+        $this->assertTrue(
+            stripos($result, 'SET') !== false,
+            'Monitor output should contain SET command'
+        );
+
+        @unlink($sync_file);
+        @unlink($result_file);
+    }
+
+    /**
      * Helper assertions
      */
     private function assertStringContains($needle, $haystack, $message = '')
