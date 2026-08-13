@@ -804,6 +804,89 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertTrue($result[1]);
     }
 
+    public function testClientTrackingInfoDefault()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKINGINFO requires 6.2.0+');
+            return;
+        }
+
+        // Default state
+        $info = $this->valkey_glide->clientTrackingInfo();
+        $this->assertIsArray($info);
+
+        // Check structure
+        $this->assertArrayHasKey('flags', $info);
+        $this->assertArrayHasKey('redirect', $info);
+        $this->assertArrayHasKey('prefixes', $info);
+
+        // Validate types
+        $this->assertIsArray($info['flags']);
+        $this->assertTrue(is_int($info['redirect']) || is_long($info['redirect']));
+        $this->assertIsArray($info['prefixes']);
+
+        // Default: off, no redirect
+        $this->assertTrue(in_array('off', $info['flags']));
+        $this->assertEquals(-1, $info['redirect']);
+        $this->assertEmpty($info['prefixes']);
+    }
+
+    public function testClientTrackingInfoWithRoute()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKINGINFO requires 6.2.0+');
+            return;
+        }
+
+        // With randomNode route
+        $info = $this->valkey_glide->clientTrackingInfo('randomNode');
+        $this->assertIsArray($info);
+        $this->assertArrayHasKey('flags', $info);
+        $this->assertArrayHasKey('redirect', $info);
+        $this->assertArrayHasKey('prefixes', $info);
+        $this->assertIsArray($info['flags']);
+        $this->assertTrue(in_array('off', $info['flags']));
+    }
+
+    public function testClientTrackingInfoWithNullRoute()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKINGINFO requires 6.2.0+');
+            return;
+        }
+
+        // null route falls back to the single-node default (random node)
+        $info = $this->valkey_glide->clientTrackingInfo(null);
+        $this->assertIsArray($info);
+        $this->assertArrayHasKey('flags', $info);
+        $this->assertArrayHasKey('redirect', $info);
+        $this->assertArrayHasKey('prefixes', $info);
+    }
+
+    public function testClientTrackingInfoWithAllNodesRoute()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKINGINFO requires 6.2.0+');
+            return;
+        }
+
+        // AllNodes route returns per-node map, each node should be off by default
+        $result = $this->valkey_glide->clientTrackingInfo('allNodes');
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+
+        // Each entry should be a node with tracking info
+        foreach ($result as $nodeAddress => $info) {
+            $this->assertIsString($nodeAddress);
+            $this->assertIsArray($info);
+            $this->assertArrayHasKey('flags', $info);
+            $this->assertArrayHasKey('redirect', $info);
+            $this->assertArrayHasKey('prefixes', $info);
+            $this->assertTrue(in_array('off', $info['flags']));
+            $this->assertEquals(-1, $info['redirect']);
+        }
+    }
+
     public function testMemoryDoctor()
     {
         $result = $this->valkey_glide->memoryDoctor();

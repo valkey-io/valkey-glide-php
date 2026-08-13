@@ -222,6 +222,10 @@ int execute_client_unpause_command(zval*             object,
                                    int               argc,
                                    zval*             return_value,
                                    zend_class_entry* ce);
+int execute_client_tracking_info_command(zval*             object,
+                                         int               argc,
+                                         zval*             return_value,
+                                         zend_class_entry* ce);
 int execute_latency_history_command(zval*             object,
                                     int               argc,
                                     zval*             return_value,
@@ -564,6 +568,9 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 
 #define CLIENT_UNPAUSE_METHOD_IMPL(class_name) \
     STANDARD_METHOD_IMPL(class_name, clientUnpause, execute_client_unpause_command)
+
+#define CLIENT_TRACKING_INFO_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, clientTrackingInfo, execute_client_tracking_info_command)
 
 #define SCAN_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, scan, execute_scan_command)
 

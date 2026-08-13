@@ -3113,6 +3113,33 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result[1]);
     }
 
+    public function testClientTrackingInfoDefault()
+    {
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT TRACKINGINFO requires 6.2.0+');
+            return;
+        }
+
+        // By default, tracking is off
+        $info = $this->valkey_glide->clientTrackingInfo();
+        $this->assertIsArray($info);
+
+        // Check structure
+        $this->assertArrayHasKey('flags', $info);
+        $this->assertArrayHasKey('redirect', $info);
+        $this->assertArrayHasKey('prefixes', $info);
+
+        // Validate types
+        $this->assertIsArray($info['flags']);
+        $this->assertTrue(is_int($info['redirect']) || is_long($info['redirect']));
+        $this->assertIsArray($info['prefixes']);
+
+        // Default state: tracking off, no redirect
+        $this->assertTrue(in_array('off', $info['flags']));
+        $this->assertEquals(-1, $info['redirect']);
+        $this->assertEmpty($info['prefixes']);
+    }
+
     public function testReset()
     {
         $key = '{reset_test}_' . $this->createRandomString();

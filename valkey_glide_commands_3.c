@@ -349,6 +349,8 @@ static enum RequestType determine_client_command_type(zval* args, int args_count
             return ClientInfo;
         } else if (strcasecmp(subcmd, "NO-EVICT") == 0) {
             return ClientNoEvict;
+        } else if (strcasecmp(subcmd, "TRACKINGINFO") == 0) {
+            return ClientTrackingInfo;
         }
     }
     return InvalidRequest; /* Default */
@@ -499,6 +501,9 @@ static int command_response_to_zval_wrapper(CommandResponse* response,
     if (command_type == ClientList && response->response_type == String) {
         return parse_client_list_response(
             response->string_value, response->string_value_len, return_value);
+    } else if (command_type == ClientTrackingInfo) {
+        return command_response_to_zval(
+            response, return_value, COMMAND_RESPONSE_ASSOSIATIVE_ARRAY_MAP, true);
     } else {
         return command_response_to_zval(
             response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);

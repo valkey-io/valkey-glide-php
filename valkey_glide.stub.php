@@ -2428,6 +2428,21 @@ class ValkeyGlide
     public function clientUnpause(): ValkeyGlide|bool|string;
 
     /**
+     * Returns information about the current connection's server-assisted client-side caching state.
+     *
+     * @return ValkeyGlide|array|false  Returns an associative array with:
+     *                                  - "flags" (array): A list of strings representing active tracking flags
+     *                                    (e.g., ["off"], ["on", "bcast"]).
+     *                                  - "redirect" (int): Client ID for redirection, or -1 if not set.
+     *                                  - "prefixes" (array): A list of strings representing key prefixes being
+     *                                    tracked. Empty array (not null) when no prefixes are tracked.
+     *                                  Returns false on failure.
+     *
+     * @see https://valkey.io/commands/client-trackinginfo
+     */
+    public function clientTrackingInfo(): ValkeyGlide|array|false;
+
+    /**
      * Reset the connection's server-side context.
      *
      * @return ValkeyGlide|bool|string  Returns true on success, false on failure.
