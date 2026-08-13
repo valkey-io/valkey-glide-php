@@ -105,8 +105,11 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
     }
 
     // Close the bracket and add command
-    offset += snprintf(line_buf + offset, buf_size - offset, "] \"%.*s\"",
-                       (int) command_len, (const char*) command_ptr);
+    offset += snprintf(line_buf + offset,
+                       buf_size - offset,
+                       "] \"%.*s\"",
+                       (int) command_len,
+                       (const char*) command_ptr);
 
     // Parse and append args from JSON array: ["arg1", "arg2", ...]
     if (args_json && args_json_len > 2) {
@@ -115,7 +118,8 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
         const char* end = p + args_json_len;
 
         // Skip '['
-        if (*p == '[') p++;
+        if (*p == '[')
+            p++;
 
         while (p < end && *p != ']') {
             // Skip whitespace and commas
@@ -126,28 +130,31 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
 
             if (*p == '"') {
                 // Parse JSON string
-                p++; // skip opening quote
+                p++;  // skip opening quote
                 const char* str_start = p;
                 while (p < end && *p != '"') {
-                    if (*p == '\\') p++; // skip escaped char
+                    if (*p == '\\')
+                        p++;  // skip escaped char
                     p++;
                 }
-                int str_len = (int)(p - str_start);
-                if (p < end) p++; // skip closing quote
+                int str_len = (int) (p - str_start);
+                if (p < end)
+                    p++;  // skip closing quote
 
                 // Append " \"arg\""
                 if (offset + str_len + 4 < (int) buf_size) {
-                    offset += snprintf(line_buf + offset, buf_size - offset, " \"%.*s\"",
-                                       str_len, str_start);
+                    offset += snprintf(
+                        line_buf + offset, buf_size - offset, " \"%.*s\"", str_len, str_start);
                 }
             } else {
                 // Non-string value (number, null, etc) — shouldn't normally happen for args
                 const char* val_start = p;
-                while (p < end && *p != ',' && *p != ']') p++;
-                int val_len = (int)(p - val_start);
+                while (p < end && *p != ',' && *p != ']')
+                    p++;
+                int val_len = (int) (p - val_start);
                 if (offset + val_len + 2 < (int) buf_size) {
-                    offset += snprintf(line_buf + offset, buf_size - offset, " %.*s",
-                                       val_len, val_start);
+                    offset +=
+                        snprintf(line_buf + offset, buf_size - offset, " %.*s", val_len, val_start);
                 }
             }
         }
@@ -334,11 +341,10 @@ void valkey_glide_monitor_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
         VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, ZEND_THIS);
 
     if (!valkey_glide->connection_request_bytes || valkey_glide->connection_request_len == 0) {
-        zend_throw_exception(
-            get_valkey_glide_exception_ce(),
-            "Cannot start monitor: connection request bytes not available. "
-            "Ensure the client is connected before calling monitor().",
-            0);
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "Cannot start monitor: connection request bytes not available. "
+                             "Ensure the client is connected before calling monitor().",
+                             0);
         RETURN_FALSE;
     }
 
@@ -350,10 +356,10 @@ void valkey_glide_monitor_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
 
     // Create a dedicated monitor client connection using the FFI function.
     // This opens a new TCP connection and sends the MONITOR command.
-    const struct ConnectionResponse* mon_resp = create_monitor_client(
-        valkey_glide->connection_request_bytes,
-        valkey_glide->connection_request_len,
-        valkey_glide_monitor_callback);
+    const struct ConnectionResponse* mon_resp =
+        create_monitor_client(valkey_glide->connection_request_bytes,
+                              valkey_glide->connection_request_len,
+                              valkey_glide_monitor_callback);
 
     if (!mon_resp) {
         zend_throw_exception(

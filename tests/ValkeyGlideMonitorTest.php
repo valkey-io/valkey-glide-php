@@ -68,8 +68,11 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
             $client->monitor('not_a_function_that_exists');
         } catch (\ValkeyGlideException $e) {
             $threw = true;
-            $this->assertStringContains('callable', strtolower($e->getMessage()),
-                'Exception should mention callable requirement');
+            $this->assertStringContains(
+                'callable',
+                strtolower($e->getMessage()),
+                'Exception should mention callable requirement'
+            );
         } catch (\TypeError $e) {
             // PHP may throw TypeError for type mismatch
             $threw = true;
@@ -152,12 +155,18 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         $this->assertStringNotContains('TIMEOUT:', $result, 'Monitor should find command before timeout');
 
         // Verify the captured line contains our key
-        $this->assertStringContains($test_key, $result,
-            'Monitor output should contain the key name');
+        $this->assertStringContains(
+            $test_key,
+            $result,
+            'Monitor output should contain the key name'
+        );
 
         // Verify format: monitor lines look like "1339877440.333333 [0 127.0.0.1:6379] \"SET\" \"key\" \"value\""
-        $this->assertRegex('/^\d+\.\d+/', $result,
-            'Monitor output should start with a timestamp');
+        $this->assertRegex(
+            '/^\d+\.\d+/',
+            $result,
+            'Monitor output should start with a timestamp'
+        );
 
         // Cleanup temp files
         @unlink($sync_file);
@@ -221,8 +230,11 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         $this->assertTrue(file_exists($result_file), 'Monitor should write result');
         $result = file_get_contents($result_file);
 
-        $this->assertStringContains($test_key, $result,
-            'Monitor should capture GET command with key');
+        $this->assertStringContains(
+            $test_key,
+            $result,
+            'Monitor should capture GET command with key'
+        );
         // The output should contain "GET" (case insensitive since Valkey may uppercase it)
         $this->assertTrue(
             stripos($result, 'GET') !== false,
@@ -353,13 +365,18 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         }
         $exit_code = proc_close($proc);
 
-        $this->assertTrue(file_exists($result_file),
-            'Monitor should have written result (exited via callback return)');
+        $this->assertTrue(
+            file_exists($result_file),
+            'Monitor should have written result (exited via callback return)'
+        );
         $this->assertEquals(0, $exit_code, 'Monitor process should exit cleanly');
 
         $result = file_get_contents($result_file);
-        $this->assertStringContains($marker, $result,
-            'Result should contain our marker command');
+        $this->assertStringContains(
+            $marker,
+            $result,
+            'Result should contain our marker command'
+        );
 
         @unlink($sync_file);
         @unlink($result_file);
@@ -431,17 +448,26 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
             $result = file_get_contents($result_file);
             $lines = explode("\n", trim($result));
 
-            $this->assertGreaterThanOrEqual(3, count($lines),
-                'Monitor should capture at least 3 commands');
+            $this->assertGreaterThanOrEqual(
+                3,
+                count($lines),
+                'Monitor should capture at least 3 commands'
+            );
 
             // Verify SET, GET, and DEL are all captured
             $has_set = false;
             $has_get = false;
             $has_del = false;
             foreach ($lines as $line) {
-                if (stripos($line, 'SET') !== false) $has_set = true;
-                if (stripos($line, 'GET') !== false) $has_get = true;
-                if (stripos($line, 'DEL') !== false) $has_del = true;
+                if (stripos($line, 'SET') !== false) {
+                    $has_set = true;
+                }
+                if (stripos($line, 'GET') !== false) {
+                    $has_get = true;
+                }
+                if (stripos($line, 'DEL') !== false) {
+                    $has_del = true;
+                }
             }
 
             $this->assertTrue($has_set, 'Monitor should capture SET command');
@@ -507,8 +533,11 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         $exit_code = proc_close($proc);
 
         // The monitor subprocess calls close() after monitor() returns — it should not crash
-        $this->assertEquals(0, $exit_code,
-            'Process should exit cleanly after monitor() and close()');
+        $this->assertEquals(
+            0,
+            $exit_code,
+            'Process should exit cleanly after monitor() and close()'
+        );
 
         @unlink($sync_file);
         @unlink($result_file);
@@ -582,10 +611,16 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         $result = file_get_contents($result_file);
 
         // Verify the output contains both the key AND the value as arguments
-        $this->assertStringContains($test_key, $result,
-            'Monitor output should contain the key argument');
-        $this->assertStringContains($test_value, $result,
-            'Monitor output should contain the value argument');
+        $this->assertStringContains(
+            $test_key,
+            $result,
+            'Monitor output should contain the key argument'
+        );
+        $this->assertStringContains(
+            $test_value,
+            $result,
+            'Monitor output should contain the value argument'
+        );
 
         // Verify the SET command is present
         $this->assertTrue(

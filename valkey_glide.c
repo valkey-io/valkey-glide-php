@@ -1094,8 +1094,8 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     /* Store connection request bytes for monitor (needs its own dedicated connection).
      * We regenerate the bytes here before the config is cleaned up. */
     {
-        size_t   mon_len      = 0;
-        uint8_t* mon_bytes    = create_connection_request(
+        size_t   mon_len   = 0;
+        uint8_t* mon_bytes = create_connection_request(
             &mon_len, &client_config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false);
         if (mon_bytes && mon_len > 0) {
             valkey_glide->connection_request_bytes = mon_bytes;

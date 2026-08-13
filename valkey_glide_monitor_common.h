@@ -16,14 +16,14 @@ typedef struct monitor_message {
 
 // Monitor callback info structure
 typedef struct {
-    zval              callback;
-    zval              client_obj;
-    bool              is_active;
-    monitor_message*  queue_head;
-    monitor_message*  queue_tail;
-    mutex_t           queue_mutex;
-    cond_t            queue_cond;
-    bool              in_monitor_mode;
+    zval             callback;
+    zval             client_obj;
+    bool             is_active;
+    monitor_message* queue_head;
+    monitor_message* queue_tail;
+    mutex_t          queue_mutex;
+    cond_t           queue_cond;
+    bool             in_monitor_mode;
 } monitor_callback_info;
 
 // FFI function declarations (from include/glide_bindings.h)
@@ -33,8 +33,8 @@ typedef struct {
 //                                   const uint8_t *command, int64_t command_len,
 //                                   const uint8_t *args_json, int64_t args_json_len);
 extern const struct ConnectionResponse* create_monitor_client(
-    const uint8_t* connection_request_bytes,
-    uintptr_t      connection_request_len,
+    const uint8_t*  connection_request_bytes,
+    uintptr_t       connection_request_len,
     MonitorCallback monitor_callback);
 
 extern void close_monitor_client(const void* client_ptr);
