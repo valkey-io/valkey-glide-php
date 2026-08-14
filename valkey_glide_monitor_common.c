@@ -451,10 +451,12 @@ static void monitor_blocking_loop(uintptr_t monitor_client_ptr) {
             // Honor PHP-level interruption requests (e.g. max_execution_time,
             // pcntl signals, request shutdown) so an idle monitor with no
             // traffic doesn't block the request forever.
-            // EG(vm_interrupt) became a zend_atomic_bool (requiring the
-            // load accessor) in newer Zend Engine versions; older versions
-            // expose it as a plain boolean.
-#if PHP_VERSION_ID >= 80500
+            // EG(vm_interrupt) is a zend_atomic_bool (requiring the load
+            // accessor) on Zend Engine builds that pull in <Zend/zend_atomic.h>;
+            // detect that via its header guard rather than guessing a PHP
+            // version cutoff, since the atomic type has been observed on both
+            // PHP 8.2 and newer builds depending on how PHP was compiled.
+#ifdef ZEND_ATOMIC_BOOL_INIT
             if (zend_atomic_bool_load_ex(&EG(vm_interrupt))) {
 #else
             if (EG(vm_interrupt)) {
