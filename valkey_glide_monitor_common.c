@@ -43,16 +43,15 @@ void init_monitor_callbacks(void) {
 // to close a use-after-free race with concurrent unregistration/cleanup (see
 // the comment on valkey_glide_monitor_callback for details).
 
-// Native registry: add entry (thread-safe)
-static void native_registry_add(uintptr_t client_ptr, monitor_callback_info* info) {
+// Native registry: add entry (thread-safe). Returns false on allocation
+// failure, in which case the caller must not proceed to rely on this monitor
+// ever receiving events (the background producer can only find registrations
+// via this native registry).
+static bool native_registry_add(uintptr_t client_ptr, monitor_callback_info* info) {
     monitor_registry_entry* entry =
         (monitor_registry_entry*) malloc(sizeof(monitor_registry_entry));
     if (!entry) {
-        // Allocation failure — the callback info remains registered in the
-        // Zend-side hashtable, but the background thread won't be able to
-        // find it via the native registry, so monitor lines will simply not
-        // be delivered rather than crashing.
-        return;
+        return false;
     }
     entry->client_ptr = client_ptr;
     entry->info       = info;
@@ -60,6 +59,7 @@ static void native_registry_add(uintptr_t client_ptr, monitor_callback_info* inf
     entry->next           = monitor_registry_head;
     monitor_registry_head = entry;
     mutex_unlock(&monitor_registry_mutex);
+    return true;
 }
 
 // Native registry: remove entry (thread-safe)
@@ -331,7 +331,12 @@ unlock_registry:
 }
 
 // Register monitor callback
-void php_register_monitor_callback(uintptr_t client_ptr, zval* callback, zval* client_obj) {
+// Register monitor callback. Returns false if the native registry entry
+// could not be allocated — in that case the background producer would never
+// be able to find this registration and every event would be silently
+// discarded, so the caller must treat this as a hard failure (throw) rather
+// than entering the blocking loop.
+bool php_register_monitor_callback(uintptr_t client_ptr, zval* callback, zval* client_obj) {
     init_monitor_callbacks();
 
     char client_key[32];
@@ -355,12 +360,20 @@ void php_register_monitor_callback(uintptr_t client_ptr, zval* callback, zval* c
     info->in_monitor_mode = false;
 
     // Register in native registry first (background thread uses this)
-    native_registry_add(client_ptr, info);
+    if (!native_registry_add(client_ptr, info)) {
+        mutex_destroy(&info->queue_mutex);
+        cond_destroy(&info->queue_cond);
+        zval_ptr_dtor(&info->callback);
+        zval_ptr_dtor(&info->client_obj);
+        efree(info);
+        return false;
+    }
 
     // Store the pointer in a zval using ZVAL_PTR (Zend-side for PHP thread cleanup)
     zval callback_zv;
     ZVAL_PTR(&callback_zv, info);
     zend_hash_str_update(&monitor_callbacks, client_key, key_len, &callback_zv);
+    return true;
 }
 
 // Unregister monitor callback
@@ -589,8 +602,18 @@ void valkey_glide_monitor_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
     }
 
     // Register the PHP callback using the monitor client pointer as key
-    // (not the main client pointer, since the monitor has its own connection)
-    php_register_monitor_callback((uintptr_t) monitor_client_ptr, callback, ZEND_THIS);
+    // (not the main client pointer, since the monitor has its own connection).
+    // If registration fails (e.g. allocation failure), the background
+    // producer would never be able to find this monitor and every event
+    // would be silently discarded — close the connection we just opened and
+    // fail loudly instead of entering a blocking loop that can never
+    // receive anything.
+    if (!php_register_monitor_callback((uintptr_t) monitor_client_ptr, callback, ZEND_THIS)) {
+        close_monitor_client(monitor_client_ptr);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "Failed to register monitor callback", 0);
+        RETURN_FALSE;
+    }
 
     // Mark the client object as being in monitor mode
     valkey_glide->in_monitor_mode = true;
@@ -613,56 +636,34 @@ void valkey_glide_monitor_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
 // Shutdown monitor subsystem - called during module shutdown
 void valkey_glide_monitor_shutdown(void) {
     if (monitor_registry_initialized) {
-        // Snapshot active client pointers under the lock, mark inactive, then
-        // release the lock BEFORE closing clients. This avoids a deadlock where
-        // close_monitor_client() waits for the Rust producer task to exit while
-        // that task's callback (valkey_glide_monitor_callback) is blocked trying
-        // to acquire monitor_registry_mutex for its own registry lookup.
-        uintptr_t* client_ptrs  = NULL;
-        size_t     client_count = 0;
-
+        // Mark every registered monitor inactive and wake any blocked
+        // consumer, then release the lock BEFORE closing clients. This
+        // avoids a deadlock where close_monitor_client() waits for the Rust
+        // producer task to exit while that task's own registry lookup
+        // (inside valkey_glide_monitor_callback) is blocked trying to
+        // acquire monitor_registry_mutex.
         mutex_lock(&monitor_registry_mutex);
-        // Count entries
-        monitor_registry_entry* entry = monitor_registry_head;
-        while (entry) {
-            client_count++;
-            entry = entry->next;
-        }
-        // Snapshot and mark inactive
-        if (client_count > 0) {
-            client_ptrs = (uintptr_t*) malloc(client_count * sizeof(uintptr_t));
-            entry       = monitor_registry_head;
-            for (size_t i = 0; entry; i++) {
-                // Always mark inactive and wake any blocked consumer, even if
-                // the snapshot allocation below failed — that only affects our
-                // ability to proactively close_monitor_client() further down.
-                if (entry->info) {
-                    entry->info->is_active = false;
-                    cond_signal(&entry->info->queue_cond);
-                }
-                if (client_ptrs) {
-                    client_ptrs[i] = entry->client_ptr;
-                }
-                entry = entry->next;
-            }
-            if (!client_ptrs) {
-                // Allocation failed — skip the proactive close loop below.
-                // Each monitor's blocking loop will still notice is_active is
-                // false (via its timed wait) and exit on its own.
-                client_count = 0;
+        for (monitor_registry_entry* entry = monitor_registry_head; entry; entry = entry->next) {
+            if (entry->info) {
+                entry->info->is_active = false;
+                cond_signal(&entry->info->queue_cond);
             }
         }
         mutex_unlock(&monitor_registry_mutex);
 
-        // Close monitor clients WITHOUT holding the registry mutex.
-        // The producer callback can still safely run its registry lookup —
-        // it will find info->is_active == false and return early (it also
-        // acquires monitor_registry_mutex itself, so it simply waits its turn
-        // rather than racing shutdown).
-        for (size_t i = 0; i < client_count; i++) {
-            close_monitor_client((const void*) client_ptrs[i]);
+        // Close monitor clients WITHOUT holding the registry mutex. Module
+        // shutdown implies no other PHP request thread can be concurrently
+        // calling monitor()/unregister (which are the only writers of the
+        // registry list), so it is safe to walk the list a second time here
+        // using only the stable client_ptr/next fields without re-acquiring
+        // the lock. This intentionally avoids taking a heap snapshot (and
+        // the allocation-failure handling that would require) — a failure
+        // to snapshot must never result in skipping close_monitor_client()
+        // for any active producer, since that would let shutdown destroy
+        // monitor_registry_mutex and callback state out from under it.
+        for (monitor_registry_entry* entry = monitor_registry_head; entry; entry = entry->next) {
+            close_monitor_client((const void*) entry->client_ptr);
         }
-        free(client_ptrs);
     }
 
     if (monitor_callbacks_initialized) {

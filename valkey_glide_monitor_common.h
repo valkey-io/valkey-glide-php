@@ -29,7 +29,12 @@ typedef struct {
 } monitor_callback_info;
 
 // Maximum number of messages allowed in the queue before dropping new ones.
-// Prevents unbounded memory growth if the PHP callback is slower than traffic.
+// Prevents unbounded memory growth if the PHP callback is slower than
+// traffic. Drops are not silent: valkey_glide_monitor_callback() records
+// them in monitor_callback_info.dropped_count, and monitor_blocking_loop()
+// surfaces an overflow marker line to the PHP callback the next time it
+// dequeues, so a slow consumer can observe that events were lost instead of
+// the stream silently appearing complete.
 #define MONITOR_QUEUE_MAX_DEPTH 10000
 
 // FFI function declarations (from include/glide_bindings.h)
@@ -48,7 +53,7 @@ extern void close_monitor_client(const void* client_ptr);
 // Monitor management functions
 void  init_monitor_callbacks(void);
 void  cleanup_monitor_callback_info(zval* zv);
-void  php_register_monitor_callback(uintptr_t client_ptr, zval* callback, zval* client_obj);
+bool  php_register_monitor_callback(uintptr_t client_ptr, zval* callback, zval* client_obj);
 void  php_unregister_monitor_callback(uintptr_t client_ptr);
 zval* find_monitor_callback(const char* client_key);
 
