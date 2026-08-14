@@ -1105,12 +1105,19 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
         size_t   mon_len   = 0;
         uint8_t* mon_bytes = create_connection_request(
             &mon_len, &client_config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false);
+
+        /* Release any buffer from a prior connect() call before replacing it —
+         * otherwise a successful reconnect leaks the previous allocation. */
+        if (valkey_glide->connection_request_bytes) {
+            memset(valkey_glide->connection_request_bytes, 0, valkey_glide->connection_request_len);
+            efree(valkey_glide->connection_request_bytes);
+            valkey_glide->connection_request_bytes = NULL;
+            valkey_glide->connection_request_len   = 0;
+        }
+
         if (mon_bytes && mon_len > 0) {
             valkey_glide->connection_request_bytes = mon_bytes;
             valkey_glide->connection_request_len   = mon_len;
-        } else {
-            valkey_glide->connection_request_bytes = NULL;
-            valkey_glide->connection_request_len   = 0;
         }
     }
 

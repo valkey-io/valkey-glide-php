@@ -22,9 +22,10 @@ typedef struct {
     monitor_message* queue_head;
     monitor_message* queue_tail;
     size_t           queue_depth;
-    mutex_t          queue_mutex;
-    cond_t           queue_cond;
-    bool             in_monitor_mode;
+    size_t  dropped_count;  // Messages dropped due to a full queue (protected by queue_mutex)
+    mutex_t queue_mutex;
+    cond_t  queue_cond;
+    bool    in_monitor_mode;
 } monitor_callback_info;
 
 // Maximum number of messages allowed in the queue before dropping new ones.

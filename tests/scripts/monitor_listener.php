@@ -67,7 +67,7 @@ try {
 
     $monitor_client->close();
     exit($found ? 0 : 1);
-} catch (Exception $e) {
+} catch (\Throwable $e) {
     file_put_contents($result_file, 'ERROR: ' . $e->getMessage());
     exit(1);
 }

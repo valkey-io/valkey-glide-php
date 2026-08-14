@@ -28,8 +28,17 @@ $port = (int)$argv[2];
 $sync_file = $argv[3];
 $result_file = $argv[4];
 $prefix = $argv[5];
-$expected_count = (int)$argv[6];
 $max_lines = 200; // Safety limit
+
+if (!is_numeric($argv[6]) || (int)$argv[6] != $argv[6]) {
+    echo "expected_count must be an integer between 1 and {$max_lines}\n";
+    exit(1);
+}
+$expected_count = (int)$argv[6];
+if ($expected_count < 1 || $expected_count > $max_lines) {
+    echo "expected_count must be an integer between 1 and {$max_lines}\n";
+    exit(1);
+}
 
 try {
     $monitor_client = new ValkeyGlide();
@@ -67,7 +76,7 @@ try {
 
     $monitor_client->close();
     exit(count($captured) >= $expected_count ? 0 : 1);
-} catch (Exception $e) {
+} catch (\Throwable $e) {
     file_put_contents($result_file, 'ERROR: ' . $e->getMessage());
     exit(1);
 }

@@ -57,6 +57,13 @@ static monitor_callback_info* native_registry_find(uintptr_t client_ptr) {
 static void native_registry_add(uintptr_t client_ptr, monitor_callback_info* info) {
     monitor_registry_entry* entry =
         (monitor_registry_entry*) malloc(sizeof(monitor_registry_entry));
+    if (!entry) {
+        // Allocation failure — the callback info remains registered in the
+        // Zend-side hashtable, but the background thread won't be able to
+        // find it via the native registry, so monitor lines will simply not
+        // be delivered rather than crashing.
+        return;
+    }
     entry->client_ptr = client_ptr;
     entry->info       = info;
     mutex_lock(&monitor_registry_mutex);
@@ -170,9 +177,12 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
         remaining = buf_size - offset;
     }
 
-    // Close the bracket and add command
-    n = snprintf(
-        line_buf + offset, remaining, "] \"%.*s\"", (int) command_len, (const char*) command_ptr);
+    // Close the bracket and add command. Guard against a NULL command_ptr —
+    // "%.*s" with a NULL pointer is undefined behavior even with precision 0
+    // on some libc implementations.
+    const char* command_str      = command_ptr ? (const char*) command_ptr : "";
+    int         command_len_safe = command_ptr ? (int) command_len : 0;
+    n = snprintf(line_buf + offset, remaining, "] \"%.*s\"", command_len_safe, command_str);
     if (n < 0) {
         free(line_buf);
         return;
@@ -282,7 +292,10 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
     // Add to queue (thread-safe) with bounded depth
     mutex_lock(&info->queue_mutex);
     if (info->queue_depth >= MONITOR_QUEUE_MAX_DEPTH) {
-        // Queue full — drop the message to prevent unbounded memory growth
+        // Queue full — drop the message to prevent unbounded memory growth,
+        // but record the loss so it can be surfaced to the PHP callback
+        // instead of silently disappearing.
+        info->dropped_count++;
         mutex_unlock(&info->queue_mutex);
         free(line_buf);
         free(msg);
@@ -314,9 +327,10 @@ void php_register_monitor_callback(uintptr_t client_ptr, zval* callback, zval* c
     info->is_active = true;
 
     // Initialize message queue
-    info->queue_head  = NULL;
-    info->queue_tail  = NULL;
-    info->queue_depth = 0;
+    info->queue_head    = NULL;
+    info->queue_tail    = NULL;
+    info->queue_depth   = 0;
+    info->dropped_count = 0;
     mutex_init(&info->queue_mutex);
     cond_init(&info->queue_cond);
 
@@ -357,6 +371,43 @@ void php_unregister_monitor_callback(uintptr_t client_ptr) {
     }
 }
 
+// Invoke the PHP monitor callback with a single line of text.
+// Returns true if the blocking loop should continue, false if it should stop
+// (callback threw, callback returned a non-null value, or invocation failed).
+static bool invoke_monitor_callback(monitor_callback_info* info,
+                                    const char*            line,
+                                    size_t                 line_len) {
+    zval php_line;
+    ZVAL_STRINGL(&php_line, line, line_len);
+
+    zval args[2];
+    args[0] = info->client_obj;
+    args[1] = php_line;
+
+    zval retval;
+    ZVAL_UNDEF(&retval);
+
+    bool should_continue = true;
+
+    if (call_user_function(NULL, NULL, &info->callback, &retval, 2, args) == SUCCESS) {
+        if (EG(exception)) {
+            // Callback threw — stop the loop and let the pending exception
+            // propagate once we return to PHP.
+            should_continue = false;
+        } else if (Z_TYPE(retval) != IS_NULL) {
+            // Non-null return exits monitor mode (matches PHPRedis behavior).
+            should_continue = false;
+        }
+        zval_ptr_dtor(&retval);
+    } else {
+        // call_user_function failed outright — stop regardless of exception state.
+        should_continue = false;
+    }
+
+    zval_ptr_dtor(&php_line);
+    return should_continue;
+}
+
 // Monitor blocking loop - dequeues messages and invokes the PHP callback
 static void monitor_blocking_loop(uintptr_t monitor_client_ptr) {
     char client_key[32];
@@ -369,13 +420,30 @@ static void monitor_blocking_loop(uintptr_t monitor_client_ptr) {
     info->in_monitor_mode       = true;
 
     while (info->is_active) {
-        monitor_message* msg = NULL;
+        monitor_message* msg     = NULL;
+        size_t           dropped = 0;
 
         mutex_lock(&info->queue_mutex);
         // Wait for messages with a timed wait to allow periodic re-checks of
         // is_active (prevents blocking forever when no traffic arrives).
         while (!info->queue_head && info->is_active) {
-            cond_timedwait(&info->queue_cond, &info->queue_mutex, 1000);  // 1 second timeout
+            // Ignore the return value here — both a clean wakeup and a timeout
+            // fall through to the same re-check of queue_head/is_active below.
+            (void) cond_timedwait(&info->queue_cond, &info->queue_mutex, 1000);  // 1 second timeout
+            // Honor PHP-level interruption requests (e.g. max_execution_time,
+            // pcntl signals, request shutdown) so an idle monitor with no
+            // traffic doesn't block the request forever.
+            // EG(vm_interrupt) became a zend_atomic_bool (requiring the
+            // load accessor) in newer Zend Engine versions; older versions
+            // expose it as a plain boolean.
+#if PHP_VERSION_ID >= 80500
+            if (zend_atomic_bool_load_ex(&EG(vm_interrupt))) {
+#else
+            if (EG(vm_interrupt)) {
+#endif
+                info->is_active = false;
+                break;
+            }
         }
         if (info->queue_head) {
             msg              = info->queue_head;
@@ -385,6 +453,10 @@ static void monitor_blocking_loop(uintptr_t monitor_client_ptr) {
             }
             info->queue_depth--;
         }
+        // Snapshot and reset any messages dropped due to a full queue so the
+        // loss can be surfaced to the PHP callback instead of vanishing silently.
+        dropped             = info->dropped_count;
+        info->dropped_count = 0;
         mutex_unlock(&info->queue_mutex);
 
         if (!info->is_active) {
@@ -396,53 +468,35 @@ static void monitor_blocking_loop(uintptr_t monitor_client_ptr) {
             break;
         }
 
-        if (msg) {
-            zval php_line;
-            ZVAL_STRINGL(&php_line, msg->line, msg->line_len);
-
-            zval args[2];
-            args[0] = info->client_obj;
-            args[1] = php_line;
-
-            zval retval;
-            ZVAL_UNDEF(&retval);
-
-            if (call_user_function(NULL, NULL, &info->callback, &retval, 2, args) == SUCCESS) {
-                // Check if callback threw an exception
-                if (EG(exception)) {
-                    zval_ptr_dtor(&retval);
-                    zval_ptr_dtor(&php_line);
-                    free(msg->line);
-                    free(msg);
+        if (dropped > 0) {
+            char overflow_line[128];
+            int  overflow_len =
+                snprintf(overflow_line,
+                         sizeof(overflow_line),
+                         "*** MONITOR OVERFLOW: %zu command(s) dropped (queue full) ***",
+                         dropped);
+            if (overflow_len > 0) {
+                if (!invoke_monitor_callback(info,
+                                             overflow_line,
+                                             (size_t) overflow_len < sizeof(overflow_line)
+                                                 ? (size_t) overflow_len
+                                                 : sizeof(overflow_line) - 1)) {
+                    if (msg) {
+                        free(msg->line);
+                        free(msg);
+                    }
                     break;
                 }
-                // If callback returns non-null, exit monitor mode (matches PHPRedis behavior)
-                if (Z_TYPE(retval) != IS_NULL) {
-                    zval_ptr_dtor(&retval);
-                    zval_ptr_dtor(&php_line);
-                    free(msg->line);
-                    free(msg);
-                    break;
-                }
-                zval_ptr_dtor(&retval);
-            } else {
-                // call_user_function failed — check for exception and exit loop
-                if (EG(exception)) {
-                    zval_ptr_dtor(&php_line);
-                    free(msg->line);
-                    free(msg);
-                    break;
-                }
-                zval_ptr_dtor(&php_line);
-                free(msg->line);
-                free(msg);
-                break;
             }
+        }
 
-            zval_ptr_dtor(&php_line);
-
+        if (msg) {
+            bool should_continue = invoke_monitor_callback(info, msg->line, (size_t) msg->line_len);
             free(msg->line);
             free(msg);
+            if (!should_continue) {
+                break;
+            }
         }
     }
 
@@ -558,13 +612,24 @@ void valkey_glide_monitor_shutdown(void) {
         if (client_count > 0) {
             client_ptrs = (uintptr_t*) malloc(client_count * sizeof(uintptr_t));
             entry       = monitor_registry_head;
-            for (size_t i = 0; i < client_count && entry; i++) {
-                client_ptrs[i] = entry->client_ptr;
+            for (size_t i = 0; entry; i++) {
+                // Always mark inactive and wake any blocked consumer, even if
+                // the snapshot allocation below failed — that only affects our
+                // ability to proactively close_monitor_client() further down.
                 if (entry->info) {
                     entry->info->is_active = false;
                     cond_signal(&entry->info->queue_cond);
                 }
+                if (client_ptrs) {
+                    client_ptrs[i] = entry->client_ptr;
+                }
                 entry = entry->next;
+            }
+            if (!client_ptrs) {
+                // Allocation failed — skip the proactive close loop below.
+                // Each monitor's blocking loop will still notice is_active is
+                // false (via its timed wait) and exit on its own.
+                client_count = 0;
             }
         }
         mutex_unlock(&monitor_registry_mutex);

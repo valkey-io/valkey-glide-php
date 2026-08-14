@@ -675,7 +675,7 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
     /**
      * Helper assertions
      */
-    private function assertStringContains($needle, $haystack, $message = '')
+    protected function assertStringContains($needle, $haystack, $message = '')
     {
         $this->assertTrue(
             strpos($haystack, $needle) !== false,
@@ -683,7 +683,7 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         );
     }
 
-    private function assertStringNotContains($needle, $haystack, $message = '')
+    protected function assertStringNotContains($needle, $haystack, $message = '')
     {
         $this->assertTrue(
             strpos($haystack, $needle) === false,
@@ -691,7 +691,7 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         );
     }
 
-    private function assertRegex($pattern, $subject, $message = '')
+    protected function assertRegex($pattern, $subject, $message = '')
     {
         $this->assertTrue(
             preg_match($pattern, $subject) === 1,
@@ -699,7 +699,7 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         );
     }
 
-    private function assertGreaterThanOrEqual($expected, $actual, $message = '')
+    protected function assertGreaterThanOrEqual($expected, $actual, $message = '')
     {
         $this->assertTrue(
             $actual >= $expected,
@@ -707,7 +707,7 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         );
     }
 
-    private function markTestSkipped($reason)
+    protected function markTestSkipped($reason)
     {
         echo "    SKIPPED: $reason\n";
     }

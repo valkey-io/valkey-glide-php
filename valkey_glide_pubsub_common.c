@@ -63,19 +63,25 @@ void cond_wait(cond_t* c, mutex_t* m) {
 #endif
 }
 
-void cond_timedwait(cond_t* c, mutex_t* m, unsigned int timeout_ms) {
+int cond_timedwait(cond_t* c, mutex_t* m, unsigned int timeout_ms) {
 #ifdef _WIN32
-    SleepConditionVariableCS(c, m, timeout_ms);
+    BOOL ok = SleepConditionVariableCS(c, m, timeout_ms);
+    return ok ? 0 : 1;
 #else
     struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
+    if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
+        // Failed to read the clock — fall back to an unbounded wait rather
+        // than using an uninitialized/garbage deadline.
+        pthread_cond_wait(c, m);
+        return 0;
+    }
     ts.tv_sec += timeout_ms / 1000;
     ts.tv_nsec += (timeout_ms % 1000) * 1000000L;
     if (ts.tv_nsec >= 1000000000L) {
         ts.tv_sec++;
         ts.tv_nsec -= 1000000000L;
     }
-    pthread_cond_timedwait(c, m, &ts);
+    return pthread_cond_timedwait(c, m, &ts);
 #endif
 }
 
