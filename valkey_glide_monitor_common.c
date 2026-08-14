@@ -60,7 +60,7 @@ static void native_registry_add(uintptr_t client_ptr, monitor_callback_info* inf
     entry->client_ptr = client_ptr;
     entry->info       = info;
     mutex_lock(&monitor_registry_mutex);
-    entry->next          = monitor_registry_head;
+    entry->next           = monitor_registry_head;
     monitor_registry_head = entry;
     mutex_unlock(&monitor_registry_mutex);
 }
@@ -154,22 +154,31 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
 
     // Format timestamp and header
     int n = snprintf(line_buf, remaining, "%.6f [%lld ", timestamp, (long long) db);
-    if (n < 0) { free(line_buf); return; }
-    if ((size_t)n >= remaining) n = (int)remaining - 1;
+    if (n < 0) {
+        free(line_buf);
+        return;
+    }
+    if ((size_t) n >= remaining)
+        n = (int) remaining - 1;
     offset += n;
     remaining = buf_size - offset;
 
     // Append client address
-    if (client_addr && client_addr_len > 0 && (size_t)client_addr_len < remaining) {
+    if (client_addr && client_addr_len > 0 && (size_t) client_addr_len < remaining) {
         memcpy(line_buf + offset, client_addr, client_addr_len);
         offset += client_addr_len;
         remaining = buf_size - offset;
     }
 
     // Close the bracket and add command
-    n = snprintf(line_buf + offset, remaining, "] \"%.*s\"", (int) command_len, (const char*) command_ptr);
-    if (n < 0) { free(line_buf); return; }
-    if ((size_t)n >= remaining) n = (int)remaining - 1;
+    n = snprintf(
+        line_buf + offset, remaining, "] \"%.*s\"", (int) command_len, (const char*) command_ptr);
+    if (n < 0) {
+        free(line_buf);
+        return;
+    }
+    if ((size_t) n >= remaining)
+        n = (int) remaining - 1;
     offset += n;
     remaining = buf_size - offset;
 
@@ -194,21 +203,36 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                 // Parse JSON string with escape decoding
                 p++;  // skip opening quote
                 // Decode into a temporary buffer
-                char*  decoded     = (char*) malloc(end - p + 1);
-                int    decoded_len = 0;
-                if (!decoded) break;
+                char* decoded     = (char*) malloc(end - p + 1);
+                int   decoded_len = 0;
+                if (!decoded)
+                    break;
 
                 while (p < end && *p != '"') {
                     if (*p == '\\' && (p + 1) < end) {
                         p++;  // skip backslash
                         switch (*p) {
-                            case '"':  decoded[decoded_len++] = '"';  break;
-                            case '\\': decoded[decoded_len++] = '\\'; break;
-                            case 'n':  decoded[decoded_len++] = '\n'; break;
-                            case 'r':  decoded[decoded_len++] = '\r'; break;
-                            case 't':  decoded[decoded_len++] = '\t'; break;
-                            case '/':  decoded[decoded_len++] = '/';  break;
-                            default:   decoded[decoded_len++] = *p;   break;
+                            case '"':
+                                decoded[decoded_len++] = '"';
+                                break;
+                            case '\\':
+                                decoded[decoded_len++] = '\\';
+                                break;
+                            case 'n':
+                                decoded[decoded_len++] = '\n';
+                                break;
+                            case 'r':
+                                decoded[decoded_len++] = '\r';
+                                break;
+                            case 't':
+                                decoded[decoded_len++] = '\t';
+                                break;
+                            case '/':
+                                decoded[decoded_len++] = '/';
+                                break;
+                            default:
+                                decoded[decoded_len++] = *p;
+                                break;
                         }
                         p++;
                     } else {
@@ -221,8 +245,10 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                 // Append " \"decoded_arg\""
                 n = snprintf(line_buf + offset, remaining, " \"%.*s\"", decoded_len, decoded);
                 free(decoded);
-                if (n < 0) break;
-                if ((size_t)n >= remaining) n = (int)remaining - 1;
+                if (n < 0)
+                    break;
+                if ((size_t) n >= remaining)
+                    n = (int) remaining - 1;
                 offset += n;
                 remaining = buf_size - offset;
             } else {
@@ -231,9 +257,11 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                 while (p < end && *p != ',' && *p != ']')
                     p++;
                 int val_len = (int) (p - val_start);
-                n = snprintf(line_buf + offset, remaining, " %.*s", val_len, val_start);
-                if (n < 0) break;
-                if ((size_t)n >= remaining) n = (int)remaining - 1;
+                n           = snprintf(line_buf + offset, remaining, " %.*s", val_len, val_start);
+                if (n < 0)
+                    break;
+                if ((size_t) n >= remaining)
+                    n = (int) remaining - 1;
                 offset += n;
                 remaining = buf_size - offset;
             }
@@ -516,8 +544,8 @@ void valkey_glide_monitor_shutdown(void) {
         // close_monitor_client() waits for the Rust producer task to exit while
         // that task's callback is blocked trying to acquire monitor_registry_mutex
         // in native_registry_find().
-        uintptr_t* client_ptrs   = NULL;
-        size_t     client_count  = 0;
+        uintptr_t* client_ptrs  = NULL;
+        size_t     client_count = 0;
 
         mutex_lock(&monitor_registry_mutex);
         // Count entries
@@ -529,7 +557,7 @@ void valkey_glide_monitor_shutdown(void) {
         // Snapshot and mark inactive
         if (client_count > 0) {
             client_ptrs = (uintptr_t*) malloc(client_count * sizeof(uintptr_t));
-            entry = monitor_registry_head;
+            entry       = monitor_registry_head;
             for (size_t i = 0; i < client_count && entry; i++) {
                 client_ptrs[i] = entry->client_ptr;
                 if (entry->info) {
