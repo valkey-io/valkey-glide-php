@@ -12,10 +12,14 @@
 //    the blocking loop starts the monitor connection is fully active)
 // 4. When it sees a line containing expected_command, writes it to result_file and exits
 //
-// NOTE: The "ready" signal is written just before monitor() because monitor() is
-// blocking and create_monitor_client() completes synchronously within it. The parent
-// test uses a small delay after receiving the signal to ensure the monitor loop has
-// started receiving events.
+// NOTE: The "ready" signal is written just before monitor() because monitor()
+// is blocking and create_monitor_client() completes synchronously within it,
+// but the signal itself does not guarantee the MONITOR handshake has finished
+// by the time the parent reads it — there is no way to observe that from this
+// process without a deeper API change. Rather than relying on a fixed delay,
+// the parent test resends its triggering command periodically until it
+// appears in the captured output (see ValkeyGlideMonitorTest::triggerUntilCaptured),
+// which bounds the race by the parent's timeout instead of guessing at a delay.
 
 if (!extension_loaded('valkey_glide')) {
     echo "ValkeyGlide extension not loaded\n";

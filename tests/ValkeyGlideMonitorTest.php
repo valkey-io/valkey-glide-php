@@ -116,14 +116,17 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
 
         $this->assertTrue(file_exists($sync_file), 'Monitor should signal ready');
 
-        // Small delay to ensure monitor is actively listening
-        usleep(200000);
-
-        // Execute a SET command on a separate client
+        // Execute a SET command on a separate client. The dedicated monitor
+        // connection is created synchronously inside monitor() in the
+        // subprocess, so we can't directly observe when its handshake
+        // completes here; resend until the listener captures it (bounded by
+        // the timeout below) instead of guessing with a fixed delay.
         $action_client = new ValkeyGlide();
         $action_client->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
-        $action_client->set($test_key, $test_value);
-        $action_client->del($test_key);
+        $this->triggerUntilCaptured(function () use ($action_client, $test_key, $test_value) {
+            $action_client->set($test_key, $test_value);
+            $action_client->del($test_key);
+        }, $result_file);
         $action_client->close();
 
         // Wait for monitor to capture and write result
@@ -212,12 +215,15 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         while (!file_exists($sync_file) && time() < $timeout) {
             usleep(100000);
         }
-        usleep(200000);
 
-        // Execute a GET command
+        // Execute a GET command. Resend until captured — the monitor
+        // connection's handshake completes asynchronously relative to this
+        // process, so a single fixed delay before sending is racy.
         $action_client = new ValkeyGlide();
         $action_client->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
-        $action_client->get($test_key);
+        $this->triggerUntilCaptured(function () use ($action_client, $test_key) {
+            $action_client->get($test_key);
+        }, $result_file);
         $action_client->close();
 
         // Wait for result
@@ -289,12 +295,14 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         while (!file_exists($sync_file) && time() < $timeout) {
             usleep(100000);
         }
-        usleep(200000);
 
-        // Execute a PING with our marker as key lookup
+        // Execute a PING with our marker as key lookup. Resend until captured
+        // to avoid racing the subprocess's monitor-connection handshake.
         $action_client = new ValkeyGlide();
         $action_client->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
-        $action_client->set($unique_marker, 'value');
+        $this->triggerUntilCaptured(function () use ($action_client, $unique_marker) {
+            $action_client->set($unique_marker, 'value');
+        }, $result_file);
         $action_client->close();
 
         $timeout = time() + 5;
@@ -362,12 +370,14 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         while (!file_exists($sync_file) && time() < $timeout) {
             usleep(100000);
         }
-        usleep(200000);
 
-        // Send the marker command
+        // Send the marker command. Resend until captured to avoid racing the
+        // subprocess's monitor-connection handshake.
         $action_client = new ValkeyGlide();
         $action_client->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
-        $action_client->set($marker, 'test');
+        $this->triggerUntilCaptured(function () use ($action_client, $marker) {
+            $action_client->set($marker, 'test');
+        }, $result_file);
         $action_client->close();
 
         // The monitor should exit after finding the marker
@@ -446,14 +456,16 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         while (!file_exists($sync_file) && time() < $timeout) {
             usleep(100000);
         }
-        usleep(200000);
 
-        // Execute SET, GET, DEL
+        // Execute SET, GET, DEL. Resend the whole sequence until captured to
+        // avoid racing the subprocess's monitor-connection handshake.
         $action_client = new ValkeyGlide();
         $action_client->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
-        $action_client->set($unique_prefix . '_key', 'value');
-        $action_client->get($unique_prefix . '_key');
-        $action_client->del($unique_prefix . '_key');
+        $this->triggerUntilCaptured(function () use ($action_client, $unique_prefix) {
+            $action_client->set($unique_prefix . '_key', 'value');
+            $action_client->get($unique_prefix . '_key');
+            $action_client->del($unique_prefix . '_key');
+        }, $result_file);
         $action_client->close();
 
         $timeout = time() + 5;
@@ -542,12 +554,14 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         while (!file_exists($sync_file) && time() < $timeout) {
             usleep(100000);
         }
-        usleep(200000);
 
-        // Trigger the monitor to exit
+        // Trigger the monitor to exit. Resend until captured to avoid racing
+        // the subprocess's monitor-connection handshake.
         $action_client = new ValkeyGlide();
         $action_client->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
-        $action_client->set($marker, 'test');
+        $this->triggerUntilCaptured(function () use ($action_client, $marker) {
+            $action_client->set($marker, 'test');
+        }, $result_file);
         $action_client->close();
 
         $timeout = time() + 5;
@@ -625,11 +639,14 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         while (!file_exists($sync_file) && time() < $timeout) {
             usleep(100000);
         }
-        usleep(200000);
 
+        // Resend until captured to avoid racing the subprocess's
+        // monitor-connection handshake.
         $action_client = new ValkeyGlide();
         $action_client->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
-        $action_client->set($test_key, $test_value);
+        $this->triggerUntilCaptured(function () use ($action_client, $test_key, $test_value) {
+            $action_client->set($test_key, $test_value);
+        }, $result_file);
         $action_client->close();
 
         $timeout = time() + 5;
@@ -670,6 +687,39 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
 
         @unlink($sync_file);
         @unlink($result_file);
+    }
+
+    /**
+     * Repeatedly invoke $sendAction() until $result_file appears or the overall
+     * timeout elapses.
+     *
+     * The dedicated MONITOR connection is created synchronously inside the
+     * blocking monitor() call in the listener subprocess, so there is no way
+     * for this process to directly observe when that connection's handshake
+     * has completed. Rather than relying on a single fixed delay (which is
+     * inherently racy — a slow handshake can cause the action to be missed
+     * entirely), this resends the action periodically. Once the monitor
+     * connection is actually active, the very next resend will be captured,
+     * bounding the flakiness by this method's timeout instead of leaving it
+     * unbounded.
+     *
+     * $sendAction should be idempotent enough to call more than once (e.g.
+     * SET/GET/DEL on a throwaway, uniquely-named key are safe to repeat).
+     */
+    protected function triggerUntilCaptured(callable $sendAction, string $result_file, int $timeoutSeconds = 5)
+    {
+        $deadline = microtime(true) + $timeoutSeconds;
+        while (microtime(true) < $deadline) {
+            $sendAction();
+
+            $resendAt = microtime(true) + 0.3;
+            while (microtime(true) < $resendAt) {
+                if (file_exists($result_file)) {
+                    return;
+                }
+                usleep(50000);
+            }
+        }
     }
 
     /**

@@ -37,21 +37,11 @@ void init_monitor_callbacks(void) {
     }
 }
 
-// Native registry: find info by client_ptr (thread-safe, no Zend APIs)
-static monitor_callback_info* native_registry_find(uintptr_t client_ptr) {
-    monitor_callback_info* result = NULL;
-    mutex_lock(&monitor_registry_mutex);
-    monitor_registry_entry* entry = monitor_registry_head;
-    while (entry) {
-        if (entry->client_ptr == client_ptr) {
-            result = entry->info;
-            break;
-        }
-        entry = entry->next;
-    }
-    mutex_unlock(&monitor_registry_mutex);
-    return result;
-}
+// Note: there is intentionally no standalone native_registry_find() helper.
+// valkey_glide_monitor_callback() performs the lookup inline while holding
+// monitor_registry_mutex for the duration of its use of the returned `info`,
+// to close a use-after-free race with concurrent unregistration/cleanup (see
+// the comment on valkey_glide_monitor_callback for details).
 
 // Native registry: add entry (thread-safe)
 static void native_registry_add(uintptr_t client_ptr, monitor_callback_info* info) {
@@ -133,6 +123,16 @@ void cleanup_monitor_callback_info(zval* zv) {
 //
 // We reconstruct a human-readable monitor line matching the format that
 // PHPRedis users expect: "timestamp [db client_addr] \"COMMAND\" \"arg1\" ..."
+//
+// LIFETIME SAFETY: the registry lookup and all use of `info` below happen
+// while holding monitor_registry_mutex for the *entire* function, not just
+// the lookup. php_unregister_monitor_callback() also acquires this same
+// mutex before removing the registry entry and before the Zend-side hashtable
+// deletion frees `info` (destroying its mutex/cond and efree'ing the struct).
+// Serializing on the single registry mutex guarantees this callback can never
+// be left holding a pointer to `info` that is concurrently freed — either this
+// function runs to completion first, or the unregister/removal runs first and
+// this function will simply fail the lookup.
 void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                                    double         timestamp,
                                    int64_t        db,
@@ -142,174 +142,192 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                                    int64_t        command_len,
                                    const uint8_t* args_json,
                                    int64_t        args_json_len) {
-    // Look up callback info using native registry (no Zend APIs)
-    monitor_callback_info* info = native_registry_find(client_ptr);
+    char*            line_buf = NULL;
+    monitor_message* msg      = NULL;
+
+    mutex_lock(&monitor_registry_mutex);
+
+    monitor_callback_info*  info  = NULL;
+    monitor_registry_entry* entry = monitor_registry_head;
+    while (entry) {
+        if (entry->client_ptr == client_ptr) {
+            info = entry->info;
+            break;
+        }
+        entry = entry->next;
+    }
+
     if (!info || !info->is_active) {
-        return;
+        goto unlock_registry;
     }
 
-    // Reconstruct monitor line in PHPRedis format:
-    // "1339877440.333333 [0 127.0.0.1:6379] \"COMMAND\" \"arg1\" \"arg2\""
-    // We allocate a generous buffer and build the string.
-    size_t buf_size = 64 + client_addr_len + command_len + args_json_len + 128;
-    char*  line_buf = (char*) malloc(buf_size);
-    if (!line_buf)
-        return;
+    {
+        // Reconstruct monitor line in PHPRedis format:
+        // "1339877440.333333 [0 127.0.0.1:6379] \"COMMAND\" \"arg1\" \"arg2\""
+        // We allocate a generous buffer and build the string.
+        size_t buf_size = 64 + client_addr_len + command_len + args_json_len + 128;
+        line_buf        = (char*) malloc(buf_size);
+        if (!line_buf)
+            goto unlock_registry;
 
-    int    offset    = 0;
-    size_t remaining = buf_size;
+        int    offset    = 0;
+        size_t remaining = buf_size;
 
-    // Format timestamp and header
-    int n = snprintf(line_buf, remaining, "%.6f [%lld ", timestamp, (long long) db);
-    if (n < 0) {
-        free(line_buf);
-        return;
-    }
-    if ((size_t) n >= remaining)
-        n = (int) remaining - 1;
-    offset += n;
-    remaining = buf_size - offset;
-
-    // Append client address
-    if (client_addr && client_addr_len > 0 && (size_t) client_addr_len < remaining) {
-        memcpy(line_buf + offset, client_addr, client_addr_len);
-        offset += client_addr_len;
+        // Format timestamp and header
+        int n = snprintf(line_buf, remaining, "%.6f [%lld ", timestamp, (long long) db);
+        if (n < 0)
+            goto free_line;
+        if ((size_t) n >= remaining)
+            n = (int) remaining - 1;
+        offset += n;
         remaining = buf_size - offset;
-    }
 
-    // Close the bracket and add command. Guard against a NULL command_ptr —
-    // "%.*s" with a NULL pointer is undefined behavior even with precision 0
-    // on some libc implementations.
-    const char* command_str      = command_ptr ? (const char*) command_ptr : "";
-    int         command_len_safe = command_ptr ? (int) command_len : 0;
-    n = snprintf(line_buf + offset, remaining, "] \"%.*s\"", command_len_safe, command_str);
-    if (n < 0) {
-        free(line_buf);
-        return;
-    }
-    if ((size_t) n >= remaining)
-        n = (int) remaining - 1;
-    offset += n;
-    remaining = buf_size - offset;
+        // Append client address
+        if (client_addr && client_addr_len > 0 && (size_t) client_addr_len < remaining) {
+            memcpy(line_buf + offset, client_addr, client_addr_len);
+            offset += client_addr_len;
+            remaining = buf_size - offset;
+        }
 
-    // Parse and append args from JSON array: ["arg1", "arg2", ...]
-    if (args_json && args_json_len > 2 && remaining > 4) {
-        // Simple JSON array parsing — extract string elements and decode escapes
-        const char* p   = (const char*) args_json;
-        const char* end = p + args_json_len;
+        // Close the bracket and add command. Guard against a NULL command_ptr —
+        // "%.*s" with a NULL pointer is undefined behavior even with precision 0
+        // on some libc implementations.
+        const char* command_str      = command_ptr ? (const char*) command_ptr : "";
+        int         command_len_safe = command_ptr ? (int) command_len : 0;
+        n = snprintf(line_buf + offset, remaining, "] \"%.*s\"", command_len_safe, command_str);
+        if (n < 0)
+            goto free_line;
+        if ((size_t) n >= remaining)
+            n = (int) remaining - 1;
+        offset += n;
+        remaining = buf_size - offset;
 
-        // Skip '['
-        if (*p == '[')
-            p++;
+        // Parse and append args from JSON array: ["arg1", "arg2", ...]
+        if (args_json && args_json_len > 2 && remaining > 4) {
+            // Simple JSON array parsing — extract string elements and decode escapes
+            const char* p   = (const char*) args_json;
+            const char* end = p + args_json_len;
 
-        while (p < end && *p != ']' && remaining > 4) {
-            // Skip whitespace and commas
-            while (p < end && (*p == ' ' || *p == ',' || *p == '\n' || *p == '\r' || *p == '\t'))
+            // Skip '['
+            if (*p == '[')
                 p++;
-            if (p >= end || *p == ']')
-                break;
 
-            if (*p == '"') {
-                // Parse JSON string with escape decoding
-                p++;  // skip opening quote
-                // Decode into a temporary buffer
-                char* decoded     = (char*) malloc(end - p + 1);
-                int   decoded_len = 0;
-                if (!decoded)
-                    break;
-
-                while (p < end && *p != '"') {
-                    if (*p == '\\' && (p + 1) < end) {
-                        p++;  // skip backslash
-                        switch (*p) {
-                            case '"':
-                                decoded[decoded_len++] = '"';
-                                break;
-                            case '\\':
-                                decoded[decoded_len++] = '\\';
-                                break;
-                            case 'n':
-                                decoded[decoded_len++] = '\n';
-                                break;
-                            case 'r':
-                                decoded[decoded_len++] = '\r';
-                                break;
-                            case 't':
-                                decoded[decoded_len++] = '\t';
-                                break;
-                            case '/':
-                                decoded[decoded_len++] = '/';
-                                break;
-                            default:
-                                decoded[decoded_len++] = *p;
-                                break;
-                        }
-                        p++;
-                    } else {
-                        decoded[decoded_len++] = *p++;
-                    }
-                }
-                if (p < end)
-                    p++;  // skip closing quote
-
-                // Append " \"decoded_arg\""
-                n = snprintf(line_buf + offset, remaining, " \"%.*s\"", decoded_len, decoded);
-                free(decoded);
-                if (n < 0)
-                    break;
-                if ((size_t) n >= remaining)
-                    n = (int) remaining - 1;
-                offset += n;
-                remaining = buf_size - offset;
-            } else {
-                // Non-string value (number, null, etc) — shouldn't normally happen for args
-                const char* val_start = p;
-                while (p < end && *p != ',' && *p != ']')
+            while (p < end && *p != ']' && remaining > 4) {
+                // Skip whitespace and commas
+                while (p < end &&
+                       (*p == ' ' || *p == ',' || *p == '\n' || *p == '\r' || *p == '\t'))
                     p++;
-                int val_len = (int) (p - val_start);
-                n           = snprintf(line_buf + offset, remaining, " %.*s", val_len, val_start);
-                if (n < 0)
+                if (p >= end || *p == ']')
                     break;
-                if ((size_t) n >= remaining)
-                    n = (int) remaining - 1;
-                offset += n;
-                remaining = buf_size - offset;
+
+                if (*p == '"') {
+                    // Parse JSON string with escape decoding
+                    p++;  // skip opening quote
+                    // Decode into a temporary buffer
+                    char* decoded     = (char*) malloc(end - p + 1);
+                    int   decoded_len = 0;
+                    if (!decoded)
+                        break;
+
+                    while (p < end && *p != '"') {
+                        if (*p == '\\' && (p + 1) < end) {
+                            p++;  // skip backslash
+                            switch (*p) {
+                                case '"':
+                                    decoded[decoded_len++] = '"';
+                                    break;
+                                case '\\':
+                                    decoded[decoded_len++] = '\\';
+                                    break;
+                                case 'n':
+                                    decoded[decoded_len++] = '\n';
+                                    break;
+                                case 'r':
+                                    decoded[decoded_len++] = '\r';
+                                    break;
+                                case 't':
+                                    decoded[decoded_len++] = '\t';
+                                    break;
+                                case '/':
+                                    decoded[decoded_len++] = '/';
+                                    break;
+                                default:
+                                    decoded[decoded_len++] = *p;
+                                    break;
+                            }
+                            p++;
+                        } else {
+                            decoded[decoded_len++] = *p++;
+                        }
+                    }
+                    if (p < end)
+                        p++;  // skip closing quote
+
+                    // Append " \"decoded_arg\""
+                    n = snprintf(line_buf + offset, remaining, " \"%.*s\"", decoded_len, decoded);
+                    free(decoded);
+                    if (n < 0)
+                        break;
+                    if ((size_t) n >= remaining)
+                        n = (int) remaining - 1;
+                    offset += n;
+                    remaining = buf_size - offset;
+                } else {
+                    // Non-string value (number, null, etc) — shouldn't normally happen for args
+                    const char* val_start = p;
+                    while (p < end && *p != ',' && *p != ']')
+                        p++;
+                    int val_len = (int) (p - val_start);
+                    n = snprintf(line_buf + offset, remaining, " %.*s", val_len, val_start);
+                    if (n < 0)
+                        break;
+                    if ((size_t) n >= remaining)
+                        n = (int) remaining - 1;
+                    offset += n;
+                    remaining = buf_size - offset;
+                }
             }
         }
-    }
 
-    // Create message node and enqueue (using malloc — this is a background thread)
-    monitor_message* msg = (monitor_message*) malloc(sizeof(monitor_message));
-    if (!msg) {
-        free(line_buf);
-        return;
-    }
+        // Create message node and enqueue (using malloc — this is a background thread)
+        msg = (monitor_message*) malloc(sizeof(monitor_message));
+        if (!msg)
+            goto free_line;
 
-    msg->line     = line_buf;
-    msg->line_len = offset;
-    msg->next     = NULL;
+        msg->line     = line_buf;
+        msg->line_len = offset;
+        msg->next     = NULL;
 
-    // Add to queue (thread-safe) with bounded depth
-    mutex_lock(&info->queue_mutex);
-    if (info->queue_depth >= MONITOR_QUEUE_MAX_DEPTH) {
-        // Queue full — drop the message to prevent unbounded memory growth,
-        // but record the loss so it can be surfaced to the PHP callback
-        // instead of silently disappearing.
-        info->dropped_count++;
+        // Add to queue (thread-safe) with bounded depth
+        mutex_lock(&info->queue_mutex);
+        if (info->queue_depth >= MONITOR_QUEUE_MAX_DEPTH) {
+            // Queue full — drop the message to prevent unbounded memory growth,
+            // but record the loss so it can be surfaced to the PHP callback
+            // instead of silently disappearing.
+            info->dropped_count++;
+            mutex_unlock(&info->queue_mutex);
+            goto free_msg_and_line;
+        }
+        if (info->queue_tail) {
+            info->queue_tail->next = msg;
+        } else {
+            info->queue_head = msg;
+        }
+        info->queue_tail = msg;
+        info->queue_depth++;
+        cond_signal(&info->queue_cond);
         mutex_unlock(&info->queue_mutex);
-        free(line_buf);
-        free(msg);
-        return;
     }
-    if (info->queue_tail) {
-        info->queue_tail->next = msg;
-    } else {
-        info->queue_head = msg;
-    }
-    info->queue_tail = msg;
-    info->queue_depth++;
-    cond_signal(&info->queue_cond);
-    mutex_unlock(&info->queue_mutex);
+
+    mutex_unlock(&monitor_registry_mutex);
+    return;
+
+free_msg_and_line:
+    free(msg);
+free_line:
+    free(line_buf);
+unlock_registry:
+    mutex_unlock(&monitor_registry_mutex);
 }
 
 // Register monitor callback
@@ -596,8 +614,8 @@ void valkey_glide_monitor_shutdown(void) {
         // Snapshot active client pointers under the lock, mark inactive, then
         // release the lock BEFORE closing clients. This avoids a deadlock where
         // close_monitor_client() waits for the Rust producer task to exit while
-        // that task's callback is blocked trying to acquire monitor_registry_mutex
-        // in native_registry_find().
+        // that task's callback (valkey_glide_monitor_callback) is blocked trying
+        // to acquire monitor_registry_mutex for its own registry lookup.
         uintptr_t* client_ptrs  = NULL;
         size_t     client_count = 0;
 
@@ -635,8 +653,10 @@ void valkey_glide_monitor_shutdown(void) {
         mutex_unlock(&monitor_registry_mutex);
 
         // Close monitor clients WITHOUT holding the registry mutex.
-        // The producer callback can still safely call native_registry_find() —
-        // it will find info->is_active == false and return early.
+        // The producer callback can still safely run its registry lookup —
+        // it will find info->is_active == false and return early (it also
+        // acquires monitor_registry_mutex itself, so it simply waits its turn
+        // rather than racing shutdown).
         for (size_t i = 0; i < client_count; i++) {
             close_monitor_client((const void*) client_ptrs[i]);
         }
