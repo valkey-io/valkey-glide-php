@@ -6666,7 +6666,23 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         $this->assertIsString($response);
         if (is_string($response)) {
-            $this->assertStringContains('ver', strtolower($response));
+            $response = strtolower($response);
+            $this->assertStringContains('ver', $response);
+            $this->assertStringContains(strtolower($this->version), $response);
+        }
+    }
+
+    protected function assertLolwutClusterResponses($responses): void
+    {
+        $this->assertIsArray($responses);
+        if (!is_array($responses)) {
+            return;
+        }
+
+        $this->assertGT(0, count($responses));
+        foreach ($responses as $node_address => $response) {
+            $this->assertIsString($node_address);
+            $this->assertLolwutResponse($response);
         }
     }
 
@@ -6683,6 +6699,22 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->assertLolwutResponse($this->valkey_glide->lolwut(null, [30, 4]));
             $this->assertLolwutResponse($this->valkey_glide->lolwut(null, [40, 20, 1, 2]));
         }
+    }
+
+    public function testLolwutInvalidArguments()
+    {
+        $this->assertThrows(
+            ValkeyGlideException::class,
+            fn() => $this->valkey_glide->lolwut('6')
+        );
+        $this->assertThrows(
+            ValkeyGlideException::class,
+            fn() => $this->valkey_glide->lolwut(null, '50,20')
+        );
+        $this->assertThrows(
+            ValkeyGlideException::class,
+            fn() => $this->valkey_glide->lolwut(null, [50, '20'])
+        );
     }
 
     public function testLolwutBatch()

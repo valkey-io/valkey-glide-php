@@ -1328,6 +1328,13 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::lolwut
      *
+     * When $route is omitted or null, the command is sent to a random node and returns a string.
+     * The 'allNodes' and 'allPrimaries' routes return an associative array mapping node addresses
+     * to strings. A specific node address route returns a string.
+     *
+     * This command cannot be queued in cluster batch or pipeline mode because those modes cannot
+     * preserve a per-command route; it returns false when called in either mode.
+     *
      * @param int|null   $version    Optional LOLWUT version.
      * @param array|null $parameters Optional integer parameters.
      * @param mixed      $route      Optional routing: 'allPrimaries', 'allNodes', 'randomNode',
