@@ -1399,6 +1399,36 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals(strval(intval($usec)), strval($usec));
     }
 
+    public function testLolwut()
+    {
+        $this->assertLolwutResponse($this->valkey_glide->lolwut());
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(null, [], 'randomNode'));
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(5, null, 'randomNode'));
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(6, [50, 20], 'randomNode'));
+
+        $all_nodes_responses = $this->valkey_glide->lolwut(null, [50, 20], 'allNodes');
+        $this->assertIsArray($all_nodes_responses);
+        foreach ($all_nodes_responses as $response) {
+            $this->assertLolwutResponse($response);
+        }
+
+        if ($this->is_valkey && $this->minVersionCheck('9.0.0')) {
+            $all_nodes_responses = $this->valkey_glide->lolwut(null, [30, 4], 'allNodes');
+            $this->assertIsArray($all_nodes_responses);
+            foreach ($all_nodes_responses as $response) {
+                $this->assertLolwutResponse($response);
+            }
+            $this->assertLolwutResponse(
+                $this->valkey_glide->lolwut(null, [40, 20, 1, 2], 'randomNode')
+            );
+        }
+    }
+
+    // Cluster batches cannot preserve LOLWUT routing; covered by standalone batch tests.
+    public function testLolwutBatch()
+    {
+    }
+
     public function testScan()
     {
         set_time_limit(getenv("VALGRIND_TEST") ? 300 : 10); // Enforce a 10-second limit on this test

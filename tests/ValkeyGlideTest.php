@@ -6662,6 +6662,43 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
 
 
+    protected function assertLolwutResponse($response): void
+    {
+        $this->assertIsString($response);
+        if (is_string($response)) {
+            $this->assertStringContains('ver', strtolower($response));
+        }
+    }
+
+    public function testLolwut()
+    {
+        $this->assertLolwutResponse($this->valkey_glide->lolwut());
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(null, []));
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(null, [50, 20]));
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(5));
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(5, [30, 4, 4]));
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(6, [50, 20]));
+
+        if ($this->is_valkey && $this->minVersionCheck('9.0.0')) {
+            $this->assertLolwutResponse($this->valkey_glide->lolwut(null, [30, 4]));
+            $this->assertLolwutResponse($this->valkey_glide->lolwut(null, [40, 20, 1, 2]));
+        }
+    }
+
+    public function testLolwutBatch()
+    {
+        $responses = $this->valkey_glide->multi()
+            ->lolwut()
+            ->lolwut(5)
+            ->lolwut(6, [50, 20])
+            ->exec();
+
+        $this->assertIsArray($responses, 3);
+        foreach ($responses as $response) {
+            $this->assertLolwutResponse($response);
+        }
+    }
+
     /**
      * Scan and variants
      */

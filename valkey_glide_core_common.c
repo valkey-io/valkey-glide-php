@@ -325,6 +325,7 @@ int prepare_core_args(core_command_args_t* args,
         case FlushDB:
         case LatencyHistory:
         case LatencyReset:
+        case Lolwut:
         case Migrate:
         case Ping:
         case ReplicaOf:

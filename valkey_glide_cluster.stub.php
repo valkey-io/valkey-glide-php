@@ -1326,6 +1326,23 @@ class ValkeyGlideCluster
     public function time(mixed $route): ValkeyGlideCluster|bool|array;
 
     /**
+     * @see ValkeyGlide::lolwut
+     *
+     * @param int|null   $version    Optional LOLWUT version.
+     * @param array|null $parameters Optional integer parameters.
+     * @param mixed      $route      Optional routing: 'allPrimaries', 'allNodes', 'randomNode',
+     *                               or a specific node address.
+     *
+     * @return ValkeyGlideCluster|string|array|false A string for a single-node route, an array
+     *                                                keyed by node for a multi-node route, or false on failure.
+     */
+    public function lolwut(
+        ?int $version = null,
+        ?array $parameters = null,
+        mixed $route = null
+    ): ValkeyGlideCluster|string|array|false;
+
+    /**
      * @see ValkeyGlide::ttl
      */
     public function ttl(string $key): ValkeyGlideCluster|int|false;
