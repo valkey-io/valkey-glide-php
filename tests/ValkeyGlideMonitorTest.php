@@ -403,7 +403,7 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
 
         // Only run this test if the multi-capture script exists
         if (!file_exists($monitor_script)) {
-            $this->markTestSkipped('monitor_multi_capture.php script not available');
+            $this->markMonitorTestSkipped('monitor_multi_capture.php script not available');
             return;
         }
 
@@ -676,9 +676,9 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
     /**
      * Helper assertions
      */
-    protected function assertStringContains($needle, $haystack, $message = '')
+    protected function assertStringContains(string $needle, $haystack, $message = ''): bool
     {
-        $this->assertTrue(
+        return $this->assertTrue(
             strpos($haystack, $needle) !== false,
             $message ?: "Failed asserting that '$haystack' contains '$needle'"
         );
@@ -708,7 +708,7 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         );
     }
 
-    protected function markTestSkipped($reason)
+    protected function markMonitorTestSkipped($reason)
     {
         echo "    SKIPPED: $reason\n";
     }

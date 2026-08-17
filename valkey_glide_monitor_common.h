@@ -51,11 +51,12 @@ extern const struct ConnectionResponse* create_monitor_client(
 extern void close_monitor_client(const void* client_ptr);
 
 // Monitor management functions
-void  init_monitor_callbacks(void);
-void  cleanup_monitor_callback_info(zval* zv);
-bool  php_register_monitor_callback(uintptr_t client_ptr, zval* callback, zval* client_obj);
-void  php_unregister_monitor_callback(uintptr_t client_ptr);
-zval* find_monitor_callback(const char* client_key);
+void                   init_monitor_callbacks(void);
+void                   cleanup_monitor_callback_info(monitor_callback_info* info);
+monitor_callback_info* php_register_monitor_callback(uintptr_t client_ptr,
+                                                     zval*     callback,
+                                                     zval*     client_obj);
+void php_unregister_monitor_callback(uintptr_t client_ptr, monitor_callback_info* info);
 
 // The C callback that matches MonitorCallback signature and is passed to create_monitor_client
 void valkey_glide_monitor_callback(uintptr_t      client_ptr,

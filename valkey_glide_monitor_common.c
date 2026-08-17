@@ -21,16 +21,10 @@ static monitor_registry_entry* monitor_registry_head = NULL;
 static mutex_t                 monitor_registry_mutex;
 static bool                    monitor_registry_initialized = false;
 
-// Global monitor callback storage (Zend-side, for PHP-thread-only operations)
-static HashTable monitor_callbacks;
-static bool      monitor_callbacks_initialized = false;
-
-// Initialize monitor subsystems
+// Initialize the native registry. Callback state is owned by the active
+// monitor invocation, not by a process-global Zend HashTable, so it remains
+// request-local and does not share request zvals across ZTS threads.
 void init_monitor_callbacks(void) {
-    if (!monitor_callbacks_initialized) {
-        zend_hash_init(&monitor_callbacks, 4, NULL, cleanup_monitor_callback_info, 0);
-        monitor_callbacks_initialized = true;
-    }
     if (!monitor_registry_initialized) {
         mutex_init(&monitor_registry_mutex);
         monitor_registry_initialized = true;
@@ -78,17 +72,10 @@ static void native_registry_remove(uintptr_t client_ptr) {
     mutex_unlock(&monitor_registry_mutex);
 }
 
-// Find monitor callback by client key (Zend-side, main thread only)
-zval* find_monitor_callback(const char* client_key) {
-    if (!monitor_callbacks_initialized) {
-        return NULL;
-    }
-    return zend_hash_str_find(&monitor_callbacks, client_key, strlen(client_key));
-}
-
-// Cleanup monitor callback info
-void cleanup_monitor_callback_info(zval* zv) {
-    monitor_callback_info* info = (monitor_callback_info*) Z_PTR_P(zv);
+// Cleanup monitor callback info after the Rust producer has stopped and the
+// native registry entry has been removed. The info is invocation-owned, so it
+// never needs to live in a process-global Zend container.
+void cleanup_monitor_callback_info(monitor_callback_info* info) {
     if (info) {
         // Free all messages in queue
         monitor_message* msg = info->queue_head;
@@ -157,7 +144,14 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
         entry = entry->next;
     }
 
-    if (!info || !info->is_active) {
+    if (!info) {
+        goto unlock_registry;
+    }
+
+    mutex_lock(&info->queue_mutex);
+    bool is_active = info->is_active;
+    mutex_unlock(&info->queue_mutex);
+    if (!is_active) {
         goto unlock_registry;
     }
 
@@ -221,51 +215,23 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                     break;
 
                 if (*p == '"') {
-                    // Parse JSON string with escape decoding
-                    p++;  // skip opening quote
-                    // Decode into a temporary buffer
-                    char* decoded     = (char*) malloc(end - p + 1);
-                    int   decoded_len = 0;
-                    if (!decoded)
-                        break;
-
-                    while (p < end && *p != '"') {
+                    // Preserve the JSON string token verbatim, including its
+                    // quotes and escape sequences. The Rust producer already
+                    // serializes args with serde_json, which gives us the
+                    // same unambiguous representation expected in monitor
+                    // output. Decoding then re-wrapping the value would lose
+                    // escapes such as \uXXXX or emit unescaped quotes/newlines.
+                    const char* arg_start = p++;
+                    while (p < end) {
                         if (*p == '\\' && (p + 1) < end) {
-                            p++;  // skip backslash
-                            switch (*p) {
-                                case '"':
-                                    decoded[decoded_len++] = '"';
-                                    break;
-                                case '\\':
-                                    decoded[decoded_len++] = '\\';
-                                    break;
-                                case 'n':
-                                    decoded[decoded_len++] = '\n';
-                                    break;
-                                case 'r':
-                                    decoded[decoded_len++] = '\r';
-                                    break;
-                                case 't':
-                                    decoded[decoded_len++] = '\t';
-                                    break;
-                                case '/':
-                                    decoded[decoded_len++] = '/';
-                                    break;
-                                default:
-                                    decoded[decoded_len++] = *p;
-                                    break;
-                            }
-                            p++;
-                        } else {
-                            decoded[decoded_len++] = *p++;
+                            p += 2;
+                        } else if (*p++ == '"') {
+                            break;
                         }
                     }
-                    if (p < end)
-                        p++;  // skip closing quote
 
-                    // Append " \"decoded_arg\""
-                    n = snprintf(line_buf + offset, remaining, " \"%.*s\"", decoded_len, decoded);
-                    free(decoded);
+                    int arg_len = (int) (p - arg_start);
+                    n = snprintf(line_buf + offset, remaining, " %.*s", arg_len, arg_start);
                     if (n < 0)
                         break;
                     if ((size_t) n >= remaining)
@@ -298,8 +264,14 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
         msg->line_len = offset;
         msg->next     = NULL;
 
-        // Add to queue (thread-safe) with bounded depth
+        // Add to queue (thread-safe) with bounded depth. Re-check active
+        // state under queue_mutex: unregister/shutdown can deactivate this
+        // monitor after the initial lookup while we were formatting the line.
         mutex_lock(&info->queue_mutex);
+        if (!info->is_active) {
+            mutex_unlock(&info->queue_mutex);
+            goto free_msg_and_line;
+        }
         if (info->queue_depth >= MONITOR_QUEUE_MAX_DEPTH) {
             // Queue full — drop the message to prevent unbounded memory growth,
             // but record the loss so it can be surfaced to the PHP callback
@@ -330,26 +302,22 @@ unlock_registry:
     mutex_unlock(&monitor_registry_mutex);
 }
 
-// Register monitor callback
-// Register monitor callback. Returns false if the native registry entry
-// could not be allocated — in that case the background producer would never
-// be able to find this registration and every event would be silently
-// discarded, so the caller must treat this as a hard failure (throw) rather
-// than entering the blocking loop.
-bool php_register_monitor_callback(uintptr_t client_ptr, zval* callback, zval* client_obj) {
+// Register monitor callback. Returns the invocation-owned callback state, or
+// NULL if native registration could not be allocated. The PHP monitor method
+// owns this pointer for the duration of the synchronous monitor() call.
+monitor_callback_info* php_register_monitor_callback(uintptr_t client_ptr,
+                                                     zval*     callback,
+                                                     zval*     client_obj) {
     init_monitor_callbacks();
-
-    char client_key[32];
-    int  key_len = snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
 
     monitor_callback_info* info = emalloc(sizeof(monitor_callback_info));
 
-    // Copy the callback and reference the client object
+    // Copy the callback and reference the client object.
     ZVAL_COPY(&info->callback, callback);
     ZVAL_COPY(&info->client_obj, client_obj);
     info->is_active = true;
 
-    // Initialize message queue
+    // Initialize message queue.
     info->queue_head    = NULL;
     info->queue_tail    = NULL;
     info->queue_depth   = 0;
@@ -359,47 +327,34 @@ bool php_register_monitor_callback(uintptr_t client_ptr, zval* callback, zval* c
 
     info->in_monitor_mode = false;
 
-    // Register in native registry first (background thread uses this)
+    // The native registry is the only producer-side lookup path. If adding an
+    // entry fails, report the failure to monitor() rather than entering a loop
+    // that cannot receive events.
     if (!native_registry_add(client_ptr, info)) {
         mutex_destroy(&info->queue_mutex);
         cond_destroy(&info->queue_cond);
         zval_ptr_dtor(&info->callback);
         zval_ptr_dtor(&info->client_obj);
         efree(info);
-        return false;
+        return NULL;
     }
 
-    // Store the pointer in a zval using ZVAL_PTR (Zend-side for PHP thread cleanup)
-    zval callback_zv;
-    ZVAL_PTR(&callback_zv, info);
-    zend_hash_str_update(&monitor_callbacks, client_key, key_len, &callback_zv);
-    return true;
+    return info;
 }
 
-// Unregister monitor callback
-void php_unregister_monitor_callback(uintptr_t client_ptr) {
-    if (!monitor_callbacks_initialized)
+// Unregister a monitor after close_monitor_client() has joined its Rust
+// producer. This removes native lookup visibility before releasing PHP state.
+void php_unregister_monitor_callback(uintptr_t client_ptr, monitor_callback_info* info) {
+    if (!info)
         return;
 
-    char client_key[32];
-    int  key_len = snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
+    mutex_lock(&info->queue_mutex);
+    info->is_active = false;
+    cond_signal(&info->queue_cond);
+    mutex_unlock(&info->queue_mutex);
 
-    zval* callback_zv = zend_hash_str_find(&monitor_callbacks, client_key, key_len);
-    if (callback_zv) {
-        monitor_callback_info* info = (monitor_callback_info*) Z_PTR_P(callback_zv);
-        if (info) {
-            info->is_active = false;
-            cond_signal(&info->queue_cond);
-        }
-    }
-
-    // Remove from native registry first (stops background thread from finding it)
     native_registry_remove(client_ptr);
-
-    // Delete from hashtable - this will call cleanup_monitor_callback_info
-    if (callback_zv) {
-        zend_hash_str_del(&monitor_callbacks, client_key, key_len);
-    }
+    cleanup_monitor_callback_info(info);
 }
 
 // Invoke the PHP monitor callback with a single line of text.
@@ -439,20 +394,16 @@ static bool invoke_monitor_callback(monitor_callback_info* info,
     return should_continue;
 }
 
-// Monitor blocking loop - dequeues messages and invokes the PHP callback
-static void monitor_blocking_loop(uintptr_t monitor_client_ptr) {
-    char client_key[32];
-    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) monitor_client_ptr);
-    zval* callback_zv = find_monitor_callback(client_key);
-    if (!callback_zv)
-        return;
+// Monitor blocking loop - dequeues messages and invokes the PHP callback.
+// `info` is invocation-owned and remains valid until the caller has stopped
+// the Rust producer and called php_unregister_monitor_callback().
+static void monitor_blocking_loop(monitor_callback_info* info) {
+    info->in_monitor_mode = true;
 
-    monitor_callback_info* info = (monitor_callback_info*) Z_PTR_P(callback_zv);
-    info->in_monitor_mode       = true;
-
-    while (info->is_active) {
-        monitor_message* msg     = NULL;
-        size_t           dropped = 0;
+    while (true) {
+        monitor_message* msg       = NULL;
+        size_t           dropped   = 0;
+        bool             is_active = false;
 
         mutex_lock(&info->queue_mutex);
         // Wait for messages with a timed wait to allow periodic re-checks of
@@ -486,13 +437,15 @@ static void monitor_blocking_loop(uintptr_t monitor_client_ptr) {
             }
             info->queue_depth--;
         }
-        // Snapshot and reset any messages dropped due to a full queue so the
-        // loss can be surfaced to the PHP callback instead of vanishing silently.
+        // Snapshot state while holding queue_mutex. Every read/write of
+        // is_active is protected by this mutex, including native callbacks,
+        // unregister, shutdown, and the VM-interrupt path below.
+        is_active           = info->is_active;
         dropped             = info->dropped_count;
         info->dropped_count = 0;
         mutex_unlock(&info->queue_mutex);
 
-        if (!info->is_active) {
+        if (!is_active) {
             if (msg) {
                 if (msg->line)
                     free(msg->line);
@@ -608,7 +561,9 @@ void valkey_glide_monitor_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
     // would be silently discarded — close the connection we just opened and
     // fail loudly instead of entering a blocking loop that can never
     // receive anything.
-    if (!php_register_monitor_callback((uintptr_t) monitor_client_ptr, callback, ZEND_THIS)) {
+    monitor_callback_info* info =
+        php_register_monitor_callback((uintptr_t) monitor_client_ptr, callback, ZEND_THIS);
+    if (!info) {
         close_monitor_client(monitor_client_ptr);
         zend_throw_exception(
             get_valkey_glide_exception_ce(), "Failed to register monitor callback", 0);
@@ -619,13 +574,13 @@ void valkey_glide_monitor_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
     valkey_glide->in_monitor_mode = true;
 
     // Enter blocking loop waiting for monitor messages
-    monitor_blocking_loop((uintptr_t) monitor_client_ptr);
+    monitor_blocking_loop(info);
 
     // Cleanup: close the monitor client FIRST (stops the stream and prevents
     // further callbacks), THEN unregister (frees callback state).
     // This order ensures the background thread can't fire into freed memory.
     close_monitor_client(monitor_client_ptr);
-    php_unregister_monitor_callback((uintptr_t) monitor_client_ptr);
+    php_unregister_monitor_callback((uintptr_t) monitor_client_ptr, info);
 
     // Clear the monitor mode flag
     valkey_glide->in_monitor_mode = false;
@@ -645,8 +600,10 @@ void valkey_glide_monitor_shutdown(void) {
         mutex_lock(&monitor_registry_mutex);
         for (monitor_registry_entry* entry = monitor_registry_head; entry; entry = entry->next) {
             if (entry->info) {
+                mutex_lock(&entry->info->queue_mutex);
                 entry->info->is_active = false;
                 cond_signal(&entry->info->queue_cond);
+                mutex_unlock(&entry->info->queue_mutex);
             }
         }
         mutex_unlock(&monitor_registry_mutex);
@@ -664,12 +621,6 @@ void valkey_glide_monitor_shutdown(void) {
         for (monitor_registry_entry* entry = monitor_registry_head; entry; entry = entry->next) {
             close_monitor_client((const void*) entry->client_ptr);
         }
-    }
-
-    if (monitor_callbacks_initialized) {
-        // Now safe to destroy callback state — no background thread is active
-        zend_hash_destroy(&monitor_callbacks);
-        monitor_callbacks_initialized = false;
     }
 
     if (monitor_registry_initialized) {
