@@ -64,13 +64,15 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
 
         $threw = false;
         try {
-            // Passing a non-callable should throw TypeError due to callable type hint
             $client->monitor('not_a_function_that_exists');
-        } catch (\TypeError $e) {
+        } catch (ValkeyGlideException $e) {
             $threw = true;
         }
 
-        $this->assertTrue($threw, 'monitor() should throw TypeError when callback is not callable');
+        $this->assertTrue(
+            $threw,
+            'monitor() should throw ValkeyGlideException when callback is not callable'
+        );
         $client->close();
     }
 
@@ -509,7 +511,7 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
             $sync_file,
             $result_file,
             $marker,
-            5  // max_lines
+            100  // Allow monitor/probe connection setup traffic before the marker command.
         );
 
         $proc = proc_open(
