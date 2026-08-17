@@ -8,14 +8,10 @@
 // Captures all monitor lines containing the given prefix, up to expected_count matches,
 // then writes them all (newline-separated) to result_file.
 //
-// NOTE: The "ready" signal is written just before monitor() because monitor()
-// is blocking and create_monitor_client() completes synchronously within it,
-// but the signal itself does not guarantee the MONITOR handshake has finished
-// by the time the parent reads it — there is no way to observe that from this
-// process without a deeper API change. Rather than relying on a fixed delay,
-// the parent test resends its triggering command periodically until it
-// appears in the captured output (see ValkeyGlideMonitorTest::triggerUntilCaptured),
-// which bounds the race by the parent's timeout instead of guessing at a delay.
+// The parent sends PING probes while waiting for a ready acknowledgement.
+// This script writes sync_file only from its first MONITOR callback, proving
+// the dedicated monitor connection is established and receiving events before
+// the parent sends the commands being captured.
 
 if (!extension_loaded('valkey_glide')) {
     echo "ValkeyGlide extension not loaded\n";
@@ -48,15 +44,18 @@ try {
     $monitor_client = new ValkeyGlide();
     $monitor_client->connect(addresses: [['host' => $host, 'port' => $port]]);
 
-    // Signal ready — monitor() is about to be called. create_monitor_client() inside
-    // monitor() is synchronous, so the connection will be fully active by the time
-    // the blocking loop starts.
-    file_put_contents($sync_file, 'ready');
-
     $captured = [];
     $line_count = 0;
+    $ready = false;
 
-    $monitor_client->monitor(function ($client, $command) use (&$captured, &$line_count, $max_lines, $prefix, $expected_count, $result_file) {
+    $monitor_client->monitor(function ($client, $command) use (&$captured, &$line_count, &$ready, $sync_file, $max_lines, $prefix, $expected_count, $result_file) {
+        // The parent sends PING probes while waiting for this acknowledgement.
+        // A callback proves the dedicated MONITOR connection is active.
+        if (!$ready) {
+            file_put_contents($sync_file, 'ready');
+            $ready = true;
+        }
+
         $line_count++;
 
         // Capture lines that contain our prefix
