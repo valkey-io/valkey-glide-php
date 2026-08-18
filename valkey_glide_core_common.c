@@ -202,6 +202,7 @@ int prepare_core_args(core_command_args_t* args,
         case DBSize:
         case Discard:
         case Exec:
+        case LastSave:
         case LatencyLatest:
         case MemoryDoctor:
         case MemoryMallocStats:

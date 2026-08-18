@@ -1399,6 +1399,45 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals(strval(intval($usec)), strval($usec));
     }
 
+    public function testLastSave()
+    {
+        $yesterday = time() - 86400;
+
+        // Default (random node)
+        $result = $this->valkey_glide->lastSave();
+        $this->assertGT($yesterday, $result);
+
+        // Explicit null route
+        $result = $this->valkey_glide->lastSave(null);
+        $this->assertGT($yesterday, $result);
+
+        // randomNode route
+        $result = $this->valkey_glide->lastSave('randomNode');
+        $this->assertGT($yesterday, $result);
+
+        // allNodes route
+        $result = $this->valkey_glide->lastSave('allNodes');
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+        foreach ($result as $node_address => $timestamp) {
+            $this->assertIsString($node_address);
+            $this->assertGT($yesterday, $timestamp);
+        }
+
+        // allPrimaries route
+        $result = $this->valkey_glide->lastSave('allPrimaries');
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+        foreach ($result as $node_address => $timestamp) {
+            $this->assertIsString($node_address);
+            $this->assertGT($yesterday, $timestamp);
+        }
+    }
+
+    public function testLastSaveBatch()
+    {
+    }
+
     public function testScan()
     {
         set_time_limit(getenv("VALGRIND_TEST") ? 300 : 10); // Enforce a 10-second limit on this test
