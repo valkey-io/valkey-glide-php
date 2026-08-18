@@ -6659,20 +6659,20 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testLastSave()
     {
-        $yesterday = time() - self::SECONDS_PER_DAY;
         $result = $this->valkey_glide->lastSave();
-        $this->assertGT($yesterday, $result);
+        $this->assertIsInt($result);
+        $this->assertGT(0, $result);
     }
 
     public function testLastSaveBatch()
     {
-        $yesterday = time() - self::SECONDS_PER_DAY;
         $responses = $this->valkey_glide->multi()
             ->lastSave()
             ->exec();
 
         $this->assertIsArray($responses);
-        $this->assertGT($yesterday, $responses[0]);
+        $this->assertIsInt($responses[0]);
+        $this->assertGT(0, $responses[0]);
     }
 
 

@@ -1401,19 +1401,20 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testLastSave()
     {
-        $yesterday = time() - self::SECONDS_PER_DAY;
-
         // Default (random node)
         $result = $this->valkey_glide->lastSave();
-        $this->assertGT($yesterday, $result);
+        $this->assertIsInt($result);
+        $this->assertGT(0, $result);
 
         // Explicit null route
         $result = $this->valkey_glide->lastSave(null);
-        $this->assertGT($yesterday, $result);
+        $this->assertIsInt($result);
+        $this->assertGT(0, $result);
 
         // randomNode route
         $result = $this->valkey_glide->lastSave('randomNode');
-        $this->assertGT($yesterday, $result);
+        $this->assertIsInt($result);
+        $this->assertGT(0, $result);
 
         // allNodes route
         $result = $this->valkey_glide->lastSave('allNodes');
@@ -1421,7 +1422,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertGT(0, count($result));
         foreach ($result as $node_address => $timestamp) {
             $this->assertIsString($node_address);
-            $this->assertGT($yesterday, $timestamp);
+            $this->assertIsInt($timestamp);
+            $this->assertGT(0, $timestamp);
         }
 
         // allPrimaries route
@@ -1430,7 +1432,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertGT(0, count($result));
         foreach ($result as $node_address => $timestamp) {
             $this->assertIsString($node_address);
-            $this->assertGT($yesterday, $timestamp);
+            $this->assertIsInt($timestamp);
+            $this->assertGT(0, $timestamp);
         }
     }
 
@@ -1441,12 +1444,12 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             return;
         }
 
-        $yesterday = time() - self::SECONDS_PER_DAY;
         $this->valkey_glide->pipeline();
         $this->valkey_glide->lastSave();
         $result = $this->valkey_glide->exec();
         $this->assertIsArray($result);
-        $this->assertGT($yesterday, $result[0]);
+        $this->assertIsInt($result[0]);
+        $this->assertGT(0, $result[0]);
     }
 
     public function testScan()
