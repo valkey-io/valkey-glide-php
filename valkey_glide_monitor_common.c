@@ -593,15 +593,6 @@ static void monitor_blocking_loop(monitor_callback_info* info) {
         info->dropped_count = 0;
         mutex_unlock(&info->queue_mutex);
 
-        if (!is_active) {
-            if (msg) {
-                if (msg->line)
-                    free(msg->line);
-                free(msg);
-            }
-            break;
-        }
-
         if (dropped > 0) {
             char overflow_line[256];
             int  overflow_len = snprintf(overflow_line,
@@ -622,6 +613,15 @@ static void monitor_blocking_loop(monitor_callback_info* info) {
                     break;
                 }
             }
+        }
+
+        if (!is_active) {
+            if (msg) {
+                if (msg->line)
+                    free(msg->line);
+                free(msg);
+            }
+            break;
         }
 
         if (msg) {
