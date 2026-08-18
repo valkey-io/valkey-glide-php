@@ -1377,7 +1377,7 @@ int execute_lastsave_command(zval* object, int argc, zval* return_value, zend_cl
     }
 
     return execute_and_handle_batch(
-        valkey_glide, &core_args, process_core_int_result, return_value, object);
+        valkey_glide, &core_args, process_core_cluster_int_result, return_value, object);
 }
 
 /* Execute a WATCH command using the Valkey Glide client */

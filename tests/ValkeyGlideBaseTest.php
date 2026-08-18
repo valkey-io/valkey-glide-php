@@ -81,6 +81,8 @@ require_once __DIR__ . "/TestSuite.php";
  */
 abstract class ValkeyGlideBaseTest extends TestSuite
 {
+    protected const SECONDS_PER_DAY = 86400;
+
     private static $debug_logged = false;
     private static $version_logged = false;
     public function __construct($host, $port, $auth, $tls)

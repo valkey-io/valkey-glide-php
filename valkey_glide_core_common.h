@@ -220,6 +220,9 @@ int process_core_cluster_result(CommandResponse*     response,
 int process_core_status_bool_result(CommandResponse* response, void* output, zval* return_value);
 int process_core_status_string_result(CommandResponse* response, void* output, zval* return_value);
 
+/* Cluster-aware int result processor (uses process_core_cluster_result internally) */
+int process_core_cluster_int_result(CommandResponse* response, void* output, zval* return_value);
+
 /* Array result processor */
 int process_core_array_result(CommandResponse* response, void* output, zval* return_value);
 

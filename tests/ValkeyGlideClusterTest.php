@@ -1401,7 +1401,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testLastSave()
     {
-        $yesterday = time() - 86400;
+        $yesterday = time() - self::SECONDS_PER_DAY;
 
         // Default (random node)
         $result = $this->valkey_glide->lastSave();
@@ -1436,6 +1436,17 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testLastSaveBatch()
     {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $yesterday = time() - self::SECONDS_PER_DAY;
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->lastSave();
+        $result = $this->valkey_glide->exec();
+        $this->assertIsArray($result);
+        $this->assertGT($yesterday, $result[0]);
     }
 
     public function testScan()

@@ -1726,6 +1726,16 @@ int process_core_status_string_result(CommandResponse* response, void* output, z
     return process_core_cluster_result(response, output, return_value, process_core_string_result);
 }
 
+/**
+ * Cluster-aware integer result processor.
+ * For single-node: returns the integer value.
+ * For multi-node routes: returns an associative array of node => int.
+ * Used by commands like LASTSAVE and DBSIZE.
+ */
+int process_core_cluster_int_result(CommandResponse* response, void* output, zval* return_value) {
+    return process_core_cluster_result(response, output, return_value, process_core_int_result);
+}
+
 
 /* ====================================================================
  * SPECIALIZED COMMAND HELPERS
