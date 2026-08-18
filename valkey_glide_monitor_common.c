@@ -223,7 +223,7 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                         break;
                     line_buf[offset++] = ' ';
                     line_buf[offset++] = '"';
-                    remaining = buf_size - offset;
+                    remaining          = buf_size - offset;
 
                     // Decode JSON string content and re-escape for MONITOR format
                     while (p < end && *p != '"' && remaining > 2) {
@@ -234,42 +234,42 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                                     // Escaped quote — re-escape for MONITOR
                                     line_buf[offset++] = '\\';
                                     line_buf[offset++] = '"';
-                                    remaining = buf_size - offset;
+                                    remaining          = buf_size - offset;
                                     break;
                                 case '\\':
                                     // Escaped backslash — re-escape for MONITOR
                                     line_buf[offset++] = '\\';
                                     line_buf[offset++] = '\\';
-                                    remaining = buf_size - offset;
+                                    remaining          = buf_size - offset;
                                     break;
                                 case 'n':
                                     line_buf[offset++] = '\n';
-                                    remaining = buf_size - offset;
+                                    remaining          = buf_size - offset;
                                     break;
                                 case 'r':
                                     line_buf[offset++] = '\r';
-                                    remaining = buf_size - offset;
+                                    remaining          = buf_size - offset;
                                     break;
                                 case 't':
                                     line_buf[offset++] = '\t';
-                                    remaining = buf_size - offset;
+                                    remaining          = buf_size - offset;
                                     break;
                                 case 'b':
                                     line_buf[offset++] = '\b';
-                                    remaining = buf_size - offset;
+                                    remaining          = buf_size - offset;
                                     break;
                                 case 'f':
                                     line_buf[offset++] = '\f';
-                                    remaining = buf_size - offset;
+                                    remaining          = buf_size - offset;
                                     break;
                                 case '/':
                                     line_buf[offset++] = '/';
-                                    remaining = buf_size - offset;
+                                    remaining          = buf_size - offset;
                                     break;
                                 case 'u': {
                                     // \uXXXX — decode to UTF-8
                                     if ((p + 4) < end) {
-                                        unsigned int cp = 0;
+                                        unsigned int cp    = 0;
                                         bool         valid = true;
                                         for (int i = 1; i <= 4; i++) {
                                             char ch = p[i];
@@ -289,11 +289,10 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                                             p += 4;  // skip the 4 hex digits
 
                                             // Handle UTF-16 surrogate pairs
-                                            if (cp >= 0xD800 && cp <= 0xDBFF &&
-                                                (p + 1) < end && p[1] == '\\' &&
-                                                (p + 2) < end && p[2] == 'u') {
+                                            if (cp >= 0xD800 && cp <= 0xDBFF && (p + 1) < end &&
+                                                p[1] == '\\' && (p + 2) < end && p[2] == 'u') {
                                                 // High surrogate — look for low surrogate
-                                                unsigned int low_cp = 0;
+                                                unsigned int low_cp    = 0;
                                                 bool         low_valid = true;
                                                 for (int i = 3; i <= 6 && (p + i) < end; i++) {
                                                     char ch = p[i];
@@ -311,8 +310,7 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                                                 }
                                                 if (low_valid && low_cp >= 0xDC00 &&
                                                     low_cp <= 0xDFFF) {
-                                                    cp = 0x10000 +
-                                                         ((cp - 0xD800) << 10) +
+                                                    cp = 0x10000 + ((cp - 0xD800) << 10) +
                                                          (low_cp - 0xDC00);
                                                     p += 6;  // skip \uXXXX of low surrogate
                                                 }
@@ -330,26 +328,20 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                                                     line_buf[offset++] = (char) cp;
                                                 }
                                             } else if (cp < 0x800 && remaining > 2) {
-                                                line_buf[offset++] =
-                                                    (char) (0xC0 | (cp >> 6));
-                                                line_buf[offset++] =
-                                                    (char) (0x80 | (cp & 0x3F));
+                                                line_buf[offset++] = (char) (0xC0 | (cp >> 6));
+                                                line_buf[offset++] = (char) (0x80 | (cp & 0x3F));
                                             } else if (cp < 0x10000 && remaining > 3) {
-                                                line_buf[offset++] =
-                                                    (char) (0xE0 | (cp >> 12));
+                                                line_buf[offset++] = (char) (0xE0 | (cp >> 12));
                                                 line_buf[offset++] =
                                                     (char) (0x80 | ((cp >> 6) & 0x3F));
-                                                line_buf[offset++] =
-                                                    (char) (0x80 | (cp & 0x3F));
+                                                line_buf[offset++] = (char) (0x80 | (cp & 0x3F));
                                             } else if (cp < 0x110000 && remaining > 4) {
-                                                line_buf[offset++] =
-                                                    (char) (0xF0 | (cp >> 18));
+                                                line_buf[offset++] = (char) (0xF0 | (cp >> 18));
                                                 line_buf[offset++] =
                                                     (char) (0x80 | ((cp >> 12) & 0x3F));
                                                 line_buf[offset++] =
                                                     (char) (0x80 | ((cp >> 6) & 0x3F));
-                                                line_buf[offset++] =
-                                                    (char) (0x80 | (cp & 0x3F));
+                                                line_buf[offset++] = (char) (0x80 | (cp & 0x3F));
                                             }
                                             remaining = buf_size - offset;
                                         }
@@ -365,7 +357,7 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                                 default:
                                     // Unknown escape — emit the character after backslash as-is
                                     line_buf[offset++] = *p;
-                                    remaining = buf_size - offset;
+                                    remaining          = buf_size - offset;
                                     break;
                             }
                             p++;
@@ -375,11 +367,11 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                                 if (remaining > 2) {
                                     line_buf[offset++] = '\\';
                                     line_buf[offset++] = *p;
-                                    remaining = buf_size - offset;
+                                    remaining          = buf_size - offset;
                                 }
                             } else {
                                 line_buf[offset++] = *p;
-                                remaining = buf_size - offset;
+                                remaining          = buf_size - offset;
                             }
                             p++;
                         }
@@ -392,7 +384,7 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                     // Write closing quote
                     if (remaining > 1) {
                         line_buf[offset++] = '"';
-                        remaining = buf_size - offset;
+                        remaining          = buf_size - offset;
                     }
                 } else {
                     // Non-string value (number, null, etc) — shouldn't normally happen for args
@@ -612,11 +604,11 @@ static void monitor_blocking_loop(monitor_callback_info* info) {
 
         if (dropped > 0) {
             char overflow_line[256];
-            int  overflow_len =
-                snprintf(overflow_line,
-                         sizeof(overflow_line),
-                         "0.000000 [0 127.0.0.1:0] \"__GLIDE_OVERFLOW__\" \"%zu commands dropped (queue full)\"",
-                         dropped);
+            int  overflow_len = snprintf(overflow_line,
+                                        sizeof(overflow_line),
+                                        "0.000000 [0 127.0.0.1:0] \"__GLIDE_OVERFLOW__\" \"%zu "
+                                         "commands dropped (queue full)\"",
+                                        dropped);
             if (overflow_len > 0) {
                 if (!invoke_monitor_callback(info,
                                              overflow_line,
