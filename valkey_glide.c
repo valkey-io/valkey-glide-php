@@ -1100,7 +1100,11 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     free_connection_response((ConnectionResponse*) conn_resp);
 
     /* Store connection request bytes for monitor (needs its own dedicated connection).
-     * We regenerate the bytes here before the config is cleaned up. */
+     * We generate the bytes here during connect() because the config struct is
+     * temporary and freed after connect returns — lazy generation at monitor() time
+     * is not possible without duplicating all config fields on the object.
+     * This only runs for standalone clients (cluster does not support monitor).
+     * The serialized bytes may contain credentials; they are zeroed before free. */
     {
         size_t   mon_len   = 0;
         uint8_t* mon_bytes = create_connection_request(

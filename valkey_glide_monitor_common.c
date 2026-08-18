@@ -197,8 +197,9 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
         remaining = buf_size - offset;
 
         // Parse and append args from JSON array: ["arg1", "arg2", ...]
+        // Decode JSON string escapes and re-encode in Redis MONITOR format
+        // where only quotes and backslashes are backslash-escaped.
         if (args_json && args_json_len > 2 && remaining > 4) {
-            // Simple JSON array parsing — extract string elements and decode escapes
             const char* p   = (const char*) args_json;
             const char* end = p + args_json_len;
 
@@ -215,29 +216,184 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                     break;
 
                 if (*p == '"') {
-                    // Preserve the JSON string token verbatim, including its
-                    // quotes and escape sequences. The Rust producer already
-                    // serializes args with serde_json, which gives us the
-                    // same unambiguous representation expected in monitor
-                    // output. Decoding then re-wrapping the value would lose
-                    // escapes such as \uXXXX or emit unescaped quotes/newlines.
-                    const char* arg_start = p++;
-                    while (p < end) {
+                    p++;  // skip opening quote
+
+                    // Write space + opening quote
+                    if (remaining < 4)
+                        break;
+                    line_buf[offset++] = ' ';
+                    line_buf[offset++] = '"';
+                    remaining = buf_size - offset;
+
+                    // Decode JSON string content and re-escape for MONITOR format
+                    while (p < end && *p != '"' && remaining > 2) {
                         if (*p == '\\' && (p + 1) < end) {
-                            p += 2;
-                        } else if (*p++ == '"') {
-                            break;
+                            p++;  // skip backslash
+                            switch (*p) {
+                                case '"':
+                                    // Escaped quote — re-escape for MONITOR
+                                    line_buf[offset++] = '\\';
+                                    line_buf[offset++] = '"';
+                                    remaining = buf_size - offset;
+                                    break;
+                                case '\\':
+                                    // Escaped backslash — re-escape for MONITOR
+                                    line_buf[offset++] = '\\';
+                                    line_buf[offset++] = '\\';
+                                    remaining = buf_size - offset;
+                                    break;
+                                case 'n':
+                                    line_buf[offset++] = '\n';
+                                    remaining = buf_size - offset;
+                                    break;
+                                case 'r':
+                                    line_buf[offset++] = '\r';
+                                    remaining = buf_size - offset;
+                                    break;
+                                case 't':
+                                    line_buf[offset++] = '\t';
+                                    remaining = buf_size - offset;
+                                    break;
+                                case 'b':
+                                    line_buf[offset++] = '\b';
+                                    remaining = buf_size - offset;
+                                    break;
+                                case 'f':
+                                    line_buf[offset++] = '\f';
+                                    remaining = buf_size - offset;
+                                    break;
+                                case '/':
+                                    line_buf[offset++] = '/';
+                                    remaining = buf_size - offset;
+                                    break;
+                                case 'u': {
+                                    // \uXXXX — decode to UTF-8
+                                    if ((p + 4) < end) {
+                                        unsigned int cp = 0;
+                                        bool         valid = true;
+                                        for (int i = 1; i <= 4; i++) {
+                                            char ch = p[i];
+                                            cp <<= 4;
+                                            if (ch >= '0' && ch <= '9')
+                                                cp |= (ch - '0');
+                                            else if (ch >= 'a' && ch <= 'f')
+                                                cp |= (ch - 'a' + 10);
+                                            else if (ch >= 'A' && ch <= 'F')
+                                                cp |= (ch - 'A' + 10);
+                                            else {
+                                                valid = false;
+                                                break;
+                                            }
+                                        }
+                                        if (valid) {
+                                            p += 4;  // skip the 4 hex digits
+
+                                            // Handle UTF-16 surrogate pairs
+                                            if (cp >= 0xD800 && cp <= 0xDBFF &&
+                                                (p + 1) < end && p[1] == '\\' &&
+                                                (p + 2) < end && p[2] == 'u') {
+                                                // High surrogate — look for low surrogate
+                                                unsigned int low_cp = 0;
+                                                bool         low_valid = true;
+                                                for (int i = 3; i <= 6 && (p + i) < end; i++) {
+                                                    char ch = p[i];
+                                                    low_cp <<= 4;
+                                                    if (ch >= '0' && ch <= '9')
+                                                        low_cp |= (ch - '0');
+                                                    else if (ch >= 'a' && ch <= 'f')
+                                                        low_cp |= (ch - 'a' + 10);
+                                                    else if (ch >= 'A' && ch <= 'F')
+                                                        low_cp |= (ch - 'A' + 10);
+                                                    else {
+                                                        low_valid = false;
+                                                        break;
+                                                    }
+                                                }
+                                                if (low_valid && low_cp >= 0xDC00 &&
+                                                    low_cp <= 0xDFFF) {
+                                                    cp = 0x10000 +
+                                                         ((cp - 0xD800) << 10) +
+                                                         (low_cp - 0xDC00);
+                                                    p += 6;  // skip \uXXXX of low surrogate
+                                                }
+                                            }
+
+                                            // Encode code point as UTF-8
+                                            if (cp < 0x80 && remaining > 1) {
+                                                // Check if the decoded byte needs re-escaping
+                                                if (cp == '"' || cp == '\\') {
+                                                    if (remaining > 2) {
+                                                        line_buf[offset++] = '\\';
+                                                        line_buf[offset++] = (char) cp;
+                                                    }
+                                                } else {
+                                                    line_buf[offset++] = (char) cp;
+                                                }
+                                            } else if (cp < 0x800 && remaining > 2) {
+                                                line_buf[offset++] =
+                                                    (char) (0xC0 | (cp >> 6));
+                                                line_buf[offset++] =
+                                                    (char) (0x80 | (cp & 0x3F));
+                                            } else if (cp < 0x10000 && remaining > 3) {
+                                                line_buf[offset++] =
+                                                    (char) (0xE0 | (cp >> 12));
+                                                line_buf[offset++] =
+                                                    (char) (0x80 | ((cp >> 6) & 0x3F));
+                                                line_buf[offset++] =
+                                                    (char) (0x80 | (cp & 0x3F));
+                                            } else if (cp < 0x110000 && remaining > 4) {
+                                                line_buf[offset++] =
+                                                    (char) (0xF0 | (cp >> 18));
+                                                line_buf[offset++] =
+                                                    (char) (0x80 | ((cp >> 12) & 0x3F));
+                                                line_buf[offset++] =
+                                                    (char) (0x80 | ((cp >> 6) & 0x3F));
+                                                line_buf[offset++] =
+                                                    (char) (0x80 | (cp & 0x3F));
+                                            }
+                                            remaining = buf_size - offset;
+                                        }
+                                    } else {
+                                        // Incomplete \u sequence — emit as-is
+                                        line_buf[offset++] = '\\';
+                                        if (remaining > 1)
+                                            line_buf[offset++] = 'u';
+                                        remaining = buf_size - offset;
+                                    }
+                                    break;
+                                }
+                                default:
+                                    // Unknown escape — emit the character after backslash as-is
+                                    line_buf[offset++] = *p;
+                                    remaining = buf_size - offset;
+                                    break;
+                            }
+                            p++;
+                        } else {
+                            // Regular character — check if it needs escaping for MONITOR
+                            if (*p == '\\' || *p == '"') {
+                                if (remaining > 2) {
+                                    line_buf[offset++] = '\\';
+                                    line_buf[offset++] = *p;
+                                    remaining = buf_size - offset;
+                                }
+                            } else {
+                                line_buf[offset++] = *p;
+                                remaining = buf_size - offset;
+                            }
+                            p++;
                         }
                     }
 
-                    int arg_len = (int) (p - arg_start);
-                    n = snprintf(line_buf + offset, remaining, " %.*s", arg_len, arg_start);
-                    if (n < 0)
-                        break;
-                    if ((size_t) n >= remaining)
-                        n = (int) remaining - 1;
-                    offset += n;
-                    remaining = buf_size - offset;
+                    // Skip closing quote
+                    if (p < end && *p == '"')
+                        p++;
+
+                    // Write closing quote
+                    if (remaining > 1) {
+                        line_buf[offset++] = '"';
+                        remaining = buf_size - offset;
+                    }
                 } else {
                     // Non-string value (number, null, etc) — shouldn't normally happen for args
                     const char* val_start = p;
@@ -455,11 +611,11 @@ static void monitor_blocking_loop(monitor_callback_info* info) {
         }
 
         if (dropped > 0) {
-            char overflow_line[128];
+            char overflow_line[256];
             int  overflow_len =
                 snprintf(overflow_line,
                          sizeof(overflow_line),
-                         "*** MONITOR OVERFLOW: %zu command(s) dropped (queue full) ***",
+                         "0.000000 [0 127.0.0.1:0] \"__GLIDE_OVERFLOW__\" \"%zu commands dropped (queue full)\"",
                          dropped);
             if (overflow_len > 0) {
                 if (!invoke_monitor_callback(info,

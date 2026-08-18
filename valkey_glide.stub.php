@@ -2229,6 +2229,15 @@ class ValkeyGlide
      * Warning: MONITOR is a debugging command that degrades server performance.
      * Do not use in production environments for extended periods.
      *
+     * Note: Commands issued concurrently with entering monitor mode may not be
+     * captured. This is a known limitation shared across all GLIDE client
+     * implementations.
+     *
+     * Note: If the internal message queue overflows (producer outpaces the callback),
+     * a synthetic overflow notification is delivered in monitor-line format:
+     * "0.000000 [0 127.0.0.1:0] "__GLIDE_OVERFLOW__" "N commands dropped (queue full)""
+     * Callers parsing monitor lines should handle this pseudo-command gracefully.
+     *
      * @param callable $cb A callback to invoke for every monitor line received.
      *                     The callback receives two arguments:
      *                       - The ValkeyGlide instance
