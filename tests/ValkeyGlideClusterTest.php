@@ -1399,6 +1399,58 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals(strval(intval($usec)), strval($usec));
     }
 
+    public function testLolwut()
+    {
+        $this->assertLolwutResponse($this->valkey_glide->lolwut());
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(null, null, null));
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(null, [], 'randomNode'));
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(5, null, 'randomNode'));
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(6, [50, 20], 'randomNode'));
+
+        $this->assertLolwutClusterResponses(
+            $this->valkey_glide->lolwut(null, [50, 20], 'allNodes')
+        );
+        $this->assertLolwutClusterResponses(
+            $this->valkey_glide->lolwut(null, [50, 20], 'allPrimaries')
+        );
+
+        if ($this->is_valkey && $this->minVersionCheck('9.0.0')) {
+            $this->assertLolwutClusterResponses(
+                $this->valkey_glide->lolwut(null, [30, 4], 'allNodes')
+            );
+            $this->assertLolwutResponse(
+                $this->valkey_glide->lolwut(null, [40, 20, 1, 2], 'randomNode')
+            );
+        }
+    }
+
+    public function testLolwutBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        // Routeless LOLWUT can be queued in a cluster pipeline.
+        $responses = $this->valkey_glide->multi()
+            ->lolwut()
+            ->lolwut(6, [50, 20])
+            ->exec();
+
+        $this->assertIsArray($responses, 2);
+        foreach ($responses as $response) {
+            $this->assertLolwutResponse($response);
+        }
+
+        // A routed LOLWUT cannot be queued in cluster batch mode.
+        $this->valkey_glide->pipeline();
+        try {
+            $this->assertFalse($this->valkey_glide->lolwut(null, null, 'allNodes'));
+        } finally {
+            $this->assertTrue($this->valkey_glide->discard());
+        }
+    }
+
     public function testLastSave()
     {
         // Default (random node)

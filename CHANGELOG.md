@@ -4,6 +4,7 @@
 
 ### Changes
 
+* Add `LOLWUT` command for standalone and cluster clients ([#314](https://github.com/valkey-io/valkey-glide-php/pull/314))
 * Add `LASTSAVE` command for standalone and cluster clients ([#315](https://github.com/valkey-io/valkey-glide-php/pull/315))
 * Add `CLIENT TRACKINGINFO` command for standalone and cluster clients ([#293](https://github.com/valkey-io/valkey-glide-php/pull/293))
 * Add `LATENCY HISTORY`, `LATENCY LATEST`, and `LATENCY RESET` commands for standalone and cluster clients ([#283](https://github.com/valkey-io/valkey-glide-php/pull/283))
