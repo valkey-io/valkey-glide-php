@@ -249,6 +249,7 @@ int execute_memory_stats_command(zval* object, int argc, zval* return_value, zen
 int execute_reset_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_save_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_time_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_lastsave_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_cluster_scan_command(const void* glide_client,
                                  char**      cursor,
@@ -575,6 +576,9 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 #define SCAN_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, scan, execute_scan_command)
 
 #define TIME_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, time, execute_time_command)
+
+#define LASTSAVE_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, lastSave, execute_lastsave_command)
 
 #define SSCAN_METHOD_IMPL(class_name) STANDARD_METHOD_IMPL(class_name, sscan, execute_sscan_command)
 
