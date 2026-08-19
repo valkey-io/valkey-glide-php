@@ -611,6 +611,23 @@ class ValkeyGlideCluster
     public function save(mixed $route): ValkeyGlideCluster|bool|string;
 
     /**
+     * Returns the Unix timestamp of the last successful save to disk.
+     *
+     * When $route is omitted or null, the command is sent to a random node and returns an integer.
+     * The 'allNodes' and 'allPrimaries' routes return an associative array mapping node addresses
+     * to integer timestamps.
+     *
+     * @param mixed $route Optional routing: 'allPrimaries', 'allNodes', 'randomNode',
+     *                     or a specific node address.
+     *
+     * @return ValkeyGlideCluster|int|array|false An integer for a single-node route, an array
+     *                                            keyed by node for a multi-node route, or false on failure.
+     *
+     * @see https://valkey.io/commands/lastsave
+     */
+    public function lastSave(mixed $route = null): ValkeyGlideCluster|int|array|false;
+
+    /**
      * @see ValkeyGlide::geoadd
      */
     public function geoadd(string $key, float $lng, float $lat, string $member, mixed ...$other_triples_and_options): ValkeyGlideCluster|int|false;

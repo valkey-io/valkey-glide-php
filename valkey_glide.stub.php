@@ -1220,6 +1220,18 @@ class ValkeyGlide
     public function save(): ValkeyGlide|bool|string;
 
     /**
+     * Returns the Unix timestamp of the last successful save to disk.
+     *
+     * @return ValkeyGlide|int|false  The Unix timestamp of the last successful DB save,
+     *                                or false on failure.
+     *
+     * @see https://valkey.io/commands/lastsave
+     *
+     * @example $timestamp = $valkey_glide->lastSave();
+     */
+    public function lastSave(): ValkeyGlide|int|false;
+
+    /**
      * Functions is an API for managing code to be executed on the server.
      *
      * @param string $operation         The subcommand you intend to execute.  Valid options are as follows

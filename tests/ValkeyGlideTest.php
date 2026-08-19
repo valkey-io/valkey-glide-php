@@ -6657,6 +6657,24 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
                           strval(intval($time_arr[1])) === strval($time_arr[1]));
     }
 
+    public function testLastSave()
+    {
+        $result = $this->valkey_glide->lastSave();
+        $this->assertIsInt($result);
+        $this->assertGT(0, $result);
+    }
+
+    public function testLastSaveBatch()
+    {
+        $responses = $this->valkey_glide->multi()
+            ->lastSave()
+            ->exec();
+
+        $this->assertIsArray($responses);
+        $this->assertIsInt($responses[0]);
+        $this->assertGT(0, $responses[0]);
+    }
+
 
 
 

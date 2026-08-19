@@ -891,6 +891,10 @@ TIME_METHOD_IMPL(ValkeyGlide)
 LOLWUT_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto int ValkeyGlide::lastSave() */
+LASTSAVE_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto array ValkeyGlide::scan(long &iterator [, string pattern, long count]) */
 SCAN_METHOD_IMPL(ValkeyGlide)
 /* }}} */

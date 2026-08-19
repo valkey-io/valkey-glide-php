@@ -1451,6 +1451,61 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
+    public function testLastSave()
+    {
+        // Default (random node)
+        $result = $this->valkey_glide->lastSave();
+        $this->assertIsInt($result);
+        $this->assertGT(0, $result);
+
+        // Explicit null route
+        $result = $this->valkey_glide->lastSave(null);
+        $this->assertIsInt($result);
+        $this->assertGT(0, $result);
+
+        // randomNode route
+        $result = $this->valkey_glide->lastSave('randomNode');
+        $this->assertIsInt($result);
+        $this->assertGT(0, $result);
+
+        // allNodes route
+        $result = $this->valkey_glide->lastSave('allNodes');
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+        foreach ($result as $node_address => $timestamp) {
+            $this->assertIsString($node_address);
+            $this->assertStringContains(':', $node_address);
+            $this->assertIsInt($timestamp);
+            $this->assertGT(0, $timestamp);
+        }
+
+        // allPrimaries route
+        $result = $this->valkey_glide->lastSave('allPrimaries');
+        $this->assertIsArray($result);
+        $this->assertGT(0, count($result));
+        foreach ($result as $node_address => $timestamp) {
+            $this->assertIsString($node_address);
+            $this->assertStringContains(':', $node_address);
+            $this->assertIsInt($timestamp);
+            $this->assertGT(0, $timestamp);
+        }
+    }
+
+    public function testLastSaveBatch()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->lastSave();
+        $result = $this->valkey_glide->exec();
+        $this->assertIsArray($result);
+        $this->assertIsInt($result[0]);
+        $this->assertGT(0, $result[0]);
+    }
+
     public function testScan()
     {
         set_time_limit(getenv("VALGRIND_TEST") ? 300 : 10); // Enforce a 10-second limit on this test

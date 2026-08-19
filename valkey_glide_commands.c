@@ -1451,6 +1451,48 @@ int execute_lolwut_command(zval* object, int argc, zval* return_value, zend_clas
 
     return result;
 }
+
+/* Execute a LASTSAVE command using the Valkey Glide client */
+int execute_lastsave_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    zval*                args       = NULL;
+    int                  args_count = 0;
+    zend_bool            is_cluster = (ce == get_valkey_glide_cluster_ce());
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = LastSave;
+    core_args.is_cluster          = is_cluster;
+
+    if (is_cluster) {
+        if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &args, &args_count) ==
+            FAILURE) {
+            return 0;
+        }
+        if (args_count > 1) {
+            zend_throw_exception(
+                get_valkey_glide_exception_ce(), "Expected at most 1 argument (route)", 0);
+            return 0;
+        }
+        if (args_count == 1 && Z_TYPE(args[0]) != IS_NULL) {
+            core_args.has_route   = 1;
+            core_args.route_param = &args[0];
+        }
+    } else {
+        if (zend_parse_method_parameters(argc, object, "O", &object, ce) == FAILURE) {
+            return 0;
+        }
+    }
+
+    return execute_and_handle_batch(
+        valkey_glide, &core_args, process_core_cluster_int_result, return_value, object);
+}
+
 /* Execute a WATCH command using the Valkey Glide client */
 int execute_watch_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
