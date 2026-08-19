@@ -202,6 +202,7 @@ int prepare_core_args(core_command_args_t* args,
         case DBSize:
         case Discard:
         case Exec:
+        case LastSave:
         case LatencyLatest:
         case MemoryDoctor:
         case MemoryMallocStats:
@@ -1723,6 +1724,17 @@ int process_core_status_bool_result(CommandResponse* response, void* output, zva
  */
 int process_core_status_string_result(CommandResponse* response, void* output, zval* return_value) {
     return process_core_cluster_result(response, output, return_value, process_core_string_result);
+}
+
+/**
+ * Cluster-aware integer result processor.
+ * For single-node: returns the integer value.
+ * For multi-node routes: returns an associative array of node => int.
+ * Applies to integer-returning commands that have no glide-core response
+ * policy, so a multi-node route arrives as a per-node Map. Currently LASTSAVE.
+ */
+int process_core_cluster_int_result(CommandResponse* response, void* output, zval* return_value) {
+    return process_core_cluster_result(response, output, return_value, process_core_int_result);
 }
 
 
