@@ -6695,22 +6695,48 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertLolwutResponse($this->valkey_glide->lolwut(5, [30, 4, 4]));
         $this->assertLolwutResponse($this->valkey_glide->lolwut(6, [50, 20]));
 
+        // Scalar arguments are coerced like other integer arguments.
+        $this->assertLolwutResponse($this->valkey_glide->lolwut('6'));
+
+        // Parameters holding references are dereferenced before sending.
+        $width = 50;
+        $height = 20;
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(null, [&$width, &$height]));
+
         if ($this->is_valkey && $this->minVersionCheck('9.0.0')) {
             $this->assertLolwutResponse($this->valkey_glide->lolwut(null, [30, 4]));
             $this->assertLolwutResponse($this->valkey_glide->lolwut(null, [40, 20, 1, 2]));
         }
     }
 
+    public function testLolwutParametersAffectOutput()
+    {
+        // The response size scales with the requested canvas, so a larger
+        // canvas must produce a longer reply. This proves the numeric
+        // parameters actually reach the server rather than being dropped.
+        $small = $this->valkey_glide->lolwut(null, [10, 2]);
+        $large = $this->valkey_glide->lolwut(null, [100, 20]);
+
+        $this->assertIsString($small);
+        $this->assertIsString($large);
+        if (is_string($small) && is_string($large)) {
+            $this->assertGT(strlen($small), strlen($large));
+        }
+    }
+
     public function testLolwutInvalidArguments()
     {
+        // A non-numeric version cannot be coerced to int -> TypeError.
         $this->assertThrows(
-            ValkeyGlideException::class,
-            fn() => $this->valkey_glide->lolwut('6')
+            TypeError::class,
+            fn() => $this->valkey_glide->lolwut('abc')
         );
+        // Parameters must be an array -> TypeError.
         $this->assertThrows(
-            ValkeyGlideException::class,
+            TypeError::class,
             fn() => $this->valkey_glide->lolwut(null, '50,20')
         );
+        // Non-integer parameter elements are rejected.
         $this->assertThrows(
             ValkeyGlideException::class,
             fn() => $this->valkey_glide->lolwut(null, [50, '20'])

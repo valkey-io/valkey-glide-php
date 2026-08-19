@@ -841,7 +841,7 @@ class TestSuite
         try {
             $callable();
             $this->fail('Expected exception of type ' . $exceptionClass . ' was not thrown.');
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             if ($e instanceof $exceptionClass) {
                 return;
             }

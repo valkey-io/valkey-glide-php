@@ -1426,9 +1426,26 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
     public function testLolwutBatch()
     {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped('Pipeline not supported');
+            return;
+        }
+
+        // Routeless LOLWUT can be queued in a cluster pipeline.
+        $responses = $this->valkey_glide->multi()
+            ->lolwut()
+            ->lolwut(6, [50, 20])
+            ->exec();
+
+        $this->assertIsArray($responses, 2);
+        foreach ($responses as $response) {
+            $this->assertLolwutResponse($response);
+        }
+
+        // A routed LOLWUT cannot be queued in cluster batch mode.
         $this->valkey_glide->pipeline();
         try {
-            $this->assertFalse($this->valkey_glide->lolwut());
+            $this->assertFalse($this->valkey_glide->lolwut(null, null, 'allNodes'));
         } finally {
             $this->assertTrue($this->valkey_glide->discard());
         }
