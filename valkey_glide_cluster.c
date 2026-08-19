@@ -1116,6 +1116,11 @@ GEOSEARCHSTORE_METHOD_IMPL(ValkeyGlideCluster)
 TIME_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto string|array ValkeyGlideCluster::lolwut([int $version, array $parameters, mixed
+ * $route]) */
+LOLWUT_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto int|array ValkeyGlideCluster::lastSave([mixed $route]) */
 LASTSAVE_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */

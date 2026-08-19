@@ -887,6 +887,10 @@ SAVE_METHOD_IMPL(ValkeyGlide)
 TIME_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto string ValkeyGlide::lolwut([int $version, array $parameters]) */
+LOLWUT_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto int ValkeyGlide::lastSave() */
 LASTSAVE_METHOD_IMPL(ValkeyGlide)
 /* }}} */

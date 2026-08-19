@@ -1339,6 +1339,119 @@ int execute_time_command(zval* object, int argc, zval* return_value, zend_class_
         valkey_glide, &core_args, process_core_array_result, return_value, object);
 }
 
+/* Execute a LOLWUT command using the Valkey Glide client. */
+int execute_lolwut_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    zend_long            version_val     = 0;
+    zend_bool            version_is_null = 1;
+    zval*                parameters      = NULL;
+    zval*                route           = NULL;
+    zend_bool            is_cluster      = (ce == get_valkey_glide_cluster_ce());
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    /* Parse arguments. Scalar types are coerced to match the declared stub
+     * signatures (e.g. lolwut('6') behaves like lolwut(6)), consistent with
+     * how other commands parse their `int`/`array` arguments. */
+    if (is_cluster) {
+        if (zend_parse_method_parameters(argc,
+                                         object,
+                                         "O|l!a!z!",
+                                         &object,
+                                         ce,
+                                         &version_val,
+                                         &version_is_null,
+                                         &parameters,
+                                         &route) == FAILURE) {
+            return 0;
+        }
+    } else if (zend_parse_method_parameters(argc,
+                                            object,
+                                            "O|l!a!",
+                                            &object,
+                                            ce,
+                                            &version_val,
+                                            &version_is_null,
+                                            &parameters) == FAILURE) {
+        return 0;
+    }
+
+    /* Cluster batches cannot preserve a per-command route, so reject only when
+     * an explicit route is supplied. Routeless calls queue and exec normally. */
+    if (is_cluster && valkey_glide->is_in_batch_mode && route && Z_TYPE_P(route) != IS_NULL) {
+        return 0;
+    }
+
+    core_command_args_t core_args = {0};
+    core_args.glide_client        = valkey_glide->glide_client;
+    core_args.cmd_type            = Lolwut;
+    core_args.is_cluster          = is_cluster;
+
+    if (is_cluster && route && Z_TYPE_P(route) != IS_NULL) {
+        core_args.has_route   = 1;
+        core_args.route_param = route;
+    }
+
+    uint32_t parameter_count = parameters && Z_TYPE_P(parameters) == IS_ARRAY
+                                   ? zend_hash_num_elements(Z_ARRVAL_P(parameters))
+                                   : 0;
+    uint32_t arg_count       = parameter_count + (version_is_null ? 0 : 2);
+
+    if (arg_count > 0) {
+        core_args.all_args = ecalloc(arg_count, sizeof(core_arg_t));
+        if (!core_args.all_args) {
+            zend_throw_exception(
+                get_valkey_glide_exception_ce(), "Unable to allocate LOLWUT command arguments", 0);
+            return 0;
+        }
+    }
+
+    uint32_t arg_index = 0;
+    if (!version_is_null) {
+        core_args.all_args[arg_index].type                  = CORE_ARG_TYPE_STRING;
+        core_args.all_args[arg_index].data.string_arg.value = "VERSION";
+        core_args.all_args[arg_index].data.string_arg.len   = sizeof("VERSION") - 1;
+        arg_index++;
+
+        core_args.all_args[arg_index].type                = CORE_ARG_TYPE_LONG;
+        core_args.all_args[arg_index].data.long_arg.value = version_val;
+        arg_index++;
+    }
+
+    if (parameters && Z_TYPE_P(parameters) == IS_ARRAY) {
+        zval* parameter;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(parameters), parameter) {
+            ZVAL_DEREF(parameter);
+            if (Z_TYPE_P(parameter) != IS_LONG) {
+                efree(core_args.all_args);
+                zend_throw_exception(get_valkey_glide_exception_ce(),
+                                     "LOLWUT parameters must contain only integers",
+                                     0);
+                return 0;
+            }
+            core_args.all_args[arg_index].type                = CORE_ARG_TYPE_LONG;
+            core_args.all_args[arg_index].data.long_arg.value = Z_LVAL_P(parameter);
+            arg_index++;
+        }
+        ZEND_HASH_FOREACH_END();
+    }
+    core_args.arg_count = arg_index;
+
+    z_result_processor_t processor =
+        is_cluster ? process_core_status_string_result : process_core_string_result;
+    int result =
+        execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+
+    if (core_args.all_args) {
+        efree(core_args.all_args);
+    }
+
+    return result;
+}
+
 /* Execute a LASTSAVE command using the Valkey Glide client */
 int execute_lastsave_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;

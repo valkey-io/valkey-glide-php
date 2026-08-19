@@ -3595,6 +3595,24 @@ class ValkeyGlide
     public function time(): ValkeyGlide|array;
 
     /**
+     * Returns Valkey's LOLWUT output.
+     *
+     * When provided, $version is sent as `VERSION <version>`. The optional $parameters
+     * are appended as the command's numeric parameters. Their supported count and meaning
+     * depend on the selected version and the server version.
+     *
+     * @param int|null   $version    Optional LOLWUT version.
+     * @param array|null $parameters Optional integer parameters.
+     *
+     * @return ValkeyGlide|string|false The LOLWUT output, or false on failure.
+     *
+     * @see https://valkey.io/commands/lolwut
+     *
+     * @example $valkey_glide->lolwut(6, [50, 20]);
+     */
+    public function lolwut(?int $version = null, ?array $parameters = null): ValkeyGlide|string|false;
+
+    /**
      * Get the amount of time a ValkeyGlide key has before it will expire, in seconds.
      *
      * @param string $key      The Key we want the TTL for.

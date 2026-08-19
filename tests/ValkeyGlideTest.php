@@ -6680,6 +6680,101 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
 
 
+    protected function assertLolwutResponse($response): void
+    {
+        $this->assertIsString($response);
+        if (is_string($response)) {
+            $response = strtolower($response);
+            $this->assertStringContains('ver', $response);
+            $this->assertStringContains(strtolower($this->version), $response);
+        }
+    }
+
+    protected function assertLolwutClusterResponses($responses): void
+    {
+        $this->assertIsArray($responses);
+        if (!is_array($responses)) {
+            return;
+        }
+
+        $this->assertGT(0, count($responses));
+        foreach ($responses as $node_address => $response) {
+            $this->assertIsString($node_address);
+            $this->assertLolwutResponse($response);
+        }
+    }
+
+    public function testLolwut()
+    {
+        $this->assertLolwutResponse($this->valkey_glide->lolwut());
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(null, []));
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(null, [50, 20]));
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(5));
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(5, [30, 4, 4]));
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(6, [50, 20]));
+
+        // Scalar arguments are coerced like other integer arguments.
+        $this->assertLolwutResponse($this->valkey_glide->lolwut('6'));
+
+        // Parameters holding references are dereferenced before sending.
+        $width = 50;
+        $height = 20;
+        $this->assertLolwutResponse($this->valkey_glide->lolwut(null, [&$width, &$height]));
+
+        if ($this->is_valkey && $this->minVersionCheck('9.0.0')) {
+            $this->assertLolwutResponse($this->valkey_glide->lolwut(null, [30, 4]));
+            $this->assertLolwutResponse($this->valkey_glide->lolwut(null, [40, 20, 1, 2]));
+        }
+    }
+
+    public function testLolwutParametersAffectOutput()
+    {
+        // The response size scales with the requested canvas, so a larger
+        // canvas must produce a longer reply. This proves the numeric
+        // parameters actually reach the server rather than being dropped.
+        $small = $this->valkey_glide->lolwut(null, [10, 2]);
+        $large = $this->valkey_glide->lolwut(null, [100, 20]);
+
+        $this->assertIsString($small);
+        $this->assertIsString($large);
+        if (is_string($small) && is_string($large)) {
+            $this->assertGT(strlen($small), strlen($large));
+        }
+    }
+
+    public function testLolwutInvalidArguments()
+    {
+        // A non-numeric version cannot be coerced to int -> TypeError.
+        $this->assertThrows(
+            TypeError::class,
+            fn() => $this->valkey_glide->lolwut('abc')
+        );
+        // Parameters must be an array -> TypeError.
+        $this->assertThrows(
+            TypeError::class,
+            fn() => $this->valkey_glide->lolwut(null, '50,20')
+        );
+        // Non-integer parameter elements are rejected.
+        $this->assertThrows(
+            ValkeyGlideException::class,
+            fn() => $this->valkey_glide->lolwut(null, [50, '20'])
+        );
+    }
+
+    public function testLolwutBatch()
+    {
+        $responses = $this->valkey_glide->multi()
+            ->lolwut()
+            ->lolwut(5)
+            ->lolwut(6, [50, 20])
+            ->exec();
+
+        $this->assertIsArray($responses, 3);
+        foreach ($responses as $response) {
+            $this->assertLolwutResponse($response);
+        }
+    }
+
     /**
      * Scan and variants
      */
