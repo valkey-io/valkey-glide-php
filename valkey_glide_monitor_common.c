@@ -125,7 +125,7 @@ static char* decode_json_string(const char** pp, const char* end) {
     p++;  // skip opening quote
 
     // Worst case decoded length <= remaining bytes; allocate generously.
-    size_t cap = (size_t)(end - p) + 1;
+    size_t cap = (size_t) (end - p) + 1;
     char*  out = (char*) malloc(cap);
     if (!out)
         return NULL;
@@ -135,14 +135,30 @@ static char* decode_json_string(const char** pp, const char* end) {
         if (*p == '\\' && (p + 1) < end) {
             p++;  // skip backslash
             switch (*p) {
-                case '"': out[olen++] = '"'; break;
-                case '\\': out[olen++] = '\\'; break;
-                case '/': out[olen++] = '/'; break;
-                case 'n': out[olen++] = '\n'; break;
-                case 'r': out[olen++] = '\r'; break;
-                case 't': out[olen++] = '\t'; break;
-                case 'b': out[olen++] = '\b'; break;
-                case 'f': out[olen++] = '\f'; break;
+                case '"':
+                    out[olen++] = '"';
+                    break;
+                case '\\':
+                    out[olen++] = '\\';
+                    break;
+                case '/':
+                    out[olen++] = '/';
+                    break;
+                case 'n':
+                    out[olen++] = '\n';
+                    break;
+                case 'r':
+                    out[olen++] = '\r';
+                    break;
+                case 't':
+                    out[olen++] = '\t';
+                    break;
+                case 'b':
+                    out[olen++] = '\b';
+                    break;
+                case 'f':
+                    out[olen++] = '\f';
+                    break;
                 case 'u': {
                     if ((p + 4) < end) {
                         unsigned int cp    = 0;
@@ -230,8 +246,8 @@ static char* decode_json_string(const char** pp, const char* end) {
 // array of decoded, null-terminated C strings. Sets *out_count. Returns NULL
 // (count 0) if there are no elements. Native only — no Zend APIs.
 static char** parse_json_string_array(const uint8_t* args_json,
-                                       int64_t        args_json_len,
-                                       size_t*        out_count) {
+                                      int64_t        args_json_len,
+                                      size_t*        out_count) {
     *out_count = 0;
     if (!args_json || args_json_len <= 2)
         return NULL;

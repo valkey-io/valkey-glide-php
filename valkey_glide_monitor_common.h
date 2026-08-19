@@ -15,12 +15,12 @@
 // (__toString) from these fields. Keeping raw fields avoids fragile C-side
 // string reconstruction and JSON re-escaping.
 typedef struct monitor_message {
-    double                  timestamp;   // Server timestamp (seconds.microseconds)
-    int64_t                 db;          // Database index
-    char*                   client_addr; // "host:port" (owned, may be NULL)
-    char*                   command;     // Command name (owned, may be NULL)
-    char**                  args;        // Array of argument strings (owned)
-    size_t                  args_count;  // Number of entries in args
+    double                  timestamp;    // Server timestamp (seconds.microseconds)
+    int64_t                 db;           // Database index
+    char*                   client_addr;  // "host:port" (owned, may be NULL)
+    char*                   command;      // Command name (owned, may be NULL)
+    char**                  args;         // Array of argument strings (owned)
+    size_t                  args_count;   // Number of entries in args
     struct monitor_message* next;
 } monitor_message;
 
@@ -30,8 +30,8 @@ typedef struct monitor_message {
 // ValkeyGlideMonitor::listen(). Pull-mode consumers (getMonitorMessage/
 // tryGetMonitorMessage) read the queue directly and never touch callback.
 typedef struct {
-    zval             callback;   // Set only during listen(); IS_UNDEF otherwise
-    zval             client_obj; // The owning ValkeyGlideMonitor zval
+    zval             callback;    // Set only during listen(); IS_UNDEF otherwise
+    zval             client_obj;  // The owning ValkeyGlideMonitor zval
     bool             is_active;
     monitor_message* queue_head;
     monitor_message* queue_tail;

@@ -25,9 +25,11 @@ zend_object_handlers valkey_glide_monitor_object_handlers;
 static void build_monitor_line_zval(zval* out, const monitor_message* msg) {
     object_init_ex(out, valkey_glide_monitor_line_ce);
 
-    zend_update_property_double(
-        valkey_glide_monitor_line_ce, Z_OBJ_P(out), "timestamp", sizeof("timestamp") - 1,
-        msg->timestamp);
+    zend_update_property_double(valkey_glide_monitor_line_ce,
+                                Z_OBJ_P(out),
+                                "timestamp",
+                                sizeof("timestamp") - 1,
+                                msg->timestamp);
     zend_update_property_long(
         valkey_glide_monitor_line_ce, Z_OBJ_P(out), "db", sizeof("db") - 1, msg->db);
     zend_update_property_string(valkey_glide_monitor_line_ce,
@@ -64,6 +66,7 @@ zend_object* create_valkey_glide_monitor_object(zend_class_entry* ce) {
 
     obj->monitor_client_ptr = NULL;
     obj->info               = NULL;
+    obj->dropped_count      = 0;
 
     obj->std.handlers = &valkey_glide_monitor_object_handlers;
     return &obj->std;
@@ -76,6 +79,12 @@ static void valkey_glide_monitor_teardown(valkey_glide_monitor_object* obj) {
          * before we free the callback state it writes into. */
         close_monitor_client(obj->monitor_client_ptr);
         if (obj->info) {
+            /* Preserve the cumulative drop count on the object before freeing
+             * `info`, so getDroppedCount() still reports losses after close(). */
+            mutex_lock(&obj->info->queue_mutex);
+            obj->dropped_count = obj->info->dropped_count;
+            mutex_unlock(&obj->info->queue_mutex);
+
             php_unregister_monitor_callback((uintptr_t) obj->monitor_client_ptr, obj->info);
         }
         obj->monitor_client_ptr = NULL;
@@ -228,9 +237,8 @@ PHP_METHOD(ValkeyGlideMonitor, __construct) {
     free_connection_response((struct ConnectionResponse*) resp);
 
     if (!monitor_client_ptr) {
-        zend_throw_exception(get_valkey_glide_exception_ce(),
-                             "Failed to create monitor client: null client ptr",
-                             0);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "Failed to create monitor client: null client ptr", 0);
         RETURN_THROWS();
     }
 
@@ -296,7 +304,7 @@ PHP_METHOD(ValkeyGlideMonitor, tryGetMonitorMessage) {
 /* ------------------------------------------------------------------ */
 
 PHP_METHOD(ValkeyGlideMonitor, listen) {
-    zend_fcall_info      fci;
+    zend_fcall_info       fci;
     zend_fcall_info_cache fcc;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -372,15 +380,15 @@ PHP_METHOD(ValkeyGlideMonitor, getDroppedCount) {
     ZEND_PARSE_PARAMETERS_NONE();
 
     valkey_glide_monitor_object* obj = VALKEY_GLIDE_MONITOR_ZVAL_GET_OBJECT(getThis());
-    if (!obj->info) {
-        RETURN_LONG(0);
-    }
 
-    size_t dropped;
-    mutex_lock(&obj->info->queue_mutex);
-    dropped = obj->info->dropped_count;
-    mutex_unlock(&obj->info->queue_mutex);
-    RETURN_LONG((zend_long) dropped);
+    /* While active, report the live count (and refresh the cached value).
+     * After close(), the cached value preserved during teardown is returned. */
+    if (obj->info) {
+        mutex_lock(&obj->info->queue_mutex);
+        obj->dropped_count = obj->info->dropped_count;
+        mutex_unlock(&obj->info->queue_mutex);
+    }
+    RETURN_LONG((zend_long) obj->dropped_count);
 }
 
 PHP_METHOD(ValkeyGlideMonitor, close) {
@@ -399,28 +407,28 @@ PHP_METHOD(ValkeyGlideMonitorLine, __toString) {
     zval* obj = getThis();
     zval  rv;
 
-    zval* ts_z   = zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), "timestamp",
-                                    sizeof("timestamp") - 1, 0, &rv);
+    zval* ts_z = zend_read_property(
+        Z_OBJCE_P(obj), Z_OBJ_P(obj), "timestamp", sizeof("timestamp") - 1, 0, &rv);
     zval* db_z   = zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), "db", sizeof("db") - 1, 0, &rv);
-    zval* addr_z = zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), "clientAddr",
-                                      sizeof("clientAddr") - 1, 0, &rv);
-    zval* cmd_z  = zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), "command",
-                                     sizeof("command") - 1, 0, &rv);
-    zval* args_z = zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), "args", sizeof("args") - 1, 0,
-                                      &rv);
+    zval* addr_z = zend_read_property(
+        Z_OBJCE_P(obj), Z_OBJ_P(obj), "clientAddr", sizeof("clientAddr") - 1, 0, &rv);
+    zval* cmd_z =
+        zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), "command", sizeof("command") - 1, 0, &rv);
+    zval* args_z =
+        zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), "args", sizeof("args") - 1, 0, &rv);
 
     double      timestamp = ts_z ? zval_get_double(ts_z) : 0.0;
-    zend_long   db         = db_z ? zval_get_long(db_z) : 0;
-    const char* addr       = (addr_z && Z_TYPE_P(addr_z) == IS_STRING) ? Z_STRVAL_P(addr_z) : "";
-    const char* command    = (cmd_z && Z_TYPE_P(cmd_z) == IS_STRING) ? Z_STRVAL_P(cmd_z) : "";
+    zend_long   db        = db_z ? zval_get_long(db_z) : 0;
+    const char* addr      = (addr_z && Z_TYPE_P(addr_z) == IS_STRING) ? Z_STRVAL_P(addr_z) : "";
+    const char* command   = (cmd_z && Z_TYPE_P(cmd_z) == IS_STRING) ? Z_STRVAL_P(cmd_z) : "";
 
     smart_str out = {0};
     char      header[128];
-    int       hn = snprintf(header, sizeof(header), "%.6f [%lld %s] \"%s\"", timestamp,
-                            (long long) db, addr, command);
+    int       hn = snprintf(
+        header, sizeof(header), "%.6f [%lld %s] \"%s\"", timestamp, (long long) db, addr, command);
     if (hn > 0)
-        smart_str_appendl(&out, header, (size_t) hn < sizeof(header) ? (size_t) hn
-                                                                     : sizeof(header) - 1);
+        smart_str_appendl(
+            &out, header, (size_t) hn < sizeof(header) ? (size_t) hn : sizeof(header) - 1);
 
     if (args_z && Z_TYPE_P(args_z) == IS_ARRAY) {
         zval* elem;

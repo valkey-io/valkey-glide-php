@@ -6,7 +6,6 @@
 #include "config.h"
 #endif
 #include "cluster_scan_cursor.h"          // Include ClusterScanCursor class
-#include "valkey_glide_monitor.h"         // Include ValkeyGlideMonitor class
 #include "cluster_scan_cursor_arginfo.h"  // Include ClusterScanCursor arginfo header
 #include "common.h"
 #include "include/glide_bindings.h"
@@ -17,6 +16,7 @@
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
+#include "valkey_glide_monitor.h"  // Include ValkeyGlideMonitor class
 #include "valkey_glide_monitor_common.h"
 #include "valkey_glide_pubsub_common.h"
 #include "valkey_glide_pubsub_introspection.h"

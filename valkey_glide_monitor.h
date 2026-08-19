@@ -11,6 +11,7 @@
 typedef struct {
     const void*            monitor_client_ptr; /* FFI monitor connection (NULL if closed) */
     monitor_callback_info* info;               /* Queue/callback state (NULL if closed) */
+    size_t                 dropped_count;      /* Cached drop count, preserved across close() */
     zend_object            std;                /* MUST be last */
 } valkey_glide_monitor_object;
 
