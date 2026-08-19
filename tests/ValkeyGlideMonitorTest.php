@@ -55,25 +55,103 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
     }
 
     /**
-     * Test that monitor() requires a callable argument.
+     * Test that listen() requires a callable argument.
      */
     public function testMonitorRequiresCallable()
     {
-        $client = new ValkeyGlide();
-        $client->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $monitor = new ValkeyGlideMonitor(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]
+        );
 
         $threw = false;
         try {
-            $client->monitor('not_a_function_that_exists');
-        } catch (ValkeyGlideException $e) {
+            // A non-callable string must be rejected by the callable type check.
+            $monitor->listen('not_a_function_that_exists');
+        } catch (\Throwable $e) {
             $threw = true;
         }
 
         $this->assertTrue(
             $threw,
-            'monitor() should throw ValkeyGlideException when callback is not callable'
+            'listen() should reject a non-callable argument'
         );
-        $client->close();
+        $monitor->close();
+    }
+
+    /**
+     * Test the pull API: getMonitorMessage() returns a structured
+     * ValkeyGlideMonitorLine with decoded fields.
+     */
+    public function testMonitorPullReturnsStructuredLine()
+    {
+        $monitor = new ValkeyGlideMonitor(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]
+        );
+
+        $key = 'PULL_KEY_' . uniqid();
+        $val = 'PULL_VAL_' . uniqid();
+
+        // Give the dedicated monitor connection a moment to activate.
+        $action = new ValkeyGlide();
+        $action->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $action->set($key, $val);
+        $action->close();
+
+        $found = null;
+        for ($i = 0; $i < 20; $i++) {
+            $line = $monitor->getMonitorMessage(timeout: 1.0);
+            if ($line === null) {
+                continue;
+            }
+            $this->assertTrue(
+                $line instanceof ValkeyGlideMonitorLine,
+                'getMonitorMessage should return a ValkeyGlideMonitorLine'
+            );
+            if (strcasecmp($line->command, 'SET') === 0 && in_array($key, $line->args, true)) {
+                $found = $line;
+                break;
+            }
+        }
+
+        $this->assertTrue($found !== null, 'Pull API should capture the SET command');
+        if ($found !== null) {
+            $this->assertTrue(is_float($found->timestamp), 'timestamp should be a float');
+            $this->assertTrue(is_int($found->db), 'db should be an int');
+            $this->assertTrue(is_string($found->clientAddr), 'clientAddr should be a string');
+            $this->assertTrue(in_array($key, $found->args, true), 'args should contain the key');
+            $this->assertTrue(in_array($val, $found->args, true), 'args should contain the value');
+            // __toString renders the PHPRedis-compatible line format.
+            $this->assertRegex('/^\d+\.\d+\s+\[\d+\s+[\d\.:]+\]/', (string)$found, 'toString format');
+        }
+
+        $this->assertTrue($monitor->getDroppedCount() >= 0, 'getDroppedCount should be non-negative');
+        $monitor->close();
+    }
+
+    /**
+     * Test that tryGetMonitorMessage() is non-blocking (returns null when idle).
+     */
+    public function testMonitorTryGetIsNonBlocking()
+    {
+        $monitor = new ValkeyGlideMonitor(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]
+        );
+
+        // Drain any startup traffic quickly, then confirm a null is returned
+        // promptly once the queue is empty (non-blocking behavior).
+        $start = microtime(true);
+        for ($i = 0; $i < 100; $i++) {
+            if ($monitor->tryGetMonitorMessage() === null) {
+                break;
+            }
+        }
+        $elapsed = microtime(true) - $start;
+
+        $this->assertTrue(
+            $elapsed < 2.0,
+            'tryGetMonitorMessage should not block waiting for messages'
+        );
+        $monitor->close();
     }
 
     /**
@@ -557,16 +635,31 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
     }
 
     /**
-     * Test that monitor is NOT available on cluster client.
-     * MONITOR is only supported for standalone connections.
-     * Mirrors Python test_monitor_rejects_cluster_config.
+     * Test that MONITOR is exposed only via the dedicated ValkeyGlideMonitor
+     * class, and is not a method on ValkeyGlide or ValkeyGlideCluster.
+     * MONITOR is standalone-only. Mirrors Python test_monitor_rejects_cluster_config.
      */
     public function testMonitorNotAvailableOnCluster()
     {
-        // ValkeyGlideCluster should not have a monitor() method
+        // The dedicated monitor class must exist.
+        $this->assertTrue(class_exists('ValkeyGlideMonitor'), 'ValkeyGlideMonitor should exist');
+        $this->assertTrue(
+            class_exists('ValkeyGlideMonitorLine'),
+            'ValkeyGlideMonitorLine should exist'
+        );
+
+        // monitor() must NOT be a method on the standalone or cluster clients.
+        $standaloneReflection = new \ReflectionClass('ValkeyGlide');
+        $this->assertFalse(
+            $standaloneReflection->hasMethod('monitor'),
+            'ValkeyGlide should not expose a monitor() method'
+        );
+
         $clusterReflection = new \ReflectionClass('ValkeyGlideCluster');
-        $hasMonitor = $clusterReflection->hasMethod('monitor');
-        $this->assertFalse($hasMonitor);
+        $this->assertFalse(
+            $clusterReflection->hasMethod('monitor'),
+            'ValkeyGlideCluster should not expose a monitor() method'
+        );
     }
 
     /**

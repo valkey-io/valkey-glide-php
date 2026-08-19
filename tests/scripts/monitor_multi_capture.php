@@ -41,14 +41,13 @@ if ($expected_count < 1 || $expected_count > $max_lines) {
 }
 
 try {
-    $monitor_client = new ValkeyGlide();
-    $monitor_client->connect(addresses: [['host' => $host, 'port' => $port]]);
+    $monitor_client = new ValkeyGlideMonitor(addresses: [['host' => $host, 'port' => $port]]);
 
     $captured = [];
     $line_count = 0;
     $ready = false;
 
-    $monitor_client->monitor(function ($client, $command) use (&$captured, &$line_count, &$ready, $sync_file, $max_lines, $prefix, $expected_count, $result_file) {
+    $monitor_client->listen(function (ValkeyGlideMonitorLine $line) use (&$captured, &$line_count, &$ready, $sync_file, $max_lines, $prefix, $expected_count, $result_file) {
         // The parent sends PING probes while waiting for this acknowledgement.
         // A callback proves the dedicated MONITOR connection is active.
         if (!$ready) {
@@ -57,6 +56,9 @@ try {
         }
 
         $line_count++;
+
+        // Render the structured line to text for substring matching.
+        $command = (string)$line;
 
         // Capture lines that contain our prefix
         if (stripos($command, $prefix) !== false) {

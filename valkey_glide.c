@@ -6,6 +6,7 @@
 #include "config.h"
 #endif
 #include "cluster_scan_cursor.h"          // Include ClusterScanCursor class
+#include "valkey_glide_monitor.h"         // Include ValkeyGlideMonitor class
 #include "cluster_scan_cursor_arginfo.h"  // Include ClusterScanCursor arginfo header
 #include "common.h"
 #include "include/glide_bindings.h"
@@ -674,6 +675,9 @@ PHP_MINIT_FUNCTION(valkey_glide) {
     /* Register ClusterScanCursor class */
     register_cluster_scan_cursor_class();
 
+    /* Register ValkeyGlideMonitor + ValkeyGlideMonitorLine classes */
+    register_valkey_glide_monitor_classes();
+
     /* Register mock constructor class used for testing only. */
     register_mock_constructor_class();
 
@@ -789,14 +793,6 @@ void free_valkey_glide_object(zend_object* object) {
     if (valkey_glide->glide_client) {
         close_glide_client(valkey_glide->glide_client);
         valkey_glide->glide_client = NULL;
-    }
-
-    /* Free stored connection request bytes (may contain credentials) */
-    if (valkey_glide->connection_request_bytes) {
-        memset(valkey_glide->connection_request_bytes, 0, valkey_glide->connection_request_len);
-        efree(valkey_glide->connection_request_bytes);
-        valkey_glide->connection_request_bytes = NULL;
-        valkey_glide->connection_request_len   = 0;
     }
 
     /* Mark the resolver callback as closed. After this, any Rust background
@@ -1099,32 +1095,6 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
 
     free_connection_response((ConnectionResponse*) conn_resp);
 
-    /* Store connection request bytes for monitor (needs its own dedicated connection).
-     * We generate the bytes here during connect() because the config struct is
-     * temporary and freed after connect returns — lazy generation at monitor() time
-     * is not possible without duplicating all config fields on the object.
-     * This only runs for standalone clients (cluster does not support monitor).
-     * The serialized bytes may contain credentials; they are zeroed before free. */
-    {
-        size_t   mon_len   = 0;
-        uint8_t* mon_bytes = create_connection_request(
-            &mon_len, &client_config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false);
-
-        /* Release any buffer from a prior connect() call before replacing it —
-         * otherwise a successful reconnect leaks the previous allocation. */
-        if (valkey_glide->connection_request_bytes) {
-            memset(valkey_glide->connection_request_bytes, 0, valkey_glide->connection_request_len);
-            efree(valkey_glide->connection_request_bytes);
-            valkey_glide->connection_request_bytes = NULL;
-            valkey_glide->connection_request_len   = 0;
-        }
-
-        if (mon_bytes && mon_len > 0) {
-            valkey_glide->connection_request_bytes = mon_bytes;
-            valkey_glide->connection_request_len   = mon_len;
-        }
-    }
-
     /* Clean up temporary configuration structures */
     valkey_glide_cleanup_client_config(&client_config);
 
@@ -1305,14 +1275,6 @@ PHP_METHOD(ValkeyGlide, close) {
         valkey_glide->glide_client = NULL;
     }
 
-    /* Free stored connection request bytes (used by monitor) */
-    if (valkey_glide->connection_request_bytes) {
-        memset(valkey_glide->connection_request_bytes, 0, valkey_glide->connection_request_len);
-        efree(valkey_glide->connection_request_bytes);
-        valkey_glide->connection_request_bytes = NULL;
-        valkey_glide->connection_request_len   = 0;
-    }
-
     /* Mark resolver as closed so background Rust threads get immediate
        fallback instead of calling into PHP. Memory freed at RSHUTDOWN. */
     if (valkey_glide->resolver_cb) {
@@ -1432,16 +1394,6 @@ PHP_METHOD(ValkeyGlide, punsubscribe) {
     valkey_glide_punsubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
 
-
-PHP_METHOD(ValkeyGlide, monitor) {
-    valkey_glide_object* valkey_glide =
-        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
-    if (!valkey_glide->glide_client) {
-        zend_throw_exception(get_valkey_glide_exception_ce(), "Client not connected", 0);
-        RETURN_FALSE;
-    }
-    valkey_glide_monitor_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
-}
 
 PHP_METHOD(ValkeyGlide, publish) {
     valkey_glide_object* valkey_glide =

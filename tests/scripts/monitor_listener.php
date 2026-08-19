@@ -6,7 +6,7 @@
 // Usage: php monitor_listener.php <host> <port> <sync_file> <result_file> <expected_command> [max_lines]
 //
 // This script:
-// 1. Connects to Valkey and enters monitor mode.
+// 1. Creates a dedicated ValkeyGlideMonitor connection.
 // 2. Signals readiness via sync_file only after the first monitor record is
 //    received. The parent deliberately sends a PING probe while waiting, so
 //    this is a real acknowledgement that the dedicated MONITOR connection is
@@ -32,14 +32,13 @@ $expected_command = $argv[5];
 $max_lines = $argc > 6 ? (int)$argv[6] : 100;
 
 try {
-    $monitor_client = new ValkeyGlide();
-    $monitor_client->connect(addresses: [['host' => $host, 'port' => $port]]);
+    $monitor_client = new ValkeyGlideMonitor(addresses: [['host' => $host, 'port' => $port]]);
 
     $line_count = 0;
     $found = false;
     $ready = false;
 
-    $monitor_client->monitor(function ($client, $command) use (&$line_count, &$found, &$ready, $sync_file, $max_lines, $expected_command, $result_file) {
+    $monitor_client->listen(function (ValkeyGlideMonitorLine $line) use (&$line_count, &$found, &$ready, $sync_file, $max_lines, $expected_command, $result_file) {
         // The parent sends PING probes while waiting for this acknowledgement.
         // A callback proves the dedicated MONITOR connection is active.
         if (!$ready) {
@@ -48,6 +47,10 @@ try {
         }
 
         $line_count++;
+
+        // Render the structured line to the PHPRedis-compatible text form so
+        // the substring checks below work against command + args.
+        $command = (string)$line;
 
         // Check if this line contains our expected command
         if (stripos($command, $expected_command) !== false) {

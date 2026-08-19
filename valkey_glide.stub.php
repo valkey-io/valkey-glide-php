@@ -2223,48 +2223,6 @@ class ValkeyGlide
     public function mget(array $keys): ValkeyGlide|array|false;
 
     /**
-     * Enter monitor mode where every command processed by the server is streamed
-     * back to the client.
-     *
-     * Warning: MONITOR is a debugging command that degrades server performance.
-     * Do not use in production environments for extended periods.
-     *
-     * Note: Commands issued concurrently with entering monitor mode may not be
-     * captured. This is a known limitation shared across all GLIDE client
-     * implementations.
-     *
-     * Note: If the internal message queue overflows (producer outpaces the callback),
-     * a synthetic overflow notification is delivered in monitor-line format:
-     * "0.000000 [0 127.0.0.1:0] "__GLIDE_OVERFLOW__" "N commands dropped (queue full)""
-     * Callers parsing monitor lines should handle this pseudo-command gracefully.
-     *
-     * @param callable $cb A callback to invoke for every monitor line received.
-     *                     The callback receives two arguments:
-     *                       - The ValkeyGlide instance
-     *                       - The monitor output string (e.g. "1339877440.333333 [0 127.0.0.1:6379] \"PING\"")
-     *
-     *                     Return any non-null value from the callback to exit monitor mode.
-     *
-     * @return bool True on success.
-     *
-     * @throws ValkeyGlideException If the callback is not callable, the client is not
-     *                              connected, or the monitor connection cannot be created.
-     *
-     * @see https://valkey.io/commands/monitor
-     *
-     * @example
-     * $valkey_glide->monitor(function ($valkey_glide, $command) {
-     *     echo "$command\n";
-     *
-     *     // Stop monitoring after seeing a SET command
-     *     if (str_contains($command, '"SET"') || str_contains($command, '"set"')) {
-     *         return true;
-     *     }
-     * });
-     */
-    public function monitor(callable $cb): bool;
-
-    /**
      * Move a key to a different database on the same Valkey instance.
      *
      * @param string $key The key to move
