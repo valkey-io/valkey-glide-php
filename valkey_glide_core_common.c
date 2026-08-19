@@ -1730,7 +1730,8 @@ int process_core_status_string_result(CommandResponse* response, void* output, z
  * Cluster-aware integer result processor.
  * For single-node: returns the integer value.
  * For multi-node routes: returns an associative array of node => int.
- * Used by commands like LASTSAVE and DBSIZE.
+ * Applies to integer-returning commands that have no glide-core response
+ * policy, so a multi-node route arrives as a per-node Map. Currently LASTSAVE.
  */
 int process_core_cluster_int_result(CommandResponse* response, void* output, zval* return_value) {
     return process_core_cluster_result(response, output, return_value, process_core_int_result);

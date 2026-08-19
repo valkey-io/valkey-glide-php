@@ -1422,6 +1422,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertGT(0, count($result));
         foreach ($result as $node_address => $timestamp) {
             $this->assertIsString($node_address);
+            $this->assertStringContains(':', $node_address);
             $this->assertIsInt($timestamp);
             $this->assertGT(0, $timestamp);
         }
@@ -1432,6 +1433,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertGT(0, count($result));
         foreach ($result as $node_address => $timestamp) {
             $this->assertIsString($node_address);
+            $this->assertStringContains(':', $node_address);
             $this->assertIsInt($timestamp);
             $this->assertGT(0, $timestamp);
         }
