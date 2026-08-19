@@ -211,7 +211,15 @@ PHP_METHOD(ValkeyGlideMonitor, __construct) {
         RETURN_THROWS();
     }
 
-    /* Open the dedicated MONITOR connection. */
+    /* Open the dedicated MONITOR connection.
+     *
+     * Ensure the native registry mutex is initialized BEFORE starting the Rust
+     * producer. create_monitor_client() activates valkey_glide_monitor_callback,
+     * which locks monitor_registry_mutex; if an event arrived before
+     * php_register_monitor_callback() (which also initializes the mutex) ran,
+     * the callback would lock an uninitialized mutex. init is idempotent. */
+    init_monitor_callbacks();
+
     const struct ConnectionResponse* resp =
         create_monitor_client(req_bytes, req_len, valkey_glide_monitor_callback);
 
@@ -464,6 +472,12 @@ PHP_METHOD(ValkeyGlideMonitorLine, __toString) {
 /* ------------------------------------------------------------------ */
 
 void register_valkey_glide_monitor_classes(void) {
+    /* Initialize the native registry mutex at module startup so it is always
+     * ready before any monitor client (and its background producer) can be
+     * created. This closes the window where a MONITOR event could reach the
+     * callback before the mutex was initialized. */
+    init_monitor_callbacks();
+
     valkey_glide_monitor_line_ce = register_class_ValkeyGlideMonitorLine();
 
     valkey_glide_monitor_ce                = register_class_ValkeyGlideMonitor();
