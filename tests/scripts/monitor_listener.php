@@ -48,7 +48,7 @@ try {
 
         $line_count++;
 
-        // Render the structured line to the PHPRedis-compatible text form so
+        // Render the structured line to the Valkey/Redis MONITOR text form so
         // the substring checks below work against command + args.
         $command = (string)$line;
 

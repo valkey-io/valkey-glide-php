@@ -15,7 +15,7 @@
  */
 final class ValkeyGlideMonitorLine
 {
-    /** Server timestamp (seconds with microsecond fraction). */
+    /** Server timestamp as a Unix time in seconds. */
     public float $timestamp;
 
     /** Database index the command was executed against. */
@@ -31,7 +31,7 @@ final class ValkeyGlideMonitorLine
     public array $args;
 
     /**
-     * Render the line in the PHPRedis-compatible text format:
+     * Render the line in the Valkey/Redis MONITOR text format:
      * "timestamp [db addr] \"COMMAND\" \"arg1\" \"arg2\"".
      *
      * @return string The formatted monitor line.
@@ -52,9 +52,12 @@ final class ValkeyGlideMonitorLine
  * Warning: MONITOR is a debugging tool that degrades server performance. Do not
  * use it in production for extended periods.
  *
- * Two consumption styles are supported:
- *  - Pull: call getMonitorMessage()/tryGetMonitorMessage() from your own loop.
+ * Two consumption styles are supported, matching the Valkey GLIDE
+ * documentation (https://glide.valkey.io/how-to/monitoring/monitor-command/):
+ *  - Queue: call getMonitorMessage()/tryGetMonitorMessage() from your own loop.
  *  - Callback: call listen() with a callback (PHP-specific convenience).
+ *
+ * @see https://glide.valkey.io/how-to/monitoring/monitor-command/
  *
  * @example
  * $monitor = new ValkeyGlideMonitor(addresses: [['host' => 'localhost', 'port' => 6379]]);
@@ -68,22 +71,18 @@ final class ValkeyGlideMonitor
     /**
      * Create a MonitorClient and open a dedicated MONITOR connection.
      *
-     * Accepts the same standalone connection parameters as ValkeyGlide::connect().
+     * A MONITOR client opens a single direct connection and streams every
+     * command the server processes.
+     *
      * The connection is opened immediately and monitor lines begin accumulating
      * in the background.
      *
-     * @param array|null      $addresses        List of ['host' => string, 'port' => int] entries.
-     * @param bool            $use_tls          Whether to use TLS for the connection.
-     * @param array|null      $credentials      ['username' => string, 'password' => string, ...].
-     * @param int             $read_from        Read-from strategy (ValkeyGlide::READ_FROM_*).
-     * @param int|null        $request_timeout  Request timeout in milliseconds.
-     * @param array|null      $reconnect_strategy Reconnect backoff configuration.
-     * @param int|null        $database_id      Database index to select.
-     * @param string|null     $client_name      Client name reported to the server.
-     * @param string|null     $client_az        Availability zone hint.
-     * @param array|null      $advanced_config  Advanced configuration (e.g. TLS config).
-     * @param bool|null       $lazy_connect     Defer the connection until first use.
-     * @param mixed           $context          Stream context for TLS.
+     * @param array|null      $addresses    List of ['host' => string, 'port' => int] entries.
+     * @param bool            $use_tls      Whether to use TLS for the connection.
+     * @param array|null      $credentials  ['username' => string, 'password' => string, ...].
+     * @param int|null        $database_id  Database index to select.
+     * @param string|null     $client_name  Client name reported to the server.
+     * @param mixed           $context      Stream context for TLS.
      *
      * @throws ValkeyGlideException If the connection cannot be established.
      */
@@ -91,14 +90,8 @@ final class ValkeyGlideMonitor
         ?array $addresses = null,
         bool $use_tls = false,
         ?array $credentials = null,
-        int $read_from = 0,
-        ?int $request_timeout = null,
-        ?array $reconnect_strategy = null,
         ?int $database_id = null,
         ?string $client_name = null,
-        ?string $client_az = null,
-        ?array $advanced_config = null,
-        ?bool $lazy_connect = null,
         mixed $context = null
     ) {
     }

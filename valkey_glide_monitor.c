@@ -103,34 +103,21 @@ void free_valkey_glide_monitor_object(zend_object* object) {
 /* ------------------------------------------------------------------ */
 
 PHP_METHOD(ValkeyGlideMonitor, __construct) {
-    zval*     addresses          = NULL;
-    zend_bool use_tls            = 0;
-    zval*     credentials        = NULL;
-    zend_long read_from          = VALKEY_GLIDE_READ_FROM_PRIMARY;
-    zval*     request_timeout_zv = NULL;
-    zval*     reconnect_strategy = NULL;
-    zval*     database_id_zv     = NULL;
-    char*     client_name        = NULL;
-    size_t    client_name_len    = 0;
-    char*     client_az          = NULL;
-    size_t    client_az_len      = 0;
-    zval*     advanced_config    = NULL;
-    zval*     lazy_connect_zv    = NULL;
-    zval*     context            = NULL;
+    zval*     addresses       = NULL;
+    zend_bool use_tls         = 0;
+    zval*     credentials     = NULL;
+    zval*     database_id_zv  = NULL;
+    char*     client_name     = NULL;
+    size_t    client_name_len = 0;
+    zval*     context         = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(0, 12)
+    ZEND_PARSE_PARAMETERS_START(0, 6)
     Z_PARAM_OPTIONAL
     Z_PARAM_ARRAY_OR_NULL(addresses)
     Z_PARAM_BOOL(use_tls)
     Z_PARAM_ARRAY_OR_NULL(credentials)
-    Z_PARAM_LONG(read_from)
-    Z_PARAM_ZVAL_OR_NULL(request_timeout_zv)
-    Z_PARAM_ARRAY_OR_NULL(reconnect_strategy)
     Z_PARAM_ZVAL_OR_NULL(database_id_zv)
     Z_PARAM_STRING_OR_NULL(client_name, client_name_len)
-    Z_PARAM_STRING_OR_NULL(client_az, client_az_len)
-    Z_PARAM_ARRAY_OR_NULL(advanced_config)
-    Z_PARAM_ZVAL_OR_NULL(lazy_connect_zv)
     Z_PARAM_ZVAL_OR_NULL(context)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
@@ -142,27 +129,14 @@ PHP_METHOD(ValkeyGlideMonitor, __construct) {
 
     common_params.use_tls     = use_tls;
     common_params.credentials = credentials;
-    common_params.read_from   = read_from;
 
-    if (request_timeout_zv != NULL && Z_TYPE_P(request_timeout_zv) != IS_NULL) {
-        common_params.request_timeout         = Z_LVAL_P(request_timeout_zv);
-        common_params.request_timeout_is_null = false;
-    }
-    common_params.reconnect_strategy = reconnect_strategy;
     if (database_id_zv != NULL && Z_TYPE_P(database_id_zv) != IS_NULL) {
         common_params.database_id         = Z_LVAL_P(database_id_zv);
         common_params.database_id_is_null = false;
     }
     common_params.client_name     = client_name;
     common_params.client_name_len = client_name_len;
-    common_params.client_az       = client_az;
-    common_params.client_az_len   = client_az_len;
-    common_params.advanced_config = advanced_config;
-    if (lazy_connect_zv != NULL && Z_TYPE_P(lazy_connect_zv) != IS_NULL) {
-        common_params.lazy_connect         = Z_TYPE_P(lazy_connect_zv) == IS_TRUE;
-        common_params.lazy_connect_is_null = false;
-    }
-    common_params.context = context;
+    common_params.context         = context;
 
     /* Default to localhost:6379 when no addresses are supplied. */
     zval      addresses_array;

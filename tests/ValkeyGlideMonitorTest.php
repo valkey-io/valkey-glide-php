@@ -120,7 +120,7 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
             $this->assertTrue(is_string($found->clientAddr), 'clientAddr should be a string');
             $this->assertTrue(in_array($key, $found->args, true), 'args should contain the key');
             $this->assertTrue(in_array($val, $found->args, true), 'args should contain the value');
-            // __toString renders the PHPRedis-compatible line format.
+            // __toString renders the Valkey/Redis MONITOR line format.
             $this->assertRegex('/^\d+\.\d+\s+\[\d+\s+[\d\.:]+\]/', (string)$found, 'toString format');
         }
 
