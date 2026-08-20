@@ -719,7 +719,13 @@ PHP_RSHUTDOWN_FUNCTION(valkey_glide) {
     return SUCCESS;
 }
 
-zend_module_entry valkey_glide_module_entry = {STANDARD_MODULE_HEADER,
+/* Declare a hard dependency on ext/json: ValkeyGlideMonitorLine decodes MONITOR
+ * argument arrays with php_json_decode, so json must initialize first. */
+static const zend_module_dep valkey_glide_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_END};
+
+zend_module_entry valkey_glide_module_entry = {STANDARD_MODULE_HEADER_EX,
+                                               NULL,
+                                               valkey_glide_deps,
                                                "valkey_glide",
                                                ext_functions,
                                                PHP_MINIT(valkey_glide),

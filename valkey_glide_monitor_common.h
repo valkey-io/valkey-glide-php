@@ -9,18 +9,19 @@
 
 // Monitor message queue node.
 //
-// Stores the RAW decoded fields delivered by the background Rust thread rather
-// than a pre-formatted string. The PHP-side consumer builds either a
-// ValkeyGlideMonitorLine object (pull/callback) or a formatted string
-// (__toString) from these fields. Keeping raw fields avoids fragile C-side
-// string reconstruction and JSON re-escaping.
+// Stores the RAW fields delivered by the background Rust thread. Scalars and
+// the client address / command are copied directly; the argument list is kept
+// as the raw JSON array bytes exactly as the FFI delivers them (e.g.
+// ["SET","k","v"]). The background thread therefore only does native memcpy —
+// no parsing. The PHP-side consumer decodes args_json with PHP's own
+// json_decode on the main thread when building the ValkeyGlideMonitorLine.
 typedef struct monitor_message {
-    double                  timestamp;    // Server timestamp (seconds.microseconds)
-    int64_t                 db;           // Database index
-    char*                   client_addr;  // "host:port" (owned, may be NULL)
-    char*                   command;      // Command name (owned, may be NULL)
-    char**                  args;         // Array of argument strings (owned)
-    size_t                  args_count;   // Number of entries in args
+    double                  timestamp;      // Server timestamp (seconds.microseconds)
+    int64_t                 db;             // Database index
+    char*                   client_addr;    // "host:port" (owned, may be NULL)
+    char*                   command;        // Command name (owned, may be NULL)
+    char*                   args_json;      // Raw JSON array of args (owned, may be NULL)
+    size_t                  args_json_len;  // Length of args_json in bytes
     struct monitor_message* next;
 } monitor_message;
 

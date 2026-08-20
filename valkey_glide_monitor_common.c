@@ -84,12 +84,8 @@ void valkey_glide_monitor_free_message(monitor_message* msg) {
         free(msg->client_addr);
     if (msg->command)
         free(msg->command);
-    if (msg->args) {
-        for (size_t i = 0; i < msg->args_count; i++) {
-            free(msg->args[i]);
-        }
-        free(msg->args);
-    }
+    if (msg->args_json)
+        free(msg->args_json);
     free(msg);
 }
 
@@ -111,194 +107,6 @@ void cleanup_monitor_callback_info(monitor_callback_info* info) {
 
         efree(info);
     }
-}
-
-// Decode a single JSON string token into a newly malloc'd, null-terminated
-// buffer of raw bytes. `*pp` must point at the opening quote; on success it is
-// advanced past the closing quote. Returns NULL on allocation failure or if the
-// token is not a well-formed string. Runs on the background thread — native
-// only, no Zend APIs.
-static char* decode_json_string(const char** pp, const char* end) {
-    const char* p = *pp;
-    if (p >= end || *p != '"')
-        return NULL;
-    p++;  // skip opening quote
-
-    // Worst case decoded length <= remaining bytes; allocate generously.
-    size_t cap = (size_t) (end - p) + 1;
-    char*  out = (char*) malloc(cap);
-    if (!out)
-        return NULL;
-    size_t olen = 0;
-
-    while (p < end && *p != '"') {
-        if (*p == '\\' && (p + 1) < end) {
-            p++;  // skip backslash
-            switch (*p) {
-                case '"':
-                    out[olen++] = '"';
-                    break;
-                case '\\':
-                    out[olen++] = '\\';
-                    break;
-                case '/':
-                    out[olen++] = '/';
-                    break;
-                case 'n':
-                    out[olen++] = '\n';
-                    break;
-                case 'r':
-                    out[olen++] = '\r';
-                    break;
-                case 't':
-                    out[olen++] = '\t';
-                    break;
-                case 'b':
-                    out[olen++] = '\b';
-                    break;
-                case 'f':
-                    out[olen++] = '\f';
-                    break;
-                case 'u': {
-                    if ((p + 4) < end) {
-                        unsigned int cp    = 0;
-                        bool         valid = true;
-                        for (int i = 1; i <= 4; i++) {
-                            char ch = p[i];
-                            cp <<= 4;
-                            if (ch >= '0' && ch <= '9')
-                                cp |= (ch - '0');
-                            else if (ch >= 'a' && ch <= 'f')
-                                cp |= (ch - 'a' + 10);
-                            else if (ch >= 'A' && ch <= 'F')
-                                cp |= (ch - 'A' + 10);
-                            else {
-                                valid = false;
-                                break;
-                            }
-                        }
-                        if (valid) {
-                            p += 4;  // consume the 4 hex digits
-                            // UTF-16 surrogate pair
-                            if (cp >= 0xD800 && cp <= 0xDBFF && (p + 6) < end && p[1] == '\\' &&
-                                p[2] == 'u') {
-                                unsigned int low       = 0;
-                                bool         low_valid = true;
-                                for (int i = 3; i <= 6; i++) {
-                                    char ch = p[i];
-                                    low <<= 4;
-                                    if (ch >= '0' && ch <= '9')
-                                        low |= (ch - '0');
-                                    else if (ch >= 'a' && ch <= 'f')
-                                        low |= (ch - 'a' + 10);
-                                    else if (ch >= 'A' && ch <= 'F')
-                                        low |= (ch - 'A' + 10);
-                                    else {
-                                        low_valid = false;
-                                        break;
-                                    }
-                                }
-                                if (low_valid && low >= 0xDC00 && low <= 0xDFFF) {
-                                    cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);
-                                    p += 6;  // consume \uXXXX of low surrogate
-                                }
-                            }
-                            // Encode code point as UTF-8
-                            if (cp < 0x80) {
-                                out[olen++] = (char) cp;
-                            } else if (cp < 0x800) {
-                                out[olen++] = (char) (0xC0 | (cp >> 6));
-                                out[olen++] = (char) (0x80 | (cp & 0x3F));
-                            } else if (cp < 0x10000) {
-                                out[olen++] = (char) (0xE0 | (cp >> 12));
-                                out[olen++] = (char) (0x80 | ((cp >> 6) & 0x3F));
-                                out[olen++] = (char) (0x80 | (cp & 0x3F));
-                            } else {
-                                out[olen++] = (char) (0xF0 | (cp >> 18));
-                                out[olen++] = (char) (0x80 | ((cp >> 12) & 0x3F));
-                                out[olen++] = (char) (0x80 | ((cp >> 6) & 0x3F));
-                                out[olen++] = (char) (0x80 | (cp & 0x3F));
-                            }
-                        }
-                    }
-                    break;
-                }
-                default:
-                    // Unknown escape — emit the escaped char literally.
-                    out[olen++] = *p;
-                    break;
-            }
-            p++;
-        } else {
-            out[olen++] = *p++;
-        }
-    }
-
-    if (p < end && *p == '"')
-        p++;  // skip closing quote
-
-    out[olen] = '\0';
-    *pp       = p;
-    return out;
-}
-
-// Parse a JSON array of strings ["a","b",...] into a newly-allocated char**
-// array of decoded, null-terminated C strings. Sets *out_count. Returns NULL
-// (count 0) if there are no elements. Native only — no Zend APIs.
-static char** parse_json_string_array(const uint8_t* args_json,
-                                      int64_t        args_json_len,
-                                      size_t*        out_count) {
-    *out_count = 0;
-    if (!args_json || args_json_len <= 2)
-        return NULL;
-
-    const char* p   = (const char*) args_json;
-    const char* end = p + args_json_len;
-
-    if (*p == '[')
-        p++;
-
-    // First pass upper bound: at most args_json_len string slots.
-    size_t cap  = 8;
-    char** args = (char**) malloc(cap * sizeof(char*));
-    if (!args)
-        return NULL;
-    size_t count = 0;
-
-    while (p < end && *p != ']') {
-        while (p < end && (*p == ' ' || *p == ',' || *p == '\n' || *p == '\r' || *p == '\t'))
-            p++;
-        if (p >= end || *p == ']')
-            break;
-
-        if (*p == '"') {
-            char* s = decode_json_string(&p, end);
-            if (!s)
-                break;  // malformed / OOM — stop
-            if (count == cap) {
-                size_t newcap  = cap * 2;
-                char** newargs = (char**) realloc(args, newcap * sizeof(char*));
-                if (!newargs) {
-                    free(s);
-                    break;
-                }
-                args = newargs;
-                cap  = newcap;
-            }
-            args[count++] = s;
-        } else {
-            // Non-string token (shouldn't occur for command args) — skip it.
-            while (p < end && *p != ',' && *p != ']')
-                p++;
-        }
-    }
-
-    if (count == 0) {
-        free(args);
-        return NULL;
-    }
-    *out_count = count;
-    return args;
 }
 
 // C callback handler invoked by the FFI/Rust layer from a background thread
@@ -382,7 +190,17 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
             }
         }
 
-        msg->args = parse_json_string_array(args_json, args_json_len, &msg->args_count);
+        // Copy the args as raw JSON bytes. Decoding is deferred to the PHP
+        // main thread (build_monitor_line_zval uses php_json_decode), so this
+        // background thread does only a native memcpy — no parsing here.
+        if (args_json && args_json_len > 0) {
+            msg->args_json = (char*) malloc((size_t) args_json_len + 1);
+            if (msg->args_json) {
+                memcpy(msg->args_json, args_json, (size_t) args_json_len);
+                msg->args_json[args_json_len] = '\0';
+                msg->args_json_len            = (size_t) args_json_len;
+            }
+        }
 
         // Enqueue (thread-safe) with bounded depth. Re-check active state
         // under queue_mutex: unregister/shutdown can deactivate this monitor

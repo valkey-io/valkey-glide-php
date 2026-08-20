@@ -4,6 +4,7 @@
 
 #include <zend_exceptions.h>
 
+#include <ext/json/php_json.h>
 #include <ext/standard/info.h>
 
 #include "logger.h"
@@ -44,9 +45,22 @@ static void build_monitor_line_zval(zval* out, const monitor_message* msg) {
                                 msg->command ? msg->command : "");
 
     zval args;
-    array_init(&args);
-    for (size_t i = 0; i < msg->args_count; i++) {
-        add_next_index_string(&args, msg->args[i] ? msg->args[i] : "");
+    bool decoded = false;
+    if (msg->args_json && msg->args_json_len > 0) {
+        /* Decode the raw JSON args array with PHP's own json parser (safe here
+         * on the PHP main thread). Falls back to an empty array on any decode
+         * error or unexpected type. */
+        if (php_json_decode(
+                &args, msg->args_json, msg->args_json_len, 1, PHP_JSON_PARSER_DEFAULT_DEPTH) ==
+                SUCCESS &&
+            Z_TYPE(args) == IS_ARRAY) {
+            decoded = true;
+        } else {
+            zval_ptr_dtor(&args);
+        }
+    }
+    if (!decoded) {
+        array_init(&args);
     }
     zend_update_property(
         valkey_glide_monitor_line_ce, Z_OBJ_P(out), "args", sizeof("args") - 1, &args);
