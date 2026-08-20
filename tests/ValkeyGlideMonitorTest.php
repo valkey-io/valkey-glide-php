@@ -94,11 +94,18 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
         // Give the dedicated monitor connection a moment to activate.
         $action = new ValkeyGlide();
         $action->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        // Capture a reference time just before issuing the command so we can
+        // assert the monitor line's timestamp is at/after it.
+        $before = microtime(true);
         $action->set($key, $val);
         $action->close();
 
+        // MONITOR streams every command the (shared) server processes, including
+        // traffic from other clients/tests, so scan until we find our own SET or
+        // a deadline elapses — rather than after a fixed number of reads.
         $found = null;
-        for ($i = 0; $i < 20; $i++) {
+        $deadline = microtime(true) + 5.0;
+        while (microtime(true) < $deadline) {
             $line = $monitor->getMonitorMessage(timeout: 1.0);
             if ($line === null) {
                 continue;
@@ -115,13 +122,34 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
 
         $this->assertTrue($found !== null, 'Pull API should capture the SET command');
         if ($found !== null) {
-            $this->assertTrue(is_float($found->timestamp), 'timestamp should be a float');
-            $this->assertTrue(is_int($found->db), 'db should be an int');
-            $this->assertTrue(is_string($found->clientAddr), 'clientAddr should be a string');
-            $this->assertTrue(in_array($key, $found->args, true), 'args should contain the key');
-            $this->assertTrue(in_array($val, $found->args, true), 'args should contain the value');
-            // __toString renders the Valkey/Redis MONITOR line format.
-            $this->assertRegex('/^\d+\.\d+\s+\[\d+\s+[\d\.:]+\]/', (string)$found, 'toString format');
+            // We issued this command ourselves, so assert exact values.
+            $this->assertGreaterThanOrEqual(
+                $before,
+                $found->timestamp,
+                'timestamp should be at or after the command was issued'
+            );
+            $this->assertTrue(
+                $found->timestamp <= microtime(true) + 1.0,
+                'timestamp should not be in the future'
+            );
+            // Connected without a database_id, so the command ran against db 0.
+            $this->assertEquals(0, $found->db, 'db should be 0 (default database)');
+            // clientAddr is the action client's address; the port is OS-assigned
+            // (ephemeral), so verify the host:port shape rather than an exact port.
+            $this->assertRegex('/^[\d.]+:\d+$/', $found->clientAddr, 'clientAddr should be host:port');
+            // MONITOR echoes the command name in lowercase.
+            $this->assertEquals('set', strtolower($found->command), 'command should be SET');
+            // A plain SET carries exactly [key, value] as its arguments, in order.
+            $this->assertEquals([$key, $val], $found->args, 'args should be exactly [key, value]');
+            // __toString renders the Valkey/Redis MONITOR line:
+            //   "<timestamp> [<db> <addr>] \"SET\" \"key\" \"value\"".
+            $this->assertRegex(
+                '/^\d+\.\d+ \[0 [\d.]+:\d+\] "set"/i',
+                (string)$found,
+                'toString should render the MONITOR line prefix (db 0 + quoted command)'
+            );
+            $this->assertTrue(strpos((string)$found, $key) !== false, 'toString should include the key');
+            $this->assertTrue(strpos((string)$found, $val) !== false, 'toString should include the value');
         }
 
         $this->assertTrue($monitor->getDroppedCount() >= 0, 'getDroppedCount should be non-negative');
@@ -137,18 +165,20 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
             addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]
         );
 
-        // Drain any startup traffic quickly, then confirm a null is returned
-        // promptly once the queue is empty (non-blocking behavior).
-        $start = microtime(true);
-        for ($i = 0; $i < 100; $i++) {
-            if ($monitor->tryGetMonitorMessage() === null) {
-                break;
-            }
+        // Drain any startup/background traffic until the queue is empty,
+        // bounded by a deadline so a busy server can't make this loop run
+        // forever. Then confirm a single call returns promptly (non-blocking).
+        $drain_deadline = microtime(true) + 2.0;
+        while ($monitor->tryGetMonitorMessage() !== null && microtime(true) < $drain_deadline) {
+            // keep draining queued lines
         }
+
+        $start = microtime(true);
+        $monitor->tryGetMonitorMessage();
         $elapsed = microtime(true) - $start;
 
         $this->assertTrue(
-            $elapsed < 2.0,
+            $elapsed < 1.0,
             'tryGetMonitorMessage should not block waiting for messages'
         );
         $monitor->close();
