@@ -4,10 +4,24 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <zend_exceptions.h>
 
 #include "logger.h"
+
+// Monotonic clock in milliseconds, used to bound waits against an absolute
+// deadline (immune to wall-clock adjustments). Native only — no Zend APIs.
+static int64_t now_monotonic_ms(void) {
+#ifdef _WIN32
+    return (int64_t) GetTickCount64();
+#else
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+        return 0;
+    return (int64_t) ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+#endif
+}
 
 // Native monitor callback registry — accessed from background Rust thread.
 // Uses a simple linked list protected by a native mutex (NOT Zend APIs).
@@ -109,6 +123,71 @@ void cleanup_monitor_callback_info(monitor_callback_info* info) {
     }
 }
 
+// Duplicate a length-delimited byte buffer into a NUL-terminated native
+// string. Returns NULL if src is NULL/empty or on allocation failure.
+static char* dup_len_str(const uint8_t* src, int64_t len) {
+    if (!src || len <= 0)
+        return NULL;
+    char* out = (char*) malloc((size_t) len + 1);
+    if (!out)
+        return NULL;
+    memcpy(out, src, (size_t) len);
+    out[len] = '\0';
+    return out;
+}
+
+// Build a queue node from the raw callback fields (native only, no Zend APIs).
+// Returns NULL on allocation failure. The args are kept as raw JSON bytes and
+// decoded later on the PHP main thread (see build_monitor_line_zval).
+static monitor_message* build_monitor_message(double         timestamp,
+                                              int64_t        db,
+                                              const uint8_t* client_addr,
+                                              int64_t        client_addr_len,
+                                              const uint8_t* command_ptr,
+                                              int64_t        command_len,
+                                              const uint8_t* args_json,
+                                              int64_t        args_json_len) {
+    monitor_message* msg = (monitor_message*) calloc(1, sizeof(monitor_message));
+    if (!msg)
+        return NULL;
+    msg->timestamp   = timestamp;
+    msg->db          = db;
+    msg->client_addr = dup_len_str(client_addr, client_addr_len);
+    msg->command     = dup_len_str(command_ptr, command_len);
+    msg->args_json   = dup_len_str(args_json, args_json_len);
+    if (msg->args_json)
+        msg->args_json_len = (size_t) args_json_len;
+    return msg;
+}
+
+// Try to append msg to info's queue. Must be called WITHOUT holding
+// info->queue_mutex. Returns true if the queue took ownership of msg; false if
+// the message was rejected (monitor inactive or queue full), in which case the
+// caller still owns msg and must free it. Full-queue rejections are recorded in
+// dropped_count (surfaced via getDroppedCount()) rather than growing unbounded.
+static bool try_enqueue_monitor_message(monitor_callback_info* info, monitor_message* msg) {
+    bool enqueued = false;
+    mutex_lock(&info->queue_mutex);
+    // Re-check active state under queue_mutex: unregister/shutdown can
+    // deactivate this monitor after the initial lookup.
+    if (info->is_active) {
+        if (info->queue_depth >= MONITOR_QUEUE_MAX_DEPTH) {
+            info->dropped_count++;
+        } else {
+            if (info->queue_tail)
+                info->queue_tail->next = msg;
+            else
+                info->queue_head = msg;
+            info->queue_tail = msg;
+            info->queue_depth++;
+            cond_signal(&info->queue_cond);
+            enqueued = true;
+        }
+    }
+    mutex_unlock(&info->queue_mutex);
+    return enqueued;
+}
+
 // C callback handler invoked by the FFI/Rust layer from a background thread
 // when a new parsed MONITOR line arrives.
 //
@@ -121,9 +200,8 @@ void cleanup_monitor_callback_info(monitor_callback_info* info) {
 //                           const uint8_t *command, int64_t command_len,
 //                           const uint8_t *args_json, int64_t args_json_len)
 //
-// We store the RAW decoded fields on the queue node. The PHP-side consumer
-// builds a ValkeyGlideMonitorLine object (or formatted string) on the PHP
-// thread. No string reconstruction happens here.
+// We store the RAW fields on the queue node. The PHP-side consumer builds a
+// ValkeyGlideMonitorLine object (or formatted string) on the PHP thread.
 //
 // LIFETIME SAFETY: the registry lookup and all use of `info` below happen
 // while holding monitor_registry_mutex for the *entire* function, not just
@@ -140,8 +218,6 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
                                    int64_t        command_len,
                                    const uint8_t* args_json,
                                    int64_t        args_json_len) {
-    monitor_message* msg = NULL;
-
     mutex_lock(&monitor_registry_mutex);
 
     monitor_callback_info*  info  = NULL;
@@ -154,86 +230,29 @@ void valkey_glide_monitor_callback(uintptr_t      client_ptr,
         entry = entry->next;
     }
 
-    if (!info) {
-        goto unlock_registry;
-    }
-
-    mutex_lock(&info->queue_mutex);
-    bool is_active = info->is_active;
-    mutex_unlock(&info->queue_mutex);
-    if (!is_active) {
-        goto unlock_registry;
-    }
-
-    {
-        msg = (monitor_message*) calloc(1, sizeof(monitor_message));
-        if (!msg)
-            goto unlock_registry;
-
-        msg->timestamp = timestamp;
-        msg->db        = db;
-        msg->next      = NULL;
-
-        if (client_addr && client_addr_len > 0) {
-            msg->client_addr = (char*) malloc((size_t) client_addr_len + 1);
-            if (msg->client_addr) {
-                memcpy(msg->client_addr, client_addr, (size_t) client_addr_len);
-                msg->client_addr[client_addr_len] = '\0';
-            }
-        }
-
-        if (command_ptr && command_len > 0) {
-            msg->command = (char*) malloc((size_t) command_len + 1);
-            if (msg->command) {
-                memcpy(msg->command, command_ptr, (size_t) command_len);
-                msg->command[command_len] = '\0';
-            }
-        }
-
-        // Copy the args as raw JSON bytes. Decoding is deferred to the PHP
-        // main thread (build_monitor_line_zval uses php_json_decode), so this
-        // background thread does only a native memcpy — no parsing here.
-        if (args_json && args_json_len > 0) {
-            msg->args_json = (char*) malloc((size_t) args_json_len + 1);
-            if (msg->args_json) {
-                memcpy(msg->args_json, args_json, (size_t) args_json_len);
-                msg->args_json[args_json_len] = '\0';
-                msg->args_json_len            = (size_t) args_json_len;
-            }
-        }
-
-        // Enqueue (thread-safe) with bounded depth. Re-check active state
-        // under queue_mutex: unregister/shutdown can deactivate this monitor
-        // after the initial lookup.
+    if (info) {
+        // Snapshot active state before doing allocation work; try_enqueue
+        // re-checks it under the queue lock to close the deactivation race.
         mutex_lock(&info->queue_mutex);
-        if (!info->is_active) {
-            mutex_unlock(&info->queue_mutex);
-            goto free_msg;
-        }
-        if (info->queue_depth >= MONITOR_QUEUE_MAX_DEPTH) {
-            // Queue full — drop and record the loss (surfaced via
-            // getDroppedCount()), rather than growing memory unbounded.
-            info->dropped_count++;
-            mutex_unlock(&info->queue_mutex);
-            goto free_msg;
-        }
-        if (info->queue_tail) {
-            info->queue_tail->next = msg;
-        } else {
-            info->queue_head = msg;
-        }
-        info->queue_tail = msg;
-        info->queue_depth++;
-        cond_signal(&info->queue_cond);
+        bool is_active = info->is_active;
         mutex_unlock(&info->queue_mutex);
+
+        if (is_active) {
+            monitor_message* msg = build_monitor_message(timestamp,
+                                                         db,
+                                                         client_addr,
+                                                         client_addr_len,
+                                                         command_ptr,
+                                                         command_len,
+                                                         args_json,
+                                                         args_json_len);
+            // On rejection (inactive or full) we still own msg and must free it.
+            if (msg && !try_enqueue_monitor_message(info, msg)) {
+                valkey_glide_monitor_free_message(msg);
+            }
+        }
     }
 
-    mutex_unlock(&monitor_registry_mutex);
-    return;
-
-free_msg:
-    valkey_glide_monitor_free_message(msg);
-unlock_registry:
     mutex_unlock(&monitor_registry_mutex);
 }
 
@@ -253,13 +272,14 @@ monitor_message* valkey_glide_monitor_dequeue(monitor_callback_info* info, long 
             cond_wait(&info->queue_cond, &info->queue_mutex);
         }
     } else {
-        // Bounded wait. Loop in <=1s slices so PHP interruptions are honored
-        // by the caller between calls; here we just wait up to timeout_ms.
-        long remaining = timeout_ms;
-        while (!info->queue_head && info->is_active && remaining > 0) {
-            long slice = remaining < 1000 ? remaining : 1000;
-            (void) cond_timedwait(&info->queue_cond, &info->queue_mutex, slice);
-            remaining -= slice;
+        // Bounded wait against an absolute deadline. Looping re-checks the
+        // predicate on spurious wakeups without ever waiting past the deadline.
+        int64_t deadline_ms = now_monotonic_ms() + (int64_t) timeout_ms;
+        while (!info->queue_head && info->is_active) {
+            int64_t remaining = deadline_ms - now_monotonic_ms();
+            if (remaining <= 0)
+                break;
+            (void) cond_timedwait(&info->queue_cond, &info->queue_mutex, (unsigned int) remaining);
         }
     }
 
