@@ -12,7 +12,7 @@ Note: After installation, add "extension=valkey_glide" to your php.ini file.</de
   <email>noreply@valkey.io</email>
   <active>yes</active>
  </lead>
- <date>2025-01-26</date>
+ <date>2026-08-20</date>
  <time>18:25:00</time>
  <version>
   <release>1.2.0</release>
