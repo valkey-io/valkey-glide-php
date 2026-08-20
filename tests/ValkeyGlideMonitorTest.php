@@ -186,7 +186,14 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
 
     /**
      * Test that monitor captures SET commands from another client.
-     * Uses subprocess approach (same pattern as pubsub tests).
+     *
+     * This exercises the blocking Callback API (ValkeyGlideMonitor::listen()),
+     * whereas testMonitorPullReturnsStructuredLine covers the Queue/pull API.
+     * Because listen() blocks until the callback returns non-null, it can't run
+     * in this driver process (which must also issue the commands being
+     * monitored), so it runs in a subprocess (scripts/monitor_listener.php) that
+     * we coordinate with via temp files — the same pattern the pub/sub
+     * subscribe() tests use.
      */
     public function testMonitorCapturesSetCommand()
     {
