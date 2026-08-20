@@ -16,7 +16,7 @@
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
-#include "valkey_glide_monitor.h"  // Include ValkeyGlideMonitor class
+#include "valkey_glide_monitor.h"
 #include "valkey_glide_monitor_common.h"
 #include "valkey_glide_pubsub_common.h"
 #include "valkey_glide_pubsub_introspection.h"

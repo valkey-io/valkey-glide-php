@@ -521,7 +521,6 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
             usleep(100000);
         }
 
-
         // Terminate subprocess if it hasn't exited
         if (!file_exists($result_file)) {
             proc_terminate($proc);
