@@ -313,6 +313,12 @@ PHP_METHOD(ValkeyGlideMonitor, listen) {
     }
 
     while (true) {
+        /* The callback may have called close() on a previous iteration, which
+         * tears down and clears obj->info. Stop before touching freed state. */
+        if (!obj->info) {
+            break;
+        }
+
         /* Honor PHP interruption (max_execution_time, signals) between waits. */
 #ifdef ZEND_ATOMIC_BOOL_INIT
         if (zend_atomic_bool_load_ex(&EG(vm_interrupt))) {
@@ -358,7 +364,9 @@ PHP_METHOD(ValkeyGlideMonitor, listen) {
         zval_ptr_dtor(&retval);
         zval_ptr_dtor(&line);
 
-        if (stop)
+        /* The callback may have called close() (freeing obj->info) even while
+         * returning null; stop rather than dereferencing freed state above. */
+        if (stop || !obj->info)
             break;
     }
 

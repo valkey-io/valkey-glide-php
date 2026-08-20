@@ -185,6 +185,39 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
     }
 
     /**
+     * Regression test: calling close() from inside a listen() callback (while
+     * returning null) must not crash. Teardown frees the callback state and
+     * clears the internal handle, so the loop must stop instead of continuing
+     * and dereferencing the freed state on the next iteration.
+     */
+    public function testMonitorCloseInsideCallbackIsSafe()
+    {
+        $monitor = new ValkeyGlideMonitor(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]
+        );
+
+        // Generate some traffic so the callback fires at least once.
+        $action = new ValkeyGlide();
+        $action->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $action->set('CLOSE_IN_CB_' . uniqid(), 'v');
+        $action->close();
+
+        $ran = false;
+        $result = $monitor->listen(function (ValkeyGlideMonitorLine $line) use ($monitor, &$ran) {
+            $ran = true;
+            // Close from within the callback, then return null. Before the fix
+            // this caused a use-after-free on the next loop iteration.
+            $monitor->close();
+            return null;
+        });
+
+        $this->assertTrue($ran, 'callback should have run at least once');
+        $this->assertTrue($result === true, 'listen() should return safely after close()-in-callback');
+        // A second close() must be a harmless no-op.
+        $monitor->close();
+    }
+
+    /**
      * Test that monitor captures SET commands from another client.
      *
      * This exercises the blocking Callback API (ValkeyGlideMonitor::listen()),

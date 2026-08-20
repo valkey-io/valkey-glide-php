@@ -393,7 +393,19 @@ void valkey_glide_monitor_shutdown(void) {
     }
 
     if (monitor_registry_initialized) {
-        // Free the native registry entries
+        // Free the native registry entries.
+        //
+        // We intentionally free only the entry nodes here, NOT entry->info.
+        // monitor_callback_info is emalloc'd (request heap) and its cleanup
+        // (cleanup_monitor_callback_info) runs zval_ptr_dtor + efree — all
+        // request-scoped operations. MSHUTDOWN runs after the request and its
+        // memory manager are gone, so calling that here would be a
+        // use-after-free. Cleanup is owned by valkey_glide_monitor_teardown(),
+        // which every ValkeyGlideMonitor object's free handler invokes at
+        // request shutdown (unregistering the entry and freeing info while the
+        // heap is still valid). In normal operation this list is therefore
+        // already empty; this loop only reclaims the native entry nodes should
+        // any straggler remain.
         mutex_lock(&monitor_registry_mutex);
         monitor_registry_entry* entry = monitor_registry_head;
         while (entry) {
