@@ -70,13 +70,18 @@ int cond_timedwait(cond_t* c, mutex_t* m, unsigned int timeout_ms) {
 #else
     struct timespec ts;
     if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
-        // Failed to read the clock — fall back to an unbounded wait rather
-        // than using an uninitialized/garbage deadline.
-        pthread_cond_wait(c, m);
-        return 0;
+        // Clock read failed (effectively never on supported platforms). Report
+        // a timeout rather than silently converting a bounded wait into an
+        // unbounded one; the caller re-checks its own predicate/deadline.
+        return 1;
     }
     ts.tv_sec += timeout_ms / 1000;
     ts.tv_nsec += (timeout_ms % 1000) * 1000000L;
+    // pthread_cond_timedwait requires tv_nsec in [0, 1e9). Adding the timeout's
+    // sub-second part can push it past one second, e.g. a current tv_nsec of
+    // 800,000,000 plus a 300 ms timeout (300,000,000 ns) = 1,100,000,000 ns, so
+    // we carry one second and keep 100,000,000 ns. Without this the timespec
+    // would be invalid and pthread_cond_timedwait would return EINVAL.
     if (ts.tv_nsec >= 1000000000L) {
         ts.tv_sec++;
         ts.tv_nsec -= 1000000000L;

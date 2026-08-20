@@ -67,6 +67,10 @@ extern const char* register_pubsub_callback(const void*    client_adapter_ptr,
 extern const char* unregister_pubsub_callback(const void* client_adapter_ptr);
 
 // Mutex wrapper functions
+// TODO(#318): these cross-platform mutex/condition-variable wrappers are
+// generic threading primitives (also used by the MONITOR client) and are not
+// pub/sub-specific. Extract them into a dedicated valkey_glide_threading.{c,h}
+// module so monitor no longer depends on the pub/sub header just for a lock.
 void mutex_init(mutex_t* m);
 void mutex_lock(mutex_t* m);
 void mutex_unlock(mutex_t* m);
