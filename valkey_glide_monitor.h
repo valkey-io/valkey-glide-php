@@ -34,7 +34,6 @@ PHP_METHOD(ValkeyGlideMonitor, tryGetMonitorMessage);
 PHP_METHOD(ValkeyGlideMonitor, listen);
 PHP_METHOD(ValkeyGlideMonitor, getDroppedCount);
 PHP_METHOD(ValkeyGlideMonitor, close);
-PHP_METHOD(ValkeyGlideMonitorLine, __toString);
 
 /* Helper macros */
 #define VALKEY_GLIDE_MONITOR_GET_OBJECT(obj) \

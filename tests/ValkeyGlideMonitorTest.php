@@ -141,15 +141,6 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
             $this->assertEquals('set', strtolower($found->command), 'command should be SET');
             // A plain SET carries exactly [key, value] as its arguments, in order.
             $this->assertEquals([$key, $val], $found->args, 'args should be exactly [key, value]');
-            // __toString renders the Valkey/Redis MONITOR line:
-            //   "<timestamp> [<db> <addr>] \"SET\" \"key\" \"value\"".
-            $this->assertRegex(
-                '/^\d+\.\d+ \[0 [\d.]+:\d+\] "set"/i',
-                (string)$found,
-                'toString should render the MONITOR line prefix (db 0 + quoted command)'
-            );
-            $this->assertTrue(strpos((string)$found, $key) !== false, 'toString should include the key');
-            $this->assertTrue(strpos((string)$found, $val) !== false, 'toString should include the value');
         }
 
         $this->assertTrue($monitor->getDroppedCount() >= 0, 'getDroppedCount should be non-negative');

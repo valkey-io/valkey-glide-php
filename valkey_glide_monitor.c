@@ -402,68 +402,6 @@ PHP_METHOD(ValkeyGlideMonitor, close) {
 }
 
 /* ------------------------------------------------------------------ */
-/* ValkeyGlideMonitorLine::__toString                                  */
-/* ------------------------------------------------------------------ */
-
-PHP_METHOD(ValkeyGlideMonitorLine, __toString) {
-    ZEND_PARSE_PARAMETERS_NONE();
-
-    zval* obj = getThis();
-    zval  rv;
-
-    zval* ts_z = zend_read_property(
-        Z_OBJCE_P(obj), Z_OBJ_P(obj), "timestamp", sizeof("timestamp") - 1, 0, &rv);
-    zval* db_z   = zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), "db", sizeof("db") - 1, 0, &rv);
-    zval* addr_z = zend_read_property(
-        Z_OBJCE_P(obj), Z_OBJ_P(obj), "clientAddr", sizeof("clientAddr") - 1, 0, &rv);
-    zval* cmd_z =
-        zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), "command", sizeof("command") - 1, 0, &rv);
-    zval* args_z =
-        zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), "args", sizeof("args") - 1, 0, &rv);
-
-    double      timestamp = ts_z ? zval_get_double(ts_z) : 0.0;
-    zend_long   db        = db_z ? zval_get_long(db_z) : 0;
-    const char* addr      = (addr_z && Z_TYPE_P(addr_z) == IS_STRING) ? Z_STRVAL_P(addr_z) : "";
-    const char* command   = (cmd_z && Z_TYPE_P(cmd_z) == IS_STRING) ? Z_STRVAL_P(cmd_z) : "";
-
-    smart_str out = {0};
-    char      header[128];
-    int       hn = snprintf(
-        header, sizeof(header), "%.6f [%lld %s] \"%s\"", timestamp, (long long) db, addr, command);
-    if (hn > 0)
-        smart_str_appendl(
-            &out, header, (size_t) hn < sizeof(header) ? (size_t) hn : sizeof(header) - 1);
-
-    if (args_z && Z_TYPE_P(args_z) == IS_ARRAY) {
-        zval* elem;
-        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(args_z), elem) {
-            if (Z_TYPE_P(elem) != IS_STRING)
-                continue;
-            smart_str_appendl(&out, " \"", 2);
-            /* Escape embedded quotes/backslashes to keep the line parseable. */
-            const char* s   = Z_STRVAL_P(elem);
-            size_t      len = Z_STRLEN_P(elem);
-            for (size_t i = 0; i < len; i++) {
-                char c = s[i];
-                if (c == '"' || c == '\\') {
-                    smart_str_appendc(&out, '\\');
-                }
-                smart_str_appendc(&out, c);
-            }
-            smart_str_appendc(&out, '"');
-        }
-        ZEND_HASH_FOREACH_END();
-    }
-
-    smart_str_0(&out);
-    if (out.s) {
-        RETVAL_STR(out.s);
-    } else {
-        RETVAL_EMPTY_STRING();
-    }
-}
-
-/* ------------------------------------------------------------------ */
 /* Registration                                                       */
 /* ------------------------------------------------------------------ */
 

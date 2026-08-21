@@ -29,16 +29,6 @@ final class ValkeyGlideMonitorLine
 
     /** The command arguments, decoded into a list of strings. */
     public array $args;
-
-    /**
-     * Render the line in the Valkey/Redis MONITOR text format:
-     * "timestamp [db addr] \"COMMAND\" \"arg1\" \"arg2\"".
-     *
-     * @return string The formatted monitor line.
-     */
-    public function __toString(): string
-    {
-    }
 }
 
 /**

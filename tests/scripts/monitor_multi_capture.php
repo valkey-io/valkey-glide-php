@@ -40,6 +40,20 @@ if ($expected_count < 1 || $expected_count > $max_lines) {
     exit(1);
 }
 
+/**
+ * Render a monitor line to the Valkey MONITOR text form
+ * ("<ts> [db addr] \"CMD\" \"arg\"...") for substring matching and output.
+ * Kept as a local test helper rather than relying on a client-side method.
+ */
+function format_monitor_line(ValkeyGlideMonitorLine $line): string
+{
+    $out = sprintf('%.6f [%d %s] "%s"', $line->timestamp, $line->db, $line->clientAddr, $line->command);
+    foreach ($line->args as $arg) {
+        $out .= ' "' . str_replace(['\\', '"'], ['\\\\', '\\"'], $arg) . '"';
+    }
+    return $out;
+}
+
 try {
     $monitor_client = new ValkeyGlideMonitor(addresses: [['host' => $host, 'port' => $port]]);
 
@@ -58,7 +72,7 @@ try {
         $line_count++;
 
         // Render the structured line to text for substring matching.
-        $command = (string)$line;
+        $command = format_monitor_line($line);
 
         // Capture lines that contain our prefix
         if (stripos($command, $prefix) !== false) {
