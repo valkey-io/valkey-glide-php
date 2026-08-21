@@ -20,13 +20,13 @@ clean-local:
 	@rm -f libtool.bak
 
 # Force header generation before any compilation
-$(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
+$(shared_objects_valkey_glide): include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h valkey_glide_monitor_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
 
 # Ensure protobuf files exist before compiling object files that need them
 src/command_request.lo src/connection_request.lo src/response.lo: include/glide_bindings.h
 
 # Backward compatibility alias
-build-modules-pre: include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
+build-modules-pre: include/glide_bindings.h cluster_scan_cursor_arginfo.h valkey_glide_arginfo.h valkey_glide_cluster_arginfo.h valkey_glide_monitor_arginfo.h logger_arginfo.h src/client_constructor_mock_arginfo.h valkey-glide/ffi/target/release/libglide_ffi.a
 
 # Debug what files exist
 debug-files:
@@ -61,6 +61,9 @@ valkey_glide_arginfo.h: valkey_glide.stub.php
 
 valkey_glide_cluster_arginfo.h: valkey_glide_cluster.stub.php
 	@php -f $(top_srcdir)/build/gen_stub.php valkey_glide_cluster.stub.php || echo "valkey_glide_cluster arginfo generation failed"
+
+valkey_glide_monitor_arginfo.h: valkey_glide_monitor.stub.php
+	@php -f $(top_srcdir)/build/gen_stub.php valkey_glide_monitor.stub.php || echo "valkey_glide_monitor arginfo generation failed"
 
 logger_arginfo.h: logger.stub.php
 	@php -f $(top_srcdir)/build/gen_stub.php logger.stub.php || echo "logger arginfo generation failed"

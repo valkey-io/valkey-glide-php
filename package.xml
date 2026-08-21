@@ -103,6 +103,11 @@ Requirements:
    <file name="valkey_glide_pubsub_common.h" role="src" />
    <file name="valkey_glide_pubsub_introspection.c" role="src" />
    <file name="valkey_glide_pubsub_introspection.h" role="src" />
+   <file name="valkey_glide_monitor_common.c" role="src" />
+   <file name="valkey_glide_monitor_common.h" role="src" />
+   <file name="valkey_glide_monitor.c" role="src" />
+   <file name="valkey_glide_monitor.h" role="src" />
+   <file name="valkey_glide_monitor.stub.php" role="src" />
    <file name="OpenTelemetryConfig.php" role="php" />
    <file name="OpenTelemetryConfigBuilder.php" role="php" />
    <file name="TracesConfig.php" role="php" />

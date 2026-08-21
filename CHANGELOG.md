@@ -4,6 +4,7 @@
 
 ### Changes
 
+* Add `MONITOR` command for standalone client ([#309](https://github.com/valkey-io/valkey-glide-php/pull/309))
 * Add `LOLWUT` command for standalone and cluster clients ([#314](https://github.com/valkey-io/valkey-glide-php/pull/314))
 * Add `LASTSAVE` command for standalone and cluster clients ([#315](https://github.com/valkey-io/valkey-glide-php/pull/315))
 * Add `CLIENT TRACKINGINFO` command for standalone and cluster clients ([#293](https://github.com/valkey-io/valkey-glide-php/pull/293))

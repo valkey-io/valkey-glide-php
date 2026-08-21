@@ -16,6 +16,8 @@
 #include "valkey_glide_cluster_arginfo.h"  // Include generated arginfo header
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
+#include "valkey_glide_monitor.h"
+#include "valkey_glide_monitor_common.h"
 #include "valkey_glide_pubsub_common.h"
 #include "valkey_glide_pubsub_introspection.h"
 
@@ -673,6 +675,9 @@ PHP_MINIT_FUNCTION(valkey_glide) {
     /* Register ClusterScanCursor class */
     register_cluster_scan_cursor_class();
 
+    /* Register ValkeyGlideMonitor + ValkeyGlideMonitorLine classes */
+    register_valkey_glide_monitor_classes();
+
     /* Register mock constructor class used for testing only. */
     register_mock_constructor_class();
 
@@ -704,6 +709,7 @@ PHP_MINIT_FUNCTION(valkey_glide) {
 
 PHP_MSHUTDOWN_FUNCTION(valkey_glide) {
     valkey_glide_pubsub_shutdown();
+    valkey_glide_monitor_shutdown();
     valkey_glide_resolver_shutdown();
     return SUCCESS;
 }
@@ -713,7 +719,13 @@ PHP_RSHUTDOWN_FUNCTION(valkey_glide) {
     return SUCCESS;
 }
 
-zend_module_entry valkey_glide_module_entry = {STANDARD_MODULE_HEADER,
+/* Declare a hard dependency on ext/json: ValkeyGlideMonitorLine decodes MONITOR
+ * argument arrays with php_json_decode, so json must initialize first. */
+static const zend_module_dep valkey_glide_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_END};
+
+zend_module_entry valkey_glide_module_entry = {STANDARD_MODULE_HEADER_EX,
+                                               NULL,
+                                               valkey_glide_deps,
                                                "valkey_glide",
                                                ext_functions,
                                                PHP_MINIT(valkey_glide),

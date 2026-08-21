@@ -100,6 +100,7 @@ require_once __DIR__ . "/ValkeyGlideClusterSearchTest.php";
 require_once __DIR__ . "/ClientSideCacheTest.php";
 require_once __DIR__ . "/AddressResolverTest.php";
 require_once __DIR__ . "/AddressResolverClusterTest.php";
+require_once __DIR__ . "/ValkeyGlideMonitorTest.php";
 
 function getClassArray($classes)
 {
@@ -139,6 +140,7 @@ function getTestClass($class)
         'clientsidecache' => 'ClientSideCacheTest',
         'addressresolver' => 'AddressResolverTest',
         'addressresolvercluster' => 'AddressResolverClusterTest',
+        'valkeyglidemonitor' => 'ValkeyGlideMonitorTest',
     ];
 
     /* Return early if the class is one of our built-in ones */
@@ -187,6 +189,7 @@ $default_classes = implode(',', [
     'iamauth',
     'addressresolver',
     'addressresolvercluster',
+    'valkeyglidemonitor',
 ]);
 
 $classes = getClassArray($opt['class'] ?? $default_classes);
