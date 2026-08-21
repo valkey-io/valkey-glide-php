@@ -63,6 +63,9 @@ void cond_wait(cond_t* c, mutex_t* m) {
 #endif
 }
 
+#define NSEC_PER_SEC 1000000000LL
+#define NSEC_PER_MSEC 1000000LL
+
 int cond_timedwait(cond_t* c, mutex_t* m, unsigned int timeout_ms) {
 #ifdef _WIN32
     BOOL ok = SleepConditionVariableCS(c, m, timeout_ms);
@@ -75,17 +78,13 @@ int cond_timedwait(cond_t* c, mutex_t* m, unsigned int timeout_ms) {
         // unbounded one; the caller re-checks its own predicate/deadline.
         return 1;
     }
-    ts.tv_sec += timeout_ms / 1000;
-    ts.tv_nsec += (timeout_ms % 1000) * 1000000L;
-    // pthread_cond_timedwait requires tv_nsec in [0, 1e9). Adding the timeout's
-    // sub-second part can push it past one second, e.g. a current tv_nsec of
-    // 800,000,000 plus a 300 ms timeout (300,000,000 ns) = 1,100,000,000 ns, so
-    // we carry one second and keep 100,000,000 ns. Without this the timespec
-    // would be invalid and pthread_cond_timedwait would return EINVAL.
-    if (ts.tv_nsec >= 1000000000L) {
-        ts.tv_sec++;
-        ts.tv_nsec -= 1000000000L;
-    }
+    // Work in nanoseconds so the second/nanosecond split is a single
+    // divide/modulo (pthread_cond_timedwait requires tv_nsec in [0, 1e9)).
+    // e.g. a current tv_nsec of 800,000,000 plus a 300 ms timeout
+    // (300,000,000 ns) totals 1,100,000,000 ns -> +1 s and 100,000,000 ns.
+    long long total_ns = (long long) ts.tv_nsec + (long long) timeout_ms * NSEC_PER_MSEC;
+    ts.tv_sec += total_ns / NSEC_PER_SEC;
+    ts.tv_nsec = total_ns % NSEC_PER_SEC;
     return pthread_cond_timedwait(c, m, &ts);
 #endif
 }
