@@ -1486,9 +1486,11 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
 
-    if (is_cluster && !valkey_glide->is_in_batch_mode) {
+    if (is_cluster) {
         /* Cluster mode: the first parameter is the routing configuration, followed by the
-         * operation and optional key/value arguments. */
+         * operation and optional key/value arguments. The route is always consumed (even in
+         * batch mode, so the operation isn't mis-parsed); it is only applied for routing in the
+         * non-batch execution path below, since batches are routed at execution time. */
         zval* z_args = NULL;
         int   z_argc = 0;
         if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &z_args, &z_argc) ==
@@ -1501,7 +1503,10 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
             return 0;
         }
 
-        route = &z_args[0];
+        /* Only route when not batching; in batch mode routing is applied to the whole batch */
+        if (!valkey_glide->is_in_batch_mode) {
+            route = &z_args[0];
+        }
 
         if (Z_TYPE(z_args[1]) != IS_STRING) {
             php_error_docref(NULL, E_WARNING, "CONFIG operation must be a string");
@@ -1517,7 +1522,7 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
             value = &z_args[3];
         }
     } else {
-        /* Standalone mode (or cluster batch mode): parse operation and optional key/value */
+        /* Standalone mode: parse operation and optional key/value */
         if (zend_parse_method_parameters(
                 argc, object, "Os|z!z!", &object, ce, &operation, &operation_len, &key, &value) ==
             FAILURE) {

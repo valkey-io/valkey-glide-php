@@ -182,14 +182,22 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertArrayKey($cfg, 'timeout');
         $sec = $cfg['timeout'];
 
-        /* CONFIG SET routed to all nodes, verified via a single-node GET */
-        foreach ([$sec + 30, $sec] as $val) {
-            $this->assertTrue($this->valkey_glide->config('allNodes', 'SET', 'timeout', $val));
+        /* CONFIG SET routed to all nodes, verified via a single-node GET.
+           Restore the original value in a finally block so a mid-test failure
+           does not leave the cluster with a modified timeout. */
+        try {
+            $this->assertTrue($this->valkey_glide->config('allNodes', 'SET', 'timeout', $sec + 30));
             $cfg = $this->valkey_glide->config('randomNode', 'GET', 'timeout');
-            $this->assertArrayKey($cfg, 'timeout', function ($v) use ($val) {
-                return $v == $val;
+            $this->assertArrayKey($cfg, 'timeout', function ($v) use ($sec) {
+                return $v == $sec + 30;
             });
+        } finally {
+            $this->assertTrue($this->valkey_glide->config('allNodes', 'SET', 'timeout', $sec));
         }
+        $cfg = $this->valkey_glide->config('randomNode', 'GET', 'timeout');
+        $this->assertArrayKey($cfg, 'timeout', function ($v) use ($sec) {
+            return $v == $sec;
+        });
 
         /* CONFIG GET with a wildcard pattern */
         $files = $this->valkey_glide->config('randomNode', 'GET', '*file');
@@ -239,18 +247,20 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
         list($timeout, $max_intset) = [$settings['timeout'], $settings['set-max-intset-entries']];
 
-        $updates = [
-            ['timeout' => $timeout + 30, 'set-max-intset-entries' => $max_intset + 128],
-            ['timeout' => $timeout,      'set-max-intset-entries' => $max_intset],
-        ];
+        $original = ['timeout' => $timeout, 'set-max-intset-entries' => $max_intset];
+        $modified = ['timeout' => $timeout + 30, 'set-max-intset-entries' => $max_intset + 128];
 
-        /* Multiple-parameter CONFIG SET (server 7.0+) routed to all nodes */
-        foreach ($updates as $update) {
-            $this->assertTrue($this->valkey_glide->config('allNodes', 'set', $update));
-
-            $vals = $this->valkey_glide->config('randomNode', 'get', array_keys($update));
-            $this->assertEqualsWeak($vals, $update, true);
+        /* Multiple-parameter CONFIG SET (server 7.0+) routed to all nodes.
+           Always restore the original values via a finally block. */
+        try {
+            $this->assertTrue($this->valkey_glide->config('allNodes', 'set', $modified));
+            $vals = $this->valkey_glide->config('randomNode', 'get', array_keys($modified));
+            $this->assertEqualsWeak($vals, $modified, true);
+        } finally {
+            $this->assertTrue($this->valkey_glide->config('allNodes', 'set', $original));
         }
+        $vals = $this->valkey_glide->config('randomNode', 'get', array_keys($original));
+        $this->assertEqualsWeak($vals, $original, true);
 
         /* Make sure malformed multiple get/set calls are caught */
         $this->assertFalse(@$this->valkey_glide->config('randomNode', 'get', []));

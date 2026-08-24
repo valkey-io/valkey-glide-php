@@ -476,7 +476,14 @@ class ValkeyGlideCluster
      * @param string $operation                The CONFIG operation to execute (GET, SET, REWRITE,
      *                                         RESETSTAT).
      * @param array|string|null $key_or_settings One or more keys (GET) or values/settings (SET).
-     * @param string|null $value               The value if this is a `CONFIG SET` operation.
+     * @param mixed $value                     The value if this is a `CONFIG SET` operation.
+     *                                         Scalars are accepted and converted to strings.
+     * @return mixed For CONFIG GET: a flat associative array of `parameter => value` when a
+     *               single-node route is used, or a per-node associative array keyed by node
+     *               address (each value being that node's `parameter => value` map) when a
+     *               multi-node route is used. For CONFIG SET, RESETSTAT and REWRITE: true on
+     *               success and false on failure. In batch mode: the ValkeyGlideCluster instance
+     *               for method chaining.
      * @see https://valkey.io/commands/config
      * @see ValkeyGlide::config()
      *
@@ -487,7 +494,7 @@ class ValkeyGlideCluster
      * $cluster->config('allNodes', 'SET', ['timeout' => 30, 'loglevel' => 'warning']);
      * $cluster->config('allPrimaries', 'RESETSTAT');
      */
-    public function config(mixed $route, string $operation, array|string|null $key_or_settings = null, ?string $value = null): mixed;
+    public function config(mixed $route, string $operation, array|string|null $key_or_settings = null, mixed $value = null): mixed;
 
     /**
      * @param mixed $route         The routing configuration that determines which node(s) to send the
