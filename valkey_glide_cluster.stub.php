@@ -483,7 +483,8 @@ class ValkeyGlideCluster
      *               address (each value being that node's `parameter => value` map) when a
      *               multi-node route is used. For CONFIG SET, RESETSTAT and REWRITE: true on
      *               success and false on failure. In batch mode: the ValkeyGlideCluster instance
-     *               for method chaining.
+     *               for method chaining (the `$route` argument is ignored while batching, and the
+     *               buffered command executes against glide-core's default routing at exec time).
      * @see https://valkey.io/commands/config
      * @see ValkeyGlide::config()
      *
