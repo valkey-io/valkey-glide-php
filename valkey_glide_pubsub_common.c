@@ -2,6 +2,7 @@
 
 #include "valkey_glide_pubsub_common.h"
 
+#include <time.h>
 #include <unistd.h>
 #include <zend_exceptions.h>
 
@@ -59,6 +60,32 @@ void cond_wait(cond_t* c, mutex_t* m) {
     SleepConditionVariableCS(c, m, INFINITE);
 #else
     pthread_cond_wait(c, m);
+#endif
+}
+
+#define NSEC_PER_SEC 1000000000LL
+#define NSEC_PER_MSEC 1000000LL
+
+int cond_timedwait(cond_t* c, mutex_t* m, unsigned int timeout_ms) {
+#ifdef _WIN32
+    BOOL ok = SleepConditionVariableCS(c, m, timeout_ms);
+    return ok ? 0 : 1;
+#else
+    struct timespec ts;
+    if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
+        // Clock read failed (effectively never on supported platforms). Report
+        // a timeout rather than silently converting a bounded wait into an
+        // unbounded one; the caller re-checks its own predicate/deadline.
+        return 1;
+    }
+    // Work in nanoseconds so the second/nanosecond split is a single
+    // divide/modulo (pthread_cond_timedwait requires tv_nsec in [0, 1e9)).
+    // e.g. a current tv_nsec of 800,000,000 plus a 300 ms timeout
+    // (300,000,000 ns) totals 1,100,000,000 ns -> +1 s and 100,000,000 ns.
+    long long total_ns = (long long) ts.tv_nsec + (long long) timeout_ms * NSEC_PER_MSEC;
+    ts.tv_sec += total_ns / NSEC_PER_SEC;
+    ts.tv_nsec = total_ns % NSEC_PER_SEC;
+    return pthread_cond_timedwait(c, m, &ts);
 #endif
 }
 

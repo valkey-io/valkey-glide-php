@@ -97,6 +97,8 @@ valkey_glide_arginfo.h
 valkey_glide_cluster_arginfo.h
 valkey_glide_cluster_legacy_arginfo.h
 valkey_glide_legacy_arginfo.h
+valkey_glide_monitor_arginfo.h
+valkey_glide_monitor_legacy_arginfo.h
 logger_arginfo.h
 logger_legacy_arginfo.h
 run-tests.php

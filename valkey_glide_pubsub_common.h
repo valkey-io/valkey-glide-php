@@ -67,6 +67,10 @@ extern const char* register_pubsub_callback(const void*    client_adapter_ptr,
 extern const char* unregister_pubsub_callback(const void* client_adapter_ptr);
 
 // Mutex wrapper functions
+// TODO(#318): these cross-platform mutex/condition-variable wrappers are
+// generic threading primitives (also used by the MONITOR client) and are not
+// pub/sub-specific. Extract them into a dedicated valkey_glide_threading.{c,h}
+// module so monitor no longer depends on the pub/sub header just for a lock.
 void mutex_init(mutex_t* m);
 void mutex_lock(mutex_t* m);
 void mutex_unlock(mutex_t* m);
@@ -75,6 +79,10 @@ void mutex_destroy(mutex_t* m);
 // Condition variable wrapper functions
 void cond_init(cond_t* c);
 void cond_wait(cond_t* c, mutex_t* m);
+// Returns 0 on success (woken by signal), a positive errno-style value on
+// timeout or failure (e.g. ETIMEDOUT), so callers can distinguish a timed-out
+// wait from a real wakeup if they need to.
+int  cond_timedwait(cond_t* c, mutex_t* m, unsigned int timeout_ms);
 void cond_signal(cond_t* c);
 void cond_destroy(cond_t* c);
 
