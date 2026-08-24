@@ -1475,7 +1475,7 @@ static int process_config_command_respose(CommandResponse* response,
 /* Execute a CONFIG command using the Valkey Glide client */
 int execute_config_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
-    char*                operation  = NULL;
+    char*                operation = NULL;
     size_t               operation_len;
     zval *               key = NULL, *value = NULL;
     zend_bool            is_cluster = (ce == get_valkey_glide_cluster_ce());
