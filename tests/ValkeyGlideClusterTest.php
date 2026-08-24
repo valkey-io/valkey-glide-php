@@ -173,10 +173,89 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->markTestSkipped();
     }
 
-    /* These 'directed node' commands work differently in ValkeyGlideCluster */
+    /* These 'directed node' commands work differently in ValkeyGlideCluster:
+       they take a routing configuration as the first argument. */
     public function testConfig()
     {
-        $this->markTestSkipped();
+        /* CONFIG GET against a single node returns a flat associative array */
+        $cfg = $this->valkey_glide->config('randomNode', 'GET', 'timeout');
+        $this->assertArrayKey($cfg, 'timeout');
+        $sec = $cfg['timeout'];
+
+        /* CONFIG SET routed to all nodes, verified via a single-node GET */
+        foreach ([$sec + 30, $sec] as $val) {
+            $this->assertTrue($this->valkey_glide->config('allNodes', 'SET', 'timeout', $val));
+            $cfg = $this->valkey_glide->config('randomNode', 'GET', 'timeout');
+            $this->assertArrayKey($cfg, 'timeout', function ($v) use ($val) {
+                return $v == $val;
+            });
+        }
+
+        /* CONFIG GET with a wildcard pattern */
+        $files = $this->valkey_glide->config('randomNode', 'GET', '*file');
+        $this->assertTrue(is_array($files) && isset($files['pidfile']) && isset($files['logfile']));
+
+        /* CONFIG GET routed to multiple nodes returns a per-node map:
+           { node_address => { parameter => value } } */
+        $multi = $this->valkey_glide->config('allPrimaries', 'GET', 'maxclients');
+        $this->assertIsArray($multi);
+        $this->assertGT(0, count($multi));
+        foreach ($multi as $nodeAddress => $nodeConfig) {
+            $this->assertIsString($nodeAddress);
+            $this->assertArrayKey($nodeConfig, 'maxclients');
+        }
+
+        /* CONFIG RESETSTAT routed to all primaries */
+        $this->assertTrue($this->valkey_glide->config('allPrimaries', 'RESETSTAT'));
+
+        /* CONFIG REWRITE.  We don't care if it actually succeeds (it fails when the
+           server was started without a config file), only that it be attempted and
+           return a boolean. */
+        $res = $this->valkey_glide->config('allPrimaries', 'REWRITE');
+        $this->assertIsBool($res);
+
+        /* Ensure invalid operations and malformed calls are rejected */
+        foreach (['notacommand', 'get', 'set'] as $cmd) {
+            $this->assertFalse(@$this->valkey_glide->config('randomNode', $cmd));
+        }
+        $this->assertFalse(@$this->valkey_glide->config('allNodes', 'set', 'foo'));
+
+        if (! $this->minVersionCheck('7.0.0')) {
+            return;
+        }
+
+        /* Multiple-parameter CONFIG GET (server 7.0+) against a single node */
+        $settings = $this->valkey_glide->config(
+            'randomNode',
+            'get',
+            ['timeout', 'databases', 'set-max-intset-entries']
+        );
+        $this->assertTrue(is_array($settings) && isset($settings['timeout']) &&
+                          isset($settings['databases']) && isset($settings['set-max-intset-entries']));
+
+        if (! is_array($settings) || ! isset($settings['timeout']) || ! isset($settings['set-max-intset-entries'])) {
+            return;
+        }
+
+        list($timeout, $max_intset) = [$settings['timeout'], $settings['set-max-intset-entries']];
+
+        $updates = [
+            ['timeout' => $timeout + 30, 'set-max-intset-entries' => $max_intset + 128],
+            ['timeout' => $timeout,      'set-max-intset-entries' => $max_intset],
+        ];
+
+        /* Multiple-parameter CONFIG SET (server 7.0+) routed to all nodes */
+        foreach ($updates as $update) {
+            $this->assertTrue($this->valkey_glide->config('allNodes', 'set', $update));
+
+            $vals = $this->valkey_glide->config('randomNode', 'get', array_keys($update));
+            $this->assertEqualsWeak($vals, $update, true);
+        }
+
+        /* Make sure malformed multiple get/set calls are caught */
+        $this->assertFalse(@$this->valkey_glide->config('randomNode', 'get', []));
+        $this->assertFalse(@$this->valkey_glide->config('allNodes', 'set', []));
+        $this->assertFalse(@$this->valkey_glide->config('allNodes', 'set', [0, 1, 2]));
     }
     public function testFlushDB()
     {
@@ -980,19 +1059,19 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     protected function triggerLatencySpike()
     {
         // Get current threshold from one node (all should have same value)
-        $config = $this->valkey_glide->rawCommand('randomNode', 'CONFIG', 'GET', 'latency-monitor-threshold');
+        $config = $this->valkey_glide->config('randomNode', 'GET', 'latency-monitor-threshold');
         $prevThreshold = $config['latency-monitor-threshold'] ?? '0';
 
         $this->valkey_glide->latencyReset();
 
         // Set threshold on all primaries so any node records spikes
-        $this->valkey_glide->rawCommand('allPrimaries', 'CONFIG', 'SET', 'latency-monitor-threshold', '1');
+        $this->valkey_glide->config('allPrimaries', 'SET', 'latency-monitor-threshold', '1');
 
         try {
             // DEBUG SLEEP on a random node — all nodes have threshold=1 so the spike is recorded
             $this->valkey_glide->rawCommand('randomNode', 'DEBUG', 'SLEEP', '0.05');
         } finally {
-            $this->valkey_glide->rawCommand('allPrimaries', 'CONFIG', 'SET', 'latency-monitor-threshold', $prevThreshold);
+            $this->valkey_glide->config('allPrimaries', 'SET', 'latency-monitor-threshold', $prevThreshold);
         }
     }
 
