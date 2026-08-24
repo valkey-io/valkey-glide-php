@@ -210,6 +210,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertGT(0, count($multi));
         foreach ($multi as $nodeAddress => $nodeConfig) {
             $this->assertIsString($nodeAddress);
+            $this->assertStringContains(':', $nodeAddress);
             $this->assertArrayKey($nodeConfig, 'maxclients');
         }
 

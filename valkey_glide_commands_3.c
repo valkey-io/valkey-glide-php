@@ -1498,8 +1498,8 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
             return 0;
         }
 
-        /* Need at least the route and the operation */
-        if (z_argc < 2) {
+        /* Need at least the route and the operation, and at most route + operation + key + value */
+        if (z_argc < 2 || z_argc > 4) {
             return 0;
         }
 
@@ -1735,8 +1735,7 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
                 if (result->command_error) {
                     /* Command failed */
                     free_command_result(result);
-                    status = 0;
-                    goto cleanup;
+                    return 0;
                 }
 
                 if (result->response) {
