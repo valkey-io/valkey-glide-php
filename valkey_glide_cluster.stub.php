@@ -458,9 +458,44 @@ class ValkeyGlideCluster
     public function refreshIamToken(): string;
 
     /**
+     * Execute the ValkeyGlide CONFIG command against one or more cluster nodes.
+     *
+     * Works like {@see ValkeyGlide::config()} but takes a routing configuration as the
+     * first argument. Supported operations are: GET, SET, RESETSTAT, and REWRITE.
+     *
+     * Response shape for CONFIG GET depends on the route:
+     *   - A single-node route returns a flat associative array of `parameter => value`.
+     *   - A multi-node route returns a per-node associative array keyed by node address,
+     *     where each value is the associative array of `parameter => value` for that node.
+     * CONFIG SET, RESETSTAT and REWRITE return true on success.
+     *
+     * @param mixed $route                     The routing configuration that determines which
+     *                                         node(s) to send the command to (e.g. "randomNode",
+     *                                         "allPrimaries", "allNodes", a key name for
+     *                                         slot-based routing, or a routing array).
+     * @param string $operation                The CONFIG operation to execute (GET, SET, REWRITE,
+     *                                         RESETSTAT).
+     * @param array|string|null $key_or_settings One or more keys (GET) or values/settings (SET).
+     * @param mixed $value                     The value if this is a `CONFIG SET` operation.
+     *                                         Scalars are accepted and converted to strings.
+     * @return mixed For CONFIG GET: a flat associative array of `parameter => value` when a
+     *               single-node route is used, or a per-node associative array keyed by node
+     *               address (each value being that node's `parameter => value` map) when a
+     *               multi-node route is used. For CONFIG SET, RESETSTAT and REWRITE: true on
+     *               success and false on failure. In batch mode: the ValkeyGlideCluster instance
+     *               for method chaining (the `$route` argument is ignored while batching, and the
+     *               buffered command executes against glide-core's default routing at exec time).
+     * @see https://valkey.io/commands/config
      * @see ValkeyGlide::config()
+     *
+     * @example
+     * $cluster->config('randomNode', 'GET', 'timeout');
+     * $cluster->config('allPrimaries', 'GET', ['timeout', 'maxmemory']);
+     * $cluster->config('allNodes', 'SET', 'timeout', '30');
+     * $cluster->config('allNodes', 'SET', ['timeout' => 30, 'loglevel' => 'warning']);
+     * $cluster->config('allPrimaries', 'RESETSTAT');
      */
-   //TODO public function config(mixed $route, string $subcommand, mixed ...$extra_args): mixed;
+    public function config(mixed $route, string $operation, array|string|null $key_or_settings = null, mixed $value = null): mixed;
 
     /**
      * @param mixed $route         The routing configuration that determines which node(s) to send the

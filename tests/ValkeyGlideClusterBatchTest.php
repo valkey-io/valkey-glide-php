@@ -133,7 +133,17 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
 
     public function testConfigOperationsBatch()
     {
-       // Config operations are not supported in batch and cluster mode
+        // In batch mode the leading route argument is still accepted (batches are routed as a
+        // whole), and the CONFIG operation must be parsed from the second argument. This is a
+        // regression test for the operation being mis-parsed as the route in batch mode.
+        $results = $this->valkey_glide->multi()
+            ->config('randomNode', 'GET', 'timeout')
+            ->exec();
+
+        $this->assertIsArray($results);
+        $this->assertCount(1, $results);
+        $this->assertIsArray($results[0]);
+        $this->assertArrayKey($results[0], 'timeout');
     }
 
     public function testFlushOperationsBatch()

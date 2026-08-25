@@ -1478,17 +1478,60 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
     char*                operation = NULL;
     size_t               operation_len;
     zval *               key = NULL, *value = NULL;
+    zend_bool            is_cluster = (ce == get_valkey_glide_cluster_ce());
+    zval*                route      = NULL;
     /* Handle the result */
     int status = 0;
-    /* Parse parameters */
-    if (zend_parse_method_parameters(
-            argc, object, "Os|z!z!", &object, ce, &operation, &operation_len, &key, &value) ==
-        FAILURE) {
-        return 0;
-    }
 
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+
+    if (is_cluster) {
+        /* Cluster mode: the first parameter is the routing configuration, followed by the
+         * operation and optional key/value arguments. The route is always consumed (even in
+         * batch mode, so the operation isn't mis-parsed). Outside batch mode the route is applied
+         * to the command; in batch mode the route argument is ignored, because the batch has no
+         * per-command routing path and executes against glide-core's default routing. */
+        zval* z_args = NULL;
+        int   z_argc = 0;
+        if (zend_parse_method_parameters(argc, object, "O*", &object, ce, &z_args, &z_argc) ==
+            FAILURE) {
+            return 0;
+        }
+
+        /* Need at least the route and the operation, and at most route + operation + key + value */
+        if (z_argc < 2 || z_argc > 4) {
+            return 0;
+        }
+
+        /* Only route when not batching; in batch mode the route argument is ignored */
+        if (!valkey_glide->is_in_batch_mode) {
+            route = &z_args[0];
+        }
+
+        if (Z_TYPE(z_args[1]) != IS_STRING) {
+            php_error_docref(NULL, E_WARNING, "CONFIG operation must be a string");
+            return 0;
+        }
+        operation     = Z_STRVAL(z_args[1]);
+        operation_len = Z_STRLEN(z_args[1]);
+
+        if (z_argc >= 3 && Z_TYPE(z_args[2]) != IS_NULL) {
+            key = &z_args[2];
+        }
+        if (z_argc >= 4 && Z_TYPE(z_args[3]) != IS_NULL) {
+            value = &z_args[3];
+        }
+    } else {
+        /* Standalone mode: parse operation and optional key/value */
+        if (zend_parse_method_parameters(
+                argc, object, "Os|z!z!", &object, ce, &operation, &operation_len, &key, &value) ==
+            FAILURE) {
+            return 0;
+        }
+        /* Re-fetch the object in case parsing updated it */
+        valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    }
 
     /* If we have a Glide client, use it */
     if (valkey_glide->glide_client) {
@@ -1679,9 +1722,15 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
                 goto cleanup;
             }
         } else {
-            /* Execute the command */
-            CommandResult* result = execute_command(
-                valkey_glide->glide_client, command_type, arg_count, args, args_len);
+            /* Execute the command, routing it for cluster clients when a route is provided */
+            CommandResult* result;
+            if (route) {
+                result = execute_command_with_route(
+                    valkey_glide->glide_client, command_type, arg_count, args, args_len, route);
+            } else {
+                result = execute_command(
+                    valkey_glide->glide_client, command_type, arg_count, args, args_len);
+            }
 
             if (result) {
                 if (result->command_error) {
