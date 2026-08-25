@@ -101,6 +101,7 @@ require_once __DIR__ . "/ClientSideCacheTest.php";
 require_once __DIR__ . "/AddressResolverTest.php";
 require_once __DIR__ . "/AddressResolverClusterTest.php";
 require_once __DIR__ . "/ValkeyGlideMonitorTest.php";
+require_once __DIR__ . "/ValkeyGlideNodeDiscoveryModeTest.php";
 
 function getClassArray($classes)
 {
@@ -141,6 +142,7 @@ function getTestClass($class)
         'addressresolver' => 'AddressResolverTest',
         'addressresolvercluster' => 'AddressResolverClusterTest',
         'valkeyglidemonitor' => 'ValkeyGlideMonitorTest',
+        'valkeyglidenodediscoverymode' => 'ValkeyGlideNodeDiscoveryModeTest',
     ];
 
     /* Return early if the class is one of our built-in ones */

@@ -150,6 +150,17 @@ uint8_t* create_connection_request(size_t*                                   len
         conn_req.read_from = CONNECTION_REQUEST__READ_FROM__Primary;
     }
 
+    /* Map node_discovery_mode configuration (standalone only). */
+    if (!is_cluster) {
+        if (config->node_discovery_mode == VALKEY_GLIDE_NODE_DISCOVERY_MODE_STATIC) {
+            conn_req.node_discovery_mode = CONNECTION_REQUEST__NODE_DISCOVERY_MODE__Static;
+        } else if (config->node_discovery_mode == VALKEY_GLIDE_NODE_DISCOVERY_MODE_DISCOVER_ALL) {
+            conn_req.node_discovery_mode = CONNECTION_REQUEST__NODE_DISCOVERY_MODE__DiscoverAll;
+        } else {
+            conn_req.node_discovery_mode = CONNECTION_REQUEST__NODE_DISCOVERY_MODE__Standard;
+        }
+    }
+
     /* Set database ID for standalone clients if it is valid. */
     if (config->database_id >= 0) {
         conn_req.database_id = config->database_id;

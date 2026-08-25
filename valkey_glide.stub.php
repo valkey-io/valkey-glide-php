@@ -195,6 +195,30 @@ class ValkeyGlide
            */
     public const  READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY = 3;
 
+          /**
+           *  @var int
+           * Default node discovery mode. Verifies node roles via INFO REPLICATION and uses
+           * only the provided addresses.
+           */
+    public const  NODE_DISCOVERY_MODE_STANDARD = 0;
+
+          /**
+           *  @var int
+           * Skips role detection entirely. Trusts the provided addresses as-is; the first
+           * address is treated as the primary. Use when connecting through a proxy (e.g. Envoy,
+           * HAProxy) that does not support INFO, or when the topology is known and static.
+           * Note: Do not set client_name when using this mode with a proxy.
+           */
+    public const  NODE_DISCOVERY_MODE_STATIC = 1;
+
+          /**
+           *  @var int
+           * Auto-discovers the full topology (primary + all replicas) from any single starting
+           * node (primary or replica). Provide any single node address and the client will find
+           * and connect to all other nodes.
+           */
+    public const  NODE_DISCOVERY_MODE_DISCOVER_ALL = 2;
+
     /**
      * @var string
      * COPY command option key for replacing existing destination key
@@ -382,6 +406,10 @@ class ValkeyGlide
      *                                    ['window_size_ms' => int, 'failure_rate_threshold' => float,
      *                                     'min_errors' => int, 'open_timeout_ms' => int,
      *                                     'count_timeouts' => bool, 'consecutive_successes' => int]
+     * @param int|null $node_discovery_mode Standalone node discovery strategy (standalone only):
+     *                                      NODE_DISCOVERY_MODE_STANDARD (default),
+     *                                      NODE_DISCOVERY_MODE_STATIC, or
+     *                                      NODE_DISCOVERY_MODE_DISCOVER_ALL
      * @return bool True on successful connection, false on failure
      *
      * @throws ValkeyGlideException If conflicting parameters are specified or connection fails
@@ -417,6 +445,7 @@ class ValkeyGlide
         ?array $client_side_cache = null,
         ?callable $address_resolver = null,
         ?array $circuit_breaker = null,
+        ?int $node_discovery_mode = null,
     ): bool;
 
     public function __destruct();

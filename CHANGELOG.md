@@ -4,6 +4,7 @@
 
 ### Changes
 
+* Add `NodeDiscoveryMode` configuration (`STANDARD`, `STATIC`, `DISCOVER_ALL`) for standalone client ([#302](https://github.com/valkey-io/valkey-glide-php/issues/302))
 * Add `CONFIG` command for cluster client ([#284](https://github.com/valkey-io/valkey-glide-php/issues/284))
 * Add `MONITOR` command for standalone client ([#309](https://github.com/valkey-io/valkey-glide-php/pull/309))
 * Add `LOLWUT` command for standalone and cluster clients ([#314](https://github.com/valkey-io/valkey-glide-php/pull/314))

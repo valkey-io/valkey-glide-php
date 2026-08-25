@@ -379,6 +379,30 @@ $client->connect(
 )
 ```
 
+### Node Discovery Mode (Standalone)
+
+For standalone clients, `node_discovery_mode` controls how the client discovers node roles and topology. It is only applicable to standalone clients (`ValkeyGlide`).
+
+- `ValkeyGlide::NODE_DISCOVERY_MODE_STANDARD` (default): Verifies node roles via `INFO REPLICATION` and uses only the provided addresses.
+- `ValkeyGlide::NODE_DISCOVERY_MODE_STATIC`: Skips role detection. Trusts the provided addresses as-is (the first address is treated as the primary). Enables connectivity through proxies (e.g., Envoy, HAProxy) that do not support `INFO`. Do not set `client_name` when using this mode with a proxy.
+- `ValkeyGlide::NODE_DISCOVERY_MODE_DISCOVER_ALL`: Auto-discovers the full topology (primary + all replicas) from any single starting node (primary or replica).
+
+```php
+// STATIC: trust provided addresses, skip role detection (e.g., behind a proxy)
+$client = new ValkeyGlide();
+$client->connect(
+    addresses: [['host' => 'proxy-host', 'port' => 6379]],
+    node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STATIC
+);
+
+// DISCOVER_ALL: discover the full topology from any single node
+$client = new ValkeyGlide();
+$client->connect(
+    addresses: [['host' => 'localhost', 'port' => 6379]],
+    node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_DISCOVER_ALL
+);
+```
+
 ### Cluster Valkey
 
 ```php
