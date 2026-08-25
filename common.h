@@ -121,6 +121,15 @@ typedef struct {
 #define VALKEY_GLIDE_TLS_CONFIG "tls_config"
 #define VALKEY_GLIDE_USE_INSECURE_TLS "use_insecure_tls"
 #define VALKEY_GLIDE_ROOT_CERTS "root_certs"
+#define VALKEY_GLIDE_CLIENT_CERT "client_cert"
+#define VALKEY_GLIDE_CLIENT_KEY "client_key"
+#define VALKEY_GLIDE_CLIENT_CERT_PATH "client_cert_path"
+#define VALKEY_GLIDE_CLIENT_KEY_PATH "client_key_path"
+
+/* Maximum allowed size (in bytes) for a single certificate or private key.
+ * Acts as a safeguard against accidentally loading oversized/incorrect files.
+ * Matches the C# client's ConnectionConfiguration.CertificateMaxSize (10 MiB). */
+#define VALKEY_GLIDE_CERTIFICATE_MAX_SIZE (10 * 1024 * 1024) /* 10 MiB */
 
 /* Compression Constants */
 #define VALKEY_GLIDE_COMPRESSION "compression"
@@ -191,6 +200,10 @@ typedef struct {
 typedef struct {
     uint8_t* root_certs;       /* Certificate data bytes */
     size_t   root_certs_len;   /* Length of certificate data */
+    uint8_t* client_cert;      /* Client certificate data bytes (mTLS) */
+    size_t   client_cert_len;  /* Length of client certificate data */
+    uint8_t* client_key;       /* Client private key data bytes (mTLS) */
+    size_t   client_key_len;   /* Length of client private key data */
     bool     use_insecure_tls; /* Whether to use insecure TLS (skips certificate verification) */
 } valkey_glide_tls_advanced_configuration_t;
 

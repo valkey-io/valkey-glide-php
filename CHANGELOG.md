@@ -4,6 +4,7 @@
 
 ### Changes
 
+* Add mutual TLS (mTLS) support via `client_cert`/`client_key` (inline PEM bytes) or `client_cert_path`/`client_key_path` (file paths) in `advanced_config['tls_config']` for standalone and cluster clients ([#288](https://github.com/valkey-io/valkey-glide-php/issues/288))
 * Add `MONITOR` command for standalone client ([#309](https://github.com/valkey-io/valkey-glide-php/pull/309))
 * Add `LOLWUT` command for standalone and cluster clients ([#314](https://github.com/valkey-io/valkey-glide-php/pull/314))
 * Add `LASTSAVE` command for standalone and cluster clients ([#315](https://github.com/valkey-io/valkey-glide-php/pull/315))

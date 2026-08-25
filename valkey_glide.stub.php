@@ -371,7 +371,19 @@ class ValkeyGlide
      * @param int|null $database_id Database number (0-15 for standalone)
      * @param string|null $client_name Client identifier for debugging
      * @param string|null $client_az Availability zone for routing
-     * @param array|null $advanced_config Advanced TLS/connection settings
+     * @param array|null $advanced_config Advanced TLS/connection settings.
+     *                                    TLS options under the 'tls_config' key:
+     *                                    ['tls_config' => [
+     *                                        'root_certs' => string,        // PEM CA certificate(s)
+     *                                        'use_insecure_tls' => bool,    // Skip certificate verification
+     *                                        'client_cert' => string,       // PEM client certificate bytes (mTLS)
+     *                                        'client_key' => string,        // PEM client private key bytes (mTLS)
+     *                                        'client_cert_path' => string,  // Path to PEM client certificate file (mTLS)
+     *                                        'client_key_path' => string,   // Path to PEM client private key file (mTLS)
+     *                                    ]]
+     *                                    For mutual TLS (mTLS), both a client certificate and a client key must be
+     *                                    provided. Each may be given inline (client_cert/client_key) or as a file
+     *                                    path (client_cert_path/client_key_path), but not both for the same item.
      * @param bool|null $lazy_connect Defer connection until first command (default: false)
      * @param resource|array|null $context Stream context resource or array for TLS configuration
      * @param array|null $compression Compression configuration: ['enabled' => true, 'backend' => COMPRESSION_BACKEND_ZSTD, 'compression_level' => 3, 'min_compression_size' => 64]

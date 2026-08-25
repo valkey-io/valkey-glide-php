@@ -162,4 +162,126 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
         $this->assertConnected($client);
         $client->close();
     }
+
+    // ================================================================
+    // mTLS (mutual TLS) tests
+    // ================================================================
+
+    /**
+     * mTLS requires both the client certificate and the client key.
+     * Providing only the client certificate must fail.
+     */
+    public function testMtlsClientCertWithoutKeyThrows()
+    {
+        $this->skipIfTlsDisabled();
+
+        $certData = $this->getCaCertificate();
+
+        $this->assertThrows(ValkeyGlideException::class, function () use ($certData) {
+            new ValkeyGlideCluster(
+                addresses: [self::TLS_ADDRESS_CLUSTER],
+                use_tls: true,
+                advanced_config: [
+                    'tls_config' => [
+                        'root_certs'  => $certData,
+                        'client_cert' => $certData,
+                    ]
+                ]
+            );
+        });
+    }
+
+    /**
+     * mTLS requires both the client certificate and the client key.
+     * Providing only the client key must fail.
+     */
+    public function testMtlsClientKeyWithoutCertThrows()
+    {
+        $this->skipIfTlsDisabled();
+
+        $certData = $this->getCaCertificate();
+
+        $this->assertThrows(ValkeyGlideException::class, function () use ($certData) {
+            new ValkeyGlideCluster(
+                addresses: [self::TLS_ADDRESS_CLUSTER],
+                use_tls: true,
+                advanced_config: [
+                    'tls_config' => [
+                        'root_certs' => $certData,
+                        'client_key' => $certData,
+                    ]
+                ]
+            );
+        });
+    }
+
+    /**
+     * An empty client certificate string must be rejected.
+     */
+    public function testMtlsEmptyClientCertThrows()
+    {
+        $this->skipIfTlsDisabled();
+
+        $certData = $this->getCaCertificate();
+
+        $this->assertThrows(ValkeyGlideException::class, function () use ($certData) {
+            new ValkeyGlideCluster(
+                addresses: [self::TLS_ADDRESS_CLUSTER],
+                use_tls: true,
+                advanced_config: [
+                    'tls_config' => [
+                        'client_cert' => '',
+                        'client_key'  => $certData,
+                    ]
+                ]
+            );
+        });
+    }
+
+    /**
+     * A non-existent client certificate file path must be rejected.
+     */
+    public function testMtlsClientCertPathNotFoundThrows()
+    {
+        $this->skipIfTlsDisabled();
+
+        $certData = $this->getCaCertificate();
+
+        $this->assertThrows(ValkeyGlideException::class, function () use ($certData) {
+            new ValkeyGlideCluster(
+                addresses: [self::TLS_ADDRESS_CLUSTER],
+                use_tls: true,
+                advanced_config: [
+                    'tls_config' => [
+                        'client_cert_path' => '/invalid/client-cert.pem',
+                        'client_key'       => $certData,
+                    ]
+                ]
+            );
+        });
+    }
+
+    /**
+     * Specifying both inline bytes and a file path for the same item must be rejected.
+     */
+    public function testMtlsInlineAndPathConflictThrows()
+    {
+        $this->skipIfTlsDisabled();
+
+        $certData = $this->getCaCertificate();
+
+        $this->assertThrows(ValkeyGlideException::class, function () use ($certData) {
+            new ValkeyGlideCluster(
+                addresses: [self::TLS_ADDRESS_CLUSTER],
+                use_tls: true,
+                advanced_config: [
+                    'tls_config' => [
+                        'client_cert'      => $certData,
+                        'client_cert_path' => self::TLS_CERTIFICATE_PATH,
+                        'client_key'       => $certData,
+                    ]
+                ]
+            );
+        });
+    }
 }

@@ -121,6 +121,16 @@ uint8_t* create_connection_request(size_t*                                   len
             conn_req.n_root_certs = 1;
             conn_req.root_certs   = &root_cert_data;
         }
+
+        /* Set client certificate and key for mutual TLS (mTLS) */
+        if (tls_config->client_cert && tls_config->client_cert_len > 0) {
+            conn_req.client_cert =
+                (ProtobufCBinaryData){tls_config->client_cert_len, tls_config->client_cert};
+        }
+        if (tls_config->client_key && tls_config->client_key_len > 0) {
+            conn_req.client_key =
+                (ProtobufCBinaryData){tls_config->client_key_len, tls_config->client_key};
+        }
     }
 
     conn_req.cluster_mode_enabled = is_cluster;

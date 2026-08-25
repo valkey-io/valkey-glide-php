@@ -230,7 +230,17 @@ class ValkeyGlideCluster
      * @param string|null $client_az            Client availability zone.
      * @param array|null $advanced_config       Advanced configuration options:
      *                                          - 'connection_timeout' => 5000 (milliseconds)
-     *                                          - 'tls_config' => ['use_insecure_tls' => false]
+     *                                          - 'tls_config' => [
+     *                                                'root_certs' => string,       // PEM CA certificate(s)
+     *                                                'use_insecure_tls' => false,  // Skip certificate verification
+     *                                                'client_cert' => string,      // PEM client certificate bytes (mTLS)
+     *                                                'client_key' => string,       // PEM client private key bytes (mTLS)
+     *                                                'client_cert_path' => string, // Path to PEM client certificate file (mTLS)
+     *                                                'client_key_path' => string,  // Path to PEM client private key file (mTLS)
+     *                                            ]
+     *                                            For mutual TLS (mTLS), both a client certificate and a client key must be
+     *                                            provided. Each may be given inline or as a file path, but not both for
+     *                                            the same item.
      *                                          - 'refresh_topology_from_initial_nodes' => false (default: false)
      *                                            When true, topology updates use only initial nodes instead of internal cluster view.
      *                                          - 'otel' => OpenTelemetryConfig::builder()

@@ -843,6 +843,14 @@ void valkey_glide_cleanup_client_config(valkey_glide_base_client_configuration_t
                 efree(config->advanced_config->tls_config->root_certs);
                 config->advanced_config->tls_config->root_certs = NULL;
             }
+            if (config->advanced_config->tls_config->client_cert) {
+                efree(config->advanced_config->tls_config->client_cert);
+                config->advanced_config->tls_config->client_cert = NULL;
+            }
+            if (config->advanced_config->tls_config->client_key) {
+                efree(config->advanced_config->tls_config->client_key);
+                config->advanced_config->tls_config->client_key = NULL;
+            }
             efree(config->advanced_config->tls_config);
             config->advanced_config->tls_config = NULL;
         }
@@ -1818,6 +1826,149 @@ static bool _determine_use_tls(valkey_glide_php_common_constructor_params_t* par
  * @param is_cluster Whether this is a cluster client
  * @return           Pointer to the constructed TLS advanced configuration structure.
  */
+/**
+ * Frees a TLS advanced configuration structure and any buffers it owns.
+ */
+static void _free_advanced_tls_config(valkey_glide_tls_advanced_configuration_t* tls_config) {
+    if (!tls_config) {
+        return;
+    }
+    if (tls_config->root_certs) {
+        efree(tls_config->root_certs);
+    }
+    if (tls_config->client_cert) {
+        efree(tls_config->client_cert);
+    }
+    if (tls_config->client_key) {
+        efree(tls_config->client_key);
+    }
+    efree(tls_config);
+}
+
+/**
+ * Resolves a single piece of mTLS material (client certificate or client key) from the
+ * advanced TLS config array, supporting either inline PEM bytes or a file path.
+ *
+ * On success, writes an emalloc'd buffer to *out_data and its length to *out_len (or leaves
+ * them untouched when neither key is present). On validation failure, throws a
+ * ValkeyGlideException and returns false.
+ *
+ * @param advanced_tls_ht  The tls_config hash table.
+ * @param inline_key       Config key for inline PEM bytes (e.g. "client_cert").
+ * @param inline_key_len   Length of inline_key (excluding NUL).
+ * @param path_key         Config key for a file path (e.g. "client_cert_path").
+ * @param path_key_len     Length of path_key (excluding NUL).
+ * @param label            Human-readable label for error messages (e.g. "client_cert").
+ * @param out_data         Receives the emalloc'd buffer on success.
+ * @param out_len          Receives the buffer length on success.
+ * @return true on success (including when not provided), false if an exception was thrown.
+ */
+static bool _resolve_mtls_material(HashTable*  advanced_tls_ht,
+                                   const char* inline_key,
+                                   size_t      inline_key_len,
+                                   const char* path_key,
+                                   size_t      path_key_len,
+                                   const char* label,
+                                   uint8_t**   out_data,
+                                   size_t*     out_len) {
+    zval* inline_val = zend_hash_str_find(advanced_tls_ht, inline_key, inline_key_len);
+    zval* path_val   = zend_hash_str_find(advanced_tls_ht, path_key, path_key_len);
+
+    bool has_inline = inline_val && Z_TYPE_P(inline_val) == IS_STRING;
+    bool has_path   = path_val && Z_TYPE_P(path_val) == IS_STRING;
+
+    /* Reject specifying both inline bytes and a path for the same item. */
+    if (has_inline && has_path) {
+        char error_message[128];
+        snprintf(error_message,
+                 sizeof(error_message),
+                 "Cannot specify both %s and %s_path; provide only one.",
+                 label,
+                 label);
+        VALKEY_LOG_ERROR("tls_config_mtls", error_message);
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+        return false;
+    }
+
+    if (has_inline) {
+        size_t len = Z_STRLEN_P(inline_val);
+        if (len == 0) {
+            char error_message[128];
+            snprintf(error_message,
+                     sizeof(error_message),
+                     "%s cannot be an empty string; omit it if not providing it.",
+                     label);
+            VALKEY_LOG_ERROR("tls_config_mtls", error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return false;
+        }
+        if (len > VALKEY_GLIDE_CERTIFICATE_MAX_SIZE) {
+            char error_message[160];
+            snprintf(error_message,
+                     sizeof(error_message),
+                     "%s exceeds the maximum allowed size of %d bytes.",
+                     label,
+                     VALKEY_GLIDE_CERTIFICATE_MAX_SIZE);
+            VALKEY_LOG_ERROR("tls_config_mtls", error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return false;
+        }
+        *out_len  = len;
+        *out_data = emalloc(len);
+        memcpy(*out_data, Z_STRVAL_P(inline_val), len);
+        return true;
+    }
+
+    if (has_path) {
+        const char* path = Z_STRVAL_P(path_val);
+        if (Z_STRLEN_P(path_val) == 0) {
+            char error_message[128];
+            snprintf(error_message,
+                     sizeof(error_message),
+                     "%s_path cannot be an empty string.",
+                     label);
+            VALKEY_LOG_ERROR("tls_config_mtls", error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return false;
+        }
+
+        uint8_t* file_data;
+        size_t   file_len;
+        if (!_load_data_from_file(path, &file_data, &file_len)) {
+            char error_message[192];
+            snprintf(error_message,
+                     sizeof(error_message),
+                     "Failed to load %s from file: %s",
+                     label,
+                     path);
+            VALKEY_LOG_ERROR("tls_config_mtls", error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return false;
+        }
+
+        if (file_len > VALKEY_GLIDE_CERTIFICATE_MAX_SIZE) {
+            efree(file_data);
+            char error_message[192];
+            snprintf(error_message,
+                     sizeof(error_message),
+                     "%s file exceeds the maximum allowed size of %d bytes: %s",
+                     label,
+                     VALKEY_GLIDE_CERTIFICATE_MAX_SIZE,
+                     path);
+            VALKEY_LOG_ERROR("tls_config_mtls", error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return false;
+        }
+
+        *out_data = file_data;
+        *out_len  = file_len;
+        return true;
+    }
+
+    /* Not provided; leave outputs untouched. */
+    return true;
+}
+
 static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
     valkey_glide_php_common_constructor_params_t* params, bool is_cluster) {
     // Allocate memory with default values.
@@ -1827,6 +1978,10 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
     tls_advanced_config->use_insecure_tls = false;
     tls_advanced_config->root_certs       = NULL;
     tls_advanced_config->root_certs_len   = 0;
+    tls_advanced_config->client_cert      = NULL;
+    tls_advanced_config->client_cert_len  = 0;
+    tls_advanced_config->client_key       = NULL;
+    tls_advanced_config->client_key_len   = 0;
 
     // TLS configuration can be specified either from
     // the stream context or from the advanced TLS config.
@@ -1838,7 +1993,7 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
         const char* error_msg =
             "At most one of stream context or advanced TLS config can be specified.";
         VALKEY_LOG_ERROR("tls_config_conflict", error_msg);
-        efree(tls_advanced_config);
+        _free_advanced_tls_config(tls_advanced_config);
         zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
         return NULL;
     }
@@ -1867,7 +2022,7 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
             } else {
                 const char* error_message = "Failed to load root certificate from file";
                 VALKEY_LOG_ERROR("tls_config_cafile", error_message);
-                efree(tls_advanced_config);
+                _free_advanced_tls_config(tls_advanced_config);
                 zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
                 return NULL;
             }
@@ -1894,6 +2049,50 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
             tls_advanced_config->root_certs_len = cert_len;
             tls_advanced_config->root_certs     = emalloc(cert_len);
             memcpy(tls_advanced_config->root_certs, Z_STRVAL_P(root_certs), cert_len);
+        }
+
+        // Client certificate (mTLS) - inline PEM bytes or file path.
+        if (!_resolve_mtls_material(advanced_tls_ht,
+                                    VALKEY_GLIDE_CLIENT_CERT,
+                                    sizeof(VALKEY_GLIDE_CLIENT_CERT) - 1,
+                                    VALKEY_GLIDE_CLIENT_CERT_PATH,
+                                    sizeof(VALKEY_GLIDE_CLIENT_CERT_PATH) - 1,
+                                    VALKEY_GLIDE_CLIENT_CERT,
+                                    &tls_advanced_config->client_cert,
+                                    &tls_advanced_config->client_cert_len)) {
+            _free_advanced_tls_config(tls_advanced_config);
+            return NULL;
+        }
+
+        // Client private key (mTLS) - inline PEM bytes or file path.
+        if (!_resolve_mtls_material(advanced_tls_ht,
+                                    VALKEY_GLIDE_CLIENT_KEY,
+                                    sizeof(VALKEY_GLIDE_CLIENT_KEY) - 1,
+                                    VALKEY_GLIDE_CLIENT_KEY_PATH,
+                                    sizeof(VALKEY_GLIDE_CLIENT_KEY_PATH) - 1,
+                                    VALKEY_GLIDE_CLIENT_KEY,
+                                    &tls_advanced_config->client_key,
+                                    &tls_advanced_config->client_key_len)) {
+            _free_advanced_tls_config(tls_advanced_config);
+            return NULL;
+        }
+
+        // mTLS requires both the client certificate and the client key to be provided together.
+        if (tls_advanced_config->client_cert && !tls_advanced_config->client_key) {
+            const char* error_message =
+                "client_cert is provided but client_key not provided. mTLS requires both.";
+            VALKEY_LOG_ERROR("tls_config_mtls", error_message);
+            _free_advanced_tls_config(tls_advanced_config);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return NULL;
+        }
+        if (tls_advanced_config->client_key && !tls_advanced_config->client_cert) {
+            const char* error_message =
+                "client_key is provided but client_cert not provided. mTLS requires both.";
+            VALKEY_LOG_ERROR("tls_config_mtls", error_message);
+            _free_advanced_tls_config(tls_advanced_config);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return NULL;
         }
     }
 

@@ -379,6 +379,50 @@ $client->connect(
 )
 ```
 
+### With Mutual TLS (mTLS)
+
+```php
+// Create ValkeyGlide client with mutual TLS (client certificate authentication).
+// Both a client certificate and a client key are required for mTLS.
+$client = new ValkeyGlide();
+$client->connect(
+    addresses: [['host' => 'localhost', 'port' => 6379]],
+    use_tls: true,  // REQUIRED for mTLS
+    advanced_config: [
+        'tls_config' => [
+            'root_certs'  => file_get_contents('ca-cert.pem'),      // PEM CA certificate(s)
+            'client_cert' => file_get_contents('client-cert.pem'),  // PEM client certificate bytes
+            'client_key'  => file_get_contents('client-key.pem'),   // PEM client private key bytes
+        ]
+    ]
+);
+
+$client->set('key', 'value');
+$client->close();
+```
+
+Alternatively, the client certificate and key can be loaded directly from files by
+providing their paths. Use either the inline byte form above or the path form below
+for a given item, but not both:
+
+```php
+$client = new ValkeyGlide();
+$client->connect(
+    addresses: [['host' => 'localhost', 'port' => 6379]],
+    use_tls: true,
+    advanced_config: [
+        'tls_config' => [
+            'root_certs'       => file_get_contents('ca-cert.pem'),
+            'client_cert_path' => 'client-cert.pem',  // Path to PEM client certificate file
+            'client_key_path'  => 'client-key.pem',   // Path to PEM client private key file
+        ]
+    ]
+);
+
+$client->set('key', 'value');
+$client->close();
+```
+
 ### Cluster Valkey
 
 ```php
