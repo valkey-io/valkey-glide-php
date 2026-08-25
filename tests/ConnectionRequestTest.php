@@ -900,6 +900,30 @@ class ConnectionRequestTest extends \TestSuite
         }
     }
 
+    public function testClientAuthTlsWithTlsDisabled()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert' => self::CLIENT_CERT_DATA,
+            'client_key'  => self::CLIENT_KEY_DATA,
+        ]];
+        $expected_msg = 'Cannot configure mTLS client certificate when TLS is disabled.';
+
+        // use_tls defaults to false; providing mTLS credentials must be rejected.
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertEquals($expected_msg, $e->getMessage());
+        }
+
+        try {
+            ClientConstructorMock::simulate_cluster_constructor(advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertEquals($expected_msg, $e->getMessage());
+        }
+    }
+
     // ================================================================
     // Compression Tests
     // ================================================================

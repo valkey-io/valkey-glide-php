@@ -456,6 +456,19 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         return FAILURE;
     }
 
+    // Raise an exception if mTLS client credentials are provided but TLS is not enabled
+    if (!config->use_tls && config->advanced_config && config->advanced_config->tls_config &&
+        (config->advanced_config->tls_config->client_cert ||
+         config->advanced_config->tls_config->client_key)) {
+        VALKEY_LOG_ERROR("mtls_with_tls_disabled",
+                         "Cannot configure mTLS client certificate when TLS is disabled.");
+        valkey_glide_cleanup_client_config(config);
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "Cannot configure mTLS client certificate when TLS is disabled.",
+                             0);
+        return FAILURE;
+    }
+
     /* Process compression configuration if provided */
     if (params->compression && Z_TYPE_P(params->compression) == IS_ARRAY) {
         HashTable* compression_ht = Z_ARRVAL_P(params->compression);
@@ -1879,12 +1892,12 @@ static bool _resolve_mtls_material(HashTable*  advanced_tls_ht,
 
     /* Reject specifying both inline bytes and a path for the same item. */
     if (has_inline && has_path) {
-        char error_message[128];
+        char error_message[160];
         snprintf(error_message,
                  sizeof(error_message),
-                 "Cannot specify both %s and %s_path; provide only one.",
-                 label,
-                 label);
+                 "Cannot specify both %s and %s; provide only one.",
+                 inline_key,
+                 path_key);
         VALKEY_LOG_ERROR("tls_config_mtls", error_message);
         zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
         return false;
@@ -1923,10 +1936,8 @@ static bool _resolve_mtls_material(HashTable*  advanced_tls_ht,
         const char* path = Z_STRVAL_P(path_val);
         if (Z_STRLEN_P(path_val) == 0) {
             char error_message[128];
-            snprintf(error_message,
-                     sizeof(error_message),
-                     "%s_path cannot be an empty string.",
-                     label);
+            snprintf(
+                error_message, sizeof(error_message), "%s cannot be an empty string.", path_key);
             VALKEY_LOG_ERROR("tls_config_mtls", error_message);
             zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
             return false;
