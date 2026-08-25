@@ -797,7 +797,8 @@ class ValkeyGlide
      *
      * @param string $operation The CONFIG operation to execute (e.g. GET, SET, REWRITE).
      * @param array|string|null $key_or_settings One or more keys or values.
-     * @param string $value The value if this is a `CONFIG SET` operation.
+     * @param mixed $value The value if this is a `CONFIG SET` operation. Scalars are accepted
+     *                     and converted to strings.
      * @see https://valkey.io/commands/config
      *
      * @example
@@ -806,7 +807,7 @@ class ValkeyGlide
      * $valkey_glide->config('SET', 'timeout', 30);
      * $valkey_glide->config('SET', ['timeout' => 30, 'loglevel' => 'warning']);
      */
-    public function config(string $operation, array|string|null $key_or_settings = null, ?string $value = null): mixed;
+    public function config(string $operation, array|string|null $key_or_settings = null, mixed $value = null): mixed;
 
     /**
      * Make a copy of a key.
