@@ -924,6 +924,79 @@ class ConnectionRequestTest extends \TestSuite
         }
     }
 
+    public function testClientAuthTlsBoundarySizeAccepted()
+    {
+        // Exactly the maximum allowed size (10 MiB) must be accepted (cap is `> MAX`).
+        $maxSized = str_repeat('A', 10 * 1024 * 1024);
+        $advanced_config = ['tls_config' => [
+            'client_cert' => $maxSized,
+            'client_key'  => self::CLIENT_KEY_DATA,
+        ]];
+
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            use_tls: true,
+            advanced_config: $advanced_config
+        );
+        $this->assertEquals($maxSized, $request->getClientCert());
+        $this->assertEquals(self::CLIENT_KEY_DATA, $request->getClientKey());
+    }
+
+    public function testClientAuthTlsOversizedKeyFromPath()
+    {
+        // A key file larger than 10 MiB must be rejected by the bounded loader.
+        $key_handle = tmpfile();
+        fwrite($key_handle, str_repeat('A', (10 * 1024 * 1024) + 1));
+        $key_path = stream_get_meta_data($key_handle)['uri'];
+
+        $advanced_config = ['tls_config' => [
+            'client_cert' => self::CLIENT_CERT_DATA,
+            'client_key_path' => $key_path,
+        ]];
+        $expected_msg = 'Failed to load client_key from file';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        } finally {
+            fclose($key_handle);
+        }
+    }
+
+    public function testClientAuthTlsEmptyKeyPath()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert'     => self::CLIENT_CERT_DATA,
+            'client_key_path' => '',
+        ]];
+        $expected_msg = 'client_key_path cannot be an empty string';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsKeyInlineAndPathConflict()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert'     => self::CLIENT_CERT_DATA,
+            'client_key'      => self::CLIENT_KEY_DATA,
+            'client_key_path' => '/some/key.pem',
+        ]];
+        $expected_msg = 'Cannot specify both client_key and client_key_path';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
     public function testClientAuthTlsWithTlsDisabled()
     {
         $advanced_config = ['tls_config' => [
