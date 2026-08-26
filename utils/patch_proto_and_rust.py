@@ -173,6 +173,68 @@ def patch_rust_types_rs(rust_types_file):
             needs_patching = True
             log_message("Applied eviction_policy patch")
 
+        # Fix client_cert_path: changed from Option<Chars> to Chars (proto3 optional stripped).
+        # The generated field is now a plain `Chars`, so treat an empty string as "unset".
+        client_cert_path_pattern = (
+            r'let client_cert_path = value\s*'
+            r'\.client_cert_path\s*'
+            r'\.as_ref\(\)\s*'
+            r'\.filter\(\|p\| !p\.is_empty\(\)\)\s*'
+            r'\.map\(\|p\| p\.to_string\(\)\);'
+        )
+        client_cert_path_replacement = (
+            'let client_cert_path = Some(value.client_cert_path.to_string())'
+            '.filter(|p| !p.is_empty());'
+        )
+        if re.search(client_cert_path_pattern, new_content, re.DOTALL):
+            if not needs_patching:
+                create_backup(rust_types_file)
+            new_content = re.sub(
+                client_cert_path_pattern, client_cert_path_replacement, new_content, flags=re.DOTALL)
+            needs_patching = True
+            log_message("Applied client_cert_path patch")
+
+        # Fix client_key_path: changed from Option<Chars> to Chars (proto3 optional stripped).
+        client_key_path_pattern = (
+            r'let client_key_path = value\s*'
+            r'\.client_key_path\s*'
+            r'\.as_ref\(\)\s*'
+            r'\.filter\(\|p\| !p\.is_empty\(\)\)\s*'
+            r'\.map\(\|p\| p\.to_string\(\)\);'
+        )
+        client_key_path_replacement = (
+            'let client_key_path = Some(value.client_key_path.to_string())'
+            '.filter(|p| !p.is_empty());'
+        )
+        if re.search(client_key_path_pattern, new_content, re.DOTALL):
+            if not needs_patching:
+                create_backup(rust_types_file)
+            new_content = re.sub(
+                client_key_path_pattern, client_key_path_replacement, new_content, flags=re.DOTALL)
+            needs_patching = True
+            log_message("Applied client_key_path patch")
+
+        # Fix cert_reload.interval_seconds: changed from Option<u32> to u32.
+        cert_reload_interval_pattern = r'interval_seconds: proto_reload\.interval_seconds\.filter\(\|&s\| s != 0\),'
+        cert_reload_interval_replacement = 'interval_seconds: none_if_zero(proto_reload.interval_seconds),'
+        if re.search(cert_reload_interval_pattern, new_content):
+            if not needs_patching:
+                create_backup(rust_types_file)
+            new_content = re.sub(
+                cert_reload_interval_pattern, cert_reload_interval_replacement, new_content)
+            needs_patching = True
+            log_message("Applied cert_reload.interval_seconds patch")
+
+        # Fix recovery_requests_queue_size: changed from Option<u32> to u32.
+        recovery_queue_pattern = r'let recovery_requests_queue_size = value\.recovery_requests_queue_size;'
+        recovery_queue_replacement = 'let recovery_requests_queue_size = none_if_zero(value.recovery_requests_queue_size);'
+        if re.search(recovery_queue_pattern, new_content):
+            if not needs_patching:
+                create_backup(rust_types_file)
+            new_content = re.sub(recovery_queue_pattern, recovery_queue_replacement, new_content)
+            needs_patching = True
+            log_message("Applied recovery_requests_queue_size patch")
+
         if needs_patching:
             with open(rust_types_file, 'w') as f:
                 f.write(new_content)
@@ -201,10 +263,16 @@ def verify_rust_patch(rust_types_file):
         compression_fixed = 'Some(proto_config.compression_level)' in content
         max_decompressed_fixed = 'if proto_config.max_decompressed_size != 0' in content
         eviction_fixed = '.enum_value()' in content and '.and_then(|enum_or_unknown|' not in content
+        client_cert_path_fixed = 'Some(value.client_cert_path.to_string()).filter(|p| !p.is_empty())' in content
+        client_key_path_fixed = 'Some(value.client_key_path.to_string()).filter(|p| !p.is_empty())' in content
+        cert_reload_interval_fixed = 'interval_seconds: none_if_zero(proto_reload.interval_seconds)' in content
+        recovery_queue_fixed = 'let recovery_requests_queue_size = none_if_zero(value.recovery_requests_queue_size);' in content
 
         all_fixed = (tcp_nodelay_fixed and pubsub_fixed and jitter_fixed and
                      refresh_fixed and compression_fixed and read_only_fixed and
-                     max_decompressed_fixed and eviction_fixed)
+                     max_decompressed_fixed and eviction_fixed and
+                     client_cert_path_fixed and client_key_path_fixed and
+                     cert_reload_interval_fixed and recovery_queue_fixed)
 
         if all_fixed:
             log_message("Rust patch verification: SUCCESS")
@@ -227,6 +295,14 @@ def verify_rust_patch(rust_types_file):
                 missing.append("max_decompressed_size fix")
             if not eviction_fixed:
                 missing.append("eviction_policy fix")
+            if not client_cert_path_fixed:
+                missing.append("client_cert_path fix")
+            if not client_key_path_fixed:
+                missing.append("client_key_path fix")
+            if not cert_reload_interval_fixed:
+                missing.append("cert_reload.interval_seconds fix")
+            if not recovery_queue_fixed:
+                missing.append("recovery_requests_queue_size fix")
             log_message(f"Rust patch verification: FAILED - Missing: {', '.join(missing)}", "ERROR")
             return False
 
