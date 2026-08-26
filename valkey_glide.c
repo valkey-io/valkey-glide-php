@@ -167,7 +167,7 @@ static valkey_glide_advanced_base_client_configuration_t* _build_advanced_config
 
 static void _initialize_open_telemetry(valkey_glide_php_common_constructor_params_t* params,
                                        bool                                          is_cluster);
-static bool _load_data_from_file(const char* path, uint8_t** data, size_t* length, size_t max_size);
+static bool _load_data_from_file(const char* path, uint8_t** data, size_t* length);
 
 void valkey_glide_init_common_constructor_params(
     valkey_glide_php_common_constructor_params_t* params) {
@@ -1934,20 +1934,12 @@ static bool _resolve_mtls_material(HashTable*  advanced_tls_ht,
 
     if (has_path) {
         const char* path = Z_STRVAL_P(path_val);
-        if (Z_STRLEN_P(path_val) == 0) {
-            char error_message[128];
-            snprintf(
-                error_message, sizeof(error_message), "%s cannot be an empty string.", path_key);
-            VALKEY_LOG_ERROR("tls_config_mtls", error_message);
-            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
-            return false;
-        }
 
         uint8_t* file_data;
         size_t   file_len;
-        /* Bound the read at the maximum certificate size so an oversized/incorrect
-         * file is rejected before being loaded entirely into memory. */
-        if (!_load_data_from_file(path, &file_data, &file_len, VALKEY_GLIDE_CERTIFICATE_MAX_SIZE)) {
+        /* _load_data_from_file bounds the read at VALKEY_GLIDE_CERTIFICATE_MAX_SIZE and
+         * rejects missing (including empty-path), empty, or oversized files. */
+        if (!_load_data_from_file(path, &file_data, &file_len)) {
             char error_message[224];
             snprintf(error_message,
                      sizeof(error_message),
@@ -1972,17 +1964,10 @@ static bool _resolve_mtls_material(HashTable*  advanced_tls_ht,
 
 static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
     valkey_glide_php_common_constructor_params_t* params, bool is_cluster) {
-    // Allocate memory with default values.
+    // Allocate zero-initialized memory (ecalloc), so all fields default to
+    // 0/NULL/false without explicit assignment.
     valkey_glide_tls_advanced_configuration_t* tls_advanced_config =
         ecalloc(1, sizeof(valkey_glide_tls_advanced_configuration_t));
-
-    tls_advanced_config->use_insecure_tls = false;
-    tls_advanced_config->root_certs       = NULL;
-    tls_advanced_config->root_certs_len   = 0;
-    tls_advanced_config->client_cert      = NULL;
-    tls_advanced_config->client_cert_len  = 0;
-    tls_advanced_config->client_key       = NULL;
-    tls_advanced_config->client_key_len   = 0;
 
     // TLS configuration can be specified either from
     // the stream context or from the advanced TLS config.
@@ -2017,8 +2002,7 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
             uint8_t*    cert_data;
             size_t      cert_len;
 
-            if (_load_data_from_file(
-                    cafile_path, &cert_data, &cert_len, VALKEY_GLIDE_CERTIFICATE_MAX_SIZE)) {
+            if (_load_data_from_file(cafile_path, &cert_data, &cert_len)) {
                 tls_advanced_config->root_certs     = cert_data;
                 tls_advanced_config->root_certs_len = cert_len;
             } else {
@@ -2175,10 +2159,7 @@ static void _initialize_open_telemetry(valkey_glide_php_common_constructor_param
  * @param length Pointer to store the data length
  * @return       true if successful, false otherwise
  */
-static bool _load_data_from_file(const char* path,
-                                 uint8_t**   data,
-                                 size_t*     length,
-                                 size_t      max_size) {
+static bool _load_data_from_file(const char* path, uint8_t** data, size_t* length) {
     /* Open the file */
     FILE* f = fopen(path, "rb");
     if (!f)
@@ -2191,9 +2172,9 @@ static bool _load_data_from_file(const char* path,
         return false;
     }
 
-    /* Reject files larger than max_size (0 means no limit) before allocating,
+    /* Reject files larger than the maximum certificate size before allocating,
      * so an oversized/incorrect file is not read entirely into memory. */
-    if (max_size > 0 && (size_t) st.st_size > max_size) {
+    if ((size_t) st.st_size > VALKEY_GLIDE_CERTIFICATE_MAX_SIZE) {
         fclose(f);
         return false;
     }

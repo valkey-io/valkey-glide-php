@@ -897,7 +897,8 @@ class ConnectionRequestTest extends \TestSuite
             'client_cert_path' => '',
             'client_key'       => self::CLIENT_KEY_DATA,
         ]];
-        $expected_msg = 'client_cert_path cannot be an empty string';
+        // An empty path is rejected by the file loader (fopen fails).
+        $expected_msg = 'Failed to load client_cert from file';
 
         try {
             ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
@@ -970,7 +971,8 @@ class ConnectionRequestTest extends \TestSuite
             'client_cert'     => self::CLIENT_CERT_DATA,
             'client_key_path' => '',
         ]];
-        $expected_msg = 'client_key_path cannot be an empty string';
+        // An empty path is rejected by the file loader (fopen fails).
+        $expected_msg = 'Failed to load client_key from file';
 
         try {
             ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
