@@ -207,7 +207,10 @@ class ValkeyGlideCluster
      * @param float|null $read_timeout          Read timeout in seconds.
      * @param bool|null $persistent             Persistent connection (not supported).
      * @param mixed $auth                       Authentication - string (password) or array ['user', 'pass'].
-     * @param resource|array|null $context      Stream context resource or array.
+     * @param resource|array|null $context      Stream context resource or array. Supports 'verify_peer'
+     *                                          and 'cafile' SSL options. Note: mutual TLS (client
+     *                                          certificate/key) is not supported here; use $advanced_config's
+     *                                          'tls_config' instead.
      *
      * ValkeyGlide-style parameters (positions 7-18):
      * @param array|null $addresses             Array of server addresses [['host' => '127.0.0.1', 'port' => 7001], ...].
@@ -240,7 +243,8 @@ class ValkeyGlideCluster
      *                                            ]
      *                                            For mutual TLS (mTLS), both a client certificate and a client key must be
      *                                            provided. Each may be given inline or as a file path, but not both for
-     *                                            the same item.
+     *                                            the same item. mTLS is only supported via this 'tls_config' path;
+     *                                            client certificates provided through the $context stream context are not used.
      *                                          - 'refresh_topology_from_initial_nodes' => false (default: false)
      *                                            When true, topology updates use only initial nodes instead of internal cluster view.
      *                                          - 'otel' => OpenTelemetryConfig::builder()

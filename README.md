@@ -423,6 +423,10 @@ $client->set('key', 'value');
 $client->close();
 ```
 
+> **Note:** mTLS is only supported through the `advanced_config['tls_config']` path shown above.
+> Client certificates/keys supplied via a stream context (`context: stream_context_create([...])`)
+> are not used for mutual TLS.
+
 ### Cluster Valkey
 
 ```php

@@ -384,8 +384,13 @@ class ValkeyGlide
      *                                    For mutual TLS (mTLS), both a client certificate and a client key must be
      *                                    provided. Each may be given inline (client_cert/client_key) or as a file
      *                                    path (client_cert_path/client_key_path), but not both for the same item.
+     *                                    mTLS is only supported via this 'tls_config' path; client certificates
+     *                                    provided through the $context stream context are not used.
      * @param bool|null $lazy_connect Defer connection until first command (default: false)
-     * @param resource|array|null $context Stream context resource or array for TLS configuration
+     * @param resource|array|null $context Stream context resource or array for TLS configuration.
+     *                                     Supports 'verify_peer' and 'cafile' SSL options. Note: mutual TLS
+     *                                     (client certificate/key) is not supported here; use $advanced_config's
+     *                                     'tls_config' instead.
      * @param array|null $compression Compression configuration: ['enabled' => true, 'backend' => COMPRESSION_BACKEND_ZSTD, 'compression_level' => 3, 'min_compression_size' => 64]
      * @param array|null $client_side_cache Client-side cache configuration array from ClientSideCache::toArray():
      *                                      ['cache_id' => string, 'max_cache_kb' => int, 'entry_ttl_ms' => int,
