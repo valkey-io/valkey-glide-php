@@ -167,7 +167,7 @@ static valkey_glide_advanced_base_client_configuration_t* _build_advanced_config
 
 static void _initialize_open_telemetry(valkey_glide_php_common_constructor_params_t* params,
                                        bool                                          is_cluster);
-static bool _load_data_from_file(const char* path, uint8_t** data, size_t* length);
+static bool _load_data_from_file(const char* path, uint8_t** data, size_t* length, size_t max_size);
 
 void valkey_glide_init_common_constructor_params(
     valkey_glide_php_common_constructor_params_t* params) {
@@ -1945,24 +1945,14 @@ static bool _resolve_mtls_material(HashTable*  advanced_tls_ht,
 
         uint8_t* file_data;
         size_t   file_len;
-        if (!_load_data_from_file(path, &file_data, &file_len)) {
-            char error_message[192];
+        /* Bound the read at the maximum certificate size so an oversized/incorrect
+         * file is rejected before being loaded entirely into memory. */
+        if (!_load_data_from_file(path, &file_data, &file_len, VALKEY_GLIDE_CERTIFICATE_MAX_SIZE)) {
+            char error_message[224];
             snprintf(error_message,
                      sizeof(error_message),
-                     "Failed to load %s from file: %s",
-                     label,
-                     path);
-            VALKEY_LOG_ERROR("tls_config_mtls", error_message);
-            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
-            return false;
-        }
-
-        if (file_len > VALKEY_GLIDE_CERTIFICATE_MAX_SIZE) {
-            efree(file_data);
-            char error_message[192];
-            snprintf(error_message,
-                     sizeof(error_message),
-                     "%s file exceeds the maximum allowed size of %d bytes: %s",
+                     "Failed to load %s from file (file may be missing, empty, or larger than the "
+                     "maximum allowed size of %d bytes): %s",
                      label,
                      VALKEY_GLIDE_CERTIFICATE_MAX_SIZE,
                      path);
@@ -2027,7 +2017,8 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
             uint8_t*    cert_data;
             size_t      cert_len;
 
-            if (_load_data_from_file(cafile_path, &cert_data, &cert_len)) {
+            if (_load_data_from_file(
+                    cafile_path, &cert_data, &cert_len, VALKEY_GLIDE_CERTIFICATE_MAX_SIZE)) {
                 tls_advanced_config->root_certs     = cert_data;
                 tls_advanced_config->root_certs_len = cert_len;
             } else {
@@ -2184,7 +2175,10 @@ static void _initialize_open_telemetry(valkey_glide_php_common_constructor_param
  * @param length Pointer to store the data length
  * @return       true if successful, false otherwise
  */
-static bool _load_data_from_file(const char* path, uint8_t** data, size_t* length) {
+static bool _load_data_from_file(const char* path,
+                                 uint8_t**   data,
+                                 size_t*     length,
+                                 size_t      max_size) {
     /* Open the file */
     FILE* f = fopen(path, "rb");
     if (!f)
@@ -2193,6 +2187,13 @@ static bool _load_data_from_file(const char* path, uint8_t** data, size_t* lengt
     /* Get file size using fstat */
     struct stat st;
     if (fstat(fileno(f), &st) != 0 || st.st_size <= 0) {
+        fclose(f);
+        return false;
+    }
+
+    /* Reject files larger than max_size (0 means no limit) before allocating,
+     * so an oversized/incorrect file is not read entirely into memory. */
+    if (max_size > 0 && (size_t) st.st_size > max_size) {
         fclose(f);
         return false;
     }

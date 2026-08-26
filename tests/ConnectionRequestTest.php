@@ -867,6 +867,30 @@ class ConnectionRequestTest extends \TestSuite
         }
     }
 
+    public function testClientAuthTlsOversizedCertFromPath()
+    {
+        // Write a file larger than the 10 MiB maximum and load it via client_cert_path.
+        // The bounded loader must reject it (before allocating the whole file).
+        $cert_handle = tmpfile();
+        fwrite($cert_handle, str_repeat('A', (10 * 1024 * 1024) + 1));
+        $cert_path = stream_get_meta_data($cert_handle)['uri'];
+
+        $advanced_config = ['tls_config' => [
+            'client_cert_path' => $cert_path,
+            'client_key'       => self::CLIENT_KEY_DATA,
+        ]];
+        $expected_msg = 'Failed to load client_cert from file';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        } finally {
+            fclose($cert_handle);
+        }
+    }
+
     public function testClientAuthTlsEmptyPath()
     {
         $advanced_config = ['tls_config' => [
