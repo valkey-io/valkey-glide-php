@@ -313,6 +313,24 @@ abstract class ValkeyGlideBaseTest extends TestSuite
     }
 
     /**
+     * Marks the current test as skipped if TLS is disabled or the mTLS
+     * (client-cert-verifying) server on $port is not reachable.
+     *
+     * The mTLS servers are started with graceful failure in the test harness,
+     * so skip rather than fail when the server did not come up (e.g. port in use).
+     */
+    protected function skipIfMtlsUnavailable(int $port): void
+    {
+        $this->skipIfTlsDisabled();
+
+        $conn = @fsockopen('127.0.0.1', $port, $errno, $errstr, 1.0);
+        if ($conn === false) {
+            $this->markTestSkipped("mTLS server on port {$port} is not available");
+        }
+        fclose($conn);
+    }
+
+    /**
      * Marks the current test as skipped if TLS is enabled.
      */
     protected function skipIfTlsEnabled(): void

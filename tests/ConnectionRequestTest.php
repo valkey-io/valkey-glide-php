@@ -996,6 +996,41 @@ class ConnectionRequestTest extends \TestSuite
         }
     }
 
+    public function testClientAuthTlsWrongTypedCredential()
+    {
+        // A non-string credential value must be rejected, not silently ignored.
+        $advanced_config = ['tls_config' => [
+            'client_cert' => 123,
+            'client_key'  => self::CLIENT_KEY_DATA,
+        ]];
+        $expected_msg = 'must be strings';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsWrongTypedInterval()
+    {
+        // A non-integer cert_reload_interval_seconds must be rejected, not coerced.
+        $advanced_config = ['tls_config' => [
+            'client_cert_path'             => '/etc/mtls/client-cert.pem',
+            'client_key_path'              => '/etc/mtls/client-key.pem',
+            'cert_reload_interval_seconds' => '60',
+        ]];
+        $expected_msg = 'must be an integer';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
     // ================================================================
     // Compression Tests
     // ================================================================

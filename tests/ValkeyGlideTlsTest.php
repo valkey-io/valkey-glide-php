@@ -351,19 +351,22 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
     {
         $this->skipIfTlsDisabled();
 
-        $certData = $this->getCaCertificate();
+        $ca   = file_get_contents(self::TLS_CERTIFICATE_PATH);
+        $cert = file_get_contents(self::TLS_CLIENT_CERT_PATH);
+        $key  = file_get_contents(self::TLS_CLIENT_KEY_PATH);
 
-        $this->assertThrows(ValkeyGlideException::class, function () use ($certData) {
+        $this->assertThrows(ValkeyGlideException::class, function () use ($ca, $cert, $key) {
             $client = new ValkeyGlide();
             $client->connect(
                 addresses: [self::TLS_ADDRESS_STANDALONE],
                 use_tls: true,
                 advanced_config: [
                     'tls_config' => [
-                        'client_cert'      => $certData,
-                        'client_key'       => $certData,
-                        'client_cert_path' => self::TLS_CERTIFICATE_PATH,
-                        'client_key_path'  => self::TLS_CERTIFICATE_PATH,
+                        'root_certs'       => $ca,
+                        'client_cert'      => $cert,
+                        'client_key'       => $key,
+                        'client_cert_path' => self::TLS_CLIENT_CERT_PATH,
+                        'client_key_path'  => self::TLS_CLIENT_KEY_PATH,
                     ]
                 ]
             );
@@ -379,7 +382,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
      */
     public function testMtlsHandshakeWithByteCredentials()
     {
-        $this->skipIfTlsDisabled();
+        $this->skipIfMtlsUnavailable(self::MTLS_PORT_STANDALONE);
 
         $client = new ValkeyGlide();
         $client->connect(
@@ -403,7 +406,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
      */
     public function testMtlsHandshakeWithPathCredentials()
     {
-        $this->skipIfTlsDisabled();
+        $this->skipIfMtlsUnavailable(self::MTLS_PORT_STANDALONE);
 
         $client = new ValkeyGlide();
         $client->connect(
@@ -427,7 +430,7 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
      */
     public function testMtlsHandshakeWithoutClientCertFails()
     {
-        $this->skipIfTlsDisabled();
+        $this->skipIfMtlsUnavailable(self::MTLS_PORT_STANDALONE);
 
         $this->assertThrows(ValkeyGlideException::class, function () {
             $client = new ValkeyGlide();

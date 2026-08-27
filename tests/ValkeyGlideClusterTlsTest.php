@@ -245,18 +245,21 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
     {
         $this->skipIfTlsDisabled();
 
-        $certData = $this->getCaCertificate();
+        $ca   = file_get_contents(self::TLS_CERTIFICATE_PATH);
+        $cert = file_get_contents(self::TLS_CLIENT_CERT_PATH);
+        $key  = file_get_contents(self::TLS_CLIENT_KEY_PATH);
 
-        $this->assertThrows(ValkeyGlideException::class, function () use ($certData) {
+        $this->assertThrows(ValkeyGlideException::class, function () use ($ca, $cert, $key) {
             new ValkeyGlideCluster(
                 addresses: [self::TLS_ADDRESS_CLUSTER],
                 use_tls: true,
                 advanced_config: [
                     'tls_config' => [
-                        'client_cert'      => $certData,
-                        'client_key'       => $certData,
-                        'client_cert_path' => self::TLS_CERTIFICATE_PATH,
-                        'client_key_path'  => self::TLS_CERTIFICATE_PATH,
+                        'root_certs'       => $ca,
+                        'client_cert'      => $cert,
+                        'client_key'       => $key,
+                        'client_cert_path' => self::TLS_CLIENT_CERT_PATH,
+                        'client_key_path'  => self::TLS_CLIENT_KEY_PATH,
                     ]
                 ]
             );
@@ -272,7 +275,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
      */
     public function testMtlsHandshakeWithByteCredentials()
     {
-        $this->skipIfTlsDisabled();
+        $this->skipIfMtlsUnavailable(self::MTLS_PORT_CLUSTER);
 
         $client = new ValkeyGlideCluster(
             addresses: [self::MTLS_ADDRESS_CLUSTER],
@@ -295,7 +298,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
      */
     public function testMtlsHandshakeWithPathCredentials()
     {
-        $this->skipIfTlsDisabled();
+        $this->skipIfMtlsUnavailable(self::MTLS_PORT_CLUSTER);
 
         $client = new ValkeyGlideCluster(
             addresses: [self::MTLS_ADDRESS_CLUSTER],
@@ -318,7 +321,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
      */
     public function testMtlsHandshakeWithoutClientCertFails()
     {
-        $this->skipIfTlsDisabled();
+        $this->skipIfMtlsUnavailable(self::MTLS_PORT_CLUSTER);
 
         $this->assertThrows(ValkeyGlideException::class, function () {
             new ValkeyGlideCluster(

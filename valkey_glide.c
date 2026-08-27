@@ -1903,6 +1903,21 @@ static bool _parse_mtls_config(HashTable*                                 advanc
                                            VALKEY_GLIDE_CERT_RELOAD_INTERVAL,
                                            sizeof(VALKEY_GLIDE_CERT_RELOAD_INTERVAL) - 1);
 
+    /* Reject wrong-typed values rather than silently treating them as absent:
+     * credential fields must be strings and the reload interval must be an integer. */
+    if ((cert_pem && Z_TYPE_P(cert_pem) != IS_STRING) ||
+        (key_pem && Z_TYPE_P(key_pem) != IS_STRING) ||
+        (cert_path && Z_TYPE_P(cert_path) != IS_STRING) ||
+        (key_path && Z_TYPE_P(key_path) != IS_STRING) ||
+        (interval_zv && Z_TYPE_P(interval_zv) != IS_LONG)) {
+        const char* type_error =
+            "mTLS credential fields (client_cert, client_key, client_cert_path, client_key_path) "
+            "must be strings and cert_reload_interval_seconds must be an integer.";
+        VALKEY_LOG_ERROR("tls_config_mtls", type_error);
+        zend_throw_exception(get_valkey_glide_exception_ce(), type_error, 0);
+        return false;
+    }
+
     bool has_cert_pem  = cert_pem && Z_TYPE_P(cert_pem) == IS_STRING;
     bool has_key_pem   = key_pem && Z_TYPE_P(key_pem) == IS_STRING;
     bool has_cert_path = cert_path && Z_TYPE_P(cert_path) == IS_STRING;
