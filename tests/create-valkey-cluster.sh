@@ -79,9 +79,9 @@ fi
 # 5b. Create an mTLS cluster (client-certificate verification) for mTLS handshake tests
 echo "Setting up mTLS cluster (client-cert verification)..."
 if ../valkey-glide/utils/cluster_manager.py --tls start --tls-auth-clients --prefix mtls-cluster --cluster-mode -p 8101 8102 8103 8104 8105 8106; then
-    echo "✅ mTLS cluster started on ports 8101-8106"
+    echo "mTLS cluster started on ports 8101-8106"
 else
-    echo "⚠️  WARNING: mTLS cluster setup failed (ports 8101-8106 may be in use), continuing without mTLS cluster..."
+    echo "WARNING: mTLS cluster setup failed (ports 8101-8106 may be in use), continuing without mTLS cluster..."
 fi
 
 # 6. Test multi-database support if Valkey 9+
