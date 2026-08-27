@@ -723,12 +723,45 @@ class ConnectionRequestTest extends \TestSuite
         }
     }
 
+    public function testClientAuthTlsByteEmptyKey()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert' => self::CLIENT_CERT_DATA,
+            'client_key'  => '',
+        ]];
+        $expected_msg = 'must not be empty';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
     public function testClientAuthTlsByteOversized()
     {
         $oversized = str_repeat('A', (10 * 1024 * 1024) + 1);
         $advanced_config = ['tls_config' => [
             'client_cert' => $oversized,
             'client_key'  => self::CLIENT_KEY_DATA,
+        ]];
+        $expected_msg = 'exceeds the maximum allowed size';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsByteOversizedKey()
+    {
+        $oversized = str_repeat('A', (10 * 1024 * 1024) + 1);
+        $advanced_config = ['tls_config' => [
+            'client_cert' => self::CLIENT_CERT_DATA,
+            'client_key'  => $oversized,
         ]];
         $expected_msg = 'exceeds the maximum allowed size';
 
@@ -797,11 +830,40 @@ class ConnectionRequestTest extends \TestSuite
         }
     }
 
+    public function testClientAuthTlsPathKeyWithoutCert()
+    {
+        $advanced_config = ['tls_config' => ['client_key_path' => '/etc/mtls/client-key.pem']];
+        $expected_msg = 'client_cert_path and client_key_path must be provided together';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
     public function testClientAuthTlsPathEmpty()
     {
         $advanced_config = ['tls_config' => [
             'client_cert_path' => '',
             'client_key_path'  => '/etc/mtls/client-key.pem',
+        ]];
+        $expected_msg = 'must not be empty';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsPathEmptyKey()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert_path' => '/etc/mtls/client-cert.pem',
+            'client_key_path'  => '',
         ]];
         $expected_msg = 'must not be empty';
 
@@ -859,6 +921,41 @@ class ConnectionRequestTest extends \TestSuite
             'cert_reload_interval_seconds' => 0,
         ]];
         $expected_msg = 'cert_reload_interval_seconds must be positive';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsIntervalNegative()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert_path'            => '/etc/mtls/client-cert.pem',
+            'client_key_path'             => '/etc/mtls/client-key.pem',
+            'cert_reload_interval_seconds' => -1,
+        ]];
+        $expected_msg = 'cert_reload_interval_seconds must be positive';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsIntervalOverflow()
+    {
+        // Exceeds uint32 max (4294967295).
+        $advanced_config = ['tls_config' => [
+            'client_cert_path'            => '/etc/mtls/client-cert.pem',
+            'client_key_path'             => '/etc/mtls/client-key.pem',
+            'cert_reload_interval_seconds' => 4294967296,
+        ]];
+        $expected_msg = 'no greater than';
 
         try {
             ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);

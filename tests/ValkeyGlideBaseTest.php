@@ -117,6 +117,17 @@ abstract class ValkeyGlideBaseTest extends TestSuite
 
     protected const TLS_CERTIFICATE_PATH   = __DIR__ . '/../valkey-glide/utils/tls_crts/ca.crt';
 
+    // mTLS (client-cert-verifying) standalone server.
+    // The generated server cert/key are signed by the same CA, so they double as
+    // valid client credentials for the mTLS handshake.
+    protected const MTLS_PORT_STANDALONE = 6405;
+    protected const MTLS_ADDRESS_STANDALONE = [
+        'host' => 'localhost',
+        'port' => self::MTLS_PORT_STANDALONE
+    ];
+    protected const TLS_CLIENT_CERT_PATH = __DIR__ . '/../valkey-glide/utils/tls_crts/server.crt';
+    protected const TLS_CLIENT_KEY_PATH  = __DIR__ . '/../valkey-glide/utils/tls_crts/server.key';
+
     protected function getNilValue()
     {
         return false;

@@ -72,6 +72,14 @@ else
     echo "⚠️  WARNING: TLS standalone setup failed (port 6400 may be in use), continuing without TLS..."
 fi
 
+# Handle mTLS setup (client-certificate verification) with graceful failure
+echo "Setting up mTLS standalone server (client-cert verification)..."
+if ../valkey-glide/utils/cluster_manager.py --tls start --tls-auth-clients --prefix mtls-standalone -p 6405 -r 0; then
+    echo "✅ mTLS standalone server started on port 6405"
+else
+    echo "⚠️  WARNING: mTLS standalone setup failed (port 6405 may be in use), continuing without mTLS..."
+fi
+
 # Wait a moment for servers to start
 sleep 2
 
