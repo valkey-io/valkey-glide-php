@@ -988,7 +988,6 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
                                           zend_bool            use_tls,
                                           zval*                credentials,
                                           zend_long            read_from,
-                                          zend_long            node_discovery_mode,
                                           zval*                request_timeout_zval,
                                           zval*                reconnect_strategy,
                                           zval*                database_id_zval,
@@ -1002,7 +1001,8 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
                                           zval*                compression,
                                           zval*                client_side_cache,
                                           zval*                address_resolver,
-                                          zval*                circuit_breaker) {
+                                          zval*                circuit_breaker,
+                                          zend_long            node_discovery_mode) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
 
@@ -1157,7 +1157,6 @@ PHP_METHOD(ValkeyGlide, connect) {
     zval*  read_timeout_zval        = NULL;
     zval*  use_tls_zval             = NULL;
     zval*  read_from_zval           = NULL;
-    zval*  node_discovery_mode_zval = NULL;
     zval*  request_timeout_zval     = NULL;
     zval*  reconnect_strategy       = NULL;
     zval*  database_id_zval         = NULL;
@@ -1172,6 +1171,7 @@ PHP_METHOD(ValkeyGlide, connect) {
     zval*  client_side_cache        = NULL;
     zval*  address_resolver         = NULL;
     zval*  circuit_breaker          = NULL;
+    zval*  node_discovery_mode_zval = NULL;
 
     ZEND_PARSE_PARAMETERS_START(0, 23)
     Z_PARAM_OPTIONAL
@@ -1263,7 +1263,6 @@ PHP_METHOD(ValkeyGlide, connect) {
                                                 use_tls,
                                                 credentials,
                                                 read_from,
-                                                node_discovery_mode,
                                                 request_timeout_zval,
                                                 reconnect_strategy,
                                                 database_id_zval,
@@ -1277,7 +1276,8 @@ PHP_METHOD(ValkeyGlide, connect) {
                                                 compression,
                                                 client_side_cache,
                                                 address_resolver,
-                                                circuit_breaker);
+                                                circuit_breaker,
+                                                node_discovery_mode);
 
     /* Clean up temporary addresses array if we created it */
     if (host != NULL) {
