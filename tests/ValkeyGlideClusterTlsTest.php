@@ -262,4 +262,74 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
             );
         });
     }
+
+    // ================================================================
+    // mTLS handshake tests (against a client-cert-verifying cluster)
+    // ================================================================
+
+    /**
+     * A successful mTLS handshake using byte-based client certificate/key.
+     */
+    public function testMtlsHandshakeWithByteCredentials()
+    {
+        $this->skipIfTlsDisabled();
+
+        $client = new ValkeyGlideCluster(
+            addresses: [self::MTLS_ADDRESS_CLUSTER],
+            use_tls: true,
+            advanced_config: [
+                'tls_config' => [
+                    'root_certs'  => file_get_contents(self::TLS_CERTIFICATE_PATH),
+                    'client_cert' => file_get_contents(self::TLS_CLIENT_CERT_PATH),
+                    'client_key'  => file_get_contents(self::TLS_CLIENT_KEY_PATH),
+                ]
+            ]
+        );
+
+        $this->assertConnected($client);
+        $client->close();
+    }
+
+    /**
+     * A successful mTLS handshake using path-based client certificate/key.
+     */
+    public function testMtlsHandshakeWithPathCredentials()
+    {
+        $this->skipIfTlsDisabled();
+
+        $client = new ValkeyGlideCluster(
+            addresses: [self::MTLS_ADDRESS_CLUSTER],
+            use_tls: true,
+            advanced_config: [
+                'tls_config' => [
+                    'root_certs'       => file_get_contents(self::TLS_CERTIFICATE_PATH),
+                    'client_cert_path' => self::TLS_CLIENT_CERT_PATH,
+                    'client_key_path'  => self::TLS_CLIENT_KEY_PATH,
+                ]
+            ]
+        );
+
+        $this->assertConnected($client);
+        $client->close();
+    }
+
+    /**
+     * Connecting to a client-cert-verifying cluster without a client certificate must fail.
+     */
+    public function testMtlsHandshakeWithoutClientCertFails()
+    {
+        $this->skipIfTlsDisabled();
+
+        $this->assertThrows(ValkeyGlideException::class, function () {
+            new ValkeyGlideCluster(
+                addresses: [self::MTLS_ADDRESS_CLUSTER],
+                use_tls: true,
+                advanced_config: [
+                    'tls_config' => [
+                        'root_certs' => file_get_contents(self::TLS_CERTIFICATE_PATH),
+                    ]
+                ]
+            );
+        });
+    }
 }

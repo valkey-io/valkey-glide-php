@@ -125,6 +125,11 @@ abstract class ValkeyGlideBaseTest extends TestSuite
         'host' => 'localhost',
         'port' => self::MTLS_PORT_STANDALONE
     ];
+    protected const MTLS_PORT_CLUSTER = 8101;
+    protected const MTLS_ADDRESS_CLUSTER = [
+        'host' => 'localhost',
+        'port' => self::MTLS_PORT_CLUSTER
+    ];
     protected const TLS_CLIENT_CERT_PATH = __DIR__ . '/../valkey-glide/utils/tls_crts/server.crt';
     protected const TLS_CLIENT_KEY_PATH  = __DIR__ . '/../valkey-glide/utils/tls_crts/server.key';
 
