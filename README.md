@@ -401,9 +401,10 @@ $client->set('key', 'value');
 $client->close();
 ```
 
-Alternatively, the client certificate and key can be loaded directly from files by
-providing their paths. Use either the inline byte form above or the path form below
-for a given item, but not both:
+Alternatively, use path-based mTLS by providing file paths instead of inline bytes.
+With path-based mTLS the core reads the files and periodically reloads them, so a rotated
+certificate is adopted on the next reconnect. Byte-based and path-based mTLS are mutually
+exclusive — provide one mode or the other, and each requires both of its fields:
 
 ```php
 $client = new ValkeyGlide();
@@ -415,6 +416,8 @@ $client->connect(
             'root_certs'       => file_get_contents('ca-cert.pem'),
             'client_cert_path' => 'client-cert.pem',  // Path to PEM client certificate file
             'client_key_path'  => 'client-key.pem',   // Path to PEM client private key file
+            // Optional: override the automatic reload cadence (path-based mTLS only).
+            'cert_reload_interval_seconds' => 300,
         ]
     ]
 );

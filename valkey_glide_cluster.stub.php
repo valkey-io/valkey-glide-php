@@ -236,14 +236,20 @@ class ValkeyGlideCluster
      *                                          - 'tls_config' => [
      *                                                'root_certs' => string,       // PEM CA certificate(s)
      *                                                'use_insecure_tls' => false,  // Skip certificate verification
-     *                                                'client_cert' => string,      // PEM client certificate bytes (mTLS)
-     *                                                'client_key' => string,       // PEM client private key bytes (mTLS)
-     *                                                'client_cert_path' => string, // Path to PEM client certificate file (mTLS)
-     *                                                'client_key_path' => string,  // Path to PEM client private key file (mTLS)
+     *                                                // Byte-based mTLS (static): inline PEM bytes.
+     *                                                'client_cert' => string,      // PEM client certificate bytes
+     *                                                'client_key' => string,       // PEM client private key bytes
+     *                                                // Path-based mTLS (with automatic reload): file paths read by the core.
+     *                                                'client_cert_path' => string, // Path to PEM client certificate file
+     *                                                'client_key_path' => string,  // Path to PEM client private key file
+     *                                                'cert_reload_interval_seconds' => int, // Optional reload cadence (path-based only)
      *                                            ]
-     *                                            For mutual TLS (mTLS), both a client certificate and a client key must be
-     *                                            provided. Each may be given inline or as a file path, but not both for
-     *                                            the same item. mTLS is only supported via this 'tls_config' path;
+     *                                            For mutual TLS (mTLS), provide EITHER byte-based (client_cert + client_key)
+     *                                            OR path-based (client_cert_path + client_key_path) credentials — the two
+     *                                            modes are mutually exclusive, and each requires both of its fields.
+     *                                            Path-based mTLS lets the core read and periodically reload the files;
+     *                                            'cert_reload_interval_seconds' overrides the cadence and is path-based only.
+     *                                            mTLS is only supported via this 'tls_config' path;
      *                                            client certificates provided through the $context stream context are not used.
      *                                          - 'refresh_topology_from_initial_nodes' => false (default: false)
      *                                            When true, topology updates use only initial nodes instead of internal cluster view.

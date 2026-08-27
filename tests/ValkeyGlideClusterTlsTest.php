@@ -239,30 +239,7 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
     }
 
     /**
-     * A non-existent client certificate file path must be rejected.
-     */
-    public function testMtlsClientCertPathNotFoundThrows()
-    {
-        $this->skipIfTlsDisabled();
-
-        $certData = $this->getCaCertificate();
-
-        $this->assertThrows(ValkeyGlideException::class, function () use ($certData) {
-            new ValkeyGlideCluster(
-                addresses: [self::TLS_ADDRESS_CLUSTER],
-                use_tls: true,
-                advanced_config: [
-                    'tls_config' => [
-                        'client_cert_path' => '/invalid/client-cert.pem',
-                        'client_key'       => $certData,
-                    ]
-                ]
-            );
-        });
-    }
-
-    /**
-     * Specifying both inline bytes and a file path for the same item must be rejected.
+     * Path-based and byte-based mTLS are mutually exclusive.
      */
     public function testMtlsInlineAndPathConflictThrows()
     {
@@ -277,8 +254,9 @@ class ValkeyGlideClusterTlsTest extends ValkeyGlideClusterBaseTest
                 advanced_config: [
                     'tls_config' => [
                         'client_cert'      => $certData,
-                        'client_cert_path' => self::TLS_CERTIFICATE_PATH,
                         'client_key'       => $certData,
+                        'client_cert_path' => self::TLS_CERTIFICATE_PATH,
+                        'client_key_path'  => self::TLS_CERTIFICATE_PATH,
                     ]
                 ]
             );
