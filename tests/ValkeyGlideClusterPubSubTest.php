@@ -415,20 +415,31 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         $channel2 = 'test_shardchannel2';
         $channel3 = 'test_shardchannel3';
 
-        // Query specific channels: result is a channel => count map.
+        // Query specific channels. Matching PHPRedis, the reply is passed through
+        // as the raw server response: a flat array laid out as
+        // [channel, count, channel, count, ...] rather than an associative map.
         $result = $this->valkey_glide->pubsub('shardnumsub', [$channel1, $channel2, $channel3]);
         $this->assertIsArray($result);
 
-        // With no active sharded subscribers, every channel reports 0.
-        foreach ([$channel1, $channel2, $channel3] as $channel) {
-            $this->assertTrue(
-                isset($result[$channel]),
-                "SHARDNUMSUB result should contain key '$channel'"
-            );
-            $this->assertEquals(0, $result[$channel]);
+        // Three channels => 3 (channel, count) pairs => 6 flat elements.
+        $this->assertCount(6, $result);
+
+        // Fold the flat [channel, count, ...] array into a map for assertions.
+        $counts = [];
+        for ($i = 0; $i + 1 < count($result); $i += 2) {
+            $counts[$result[$i]] = $result[$i + 1];
         }
 
-        // Calling SHARDNUMSUB without channels is valid and returns an empty map.
+        // With no active sharded subscribers, every queried channel reports 0.
+        foreach ([$channel1, $channel2, $channel3] as $channel) {
+            $this->assertTrue(
+                isset($counts[$channel]),
+                "SHARDNUMSUB result should contain channel '$channel'"
+            );
+            $this->assertEquals(0, $counts[$channel]);
+        }
+
+        // Calling SHARDNUMSUB without channels is valid and returns an empty array.
         $empty = $this->valkey_glide->pubsub('shardnumsub');
         $this->assertIsArray($empty);
         $this->assertEmpty($empty);
