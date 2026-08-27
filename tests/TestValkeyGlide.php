@@ -192,6 +192,7 @@ $default_classes = implode(',', [
     'addressresolver',
     'addressresolvercluster',
     'valkeyglidemonitor',
+    'valkeyglidenodediscoverymode',
 ]);
 
 $classes = getClassArray($opt['class'] ?? $default_classes);
