@@ -219,6 +219,9 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
 
     /* Map read_from enum value to client's ReadFrom enum */
     switch (params->read_from) {
+        case 0: /* PRIMARY */
+            config->read_from = VALKEY_GLIDE_READ_FROM_PRIMARY;
+            break;
         case 1: /* PREFER_REPLICA */
             config->read_from = VALKEY_GLIDE_READ_FROM_PREFER_REPLICA;
             break;
@@ -228,24 +231,31 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         case 3: /* AZ_AFFINITY_REPLICAS_AND_PRIMARY */
             config->read_from = VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY;
             break;
-        case 0: /* PRIMARY */
-        default:
-            config->read_from = VALKEY_GLIDE_READ_FROM_PRIMARY;
-            break;
+        default: {
+            const char* error_message = "Invalid read_from value.";
+            VALKEY_LOG_ERROR("valkey_glide_build_client_config_base", error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return FAILURE;
+        }
     }
 
     /* Map node_discovery_mode enum value to client's NodeDiscoveryMode enum */
     switch (params->node_discovery_mode) {
+        case 0: /* STANDARD */
+            config->node_discovery_mode = VALKEY_GLIDE_NODE_DISCOVERY_MODE_STANDARD;
+            break;
         case 1: /* STATIC */
             config->node_discovery_mode = VALKEY_GLIDE_NODE_DISCOVERY_MODE_STATIC;
             break;
         case 2: /* DISCOVER_ALL */
             config->node_discovery_mode = VALKEY_GLIDE_NODE_DISCOVERY_MODE_DISCOVER_ALL;
             break;
-        case 0: /* STANDARD */
-        default:
-            config->node_discovery_mode = VALKEY_GLIDE_NODE_DISCOVERY_MODE_STANDARD;
-            break;
+        default: {
+            const char* error_message = "Invalid node_discovery_mode value.";
+            VALKEY_LOG_ERROR("valkey_glide_build_client_config_base", error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return FAILURE;
+        }
     }
 
     /* Process addresses array - handle multiple addresses

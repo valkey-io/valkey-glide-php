@@ -243,6 +243,13 @@ class ConnectionRequestTest extends \TestSuite
         $this->assertEquals(\Connection_request\NodeDiscoveryMode::DiscoverAll, $request->getNodeDiscoveryMode());
     }
 
+    public function testStandaloneNodeDiscoveryModeInvalidThrows()
+    {
+        $this->assertThrows(ValkeyGlideException::class, function () {
+            ClientConstructorMock::simulate_standalone_constructor(node_discovery_mode: 99);
+        });
+    }
+
     public function testStandaloneRequestTimeout()
     {
         $request = ClientConstructorMock::simulate_standalone_constructor(request_timeout: 999);
