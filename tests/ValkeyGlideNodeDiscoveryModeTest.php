@@ -76,6 +76,34 @@ class ValkeyGlideNodeDiscoveryModeTest extends ValkeyGlideBaseTest
     }
 
     /* ----------------------------------------------------------------------
+     * STANDARD mode (default)
+     * ------------------------------------------------------------------- */
+
+    public function testStandardModeConnectsAndReads()
+    {
+        // STANDARD is the default mode: it verifies node roles via INFO REPLICATION
+        // and uses only the provided addresses. Connecting to the primary should
+        // succeed and allow reads and writes.
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => '127.0.0.1', 'port' => self::PRIMARY_PORT]],
+            request_timeout: 2000,
+            node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STANDARD
+        );
+
+        $this->assertConnected($client);
+
+        $key = 'ndm_standard_' . uniqid();
+        try {
+            $this->assertTrue($client->set($key, 'value'));
+            $this->assertEquals('value', $client->get($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    /* ----------------------------------------------------------------------
      * STATIC mode
      * ------------------------------------------------------------------- */
 
@@ -88,7 +116,11 @@ class ValkeyGlideNodeDiscoveryModeTest extends ValkeyGlideBaseTest
             node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STATIC
         );
 
-        // A missing key returns the client's nil value (false for this client).
+        // STATIC mode skips INFO REPLICATION role detection; verify the client can
+        // still connect and execute a read command against the trusted address.
+        $this->assertConnected($client);
+
+        // A read round-trips successfully; a missing key returns the client's nil value.
         $this->assertEquals($this->getNilValue(), $client->get('nonexistent_' . uniqid()));
 
         $client->close();
