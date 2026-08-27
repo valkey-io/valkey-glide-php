@@ -199,16 +199,16 @@ typedef struct {
 } valkey_glide_backoff_strategy_t;
 
 typedef struct {
-    uint8_t* root_certs;       /* Certificate data bytes */
-    size_t   root_certs_len;   /* Length of certificate data */
-    uint8_t* client_cert;      /* Client certificate data bytes (byte-based mTLS) */
-    size_t   client_cert_len;  /* Length of client certificate data */
-    uint8_t* client_key;       /* Client private key data bytes (byte-based mTLS) */
-    size_t   client_key_len;   /* Length of client private key data */
-    char*    client_cert_path; /* Path to client certificate file (path-based mTLS); NULL if unset */
-    char*    client_key_path;  /* Path to client private key file (path-based mTLS); NULL if unset */
-    int64_t  cert_reload_interval; /* Reload cadence in seconds; -1 = unset (core default) */
-    bool     use_insecure_tls; /* Whether to use insecure TLS (skips certificate verification) */
+    uint8_t* root_certs;      /* Certificate data bytes */
+    size_t   root_certs_len;  /* Length of certificate data */
+    uint8_t* client_cert;     /* Client certificate data bytes (byte-based mTLS) */
+    size_t   client_cert_len; /* Length of client certificate data */
+    uint8_t* client_key;      /* Client private key data bytes (byte-based mTLS) */
+    size_t   client_key_len;  /* Length of client private key data */
+    char*   client_cert_path; /* Path to client certificate file (path-based mTLS); NULL if unset */
+    char*   client_key_path;  /* Path to client private key file (path-based mTLS); NULL if unset */
+    int64_t cert_reload_interval; /* Reload cadence in seconds; -1 = unset (core default) */
+    bool    use_insecure_tls;     /* Whether to use insecure TLS (skips certificate verification) */
 } valkey_glide_tls_advanced_configuration_t;
 
 typedef struct {
