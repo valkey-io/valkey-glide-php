@@ -118,11 +118,14 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
         }
     } else if (strcasecmp(cmd, "shardchannels") == 0) {
         // PUBSUB SHARDCHANNELS [pattern]
-        uint32_t       argc     = arg ? 1 : 0;
-        uintptr_t*     args     = argc ? emalloc(argc * sizeof(uintptr_t)) : NULL;
-        unsigned long* args_len = argc ? emalloc(argc * sizeof(unsigned long)) : NULL;
+        // Treat an explicit PHP null the same as an omitted argument so that
+        // pubsub('shardchannels', null) matches pubsub('shardchannels').
+        bool           has_pattern = arg && Z_TYPE_P(arg) != IS_NULL;
+        uint32_t       argc        = has_pattern ? 1 : 0;
+        uintptr_t*     args        = argc ? emalloc(argc * sizeof(uintptr_t)) : NULL;
+        unsigned long* args_len    = argc ? emalloc(argc * sizeof(unsigned long)) : NULL;
 
-        if (arg) {
+        if (has_pattern) {
             convert_to_string(arg);
             args[0]     = (uintptr_t) Z_STRVAL_P(arg);
             args_len[0] = Z_STRLEN_P(arg);

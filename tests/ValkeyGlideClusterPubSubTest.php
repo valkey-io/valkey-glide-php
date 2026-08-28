@@ -492,6 +492,14 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             $this->assertContains($channel2, $channels);
             $this->assertContains($channel3, $channels);
 
+            // Explicit null must behave like an omitted pattern (the declared
+            // default is null), not like an empty-string pattern.
+            $nullArg = $this->valkey_glide->pubsub('shardchannels', null);
+            $this->assertIsArray($nullArg);
+            $this->assertContains($channel1, $nullArg);
+            $this->assertContains($channel2, $nullArg);
+            $this->assertContains($channel3, $nullArg);
+
             // With a glob pattern: only the matching subset is returned.
             $matched = $this->valkey_glide->pubsub('shardchannels', 'test_shardchannel*_' . $suffix);
             $this->assertIsArray($matched);
