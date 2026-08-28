@@ -175,6 +175,7 @@ void valkey_glide_init_common_constructor_params(
     params->use_tls                 = 0;
     params->credentials             = NULL;
     params->read_from               = 0; /* PRIMARY by default */
+    params->node_discovery_mode     = 0; /* STANDARD by default */
     params->request_timeout         = 0;
     params->request_timeout_is_null = 1;
     params->reconnect_strategy      = NULL;
@@ -218,6 +219,9 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
 
     /* Map read_from enum value to client's ReadFrom enum */
     switch (params->read_from) {
+        case 0: /* PRIMARY */
+            config->read_from = VALKEY_GLIDE_READ_FROM_PRIMARY;
+            break;
         case 1: /* PREFER_REPLICA */
             config->read_from = VALKEY_GLIDE_READ_FROM_PREFER_REPLICA;
             break;
@@ -227,10 +231,31 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         case 3: /* AZ_AFFINITY_REPLICAS_AND_PRIMARY */
             config->read_from = VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY;
             break;
-        case 0: /* PRIMARY */
-        default:
-            config->read_from = VALKEY_GLIDE_READ_FROM_PRIMARY;
+        default: {
+            const char* error_message = "Invalid read_from value.";
+            VALKEY_LOG_ERROR("valkey_glide_build_client_config_base", error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return FAILURE;
+        }
+    }
+
+    /* Map node_discovery_mode enum value to client's NodeDiscoveryMode enum */
+    switch (params->node_discovery_mode) {
+        case 0: /* STANDARD */
+            config->node_discovery_mode = VALKEY_GLIDE_NODE_DISCOVERY_MODE_STANDARD;
             break;
+        case 1: /* STATIC */
+            config->node_discovery_mode = VALKEY_GLIDE_NODE_DISCOVERY_MODE_STATIC;
+            break;
+        case 2: /* DISCOVER_ALL */
+            config->node_discovery_mode = VALKEY_GLIDE_NODE_DISCOVERY_MODE_DISCOVER_ALL;
+            break;
+        default: {
+            const char* error_message = "Invalid node_discovery_mode value.";
+            VALKEY_LOG_ERROR("valkey_glide_build_client_config_base", error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return FAILURE;
+        }
     }
 
     /* Process addresses array - handle multiple addresses
@@ -1007,7 +1032,8 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
                                           zval*                compression,
                                           zval*                client_side_cache,
                                           zval*                address_resolver,
-                                          zval*                circuit_breaker) {
+                                          zval*                circuit_breaker,
+                                          zend_long            node_discovery_mode) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
 
@@ -1022,10 +1048,11 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     VALKEY_LOG_DEBUG("valkey_glide_create_connection", "Establishing server connection");
 
     /* Set parameters */
-    common_params.addresses   = addresses;
-    common_params.use_tls     = use_tls;
-    common_params.credentials = credentials;
-    common_params.read_from   = read_from;
+    common_params.addresses           = addresses;
+    common_params.use_tls             = use_tls;
+    common_params.credentials         = credentials;
+    common_params.read_from           = read_from;
+    common_params.node_discovery_mode = node_discovery_mode;
 
     if (request_timeout_zval != NULL && Z_TYPE_P(request_timeout_zval) != IS_NULL) {
         common_params.request_timeout         = Z_LVAL_P(request_timeout_zval);
@@ -1149,34 +1176,35 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
    (host/port) and ValkeyGlide-style (addresses array) parameters.
    Returns true on success, false on failure. */
 PHP_METHOD(ValkeyGlide, connect) {
-    char*  host                 = NULL;
-    size_t host_len             = 0;
-    char*  persistent_id        = NULL;
-    size_t persistent_id_len    = 0;
-    zval*  addresses            = NULL;
-    zval*  credentials          = NULL;
-    zval*  port_zval            = NULL;
-    zval*  timeout_zval         = NULL;
-    zval*  retry_interval_zval  = NULL;
-    zval*  read_timeout_zval    = NULL;
-    zval*  use_tls_zval         = NULL;
-    zval*  read_from_zval       = NULL;
-    zval*  request_timeout_zval = NULL;
-    zval*  reconnect_strategy   = NULL;
-    zval*  database_id_zval     = NULL;
-    char*  client_name          = NULL;
-    size_t client_name_len      = 0;
-    char*  client_az            = NULL;
-    size_t client_az_len        = 0;
-    zval*  advanced_config      = NULL;
-    zval*  lazy_connect_zval    = NULL;
-    zval*  context              = NULL;
-    zval*  compression          = NULL;
-    zval*  client_side_cache    = NULL;
-    zval*  address_resolver     = NULL;
-    zval*  circuit_breaker      = NULL;
+    char*  host                     = NULL;
+    size_t host_len                 = 0;
+    char*  persistent_id            = NULL;
+    size_t persistent_id_len        = 0;
+    zval*  addresses                = NULL;
+    zval*  credentials              = NULL;
+    zval*  port_zval                = NULL;
+    zval*  timeout_zval             = NULL;
+    zval*  retry_interval_zval      = NULL;
+    zval*  read_timeout_zval        = NULL;
+    zval*  use_tls_zval             = NULL;
+    zval*  read_from_zval           = NULL;
+    zval*  request_timeout_zval     = NULL;
+    zval*  reconnect_strategy       = NULL;
+    zval*  database_id_zval         = NULL;
+    char*  client_name              = NULL;
+    size_t client_name_len          = 0;
+    char*  client_az                = NULL;
+    size_t client_az_len            = 0;
+    zval*  advanced_config          = NULL;
+    zval*  lazy_connect_zval        = NULL;
+    zval*  context                  = NULL;
+    zval*  compression              = NULL;
+    zval*  client_side_cache        = NULL;
+    zval*  address_resolver         = NULL;
+    zval*  circuit_breaker          = NULL;
+    zval*  node_discovery_mode_zval = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(0, 22)
+    ZEND_PARSE_PARAMETERS_START(0, 23)
     Z_PARAM_OPTIONAL
     Z_PARAM_STRING_OR_NULL(host, host_len)
     Z_PARAM_ZVAL_OR_NULL(port_zval)
@@ -1200,18 +1228,39 @@ PHP_METHOD(ValkeyGlide, connect) {
     Z_PARAM_ARRAY_OR_NULL(client_side_cache)
     Z_PARAM_ZVAL_OR_NULL(address_resolver)
     Z_PARAM_ARRAY_OR_NULL(circuit_breaker)
+    Z_PARAM_ZVAL_OR_NULL(node_discovery_mode_zval)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* Apply defaults for nullable parameters */
     zend_long port = (port_zval && Z_TYPE_P(port_zval) != IS_NULL) ? Z_LVAL_P(port_zval) : 6379;
     double    timeout =
         (timeout_zval && Z_TYPE_P(timeout_zval) != IS_NULL) ? Z_DVAL_P(timeout_zval) : 0.0;
-    zend_bool use_tls   = (use_tls_zval && Z_TYPE_P(use_tls_zval) != IS_NULL)
-                              ? (Z_TYPE_P(use_tls_zval) == IS_TRUE)
-                              : false;
+    zend_bool use_tls = (use_tls_zval && Z_TYPE_P(use_tls_zval) != IS_NULL)
+                            ? (Z_TYPE_P(use_tls_zval) == IS_TRUE)
+                            : false;
+    /* read_from and node_discovery_mode are declared as ?int in the public API.
+     * Z_PARAM_ZVAL_OR_NULL accepts any type, so enforce the integer contract here
+     * and reject non-null, non-integer values instead of misreading the zval union. */
+    if (read_from_zval && Z_TYPE_P(read_from_zval) != IS_NULL &&
+        Z_TYPE_P(read_from_zval) != IS_LONG) {
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "read_from must be an integer or null.", 0);
+        RETURN_FALSE;
+    }
+    if (node_discovery_mode_zval && Z_TYPE_P(node_discovery_mode_zval) != IS_NULL &&
+        Z_TYPE_P(node_discovery_mode_zval) != IS_LONG) {
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "node_discovery_mode must be an integer or null.", 0);
+        RETURN_FALSE;
+    }
+
     zend_long read_from = (read_from_zval && Z_TYPE_P(read_from_zval) != IS_NULL)
                               ? Z_LVAL_P(read_from_zval)
                               : VALKEY_GLIDE_READ_FROM_PRIMARY;
+    zend_long node_discovery_mode =
+        (node_discovery_mode_zval && Z_TYPE_P(node_discovery_mode_zval) != IS_NULL)
+            ? Z_LVAL_P(node_discovery_mode_zval)
+            : VALKEY_GLIDE_NODE_DISCOVERY_MODE_STANDARD;
 
     /* Validate conflicting parameters */
     if (host != NULL && addresses != NULL) {
@@ -1274,7 +1323,8 @@ PHP_METHOD(ValkeyGlide, connect) {
                                                 compression,
                                                 client_side_cache,
                                                 address_resolver,
-                                                circuit_breaker);
+                                                circuit_breaker,
+                                                node_discovery_mode);
 
     /* Clean up temporary addresses array if we created it */
     if (host != NULL) {

@@ -82,6 +82,7 @@ require_once __DIR__ . "/Connection_request/ClientCertReloadConfig.php";
 require_once __DIR__ . "/Connection_request/ConnectionRequest.php";
 require_once __DIR__ . "/Connection_request/ConnectionRetryStrategy.php";
 require_once __DIR__ . "/Connection_request/NodeAddress.php";
+require_once __DIR__ . "/Connection_request/NodeDiscoveryMode.php";
 require_once __DIR__ . "/Connection_request/PeriodicChecksDisabled.php";
 require_once __DIR__ . "/Connection_request/PeriodicChecksManualInterval.php";
 require_once __DIR__ . "/Connection_request/ProtocolVersion.php";
@@ -211,6 +212,43 @@ class ConnectionRequestTest extends \TestSuite
     {
         $request = ClientConstructorMock::simulate_cluster_constructor(read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY);
         $this->assertEquals(\Connection_request\ReadFrom::AZAffinityReplicasAndPrimary, $request->getReadFrom());
+    }
+
+    public function testStandaloneNodeDiscoveryModeDefault()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor();
+        $this->assertEquals(\Connection_request\NodeDiscoveryMode::Standard, $request->getNodeDiscoveryMode());
+    }
+
+    public function testStandaloneNodeDiscoveryModeStandard()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STANDARD
+        );
+        $this->assertEquals(\Connection_request\NodeDiscoveryMode::Standard, $request->getNodeDiscoveryMode());
+    }
+
+    public function testStandaloneNodeDiscoveryModeStatic()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STATIC
+        );
+        $this->assertEquals(\Connection_request\NodeDiscoveryMode::PBStatic, $request->getNodeDiscoveryMode());
+    }
+
+    public function testStandaloneNodeDiscoveryModeDiscoverAll()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_DISCOVER_ALL
+        );
+        $this->assertEquals(\Connection_request\NodeDiscoveryMode::DiscoverAll, $request->getNodeDiscoveryMode());
+    }
+
+    public function testStandaloneNodeDiscoveryModeInvalidThrows()
+    {
+        $this->assertThrows(ValkeyGlideException::class, function () {
+            ClientConstructorMock::simulate_standalone_constructor(node_discovery_mode: 99);
+        });
     }
 
     public function testStandaloneRequestTimeout()

@@ -5,6 +5,7 @@
 ### Changes
 
 * Add mutual TLS (mTLS) support for standalone and cluster clients via `advanced_config['tls_config']` — byte-based (`client_cert`/`client_key`) or path-based with automatic certificate reload (`client_cert_path`/`client_key_path` + optional `cert_reload_interval_seconds`) ([#321](https://github.com/valkey-io/valkey-glide-php/pull/321))
+* Add `NodeDiscoveryMode` configuration (`STANDARD`, `STATIC`, `DISCOVER_ALL`) for standalone client ([#302](https://github.com/valkey-io/valkey-glide-php/issues/302))
 * Add `CONFIG` command for cluster client ([#284](https://github.com/valkey-io/valkey-glide-php/issues/284))
 * Add `MONITOR` command for standalone client ([#309](https://github.com/valkey-io/valkey-glide-php/pull/309))
 * Add `LOLWUT` command for standalone and cluster clients ([#314](https://github.com/valkey-io/valkey-glide-php/pull/314))
