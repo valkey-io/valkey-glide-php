@@ -361,9 +361,12 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
      * Start a sharded-channel subscriber in a background process using valkey-cli.
      *
      * The PHP client does not yet implement SSUBSCRIBE (see follow-up issue), so
-     * an external valkey-cli process is used to hold a live sharded subscription
-     * while the PHP client queries PUBSUB SHARDCHANNELS. Returns a handle that
-     * must be passed to stopShardSubscriber() for cleanup.
+     * external valkey-cli processes are used to hold live sharded subscriptions
+     * while the PHP client queries PUBSUB SHARDCHANNELS.
+     *
+     * A single valkey-cli SSUBSCRIBE can only cover channels in one slot (a
+     * multi-channel subscribe across slots fails with CROSSSLOT), so callers
+     * that need several channels should start one subscriber per channel.
      *
      * @return array{proc: resource, pipes: array}|null Null if valkey-cli is unavailable.
      */
@@ -395,10 +398,39 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             return null;
         }
 
-        // Give the subscription time to register on the owning node.
-        usleep(500000);
+        // Give the subscription time to register on its owning node.
+        usleep(400000);
 
         return ['proc' => $proc, 'pipes' => $pipes];
+    }
+
+    /**
+     * Start one sharded subscriber per channel and return their handles.
+     *
+     * @return array<array{proc: resource, pipes: array}>|null Null if valkey-cli is unavailable.
+     */
+    private function startShardSubscribers(array $channels)
+    {
+        $handles = [];
+        foreach ($channels as $channel) {
+            $handle = $this->startShardSubscriber($channel);
+            if ($handle === null) {
+                // CLI unavailable: tear down anything already started and bail.
+                foreach ($handles as $h) {
+                    $this->stopShardSubscriber($h);
+                }
+                return null;
+            }
+            $handles[] = $handle;
+        }
+        return $handles;
+    }
+
+    private function stopShardSubscribers(array $handles)
+    {
+        foreach ($handles as $handle) {
+            $this->stopShardSubscriber($handle);
+        }
     }
 
     private function stopShardSubscriber($handle)
@@ -435,9 +467,15 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         $result = $this->valkey_glide->pubsub('shardchannels');
         $this->assertIsArray($result);
 
-        // Bring up a live sharded subscriber on a unique channel.
-        $channel = 'test_shardchannel_' . uniqid();
-        $handle  = $this->startShardSubscriber($channel);
+        // Bring up live sharded subscribers on multiple channels. Two share a
+        // common prefix (so a glob pattern matches a subset) and one does not,
+        // mirroring the Python/Go reference suites.
+        $suffix   = uniqid();
+        $channel1 = 'test_shardchannel1_' . $suffix;
+        $channel2 = 'test_shardchannel2_' . $suffix;
+        $channel3 = 'other_shardchannel3_' . $suffix;
+
+        $handle = $this->startShardSubscribers([$channel1, $channel2, $channel3]);
 
         if ($handle === null) {
             // No valkey-cli/redis-cli available; fall back to shape-only checks.
@@ -447,25 +485,34 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
         }
 
         try {
-            // Without a pattern: the active channel must be listed.
+            // Without a pattern: all three active channels must be listed.
             $channels = $this->valkey_glide->pubsub('shardchannels');
             $this->assertIsArray($channels);
-            $this->assertContains($channel, $channels);
+            $this->assertContains($channel1, $channels);
+            $this->assertContains($channel2, $channels);
+            $this->assertContains($channel3, $channels);
 
-            // With a matching glob pattern: the channel is included.
-            $matched = $this->valkey_glide->pubsub('shardchannels', 'test_shardchannel_*');
+            // With a glob pattern: only the matching subset is returned.
+            $matched = $this->valkey_glide->pubsub('shardchannels', 'test_shardchannel*_' . $suffix);
             $this->assertIsArray($matched);
-            $this->assertContains($channel, $matched);
+            $this->assertContains($channel1, $matched);
+            $this->assertContains($channel2, $matched);
+            $this->assertTrue(
+                !in_array($channel3, $matched, true),
+                'Pattern should exclude the non-matching channel'
+            );
 
-            // With a non-matching pattern: the channel is excluded.
+            // With a non-matching pattern: none of the channels are returned.
             $notMatched = $this->valkey_glide->pubsub('shardchannels', 'no_such_prefix_*');
             $this->assertIsArray($notMatched);
-            $this->assertTrue(
-                !in_array($channel, $notMatched, true),
-                'Non-matching pattern should not include the channel'
-            );
+            foreach ([$channel1, $channel2, $channel3] as $ch) {
+                $this->assertTrue(
+                    !in_array($ch, $notMatched, true),
+                    "Non-matching pattern should not include '$ch'"
+                );
+            }
         } finally {
-            $this->stopShardSubscriber($handle);
+            $this->stopShardSubscribers($handle);
         }
     }
 
