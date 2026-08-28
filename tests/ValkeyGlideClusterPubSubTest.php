@@ -358,16 +358,69 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
     }
 
     /**
+     * Start a sharded-channel subscriber in a background process using valkey-cli.
+     *
+     * The PHP client does not yet implement SSUBSCRIBE (see follow-up issue), so
+     * an external valkey-cli process is used to hold a live sharded subscription
+     * while the PHP client queries PUBSUB SHARDCHANNELS. Returns a handle that
+     * must be passed to stopShardSubscriber() for cleanup.
+     *
+     * @return array{proc: resource, pipes: array}|null Null if valkey-cli is unavailable.
+     */
+    private function startShardSubscriber(string $channel)
+    {
+        $cli = trim((string) shell_exec('command -v valkey-cli 2>/dev/null'));
+        if ($cli === '') {
+            $cli = trim((string) shell_exec('command -v redis-cli 2>/dev/null'));
+        }
+        if ($cli === '') {
+            return null;
+        }
+
+        $cmd = sprintf(
+            '%s -c -h %s -p %d ssubscribe %s',
+            escapeshellarg($cli),
+            escapeshellarg($this->getHost()),
+            $this->getPort(),
+            escapeshellarg($channel)
+        );
+
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
+
+        if (!is_resource($proc)) {
+            return null;
+        }
+
+        // Give the subscription time to register on the owning node.
+        usleep(500000);
+
+        return ['proc' => $proc, 'pipes' => $pipes];
+    }
+
+    private function stopShardSubscriber($handle)
+    {
+        if (!is_array($handle)) {
+            return;
+        }
+        foreach ($handle['pipes'] as $pipe) {
+            @fclose($pipe);
+        }
+        @proc_terminate($handle['proc']);
+        @proc_close($handle['proc']);
+    }
+
+    /**
      * PUBSUB SHARDCHANNELS: lists the currently active shard channels.
      *
      * Mirrors valkey-glide's cross-language pubsub_shardchannels tests. Sharded
-     * pub/sub is a cluster-only feature available since Valkey/Redis 7.0.
-     *
-     * Note: the PHP client does not yet implement sharded subscriptions
-     * (ValkeyGlide::ssubscribe is a TODO), so we cannot stand up a live sharded
-     * subscriber from PHP to assert non-empty results. We therefore verify the
-     * empty-state behaviour, return shape, and pattern handling — matching the
-     * achievable subset of the reference test suites.
+     * pub/sub is a cluster-only feature available since Valkey/Redis 7.0. A live
+     * sharded subscriber is created via valkey-cli (PHP-native SSUBSCRIBE is not
+     * yet implemented) so we can assert real active-channel behaviour, matching
+     * the reference suites.
      *
      * @see https://valkey.io/commands/pubsub-shardchannels/
      */
@@ -378,83 +431,47 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             return;
         }
 
-        // Without a pattern: returns an array of active shard channels.
+        // Empty state: no active sharded subscribers => empty list.
         $result = $this->valkey_glide->pubsub('shardchannels');
         $this->assertIsArray($result);
 
-        // With no active sharded subscribers, the list is empty.
-        $this->assertEmpty($result);
+        // Bring up a live sharded subscriber on a unique channel.
+        $channel = 'test_shardchannel_' . uniqid();
+        $handle  = $this->startShardSubscriber($channel);
 
-        // With a pattern: returns an array (subset matching the glob pattern).
-        $result = $this->valkey_glide->pubsub('shardchannels', 'test_*');
-        $this->assertIsArray($result);
-
-        // A non-matching pattern yields an empty list.
-        $result = $this->valkey_glide->pubsub('shardchannels', 'non_matching_*');
-        $this->assertIsArray($result);
-        $this->assertEmpty($result);
-    }
-
-    /**
-     * PUBSUB SHARDNUMSUB: returns the subscriber count for the given shard channels.
-     *
-     * Mirrors valkey-glide's cross-language pubsub_shardnumsub tests. With no
-     * active sharded subscribers every queried channel reports 0, and calling the
-     * command without channels returns an empty map.
-     *
-     * @see https://valkey.io/commands/pubsub-shardnumsub/
-     */
-    public function testPubSubShardNumSub()
-    {
-        if (! $this->minVersionCheck('7.0.0')) {
-            $this->markTestSkipped('PUBSUB SHARDNUMSUB requires Valkey/Redis 7.0+');
+        if ($handle === null) {
+            // No valkey-cli/redis-cli available; fall back to shape-only checks.
+            $this->assertIsArray($this->valkey_glide->pubsub('shardchannels', 'test_*'));
+            $this->assertIsArray($this->valkey_glide->pubsub('shardchannels', 'non_matching_*'));
             return;
         }
 
-        $channel1 = 'test_shardchannel1';
-        $channel2 = 'test_shardchannel2';
-        $channel3 = 'test_shardchannel3';
+        try {
+            // Without a pattern: the active channel must be listed.
+            $channels = $this->valkey_glide->pubsub('shardchannels');
+            $this->assertIsArray($channels);
+            $this->assertContains($channel, $channels);
 
-        // Query specific channels. Matching PHPRedis, the reply is passed through
-        // as the raw server response: a flat array laid out as
-        // [channel, count, channel, count, ...] rather than an associative map.
-        $result = $this->valkey_glide->pubsub('shardnumsub', [$channel1, $channel2, $channel3]);
-        $this->assertIsArray($result);
+            // With a matching glob pattern: the channel is included.
+            $matched = $this->valkey_glide->pubsub('shardchannels', 'test_shardchannel_*');
+            $this->assertIsArray($matched);
+            $this->assertContains($channel, $matched);
 
-        // Three channels => 3 (channel, count) pairs => 6 flat elements.
-        $this->assertCount(6, $result);
-
-        // Fold the flat [channel, count, ...] array into a map for assertions.
-        $counts = [];
-        for ($i = 0; $i + 1 < count($result); $i += 2) {
-            $counts[$result[$i]] = $result[$i + 1];
-        }
-
-        // With no active sharded subscribers, every queried channel reports 0.
-        foreach ([$channel1, $channel2, $channel3] as $channel) {
+            // With a non-matching pattern: the channel is excluded.
+            $notMatched = $this->valkey_glide->pubsub('shardchannels', 'no_such_prefix_*');
+            $this->assertIsArray($notMatched);
             $this->assertTrue(
-                isset($counts[$channel]),
-                "SHARDNUMSUB result should contain channel '$channel'"
+                !in_array($channel, $notMatched, true),
+                'Non-matching pattern should not include the channel'
             );
-            $this->assertEquals(0, $counts[$channel]);
+        } finally {
+            $this->stopShardSubscriber($handle);
         }
-
-        // Calling SHARDNUMSUB without channels is valid and returns an empty array.
-        $empty = $this->valkey_glide->pubsub('shardnumsub');
-        $this->assertIsArray($empty);
-        $this->assertEmpty($empty);
-
-        $empty = $this->valkey_glide->pubsub('shardnumsub', []);
-        $this->assertIsArray($empty);
-        $this->assertEmpty($empty);
     }
 
     /**
-     * PUBSUB CHANNELS vs SHARDCHANNELS separation.
-     *
-     * Verifies both introspection variants coexist and return arrays. Regular
-     * pub/sub channels never appear in the sharded channel listing and vice
-     * versa; without live subscribers both are empty here.
+     * PUBSUB CHANNELS vs SHARDCHANNELS: a sharded channel is reported by
+     * SHARDCHANNELS but never by the regular CHANNELS introspection.
      */
     public function testPubSubChannelsAndShardChannelsSeparation()
     {
@@ -463,20 +480,40 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             return;
         }
 
-        $channels      = $this->valkey_glide->pubsub('channels');
-        $shardChannels = $this->valkey_glide->pubsub('shardchannels');
+        $channel = 'test_separation_' . uniqid();
+        $handle  = $this->startShardSubscriber($channel);
 
-        $this->assertIsArray($channels);
-        $this->assertIsArray($shardChannels);
+        if ($handle === null) {
+            // No CLI available; assert both variants at least return arrays.
+            $this->assertIsArray($this->valkey_glide->pubsub('channels'));
+            $this->assertIsArray($this->valkey_glide->pubsub('shardchannels'));
+            return;
+        }
+
+        try {
+            $shardChannels = $this->valkey_glide->pubsub('shardchannels');
+            $regularChannels = $this->valkey_glide->pubsub('channels');
+
+            $this->assertIsArray($shardChannels);
+            $this->assertIsArray($regularChannels);
+
+            // The sharded channel appears in SHARDCHANNELS ...
+            $this->assertContains($channel, $shardChannels);
+            // ... but not in the regular CHANNELS listing.
+            $this->assertTrue(
+                !in_array($channel, $regularChannels, true),
+                'Sharded channel must not appear in PUBSUB CHANNELS'
+            );
+        } finally {
+            $this->stopShardSubscriber($handle);
+        }
     }
 
     /**
-     * PUBSUB SHARD* invalid argument handling.
-     *
-     * SHARDNUMSUB requires an array argument when one is supplied; passing a
-     * non-array must raise an exception (consistent with NUMSUB validation).
+     * PUBSUB SHARDNUMSUB is not yet supported by the PHP client and must raise
+     * an exception until it is implemented (see follow-up issue).
      */
-    public function testPubSubShardNumSubInvalidArg()
+    public function testPubSubShardNumSubNotSupported()
     {
         if (! $this->minVersionCheck('7.0.0')) {
             $this->markTestSkipped('Sharded pub/sub requires Valkey/Redis 7.0+');
@@ -485,10 +522,10 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
 
         $threw = false;
         try {
-            $this->valkey_glide->pubsub('shardnumsub', 'not_an_array');
+            $this->valkey_glide->pubsub('shardnumsub', ['some_channel']);
         } catch (\Throwable $e) {
             $threw = true;
         }
-        $this->assertTrue($threw, 'SHARDNUMSUB with a non-array argument should throw');
+        $this->assertTrue($threw, 'SHARDNUMSUB should throw until it is implemented');
     }
 }

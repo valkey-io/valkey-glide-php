@@ -1186,13 +1186,12 @@ class ValkeyGlideCluster
      * Inspect the state of the Pub/Sub subsystem.
      *
      * In addition to the standard subcommands, cluster clients support the sharded
-     * introspection subcommands <code>"shardchannels"</code> and <code>"shardnumsub"</code>
-     * (Valkey/Redis 7.0+). PUBSUB replies in a cluster report information from the queried
-     * node's Pub/Sub context rather than the entire cluster.
+     * introspection subcommand <code>"shardchannels"</code> (Valkey/Redis 7.0+).
+     * PUBSUB replies in a cluster report information from the queried node's Pub/Sub
+     * context rather than the entire cluster.
      *
      * @see ValkeyGlide::pubsub
      * @see https://valkey.io/commands/pubsub-shardchannels/
-     * @see https://valkey.io/commands/pubsub-shardnumsub/
      */
     public function pubsub(string $command, mixed $arg = null): mixed;
 

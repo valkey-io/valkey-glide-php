@@ -158,67 +158,14 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
             RETURN_FALSE;
         }
     } else if (strcasecmp(cmd, "shardnumsub") == 0) {
-        // PUBSUB SHARDNUMSUB [shardchannel ...]
-        // Note: it is valid to call this command without channels; the server
-        // then returns an empty map.
-        HashTable* channels_ht   = NULL;
-        uint32_t   channel_count = 0;
-
-        if (arg) {
-            if (Z_TYPE_P(arg) != IS_ARRAY) {
-                zend_throw_exception(
-                    get_valkey_glide_exception_ce(), "SHARDNUMSUB requires array of channels", 0);
-                RETURN_FALSE;
-            }
-            channels_ht   = Z_ARRVAL_P(arg);
-            channel_count = zend_hash_num_elements(channels_ht);
-        }
-
-        uint32_t       argc     = channel_count;
-        uintptr_t*     args     = argc ? emalloc(argc * sizeof(uintptr_t)) : NULL;
-        unsigned long* args_len = argc ? emalloc(argc * sizeof(unsigned long)) : NULL;
-
-        if (channels_ht) {
-            uint32_t i = 0;
-            zval*    channel_zv;
-            ZEND_HASH_FOREACH_VAL(channels_ht, channel_zv) {
-                convert_to_string(channel_zv);
-                args[i]     = (uintptr_t) Z_STRVAL_P(channel_zv);
-                args_len[i] = Z_STRLEN_P(channel_zv);
-                i++;
-            }
-            ZEND_HASH_FOREACH_END();
-        }
-
-        struct CommandResult* result =
-            command(connection,
-                    0,
-                    (enum RequestType) COMMAND_REQUEST__REQUEST_TYPE__PubSubShardNumSub,
-                    argc,
-                    args,
-                    args_len,
-                    NULL,
-                    0,
-                    0);
-        if (args)
-            efree(args);
-        if (args_len)
-            efree(args_len);
-
-        if (result && result->response && !result->command_error) {
-            command_response_to_zval(result->response, return_value, 0, false);
-            free_command_result(result);
-        } else {
-            const char* error_msg =
-                result && result->command_error && result->command_error->command_error_message
-                    ? result->command_error->command_error_message
-                    : "PUBSUB SHARDNUMSUB command failed";
-            VALKEY_LOG_ERROR("pubsub_shardnumsub", error_msg);
-            if (result)
-                free_command_result(result);
-            zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
-            RETURN_FALSE;
-        }
+        // PUBSUB SHARDNUMSUB is intentionally not implemented yet. See the
+        // follow-up issue: subscriber counts require investigation of the
+        // cluster response handling, and PHP-native sharded subscriptions
+        // (SSUBSCRIBE) are not implemented, which blocks behavioral testing.
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "PUBSUB SHARDNUMSUB is not yet supported",
+                             0);
+        RETURN_FALSE;
     } else if (strcasecmp(cmd, "numpat") == 0) {
         // PUBSUB NUMPAT
         struct CommandResult* result =
