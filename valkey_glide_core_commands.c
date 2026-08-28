@@ -111,7 +111,9 @@ uint8_t* create_connection_request(size_t*                                   len
     }
 
     /* Set root certificates */
-    ProtobufCBinaryData root_cert_data;
+    ProtobufCBinaryData                       root_cert_data;
+    ConnectionRequest__ClientCertReloadConfig cert_reload_msg =
+        CONNECTION_REQUEST__CLIENT_CERT_RELOAD_CONFIG__INIT;
     if (config->advanced_config && config->advanced_config->tls_config) {
         valkey_glide_tls_advanced_configuration_t* tls_config = config->advanced_config->tls_config;
 
@@ -120,6 +122,28 @@ uint8_t* create_connection_request(size_t*                                   len
                 (ProtobufCBinaryData){tls_config->root_certs_len, tls_config->root_certs};
             conn_req.n_root_certs = 1;
             conn_req.root_certs   = &root_cert_data;
+        }
+
+        /* Byte-based mTLS: inline PEM bytes. */
+        if (tls_config->client_cert && tls_config->client_cert_len > 0) {
+            conn_req.client_cert =
+                (ProtobufCBinaryData){tls_config->client_cert_len, tls_config->client_cert};
+        }
+        if (tls_config->client_key && tls_config->client_key_len > 0) {
+            conn_req.client_key =
+                (ProtobufCBinaryData){tls_config->client_key_len, tls_config->client_key};
+        }
+
+        /* Path-based mTLS: file paths, with core-side reload. */
+        if (tls_config->client_cert_path && tls_config->client_key_path) {
+            conn_req.client_cert_path = tls_config->client_cert_path;
+            conn_req.client_key_path  = tls_config->client_key_path;
+
+            cert_reload_msg.enabled = true;
+            if (tls_config->cert_reload_interval >= 0) {
+                cert_reload_msg.interval_seconds = (uint32_t) tls_config->cert_reload_interval;
+            }
+            conn_req.cert_reload = &cert_reload_msg;
         }
     }
 

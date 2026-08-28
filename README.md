@@ -379,6 +379,57 @@ $client->connect(
 )
 ```
 
+### With Mutual TLS (mTLS)
+
+```php
+// Create ValkeyGlide client with mutual TLS (client certificate authentication).
+// Both a client certificate and a client key are required for mTLS.
+$client = new ValkeyGlide();
+$client->connect(
+    addresses: [['host' => 'localhost', 'port' => 6379]],
+    use_tls: true,  // REQUIRED for mTLS
+    advanced_config: [
+        'tls_config' => [
+            'root_certs'  => file_get_contents('ca-cert.pem'),      // PEM CA certificate(s)
+            'client_cert' => file_get_contents('client-cert.pem'),  // PEM client certificate bytes
+            'client_key'  => file_get_contents('client-key.pem'),   // PEM client private key bytes
+        ]
+    ]
+);
+
+$client->set('key', 'value');
+$client->close();
+```
+
+Alternatively, use path-based mTLS by providing file paths instead of inline bytes.
+With path-based mTLS the core reads the files and periodically reloads them, so a rotated
+certificate is adopted on the next reconnect. Byte-based and path-based mTLS are mutually
+exclusive — provide one mode or the other, and each requires both of its fields:
+
+```php
+$client = new ValkeyGlide();
+$client->connect(
+    addresses: [['host' => 'localhost', 'port' => 6379]],
+    use_tls: true,
+    advanced_config: [
+        'tls_config' => [
+            'root_certs'       => file_get_contents('ca-cert.pem'),
+            'client_cert_path' => 'client-cert.pem',  // Path to PEM client certificate file
+            'client_key_path'  => 'client-key.pem',   // Path to PEM client private key file
+            // Optional: override the automatic reload cadence (path-based mTLS only).
+            'cert_reload_interval_seconds' => 300,
+        ]
+    ]
+);
+
+$client->set('key', 'value');
+$client->close();
+```
+
+> **Note:** mTLS is only supported through the `advanced_config['tls_config']` path shown above.
+> Client certificates/keys supplied via a stream context (`context: stream_context_create([...])`)
+> are not used for mutual TLS.
+
 ### Cluster Valkey
 
 ```php

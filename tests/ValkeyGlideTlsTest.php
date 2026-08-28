@@ -265,4 +265,186 @@ class ValkeyGlideTlsTest extends ValkeyGlideBaseTest
         $this->assertConnected($client);
         $client->close();
     }
+
+    // ================================================================
+    // mTLS (mutual TLS) tests
+    // ================================================================
+
+    /**
+     * mTLS requires both the client certificate and the client key.
+     * Providing only the client certificate must fail.
+     */
+    public function testMtlsClientCertWithoutKeyThrows()
+    {
+        $this->skipIfTlsDisabled();
+
+        $certData = $this->getCaCertificate();
+
+        $this->assertThrows(ValkeyGlideException::class, function () use ($certData) {
+            $client = new ValkeyGlide();
+            $client->connect(
+                addresses: [self::TLS_ADDRESS_STANDALONE],
+                use_tls: true,
+                advanced_config: [
+                    'tls_config' => [
+                        'root_certs'  => $certData,
+                        'client_cert' => $certData,
+                    ]
+                ]
+            );
+        });
+    }
+
+    /**
+     * mTLS requires both the client certificate and the client key.
+     * Providing only the client key must fail.
+     */
+    public function testMtlsClientKeyWithoutCertThrows()
+    {
+        $this->skipIfTlsDisabled();
+
+        $certData = $this->getCaCertificate();
+
+        $this->assertThrows(ValkeyGlideException::class, function () use ($certData) {
+            $client = new ValkeyGlide();
+            $client->connect(
+                addresses: [self::TLS_ADDRESS_STANDALONE],
+                use_tls: true,
+                advanced_config: [
+                    'tls_config' => [
+                        'root_certs' => $certData,
+                        'client_key' => $certData,
+                    ]
+                ]
+            );
+        });
+    }
+
+    /**
+     * An empty client certificate string must be rejected.
+     */
+    public function testMtlsEmptyClientCertThrows()
+    {
+        $this->skipIfTlsDisabled();
+
+        $certData = $this->getCaCertificate();
+
+        $this->assertThrows(ValkeyGlideException::class, function () use ($certData) {
+            $client = new ValkeyGlide();
+            $client->connect(
+                addresses: [self::TLS_ADDRESS_STANDALONE],
+                use_tls: true,
+                advanced_config: [
+                    'tls_config' => [
+                        'client_cert' => '',
+                        'client_key'  => $certData,
+                    ]
+                ]
+            );
+        });
+    }
+
+    /**
+     * Path-based and byte-based mTLS are mutually exclusive.
+     */
+    public function testMtlsInlineAndPathConflictThrows()
+    {
+        $this->skipIfTlsDisabled();
+
+        $ca   = file_get_contents(self::TLS_CERTIFICATE_PATH);
+        $cert = file_get_contents(self::TLS_CLIENT_CERT_PATH);
+        $key  = file_get_contents(self::TLS_CLIENT_KEY_PATH);
+
+        $this->assertThrows(ValkeyGlideException::class, function () use ($ca, $cert, $key) {
+            $client = new ValkeyGlide();
+            $client->connect(
+                addresses: [self::TLS_ADDRESS_STANDALONE],
+                use_tls: true,
+                advanced_config: [
+                    'tls_config' => [
+                        'root_certs'       => $ca,
+                        'client_cert'      => $cert,
+                        'client_key'       => $key,
+                        'client_cert_path' => self::TLS_CLIENT_CERT_PATH,
+                        'client_key_path'  => self::TLS_CLIENT_KEY_PATH,
+                    ]
+                ]
+            );
+        });
+    }
+
+    // ================================================================
+    // mTLS handshake tests (against a client-cert-verifying server)
+    // ================================================================
+
+    /**
+     * A successful mTLS handshake using byte-based client certificate/key.
+     */
+    public function testMtlsHandshakeWithByteCredentials()
+    {
+        $this->skipIfMtlsUnavailable(self::MTLS_PORT_STANDALONE);
+
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [self::MTLS_ADDRESS_STANDALONE],
+            use_tls: true,
+            advanced_config: [
+                'tls_config' => [
+                    'root_certs'  => file_get_contents(self::TLS_CERTIFICATE_PATH),
+                    'client_cert' => file_get_contents(self::TLS_CLIENT_CERT_PATH),
+                    'client_key'  => file_get_contents(self::TLS_CLIENT_KEY_PATH),
+                ]
+            ]
+        );
+
+        $this->assertConnected($client);
+        $client->close();
+    }
+
+    /**
+     * A successful mTLS handshake using path-based client certificate/key.
+     */
+    public function testMtlsHandshakeWithPathCredentials()
+    {
+        $this->skipIfMtlsUnavailable(self::MTLS_PORT_STANDALONE);
+
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [self::MTLS_ADDRESS_STANDALONE],
+            use_tls: true,
+            advanced_config: [
+                'tls_config' => [
+                    'root_certs'       => file_get_contents(self::TLS_CERTIFICATE_PATH),
+                    'client_cert_path' => self::TLS_CLIENT_CERT_PATH,
+                    'client_key_path'  => self::TLS_CLIENT_KEY_PATH,
+                ]
+            ]
+        );
+
+        $this->assertConnected($client);
+        $client->close();
+    }
+
+    /**
+     * Connecting to a client-cert-verifying server without a client certificate must fail.
+     */
+    public function testMtlsHandshakeWithoutClientCertFails()
+    {
+        $this->skipIfMtlsUnavailable(self::MTLS_PORT_STANDALONE);
+
+        $this->assertThrows(ValkeyGlideException::class, function () {
+            $client = new ValkeyGlide();
+            $client->connect(
+                addresses: [self::MTLS_ADDRESS_STANDALONE],
+                use_tls: true,
+                advanced_config: [
+                    'tls_config' => [
+                        'root_certs' => file_get_contents(self::TLS_CERTIFICATE_PATH),
+                    ]
+                ]
+            );
+            // Force a round-trip in case the connection is established lazily.
+            $client->ping();
+        });
+    }
 }

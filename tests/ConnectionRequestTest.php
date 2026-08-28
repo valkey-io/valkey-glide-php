@@ -78,6 +78,7 @@ require_once __DIR__ . "/Connection_request/AuthenticationInfo.php";
 require_once __DIR__ . "/Connection_request/ClientCircuitBreakerConfig.php";
 require_once __DIR__ . "/Connection_request/CompressionBackend.php";
 require_once __DIR__ . "/Connection_request/CompressionConfig.php";
+require_once __DIR__ . "/Connection_request/ClientCertReloadConfig.php";
 require_once __DIR__ . "/Connection_request/ConnectionRequest.php";
 require_once __DIR__ . "/Connection_request/ConnectionRetryStrategy.php";
 require_once __DIR__ . "/Connection_request/NodeAddress.php";
@@ -618,10 +619,421 @@ class ConnectionRequestTest extends \TestSuite
         }
     }
 
+    // mTLS (client cert/key) Tests
+    // -----------------------------
+
+    private const CLIENT_CERT_DATA = "CLIENT_CERT_DATA";
+    private const CLIENT_KEY_DATA  = "CLIENT_KEY_DATA";
+
+    public function testClientAuthTlsDefault()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(use_tls: true);
+        $this->assertEquals('', $request->getClientCert());
+        $this->assertEquals('', $request->getClientKey());
+        $this->assertEquals('', $request->getClientCertPath());
+        $this->assertEquals('', $request->getClientKeyPath());
+        $this->assertNull($request->getCertReload());
+
+        $request = ClientConstructorMock::simulate_cluster_constructor(use_tls: true);
+        $this->assertEquals('', $request->getClientCert());
+        $this->assertEquals('', $request->getClientKey());
+    }
+
+    // Byte-based mTLS (client_cert / client_key inline PEM bytes)
+    // ----------------------------------------------------------
+
+    public function testClientAuthTlsByteMode()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert' => self::CLIENT_CERT_DATA,
+            'client_key'  => self::CLIENT_KEY_DATA,
+        ]];
+
+        foreach (['simulate_standalone_constructor', 'simulate_cluster_constructor'] as $ctor) {
+            $request = ClientConstructorMock::$ctor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertEquals(self::CLIENT_CERT_DATA, $request->getClientCert());
+            $this->assertEquals(self::CLIENT_KEY_DATA, $request->getClientKey());
+            // Byte mode must not set path/reload fields.
+            $this->assertEquals('', $request->getClientCertPath());
+            $this->assertEquals('', $request->getClientKeyPath());
+            $this->assertNull($request->getCertReload());
+        }
+    }
+
+    public function testClientAuthTlsByteModeWithRootCerts()
+    {
+        $advanced_config = ['tls_config' => [
+            'root_certs'  => self::CERTIFICATE_DATA,
+            'client_cert' => self::CLIENT_CERT_DATA,
+            'client_key'  => self::CLIENT_KEY_DATA,
+        ]];
+
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            use_tls: true,
+            advanced_config: $advanced_config
+        );
+        $root_certs = $request->getRootCerts();
+        $this->assertEquals(1, $root_certs->count());
+        $this->assertEquals(self::CERTIFICATE_DATA, $root_certs[0]);
+        $this->assertEquals(self::CLIENT_CERT_DATA, $request->getClientCert());
+        $this->assertEquals(self::CLIENT_KEY_DATA, $request->getClientKey());
+    }
+
+    public function testClientAuthTlsByteCertWithoutKey()
+    {
+        $advanced_config = ['tls_config' => ['client_cert' => self::CLIENT_CERT_DATA]];
+        $expected_msg = 'client_cert and client_key must be provided together';
+
+        foreach (['simulate_standalone_constructor', 'simulate_cluster_constructor'] as $ctor) {
+            try {
+                ClientConstructorMock::$ctor(use_tls: true, advanced_config: $advanced_config);
+                $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+            } catch (ValkeyGlideException $e) {
+                $this->assertStringContains($expected_msg, $e->getMessage());
+            }
+        }
+    }
+
+    public function testClientAuthTlsByteKeyWithoutCert()
+    {
+        $advanced_config = ['tls_config' => ['client_key' => self::CLIENT_KEY_DATA]];
+        $expected_msg = 'client_cert and client_key must be provided together';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsByteEmpty()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert' => '',
+            'client_key'  => self::CLIENT_KEY_DATA,
+        ]];
+        $expected_msg = 'must not be empty';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsByteEmptyKey()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert' => self::CLIENT_CERT_DATA,
+            'client_key'  => '',
+        ]];
+        $expected_msg = 'must not be empty';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsByteOversized()
+    {
+        $oversized = str_repeat('A', (10 * 1024 * 1024) + 1);
+        $advanced_config = ['tls_config' => [
+            'client_cert' => $oversized,
+            'client_key'  => self::CLIENT_KEY_DATA,
+        ]];
+        $expected_msg = 'exceeds the maximum allowed size';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsByteOversizedKey()
+    {
+        $oversized = str_repeat('A', (10 * 1024 * 1024) + 1);
+        $advanced_config = ['tls_config' => [
+            'client_cert' => self::CLIENT_CERT_DATA,
+            'client_key'  => $oversized,
+        ]];
+        $expected_msg = 'exceeds the maximum allowed size';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    // Path-based mTLS (client_cert_path / client_key_path, native core reload)
+    // -----------------------------------------------------------------------
+
+    public function testClientAuthTlsPathMode()
+    {
+        // Paths are passed through unread; the core reads and reloads them.
+        $advanced_config = ['tls_config' => [
+            'client_cert_path' => '/etc/mtls/client-cert.pem',
+            'client_key_path'  => '/etc/mtls/client-key.pem',
+        ]];
+
+        foreach (['simulate_standalone_constructor', 'simulate_cluster_constructor'] as $ctor) {
+            $request = ClientConstructorMock::$ctor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertEquals('/etc/mtls/client-cert.pem', $request->getClientCertPath());
+            $this->assertEquals('/etc/mtls/client-key.pem', $request->getClientKeyPath());
+            // Path mode must not set the inline byte fields.
+            $this->assertEquals('', $request->getClientCert());
+            $this->assertEquals('', $request->getClientKey());
+            // cert_reload is enabled by default in path mode, with no explicit interval.
+            $reload = $request->getCertReload();
+            $this->assertNotNull($reload);
+            $this->assertTrue($reload->getEnabled());
+            $this->assertEquals(0, $reload->getIntervalSeconds());
+        }
+    }
+
+    public function testClientAuthTlsPathModeWithInterval()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert_path'            => '/etc/mtls/client-cert.pem',
+            'client_key_path'             => '/etc/mtls/client-key.pem',
+            'cert_reload_interval_seconds' => 60,
+        ]];
+
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            use_tls: true,
+            advanced_config: $advanced_config
+        );
+        $reload = $request->getCertReload();
+        $this->assertNotNull($reload);
+        $this->assertTrue($reload->getEnabled());
+        $this->assertEquals(60, $reload->getIntervalSeconds());
+    }
+
+    public function testClientAuthTlsPathCertWithoutKey()
+    {
+        $advanced_config = ['tls_config' => ['client_cert_path' => '/etc/mtls/client-cert.pem']];
+        $expected_msg = 'client_cert_path and client_key_path must be provided together';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsPathKeyWithoutCert()
+    {
+        $advanced_config = ['tls_config' => ['client_key_path' => '/etc/mtls/client-key.pem']];
+        $expected_msg = 'client_cert_path and client_key_path must be provided together';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsPathEmpty()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert_path' => '',
+            'client_key_path'  => '/etc/mtls/client-key.pem',
+        ]];
+        $expected_msg = 'must not be empty';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsPathEmptyKey()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert_path' => '/etc/mtls/client-cert.pem',
+            'client_key_path'  => '',
+        ]];
+        $expected_msg = 'must not be empty';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    // Mode exclusivity and interval validation
+    // -----------------------------------------
+
+    public function testClientAuthTlsPathAndByteMutuallyExclusive()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert'      => self::CLIENT_CERT_DATA,
+            'client_key'       => self::CLIENT_KEY_DATA,
+            'client_cert_path' => '/etc/mtls/client-cert.pem',
+            'client_key_path'  => '/etc/mtls/client-key.pem',
+        ]];
+        $expected_msg = 'mutually exclusive';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsIntervalWithoutPathMode()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert'                  => self::CLIENT_CERT_DATA,
+            'client_key'                   => self::CLIENT_KEY_DATA,
+            'cert_reload_interval_seconds' => 60,
+        ]];
+        $expected_msg = 'cert_reload_interval_seconds may only be set when path-based mTLS';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsIntervalNotPositive()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert_path'            => '/etc/mtls/client-cert.pem',
+            'client_key_path'             => '/etc/mtls/client-key.pem',
+            'cert_reload_interval_seconds' => 0,
+        ]];
+        $expected_msg = 'cert_reload_interval_seconds must be positive';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsIntervalNegative()
+    {
+        $advanced_config = ['tls_config' => [
+            'client_cert_path'            => '/etc/mtls/client-cert.pem',
+            'client_key_path'             => '/etc/mtls/client-key.pem',
+            'cert_reload_interval_seconds' => -1,
+        ]];
+        $expected_msg = 'cert_reload_interval_seconds must be positive';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsIntervalOverflow()
+    {
+        // Exceeds uint32 max (4294967295).
+        $advanced_config = ['tls_config' => [
+            'client_cert_path'            => '/etc/mtls/client-cert.pem',
+            'client_key_path'             => '/etc/mtls/client-key.pem',
+            'cert_reload_interval_seconds' => 4294967296,
+        ]];
+        $expected_msg = 'no greater than';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsWithTlsDisabled()
+    {
+        $expected_msg = 'Cannot configure mTLS client certificate when TLS is disabled.';
+
+        // Byte mode with TLS disabled.
+        $byte_config = ['tls_config' => [
+            'client_cert' => self::CLIENT_CERT_DATA,
+            'client_key'  => self::CLIENT_KEY_DATA,
+        ]];
+        foreach (['simulate_standalone_constructor', 'simulate_cluster_constructor'] as $ctor) {
+            try {
+                ClientConstructorMock::$ctor(advanced_config: $byte_config);
+                $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+            } catch (ValkeyGlideException $e) {
+                $this->assertEquals($expected_msg, $e->getMessage());
+            }
+        }
+
+        // Path mode with TLS disabled.
+        $path_config = ['tls_config' => [
+            'client_cert_path' => '/etc/mtls/client-cert.pem',
+            'client_key_path'  => '/etc/mtls/client-key.pem',
+        ]];
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(advanced_config: $path_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertEquals($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsWrongTypedCredential()
+    {
+        // A non-string credential value must be rejected, not silently ignored.
+        $advanced_config = ['tls_config' => [
+            'client_cert' => 123,
+            'client_key'  => self::CLIENT_KEY_DATA,
+        ]];
+        $expected_msg = 'must be strings';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
+    public function testClientAuthTlsWrongTypedInterval()
+    {
+        // A non-integer cert_reload_interval_seconds must be rejected, not coerced.
+        $advanced_config = ['tls_config' => [
+            'client_cert_path'             => '/etc/mtls/client-cert.pem',
+            'client_key_path'              => '/etc/mtls/client-key.pem',
+            'cert_reload_interval_seconds' => '60',
+        ]];
+        $expected_msg = 'must be an integer';
+
+        try {
+            ClientConstructorMock::simulate_standalone_constructor(use_tls: true, advanced_config: $advanced_config);
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains($expected_msg, $e->getMessage());
+        }
+    }
+
     // ================================================================
     // Compression Tests
     // ================================================================
-
     public function testCompressionStandaloneZstdDefault()
     {
         $request = ClientConstructorMock::simulate_standalone_constructor(

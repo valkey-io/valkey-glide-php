@@ -117,6 +117,22 @@ abstract class ValkeyGlideBaseTest extends TestSuite
 
     protected const TLS_CERTIFICATE_PATH   = __DIR__ . '/../valkey-glide/utils/tls_crts/ca.crt';
 
+    // mTLS (client-cert-verifying) standalone server.
+    // The generated server cert/key are signed by the same CA, so they double as
+    // valid client credentials for the mTLS handshake.
+    protected const MTLS_PORT_STANDALONE = 6405;
+    protected const MTLS_ADDRESS_STANDALONE = [
+        'host' => 'localhost',
+        'port' => self::MTLS_PORT_STANDALONE
+    ];
+    protected const MTLS_PORT_CLUSTER = 8101;
+    protected const MTLS_ADDRESS_CLUSTER = [
+        'host' => 'localhost',
+        'port' => self::MTLS_PORT_CLUSTER
+    ];
+    protected const TLS_CLIENT_CERT_PATH = __DIR__ . '/../valkey-glide/utils/tls_crts/server.crt';
+    protected const TLS_CLIENT_KEY_PATH  = __DIR__ . '/../valkey-glide/utils/tls_crts/server.key';
+
     protected function getNilValue()
     {
         return false;
@@ -294,6 +310,24 @@ abstract class ValkeyGlideBaseTest extends TestSuite
         if (!$this->getTLS()) {
             $this->markTestSkipped('TLS is disabled');
         }
+    }
+
+    /**
+     * Marks the current test as skipped if TLS is disabled or the mTLS
+     * (client-cert-verifying) server on $port is not reachable.
+     *
+     * The mTLS servers are started with graceful failure in the test harness,
+     * so skip rather than fail when the server did not come up (e.g. port in use).
+     */
+    protected function skipIfMtlsUnavailable(int $port): void
+    {
+        $this->skipIfTlsDisabled();
+
+        $conn = @fsockopen('127.0.0.1', $port, $errno, $errstr, 1.0);
+        if ($conn === false) {
+            $this->markTestSkipped("mTLS server on port {$port} is not available");
+        }
+        fclose($conn);
     }
 
     /**
