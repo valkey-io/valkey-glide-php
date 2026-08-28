@@ -400,22 +400,37 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
     }
 
     /**
-     * Poll (with a bounded timeout) until the given shard channel is reported
-     * active by PUBSUB SHARDCHANNELS, using a short-lived valkey-cli query.
+     * Wait (with a bounded timeout) until the given sharded subscriber process
+     * confirms its subscription.
      *
-     * The PHP client's PUBSUB SHARDCHANNELS is routed across all cluster nodes
-     * and aggregated, so it is used for polling rather than a single-node
-     * valkey-cli query (which only reports channels owned by the queried node).
+     * The confirmation is read from the subscriber's own stdout (valkey-cli
+     * prints the "ssubscribe" push message with the channel name once the
+     * SSUBSCRIBE is acknowledged). Using the subscriber's own connection means
+     * this works regardless of authentication/TLS and does not depend on the
+     * shared test client (which is constructed without TLS).
      *
-     * @return bool True if the channel became active within the timeout.
+     * @param resource $stdout       The subscriber's stdout pipe (non-blocking).
+     * @return bool True if the subscription was confirmed within the timeout.
      */
-    private function waitForShardChannel(string $channel, float $timeoutSec = 5.0)
+    private function waitForShardSubscription($stdout, string $channel, float $timeoutSec = 5.0)
     {
+        if (!is_resource($stdout)) {
+            return false;
+        }
+
+        $seen     = '';
         $deadline = microtime(true) + $timeoutSec;
         do {
-            $active = $this->valkey_glide->pubsub('shardchannels');
-            if (is_array($active) && in_array($channel, $active, true)) {
-                return true;
+            $chunk = fread($stdout, 8192);
+            if ($chunk !== false && $chunk !== '') {
+                $seen .= $chunk;
+                // valkey-cli prints the channel name on its own line as part of
+                // the ssubscribe confirmation push.
+                foreach (explode("\n", $seen) as $line) {
+                    if (trim($line) === $channel) {
+                        return true;
+                    }
+                }
             }
             usleep(100000);
         } while (microtime(true) < $deadline);
@@ -477,8 +492,10 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
 
         $handle = ['proc' => $proc, 'pipes' => $pipes];
 
-        // Wait for the subscription to register (bounded), instead of a fixed sleep.
-        if (!$this->waitForShardChannel($channel)) {
+        // Wait for the subscriber's own SSUBSCRIBE confirmation (bounded), rather
+        // than a fixed sleep. Reading the subscriber's stdout avoids depending on
+        // the shared (non-TLS) test client for the readiness check.
+        if (!$this->waitForShardSubscription($pipes[1], $channel)) {
             // Capture whatever child stderr is available without blocking, then
             // tear the process down.
             $stderr = is_resource($pipes[2]) ? (string) stream_get_contents($pipes[2]) : '';
