@@ -76,6 +76,37 @@ class ValkeyGlideNodeDiscoveryModeTest extends ValkeyGlideBaseTest
     }
 
     /* ----------------------------------------------------------------------
+     * Type validation for the node_discovery_mode parameter
+     * ------------------------------------------------------------------- */
+
+    /**
+     * The public API declares node_discovery_mode as ?int. Non-null, non-integer
+     * values must be rejected rather than silently coerced (e.g. false -> 0/STANDARD)
+     * or misread through the wrong zval union member.
+     */
+    public function testNodeDiscoveryModeRejectsNonIntegerTypes()
+    {
+        $invalidValues = [
+            'boolean' => false,
+            'string'  => 'static',
+            'float'   => 1.5,
+            'array'   => [1],
+            'object'  => new stdClass(),
+        ];
+
+        foreach ($invalidValues as $type => $value) {
+            $this->assertThrows(ValkeyGlideException::class, function () use ($value) {
+                $client = new ValkeyGlide();
+                $client->connect(
+                    addresses: [['host' => '127.0.0.1', 'port' => self::PRIMARY_PORT]],
+                    request_timeout: 2000,
+                    node_discovery_mode: $value
+                );
+            });
+        }
+    }
+
+    /* ----------------------------------------------------------------------
      * STANDARD mode (default)
      * ------------------------------------------------------------------- */
 

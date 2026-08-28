@@ -1235,9 +1235,25 @@ PHP_METHOD(ValkeyGlide, connect) {
     zend_long port = (port_zval && Z_TYPE_P(port_zval) != IS_NULL) ? Z_LVAL_P(port_zval) : 6379;
     double    timeout =
         (timeout_zval && Z_TYPE_P(timeout_zval) != IS_NULL) ? Z_DVAL_P(timeout_zval) : 0.0;
-    zend_bool use_tls   = (use_tls_zval && Z_TYPE_P(use_tls_zval) != IS_NULL)
-                              ? (Z_TYPE_P(use_tls_zval) == IS_TRUE)
-                              : false;
+    zend_bool use_tls = (use_tls_zval && Z_TYPE_P(use_tls_zval) != IS_NULL)
+                            ? (Z_TYPE_P(use_tls_zval) == IS_TRUE)
+                            : false;
+    /* read_from and node_discovery_mode are declared as ?int in the public API.
+     * Z_PARAM_ZVAL_OR_NULL accepts any type, so enforce the integer contract here
+     * and reject non-null, non-integer values instead of misreading the zval union. */
+    if (read_from_zval && Z_TYPE_P(read_from_zval) != IS_NULL &&
+        Z_TYPE_P(read_from_zval) != IS_LONG) {
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "read_from must be an integer or null.", 0);
+        RETURN_FALSE;
+    }
+    if (node_discovery_mode_zval && Z_TYPE_P(node_discovery_mode_zval) != IS_NULL &&
+        Z_TYPE_P(node_discovery_mode_zval) != IS_LONG) {
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "node_discovery_mode must be an integer or null.", 0);
+        RETURN_FALSE;
+    }
+
     zend_long read_from = (read_from_zval && Z_TYPE_P(read_from_zval) != IS_NULL)
                               ? Z_LVAL_P(read_from_zval)
                               : VALKEY_GLIDE_READ_FROM_PRIMARY;
