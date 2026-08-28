@@ -379,6 +379,81 @@ $client->connect(
 )
 ```
 
+### With Mutual TLS (mTLS)
+
+```php
+// Create ValkeyGlide client with mutual TLS (client certificate authentication).
+// Both a client certificate and a client key are required for mTLS.
+$client = new ValkeyGlide();
+$client->connect(
+    addresses: [['host' => 'localhost', 'port' => 6379]],
+    use_tls: true,  // REQUIRED for mTLS
+    advanced_config: [
+        'tls_config' => [
+            'root_certs'  => file_get_contents('ca-cert.pem'),      // PEM CA certificate(s)
+            'client_cert' => file_get_contents('client-cert.pem'),  // PEM client certificate bytes
+            'client_key'  => file_get_contents('client-key.pem'),   // PEM client private key bytes
+        ]
+    ]
+);
+
+$client->set('key', 'value');
+$client->close();
+```
+
+Alternatively, use path-based mTLS by providing file paths instead of inline bytes.
+With path-based mTLS the core reads the files and periodically reloads them, so a rotated
+certificate is adopted on the next reconnect. Byte-based and path-based mTLS are mutually
+exclusive — provide one mode or the other, and each requires both of its fields:
+
+```php
+$client = new ValkeyGlide();
+$client->connect(
+    addresses: [['host' => 'localhost', 'port' => 6379]],
+    use_tls: true,
+    advanced_config: [
+        'tls_config' => [
+            'root_certs'       => file_get_contents('ca-cert.pem'),
+            'client_cert_path' => 'client-cert.pem',  // Path to PEM client certificate file
+            'client_key_path'  => 'client-key.pem',   // Path to PEM client private key file
+            // Optional: override the automatic reload cadence (path-based mTLS only).
+            'cert_reload_interval_seconds' => 300,
+        ]
+    ]
+);
+
+$client->set('key', 'value');
+$client->close();
+```
+
+> **Note:** mTLS is only supported through the `advanced_config['tls_config']` path shown above.
+> Client certificates/keys supplied via a stream context (`context: stream_context_create([...])`)
+> are not used for mutual TLS.
+
+### Node Discovery Mode (Standalone)
+
+For standalone clients, `node_discovery_mode` controls how the client discovers node roles and topology. It is only applicable to standalone clients (`ValkeyGlide`).
+
+- `ValkeyGlide::NODE_DISCOVERY_MODE_STANDARD` (default): Verifies node roles via `INFO REPLICATION` and uses only the provided addresses.
+- `ValkeyGlide::NODE_DISCOVERY_MODE_STATIC`: Skips role detection. Trusts the provided addresses as-is (the first address is treated as the primary). Enables connectivity through proxies (e.g., Envoy, HAProxy) that do not support `INFO`. Do not set `client_name` when using this mode with a proxy.
+- `ValkeyGlide::NODE_DISCOVERY_MODE_DISCOVER_ALL`: Auto-discovers the full topology (primary + all replicas) from any single starting node (primary or replica).
+
+```php
+// STATIC: trust provided addresses, skip role detection (e.g., behind a proxy)
+$client = new ValkeyGlide();
+$client->connect(
+    addresses: [['host' => 'proxy-host', 'port' => 6379]],
+    node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STATIC
+);
+
+// DISCOVER_ALL: discover the full topology from any single node
+$client = new ValkeyGlide();
+$client->connect(
+    addresses: [['host' => 'localhost', 'port' => 6379]],
+    node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_DISCOVER_ALL
+);
+```
+
 ### Cluster Valkey
 
 ```php

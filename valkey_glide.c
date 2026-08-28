@@ -175,6 +175,7 @@ void valkey_glide_init_common_constructor_params(
     params->use_tls                 = 0;
     params->credentials             = NULL;
     params->read_from               = 0; /* PRIMARY by default */
+    params->node_discovery_mode     = 0; /* STANDARD by default */
     params->request_timeout         = 0;
     params->request_timeout_is_null = 1;
     params->reconnect_strategy      = NULL;
@@ -218,6 +219,9 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
 
     /* Map read_from enum value to client's ReadFrom enum */
     switch (params->read_from) {
+        case 0: /* PRIMARY */
+            config->read_from = VALKEY_GLIDE_READ_FROM_PRIMARY;
+            break;
         case 1: /* PREFER_REPLICA */
             config->read_from = VALKEY_GLIDE_READ_FROM_PREFER_REPLICA;
             break;
@@ -227,10 +231,31 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         case 3: /* AZ_AFFINITY_REPLICAS_AND_PRIMARY */
             config->read_from = VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY;
             break;
-        case 0: /* PRIMARY */
-        default:
-            config->read_from = VALKEY_GLIDE_READ_FROM_PRIMARY;
+        default: {
+            const char* error_message = "Invalid read_from value.";
+            VALKEY_LOG_ERROR("valkey_glide_build_client_config_base", error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return FAILURE;
+        }
+    }
+
+    /* Map node_discovery_mode enum value to client's NodeDiscoveryMode enum */
+    switch (params->node_discovery_mode) {
+        case 0: /* STANDARD */
+            config->node_discovery_mode = VALKEY_GLIDE_NODE_DISCOVERY_MODE_STANDARD;
             break;
+        case 1: /* STATIC */
+            config->node_discovery_mode = VALKEY_GLIDE_NODE_DISCOVERY_MODE_STATIC;
+            break;
+        case 2: /* DISCOVER_ALL */
+            config->node_discovery_mode = VALKEY_GLIDE_NODE_DISCOVERY_MODE_DISCOVER_ALL;
+            break;
+        default: {
+            const char* error_message = "Invalid node_discovery_mode value.";
+            VALKEY_LOG_ERROR("valkey_glide_build_client_config_base", error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return FAILURE;
+        }
     }
 
     /* Process addresses array - handle multiple addresses
@@ -452,6 +477,21 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         valkey_glide_cleanup_client_config(config);
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "Cannot configure insecure TLS when TLS is disabled.",
+                             0);
+        return FAILURE;
+    }
+
+    // Raise an exception if mTLS client credentials are provided but TLS is not enabled
+    if (!config->use_tls && config->advanced_config && config->advanced_config->tls_config &&
+        (config->advanced_config->tls_config->client_cert ||
+         config->advanced_config->tls_config->client_key ||
+         config->advanced_config->tls_config->client_cert_path ||
+         config->advanced_config->tls_config->client_key_path)) {
+        VALKEY_LOG_ERROR("mtls_with_tls_disabled",
+                         "Cannot configure mTLS client certificate when TLS is disabled.");
+        valkey_glide_cleanup_client_config(config);
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "Cannot configure mTLS client certificate when TLS is disabled.",
                              0);
         return FAILURE;
     }
@@ -843,6 +883,22 @@ void valkey_glide_cleanup_client_config(valkey_glide_base_client_configuration_t
                 efree(config->advanced_config->tls_config->root_certs);
                 config->advanced_config->tls_config->root_certs = NULL;
             }
+            if (config->advanced_config->tls_config->client_cert) {
+                efree(config->advanced_config->tls_config->client_cert);
+                config->advanced_config->tls_config->client_cert = NULL;
+            }
+            if (config->advanced_config->tls_config->client_key) {
+                efree(config->advanced_config->tls_config->client_key);
+                config->advanced_config->tls_config->client_key = NULL;
+            }
+            if (config->advanced_config->tls_config->client_cert_path) {
+                efree(config->advanced_config->tls_config->client_cert_path);
+                config->advanced_config->tls_config->client_cert_path = NULL;
+            }
+            if (config->advanced_config->tls_config->client_key_path) {
+                efree(config->advanced_config->tls_config->client_key_path);
+                config->advanced_config->tls_config->client_key_path = NULL;
+            }
             efree(config->advanced_config->tls_config);
             config->advanced_config->tls_config = NULL;
         }
@@ -976,7 +1032,8 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
                                           zval*                compression,
                                           zval*                client_side_cache,
                                           zval*                address_resolver,
-                                          zval*                circuit_breaker) {
+                                          zval*                circuit_breaker,
+                                          zend_long            node_discovery_mode) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
 
@@ -991,10 +1048,11 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     VALKEY_LOG_DEBUG("valkey_glide_create_connection", "Establishing server connection");
 
     /* Set parameters */
-    common_params.addresses   = addresses;
-    common_params.use_tls     = use_tls;
-    common_params.credentials = credentials;
-    common_params.read_from   = read_from;
+    common_params.addresses           = addresses;
+    common_params.use_tls             = use_tls;
+    common_params.credentials         = credentials;
+    common_params.read_from           = read_from;
+    common_params.node_discovery_mode = node_discovery_mode;
 
     if (request_timeout_zval != NULL && Z_TYPE_P(request_timeout_zval) != IS_NULL) {
         common_params.request_timeout         = Z_LVAL_P(request_timeout_zval);
@@ -1118,34 +1176,35 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
    (host/port) and ValkeyGlide-style (addresses array) parameters.
    Returns true on success, false on failure. */
 PHP_METHOD(ValkeyGlide, connect) {
-    char*  host                 = NULL;
-    size_t host_len             = 0;
-    char*  persistent_id        = NULL;
-    size_t persistent_id_len    = 0;
-    zval*  addresses            = NULL;
-    zval*  credentials          = NULL;
-    zval*  port_zval            = NULL;
-    zval*  timeout_zval         = NULL;
-    zval*  retry_interval_zval  = NULL;
-    zval*  read_timeout_zval    = NULL;
-    zval*  use_tls_zval         = NULL;
-    zval*  read_from_zval       = NULL;
-    zval*  request_timeout_zval = NULL;
-    zval*  reconnect_strategy   = NULL;
-    zval*  database_id_zval     = NULL;
-    char*  client_name          = NULL;
-    size_t client_name_len      = 0;
-    char*  client_az            = NULL;
-    size_t client_az_len        = 0;
-    zval*  advanced_config      = NULL;
-    zval*  lazy_connect_zval    = NULL;
-    zval*  context              = NULL;
-    zval*  compression          = NULL;
-    zval*  client_side_cache    = NULL;
-    zval*  address_resolver     = NULL;
-    zval*  circuit_breaker      = NULL;
+    char*  host                     = NULL;
+    size_t host_len                 = 0;
+    char*  persistent_id            = NULL;
+    size_t persistent_id_len        = 0;
+    zval*  addresses                = NULL;
+    zval*  credentials              = NULL;
+    zval*  port_zval                = NULL;
+    zval*  timeout_zval             = NULL;
+    zval*  retry_interval_zval      = NULL;
+    zval*  read_timeout_zval        = NULL;
+    zval*  use_tls_zval             = NULL;
+    zval*  read_from_zval           = NULL;
+    zval*  request_timeout_zval     = NULL;
+    zval*  reconnect_strategy       = NULL;
+    zval*  database_id_zval         = NULL;
+    char*  client_name              = NULL;
+    size_t client_name_len          = 0;
+    char*  client_az                = NULL;
+    size_t client_az_len            = 0;
+    zval*  advanced_config          = NULL;
+    zval*  lazy_connect_zval        = NULL;
+    zval*  context                  = NULL;
+    zval*  compression              = NULL;
+    zval*  client_side_cache        = NULL;
+    zval*  address_resolver         = NULL;
+    zval*  circuit_breaker          = NULL;
+    zval*  node_discovery_mode_zval = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(0, 22)
+    ZEND_PARSE_PARAMETERS_START(0, 23)
     Z_PARAM_OPTIONAL
     Z_PARAM_STRING_OR_NULL(host, host_len)
     Z_PARAM_ZVAL_OR_NULL(port_zval)
@@ -1169,18 +1228,39 @@ PHP_METHOD(ValkeyGlide, connect) {
     Z_PARAM_ARRAY_OR_NULL(client_side_cache)
     Z_PARAM_ZVAL_OR_NULL(address_resolver)
     Z_PARAM_ARRAY_OR_NULL(circuit_breaker)
+    Z_PARAM_ZVAL_OR_NULL(node_discovery_mode_zval)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* Apply defaults for nullable parameters */
     zend_long port = (port_zval && Z_TYPE_P(port_zval) != IS_NULL) ? Z_LVAL_P(port_zval) : 6379;
     double    timeout =
         (timeout_zval && Z_TYPE_P(timeout_zval) != IS_NULL) ? Z_DVAL_P(timeout_zval) : 0.0;
-    zend_bool use_tls   = (use_tls_zval && Z_TYPE_P(use_tls_zval) != IS_NULL)
-                              ? (Z_TYPE_P(use_tls_zval) == IS_TRUE)
-                              : false;
+    zend_bool use_tls = (use_tls_zval && Z_TYPE_P(use_tls_zval) != IS_NULL)
+                            ? (Z_TYPE_P(use_tls_zval) == IS_TRUE)
+                            : false;
+    /* read_from and node_discovery_mode are declared as ?int in the public API.
+     * Z_PARAM_ZVAL_OR_NULL accepts any type, so enforce the integer contract here
+     * and reject non-null, non-integer values instead of misreading the zval union. */
+    if (read_from_zval && Z_TYPE_P(read_from_zval) != IS_NULL &&
+        Z_TYPE_P(read_from_zval) != IS_LONG) {
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "read_from must be an integer or null.", 0);
+        RETURN_FALSE;
+    }
+    if (node_discovery_mode_zval && Z_TYPE_P(node_discovery_mode_zval) != IS_NULL &&
+        Z_TYPE_P(node_discovery_mode_zval) != IS_LONG) {
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "node_discovery_mode must be an integer or null.", 0);
+        RETURN_FALSE;
+    }
+
     zend_long read_from = (read_from_zval && Z_TYPE_P(read_from_zval) != IS_NULL)
                               ? Z_LVAL_P(read_from_zval)
                               : VALKEY_GLIDE_READ_FROM_PRIMARY;
+    zend_long node_discovery_mode =
+        (node_discovery_mode_zval && Z_TYPE_P(node_discovery_mode_zval) != IS_NULL)
+            ? Z_LVAL_P(node_discovery_mode_zval)
+            : VALKEY_GLIDE_NODE_DISCOVERY_MODE_STANDARD;
 
     /* Validate conflicting parameters */
     if (host != NULL && addresses != NULL) {
@@ -1243,7 +1323,8 @@ PHP_METHOD(ValkeyGlide, connect) {
                                                 compression,
                                                 client_side_cache,
                                                 address_resolver,
-                                                circuit_breaker);
+                                                circuit_breaker,
+                                                node_discovery_mode);
 
     /* Clean up temporary addresses array if we created it */
     if (host != NULL) {
@@ -1818,15 +1899,177 @@ static bool _determine_use_tls(valkey_glide_php_common_constructor_params_t* par
  * @param is_cluster Whether this is a cluster client
  * @return           Pointer to the constructed TLS advanced configuration structure.
  */
+/**
+ * Frees a TLS advanced configuration structure and any buffers it owns.
+ */
+static void _free_advanced_tls_config(valkey_glide_tls_advanced_configuration_t* tls_config) {
+    if (!tls_config) {
+        return;
+    }
+    if (tls_config->root_certs) {
+        efree(tls_config->root_certs);
+    }
+    if (tls_config->client_cert) {
+        efree(tls_config->client_cert);
+    }
+    if (tls_config->client_key) {
+        efree(tls_config->client_key);
+    }
+    if (tls_config->client_cert_path) {
+        efree(tls_config->client_cert_path);
+    }
+    if (tls_config->client_key_path) {
+        efree(tls_config->client_key_path);
+    }
+    efree(tls_config);
+}
+
+/**
+ * Parses and validates the mutual TLS (mTLS) configuration from the advanced TLS config array
+ * into the given tls_config struct.
+ *
+ * Two mutually-exclusive modes are supported (matching the other GLIDE clients):
+ *   - Byte-based: `client_cert` + `client_key` (inline PEM bytes).
+ *   - Path-based: `client_cert_path` + `client_key_path` (+ optional
+ * `cert_reload_interval_seconds`). The core reads the files and periodically reloads them.
+ *
+ * On validation failure, throws a ValkeyGlideException and returns false.
+ *
+ * @param advanced_tls_ht The tls_config hash table.
+ * @param tls_config      The struct to populate.
+ * @return true on success (including when no mTLS is configured), false if an exception was thrown.
+ */
+static bool _parse_mtls_config(HashTable*                                 advanced_tls_ht,
+                               valkey_glide_tls_advanced_configuration_t* tls_config) {
+    zval* cert_pem = zend_hash_str_find(
+        advanced_tls_ht, VALKEY_GLIDE_CLIENT_CERT, sizeof(VALKEY_GLIDE_CLIENT_CERT) - 1);
+    zval* key_pem = zend_hash_str_find(
+        advanced_tls_ht, VALKEY_GLIDE_CLIENT_KEY, sizeof(VALKEY_GLIDE_CLIENT_KEY) - 1);
+    zval* cert_path = zend_hash_str_find(
+        advanced_tls_ht, VALKEY_GLIDE_CLIENT_CERT_PATH, sizeof(VALKEY_GLIDE_CLIENT_CERT_PATH) - 1);
+    zval* key_path = zend_hash_str_find(
+        advanced_tls_ht, VALKEY_GLIDE_CLIENT_KEY_PATH, sizeof(VALKEY_GLIDE_CLIENT_KEY_PATH) - 1);
+    zval* interval_zv = zend_hash_str_find(advanced_tls_ht,
+                                           VALKEY_GLIDE_CERT_RELOAD_INTERVAL,
+                                           sizeof(VALKEY_GLIDE_CERT_RELOAD_INTERVAL) - 1);
+
+    /* Reject wrong-typed values rather than silently treating them as absent:
+     * credential fields must be strings and the reload interval must be an integer. */
+    if ((cert_pem && Z_TYPE_P(cert_pem) != IS_STRING) ||
+        (key_pem && Z_TYPE_P(key_pem) != IS_STRING) ||
+        (cert_path && Z_TYPE_P(cert_path) != IS_STRING) ||
+        (key_path && Z_TYPE_P(key_path) != IS_STRING) ||
+        (interval_zv && Z_TYPE_P(interval_zv) != IS_LONG)) {
+        const char* type_error =
+            "mTLS credential fields (client_cert, client_key, client_cert_path, client_key_path) "
+            "must be strings and cert_reload_interval_seconds must be an integer.";
+        VALKEY_LOG_ERROR("tls_config_mtls", type_error);
+        zend_throw_exception(get_valkey_glide_exception_ce(), type_error, 0);
+        return false;
+    }
+
+    bool has_cert_pem  = cert_pem && Z_TYPE_P(cert_pem) == IS_STRING;
+    bool has_key_pem   = key_pem && Z_TYPE_P(key_pem) == IS_STRING;
+    bool has_cert_path = cert_path && Z_TYPE_P(cert_path) == IS_STRING;
+    bool has_key_path  = key_path && Z_TYPE_P(key_path) == IS_STRING;
+    bool has_interval  = interval_zv != NULL;
+
+    const char* error_message = NULL;
+
+    /* Both-or-neither pairing within each mode. */
+    if (has_cert_path != has_key_path) {
+        error_message =
+            "client_cert_path and client_key_path must be provided together; provide both to "
+            "enable path-based mTLS or neither.";
+    } else if (has_cert_pem != has_key_pem) {
+        error_message =
+            "client_cert and client_key must be provided together; provide both to enable "
+            "byte-based mTLS or neither.";
+    }
+    /* Path-based and byte-based modes are mutually exclusive. */
+    else if (has_cert_path && has_cert_pem) {
+        error_message = "path-based and byte-based mTLS are mutually exclusive; choose one.";
+    }
+
+    if (error_message) {
+        VALKEY_LOG_ERROR("tls_config_mtls", error_message);
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+        return false;
+    }
+
+    /* Byte-based mTLS: copy inline PEM bytes, rejecting empty/oversized values. */
+    if (has_cert_pem) {
+        size_t cert_len = Z_STRLEN_P(cert_pem);
+        size_t key_len  = Z_STRLEN_P(key_pem);
+        if (cert_len == 0 || key_len == 0) {
+            error_message = "client_cert and client_key must not be empty strings.";
+        } else if (cert_len > VALKEY_GLIDE_CERTIFICATE_MAX_SIZE ||
+                   key_len > VALKEY_GLIDE_CERTIFICATE_MAX_SIZE) {
+            error_message = "client_cert/client_key exceeds the maximum allowed size.";
+        }
+        if (error_message) {
+            VALKEY_LOG_ERROR("tls_config_mtls", error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return false;
+        }
+        tls_config->client_cert_len = cert_len;
+        tls_config->client_cert     = emalloc(cert_len);
+        memcpy(tls_config->client_cert, Z_STRVAL_P(cert_pem), cert_len);
+        tls_config->client_key_len = key_len;
+        tls_config->client_key     = emalloc(key_len);
+        memcpy(tls_config->client_key, Z_STRVAL_P(key_pem), key_len);
+    }
+
+    /* Path-based mTLS: store the path strings unread (the core reads and reloads them). */
+    if (has_cert_path) {
+        if (Z_STRLEN_P(cert_path) == 0 || Z_STRLEN_P(key_path) == 0) {
+            error_message = "client_cert_path and client_key_path must not be empty strings.";
+            VALKEY_LOG_ERROR("tls_config_mtls", error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return false;
+        }
+        tls_config->client_cert_path = estrdup(Z_STRVAL_P(cert_path));
+        tls_config->client_key_path  = estrdup(Z_STRVAL_P(key_path));
+    }
+
+    /* Reload interval: only valid with path-based mTLS; positive and within uint32. */
+    if (has_interval) {
+        if (!has_cert_path) {
+            error_message =
+                "cert_reload_interval_seconds may only be set when path-based mTLS is configured "
+                "(both client_cert_path and client_key_path).";
+        } else {
+            zend_long interval = zval_get_long(interval_zv);
+            if (interval <= 0) {
+                error_message =
+                    "cert_reload_interval_seconds must be positive; omit it to use the default "
+                    "reload cadence.";
+            } else if ((uint64_t) interval > UINT32_MAX) {
+                error_message =
+                    "cert_reload_interval_seconds must be a positive integer no greater than "
+                    "4294967295.";
+            } else {
+                tls_config->cert_reload_interval = (int64_t) interval;
+            }
+        }
+        if (error_message) {
+            VALKEY_LOG_ERROR("tls_config_mtls", error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
     valkey_glide_php_common_constructor_params_t* params, bool is_cluster) {
-    // Allocate memory with default values.
+    // Allocate zero-initialized memory (ecalloc), so all fields default to
+    // 0/NULL/false without explicit assignment.
     valkey_glide_tls_advanced_configuration_t* tls_advanced_config =
         ecalloc(1, sizeof(valkey_glide_tls_advanced_configuration_t));
-
-    tls_advanced_config->use_insecure_tls = false;
-    tls_advanced_config->root_certs       = NULL;
-    tls_advanced_config->root_certs_len   = 0;
+    // cert_reload_interval defaults to -1 (unset -> core default).
+    tls_advanced_config->cert_reload_interval = -1;
 
     // TLS configuration can be specified either from
     // the stream context or from the advanced TLS config.
@@ -1838,7 +2081,7 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
         const char* error_msg =
             "At most one of stream context or advanced TLS config can be specified.";
         VALKEY_LOG_ERROR("tls_config_conflict", error_msg);
-        efree(tls_advanced_config);
+        _free_advanced_tls_config(tls_advanced_config);
         zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
         return NULL;
     }
@@ -1867,7 +2110,7 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
             } else {
                 const char* error_message = "Failed to load root certificate from file";
                 VALKEY_LOG_ERROR("tls_config_cafile", error_message);
-                efree(tls_advanced_config);
+                _free_advanced_tls_config(tls_advanced_config);
                 zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
                 return NULL;
             }
@@ -1894,6 +2137,13 @@ static valkey_glide_tls_advanced_configuration_t* _build_advanced_tls_config(
             tls_advanced_config->root_certs_len = cert_len;
             tls_advanced_config->root_certs     = emalloc(cert_len);
             memcpy(tls_advanced_config->root_certs, Z_STRVAL_P(root_certs), cert_len);
+        }
+
+        // Mutual TLS (mTLS): byte-based (client_cert/client_key) or path-based
+        // (client_cert_path/client_key_path + optional cert_reload_interval_seconds).
+        if (!_parse_mtls_config(advanced_tls_ht, tls_advanced_config)) {
+            _free_advanced_tls_config(tls_advanced_config);
+            return NULL;
         }
     }
 
@@ -1983,6 +2233,13 @@ static bool _load_data_from_file(const char* path, uint8_t** data, size_t* lengt
     /* Get file size using fstat */
     struct stat st;
     if (fstat(fileno(f), &st) != 0 || st.st_size <= 0) {
+        fclose(f);
+        return false;
+    }
+
+    /* Reject files larger than the maximum certificate size before allocating,
+     * so an oversized/incorrect file is not read entirely into memory. */
+    if ((size_t) st.st_size > VALKEY_GLIDE_CERTIFICATE_MAX_SIZE) {
         fclose(f);
         return false;
     }

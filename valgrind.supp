@@ -2681,3 +2681,33 @@
    fun:*redis*connection*create_rustls_config*
    ...
 }
+
+# OpenTelemetry resource value clone during one-time tracer-provider init.
+# The existing opentelemetry_resource_from_detectors suppression only matches the
+# hashbrown-insert path; this covers the Value::clone (Box<[u8]>) path into
+# Resource::from_detectors, which is a process-lifetime global initialised once.
+{
+   opentelemetry_resource_value_clone_from_detectors
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*opentelemetry*common*Value*clone*
+   ...
+   fun:*opentelemetry_sdk*resource*Resource*from_detectors*
+}
+
+# glide-core global client registry (DashMap<u64, Client>) rehash on client
+# creation. Reached via the normal connect() path for both standalone and
+# cluster clients. The registry is a process-lifetime global freed at teardown;
+# valgrind reports the pre-rehash backing table as possibly lost.
+{
+   glide_core_scope_register_client_dashmap_rehash
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*hashbrown*raw*RawTable*reserve_rehash*
+   ...
+   fun:*glide_core*scope*register_client*
+}

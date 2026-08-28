@@ -207,7 +207,10 @@ class ValkeyGlideCluster
      * @param float|null $read_timeout          Read timeout in seconds.
      * @param bool|null $persistent             Persistent connection (not supported).
      * @param mixed $auth                       Authentication - string (password) or array ['user', 'pass'].
-     * @param resource|array|null $context      Stream context resource or array.
+     * @param resource|array|null $context      Stream context resource or array. Supports 'verify_peer'
+     *                                          and 'cafile' SSL options. Note: mutual TLS (client
+     *                                          certificate/key) is not supported here; use $advanced_config's
+     *                                          'tls_config' instead.
      *
      * ValkeyGlide-style parameters (positions 7-18):
      * @param array|null $addresses             Array of server addresses [['host' => '127.0.0.1', 'port' => 7001], ...].
@@ -230,7 +233,24 @@ class ValkeyGlideCluster
      * @param string|null $client_az            Client availability zone.
      * @param array|null $advanced_config       Advanced configuration options:
      *                                          - 'connection_timeout' => 5000 (milliseconds)
-     *                                          - 'tls_config' => ['use_insecure_tls' => false]
+     *                                          - 'tls_config' => [
+     *                                                'root_certs' => string,       // PEM CA certificate(s)
+     *                                                'use_insecure_tls' => false,  // Skip certificate verification
+     *                                                // Byte-based mTLS (static): inline PEM bytes.
+     *                                                'client_cert' => string,      // PEM client certificate bytes
+     *                                                'client_key' => string,       // PEM client private key bytes
+     *                                                // Path-based mTLS (with automatic reload): file paths read by the core.
+     *                                                'client_cert_path' => string, // Path to PEM client certificate file
+     *                                                'client_key_path' => string,  // Path to PEM client private key file
+     *                                                'cert_reload_interval_seconds' => int, // Optional reload cadence (path-based only)
+     *                                            ]
+     *                                            For mutual TLS (mTLS), provide EITHER byte-based (client_cert + client_key)
+     *                                            OR path-based (client_cert_path + client_key_path) credentials — the two
+     *                                            modes are mutually exclusive, and each requires both of its fields.
+     *                                            Path-based mTLS lets the core read and periodically reload the files;
+     *                                            'cert_reload_interval_seconds' overrides the cadence and is path-based only.
+     *                                            mTLS is only supported via this 'tls_config' path;
+     *                                            client certificates provided through the $context stream context are not used.
      *                                          - 'refresh_topology_from_initial_nodes' => false (default: false)
      *                                            When true, topology updates use only initial nodes instead of internal cluster view.
      *                                          - 'otel' => OpenTelemetryConfig::builder()

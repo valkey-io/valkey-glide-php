@@ -101,6 +101,10 @@ class ClientConstructorMock
      *                                           'compression_level' => 3, 'min_compression_size' => 256].
      * @param array|null $client_side_cache      Client-side cache configuration ['cache_id' => string, 'max_cache_kb' => int,
      *                                           'entry_ttl_ms' => int, 'eviction_policy' => ?int, 'enable_metrics' => bool].
+     * @param int $node_discovery_mode           Node discovery mode (standalone only):
+     *                                           ValkeyGlide::NODE_DISCOVERY_MODE_STANDARD,
+     *                                           ValkeyGlide::NODE_DISCOVERY_MODE_STATIC, or
+     *                                           ValkeyGlide::NODE_DISCOVERY_MODE_DISCOVER_ALL.
      */
     public static function simulate_standalone_constructor(
         ?array $addresses = null,
@@ -119,6 +123,7 @@ class ClientConstructorMock
         ?array $client_side_cache = null,
         ?callable $address_resolver = null,
         ?array $circuit_breaker = null,
+        int $node_discovery_mode = ValkeyGlide::NODE_DISCOVERY_MODE_STANDARD,
     ): \Connection_request\ConnectionRequest;
 
     /**

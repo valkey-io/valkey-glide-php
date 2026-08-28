@@ -92,7 +92,7 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
 
-    ZEND_PARSE_PARAMETERS_START(0, 16)
+    ZEND_PARSE_PARAMETERS_START(0, 17)
     Z_PARAM_OPTIONAL
     Z_PARAM_ARRAY_OR_NULL(common_params.addresses)
     Z_PARAM_BOOL(common_params.use_tls)
@@ -111,6 +111,7 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     Z_PARAM_ARRAY_OR_NULL(common_params.client_side_cache)
     Z_PARAM_ZVAL_OR_NULL(common_params.address_resolver)
     Z_PARAM_ARRAY_OR_NULL(common_params.circuit_breaker)
+    Z_PARAM_LONG(common_params.node_discovery_mode)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* Validate database_id range before setting */

@@ -111,7 +111,9 @@ uint8_t* create_connection_request(size_t*                                   len
     }
 
     /* Set root certificates */
-    ProtobufCBinaryData root_cert_data;
+    ProtobufCBinaryData                       root_cert_data;
+    ConnectionRequest__ClientCertReloadConfig cert_reload_msg =
+        CONNECTION_REQUEST__CLIENT_CERT_RELOAD_CONFIG__INIT;
     if (config->advanced_config && config->advanced_config->tls_config) {
         valkey_glide_tls_advanced_configuration_t* tls_config = config->advanced_config->tls_config;
 
@@ -120,6 +122,28 @@ uint8_t* create_connection_request(size_t*                                   len
                 (ProtobufCBinaryData){tls_config->root_certs_len, tls_config->root_certs};
             conn_req.n_root_certs = 1;
             conn_req.root_certs   = &root_cert_data;
+        }
+
+        /* Byte-based mTLS: inline PEM bytes. */
+        if (tls_config->client_cert && tls_config->client_cert_len > 0) {
+            conn_req.client_cert =
+                (ProtobufCBinaryData){tls_config->client_cert_len, tls_config->client_cert};
+        }
+        if (tls_config->client_key && tls_config->client_key_len > 0) {
+            conn_req.client_key =
+                (ProtobufCBinaryData){tls_config->client_key_len, tls_config->client_key};
+        }
+
+        /* Path-based mTLS: file paths, with core-side reload. */
+        if (tls_config->client_cert_path && tls_config->client_key_path) {
+            conn_req.client_cert_path = tls_config->client_cert_path;
+            conn_req.client_key_path  = tls_config->client_key_path;
+
+            cert_reload_msg.enabled = true;
+            if (tls_config->cert_reload_interval >= 0) {
+                cert_reload_msg.interval_seconds = (uint32_t) tls_config->cert_reload_interval;
+            }
+            conn_req.cert_reload = &cert_reload_msg;
         }
     }
 
@@ -140,14 +164,37 @@ uint8_t* create_connection_request(size_t*                                   len
 
     conn_req.lazy_connect = config->lazy_connect;
     /* Map read_from configuration */
-    if (config->read_from == VALKEY_GLIDE_READ_FROM_PREFER_REPLICA) {
+    if (config->read_from == VALKEY_GLIDE_READ_FROM_PRIMARY) {
+        conn_req.read_from = CONNECTION_REQUEST__READ_FROM__Primary;
+    } else if (config->read_from == VALKEY_GLIDE_READ_FROM_PREFER_REPLICA) {
         conn_req.read_from = CONNECTION_REQUEST__READ_FROM__PreferReplica;
     } else if (config->read_from == VALKEY_GLIDE_READ_FROM_AZ_AFFINITY) {
         conn_req.read_from = CONNECTION_REQUEST__READ_FROM__AZAffinity;
     } else if (config->read_from == VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY) {
         conn_req.read_from = CONNECTION_REQUEST__READ_FROM__AZAffinityReplicasAndPrimary;
     } else {
-        conn_req.read_from = CONNECTION_REQUEST__READ_FROM__Primary;
+        const char* error_message = "Invalid read_from value.";
+        VALKEY_LOG_ERROR("create_connection_request", error_message);
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+        *len = 0;
+        return NULL;
+    }
+
+    /* Map node_discovery_mode configuration (standalone only). */
+    if (!is_cluster) {
+        if (config->node_discovery_mode == VALKEY_GLIDE_NODE_DISCOVERY_MODE_STANDARD) {
+            conn_req.node_discovery_mode = CONNECTION_REQUEST__NODE_DISCOVERY_MODE__Standard;
+        } else if (config->node_discovery_mode == VALKEY_GLIDE_NODE_DISCOVERY_MODE_STATIC) {
+            conn_req.node_discovery_mode = CONNECTION_REQUEST__NODE_DISCOVERY_MODE__Static;
+        } else if (config->node_discovery_mode == VALKEY_GLIDE_NODE_DISCOVERY_MODE_DISCOVER_ALL) {
+            conn_req.node_discovery_mode = CONNECTION_REQUEST__NODE_DISCOVERY_MODE__DiscoverAll;
+        } else {
+            const char* error_message = "Invalid node_discovery_mode value.";
+            VALKEY_LOG_ERROR("create_connection_request", error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            *len = 0;
+            return NULL;
+        }
     }
 
     /* Set database ID for standalone clients if it is valid. */

@@ -195,6 +195,30 @@ class ValkeyGlide
            */
     public const  READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY = 3;
 
+          /**
+           *  @var int
+           * Default node discovery mode. Verifies node roles via INFO REPLICATION and uses
+           * only the provided addresses.
+           */
+    public const  NODE_DISCOVERY_MODE_STANDARD = 0;
+
+          /**
+           *  @var int
+           * Skips role detection entirely. Trusts the provided addresses as-is; the first
+           * address is treated as the primary. Use when connecting through a proxy (e.g. Envoy,
+           * HAProxy) that does not support INFO, or when the topology is known and static.
+           * Note: Do not set client_name when using this mode with a proxy.
+           */
+    public const  NODE_DISCOVERY_MODE_STATIC = 1;
+
+          /**
+           *  @var int
+           * Auto-discovers the full topology (primary + all replicas) from any single starting
+           * node (primary or replica). Provide any single node address and the client will find
+           * and connect to all other nodes.
+           */
+    public const  NODE_DISCOVERY_MODE_DISCOVER_ALL = 2;
+
     /**
      * @var string
      * COPY command option key for replacing existing destination key
@@ -371,9 +395,32 @@ class ValkeyGlide
      * @param int|null $database_id Database number (0-15 for standalone)
      * @param string|null $client_name Client identifier for debugging
      * @param string|null $client_az Availability zone for routing
-     * @param array|null $advanced_config Advanced TLS/connection settings
+     * @param array|null $advanced_config Advanced TLS/connection settings.
+     *                                    TLS options under the 'tls_config' key:
+     *                                    ['tls_config' => [
+     *                                        'root_certs' => string,        // PEM CA certificate(s)
+     *                                        'use_insecure_tls' => bool,    // Skip certificate verification
+     *                                        // Byte-based mTLS (static): inline PEM bytes.
+     *                                        'client_cert' => string,       // PEM client certificate bytes
+     *                                        'client_key' => string,        // PEM client private key bytes
+     *                                        // Path-based mTLS (with automatic reload): file paths read by the core.
+     *                                        'client_cert_path' => string,  // Path to PEM client certificate file
+     *                                        'client_key_path' => string,   // Path to PEM client private key file
+     *                                        'cert_reload_interval_seconds' => int, // Optional reload cadence (path-based only)
+     *                                    ]]
+     *                                    For mutual TLS (mTLS), provide EITHER byte-based (client_cert + client_key)
+     *                                    OR path-based (client_cert_path + client_key_path) credentials — the two
+     *                                    modes are mutually exclusive, and each requires both of its fields.
+     *                                    Path-based mTLS lets the core read and periodically reload the files so a
+     *                                    rotated certificate is adopted on the next reconnect; 'cert_reload_interval_seconds'
+     *                                    overrides the reload cadence and is only valid with path-based mTLS.
+     *                                    mTLS is only supported via this 'tls_config' path; client certificates
+     *                                    provided through the $context stream context are not used.
      * @param bool|null $lazy_connect Defer connection until first command (default: false)
-     * @param resource|array|null $context Stream context resource or array for TLS configuration
+     * @param resource|array|null $context Stream context resource or array for TLS configuration.
+     *                                     Supports 'verify_peer' and 'cafile' SSL options. Note: mutual TLS
+     *                                     (client certificate/key) is not supported here; use $advanced_config's
+     *                                     'tls_config' instead.
      * @param array|null $compression Compression configuration: ['enabled' => true, 'backend' => COMPRESSION_BACKEND_ZSTD, 'compression_level' => 3, 'min_compression_size' => 64]
      * @param array|null $client_side_cache Client-side cache configuration array from ClientSideCache::toArray():
      *                                      ['cache_id' => string, 'max_cache_kb' => int, 'entry_ttl_ms' => int,
@@ -382,6 +429,10 @@ class ValkeyGlide
      *                                    ['window_size_ms' => int, 'failure_rate_threshold' => float,
      *                                     'min_errors' => int, 'open_timeout_ms' => int,
      *                                     'count_timeouts' => bool, 'consecutive_successes' => int]
+     * @param int|null $node_discovery_mode Standalone node discovery strategy (standalone only):
+     *                                      NODE_DISCOVERY_MODE_STANDARD (default),
+     *                                      NODE_DISCOVERY_MODE_STATIC, or
+     *                                      NODE_DISCOVERY_MODE_DISCOVER_ALL
      * @return bool True on successful connection, false on failure
      *
      * @throws ValkeyGlideException If conflicting parameters are specified or connection fails
@@ -417,6 +468,7 @@ class ValkeyGlide
         ?array $client_side_cache = null,
         ?callable $address_resolver = null,
         ?array $circuit_breaker = null,
+        ?int $node_discovery_mode = null,
     ): bool;
 
     public function __destruct();
