@@ -116,6 +116,58 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
             zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
             RETURN_FALSE;
         }
+    } else if (strcasecmp(cmd, "shardchannels") == 0) {
+        // PUBSUB SHARDCHANNELS [pattern]
+        // Treat an explicit PHP null the same as an omitted argument so that
+        // pubsub('shardchannels', null) matches pubsub('shardchannels').
+        bool           has_pattern = arg && Z_TYPE_P(arg) != IS_NULL;
+        uint32_t       argc        = has_pattern ? 1 : 0;
+        uintptr_t*     args        = argc ? emalloc(argc * sizeof(uintptr_t)) : NULL;
+        unsigned long* args_len    = argc ? emalloc(argc * sizeof(unsigned long)) : NULL;
+
+        if (has_pattern) {
+            convert_to_string(arg);
+            args[0]     = (uintptr_t) Z_STRVAL_P(arg);
+            args_len[0] = Z_STRLEN_P(arg);
+        }
+
+        struct CommandResult* result =
+            command(connection,
+                    0,
+                    (enum RequestType) COMMAND_REQUEST__REQUEST_TYPE__PubSubShardChannels,
+                    argc,
+                    args,
+                    args_len,
+                    NULL,
+                    0,
+                    0);
+        if (args)
+            efree(args);
+        if (args_len)
+            efree(args_len);
+
+        if (result && result->response && !result->command_error) {
+            command_response_to_zval(result->response, return_value, 0, false);
+            free_command_result(result);
+        } else {
+            const char* error_msg =
+                result && result->command_error && result->command_error->command_error_message
+                    ? result->command_error->command_error_message
+                    : "PUBSUB SHARDCHANNELS command failed";
+            VALKEY_LOG_ERROR("pubsub_shardchannels", error_msg);
+            if (result)
+                free_command_result(result);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
+            RETURN_FALSE;
+        }
+    } else if (strcasecmp(cmd, "shardnumsub") == 0) {
+        // PUBSUB SHARDNUMSUB is intentionally not implemented yet. See the
+        // follow-up issue: subscriber counts require investigation of the
+        // cluster response handling, and PHP-native sharded subscriptions
+        // (SSUBSCRIBE) are not implemented, which blocks behavioral testing.
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "PUBSUB SHARDNUMSUB is not yet supported", 0);
+        RETURN_FALSE;
     } else if (strcasecmp(cmd, "numpat") == 0) {
         // PUBSUB NUMPAT
         struct CommandResult* result =

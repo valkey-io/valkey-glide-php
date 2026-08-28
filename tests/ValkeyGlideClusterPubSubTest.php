@@ -356,4 +356,338 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
 
         $this->assertTrue($success, 'Pattern subscription should work in cluster mode');
     }
+
+    /**
+     * Build the common valkey-cli connection arguments (host, port, and — when
+     * the fixture has them enabled — authentication and TLS options).
+     *
+     * @return string Shell-escaped option string, or null if no CLI is available.
+     */
+    private function shardCliBase(&$cli)
+    {
+        $cli = trim((string) shell_exec('command -v valkey-cli 2>/dev/null'));
+        if ($cli === '') {
+            $cli = trim((string) shell_exec('command -v redis-cli 2>/dev/null'));
+        }
+        if ($cli === '') {
+            return null;
+        }
+
+        $opts = sprintf(
+            '-c -h %s -p %d',
+            escapeshellarg($this->getHost()),
+            $this->getPort()
+        );
+
+        // Authentication (ACL username/password or password-only), if configured.
+        $this->getAuthParts($user, $pass);
+        if ($user !== null && $user !== '') {
+            $opts .= ' --user ' . escapeshellarg($user);
+        }
+        if ($pass !== null && $pass !== '') {
+            $opts .= ' -a ' . escapeshellarg($pass) . ' --no-auth-warning';
+        }
+
+        // TLS, if the fixture is running against a TLS endpoint.
+        if ($this->getTLS()) {
+            $opts .= ' --tls';
+            if (defined('static::TLS_CERTIFICATE_PATH') && is_file(static::TLS_CERTIFICATE_PATH)) {
+                $opts .= ' --cacert ' . escapeshellarg(static::TLS_CERTIFICATE_PATH);
+            }
+        }
+
+        return $opts;
+    }
+
+    /**
+     * Wait (with a bounded timeout) until the given sharded subscriber process
+     * confirms its subscription.
+     *
+     * The confirmation is read from the subscriber's own stdout (valkey-cli
+     * prints the "ssubscribe" push message with the channel name once the
+     * SSUBSCRIBE is acknowledged). Using the subscriber's own connection means
+     * this works regardless of authentication/TLS and does not depend on the
+     * shared test client (which is constructed without TLS).
+     *
+     * @param resource $stdout       The subscriber's stdout pipe (non-blocking).
+     * @return bool True if the subscription was confirmed within the timeout.
+     */
+    private function waitForShardSubscription($stdout, string $channel, float $timeoutSec = 5.0)
+    {
+        if (!is_resource($stdout)) {
+            return false;
+        }
+
+        $seen     = '';
+        $deadline = microtime(true) + $timeoutSec;
+        do {
+            $chunk = fread($stdout, 8192);
+            if ($chunk !== false && $chunk !== '') {
+                $seen .= $chunk;
+                // valkey-cli prints the channel name on its own line as part of
+                // the ssubscribe confirmation push.
+                foreach (explode("\n", $seen) as $line) {
+                    if (trim($line) === $channel) {
+                        return true;
+                    }
+                }
+            }
+            usleep(100000);
+        } while (microtime(true) < $deadline);
+
+        return false;
+    }
+
+    /**
+     * Start a sharded-channel subscriber in a background process using valkey-cli.
+     *
+     * The PHP client does not yet implement SSUBSCRIBE (see follow-up issue), so
+     * external valkey-cli processes are used to hold live sharded subscriptions
+     * while the PHP client queries PUBSUB SHARDCHANNELS.
+     *
+     * A single valkey-cli SSUBSCRIBE can only cover channels in one slot (a
+     * multi-channel subscribe across slots fails with CROSSSLOT), so callers
+     * that need several channels should start one subscriber per channel.
+     *
+     * Authentication and TLS options from the fixture are forwarded to the CLI so
+     * the subscriber can connect on secured deployments, and the method waits
+     * (with a bounded timeout) for the subscription to actually register rather
+     * than relying on a fixed sleep.
+     *
+     * @return array{proc: resource, pipes: array}|null Null if the CLI is
+     *         unavailable or the subscription did not register in time.
+     */
+    private function startShardSubscriber(string $channel)
+    {
+        $baseOpts = $this->shardCliBase($cli);
+        if ($baseOpts === null) {
+            return null;
+        }
+
+        $cmd = sprintf(
+            '%s %s ssubscribe %s',
+            escapeshellarg($cli),
+            $baseOpts,
+            escapeshellarg($channel)
+        );
+
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
+
+        if (!is_resource($proc)) {
+            return null;
+        }
+
+        // Never block on the child's stdout/stderr pipes (the subscriber runs
+        // indefinitely and keeps them open).
+        if (is_resource($pipes[1])) {
+            stream_set_blocking($pipes[1], false);
+        }
+        if (is_resource($pipes[2])) {
+            stream_set_blocking($pipes[2], false);
+        }
+
+        $handle = ['proc' => $proc, 'pipes' => $pipes];
+
+        // Wait for the subscriber's own SSUBSCRIBE confirmation (bounded), rather
+        // than a fixed sleep. Reading the subscriber's stdout avoids depending on
+        // the shared (non-TLS) test client for the readiness check.
+        if (!$this->waitForShardSubscription($pipes[1], $channel)) {
+            // Capture whatever child stderr is available without blocking, then
+            // tear the process down.
+            $stderr = is_resource($pipes[2]) ? (string) stream_get_contents($pipes[2]) : '';
+            $this->stopShardSubscriber($handle);
+            $this->assertTrue(
+                false,
+                "Sharded subscriber for '$channel' did not register in time"
+                . ($stderr !== '' ? " (stderr: " . trim($stderr) . ")" : '')
+            );
+            return null;
+        }
+
+        return $handle;
+    }
+
+    /**
+     * Start one sharded subscriber per channel and return their handles.
+     *
+     * @return array<array{proc: resource, pipes: array}>|null Null if valkey-cli is unavailable.
+     */
+    private function startShardSubscribers(array $channels)
+    {
+        $handles = [];
+        foreach ($channels as $channel) {
+            $handle = $this->startShardSubscriber($channel);
+            if ($handle === null) {
+                // CLI unavailable: tear down anything already started and bail.
+                foreach ($handles as $h) {
+                    $this->stopShardSubscriber($h);
+                }
+                return null;
+            }
+            $handles[] = $handle;
+        }
+        return $handles;
+    }
+
+    private function stopShardSubscribers(array $handles)
+    {
+        foreach ($handles as $handle) {
+            $this->stopShardSubscriber($handle);
+        }
+    }
+
+    private function stopShardSubscriber($handle)
+    {
+        if (!is_array($handle)) {
+            return;
+        }
+        foreach ($handle['pipes'] as $pipe) {
+            @fclose($pipe);
+        }
+        @proc_terminate($handle['proc']);
+        @proc_close($handle['proc']);
+    }
+
+    /**
+     * PUBSUB SHARDCHANNELS: lists the currently active shard channels.
+     *
+     * Mirrors valkey-glide's cross-language pubsub_shardchannels tests. Sharded
+     * pub/sub is a cluster-only feature available since Valkey/Redis 7.0. A live
+     * sharded subscriber is created via valkey-cli (PHP-native SSUBSCRIBE is not
+     * yet implemented) so we can assert real active-channel behaviour, matching
+     * the reference suites.
+     *
+     * @see https://valkey.io/commands/pubsub-shardchannels/
+     */
+    public function testPubSubShardChannels()
+    {
+        if (! $this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('PUBSUB SHARDCHANNELS requires Valkey/Redis 7.0+');
+            return;
+        }
+
+        // Empty state: no active sharded subscribers => empty list.
+        $result = $this->valkey_glide->pubsub('shardchannels');
+        $this->assertIsArray($result);
+
+        // Bring up live sharded subscribers on multiple channels. Two share a
+        // common prefix (so a glob pattern matches a subset) and one does not,
+        // mirroring the Python/Go reference suites.
+        $suffix   = uniqid();
+        $channel1 = 'test_shardchannel1_' . $suffix;
+        $channel2 = 'test_shardchannel2_' . $suffix;
+        $channel3 = 'other_shardchannel3_' . $suffix;
+
+        $handle = $this->startShardSubscribers([$channel1, $channel2, $channel3]);
+
+        if ($handle === null) {
+            // No valkey-cli/redis-cli available; fall back to shape-only checks.
+            $this->assertIsArray($this->valkey_glide->pubsub('shardchannels', 'test_*'));
+            $this->assertIsArray($this->valkey_glide->pubsub('shardchannels', 'non_matching_*'));
+            return;
+        }
+
+        try {
+            // Without a pattern: all three active channels must be listed.
+            $channels = $this->valkey_glide->pubsub('shardchannels');
+            $this->assertIsArray($channels);
+            $this->assertContains($channel1, $channels);
+            $this->assertContains($channel2, $channels);
+            $this->assertContains($channel3, $channels);
+
+            // Explicit null must behave like an omitted pattern (the declared
+            // default is null), not like an empty-string pattern.
+            $nullArg = $this->valkey_glide->pubsub('shardchannels', null);
+            $this->assertIsArray($nullArg);
+            $this->assertContains($channel1, $nullArg);
+            $this->assertContains($channel2, $nullArg);
+            $this->assertContains($channel3, $nullArg);
+
+            // With a glob pattern: only the matching subset is returned.
+            $matched = $this->valkey_glide->pubsub('shardchannels', 'test_shardchannel*_' . $suffix);
+            $this->assertIsArray($matched);
+            $this->assertContains($channel1, $matched);
+            $this->assertContains($channel2, $matched);
+            $this->assertTrue(
+                !in_array($channel3, $matched, true),
+                'Pattern should exclude the non-matching channel'
+            );
+
+            // With a non-matching pattern: none of the channels are returned.
+            $notMatched = $this->valkey_glide->pubsub('shardchannels', 'no_such_prefix_*');
+            $this->assertIsArray($notMatched);
+            foreach ([$channel1, $channel2, $channel3] as $ch) {
+                $this->assertTrue(
+                    !in_array($ch, $notMatched, true),
+                    "Non-matching pattern should not include '$ch'"
+                );
+            }
+        } finally {
+            $this->stopShardSubscribers($handle);
+        }
+    }
+
+    /**
+     * PUBSUB CHANNELS vs SHARDCHANNELS: a sharded channel is reported by
+     * SHARDCHANNELS but never by the regular CHANNELS introspection.
+     */
+    public function testPubSubChannelsAndShardChannelsSeparation()
+    {
+        if (! $this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('Sharded pub/sub requires Valkey/Redis 7.0+');
+            return;
+        }
+
+        $channel = 'test_separation_' . uniqid();
+        $handle  = $this->startShardSubscriber($channel);
+
+        if ($handle === null) {
+            // No CLI available; assert both variants at least return arrays.
+            $this->assertIsArray($this->valkey_glide->pubsub('channels'));
+            $this->assertIsArray($this->valkey_glide->pubsub('shardchannels'));
+            return;
+        }
+
+        try {
+            $shardChannels = $this->valkey_glide->pubsub('shardchannels');
+            $regularChannels = $this->valkey_glide->pubsub('channels');
+
+            $this->assertIsArray($shardChannels);
+            $this->assertIsArray($regularChannels);
+
+            // The sharded channel appears in SHARDCHANNELS ...
+            $this->assertContains($channel, $shardChannels);
+            // ... but not in the regular CHANNELS listing.
+            $this->assertTrue(
+                !in_array($channel, $regularChannels, true),
+                'Sharded channel must not appear in PUBSUB CHANNELS'
+            );
+        } finally {
+            $this->stopShardSubscriber($handle);
+        }
+    }
+
+    /**
+     * PUBSUB SHARDNUMSUB is not yet supported by the PHP client and must raise
+     * an exception until it is implemented (see follow-up issue).
+     */
+    public function testPubSubShardNumSubNotSupported()
+    {
+        if (! $this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('Sharded pub/sub requires Valkey/Redis 7.0+');
+            return;
+        }
+
+        $threw = false;
+        try {
+            $this->valkey_glide->pubsub('shardnumsub', ['some_channel']);
+        } catch (\Throwable $e) {
+            $threw = true;
+        }
+        $this->assertTrue($threw, 'SHARDNUMSUB should throw until it is implemented');
+    }
 }

@@ -2713,6 +2713,29 @@ class ValkeyGlide
      */
     public function publish(string $channel, string $message): int;
 
+    /**
+     * Inspect the state of the Pub/Sub subsystem.
+     *
+     * PHPRedis-compatible generic entry point for the PUBSUB command family.
+     *
+     * @param string $command The PUBSUB subcommand (case-insensitive). One of:
+     *                        <code>"channels"</code>, <code>"numsub"</code>, <code>"numpat"</code>,
+     *                        <code>"shardchannels"</code>.
+     * @param mixed  $arg     Depends on the subcommand:
+     *                        <code>
+     *                        channels / shardchannels - optional glob-style pattern string.
+     *                        numsub                    - optional array of channel names.
+     *                        numpat                    - no argument.
+     *                        </code>
+     *
+     * @return mixed For <code>channels</code>/<code>shardchannels</code> an array of active
+     *               channels; for <code>numsub</code> a flat array of channel/count pairs;
+     *               for <code>numpat</code> an integer.
+     *
+     * @see https://valkey.io/commands/pubsub-shardchannels/
+     *
+     * @example $valkey_glide->pubsub('shardchannels', 'news.*');
+     */
     public function pubsub(string $command, mixed $arg = null): mixed;
 
     /**
