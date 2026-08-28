@@ -162,9 +162,8 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
         // follow-up issue: subscriber counts require investigation of the
         // cluster response handling, and PHP-native sharded subscriptions
         // (SSUBSCRIBE) are not implemented, which blocks behavioral testing.
-        zend_throw_exception(get_valkey_glide_exception_ce(),
-                             "PUBSUB SHARDNUMSUB is not yet supported",
-                             0);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "PUBSUB SHARDNUMSUB is not yet supported", 0);
         RETURN_FALSE;
     } else if (strcasecmp(cmd, "numpat") == 0) {
         // PUBSUB NUMPAT
