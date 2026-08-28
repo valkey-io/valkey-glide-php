@@ -128,6 +128,16 @@ typedef struct {
 #define VALKEY_GLIDE_TLS_CONFIG "tls_config"
 #define VALKEY_GLIDE_USE_INSECURE_TLS "use_insecure_tls"
 #define VALKEY_GLIDE_ROOT_CERTS "root_certs"
+#define VALKEY_GLIDE_CLIENT_CERT "client_cert"
+#define VALKEY_GLIDE_CLIENT_KEY "client_key"
+#define VALKEY_GLIDE_CLIENT_CERT_PATH "client_cert_path"
+#define VALKEY_GLIDE_CLIENT_KEY_PATH "client_key_path"
+#define VALKEY_GLIDE_CERT_RELOAD_INTERVAL "cert_reload_interval_seconds"
+
+/* Maximum allowed size (in bytes) for a single certificate or private key.
+ * Acts as a safeguard against accidentally loading oversized/incorrect files.
+ * Matches the C# client's ConnectionConfiguration.CertificateMaxSize (10 MiB). */
+#define VALKEY_GLIDE_CERTIFICATE_MAX_SIZE (10 * 1024 * 1024) /* 10 MiB */
 
 /* Compression Constants */
 #define VALKEY_GLIDE_COMPRESSION "compression"
@@ -196,9 +206,16 @@ typedef struct {
 } valkey_glide_backoff_strategy_t;
 
 typedef struct {
-    uint8_t* root_certs;       /* Certificate data bytes */
-    size_t   root_certs_len;   /* Length of certificate data */
-    bool     use_insecure_tls; /* Whether to use insecure TLS (skips certificate verification) */
+    uint8_t* root_certs;      /* Certificate data bytes */
+    size_t   root_certs_len;  /* Length of certificate data */
+    uint8_t* client_cert;     /* Client certificate data bytes (byte-based mTLS) */
+    size_t   client_cert_len; /* Length of client certificate data */
+    uint8_t* client_key;      /* Client private key data bytes (byte-based mTLS) */
+    size_t   client_key_len;  /* Length of client private key data */
+    char*   client_cert_path; /* Path to client certificate file (path-based mTLS); NULL if unset */
+    char*   client_key_path;  /* Path to client private key file (path-based mTLS); NULL if unset */
+    int64_t cert_reload_interval; /* Reload cadence in seconds; -1 = unset (core default) */
+    bool    use_insecure_tls;     /* Whether to use insecure TLS (skips certificate verification) */
 } valkey_glide_tls_advanced_configuration_t;
 
 typedef struct {

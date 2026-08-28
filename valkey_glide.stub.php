@@ -395,9 +395,32 @@ class ValkeyGlide
      * @param int|null $database_id Database number (0-15 for standalone)
      * @param string|null $client_name Client identifier for debugging
      * @param string|null $client_az Availability zone for routing
-     * @param array|null $advanced_config Advanced TLS/connection settings
+     * @param array|null $advanced_config Advanced TLS/connection settings.
+     *                                    TLS options under the 'tls_config' key:
+     *                                    ['tls_config' => [
+     *                                        'root_certs' => string,        // PEM CA certificate(s)
+     *                                        'use_insecure_tls' => bool,    // Skip certificate verification
+     *                                        // Byte-based mTLS (static): inline PEM bytes.
+     *                                        'client_cert' => string,       // PEM client certificate bytes
+     *                                        'client_key' => string,        // PEM client private key bytes
+     *                                        // Path-based mTLS (with automatic reload): file paths read by the core.
+     *                                        'client_cert_path' => string,  // Path to PEM client certificate file
+     *                                        'client_key_path' => string,   // Path to PEM client private key file
+     *                                        'cert_reload_interval_seconds' => int, // Optional reload cadence (path-based only)
+     *                                    ]]
+     *                                    For mutual TLS (mTLS), provide EITHER byte-based (client_cert + client_key)
+     *                                    OR path-based (client_cert_path + client_key_path) credentials — the two
+     *                                    modes are mutually exclusive, and each requires both of its fields.
+     *                                    Path-based mTLS lets the core read and periodically reload the files so a
+     *                                    rotated certificate is adopted on the next reconnect; 'cert_reload_interval_seconds'
+     *                                    overrides the reload cadence and is only valid with path-based mTLS.
+     *                                    mTLS is only supported via this 'tls_config' path; client certificates
+     *                                    provided through the $context stream context are not used.
      * @param bool|null $lazy_connect Defer connection until first command (default: false)
-     * @param resource|array|null $context Stream context resource or array for TLS configuration
+     * @param resource|array|null $context Stream context resource or array for TLS configuration.
+     *                                     Supports 'verify_peer' and 'cafile' SSL options. Note: mutual TLS
+     *                                     (client certificate/key) is not supported here; use $advanced_config's
+     *                                     'tls_config' instead.
      * @param array|null $compression Compression configuration: ['enabled' => true, 'backend' => COMPRESSION_BACKEND_ZSTD, 'compression_level' => 3, 'min_compression_size' => 64]
      * @param array|null $client_side_cache Client-side cache configuration array from ClientSideCache::toArray():
      *                                      ['cache_id' => string, 'max_cache_kb' => int, 'entry_ttl_ms' => int,
