@@ -358,6 +358,72 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
     }
 
     /**
+     * Build the common valkey-cli connection arguments (host, port, and — when
+     * the fixture has them enabled — authentication and TLS options).
+     *
+     * @return string Shell-escaped option string, or null if no CLI is available.
+     */
+    private function shardCliBase(&$cli)
+    {
+        $cli = trim((string) shell_exec('command -v valkey-cli 2>/dev/null'));
+        if ($cli === '') {
+            $cli = trim((string) shell_exec('command -v redis-cli 2>/dev/null'));
+        }
+        if ($cli === '') {
+            return null;
+        }
+
+        $opts = sprintf(
+            '-c -h %s -p %d',
+            escapeshellarg($this->getHost()),
+            $this->getPort()
+        );
+
+        // Authentication (ACL username/password or password-only), if configured.
+        $this->getAuthParts($user, $pass);
+        if ($user !== null && $user !== '') {
+            $opts .= ' --user ' . escapeshellarg($user);
+        }
+        if ($pass !== null && $pass !== '') {
+            $opts .= ' -a ' . escapeshellarg($pass) . ' --no-auth-warning';
+        }
+
+        // TLS, if the fixture is running against a TLS endpoint.
+        if ($this->getTLS()) {
+            $opts .= ' --tls';
+            if (defined('static::TLS_CERTIFICATE_PATH') && is_file(static::TLS_CERTIFICATE_PATH)) {
+                $opts .= ' --cacert ' . escapeshellarg(static::TLS_CERTIFICATE_PATH);
+            }
+        }
+
+        return $opts;
+    }
+
+    /**
+     * Poll (with a bounded timeout) until the given shard channel is reported
+     * active by PUBSUB SHARDCHANNELS, using a short-lived valkey-cli query.
+     *
+     * The PHP client's PUBSUB SHARDCHANNELS is routed across all cluster nodes
+     * and aggregated, so it is used for polling rather than a single-node
+     * valkey-cli query (which only reports channels owned by the queried node).
+     *
+     * @return bool True if the channel became active within the timeout.
+     */
+    private function waitForShardChannel(string $channel, float $timeoutSec = 5.0)
+    {
+        $deadline = microtime(true) + $timeoutSec;
+        do {
+            $active = $this->valkey_glide->pubsub('shardchannels');
+            if (is_array($active) && in_array($channel, $active, true)) {
+                return true;
+            }
+            usleep(100000);
+        } while (microtime(true) < $deadline);
+
+        return false;
+    }
+
+    /**
      * Start a sharded-channel subscriber in a background process using valkey-cli.
      *
      * The PHP client does not yet implement SSUBSCRIBE (see follow-up issue), so
@@ -368,23 +434,25 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
      * multi-channel subscribe across slots fails with CROSSSLOT), so callers
      * that need several channels should start one subscriber per channel.
      *
-     * @return array{proc: resource, pipes: array}|null Null if valkey-cli is unavailable.
+     * Authentication and TLS options from the fixture are forwarded to the CLI so
+     * the subscriber can connect on secured deployments, and the method waits
+     * (with a bounded timeout) for the subscription to actually register rather
+     * than relying on a fixed sleep.
+     *
+     * @return array{proc: resource, pipes: array}|null Null if the CLI is
+     *         unavailable or the subscription did not register in time.
      */
     private function startShardSubscriber(string $channel)
     {
-        $cli = trim((string) shell_exec('command -v valkey-cli 2>/dev/null'));
-        if ($cli === '') {
-            $cli = trim((string) shell_exec('command -v redis-cli 2>/dev/null'));
-        }
-        if ($cli === '') {
+        $baseOpts = $this->shardCliBase($cli);
+        if ($baseOpts === null) {
             return null;
         }
 
         $cmd = sprintf(
-            '%s -c -h %s -p %d ssubscribe %s',
+            '%s %s ssubscribe %s',
             escapeshellarg($cli),
-            escapeshellarg($this->getHost()),
-            $this->getPort(),
+            $baseOpts,
             escapeshellarg($channel)
         );
 
@@ -398,10 +466,32 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             return null;
         }
 
-        // Give the subscription time to register on its owning node.
-        usleep(400000);
+        // Never block on the child's stdout/stderr pipes (the subscriber runs
+        // indefinitely and keeps them open).
+        if (is_resource($pipes[1])) {
+            stream_set_blocking($pipes[1], false);
+        }
+        if (is_resource($pipes[2])) {
+            stream_set_blocking($pipes[2], false);
+        }
 
-        return ['proc' => $proc, 'pipes' => $pipes];
+        $handle = ['proc' => $proc, 'pipes' => $pipes];
+
+        // Wait for the subscription to register (bounded), instead of a fixed sleep.
+        if (!$this->waitForShardChannel($channel)) {
+            // Capture whatever child stderr is available without blocking, then
+            // tear the process down.
+            $stderr = is_resource($pipes[2]) ? (string) stream_get_contents($pipes[2]) : '';
+            $this->stopShardSubscriber($handle);
+            $this->assertTrue(
+                false,
+                "Sharded subscriber for '$channel' did not register in time"
+                . ($stderr !== '' ? " (stderr: " . trim($stderr) . ")" : '')
+            );
+            return null;
+        }
+
+        return $handle;
     }
 
     /**
