@@ -73,6 +73,14 @@ final class ValkeyGlideMonitor
      * @param int|null        $database_id  Database index to select.
      * @param string|null     $client_name  Client name reported to the server.
      * @param mixed           $context      Stream context for TLS.
+     * @param string|null     $lib_name     Override the library name sent via CLIENT SETINFO LIB-NAME
+     *                                      (default: "GlidePHP"). Empty is treated as UNSET. A non-empty
+     *                                      value must contain only printable ASCII, excluding space, '('
+     *                                      and ')' (^[\x21-\x27\x2A-\x7E]+$).
+     * @param string|null     $client_info_tag Tag appended to the resolved library name as
+     *                                      "<resolved-lib-name>(tag)" for framework attribution. Empty is
+     *                                      treated as UNSET, so no "(tag)" suffix is added. Same charset
+     *                                      restriction as $lib_name.
      *
      * @throws ValkeyGlideException If the connection cannot be established.
      */
@@ -82,7 +90,9 @@ final class ValkeyGlideMonitor
         ?array $credentials = null,
         ?int $database_id = null,
         ?string $client_name = null,
-        mixed $context = null
+        mixed $context = null,
+        ?string $lib_name = null,
+        ?string $client_info_tag = null
     ) {
     }
 

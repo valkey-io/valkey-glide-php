@@ -4,11 +4,93 @@
 #ifndef VALKEY_GLIDE_COMMON_H
 #define VALKEY_GLIDE_COMMON_H
 
+/* Deliberately no <ctype.h>: isgraph()/isprint() are locale-dependent and would
+ * accept 0xA0-0xFF under a non-C LC_CTYPE, breaking the exact charset parity with
+ * glide-core that validate_printable_ascii() below depends on. Use explicit byte
+ * ranges instead. */
 #include <stdio.h>
 #include <zend_smart_str.h>
 
 #include "include/glide_bindings.h"
 #include "valkey_glide_address_resolver.h"
+
+/**
+ * Validate that a client metadata string (lib_name or client_info_tag) contains
+ * only the characters glide-core accepts inside a single metadata field:
+ * 0x21..0x27 and 0x2A..0x7E — printable ASCII excluding space, '(' and ')'.
+ *
+ * This is the per-field subset of the grammar enforced by glide-core's
+ * validate_effective_lib_name() on the *composed* name. Parentheses are
+ * excluded here because the binding itself introduces the only permitted pair
+ * when composing "<base>(<tag>)"; a field that carried its own parenthesis
+ * would compose into a name core rejects, so rejecting it early keeps this
+ * check from accepting values that would fail downstream.
+ *
+ * Empty is NOT handled here: callers treat an empty field as absent (matching
+ * core, where an empty effective name is treated as absent rather than an
+ * error), so this function is only invoked for non-empty values.
+ *
+ * Rejects embedded NUL bytes, control characters, space, DEL (0x7f), any
+ * non-ASCII (e.g. UTF-8) byte, and parentheses. Rejecting these before request
+ * composition also prevents an embedded NUL from silently truncating the value
+ * when it is later passed through strlen()/snprintf() during serialization.
+ *
+ * Returns 0 when every byte is acceptable, -1 otherwise.
+ */
+static inline int validate_printable_ascii(const char* s, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        unsigned char c = (unsigned char) s[i];
+        if (c < 0x21 || c > 0x7e || c == '(' || c == ')') {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+/*
+ * Single source of truth for the PHP binding's default library name. Used by
+ * the lib-name resolver so the default identity is defined in exactly one place
+ * (no drift versus values hardcoded at composition sites).
+ */
+#define VALKEY_GLIDE_LIB_NAME "GlidePHP"
+
+/**
+ * Validate the client metadata fields (lib_name and client_info_tag) that a
+ * constructor received. This is a deliberate fail-early path in front of
+ * glide-core's validate_effective_lib_name(): core is the authority on the
+ * composed name, but validating per field here lets the error name the
+ * offending parameter, which core (seeing only the composed string) cannot do.
+ *
+ * An empty (zero-length) field is treated as ABSENT, not as an error, matching
+ * core's behaviour where an empty effective library name is treated as absent —
+ * so an empty client_info_tag yields no "(tag)" suffix rather than throwing.
+ *
+ * Non-empty fields must satisfy validate_printable_ascii, whose accepted set is
+ * the per-field subset of core's grammar (0x21-0x27, 0x2A-0x7E: printable ASCII
+ * excluding space, '(' and ')'). Keeping the two in step is what stops this
+ * check from accepting a value core would later reject.
+ *
+ * Returns NULL when both fields are acceptable, otherwise a ready-to-throw error
+ * message naming the offending field. Centralizing this here removes the
+ * copy-pasted validation block that previously lived at every constructor entry
+ * point (standalone, cluster, and both mock constructors).
+ */
+static inline const char* client_metadata_validation_error(const char* lib_name,
+                                                           size_t      lib_name_len,
+                                                           const char* client_info_tag,
+                                                           size_t      client_info_tag_len) {
+    if (lib_name != NULL && lib_name_len > 0 &&
+        validate_printable_ascii(lib_name, lib_name_len) != 0) {
+        return "lib_name must contain only printable ASCII characters from '!' through '~', "
+               "excluding spaces and parentheses";
+    }
+    if (client_info_tag != NULL && client_info_tag_len > 0 &&
+        validate_printable_ascii(client_info_tag, client_info_tag_len) != 0) {
+        return "client_info_tag must contain only printable ASCII characters from '!' through '~', "
+               "excluding spaces and parentheses";
+    }
+    return NULL;
+}
 
 /* ValkeyGlidePHP version */
 #define VALKEY_GLIDE_PHP_VERSION "1.1.2"
@@ -233,6 +315,8 @@ typedef struct {
     valkey_glide_backoff_strategy_t*                   reconnect_strategy; /* NULL if not set */
     char*                                              client_name;        /* NULL if not set */
     char*                                              client_az;          /* NULL if not set */
+    char*                                              lib_name;           /* NULL if not set */
+    char*                                              client_info_tag;    /* NULL if not set */
     valkey_glide_advanced_base_client_configuration_t* advanced_config;    /* NULL if not set */
     valkey_glide_compression_config_t*                 compression_config; /* NULL if not set */
     valkey_glide_client_side_cache_config_t*           client_side_cache;  /* NULL if not set */
@@ -276,8 +360,12 @@ typedef struct {
     zval*     circuit_breaker;   /* Circuit breaker configuration */
     char*     client_name;
     char*     client_az;
+    char*     lib_name;
+    char*     client_info_tag;
     size_t    client_name_len;
     size_t    client_az_len;
+    size_t    lib_name_len;
+    size_t    client_info_tag_len;
     zend_long read_from;           /* PRIMARY by default */
     zend_long node_discovery_mode; /* STANDARD by default */
     zend_long request_timeout;

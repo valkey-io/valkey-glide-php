@@ -117,15 +117,19 @@ void free_valkey_glide_monitor_object(zend_object* object) {
 /* ------------------------------------------------------------------ */
 
 PHP_METHOD(ValkeyGlideMonitor, __construct) {
-    zval*     addresses       = NULL;
-    zend_bool use_tls         = 0;
-    zval*     credentials     = NULL;
-    zval*     database_id_zv  = NULL;
-    char*     client_name     = NULL;
-    size_t    client_name_len = 0;
-    zval*     context         = NULL;
+    zval*     addresses           = NULL;
+    zend_bool use_tls             = 0;
+    zval*     credentials         = NULL;
+    zval*     database_id_zv      = NULL;
+    char*     client_name         = NULL;
+    size_t    client_name_len     = 0;
+    zval*     context             = NULL;
+    char*     lib_name            = NULL;
+    size_t    lib_name_len        = 0;
+    char*     client_info_tag     = NULL;
+    size_t    client_info_tag_len = 0;
 
-    ZEND_PARSE_PARAMETERS_START(0, 6)
+    ZEND_PARSE_PARAMETERS_START(0, 8)
     Z_PARAM_OPTIONAL
     Z_PARAM_ARRAY_OR_NULL(addresses)
     Z_PARAM_BOOL(use_tls)
@@ -133,6 +137,8 @@ PHP_METHOD(ValkeyGlideMonitor, __construct) {
     Z_PARAM_ZVAL_OR_NULL(database_id_zv)
     Z_PARAM_STRING_OR_NULL(client_name, client_name_len)
     Z_PARAM_ZVAL_OR_NULL(context)
+    Z_PARAM_STRING_OR_NULL(lib_name, lib_name_len)
+    Z_PARAM_STRING_OR_NULL(client_info_tag, client_info_tag_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     valkey_glide_monitor_object* obj = VALKEY_GLIDE_MONITOR_ZVAL_GET_OBJECT(getThis());
@@ -148,9 +154,13 @@ PHP_METHOD(ValkeyGlideMonitor, __construct) {
         common_params.database_id         = Z_LVAL_P(database_id_zv);
         common_params.database_id_is_null = false;
     }
-    common_params.client_name     = client_name;
-    common_params.client_name_len = client_name_len;
-    common_params.context         = context;
+    common_params.client_name         = client_name;
+    common_params.client_name_len     = client_name_len;
+    common_params.context             = context;
+    common_params.lib_name            = lib_name;
+    common_params.lib_name_len        = lib_name_len;
+    common_params.client_info_tag     = client_info_tag;
+    common_params.client_info_tag_len = client_info_tag_len;
 
     /* Default to localhost:6379 when no addresses are supplied. */
     zval      addresses_array;
@@ -174,6 +184,23 @@ PHP_METHOD(ValkeyGlideMonitor, __construct) {
         if (created_addresses)
             zval_ptr_dtor(&addresses_array);
         RETURN_THROWS();
+    }
+
+    /* Validate lib_name and client_info_tag charset, as the standalone and cluster
+     * constructors do, so a monitor client reports the same effective library name
+     * and rejects the same values. */
+    {
+        const char* metadata_error =
+            client_metadata_validation_error(common_params.lib_name,
+                                             common_params.lib_name_len,
+                                             common_params.client_info_tag,
+                                             common_params.client_info_tag_len);
+        if (metadata_error != NULL) {
+            zend_throw_exception(get_valkey_glide_exception_ce(), metadata_error, 0);
+            if (created_addresses)
+                zval_ptr_dtor(&addresses_array);
+            RETURN_THROWS();
+        }
     }
 
     valkey_glide_base_client_configuration_t client_config;

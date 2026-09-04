@@ -272,10 +272,25 @@ class ValkeyGlideCluster
      * @param array|null $client_side_cache     Client-side cache configuration array from ClientSideCache::toArray():
      *                                          ['cache_id' => string, 'max_cache_kb' => int, 'entry_ttl_ms' => int,
      *                                          'eviction_policy' => ?int, 'enable_metrics' => bool]
+     * @param callable|null $address_resolver   Custom address resolver callback
      * @param array|null $circuit_breaker       Circuit breaker configuration:
      *                                          ['window_size_ms' => int, 'failure_rate_threshold' => float,
      *                                           'min_errors' => int, 'open_timeout_ms' => int,
      *                                           'count_timeouts' => bool, 'consecutive_successes' => int]
+     * @param string|null $lib_name             Override the library name sent via CLIENT SETINFO LIB-NAME (default: "GlidePHP").
+     *                                          An empty string (or null) is treated as UNSET, yielding the
+     *                                          default. A non-empty value must contain only printable ASCII,
+     *                                          excluding space, '(' and ')'
+     *                                          (^[\x21-\x27\x2A-\x7E]+$). Parentheses are reserved: the binding
+     *                                          itself adds the single "(tag)" pair when composing
+     *                                          "<lib_name>(<client_info_tag>)". Use client_info_tag for a
+     *                                          parenthesised suffix.
+     * @param string|null $client_info_tag      Tag appended to the resolved library name as "<resolved-lib-name>(tag)"
+     *                                          for framework attribution (e.g. "GlidePHP(tag)" by default, or
+     *                                          "<lib_name>(tag)" when lib_name is set). An empty string (or null)
+     *                                          is treated as UNSET, so no "(tag)" suffix is added. A non-empty
+     *                                          value must contain only printable ASCII, excluding space, '('
+     *                                          and ')' (^[\x21-\x27\x2A-\x7E]+$).
      *
      * Note: Cannot mix PHPRedis-style and ValkeyGlide-style parameters.
      */
@@ -303,6 +318,8 @@ class ValkeyGlideCluster
         ?array $client_side_cache = null,
         ?callable $address_resolver = null,
         ?array $circuit_breaker = null,
+        ?string $lib_name = null,
+        ?string $client_info_tag = null,
     ) {
     }
 
