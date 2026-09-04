@@ -183,6 +183,10 @@ void valkey_glide_init_common_constructor_params(
     params->client_name_len         = 0;
     params->client_az               = NULL;
     params->client_az_len           = 0;
+    params->lib_name                = NULL;
+    params->lib_name_len            = 0;
+    params->client_info_tag         = NULL;
+    params->client_info_tag_len     = 0;
     params->advanced_config         = NULL;
     params->lazy_connect            = 0;
     params->lazy_connect_is_null    = 1;
@@ -202,6 +206,12 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
     config->request_timeout =
         params->request_timeout_is_null ? -1 : params->request_timeout; /* -1 means not set */
     config->client_name = params->client_name ? params->client_name : NULL;
+    /* L-7: length-aware, matching this feature's "empty means absent" semantics
+     * (and the adjacent client_az handling) rather than a no-op `p ? p : NULL`. */
+    config->lib_name = (params->lib_name && params->lib_name_len > 0) ? params->lib_name : NULL;
+    config->client_info_tag = (params->client_info_tag && params->client_info_tag_len > 0)
+                                  ? params->client_info_tag
+                                  : NULL;
 
     /* Set inflight requests limit to -1 (unset). A synchronous API does not need a request limit
        since it is effectively one-request-at-a-time. */
@@ -1026,6 +1036,10 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
                                           size_t               client_name_len,
                                           char*                client_az,
                                           size_t               client_az_len,
+                                          char*                lib_name,
+                                          size_t               lib_name_len,
+                                          char*                client_info_tag,
+                                          size_t               client_info_tag_len,
                                           zval*                advanced_config,
                                           zval*                lazy_connect_zval,
                                           zval*                context,
@@ -1066,11 +1080,15 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
         common_params.database_id_is_null = false;
     }
 
-    common_params.client_name     = client_name;
-    common_params.client_name_len = client_name_len;
-    common_params.client_az       = client_az;
-    common_params.client_az_len   = client_az_len;
-    common_params.advanced_config = advanced_config;
+    common_params.client_name         = client_name;
+    common_params.client_name_len     = client_name_len;
+    common_params.client_az           = client_az;
+    common_params.client_az_len       = client_az_len;
+    common_params.lib_name            = lib_name;
+    common_params.lib_name_len        = lib_name_len;
+    common_params.client_info_tag     = client_info_tag;
+    common_params.client_info_tag_len = client_info_tag_len;
+    common_params.advanced_config     = advanced_config;
 
     if (lazy_connect_zval != NULL && Z_TYPE_P(lazy_connect_zval) != IS_NULL) {
         common_params.lazy_connect         = Z_TYPE_P(lazy_connect_zval) == IS_TRUE;
@@ -1195,6 +1213,10 @@ PHP_METHOD(ValkeyGlide, connect) {
     size_t client_name_len          = 0;
     char*  client_az                = NULL;
     size_t client_az_len            = 0;
+    char*  lib_name                 = NULL;
+    size_t lib_name_len             = 0;
+    char*  client_info_tag          = NULL;
+    size_t client_info_tag_len      = 0;
     zval*  advanced_config          = NULL;
     zval*  lazy_connect_zval        = NULL;
     zval*  context                  = NULL;
@@ -1204,7 +1226,7 @@ PHP_METHOD(ValkeyGlide, connect) {
     zval*  circuit_breaker          = NULL;
     zval*  node_discovery_mode_zval = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(0, 23)
+    ZEND_PARSE_PARAMETERS_START(0, 25)
     Z_PARAM_OPTIONAL
     Z_PARAM_STRING_OR_NULL(host, host_len)
     Z_PARAM_ZVAL_OR_NULL(port_zval)
@@ -1229,6 +1251,8 @@ PHP_METHOD(ValkeyGlide, connect) {
     Z_PARAM_ZVAL_OR_NULL(address_resolver)
     Z_PARAM_ARRAY_OR_NULL(circuit_breaker)
     Z_PARAM_ZVAL_OR_NULL(node_discovery_mode_zval)
+    Z_PARAM_STRING_OR_NULL(lib_name, lib_name_len)
+    Z_PARAM_STRING_OR_NULL(client_info_tag, client_info_tag_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* Apply defaults for nullable parameters */
@@ -1280,6 +1304,15 @@ PHP_METHOD(ValkeyGlide, connect) {
         RETURN_FALSE;
     }
 
+    {
+        const char* metadata_error = client_metadata_validation_error(
+            lib_name, lib_name_len, client_info_tag, client_info_tag_len);
+        if (metadata_error != NULL) {
+            zend_throw_exception(get_valkey_glide_exception_ce(), metadata_error, 0);
+            RETURN_FALSE;
+        }
+    }
+
     /* Build addresses array host/port if provided */
     zval addresses_to_pass;
     if (host != NULL) {
@@ -1317,6 +1350,10 @@ PHP_METHOD(ValkeyGlide, connect) {
                                                 client_name_len,
                                                 client_az,
                                                 client_az_len,
+                                                lib_name,
+                                                lib_name_len,
+                                                client_info_tag,
+                                                client_info_tag_len,
                                                 advanced_config,
                                                 lazy_connect_zval,
                                                 context,

@@ -3,6 +3,7 @@
 defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
 
 require_once __DIR__ . "/ValkeyGlideClusterBaseTest.php";
+require_once __DIR__ . "/ClientInfoParsingTrait.php";
 
 use ValkeyGlide\OpenTelemetry\OpenTelemetryConfig;
 use ValkeyGlide\OpenTelemetry\TracesConfig;
@@ -13,6 +14,8 @@ use ValkeyGlide\OpenTelemetry\TracesConfig;
  */
 class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 {
+    use ClientInfoParsingTrait;
+
     public function testBasicClusterConstructor()
     {
         // Test creating ValkeyGlideCluster with basic configuration
@@ -30,6 +33,14 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $valkey_glide->close();
     }
 
+    /**
+     * R2-M-2: the lib-name assertion here is TAUTOLOGICAL and cannot fail. The
+     * binding's default (VALKEY_GLIDE_LIB_NAME) and the Rust core's compile-time
+     * GLIDE_NAME are both "GlidePHP", so this passes whether or not the binding
+     * populated lib_name at all. Falsifiable coverage that the binding really
+     * sends the field lives in testLibNameOverride (and testLibNameOverrideCluster),
+     * which assert a value GLIDE_NAME cannot produce. Kept for the lib-ver check.
+     */
     public function testClientLibNameAndVersion()
     {
         // Verify that CLIENT INFO reports the correct lib-name and lib-ver
@@ -39,9 +50,122 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             "INFO"
         );
         $this->assertIsString($info_str);
-        $this->assertTrue(str_contains($info_str, "lib-name=GlidePHP"));
+        $this->assertEquals("GlidePHP", $this->getClientInfoField($info_str, "lib-name"));
         $expected_version = phpversion('valkey_glide');
         $this->assertTrue(str_contains($info_str, "lib-ver=" . $expected_version));
+    }
+
+    public function testClientInfoTagAppendsToLibNameCluster()
+    {
+        // Verify that CLIENT INFO shows composed lib-name with tag for cluster client
+        $params = [
+            'addresses'       => [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            'use_tls'         => $this->getTLS(),
+            'credentials'     => $this->getAuth(),
+            'read_from'       => ValkeyGlide::READ_FROM_PRIMARY,
+            'client_info_tag' => 'my-framework:1.0',
+        ];
+        if ($this->getTLS()) {
+            $params['advanced_config'] = ['tls_config' => ['use_insecure_tls' => true]];
+        }
+        $client = new ValkeyGlideCluster(...$params);
+        $info_str = $client->rawcommand(
+            ['type' => 'primarySlotKey', 'key' => 'test'],
+            "CLIENT",
+            "INFO"
+        );
+        $this->assertIsString($info_str);
+        $this->assertEquals("GlidePHP(my-framework:1.0)", $this->getClientInfoField($info_str, "lib-name"));
+        $client->close();
+    }
+
+    public function testLibNameWithClientInfoTagCluster()
+    {
+        // Verify that CLIENT INFO shows composed lib-name with custom lib_name and tag for cluster client
+        $params = [
+            'addresses'       => [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            'use_tls'         => $this->getTLS(),
+            'credentials'     => $this->getAuth(),
+            'read_from'       => ValkeyGlide::READ_FROM_PRIMARY,
+            'lib_name'        => 'custom',
+            'client_info_tag' => 'tag:2.0',
+        ];
+        if ($this->getTLS()) {
+            $params['advanced_config'] = ['tls_config' => ['use_insecure_tls' => true]];
+        }
+        $client = new ValkeyGlideCluster(...$params);
+        $info_str = $client->rawcommand(
+            ['type' => 'primarySlotKey', 'key' => 'test'],
+            "CLIENT",
+            "INFO"
+        );
+        $this->assertIsString($info_str);
+        $this->assertEquals("custom(tag:2.0)", $this->getClientInfoField($info_str, "lib-name"));
+        $client->close();
+    }
+
+    /**
+     * M-2: exercises the REAL cluster validation gate at valkey_glide_cluster.c:264.
+     *
+     * Previously the cluster gate was only reachable through the mock's separate
+     * copy, so deleting or reordering the real gate left the suite green.
+     *
+     * R2-T-2: the constructor under test throws before
+     * valkey_glide_cluster_create_connection(), so the REJECTION ITSELF needs no
+     * reachable cluster -- but this class does: ValkeyGlideClusterBaseTest::setUp()
+     * builds a live client before every test method.
+     */
+    public function testClusterClientInfoTagWhitespaceRejected()
+    {
+        try {
+            new ValkeyGlideCluster(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                client_info_tag: 'has space'
+            );
+            $this->assertTrue(false, 'Expected ValkeyGlideException for whitespace in client_info_tag');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains("client_info_tag must contain only printable ASCII characters from '!' through '~'", $e->getMessage());
+        }
+    }
+
+    public function testClusterLibNameNonPrintableRejected()
+    {
+        try {
+            new ValkeyGlideCluster(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                lib_name: "bad\x7f"
+            );
+            $this->assertTrue(false, 'Expected ValkeyGlideException for non-printable byte in lib_name');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains("lib_name must contain only printable ASCII characters from '!' through '~'", $e->getMessage());
+        }
+    }
+
+    /**
+     * M-2: cluster twin for lib_name-only override, covering the have_tag == false
+     * estrdup branch in valkey_glide_resolve_lib_name.
+     */
+    public function testLibNameOverrideCluster()
+    {
+        $params = [
+            'addresses'   => [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            'use_tls'     => $this->getTLS(),
+            'credentials' => $this->getAuth(),
+            'read_from'   => ValkeyGlide::READ_FROM_PRIMARY,
+            'lib_name'    => 'custom-lib',
+        ];
+        if ($this->getTLS()) {
+            $params['advanced_config'] = ['tls_config' => ['use_insecure_tls' => true]];
+        }
+        $client = new ValkeyGlideCluster(...$params);
+        $info_str = $client->rawcommand(
+            ['type' => 'primarySlotKey', 'key' => 'test'],
+            "CLIENT",
+            "INFO"
+        );
+        $this->assertIsString($info_str);
+        $this->assertEquals("custom-lib", $this->getClientInfoField($info_str, "lib-name"));
+        $client->close();
     }
 
     // ==============================================

@@ -1180,6 +1180,233 @@ class ConnectionRequestTest extends \TestSuite
         $this->assertFalse($compression_config->getEnabled());
     }
 
+    // ---- lib_name and client_info_tag tests ----
+
+    public function testStandaloneLibNameOverride()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(lib_name: 'custom-lib');
+        $this->assertEquals('custom-lib', $request->getLibName());
+    }
+
+    public function testClusterLibNameOverride()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(lib_name: 'custom-lib');
+        $this->assertEquals('custom-lib', $request->getLibName());
+    }
+
+    public function testStandaloneClientInfoTag()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(client_info_tag: 'my-framework:1.0');
+        $this->assertEquals('GlidePHP(my-framework:1.0)', $request->getLibName());
+    }
+
+    public function testClusterClientInfoTag()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(client_info_tag: 'my-framework:1.0');
+        $this->assertEquals('GlidePHP(my-framework:1.0)', $request->getLibName());
+    }
+
+    public function testStandaloneLibNameWithTag()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(lib_name: 'custom', client_info_tag: 'tag:2.0');
+        $this->assertEquals('custom(tag:2.0)', $request->getLibName());
+    }
+
+    public function testClusterLibNameWithTag()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(lib_name: 'custom', client_info_tag: 'tag:2.0');
+        $this->assertEquals('custom(tag:2.0)', $request->getLibName());
+    }
+
+    public function testStandaloneLibNameDefault()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor();
+        // When neither is set, the binding sends its own default identity.
+        $this->assertEquals('GlidePHP', $request->getLibName());
+    }
+
+    public function testClusterLibNameDefault()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor();
+        // When neither is set, the binding sends its own default identity.
+        $this->assertEquals('GlidePHP', $request->getLibName());
+    }
+
+    /**
+     * An empty value is treated as absent rather than an error, matching
+     * glide-core's validate_effective_lib_name(). An empty client_info_tag must
+     * therefore produce no "()" suffix, and an empty lib_name must fall back to
+     * the binding default.
+     */
+    public function testStandaloneEmptyClientInfoTagTreatedAsAbsent()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(client_info_tag: '');
+        $this->assertEquals('GlidePHP', $request->getLibName());
+    }
+
+    public function testClusterEmptyClientInfoTagTreatedAsAbsent()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(client_info_tag: '');
+        $this->assertEquals('GlidePHP', $request->getLibName());
+    }
+
+    public function testStandaloneEmptyLibNameTreatedAsAbsent()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(lib_name: '');
+        $this->assertEquals('GlidePHP', $request->getLibName());
+    }
+
+    public function testClusterEmptyLibNameTreatedAsAbsent()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(lib_name: '');
+        $this->assertEquals('GlidePHP', $request->getLibName());
+    }
+
+    public function testStandaloneEmptyLibNameWithTagUsesDefaultBase()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(lib_name: '', client_info_tag: 'tag:2.0');
+        $this->assertEquals('GlidePHP(tag:2.0)', $request->getLibName());
+    }
+
+    /** L-9: cluster twin for the empty-lib_name-plus-tag composition. */
+    public function testClusterEmptyLibNameWithTagUsesDefaultBase()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(lib_name: '', client_info_tag: 'tag:2.0');
+        $this->assertEquals('GlidePHP(tag:2.0)', $request->getLibName());
+    }
+
+    /**
+     * M-3: guards the C validator's charset against glide-core's LIB_NAME_PATTERN
+     * character class [\x21-\x27\x2A-\x7E] (glide-core/src/client/mod.rs).
+     *
+     * The entire safety argument for keeping the binding's per-field validator is
+     * C-accept subset-of core-accept. That invariant spans a submodule boundary
+     * bumped independently of this code, so prose comments alone cannot hold it.
+     * If a core bump changes the grammar, this fails loudly here instead of
+     * silently deferring rejection to connect time.
+     *
+     * 0x00 is excluded: a NUL cannot survive PHP -> C marshalling as data.
+     */
+    public function testMetadataCharsetParityWithGlideCore()
+    {
+        foreach (['lib_name', 'client_info_tag'] as $field) {
+            for ($b = 0x01; $b <= 0xFF; $b++) {
+                $ch          = chr($b);
+                $coreAccepts = ($b >= 0x21 && $b <= 0x27) || ($b >= 0x2A && $b <= 0x7E);
+
+                $rejected = false;
+                try {
+                    if ($field === 'lib_name') {
+                        ClientConstructorMock::simulate_standalone_constructor(lib_name: $ch);
+                    } else {
+                        ClientConstructorMock::simulate_standalone_constructor(client_info_tag: $ch);
+                    }
+                } catch (ValkeyGlideException $e) {
+                    $rejected = true;
+                }
+
+                $this->assertTrue(
+                    $rejected === !$coreAccepts,
+                    sprintf(
+                        '%s byte 0x%02X: binding %s but core %s',
+                        $field,
+                        $b,
+                        $rejected ? 'rejects' : 'accepts',
+                        $coreAccepts ? 'accepts' : 'rejects'
+                    )
+                );
+            }
+        }
+    }
+
+    /**
+     * Values that must be rejected for lib_name / client_info_tag.
+     *
+     * Note: the empty string is deliberately NOT listed here. An empty value is
+     * treated as absent (matching glide-core's validate_effective_lib_name),
+     * so it yields the default library name with no "(tag)" suffix rather than
+     * an error. See testStandaloneEmptyClientInfoTagTreatedAsAbsent.
+     *
+     * Parentheses are rejected per field because the binding introduces the only
+     * permitted "(tag)" pair when composing the effective name; a field carrying
+     * its own parenthesis would compose into a name core rejects.
+     */
+    private function invalidMetadataValues(): array
+    {
+        return [
+            'space'          => ['has space'],
+            'tab'            => ["has\ttab"],
+            'newline'        => ["has\nnewline"],
+            'embedded_nul'   => ["framework\0suffix"],
+            'control_bel'    => ["framework\x07"],
+            'del'            => ["framework\x7f"],
+            'non_ascii_utf8' => ['framework-é'],
+            'open_paren'     => ['framework('],
+            'close_paren'    => ['framework)'],
+            'wrapped_parens' => ['(framework)'],
+        ];
+    }
+
+    private function assertMetadataRejected(callable $construct, string $field, string $case = ''): void
+    {
+        $label = $case !== '' ? " (case '{$case}')" : '';
+        try {
+            $construct();
+            // M-5: name the offending case. Without this the leaked-invalid-value
+            // branch reported a bare "(false) !== (true)" with no case identity.
+            $this->assertTrue(false, "{$field}{$label} was accepted but must be rejected");
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains(
+                $field . " must contain only printable ASCII characters from '!' through '~'",
+                $e->getMessage()
+            );
+        }
+    }
+
+    public function testStandaloneLibNameInvalidRejected()
+    {
+        foreach ($this->invalidMetadataValues() as $case => $value) {
+            $this->assertMetadataRejected(
+                fn() => ClientConstructorMock::simulate_standalone_constructor(lib_name: $value[0]),
+                'lib_name',
+                (string) $case
+            );
+        }
+    }
+
+    public function testClusterLibNameInvalidRejected()
+    {
+        foreach ($this->invalidMetadataValues() as $case => $value) {
+            $this->assertMetadataRejected(
+                fn() => ClientConstructorMock::simulate_cluster_constructor(lib_name: $value[0]),
+                'lib_name',
+                (string) $case
+            );
+        }
+    }
+
+    public function testStandaloneClientInfoTagInvalidRejected()
+    {
+        foreach ($this->invalidMetadataValues() as $case => $value) {
+            $this->assertMetadataRejected(
+                fn() => ClientConstructorMock::simulate_standalone_constructor(client_info_tag: $value[0]),
+                'client_info_tag',
+                (string) $case
+            );
+        }
+    }
+
+    public function testClusterClientInfoTagInvalidRejected()
+    {
+        foreach ($this->invalidMetadataValues() as $case => $value) {
+            $this->assertMetadataRejected(
+                fn() => ClientConstructorMock::simulate_cluster_constructor(client_info_tag: $value[0]),
+                'client_info_tag',
+                (string) $case
+            );
+        }
+    }
+
     // Helper methods
     // --------------
 

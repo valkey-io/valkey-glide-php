@@ -3,6 +3,7 @@
 defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests!\n");
 
 require_once __DIR__ . "/ValkeyGlideBaseTest.php";
+require_once __DIR__ . "/ClientInfoParsingTrait.php";
 
 use ValkeyGlide\OpenTelemetry\OpenTelemetryConfig;
 use ValkeyGlide\OpenTelemetry\TracesConfig;
@@ -13,6 +14,8 @@ use ValkeyGlide\OpenTelemetry\TracesConfig;
  */
 class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 {
+    use ClientInfoParsingTrait;
+
     public function __construct($host, $port, $auth, $tls)
     {
         parent::__construct($host, $port, $auth, $tls);
@@ -37,14 +40,92 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         }
     }
 
+    /**
+     * R2-M-2: the lib-name assertion here is TAUTOLOGICAL and cannot fail. The
+     * binding's default (VALKEY_GLIDE_LIB_NAME) and the Rust core's compile-time
+     * GLIDE_NAME are both "GlidePHP", so this passes whether or not the binding
+     * populated lib_name at all. Falsifiable coverage that the binding really
+     * sends the field lives in testLibNameOverride (and testLibNameOverrideCluster),
+     * which assert a value GLIDE_NAME cannot produce. Kept for the lib-ver check.
+     */
     public function testClientLibNameAndVersion()
     {
         // Verify that CLIENT INFO reports the correct lib-name and lib-ver
         $info_str = $this->valkey_glide->rawcommand("CLIENT", "INFO");
         $this->assertIsString($info_str);
-        $this->assertTrue(str_contains($info_str, "lib-name=GlidePHP"));
+        $this->assertEquals("GlidePHP", $this->getClientInfoField($info_str, "lib-name"));
         $expected_version = phpversion('valkey_glide');
         $this->assertTrue(str_contains($info_str, "lib-ver=" . $expected_version));
+    }
+
+    public function testClientInfoTagAppendsToLibName()
+    {
+        $addresses = [['host' => $this->getHost(), 'port' => $this->getPort()]];
+        $client = new ValkeyGlide();
+        $connectParams = ['addresses' => $addresses, 'client_info_tag' => 'my-framework:1.0'];
+        if ($this->getTLS()) {
+            $connectParams['use_tls'] = true;
+            $connectParams['advanced_config'] = ['tls_config' => ['use_insecure_tls' => true]];
+        }
+        $client->connect(...$connectParams);
+        $info_str = $client->rawcommand("CLIENT", "INFO");
+        $this->assertIsString($info_str);
+        $this->assertEquals("GlidePHP(my-framework:1.0)", $this->getClientInfoField($info_str, "lib-name"));
+        $client->close();
+    }
+
+    public function testLibNameOverride()
+    {
+        $addresses = [['host' => $this->getHost(), 'port' => $this->getPort()]];
+        $client = new ValkeyGlide();
+        $connectParams = ['addresses' => $addresses, 'lib_name' => 'custom-lib'];
+        if ($this->getTLS()) {
+            $connectParams['use_tls'] = true;
+            $connectParams['advanced_config'] = ['tls_config' => ['use_insecure_tls' => true]];
+        }
+        $client->connect(...$connectParams);
+        $info_str = $client->rawcommand("CLIENT", "INFO");
+        $this->assertIsString($info_str);
+        $this->assertEquals("custom-lib", $this->getClientInfoField($info_str, "lib-name"));
+        $client->close();
+    }
+
+    public function testLibNameWithClientInfoTag()
+    {
+        $addresses = [['host' => $this->getHost(), 'port' => $this->getPort()]];
+        $client = new ValkeyGlide();
+        $connectParams = ['addresses' => $addresses, 'lib_name' => 'custom', 'client_info_tag' => 'tag:2.0'];
+        if ($this->getTLS()) {
+            $connectParams['use_tls'] = true;
+            $connectParams['advanced_config'] = ['tls_config' => ['use_insecure_tls' => true]];
+        }
+        $client->connect(...$connectParams);
+        $info_str = $client->rawcommand("CLIENT", "INFO");
+        $this->assertIsString($info_str);
+        $this->assertEquals("custom(tag:2.0)", $this->getClientInfoField($info_str, "lib-name"));
+        $client->close();
+    }
+
+    public function testClientInfoTagWhitespaceRejected()
+    {
+        $client = new ValkeyGlide();
+        try {
+            $client->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]], client_info_tag: 'has space');
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains("client_info_tag must contain only printable ASCII characters from '!' through '~'", $e->getMessage());
+        }
+    }
+
+    public function testLibNameNonPrintableRejected()
+    {
+        $client = new ValkeyGlide();
+        try {
+            $client->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]], lib_name: "bad\x7f");
+            $this->assertTrue(false, 'Expected ValkeyGlideException was not thrown');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains("lib_name must contain only printable ASCII characters from '!' through '~'", $e->getMessage());
+        }
     }
 
     public function testConstructorWithSingleAddress()

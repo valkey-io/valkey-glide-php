@@ -69,10 +69,22 @@ static zval* build_php_connection_request(uint8_t*                              
     add_next_index_string(&callable, "deserialize");
 
     zval* result = NULL;
-    if (call_user_function(NULL, NULL, &callable, &retval, 1, params) == SUCCESS) {
+    /* R2-M-1: require BOTH success and a defined retval. When the userland
+     * callable is missing, zend_call_function throws but still returns SUCCESS,
+     * leaving retval IS_UNDEF -- copying that handed back an IS_UNDEF zval with an
+     * exception pending. Guard on the exception too, so a thrown-but-SUCCESS call
+     * is treated as failure rather than producing a bogus value. */
+    if (call_user_function(NULL, NULL, &callable, &retval, 1, params) == SUCCESS &&
+        Z_TYPE(retval) != IS_UNDEF && !EG(exception)) {
         // Allocate return value
         result = emalloc(sizeof(zval));
         ZVAL_COPY(result, &retval);
+    } else if (!EG(exception)) {
+        /* Nothing was thrown (e.g. call_user_function itself failed), so the
+         * callers cannot rely on a pending exception. Throw here so the NULL
+         * return always carries a diagnosable error. */
+        const char* error_message = "Failed to invoke ConnectionRequestTest::deserialize.";
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
     }
 
     zval_ptr_dtor(&callable);
@@ -92,7 +104,7 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
 
-    ZEND_PARSE_PARAMETERS_START(0, 17)
+    ZEND_PARSE_PARAMETERS_START(0, 19)
     Z_PARAM_OPTIONAL
     Z_PARAM_ARRAY_OR_NULL(common_params.addresses)
     Z_PARAM_BOOL(common_params.use_tls)
@@ -112,6 +124,8 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     Z_PARAM_ZVAL_OR_NULL(common_params.address_resolver)
     Z_PARAM_ARRAY_OR_NULL(common_params.circuit_breaker)
     Z_PARAM_LONG(common_params.node_discovery_mode)
+    Z_PARAM_STRING_OR_NULL(common_params.lib_name, common_params.lib_name_len)
+    Z_PARAM_STRING_OR_NULL(common_params.client_info_tag, common_params.client_info_tag_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* Validate database_id range before setting */
@@ -122,6 +136,22 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
         return;
     }
 
+    {
+        const char* metadata_error =
+            client_metadata_validation_error(common_params.lib_name,
+                                             common_params.lib_name_len,
+                                             common_params.client_info_tag,
+                                             common_params.client_info_tag_len);
+        if (metadata_error != NULL) {
+            /* L-3: no VALKEY_LOG_ERROR here. The real constructors
+             * (valkey_glide.c, valkey_glide_cluster.c) throw without logging, and
+             * the exception reaches the caller either way. Logging here made a
+             * green run emit ~40 spurious ERROR lines from the 4x10 invalid-value
+             * loops, so all four sites converge on the quieter behaviour. */
+            zend_throw_exception(get_valkey_glide_exception_ce(), metadata_error, 0);
+            return;
+        }
+    }
     bool addresses_allocated = _populate_addresses(&common_params.addresses);
 
     /* Build client configuration from individual parameters */
@@ -151,6 +181,14 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
         efree(common_params.addresses);
     }
 
+    /* M-4(b) / R2-M-1: build_php_connection_request returns NULL on its allocation
+     * guard, on a failed call, and when the callable threw. It guarantees an
+     * exception is pending on every NULL return, so surfacing it here is safe and
+     * never dereferences NULL. */
+    if (!php_request) {
+        RETURN_THROWS();
+    }
+
     RETURN_ZVAL(php_request, 1, 1);
 }
 
@@ -161,7 +199,7 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
 
-    ZEND_PARSE_PARAMETERS_START(0, 17)
+    ZEND_PARSE_PARAMETERS_START(0, 19)
     Z_PARAM_OPTIONAL
     Z_PARAM_ARRAY_OR_NULL(common_params.addresses)
     Z_PARAM_BOOL(common_params.use_tls)
@@ -181,6 +219,8 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
     Z_PARAM_ARRAY_OR_NULL(common_params.client_side_cache)
     Z_PARAM_ZVAL_OR_NULL(common_params.address_resolver)
     Z_PARAM_ARRAY_OR_NULL(common_params.circuit_breaker)
+    Z_PARAM_STRING_OR_NULL(common_params.lib_name, common_params.lib_name_len)
+    Z_PARAM_STRING_OR_NULL(common_params.client_info_tag, common_params.client_info_tag_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     /* Validate database_id range before setting */
@@ -191,6 +231,22 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
         return;
     }
 
+    {
+        const char* metadata_error =
+            client_metadata_validation_error(common_params.lib_name,
+                                             common_params.lib_name_len,
+                                             common_params.client_info_tag,
+                                             common_params.client_info_tag_len);
+        if (metadata_error != NULL) {
+            /* L-3: no VALKEY_LOG_ERROR here. The real constructors
+             * (valkey_glide.c, valkey_glide_cluster.c) throw without logging, and
+             * the exception reaches the caller either way. Logging here made a
+             * green run emit ~40 spurious ERROR lines from the 4x10 invalid-value
+             * loops, so all four sites converge on the quieter behaviour. */
+            zend_throw_exception(get_valkey_glide_exception_ce(), metadata_error, 0);
+            return;
+        }
+    }
     bool addresses_allocated = _populate_addresses(&common_params.addresses);
 
     /* Build cluster client configuration from individual parameters */
@@ -240,6 +296,14 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
     if (addresses_allocated) {
         zval_ptr_dtor(common_params.addresses);
         efree(common_params.addresses);
+    }
+
+    /* M-4(b) / R2-M-1: build_php_connection_request returns NULL on its allocation
+     * guard, on a failed call, and when the callable threw. It guarantees an
+     * exception is pending on every NULL return, so surfacing it here is safe and
+     * never dereferences NULL. */
+    if (!php_request) {
+        RETURN_THROWS();
     }
 
     RETURN_ZVAL(php_request, 1, 1);

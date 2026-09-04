@@ -297,17 +297,32 @@ class TestSuite
         return false;
     }
 
-    protected function assertTrue($value): bool
+    protected function assertTrue($value, ?string $message = null): bool
     {
         if ($value === true) {
             return true;
         }
 
-        self::$errors [] = $this->assertionTrace(
-            "%s !== %s",
-            $this->printArg($value),
-            $this->printArg(true)
-        );
+        /* R2-H-1: the message MUST be a vsprintf ARGUMENT, never spliced into the
+         * format string. Callers legitimately pass messages containing '%' (e.g.
+         * "Success rate should be > 90%, got 95.2%"); splicing those in creates
+         * bogus conversion specs, and vsprintf then raises ValueError -- which
+         * extends Error, not Exception, so the runner's catch (Exception) does not
+         * catch it and the whole run dies with no summary. */
+        if ($message !== null) {
+            self::$errors [] = $this->assertionTrace(
+                "%s !== %s - %s",
+                $this->printArg($value),
+                $this->printArg(true),
+                $message
+            );
+        } else {
+            self::$errors [] = $this->assertionTrace(
+                "%s !== %s",
+                $this->printArg($value),
+                $this->printArg(true)
+            );
+        }
 
         return false;
     }
@@ -996,8 +1011,12 @@ class TestSuite
                     $failed++;
                     $failed_tests[] = $class_name . '::' . $name;
                 }
-            } catch (Exception $e) {
-                /* We may have simply skipped the test */
+            } catch (Throwable $e) {
+                /* R2-H-1: Throwable, not Exception. A PHP Error (e.g. ValueError
+                 * from a bad format string, or a TypeError) is not an Exception,
+                 * so catching only Exception let it escape and abort the entire
+                 * run -- losing the summary and every later test class. The
+                 * assertThrows helper below already catches Throwable. */
                 if ($e instanceof TestSkippedException) {
                     $result = self::makeWarning('SKIPPED');
                     $skipped++;
