@@ -43,6 +43,37 @@ extern zend_class_entry* get_valkey_glide_exception_ce();
 extern char* long_to_string(long value, size_t* len);
 extern char* double_to_string(double value, size_t* len);
 
+/*
+ * Pure resolver for the library name reported to the server, given the
+ * (already validated) lib_name override and client_info_tag. Behaviour matrix:
+ *
+ *   lib_name   client_info_tag   result
+ *   --------   ---------------   ---------------------------
+ *   unset      unset             "GlidePHP"
+ *   set        unset             "<lib_name>"
+ *   unset      set               "GlidePHP(<tag>)"
+ *   set        set               "<lib_name>(<tag>)"
+ *
+ * The default identity comes solely from VALKEY_GLIDE_LIB_NAME (common.h) so
+ * there is a single source of truth and no value is hardcoded at the call site.
+ * The binding always sends its own default rather than relying on the Rust-core
+ * fallback, so the reported identity does not depend on core build configuration.
+ * The returned string is always heap-owned (emalloc) and must be freed by the
+ * caller with efree once the ConnectionRequest has been serialized.
+ */
+static char* valkey_glide_resolve_lib_name(const char* lib_name, const char* client_info_tag) {
+    bool        have_lib = (lib_name != NULL && lib_name[0] != '\0');
+    bool        have_tag = (client_info_tag != NULL && client_info_tag[0] != '\0');
+    const char* base     = have_lib ? lib_name : VALKEY_GLIDE_LIB_NAME;
+
+    if (have_tag) {
+        size_t composed_len = strlen(base) + strlen(client_info_tag) + 3; /* '(' ')' '\0' */
+        char*  composed     = emalloc(composed_len);
+        snprintf(composed, composed_len, "%s(%s)", base, client_info_tag);
+        return composed;
+    }
+    return estrdup(base);
+}
 
 /* Create a connection request in protobuf format. Made visible for testing. */
 uint8_t* create_connection_request(size_t*                                   len,
@@ -235,6 +266,14 @@ uint8_t* create_connection_request(size_t*                                   len
     /* Set client name */
     conn_req.client_name = config->client_name ? config->client_name : NULL;
 
+    /* Resolve lib_name via the pure resolver. Always returns a heap-owned,
+     * non-NULL string (defaults to VALKEY_GLIDE_LIB_NAME), so the binding
+     * always reports its own identity rather than relying on the core default.
+     * Freed after packing below. */
+    char* composed_lib_name =
+        valkey_glide_resolve_lib_name(config->lib_name, config->client_info_tag);
+    conn_req.lib_name = composed_lib_name;
+
     /* Set client AZ */
     if (config->client_az) {
         conn_req.client_az = config->client_az;
@@ -310,12 +349,20 @@ uint8_t* create_connection_request(size_t*                                   len
     /* Allocate memory for the serialized message */
     uint8_t* buffer = (uint8_t*) emalloc(*len);
     if (!buffer) {
+        efree(composed_lib_name);
         *len = 0;
         return NULL;
     }
 
     /* Serialize the message */
     connection_request__connection_request__pack(&conn_req, buffer);
+
+    /* Free the temporary composed lib_name. T-3: valkey_glide_resolve_lib_name
+     * cannot return NULL (emalloc/estrdup bail out on OOM and `base` is non-NULL
+     * by construction), so guarding here would advertise a nullable contract that
+     * does not exist -- and protobuf-c omits a NULL string field from the wire,
+     * which would be a silent identity regression. */
+    efree(composed_lib_name);
 
     return buffer;
 }

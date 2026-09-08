@@ -2711,3 +2711,36 @@
    ...
    fun:*glide_core*scope*register_client*
 }
+
+# glide-core LIB_NAME_PATTERN (client_info_tag / lib_name validation, see
+# validate_effective_lib_name) is a process-lifetime LazyLock<Regex>. Its
+# regex-automata lazy DFA cache grows its internal hashbrown table on first
+# use and is never freed before process exit by design; valgrind's heuristic
+# reports the pre-growth backing table as possibly lost. Two call sites hit
+# this: initial table insertion during cache init, and a later rehash during
+# a forward search on the same cache.
+{
+   glide_core_lib_name_pattern_dfa_cache_init
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*hashbrown*raw*RawTable*reserve_rehash*
+   ...
+   fun:*regex_automata*hybrid*dfa*Lazy*init_cache*
+   ...
+   fun:*glide_core*client*validate_effective_lib_name*
+}
+
+{
+   glide_core_lib_name_pattern_dfa_cache_next_state
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:*hashbrown*raw*RawTable*reserve_rehash*
+   ...
+   fun:*regex_automata*hybrid*dfa*Lazy*cache_next_state*
+   ...
+   fun:*glide_core*client*validate_effective_lib_name*
+}

@@ -55,6 +55,77 @@ class ValkeyGlideMonitorTest extends ValkeyGlideBaseTest
     }
 
     /**
+     * A MONITOR connection must be attributable like any other client: the
+     * monitor path shares valkey_glide_build_client_config_base() and
+     * create_connection_request() with the standalone and cluster constructors,
+     * so lib_name / client_info_tag must resolve identically there.
+     */
+    public function testMonitorReportsComposedLibName()
+    {
+        $addresses = [['host' => $this->getHost(), 'port' => $this->getPort()]];
+
+        $cases = [
+            'default'  => [null, null, 'GlidePHP'],
+            'tag_only' => [null, 'framework:1.2', 'GlidePHP(framework:1.2)'],
+            'override' => ['custom-lib', null, 'custom-lib'],
+            'combined' => ['custom-lib', 'framework:1.2', 'custom-lib(framework:1.2)'],
+        ];
+
+        foreach ($cases as $case => [$lib, $tag, $expected]) {
+            $args = ['addresses' => $addresses];
+            if ($lib !== null) {
+                $args['lib_name'] = $lib;
+            }
+            if ($tag !== null) {
+                $args['client_info_tag'] = $tag;
+            }
+            $monitor = new ValkeyGlideMonitor(...$args);
+
+            $probe = new ValkeyGlide();
+            $probe->connect(addresses: $addresses);
+            $list = (string) $probe->rawcommand("CLIENT", "LIST");
+
+            $seen = [];
+            foreach (explode("\n", $list) as $line) {
+                if (strpos($line, 'cmd=monitor') !== false && preg_match('/lib-name=(\S+)/', $line, $m)) {
+                    $seen[$m[1]] = true;
+                }
+            }
+            $probe->close();
+            $monitor->close();
+
+            $this->assertTrue(
+                isset($seen[$expected]),
+                sprintf(
+                    'monitor case %s: expected lib-name=%s, saw [%s]',
+                    $case,
+                    $expected,
+                    implode(',', array_keys($seen))
+                )
+            );
+        }
+    }
+
+    public function testMonitorRejectsInvalidMetadata()
+    {
+        $addresses = [['host' => $this->getHost(), 'port' => $this->getPort()]];
+
+        try {
+            new ValkeyGlideMonitor(addresses: $addresses, client_info_tag: 'has space');
+            $this->assertTrue(false, 'Expected ValkeyGlideException for whitespace in client_info_tag');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains('client_info_tag', $e->getMessage());
+        }
+
+        try {
+            new ValkeyGlideMonitor(addresses: $addresses, lib_name: 'Glide(');
+            $this->assertTrue(false, 'Expected ValkeyGlideException for parenthesis in lib_name');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains('lib_name', $e->getMessage());
+        }
+    }
+
+    /**
      * Test that listen() requires a callable argument.
      */
     public function testMonitorRequiresCallable()

@@ -105,6 +105,16 @@ class ClientConstructorMock
      *                                           ValkeyGlide::NODE_DISCOVERY_MODE_STANDARD,
      *                                           ValkeyGlide::NODE_DISCOVERY_MODE_STATIC, or
      *                                           ValkeyGlide::NODE_DISCOVERY_MODE_DISCOVER_ALL.
+     * @param callable|null $address_resolver    Custom address resolver callback.
+     * @param string|null $lib_name              Override the library name sent via CLIENT SETINFO LIB-NAME (default: "GlidePHP").
+     *                                           Empty is treated as UNSET. A non-empty value must contain only
+     *                                           printable ASCII, excluding space, '(' and ')'
+     *                                           (^[\x21-\x27\x2A-\x7E]+$). Parentheses are reserved for the
+     *                                           binding's own "(tag)" composition.
+     * @param string|null $client_info_tag       Tag appended to the resolved library name as "<resolved-lib-name>(tag)" for
+     *                                           framework attribution. Empty is treated as UNSET, so no "(tag)"
+     *                                           suffix is added. A non-empty value must contain only printable
+     *                                           ASCII, excluding space, '(' and ')' (^[\x21-\x27\x2A-\x7E]+$).
      */
     public static function simulate_standalone_constructor(
         ?array $addresses = null,
@@ -124,6 +134,8 @@ class ClientConstructorMock
         ?callable $address_resolver = null,
         ?array $circuit_breaker = null,
         int $node_discovery_mode = ValkeyGlide::NODE_DISCOVERY_MODE_STANDARD,
+        ?string $lib_name = null,
+        ?string $client_info_tag = null,
     ): \Connection_request\ConnectionRequest;
 
     /**
@@ -152,6 +164,17 @@ class ClientConstructorMock
      *                                                'compression_level' => 3, 'min_compression_size' => 256].
      * @param array|null $client_side_cache           Client-side cache configuration ['cache_id' => string, 'max_cache_kb' => int,
      *                                                'entry_ttl_ms' => int, 'eviction_policy' => ?int, 'enable_metrics' => bool].
+     * @param callable|null $address_resolver         Custom address resolver callback.
+     * @param string|null $lib_name                   Override the library name sent via CLIENT SETINFO LIB-NAME (default: "GlidePHP").
+     *                                                Empty is treated as UNSET. A non-empty value must contain
+     *                                                only printable ASCII, excluding space, '(' and ')'
+     *                                                (^[\x21-\x27\x2A-\x7E]+$). Parentheses are reserved for
+     *                                                the binding's own "(tag)" composition.
+     * @param string|null $client_info_tag            Tag appended to the resolved library name as "<resolved-lib-name>(tag)" for
+     *                                                framework attribution. Empty is treated as UNSET, so no
+     *                                                "(tag)" suffix is added. A non-empty value must contain only
+     *                                                printable ASCII, excluding space, '(' and ')'
+     *                                                (^[\x21-\x27\x2A-\x7E]+$).
      */
     public static function simulate_cluster_constructor(
         ?array $addresses = null,
@@ -171,5 +194,7 @@ class ClientConstructorMock
         ?array $client_side_cache = null,
         ?callable $address_resolver = null,
         ?array $circuit_breaker = null,
+        ?string $lib_name = null,
+        ?string $client_info_tag = null,
     ): \Connection_request\ConnectionRequest;
 }
