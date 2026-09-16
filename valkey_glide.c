@@ -219,7 +219,9 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
 
     /* Set client availability zone.
      *
-     * A value that is empty or only whitespace is treated as absent (NULL). The core compares
+     * A value that is empty, only whitespace, or empty as a C string is treated as absent (NULL).
+     * The value is forwarded to the core as a NUL-terminated C string, so scanning stops at the
+     * first NUL byte: a value like "\0..." is effectively empty on the wire. The core compares
      * availability zones with exact equality and never trims, so a blank value such as " " would
      * otherwise satisfy the AZ-affinity requirement below, engage the strategy, match no node, and
      * silently spread reads across all nodes. Rejecting it here surfaces the misconfiguration at
@@ -229,6 +231,10 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
     if (params->client_az && params->client_az_len > 0) {
         for (size_t az_i = 0; az_i < params->client_az_len; az_i++) {
             char az_ch = params->client_az[az_i];
+            /* Stop at the first NUL: bytes past it never reach the core. */
+            if (az_ch == '\0') {
+                break;
+            }
             if (az_ch != ' ' && az_ch != '\t' && az_ch != '\n' && az_ch != '\r' && az_ch != '\f' &&
                 az_ch != '\v') {
                 config->client_az = params->client_az;
