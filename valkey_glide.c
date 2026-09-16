@@ -229,8 +229,8 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
     if (params->client_az && params->client_az_len > 0) {
         for (size_t az_i = 0; az_i < params->client_az_len; az_i++) {
             char az_ch = params->client_az[az_i];
-            if (az_ch != ' ' && az_ch != '\t' && az_ch != '\n' && az_ch != '\r' &&
-                az_ch != '\f' && az_ch != '\v') {
+            if (az_ch != ' ' && az_ch != '\t' && az_ch != '\n' && az_ch != '\r' && az_ch != '\f' &&
+                az_ch != '\v') {
                 config->client_az = params->client_az;
                 break;
             }
@@ -278,7 +278,8 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
                 break;
             case VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY:
                 az_error_message =
-                    "client_az must be set when read_from is set to AZ_AFFINITY_REPLICAS_AND_PRIMARY";
+                    "client_az must be set when read_from is set to "
+                    "AZ_AFFINITY_REPLICAS_AND_PRIMARY";
                 break;
             case VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_ALL_NODES:
                 az_error_message =
