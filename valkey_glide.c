@@ -217,8 +217,25 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
        since it is effectively one-request-at-a-time. */
     config->inflight_requests_limit = -1;
 
-    /* Set client availability zone */
-    config->client_az = (params->client_az && params->client_az_len > 0) ? params->client_az : NULL;
+    /* Set client availability zone.
+     *
+     * A value that is empty or only whitespace is treated as absent (NULL). The core compares
+     * availability zones with exact equality and never trims, so a blank value such as " " would
+     * otherwise satisfy the AZ-affinity requirement below, engage the strategy, match no node, and
+     * silently spread reads across all nodes. Rejecting it here surfaces the misconfiguration at
+     * client creation instead. Only the borrowed PHP pointer is forwarded, never a copy, so client
+     * config ownership is unchanged. */
+    config->client_az = NULL;
+    if (params->client_az && params->client_az_len > 0) {
+        for (size_t az_i = 0; az_i < params->client_az_len; az_i++) {
+            char az_ch = params->client_az[az_i];
+            if (az_ch != ' ' && az_ch != '\t' && az_ch != '\n' && az_ch != '\r' &&
+                az_ch != '\f' && az_ch != '\v') {
+                config->client_az = params->client_az;
+                break;
+            }
+        }
+    }
 
     /* Set lazy connect option */
     config->lazy_connect = params->lazy_connect_is_null ? false : params->lazy_connect;

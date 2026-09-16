@@ -251,6 +251,92 @@ class ConnectionRequestTest extends \TestSuite
         );
     }
 
+    public function testClusterAzAffinityAllNodesRequiresClientAz()
+    {
+        $this->assertThrowsMatch(
+            null,
+            function () {
+                ClientConstructorMock::simulate_cluster_constructor(
+                    read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_ALL_NODES
+                );
+            },
+            '/client_az must be set when read_from is set to AZ_AFFINITY_ALL_NODES/'
+        );
+    }
+
+    /**
+     * Every AZ-affinity strategy must require a client AZ, and each must report its own name in the
+     * error. Mirrors the reference clients, which validate all three strategies rather than only the
+     * newly added one, so a regression in any of them is caught here.
+     */
+    public function testAzAffinityStrategiesRequireClientAz()
+    {
+        $strategies = [
+            ValkeyGlide::READ_FROM_AZ_AFFINITY                      => 'AZ_AFFINITY',
+            ValkeyGlide::READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY => 'AZ_AFFINITY_REPLICAS_AND_PRIMARY',
+            ValkeyGlide::READ_FROM_AZ_AFFINITY_ALL_NODES           => 'AZ_AFFINITY_ALL_NODES',
+        ];
+
+        foreach ($strategies as $read_from => $name) {
+            $pattern = '/client_az must be set when read_from is set to ' . preg_quote($name, '/') . '/';
+
+            $this->assertThrowsMatch(
+                null,
+                function () use ($read_from) {
+                    ClientConstructorMock::simulate_standalone_constructor(read_from: $read_from);
+                },
+                $pattern
+            );
+
+            $this->assertThrowsMatch(
+                null,
+                function () use ($read_from) {
+                    ClientConstructorMock::simulate_cluster_constructor(read_from: $read_from);
+                },
+                $pattern
+            );
+        }
+    }
+
+    /**
+     * Non-AZ strategies never require a client AZ. Confirms the validation is scoped to exactly the
+     * AZ-affinity strategies and does not leak into the default/replica strategies.
+     */
+    public function testNonAzStrategiesDoNotRequireClientAz()
+    {
+        $strategies = [
+            ValkeyGlide::READ_FROM_PRIMARY        => \Connection_request\ReadFrom::Primary,
+            ValkeyGlide::READ_FROM_PREFER_REPLICA => \Connection_request\ReadFrom::PreferReplica,
+        ];
+
+        foreach ($strategies as $read_from => $expected) {
+            $request = ClientConstructorMock::simulate_standalone_constructor(read_from: $read_from);
+            $this->assertEquals($expected, $request->getReadFrom());
+        }
+    }
+
+    /**
+     * A whitespace-only client_az is treated as absent. The core compares AZs with exact equality
+     * and never trims, so a blank value would otherwise engage the strategy, match no node, and
+     * silently fall back to routing across all nodes. Rejecting it surfaces the misconfiguration at
+     * client creation instead.
+     */
+    public function testAzAffinityAllNodesRejectsBlankClientAz()
+    {
+        foreach (['', ' ', '   ', "\t", "\n", " \t\n "] as $blank) {
+            $this->assertThrowsMatch(
+                null,
+                function () use ($blank) {
+                    ClientConstructorMock::simulate_standalone_constructor(
+                        read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_ALL_NODES,
+                        client_az: $blank
+                    );
+                },
+                '/client_az must be set when read_from is set to AZ_AFFINITY_ALL_NODES/'
+            );
+        }
+    }
+
     public function testStandaloneNodeDiscoveryModeDefault()
     {
         $request = ClientConstructorMock::simulate_standalone_constructor();
