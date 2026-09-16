@@ -241,10 +241,39 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         case 3: /* AZ_AFFINITY_REPLICAS_AND_PRIMARY */
             config->read_from = VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY;
             break;
+        case 4: /* AZ_AFFINITY_ALL_NODES */
+            config->read_from = VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_ALL_NODES;
+            break;
         default: {
             const char* error_message = "Invalid read_from value.";
             VALKEY_LOG_ERROR("valkey_glide_build_client_config_base", error_message);
             zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return FAILURE;
+        }
+    }
+
+    /* AZ affinity read strategies require a client availability zone to be set. */
+    if (!config->client_az) {
+        const char* az_error_message = NULL;
+        switch (config->read_from) {
+            case VALKEY_GLIDE_READ_FROM_AZ_AFFINITY:
+                az_error_message = "client_az must be set when read_from is set to AZ_AFFINITY";
+                break;
+            case VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY:
+                az_error_message =
+                    "client_az must be set when read_from is set to AZ_AFFINITY_REPLICAS_AND_PRIMARY";
+                break;
+            case VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_ALL_NODES:
+                az_error_message =
+                    "client_az must be set when read_from is set to AZ_AFFINITY_ALL_NODES";
+                break;
+            default:
+                break;
+        }
+
+        if (az_error_message) {
+            VALKEY_LOG_ERROR("valkey_glide_build_client_config_base", az_error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), az_error_message, 0);
             return FAILURE;
         }
     }

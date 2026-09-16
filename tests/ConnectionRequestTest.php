@@ -204,14 +204,51 @@ class ConnectionRequestTest extends \TestSuite
 
     public function testStandaloneReadFrom()
     {
-        $request = ClientConstructorMock::simulate_standalone_constructor(read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY);
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY,
+            client_az: 'us-east-1a'
+        );
         $this->assertEquals(\Connection_request\ReadFrom::AZAffinity, $request->getReadFrom());
     }
 
     public function testClusterReadFrom()
     {
-        $request = ClientConstructorMock::simulate_cluster_constructor(read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY);
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY,
+            client_az: 'us-east-1a'
+        );
         $this->assertEquals(\Connection_request\ReadFrom::AZAffinityReplicasAndPrimary, $request->getReadFrom());
+    }
+
+    public function testStandaloneReadFromAzAffinityAllNodes()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor(
+            read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_ALL_NODES,
+            client_az: 'us-east-1a'
+        );
+        $this->assertEquals(\Connection_request\ReadFrom::AZAffinityAllNodes, $request->getReadFrom());
+    }
+
+    public function testClusterReadFromAzAffinityAllNodes()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(
+            read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_ALL_NODES,
+            client_az: 'us-east-1a'
+        );
+        $this->assertEquals(\Connection_request\ReadFrom::AZAffinityAllNodes, $request->getReadFrom());
+    }
+
+    public function testStandaloneAzAffinityAllNodesRequiresClientAz()
+    {
+        $this->assertThrowsMatch(
+            null,
+            function () {
+                ClientConstructorMock::simulate_standalone_constructor(
+                    read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_ALL_NODES
+                );
+            },
+            '/client_az must be set when read_from is set to AZ_AFFINITY_ALL_NODES/'
+        );
     }
 
     public function testStandaloneNodeDiscoveryModeDefault()

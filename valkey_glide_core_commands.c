@@ -203,6 +203,8 @@ uint8_t* create_connection_request(size_t*                                   len
         conn_req.read_from = CONNECTION_REQUEST__READ_FROM__AZAffinity;
     } else if (config->read_from == VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY) {
         conn_req.read_from = CONNECTION_REQUEST__READ_FROM__AZAffinityReplicasAndPrimary;
+    } else if (config->read_from == VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_ALL_NODES) {
+        conn_req.read_from = CONNECTION_REQUEST__READ_FROM__AZAffinityAllNodes;
     } else {
         const char* error_message = "Invalid read_from value.";
         VALKEY_LOG_ERROR("create_connection_request", error_message);
