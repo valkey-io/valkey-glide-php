@@ -219,9 +219,12 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
 
     /* Set client availability zone.
      *
-     * A value that is empty, only whitespace, or empty as a C string is treated as absent (NULL).
-     * The value is forwarded to the core as a NUL-terminated C string, so scanning stops at the
-     * first NUL byte: a value like "\0..." is effectively empty on the wire. The core compares
+     * The value is forwarded to the core as a NUL-terminated C string, so an embedded NUL would be
+     * silently truncated on the wire (e.g. "us-east-1a\0x" would reach the core as "us-east-1a"),
+     * changing AZ-based routing without the caller's knowledge. A NUL is never part of a legitimate
+     * availability-zone name, so reject any value containing one.
+     *
+     * A value that is empty or only whitespace is treated as absent (NULL). The core compares
      * availability zones with exact equality and never trims, so a blank value such as " " would
      * otherwise satisfy the AZ-affinity requirement below, engage the strategy, match no node, and
      * silently spread reads across all nodes. Rejecting it here surfaces the misconfiguration at
@@ -229,17 +232,22 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
      * config ownership is unchanged. */
     config->client_az = NULL;
     if (params->client_az && params->client_az_len > 0) {
+        bool az_has_content = false;
         for (size_t az_i = 0; az_i < params->client_az_len; az_i++) {
             char az_ch = params->client_az[az_i];
-            /* Stop at the first NUL: bytes past it never reach the core. */
             if (az_ch == '\0') {
-                break;
+                const char* az_error_message = "client_az must not contain NUL bytes.";
+                VALKEY_LOG_ERROR("valkey_glide_build_client_config_base", az_error_message);
+                zend_throw_exception(get_valkey_glide_exception_ce(), az_error_message, 0);
+                return FAILURE;
             }
             if (az_ch != ' ' && az_ch != '\t' && az_ch != '\n' && az_ch != '\r' && az_ch != '\f' &&
                 az_ch != '\v') {
-                config->client_az = params->client_az;
-                break;
+                az_has_content = true;
             }
+        }
+        if (az_has_content) {
+            config->client_az = params->client_az;
         }
     }
 

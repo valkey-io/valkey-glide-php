@@ -316,21 +316,14 @@ class ConnectionRequestTest extends \TestSuite
     }
 
     /**
-     * A client_az that is empty, whitespace-only, or empty as a C string (leading NUL) is treated
-     * as absent. The core compares AZs with exact equality and never trims, and the value reaches
-     * the core as a NUL-terminated C string, so any of these would otherwise engage the strategy,
-     * match no node, and silently fall back to routing across all nodes. Rejecting them surfaces
-     * the misconfiguration at client creation instead.
+     * A client_az that is empty or whitespace-only is treated as absent. The core compares AZs with
+     * exact equality and never trims, so a blank value would otherwise engage the strategy, match no
+     * node, and silently fall back to routing across all nodes. Rejecting it surfaces the
+     * misconfiguration at client creation instead.
      */
     public function testAzAffinityAllNodesRejectsBlankClientAz()
     {
-        $blanks = ['', ' ', '   ', "\t", "\n", " \t\n "];
-        // Empty or whitespace-prefixed as a C string: everything from the first NUL is dropped.
-        $blanks[] = "\0";
-        $blanks[] = "\0us-east-1a";
-        $blanks[] = " \0us-east-1a";
-
-        foreach ($blanks as $blank) {
+        foreach (['', ' ', '   ', "\t", "\n", " \t\n "] as $blank) {
             $this->assertThrowsMatch(
                 null,
                 function () use ($blank) {
@@ -340,6 +333,30 @@ class ConnectionRequestTest extends \TestSuite
                     );
                 },
                 '/client_az must be set when read_from is set to AZ_AFFINITY_ALL_NODES/'
+            );
+        }
+    }
+
+    /**
+     * A client_az containing a NUL byte is rejected outright. The value reaches the core as a
+     * NUL-terminated C string, so an embedded NUL would be silently truncated on the wire (e.g.
+     * "us-east-1a\0x" would arrive as "us-east-1a"), changing AZ routing without the caller's
+     * knowledge. A NUL is never part of a legitimate availability-zone name.
+     */
+    public function testClientAzRejectsNulBytes()
+    {
+        $nul_values = ["\0", "\0us-east-1a", " \0us-east-1a", "us-east-1a\0", "us-east-1a\0x"];
+
+        foreach ($nul_values as $value) {
+            $this->assertThrowsMatch(
+                null,
+                function () use ($value) {
+                    ClientConstructorMock::simulate_standalone_constructor(
+                        read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_ALL_NODES,
+                        client_az: $value
+                    );
+                },
+                '/client_az must not contain NUL bytes/'
             );
         }
     }
