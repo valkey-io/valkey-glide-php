@@ -361,6 +361,30 @@ class ConnectionRequestTest extends \TestSuite
         }
     }
 
+    /**
+     * A client_az with leading or trailing whitespace (e.g. "us-east-1a\n" from getenv or
+     * file_get_contents) is rejected. It has content but would never match a node under the core's
+     * exact-equality compare, silently falling back to reading across all nodes. Rejecting it
+     * surfaces the misconfiguration at client creation instead.
+     */
+    public function testClientAzRejectsSurroundingWhitespace()
+    {
+        $padded = ["us-east-1a\n", " us-east-1a", "us-east-1a ", "\tus-east-1a", " us-east-1a "];
+
+        foreach ($padded as $value) {
+            $this->assertThrowsMatch(
+                null,
+                function () use ($value) {
+                    ClientConstructorMock::simulate_standalone_constructor(
+                        read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_ALL_NODES,
+                        client_az: $value
+                    );
+                },
+                '/client_az must not have leading or trailing whitespace/'
+            );
+        }
+    }
+
     public function testStandaloneNodeDiscoveryModeDefault()
     {
         $request = ClientConstructorMock::simulate_standalone_constructor();

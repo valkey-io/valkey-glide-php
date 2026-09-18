@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Breaking Changes
+
+* An AZ-affinity read strategy (`READ_FROM_AZ_AFFINITY`, `READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY`, or `READ_FROM_AZ_AFFINITY_ALL_NODES`) configured without a valid `client_az` now throws at client creation. Previously the core logged a warning and downgraded the strategy to `PreferReplica`, so reads silently went to arbitrary nodes. A `client_az` that is empty, whitespace-only, contains a NUL byte, or has leading/trailing whitespace is rejected ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
+
 ### Changes
 
 * Add `READ_FROM_AZ_AFFINITY_ALL_NODES` read strategy for standalone and cluster clients ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
