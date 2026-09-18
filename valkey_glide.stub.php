@@ -197,6 +197,17 @@ class ValkeyGlide
 
           /**
            *  @var int
+           * Spread the read requests equally among all nodes (primary and replicas) within the
+           * client's Availability Zone (AZ) in a round robin manner, falling back to a round robin
+           * across all nodes if no node in the client's AZ is available.
+           *
+           * Requires `client_az` to be set on the client configuration. Connecting with this
+           * strategy and a missing or whitespace-only `client_az` throws a ValkeyGlideException.
+           */
+    public const  READ_FROM_AZ_AFFINITY_ALL_NODES = 4;
+
+          /**
+           *  @var int
            * Default node discovery mode. Verifies node roles via INFO REPLICATION and uses
            * only the provided addresses.
            */

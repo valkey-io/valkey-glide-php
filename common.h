@@ -130,7 +130,8 @@ typedef enum {
     VALKEY_GLIDE_READ_FROM_PRIMARY                          = 0,
     VALKEY_GLIDE_READ_FROM_PREFER_REPLICA                   = 1,
     VALKEY_GLIDE_READ_FROM_AZ_AFFINITY                      = 2,
-    VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY = 3
+    VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY = 3,
+    VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_ALL_NODES            = 4
 } valkey_glide_read_from_t;
 
 typedef enum {

@@ -597,13 +597,13 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         // Test READ_FROM_AZ_AFFINITY
         if (!$this->getTLS()) {
             $valkey_glide = new ValkeyGlide();
-            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY);
+            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY, client_az: 'us-east-1a');
         } else {
             $advancedConfig = [
                 'tls_config' => ['use_insecure_tls' => true]
             ];
             $valkey_glide = new ValkeyGlide();
-            $valkey_glide->connect(addresses: $addresses, use_tls: true, read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY, advanced_config: $advancedConfig);
+            $valkey_glide->connect(addresses: $addresses, use_tls: true, read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY, client_az: 'us-east-1a', advanced_config: $advancedConfig);
         }
         $this->assertTrue($valkey_glide->ping());
         $valkey_glide->close();
@@ -611,13 +611,13 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         // Test READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY
         if (!$this->getTLS()) {
             $valkey_glide = new ValkeyGlide();
-            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY);
+            $valkey_glide->connect(addresses: $addresses, use_tls: $this->getTLS(), read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY, client_az: 'us-east-1a');
         } else {
             $advancedConfig = [
                 'tls_config' => ['use_insecure_tls' => true]
             ];
             $valkey_glide = new ValkeyGlide();
-            $valkey_glide->connect(addresses: $addresses, use_tls: true, read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY, advanced_config: $advancedConfig);
+            $valkey_glide->connect(addresses: $addresses, use_tls: true, read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY, client_az: 'us-east-1a', advanced_config: $advancedConfig);
         }
         $this->assertTrue($valkey_glide->ping());
         $valkey_glide->close();

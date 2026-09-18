@@ -307,7 +307,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             addresses: [['host' => '127.0.0.1', 'port' => 7001]],
             use_tls: false,
             credentials: $this->getAuth(),
-            read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY
+            read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY,
+            client_az: 'us-east-1a'
         );
 
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
@@ -321,7 +322,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             addresses: [['host' => '127.0.0.1', 'port' => 7001]],
             use_tls: false,
             credentials: $this->getAuth(),
-            read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY
+            read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY,
+            client_az: 'us-east-1a'
         );
 
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));

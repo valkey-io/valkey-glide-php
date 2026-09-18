@@ -217,8 +217,55 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
        since it is effectively one-request-at-a-time. */
     config->inflight_requests_limit = -1;
 
-    /* Set client availability zone */
-    config->client_az = (params->client_az && params->client_az_len > 0) ? params->client_az : NULL;
+    /* Set client availability zone.
+     *
+     * The value is forwarded to the core as a NUL-terminated C string, so an embedded NUL would be
+     * silently truncated on the wire (e.g. "us-east-1a\0x" would reach the core as "us-east-1a"),
+     * changing AZ-based routing without the caller's knowledge. A NUL is never part of a legitimate
+     * availability-zone name, so reject any value containing one.
+     *
+     * The core compares availability zones with exact equality and never trims. Therefore:
+     *   - An empty or whitespace-only value is treated as absent (NULL); the AZ-affinity
+     * requirement below then rejects it, surfacing the misconfiguration at client creation instead
+     * of letting the strategy engage, match no node, and silently spread reads across all nodes.
+     *   - A value with leading or trailing whitespace (e.g. "us-east-1a\n" from
+     * getenv/file_get_contents) has content but would never match a node under the core's
+     * exact-equality compare, producing the same silent all-nodes fallback. It is rejected rather
+     * than forwarded. Only the borrowed PHP pointer is forwarded, never a copy, so client config
+     * ownership is unchanged. */
+    config->client_az = NULL;
+    if (params->client_az && params->client_az_len > 0) {
+        bool az_has_content = false;
+        for (size_t az_i = 0; az_i < params->client_az_len; az_i++) {
+            char az_ch = params->client_az[az_i];
+            if (az_ch == '\0') {
+                const char* az_error_message = "client_az must not contain NUL bytes.";
+                VALKEY_LOG_ERROR("valkey_glide_build_client_config_base", az_error_message);
+                zend_throw_exception(get_valkey_glide_exception_ce(), az_error_message, 0);
+                return FAILURE;
+            }
+            if (az_ch != ' ' && az_ch != '\t' && az_ch != '\n' && az_ch != '\r' && az_ch != '\f' &&
+                az_ch != '\v') {
+                az_has_content = true;
+            }
+        }
+        if (az_has_content) {
+            char first_ch = params->client_az[0];
+            char last_ch  = params->client_az[params->client_az_len - 1];
+            bool is_space =
+                (first_ch == ' ' || first_ch == '\t' || first_ch == '\n' || first_ch == '\r' ||
+                 first_ch == '\f' || first_ch == '\v' || last_ch == ' ' || last_ch == '\t' ||
+                 last_ch == '\n' || last_ch == '\r' || last_ch == '\f' || last_ch == '\v');
+            if (is_space) {
+                const char* az_error_message =
+                    "client_az must not have leading or trailing whitespace.";
+                VALKEY_LOG_ERROR("valkey_glide_build_client_config_base", az_error_message);
+                zend_throw_exception(get_valkey_glide_exception_ce(), az_error_message, 0);
+                return FAILURE;
+            }
+            config->client_az = params->client_az;
+        }
+    }
 
     /* Set lazy connect option */
     config->lazy_connect = params->lazy_connect_is_null ? false : params->lazy_connect;
@@ -241,10 +288,40 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         case 3: /* AZ_AFFINITY_REPLICAS_AND_PRIMARY */
             config->read_from = VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY;
             break;
+        case 4: /* AZ_AFFINITY_ALL_NODES */
+            config->read_from = VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_ALL_NODES;
+            break;
         default: {
             const char* error_message = "Invalid read_from value.";
             VALKEY_LOG_ERROR("valkey_glide_build_client_config_base", error_message);
             zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+            return FAILURE;
+        }
+    }
+
+    /* AZ affinity read strategies require a client availability zone to be set. */
+    if (!config->client_az) {
+        const char* az_error_message = NULL;
+        switch (config->read_from) {
+            case VALKEY_GLIDE_READ_FROM_AZ_AFFINITY:
+                az_error_message = "client_az must be set when read_from is set to AZ_AFFINITY";
+                break;
+            case VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY:
+                az_error_message =
+                    "client_az must be set when read_from is set to "
+                    "AZ_AFFINITY_REPLICAS_AND_PRIMARY";
+                break;
+            case VALKEY_GLIDE_READ_FROM_AZ_AFFINITY_ALL_NODES:
+                az_error_message =
+                    "client_az must be set when read_from is set to AZ_AFFINITY_ALL_NODES";
+                break;
+            default:
+                break;
+        }
+
+        if (az_error_message) {
+            VALKEY_LOG_ERROR("valkey_glide_build_client_config_base", az_error_message);
+            zend_throw_exception(get_valkey_glide_exception_ce(), az_error_message, 0);
             return FAILURE;
         }
     }

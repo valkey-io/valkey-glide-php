@@ -56,7 +56,8 @@ $standaloneAddresses = [
 // All configuration options for standalone client
 $use_tls = false;
 $credentials = null; // ['username' => 'user', 'password' => 'pass']
-$read_from = 0; // 0=PRIMARY, 1=PREFER_REPLICA, 2=AZ_AFFINITY
+$read_from = 0; // 0=PRIMARY, 1=PREFER_REPLICA, 2=AZ_AFFINITY,
+                // 3=AZ_AFFINITY_REPLICAS_AND_PRIMARY, 4=AZ_AFFINITY_ALL_NODES
 $request_timeout = 2000; // 2 seconds in milliseconds
 $reconnect_strategy = [
     'num_of_retries' => 3,
@@ -66,7 +67,7 @@ $reconnect_strategy = [
 $database_id = 0; // Database number (0 or higher for standalone)
 $client_name = 'valkey-glide-example';
 $inflight_requests_limit = 250;
-$client_az = null; // Availability zone for AZ_AFFINITY reads
+$client_az = null; // Availability zone; required for AZ_AFFINITY, AZ_AFFINITY_REPLICAS_AND_PRIMARY, and AZ_AFFINITY_ALL_NODES reads
 $advanced_config = [
     'connection_timeout' => 5000, // Connection timeout in milliseconds
     'socket_timeout' => 3000      // Socket timeout in milliseconds
