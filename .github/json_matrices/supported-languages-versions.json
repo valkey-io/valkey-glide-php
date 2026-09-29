@@ -1,11 +1,13 @@
 [
   {
     "language": "php",
-    "versions": ["8.2", "8.3"],
-    "always-run-versions": ["8.2", "8.3"],
+    "versions": ["8.2", "8.3", "8.4", "8.5"],
+    "always-run-versions": ["8.2", "8.3", "8.4", "8.5"],
     "versioned": [
       { "version": "8.2", "profiles": ["full"] },
-      { "version": "8.3", "profiles": ["full"] }
+      { "version": "8.3", "profiles": ["full"] },
+      { "version": "8.4", "profiles": ["full"] },
+      { "version": "8.5", "profiles": ["full"] }
     ]
   }
 ]

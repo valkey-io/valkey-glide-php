@@ -34,7 +34,7 @@ to the GLIDE Core written in Rust using C FFI headers.
 - Alpine Linux: 3.19+ (x86_64, aarch64) — uses musl libc
 - macOS: 13.7+ (x86_64), 14.7+ (aarch64)
 
-**PHP Versions:** 8.2, 8.3
+**PHP Versions:** 8.2, 8.3, 8.4, 8.5
 
 **Packages:** `valkey-io/valkey-glide-php`
 
