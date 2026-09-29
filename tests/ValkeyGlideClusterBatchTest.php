@@ -41,19 +41,7 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
     /* Override newInstance as we want a ValkeyGlideCluster object */
     protected function newInstance()
     {
-        try {
-            return new ValkeyGlideCluster(
-                addresses: [['host' => '127.0.0.1', 'port' => 7001]],
-                use_tls: false,
-                credentials: $this->getAuth(),
-                read_from: ValkeyGlide::READ_FROM_PRIMARY,
-            );
-        } catch (Exception $ex) {
-            TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());
-            //TestSuite::errorMessage("Seeds: %s\n", implode(' ', self::$seeds));
-            TestSuite::errorMessage("Seed source: %s\n", self::$seed_source);
-            exit(1);
-        }
+        return parent::newInstance();
     }
 
     public function testServerOperationsBatch()

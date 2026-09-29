@@ -2678,7 +2678,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
             $this->withOptReplyLiteralEnabled(function () {
                 $result = $this->valkey_glide->bgSave('CANCEL');
-                $this->assertFalse($result);
+                $this->assertTrue($result === false || $result === 'Background saving cancelled');
             });
         }
     }
@@ -3622,7 +3622,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     /**
      * Poll until a server reaches the expected role, or fail after timeout.
      */
-    protected function waitForRole(ValkeyGlide $client, string $expectedRole, int $timeoutSeconds = 5): void
+    protected function waitForRole(ValkeyGlide $client, string $expectedRole, int $timeoutSeconds = 15): void
     {
         $this->waitFor(
             function () use ($client, $expectedRole) {

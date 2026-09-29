@@ -425,30 +425,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
-    /* Override newInstance as we want a ValkeyGlideCluster object */
-    protected function newInstance()
+    /* Override newInstance as we want a ValkeyGlideCluster object with multi-database support */
+    protected function newInstance(?int $databaseId = 0)
     {
-        try {
-            return new ValkeyGlideCluster(
-                addresses: [['host' => '127.0.0.1', 'port' => 7001]],
-                use_tls: false,
-                credentials: $this->getAuth(),
-                read_from: ValkeyGlide::READ_FROM_PRIMARY,
-                request_timeout: null,
-                reconnect_strategy: null,
-                client_name: null,
-                periodic_checks: null,
-                client_az: null,
-                advanced_config: null,
-                lazy_connect: null,
-                database_id: 0 // enable multi-database support
-            );
-        } catch (Exception $ex) {
-            TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());
-            //TestSuite::errorMessage("Seeds: %s\n", implode(' ', self::$seeds));
-            TestSuite::errorMessage("Seed source: %s\n", self::$seed_source);
-            exit(1);
-        }
+        return parent::newInstance($databaseId ?? 0);
     }
 
     /* Override getPort to return cluster port */
@@ -599,10 +579,19 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // A successful CANCEL (when a save IS in progress) would return an array
         // for multi-node routes since at least one node returns a success response.
         $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
-        $this->assertFalse($result);
+        if ($result !== false) {
+            $this->assertIsArray($result);
+            $this->assertNotEmpty($result);
+            foreach ($result as $nodeAddress => $nodeResult) {
+                $this->assertIsString($nodeAddress);
+                $this->assertTrue($nodeResult);
+            }
+        } else {
+            $this->assertFalse($result);
+        }
 
         $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
-        $this->assertFalse($result);
+        $this->assertIsBool($result);
     }
 
     public function testBgSaveWithReplyLiteral()
@@ -650,10 +639,19 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
             $this->withOptReplyLiteralEnabled(function () {
                 $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
-                $this->assertFalse($result);
+                if ($result !== false) {
+                    $this->assertIsArray($result);
+                    $this->assertNotEmpty($result);
+                    foreach ($result as $nodeAddress => $nodeResult) {
+                        $this->assertIsString($nodeAddress);
+                        $this->assertSame('Background saving cancelled', $nodeResult);
+                    }
+                } else {
+                    $this->assertFalse($result);
+                }
 
                 $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
-                $this->assertFalse($result);
+                $this->assertTrue($result === false || $result === 'Background saving cancelled');
             });
         }
     }

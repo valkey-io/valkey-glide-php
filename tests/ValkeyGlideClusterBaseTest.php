@@ -121,21 +121,62 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest
         echo "Connected to $server_type cluster base server version: {$this->version}\n";
     }
 
-    /* Override newInstance as we want a ValkeyGlideCluster object */
-    protected function newInstance()
+    /**
+     * Get cluster addresses, reading from VALKEY_CLUSTER_SEEDS env var if available,
+     * or defaulting to the configured host and cluster port.
+     */
+    protected function getClusterAddresses(): array
     {
-        try {
-            return new ValkeyGlideCluster(
-                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
-                use_tls: false,
-                credentials: $this->getAuth(),
-                read_from: ValkeyGlide::READ_FROM_PRIMARY
-            );
-        } catch (Exception $ex) {
-            TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());
-            //TestSuite::errorMessage("Seeds: %s\n", implode(' ', self::$seeds));
-            TestSuite::errorMessage("Seed source: %s\n", self::$seed_source);
-            exit(1);
+        $addresses = [];
+        $envSeeds = getenv('VALKEY_CLUSTER_SEEDS');
+        if (!empty($envSeeds)) {
+            foreach (explode(',', $envSeeds) as $seed) {
+                $seed = trim($seed);
+                if (empty($seed)) {
+                    continue;
+                }
+                if (str_contains($seed, ':')) {
+                    [$h, $p] = explode(':', $seed, 2);
+                    $addresses[] = ['host' => $h, 'port' => (int) $p];
+                } else {
+                    $addresses[] = ['host' => $this->getHost(), 'port' => (int) $seed];
+                }
+            }
+        }
+        if (empty($addresses)) {
+            $addresses = [['host' => $this->getHost(), 'port' => $this->getPort()]];
+        }
+        return $addresses;
+    }
+
+    /* Override newInstance as we want a ValkeyGlideCluster object */
+    protected function newInstance(?int $databaseId = null)
+    {
+        $addresses = $this->getClusterAddresses();
+        $attempts = 3;
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            try {
+                $options = [
+                    'addresses' => $addresses,
+                    'use_tls' => false,
+                    'credentials' => $this->getAuth(),
+                    'read_from' => ValkeyGlide::READ_FROM_PRIMARY,
+                    'request_timeout' => 10000,
+                ];
+                if ($databaseId !== null) {
+                    $options['database_id'] = $databaseId;
+                }
+                return new ValkeyGlideCluster(...$options);
+            } catch (Exception $ex) {
+                if ($attempt === $attempts) {
+                    TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());
+                    //TestSuite::errorMessage("Seeds: %s\n", implode(' ', self::$seeds));
+                    TestSuite::errorMessage("Seed source: %s\n", self::$seed_source);
+                    exit(1);
+                }
+                echo "Warning: Cluster client connection attempt $attempt failed ({$ex->getMessage()}), retrying in 500ms...\n";
+                usleep(500000);
+            }
         }
     }
 

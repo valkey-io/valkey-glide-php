@@ -7,6 +7,16 @@ require_once __DIR__ . '/TestConstants.php';
 
 class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
 {
+    public function setUp()
+    {
+        // Intentionally do not call parent::setUp(); each test creates its own client.
+    }
+
+    public function tearDown()
+    {
+        // No shared client to close.
+    }
+
     public function testAddressResolverWithFakeAddress()
     {
         $this->skipIfTlsEnabled();
