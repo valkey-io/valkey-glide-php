@@ -2743,19 +2743,20 @@ class ValkeyGlide
      *
      * @param string $command The PUBSUB subcommand (case-insensitive). One of:
      *                        <code>"channels"</code>, <code>"numsub"</code>, <code>"numpat"</code>,
-     *                        <code>"shardchannels"</code>.
+     *                        <code>"shardchannels"</code>, <code>"shardnumsub"</code>.
      * @param mixed  $arg     Depends on the subcommand:
      *                        <code>
      *                        channels / shardchannels - optional glob-style pattern string.
-     *                        numsub                    - optional array of channel names.
+     *                        numsub / shardnumsub      - array of channel names.
      *                        numpat                    - no argument.
      *                        </code>
      *
      * @return mixed For <code>channels</code>/<code>shardchannels</code> an array of active
-     *               channels; for <code>numsub</code> a flat array of channel/count pairs;
-     *               for <code>numpat</code> an integer.
+     *               channels; for <code>numsub</code>/<code>shardnumsub</code> a flat array of
+     *               channel/count pairs; for <code>numpat</code> an integer.
      *
      * @see https://valkey.io/commands/pubsub-shardchannels/
+     * @see https://valkey.io/commands/pubsub-shardnumsub/
      *
      * @example $valkey_glide->pubsub('shardchannels', 'news.*');
      */

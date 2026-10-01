@@ -948,6 +948,30 @@ PHP_METHOD(ValkeyGlideCluster, punsubscribe) {
 }
 /* }}} */
 
+/* {{{ proto bool ValkeyGlideCluster::ssubscribe(array chans, callable cb) */
+PHP_METHOD(ValkeyGlideCluster, ssubscribe) {
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_ssubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
+}
+/* }}} */
+
+/* {{{ proto bool ValkeyGlideCluster::sunsubscribe([array chans]) */
+PHP_METHOD(ValkeyGlideCluster, sunsubscribe) {
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_sunsubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
+}
+/* }}} */
+
 /* Commands that do not interact with ValkeyGlide, but just report stuff about
  * various options, etc */
 
@@ -1097,6 +1121,18 @@ PHP_METHOD(ValkeyGlideCluster, publish) {
     }
     valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
+
+/* {{{ proto int ValkeyGlideCluster::spublish(string channel, string message) */
+PHP_METHOD(ValkeyGlideCluster, spublish) {
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
+    if (!valkey_glide->glide_client) {
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Client not connected", 0);
+        RETURN_FALSE;
+    }
+    valkey_glide_spublish_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
+}
+/* }}} */
 
 /* {{{ proto mixed ValkeyGlideCluster::pubsub(string key, ...)
  *     proto mixed ValkeyGlideCluster::pubsub(array host_port, ...) */
