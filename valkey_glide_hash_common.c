@@ -844,25 +844,29 @@ int populate_field_args(zval*          field_values,
     int arg_idx = start_idx;
 
     for (int i = 0; i < fv_count; i++) {
-        zval* field = &field_values[i];
-        char* field_str;
+        zval*  field = &field_values[i];
+        char*  field_str;
+        size_t field_len;
 
         if (Z_TYPE_P(field) == IS_STRING) {
-            /* Create copy of original string - required for cleanup compatibility */
-            field_str = estrdup(Z_STRVAL_P(field));
+            /* Create copy of original string - required for cleanup compatibility.
+             * Use the zval length (not strlen) so embedded NUL bytes are preserved. */
+            field_len = Z_STRLEN_P(field);
+            field_str = estrndup(Z_STRVAL_P(field), field_len);
         } else {
-            /* Convert to string and create copy */
+            /* Convert to string and create a length-preserving copy */
             zval temp;
             ZVAL_COPY(&temp, field);
             convert_to_string(&temp);
-            field_str = estrdup(Z_STRVAL(temp));
+            field_len = Z_STRLEN(temp);
+            field_str = estrndup(Z_STRVAL(temp), field_len);
             zval_dtor(&temp);
         }
 
         /* Store copy in allocated_strings for cleanup */
         allocated_strings[(*allocated_count)++] = field_str;
         args_out[arg_idx]                       = (uintptr_t) field_str;
-        args_len_out[arg_idx]                   = strlen(field_str);
+        args_len_out[arg_idx]                   = field_len;
         arg_idx++;
     }
 

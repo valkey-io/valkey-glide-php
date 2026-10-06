@@ -5221,6 +5221,15 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // Requesting fields of a non-existent key yields all nulls.
         $this->assertEquals([null, null], $this->valkey_glide->hGetDel($key, ['a', 'b']));
+
+        // Field names are binary-safe: a name with an embedded NUL byte must be
+        // sent at its full length, not truncated at the NUL.
+        $this->valkey_glide->del($key);
+        $nul_field = "a\0b";
+        $this->assertEquals(2, $this->valkey_glide->hSet($key, [$nul_field => 'nv', 'plain' => 'pv']));
+        $this->assertEquals(['nv'], $this->valkey_glide->hGetDel($key, [$nul_field]));
+        $this->assertFalse($this->valkey_glide->hExists($key, $nul_field));
+        $this->assertEquals('pv', $this->valkey_glide->hGet($key, 'plain'));
     }
 
     public function testHashFieldExpirationCommandValidation(): void

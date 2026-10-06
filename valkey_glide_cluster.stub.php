@@ -862,7 +862,7 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::hGetDel
      */
-    public function hGetDel(string $key, array $fields): mixed;
+    public function hGetDel(string $key, array $fields): ValkeyGlideCluster|array|false;
 
     /**
      * @see ValkeyGlide::hExpire
