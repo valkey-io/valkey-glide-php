@@ -5230,6 +5230,20 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(['nv'], $this->valkey_glide->hGetDel($key, [$nul_field]));
         $this->assertFalse($this->valkey_glide->hExists($key, $nul_field));
         $this->assertEquals('pv', $this->valkey_glide->hGet($key, 'plain'));
+
+        // Batch mode: hGetDel chains and its result is returned in order by exec(),
+        // with null for a missing field, and the fields are deleted afterwards.
+        $this->valkey_glide->del($key);
+        $this->assertEquals(3, $this->valkey_glide->hSet($key, ['b1' => 'bv1', 'b2' => 'bv2', 'b3' => 'bv3']));
+        $this->assertEquals(
+            [['bv1', null], 'bv3'],
+            $this->valkey_glide->multi()
+                ->hGetDel($key, ['b1', 'missing'])
+                ->hGet($key, 'b3')
+                ->exec()
+        );
+        $this->assertFalse($this->valkey_glide->hExists($key, 'b1'));
+        $this->assertEquals('bv3', $this->valkey_glide->hGet($key, 'b3'));
     }
 
     public function testHashFieldExpirationCommandValidation(): void
