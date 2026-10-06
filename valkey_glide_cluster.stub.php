@@ -860,6 +860,11 @@ class ValkeyGlideCluster
     public function hGetEx(string $key, array $fields, ?array $options = null): mixed;
 
     /**
+     * @see ValkeyGlide::hGetDel
+     */
+    public function hGetDel(string $key, array $fields): mixed;
+
+    /**
      * @see ValkeyGlide::hExpire
      */
     public function hExpire(string $key, int $seconds, ?string $mode, string $field, string ...$other_fields): ValkeyGlideCluster|array|false;

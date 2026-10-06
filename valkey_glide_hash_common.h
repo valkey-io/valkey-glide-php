@@ -233,6 +233,12 @@ int prepare_h_getex_args(h_command_args_t* args,
                          char***           allocated_strings,
                          int*              allocated_count);
 
+int prepare_h_getdel_args(h_command_args_t* args,
+                          uintptr_t**       args_out,
+                          unsigned long**   args_len_out,
+                          char***           allocated_strings,
+                          int*              allocated_count);
+
 /**
  * Safely populate field arguments from zval array
  * Handles string conversion and memory management correctly
@@ -326,6 +332,7 @@ int execute_hvals_command(zval* object, int argc, zval* return_value, zend_class
 int execute_hgetall_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_hstrlen_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 
 int execute_h_mset_command(valkey_glide_object* valkey_glide,
@@ -769,6 +776,20 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
         }                                                                         \
         zval_dtor(return_value);                                                  \
         RETURN_FALSE;                                                             \
+    }
+
+#define HGETDEL_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, hGetDel) {                                              \
+        if (execute_hgetdel_command(getThis(),                                     \
+                                    ZEND_NUM_ARGS(),                               \
+                                    return_value,                                  \
+                                    strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                        ? get_valkey_glide_cluster_ce()            \
+                                        : get_valkey_glide_ce())) {                \
+            return;                                                                \
+        }                                                                          \
+        zval_dtor(return_value);                                                   \
+        RETURN_FALSE;                                                              \
     }
 
 // Hash Field Expiration function declarations

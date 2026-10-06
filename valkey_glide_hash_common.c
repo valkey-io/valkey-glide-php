@@ -112,6 +112,10 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
             arg_count = prepare_h_getex_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
+        case HGetDel:
+            arg_count = prepare_h_getdel_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
+            break;
         default:
 
             if (result_ptr) {
@@ -246,6 +250,10 @@ int execute_h_simple_command(valkey_glide_object* valkey_glide,
             break;
         case HGetEx:
             arg_count = prepare_h_getex_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
+            break;
+        case HGetDel:
+            arg_count = prepare_h_getdel_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         default:
@@ -918,6 +926,63 @@ int prepare_h_getex_args(h_command_args_t* args,
                            allocated_count);
         }
     }
+
+    /* Add "FIELDS" keyword */
+    (*args_out)[arg_idx]     = (uintptr_t) "FIELDS";
+    (*args_len_out)[arg_idx] = 6;
+    arg_idx++;
+
+    /* Add field count */
+    size_t field_count_len;
+    char*  field_count_str = safe_format_int(field_count, &field_count_len);
+    add_string_arg(field_count_str,
+                   field_count_len,
+                   args_out,
+                   args_len_out,
+                   &arg_idx,
+                   allocated_strings,
+                   allocated_count);
+
+    /* Add fields only */
+    populate_field_args(args->fields,
+                        args->field_count,
+                        arg_idx,
+                        *args_out,
+                        *args_len_out,
+                        *allocated_strings,
+                        allocated_count);
+
+    return arg_count;
+}
+
+/**
+ * Prepare arguments for HGETDEL command
+ * Redis format: HGETDEL key FIELDS numfields field [field ...]
+ */
+int prepare_h_getdel_args(h_command_args_t* args,
+                          uintptr_t**       args_out,
+                          unsigned long**   args_len_out,
+                          char***           allocated_strings,
+                          int*              allocated_count) {
+    if (!args->key || !args->fields || args->field_count == 0) {
+        return 0;
+    }
+
+    int field_count = args->field_count;
+    int arg_count   = 3 + args->field_count; /* key + "FIELDS" + field_count + fields */
+
+    *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    *allocated_strings = (char**) emalloc((1 + args->field_count) *
+                                          sizeof(char*)); /* field_count + field conversions */
+    *allocated_count   = 0;
+
+    int arg_idx = 0;
+
+    /* Add key */
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
+    (*args_len_out)[arg_idx] = args->key_len;
+    arg_idx++;
 
     /* Add "FIELDS" keyword */
     (*args_out)[arg_idx]     = (uintptr_t) "FIELDS";
@@ -3116,6 +3181,69 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
         valkey_glide, HGetEx, &args, &args, H_RESPONSE_GETEX, return_value);
 
     // Cleanup allocated field array
+    for (int j = 0; j < field_count; j++) {
+        zval_dtor(&field_array[j]);
+    }
+    efree(field_array);
+
+    if (result) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Execute HGETDEL command with unified signature
+ * HGETDEL key FIELDS numfields field [field ...]
+ * Returns an array of values in request order, with null for fields that did not exist.
+ */
+int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zval*                fields = NULL;
+
+    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) ==
+        FAILURE) {
+        return 0;
+    }
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    /* Extract fields from the array parameter */
+    int field_count = zend_array_count(Z_ARRVAL_P(fields));
+    if (field_count == 0) {
+        return 0;
+    }
+
+    zval* field_array = emalloc(field_count * sizeof(zval));
+
+    HashTable* fields_ht = Z_ARRVAL_P(fields);
+    zval*      field_val;
+    int        i = 0;
+    ZEND_HASH_FOREACH_VAL(fields_ht, field_val) {
+        ZVAL_COPY(&field_array[i], field_val);
+        i++;
+    }
+    ZEND_HASH_FOREACH_END();
+
+    h_command_args_t args = {0};
+    args.key              = key;
+    args.key_len          = key_len;
+    args.fields           = field_array;
+    args.field_count      = field_count;
+
+    int result = execute_h_simple_command(
+        valkey_glide, HGetDel, &args, NULL, H_RESPONSE_ARRAY, return_value);
+
+    /* Cleanup allocated field array */
     for (int j = 0; j < field_count; j++) {
         zval_dtor(&field_array[j]);
     }

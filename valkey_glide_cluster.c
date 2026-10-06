@@ -629,6 +629,10 @@ HPERSIST_METHOD_IMPL(ValkeyGlideCluster)
 HGETEX_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto array ValkeyGlideCluster::hGetDel(string key, array fields) */
+HGETDEL_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto string ValkeyGlideCluster::hget(string key, string mem) */
 HGET_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */

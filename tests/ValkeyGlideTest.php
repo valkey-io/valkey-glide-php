@@ -5195,6 +5195,34 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertLTE(300, $ttl_getex[0]);
     }
 
+    public function testHGetDel(): void
+    {
+        if (!$this->minVersionCheck('9.1.0')) {
+            $this->markTestSkipped('HGETDEL requires Valkey 9.1.0+ (current: ' . $this->version . ')');
+        }
+
+        $key = $this->createRandomString(16);
+        $this->valkey_glide->del($key);
+        $this->assertEquals(3, $this->valkey_glide->hSet($key, ['f1' => 'v1', 'f2' => 'v2', 'f3' => 'v3']));
+
+        // Get and delete a subset of fields, returned positionally in request order.
+        $this->assertEquals(['v1', 'v2'], $this->valkey_glide->hGetDel($key, ['f1', 'f2']));
+
+        // The returned fields are now gone; the remaining field is untouched.
+        $this->assertFalse($this->valkey_glide->hExists($key, 'f1'));
+        $this->assertFalse($this->valkey_glide->hExists($key, 'f2'));
+        $this->assertEquals('v3', $this->valkey_glide->hGet($key, 'f3'));
+
+        // Missing fields come back as null, in request order, alongside existing ones.
+        $this->assertEquals(['v3', null], $this->valkey_glide->hGetDel($key, ['f3', 'missing']));
+
+        // Removing the last field deletes the key entirely.
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
+
+        // Requesting fields of a non-existent key yields all nulls.
+        $this->assertEquals([null, null], $this->valkey_glide->hGetDel($key, ['a', 'b']));
+    }
+
     public function testHashFieldExpirationCommandValidation(): void
     {
         if (!$this->compare_major_version_number(9)) {
