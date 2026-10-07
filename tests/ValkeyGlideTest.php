@@ -2649,9 +2649,19 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             return;
         }
 
-        $this->waitForSaveNotInProgress();
-
-        $result = $this->valkey_glide->bgSave('CANCEL');
+        // A save left running by an earlier test can still be in flight when
+        // CANCEL runs, in which case CANCEL succeeds and returns a non-false
+        // result. Wait for saves to settle and retry before asserting false.
+        $result = false;
+        $this->waitFor(
+            function () use (&$result) {
+                $this->waitForSaveNotInProgress();
+                $result = $this->valkey_glide->bgSave('CANCEL');
+                return $result === false;
+            },
+            15,
+            'BGSAVE CANCEL did not settle to false (a save kept running)'
+        );
         $this->assertFalse($result);
     }
 
