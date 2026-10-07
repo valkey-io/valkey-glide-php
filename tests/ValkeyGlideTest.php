@@ -5256,19 +5256,19 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->hExists($key, 'b1'));
         $this->assertEquals('bv3', $this->valkey_glide->hGet($key, 'b3'));
 
-        // Duplicate field names are rejected before sending, since the field => value
-        // map cannot represent two replies under the same key. The command is not
-        // sent, so existing fields are left untouched.
+        // Duplicate field names are deduplicated and the command still runs
+        // (matching PHPRedis, which dedups its field list). The field is returned
+        // once under its key and deleted.
         $this->valkey_glide->del($key);
         $this->assertEquals(1, $this->valkey_glide->hSet($key, ['dup' => 'dv']));
-        $this->assertFalse($this->valkey_glide->hGetDel($key, ['dup', 'dup']));
-        $this->assertEquals('dv', $this->valkey_glide->hGet($key, 'dup'));
+        $this->assertEquals(['dup' => 'dv'], $this->valkey_glide->hGetDel($key, ['dup', 'dup']));
+        $this->assertFalse($this->valkey_glide->hExists($key, 'dup'));
 
         // Non-string field names are normalized once (PHP string cast) and that
-        // normalized name is used consistently for the request, the duplicate
-        // check, and the returned map. In particular false becomes "" (not "0"),
-        // so false and "0" are distinct fields and both values round-trip without
-        // one overwriting the other.
+        // normalized name is used consistently for the request and the returned
+        // map. In particular false becomes "" (not "0"), so false and "0" are
+        // distinct fields and both values round-trip without one overwriting the
+        // other.
         $this->valkey_glide->del($key);
         $this->assertEquals(2, $this->valkey_glide->hSet($key, ['' => 'v_empty', '0' => 'v_zero']));
         $this->assertEquals(
@@ -5276,6 +5276,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->valkey_glide->hGetDel($key, [false, '0'])
         );
         $this->assertEquals(0, $this->valkey_glide->exists($key));
+
+        // A key holding a non-hash value returns false (PHP client wrong-type
+        // convention), matching the GLIDE reference clients.
+        $this->valkey_glide->del($key);
+        $this->valkey_glide->set($key, 'not_a_hash');
+        $this->assertFalse($this->valkey_glide->hGetDel($key, ['field']));
+        $this->assertEquals('not_a_hash', $this->valkey_glide->get($key));
     }
 
     public function testHashFieldExpirationCommandValidation(): void

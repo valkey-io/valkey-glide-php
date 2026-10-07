@@ -3251,23 +3251,23 @@ int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_cla
     zval* field_array = ecalloc(field_count, sizeof(zval));
 
     /* Normalize every field to its string form once, up front, and store the
-     * normalized string back into field_array. This guarantees the duplicate
-     * check, the request builder (populate_field_args), and the returned
-     * field => value map all use the exact same bytes. Without this, a non-string
-     * field such as false would be sent as "" by the request builder but mapped
-     * under key "0" by the result processor, and ['f' => false] vs "0" could
-     * collide and silently drop a value from this destructive operation.
+     * normalized string back into field_array. This guarantees the request
+     * builder (populate_field_args) and the returned field => value map use the
+     * exact same bytes. Without this, a non-string field such as false would be
+     * sent as "" by the request builder but mapped under key "0" by the result
+     * processor.
      *
-     * Because the result is an associative field => value map, a repeated field
-     * name would collapse to a single key and lose one of the server replies, so
-     * reject duplicate (normalized) field names before sending the command. */
+     * The result is an associative field => value map, so a repeated field name
+     * would collapse to a single key. Rather than reject duplicates, deduplicate
+     * the normalized field list and send only the unique names (matching PHPRedis,
+     * which dedups its field list and still executes). The command still runs and
+     * the field is returned/deleted once. */
     HashTable seen;
     zend_hash_init(&seen, field_count, NULL, NULL, 0);
 
     HashTable* fields_ht = Z_ARRVAL_P(fields);
     zval*      field_val;
     int        i              = 0;
-    int        duplicate      = 0;
     int        convert_failed = 0;
     ZEND_HASH_FOREACH_VAL(fields_ht, field_val) {
         /* Canonicalize to a string zval so all consumers agree on the name.
@@ -3279,20 +3279,21 @@ int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_cla
             convert_failed = 1;
             break;
         }
-        ZVAL_STR(&field_array[i], fkey);
-        i++;
 
+        /* Skip fields already seen (dedup) so each unique field is sent once. */
         if (zend_hash_exists(&seen, fkey)) {
-            duplicate = 1;
-            break;
+            zend_string_release(fkey);
+            continue;
         }
         zend_hash_add_empty_element(&seen, fkey);
+        ZVAL_STR(&field_array[i], fkey);
+        i++;
     }
     ZEND_HASH_FOREACH_END();
 
     zend_hash_destroy(&seen);
 
-    if (convert_failed || duplicate) {
+    if (convert_failed) {
         /* Release the fields copied so far and abort before sending. On
          * conversion failure a PHP exception is already pending for the caller. */
         for (int j = 0; j < i; j++) {
