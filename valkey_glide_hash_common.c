@@ -3250,9 +3250,17 @@ int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_cla
      * which frees each field zval and the array itself. */
     zval* field_array = ecalloc(field_count, sizeof(zval));
 
-    /* Because the result is an associative field => value map, a repeated field
-     * name would collapse to a single key and lose one of the two server
-     * replies. Reject duplicate field names up front so the mapping is lossless. */
+    /* Normalize every field to its string form once, up front, and store the
+     * normalized string back into field_array. This guarantees the duplicate
+     * check, the request builder (populate_field_args), and the returned
+     * field => value map all use the exact same bytes. Without this, a non-string
+     * field such as false would be sent as "" by the request builder but mapped
+     * under key "0" by the result processor, and ['f' => false] vs "0" could
+     * collide and silently drop a value from this destructive operation.
+     *
+     * Because the result is an associative field => value map, a repeated field
+     * name would collapse to a single key and lose one of the server replies, so
+     * reject duplicate (normalized) field names before sending the command. */
     HashTable seen;
     zend_hash_init(&seen, field_count, NULL, NULL, 0);
 
@@ -3261,18 +3269,16 @@ int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_cla
     int        i         = 0;
     int        duplicate = 0;
     ZEND_HASH_FOREACH_VAL(fields_ht, field_val) {
-        ZVAL_COPY(&field_array[i], field_val);
+        /* Canonicalize to a string zval so all consumers agree on the name. */
+        zend_string* fkey = zval_get_string(field_val);
+        ZVAL_STR(&field_array[i], fkey);
+        i++;
 
-        zend_string* fkey = zval_get_string(&field_array[i]);
         if (zend_hash_exists(&seen, fkey)) {
             duplicate = 1;
-            zend_string_release(fkey);
-            i++;
             break;
         }
         zend_hash_add_empty_element(&seen, fkey);
-        zend_string_release(fkey);
-        i++;
     }
     ZEND_HASH_FOREACH_END();
 

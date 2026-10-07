@@ -5263,6 +5263,19 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $this->valkey_glide->hSet($key, ['dup' => 'dv']));
         $this->assertFalse($this->valkey_glide->hGetDel($key, ['dup', 'dup']));
         $this->assertEquals('dv', $this->valkey_glide->hGet($key, 'dup'));
+
+        // Non-string field names are normalized once (PHP string cast) and that
+        // normalized name is used consistently for the request, the duplicate
+        // check, and the returned map. In particular false becomes "" (not "0"),
+        // so false and "0" are distinct fields and both values round-trip without
+        // one overwriting the other.
+        $this->valkey_glide->del($key);
+        $this->assertEquals(2, $this->valkey_glide->hSet($key, ['' => 'v_empty', '0' => 'v_zero']));
+        $this->assertEquals(
+            ['' => 'v_empty', '0' => 'v_zero'],
+            $this->valkey_glide->hGetDel($key, [false, '0'])
+        );
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
     }
 
     public function testHashFieldExpirationCommandValidation(): void
