@@ -3266,11 +3266,19 @@ int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_cla
 
     HashTable* fields_ht = Z_ARRVAL_P(fields);
     zval*      field_val;
-    int        i         = 0;
-    int        duplicate = 0;
+    int        i              = 0;
+    int        duplicate      = 0;
+    int        convert_failed = 0;
     ZEND_HASH_FOREACH_VAL(fields_ht, field_val) {
-        /* Canonicalize to a string zval so all consumers agree on the name. */
-        zend_string* fkey = zval_get_string(field_val);
+        /* Canonicalize to a string zval so all consumers agree on the name.
+         * Use the try-variant so a throwing object __toString() is detected
+         * instead of silently yielding "" and dispatching against the wrong
+         * (empty-named) field while the caller receives an exception. */
+        zend_string* fkey = zval_try_get_string(field_val);
+        if (!fkey) {
+            convert_failed = 1;
+            break;
+        }
         ZVAL_STR(&field_array[i], fkey);
         i++;
 
@@ -3284,8 +3292,9 @@ int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_cla
 
     zend_hash_destroy(&seen);
 
-    if (duplicate) {
-        /* Release the fields copied so far and abort before sending. */
+    if (convert_failed || duplicate) {
+        /* Release the fields copied so far and abort before sending. On
+         * conversion failure a PHP exception is already pending for the caller. */
         for (int j = 0; j < i; j++) {
             zval_ptr_dtor(&field_array[j]);
         }
