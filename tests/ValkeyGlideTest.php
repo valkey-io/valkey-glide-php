@@ -5205,38 +5205,39 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key);
         $this->assertEquals(3, $this->valkey_glide->hSet($key, ['f1' => 'v1', 'f2' => 'v2', 'f3' => 'v3']));
 
-        // Get and delete a subset of fields, returned positionally in request order.
-        $this->assertEquals(['v1', 'v2'], $this->valkey_glide->hGetDel($key, ['f1', 'f2']));
+        // Get and delete a subset of fields, returned as a field => value map.
+        $this->assertEquals(['f1' => 'v1', 'f2' => 'v2'], $this->valkey_glide->hGetDel($key, ['f1', 'f2']));
 
         // The returned fields are now gone; the remaining field is untouched.
         $this->assertFalse($this->valkey_glide->hExists($key, 'f1'));
         $this->assertFalse($this->valkey_glide->hExists($key, 'f2'));
         $this->assertEquals('v3', $this->valkey_glide->hGet($key, 'f3'));
 
-        // Missing fields come back as null, in request order, alongside existing ones.
-        $this->assertEquals(['v3', null], $this->valkey_glide->hGetDel($key, ['f3', 'missing']));
+        // Missing fields map to false, alongside existing field => value entries.
+        $this->assertEquals(['f3' => 'v3', 'missing' => false], $this->valkey_glide->hGetDel($key, ['f3', 'missing']));
 
         // Removing the last field deletes the key entirely.
         $this->assertEquals(0, $this->valkey_glide->exists($key));
 
-        // Requesting fields of a non-existent key yields all nulls.
-        $this->assertEquals([null, null], $this->valkey_glide->hGetDel($key, ['a', 'b']));
+        // Requesting fields of a non-existent key maps every field to false.
+        $this->assertEquals(['a' => false, 'b' => false], $this->valkey_glide->hGetDel($key, ['a', 'b']));
 
         // Field names are binary-safe: a name with an embedded NUL byte must be
         // sent at its full length, not truncated at the NUL.
         $this->valkey_glide->del($key);
         $nul_field = "a\0b";
         $this->assertEquals(2, $this->valkey_glide->hSet($key, [$nul_field => 'nv', 'plain' => 'pv']));
-        $this->assertEquals(['nv'], $this->valkey_glide->hGetDel($key, [$nul_field]));
+        $this->assertEquals([$nul_field => 'nv'], $this->valkey_glide->hGetDel($key, [$nul_field]));
         $this->assertFalse($this->valkey_glide->hExists($key, $nul_field));
         $this->assertEquals('pv', $this->valkey_glide->hGet($key, 'plain'));
 
-        // Batch mode: hGetDel chains and its result is returned in order by exec(),
-        // with null for a missing field, and the fields are deleted afterwards.
+        // Batch mode: hGetDel chains and its field => value map is returned in
+        // order by exec(), with false for a missing field, and the fields are
+        // deleted afterwards.
         $this->valkey_glide->del($key);
         $this->assertEquals(3, $this->valkey_glide->hSet($key, ['b1' => 'bv1', 'b2' => 'bv2', 'b3' => 'bv3']));
         $this->assertEquals(
-            [['bv1', null], 'bv3'],
+            [['b1' => 'bv1', 'missing' => false], 'bv3'],
             $this->valkey_glide->multi()
                 ->hGetDel($key, ['b1', 'missing'])
                 ->hGet($key, 'b3')

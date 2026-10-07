@@ -3203,7 +3203,8 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
 /**
  * Execute HGETDEL command with unified signature
  * HGETDEL key FIELDS numfields field [field ...]
- * Returns an array of values in request order, with null for fields that did not exist.
+ * Returns an associative array mapping each requested field to its value, with
+ * false for fields that did not exist (matching hMget/hGetEx and phpredis).
  */
 int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -3227,7 +3228,9 @@ int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_cla
         return 0;
     }
 
-    zval* field_array = emalloc(field_count * sizeof(zval));
+    /* Heap-allocate the field array; ownership passes to process_h_mget_result,
+     * which frees each field zval and the array itself. */
+    zval* field_array = ecalloc(field_count, sizeof(zval));
 
     HashTable* fields_ht = Z_ARRVAL_P(fields);
     zval*      field_val;
@@ -3238,27 +3241,26 @@ int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_cla
     }
     ZEND_HASH_FOREACH_END();
 
-    h_command_args_t args = {0};
-    args.key              = key;
-    args.key_len          = key_len;
-    args.fields           = field_array;
-    args.field_count      = field_count;
+    /* Execute HGETDEL through the generic framework, reusing the HMGET result
+     * processor so the return shape is an associative field => value map (false
+     * for missing fields), consistent with hMget/hGetEx and phpredis. The
+     * HGetDel case in execute_h_generic_command builds the correct
+     * "key FIELDS numfields field..." wire form via prepare_h_getdel_args. */
+    h_command_args_t* args = ecalloc(1, sizeof(h_command_args_t));
+    args->glide_client     = valkey_glide->glide_client;
+    args->key              = key;
+    args->key_len          = key_len;
+    args->fields           = field_array;
+    args->field_count      = i;
 
-    int result = execute_h_simple_command(
-        valkey_glide, HGetDel, &args, NULL, H_RESPONSE_ARRAY, return_value);
+    int result = execute_h_generic_command(
+        valkey_glide, HGetDel, args, args, process_h_mget_result, return_value);
 
-    /* Cleanup allocated field array */
-    for (int j = 0; j < field_count; j++) {
-        zval_dtor(&field_array[j]);
+    /* Handle batch mode */
+    if (result && valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
     }
-    efree(field_array);
 
-    if (result) {
-        if (valkey_glide->is_in_batch_mode) {
-            ZVAL_COPY(return_value, object);
-            return 1;
-        }
-        return 1;
-    }
-    return 0;
+    return result;
 }

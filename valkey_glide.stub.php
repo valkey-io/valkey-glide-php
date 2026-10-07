@@ -1602,14 +1602,14 @@ class ValkeyGlide
     /**
      * Atomically get and delete one or more fields from a hash.
      *
-     * The specified fields are returned in request order and then removed from the hash.
-     * When the hash's last field is removed, the key itself is deleted.
+     * The specified fields are returned and then removed from the hash. When the
+     * hash's last field is removed, the key itself is deleted.
      *
      * @param string $key    The hash key in question.
      * @param array  $fields Array of field names to get and delete.
      *
-     * @return ValkeyGlide|array|false An array of values in request order, with null for any
-     *                                 field that did not exist, or false on failure.
+     * @return ValkeyGlide|array|false A map of each requested field to its value, with
+     *                                 false for any field that did not exist, or false on failure.
      *
      * @see https://valkey.io/commands/hgetdel
      *
