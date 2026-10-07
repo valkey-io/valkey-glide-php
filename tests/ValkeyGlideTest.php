@@ -5245,6 +5245,14 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         );
         $this->assertFalse($this->valkey_glide->hExists($key, 'b1'));
         $this->assertEquals('bv3', $this->valkey_glide->hGet($key, 'b3'));
+
+        // Duplicate field names are rejected before sending, since the field => value
+        // map cannot represent two replies under the same key. The command is not
+        // sent, so existing fields are left untouched.
+        $this->valkey_glide->del($key);
+        $this->assertEquals(1, $this->valkey_glide->hSet($key, ['dup' => 'dv']));
+        $this->assertFalse($this->valkey_glide->hGetDel($key, ['dup', 'dup']));
+        $this->assertEquals('dv', $this->valkey_glide->hGet($key, 'dup'));
     }
 
     public function testHashFieldExpirationCommandValidation(): void

@@ -128,8 +128,14 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
 
     if (arg_count <= 0) {
         if (result_ptr) {
-            efree(args->fields);
-            efree(result_ptr);
+            if (process_result) {
+                /* Delegate cleanup to the shape-aware processor so copied field
+                 * zvals are released (not just the backing array). */
+                process_result(NULL, result_ptr, return_value);
+            } else {
+                efree(args->fields);
+                efree(result_ptr);
+            }
         }
         goto cleanup;
     }
@@ -153,15 +159,23 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
         } else {
             valkey_glide_record_command_error(valkey_glide, result);
             if (result_ptr) {
-                efree(args->fields);
-                efree(result_ptr);
+                if (process_result) {
+                    process_result(NULL, result_ptr, return_value);
+                } else {
+                    efree(args->fields);
+                    efree(result_ptr);
+                }
             }
         }
         free_command_result(result);
     } else {
         if (result_ptr) {
-            efree(args->fields);
-            efree(result_ptr);
+            if (process_result) {
+                process_result(NULL, result_ptr, return_value);
+            } else {
+                efree(args->fields);
+                efree(result_ptr);
+            }
         }
     }
 
@@ -1175,6 +1189,10 @@ int process_h_mget_result(CommandResponse* response, void* output, zval* return_
 
     /* Check if the command was successful */
     if (!response) {
+        /* Release each copied field value, then the backing array and args. */
+        for (int j = 0; j < args->field_count; j++) {
+            zval_ptr_dtor(&args->fields[j]);
+        }
         efree(args->fields);
         efree(args);
         return 0;
@@ -3232,14 +3250,42 @@ int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_cla
      * which frees each field zval and the array itself. */
     zval* field_array = ecalloc(field_count, sizeof(zval));
 
+    /* Because the result is an associative field => value map, a repeated field
+     * name would collapse to a single key and lose one of the two server
+     * replies. Reject duplicate field names up front so the mapping is lossless. */
+    HashTable seen;
+    zend_hash_init(&seen, field_count, NULL, NULL, 0);
+
     HashTable* fields_ht = Z_ARRVAL_P(fields);
     zval*      field_val;
-    int        i = 0;
+    int        i         = 0;
+    int        duplicate = 0;
     ZEND_HASH_FOREACH_VAL(fields_ht, field_val) {
         ZVAL_COPY(&field_array[i], field_val);
+
+        zend_string* fkey = zval_get_string(&field_array[i]);
+        if (zend_hash_exists(&seen, fkey)) {
+            duplicate = 1;
+            zend_string_release(fkey);
+            i++;
+            break;
+        }
+        zend_hash_add_empty_element(&seen, fkey);
+        zend_string_release(fkey);
         i++;
     }
     ZEND_HASH_FOREACH_END();
+
+    zend_hash_destroy(&seen);
+
+    if (duplicate) {
+        /* Release the fields copied so far and abort before sending. */
+        for (int j = 0; j < i; j++) {
+            zval_ptr_dtor(&field_array[j]);
+        }
+        efree(field_array);
+        return 0;
+    }
 
     /* Execute HGETDEL through the generic framework, reusing the HMGET result
      * processor so the return shape is an associative field => value map (false
