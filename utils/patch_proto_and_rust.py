@@ -121,8 +121,13 @@ def patch_rust_types_rs(rust_types_file):
             log_message("Applied jitter_percent patch")
 
         # Fix refresh_interval_seconds: changed from Option<u32> to u32
-        refresh_pattern = r'refresh_interval_seconds,\s*\n\s*}'
-        refresh_replacement = 'refresh_interval_seconds: Some(refresh_interval_seconds),\n                }'
+        # Match the `refresh_interval_seconds,` shorthand field inside the
+        # `IamAuthenticationConfig { ... }` struct literal, tolerating any fields
+        # that follow it (e.g. `credentials_provider: None,`). Idempotent: once
+        # patched the field reads `refresh_interval_seconds: Some(...)` and no
+        # longer matches the bare-shorthand pattern below.
+        refresh_pattern = r'\brefresh_interval_seconds,'
+        refresh_replacement = 'refresh_interval_seconds: Some(refresh_interval_seconds),'
         if re.search(refresh_pattern, new_content):
             if not needs_patching:
                 create_backup(rust_types_file)

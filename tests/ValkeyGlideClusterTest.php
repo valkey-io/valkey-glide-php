@@ -580,8 +580,6 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             return;
         }
 
-        $this->waitForNoPendingSave();
-
         // When no save is in progress, CANCEL returns false (not an array) even for
         // multi-node routes. This is because the glide-core's response aggregation
         // checks all node responses for errors before building the Map result. When
@@ -590,10 +588,32 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // This matches PHPRedis semantics where bgSave() returns false on failure.
         // A successful CANCEL (when a save IS in progress) would return an array
         // for multi-node routes since at least one node returns a success response.
-        $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
-        $this->assertFalse($result);
+        //
+        // A background save left running by an earlier test (or started by the
+        // engine itself) can still be in flight on some node when CANCEL runs,
+        // in which case CANCEL legitimately succeeds there and the result is not
+        // false. That is an inherent race rather than a failure, so wait for all
+        // saves to settle and retry before asserting the "nothing to cancel" shape.
+        $this->assertBgSaveCancelReturnsFalse('allPrimaries');
+        $this->assertBgSaveCancelReturnsFalse('randomNode');
+    }
 
-        $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
+    /**
+     * Assert that CANCEL with no save in progress returns false, tolerating the
+     * race where a prior save is still finishing on some cluster node.
+     */
+    protected function assertBgSaveCancelReturnsFalse($route)
+    {
+        $result = false;
+        $this->waitFor(
+            function () use ($route, &$result) {
+                $this->waitForSaveNotInProgress();
+                $result = $this->valkey_glide->bgSave($route, 'CANCEL');
+                return $result === false;
+            },
+            15,
+            "BGSAVE CANCEL on '$route' did not settle to false (a save kept running)"
+        );
         $this->assertFalse($result);
     }
 
@@ -629,7 +649,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             }
         });
 
-        $this->waitForNoPendingSave();
+        $this->waitForSaveNotInProgress();
 
         $this->withOptReplyLiteralEnabled(function () {
             $result = $this->valkey_glide->bgSave('randomNode', 'SCHEDULE');
@@ -638,7 +658,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         });
 
         if ($this->minVersionCheck('8.1.0')) {
-            $this->waitForSaveNotInProgress();
+            $this->waitForNoPendingSave();
 
             $this->withOptReplyLiteralEnabled(function () {
                 $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');

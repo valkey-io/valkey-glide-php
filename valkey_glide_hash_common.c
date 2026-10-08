@@ -112,6 +112,10 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
             arg_count = prepare_h_getex_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
+        case HGetDel:
+            arg_count = prepare_h_getdel_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
+            break;
         default:
 
             if (result_ptr) {
@@ -124,8 +128,14 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
 
     if (arg_count <= 0) {
         if (result_ptr) {
-            efree(args->fields);
-            efree(result_ptr);
+            if (process_result) {
+                /* Delegate cleanup to the shape-aware processor so copied field
+                 * zvals are released (not just the backing array). */
+                process_result(NULL, result_ptr, return_value);
+            } else {
+                efree(args->fields);
+                efree(result_ptr);
+            }
         }
         goto cleanup;
     }
@@ -149,15 +159,23 @@ int execute_h_generic_command(valkey_glide_object* valkey_glide,
         } else {
             valkey_glide_record_command_error(valkey_glide, result);
             if (result_ptr) {
-                efree(args->fields);
-                efree(result_ptr);
+                if (process_result) {
+                    process_result(NULL, result_ptr, return_value);
+                } else {
+                    efree(args->fields);
+                    efree(result_ptr);
+                }
             }
         }
         free_command_result(result);
     } else {
         if (result_ptr) {
-            efree(args->fields);
-            efree(result_ptr);
+            if (process_result) {
+                process_result(NULL, result_ptr, return_value);
+            } else {
+                efree(args->fields);
+                efree(result_ptr);
+            }
         }
     }
 
@@ -246,6 +264,10 @@ int execute_h_simple_command(valkey_glide_object* valkey_glide,
             break;
         case HGetEx:
             arg_count = prepare_h_getex_args(
+                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
+            break;
+        case HGetDel:
+            arg_count = prepare_h_getdel_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
         default:
@@ -836,25 +858,29 @@ int populate_field_args(zval*          field_values,
     int arg_idx = start_idx;
 
     for (int i = 0; i < fv_count; i++) {
-        zval* field = &field_values[i];
-        char* field_str;
+        zval*  field = &field_values[i];
+        char*  field_str;
+        size_t field_len;
 
         if (Z_TYPE_P(field) == IS_STRING) {
-            /* Create copy of original string - required for cleanup compatibility */
-            field_str = estrdup(Z_STRVAL_P(field));
+            /* Create copy of original string - required for cleanup compatibility.
+             * Use the zval length (not strlen) so embedded NUL bytes are preserved. */
+            field_len = Z_STRLEN_P(field);
+            field_str = estrndup(Z_STRVAL_P(field), field_len);
         } else {
-            /* Convert to string and create copy */
+            /* Convert to string and create a length-preserving copy */
             zval temp;
             ZVAL_COPY(&temp, field);
             convert_to_string(&temp);
-            field_str = estrdup(Z_STRVAL(temp));
+            field_len = Z_STRLEN(temp);
+            field_str = estrndup(Z_STRVAL(temp), field_len);
             zval_dtor(&temp);
         }
 
         /* Store copy in allocated_strings for cleanup */
         allocated_strings[(*allocated_count)++] = field_str;
         args_out[arg_idx]                       = (uintptr_t) field_str;
-        args_len_out[arg_idx]                   = strlen(field_str);
+        args_len_out[arg_idx]                   = field_len;
         arg_idx++;
     }
 
@@ -918,6 +944,63 @@ int prepare_h_getex_args(h_command_args_t* args,
                            allocated_count);
         }
     }
+
+    /* Add "FIELDS" keyword */
+    (*args_out)[arg_idx]     = (uintptr_t) "FIELDS";
+    (*args_len_out)[arg_idx] = 6;
+    arg_idx++;
+
+    /* Add field count */
+    size_t field_count_len;
+    char*  field_count_str = safe_format_int(field_count, &field_count_len);
+    add_string_arg(field_count_str,
+                   field_count_len,
+                   args_out,
+                   args_len_out,
+                   &arg_idx,
+                   allocated_strings,
+                   allocated_count);
+
+    /* Add fields only */
+    populate_field_args(args->fields,
+                        args->field_count,
+                        arg_idx,
+                        *args_out,
+                        *args_len_out,
+                        *allocated_strings,
+                        allocated_count);
+
+    return arg_count;
+}
+
+/**
+ * Prepare arguments for HGETDEL command
+ * Redis format: HGETDEL key FIELDS numfields field [field ...]
+ */
+int prepare_h_getdel_args(h_command_args_t* args,
+                          uintptr_t**       args_out,
+                          unsigned long**   args_len_out,
+                          char***           allocated_strings,
+                          int*              allocated_count) {
+    if (!args->key || !args->fields || args->field_count == 0) {
+        return 0;
+    }
+
+    int field_count = args->field_count;
+    int arg_count   = 3 + args->field_count; /* key + "FIELDS" + field_count + fields */
+
+    *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out      = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    *allocated_strings = (char**) emalloc((1 + args->field_count) *
+                                          sizeof(char*)); /* field_count + field conversions */
+    *allocated_count   = 0;
+
+    int arg_idx = 0;
+
+    /* Add key */
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
+    (*args_len_out)[arg_idx] = args->key_len;
+    arg_idx++;
 
     /* Add "FIELDS" keyword */
     (*args_out)[arg_idx]     = (uintptr_t) "FIELDS";
@@ -1106,6 +1189,10 @@ int process_h_mget_result(CommandResponse* response, void* output, zval* return_
 
     /* Check if the command was successful */
     if (!response) {
+        /* Release each copied field value, then the backing array and args. */
+        for (int j = 0; j < args->field_count; j++) {
+            zval_ptr_dtor(&args->fields[j]);
+        }
         efree(args->fields);
         efree(args);
         return 0;
@@ -3129,4 +3216,113 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
         return 1;
     }
     return 0;
+}
+
+/**
+ * Execute HGETDEL command with unified signature
+ * HGETDEL key FIELDS numfields field [field ...]
+ * Returns an associative array mapping each requested field to its value, with
+ * false for fields that did not exist (matching hMget/hGetEx and phpredis).
+ */
+int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zval*                fields = NULL;
+
+    if (zend_parse_method_parameters(argc, object, "Osa", &object, ce, &key, &key_len, &fields) ==
+        FAILURE) {
+        return 0;
+    }
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    /* Extract fields from the array parameter */
+    int field_count = zend_array_count(Z_ARRVAL_P(fields));
+    if (field_count == 0) {
+        return 0;
+    }
+
+    /* Heap-allocate the field array; ownership passes to process_h_mget_result,
+     * which frees each field zval and the array itself. */
+    zval* field_array = ecalloc(field_count, sizeof(zval));
+
+    /* Normalize every field to its string form once, up front, and store the
+     * normalized string back into field_array. This guarantees the request
+     * builder (populate_field_args) and the returned field => value map use the
+     * exact same bytes. Without this, a non-string field such as false would be
+     * sent as "" by the request builder but mapped under key "0" by the result
+     * processor.
+     *
+     * The result is an associative field => value map, so a repeated field name
+     * would collapse to a single key. Rather than reject duplicates, deduplicate
+     * the normalized field list and send only the unique names (matching PHPRedis,
+     * which dedups its field list and still executes). The command still runs and
+     * the field is returned/deleted once. */
+    HashTable seen;
+    zend_hash_init(&seen, field_count, NULL, NULL, 0);
+
+    HashTable* fields_ht = Z_ARRVAL_P(fields);
+    zval*      field_val;
+    int        i              = 0;
+    int        convert_failed = 0;
+    ZEND_HASH_FOREACH_VAL(fields_ht, field_val) {
+        /* Canonicalize to a string zval so all consumers agree on the name.
+         * Use the try-variant so a throwing object __toString() is detected
+         * instead of silently yielding "" and dispatching against the wrong
+         * (empty-named) field while the caller receives an exception. */
+        zend_string* fkey = zval_try_get_string(field_val);
+        if (!fkey) {
+            convert_failed = 1;
+            break;
+        }
+
+        /* Skip fields already seen (dedup) so each unique field is sent once. */
+        if (zend_hash_exists(&seen, fkey)) {
+            zend_string_release(fkey);
+            continue;
+        }
+        zend_hash_add_empty_element(&seen, fkey);
+        ZVAL_STR(&field_array[i], fkey);
+        i++;
+    }
+    ZEND_HASH_FOREACH_END();
+
+    zend_hash_destroy(&seen);
+
+    if (convert_failed) {
+        /* Release the fields copied so far and abort before sending. On
+         * conversion failure a PHP exception is already pending for the caller. */
+        for (int j = 0; j < i; j++) {
+            zval_ptr_dtor(&field_array[j]);
+        }
+        efree(field_array);
+        return 0;
+    }
+
+    /* Execute HGETDEL through the generic framework, reusing the HMGET result
+     * processor so the return shape is an associative field => value map (false
+     * for missing fields), consistent with hMget/hGetEx and phpredis. The
+     * HGetDel case in execute_h_generic_command builds the correct
+     * "key FIELDS numfields field..." wire form via prepare_h_getdel_args. */
+    h_command_args_t* args = ecalloc(1, sizeof(h_command_args_t));
+    args->glide_client     = valkey_glide->glide_client;
+    args->key              = key;
+    args->key_len          = key_len;
+    args->fields           = field_array;
+    args->field_count      = i;
+
+    int result = execute_h_generic_command(
+        valkey_glide, HGetDel, args, args, process_h_mget_result, return_value);
+
+    /* Handle batch mode */
+    if (result && valkey_glide->is_in_batch_mode) {
+        /* In batch mode, return $this for method chaining */
+        ZVAL_COPY(return_value, object);
+    }
+
+    return result;
 }

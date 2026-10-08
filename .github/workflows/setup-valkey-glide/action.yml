@@ -59,6 +59,8 @@ runs:
         sudo apt-get install -y --no-install-recommends \
           build-essential \
           "php${PHP_VERSION}-dev" \
+          "php${PHP_VERSION}-xml" \
+          "php${PHP_VERSION}-curl" \
           protobuf-compiler \
           protobuf-c-compiler \
           libprotobuf-c-dev \

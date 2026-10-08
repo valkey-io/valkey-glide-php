@@ -539,6 +539,10 @@ HINCRBY_METHOD_IMPL(ValkeyGlide);
 HMGET_METHOD_IMPL(ValkeyGlide);
 /* }}} */
 
+/* {{{ proto array ValkeyGlide::hGetDel(string key, array fields) */
+HGETDEL_METHOD_IMPL(ValkeyGlide);
+/* }}} */
+
 /* {{{ proto boolean ValkeyGlide::hMset(string key, array key_values) */
 HMSET_METHOD_IMPL(ValkeyGlide);
 /* }}} */
