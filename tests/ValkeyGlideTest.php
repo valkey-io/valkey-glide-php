@@ -2649,9 +2649,19 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             return;
         }
 
-        $this->waitForSaveNotInProgress();
-
-        $result = $this->valkey_glide->bgSave('CANCEL');
+        // A save left running by an earlier test can still be in flight when
+        // CANCEL runs, in which case CANCEL succeeds and returns a non-false
+        // result. Wait for saves to settle and retry before asserting false.
+        $result = false;
+        $this->waitFor(
+            function () use (&$result) {
+                $this->waitForSaveNotInProgress();
+                $result = $this->valkey_glide->bgSave('CANCEL');
+                return $result === false;
+            },
+            15,
+            'BGSAVE CANCEL did not settle to false (a save kept running)'
+        );
         $this->assertFalse($result);
     }
 
@@ -5193,6 +5203,86 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $ttl_getex = $this->valkey_glide->hTtl($key, 'getex_field');
         $this->assertGT(250, $ttl_getex[0]); // Should be close to 300
         $this->assertLTE(300, $ttl_getex[0]);
+    }
+
+    public function testHGetDel(): void
+    {
+        if (!$this->minVersionCheck('9.1.0')) {
+            $this->markTestSkipped('HGETDEL requires Valkey 9.1.0+ (current: ' . $this->version . ')');
+        }
+
+        $key = $this->createRandomString(16);
+        $this->valkey_glide->del($key);
+        $this->assertEquals(3, $this->valkey_glide->hSet($key, ['f1' => 'v1', 'f2' => 'v2', 'f3' => 'v3']));
+
+        // Get and delete a subset of fields, returned as a field => value map.
+        $this->assertEquals(['f1' => 'v1', 'f2' => 'v2'], $this->valkey_glide->hGetDel($key, ['f1', 'f2']));
+
+        // The returned fields are now gone; the remaining field is untouched.
+        $this->assertFalse($this->valkey_glide->hExists($key, 'f1'));
+        $this->assertFalse($this->valkey_glide->hExists($key, 'f2'));
+        $this->assertEquals('v3', $this->valkey_glide->hGet($key, 'f3'));
+
+        // Missing fields map to false, alongside existing field => value entries.
+        $this->assertEquals(['f3' => 'v3', 'missing' => false], $this->valkey_glide->hGetDel($key, ['f3', 'missing']));
+
+        // Removing the last field deletes the key entirely.
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
+
+        // Requesting fields of a non-existent key maps every field to false.
+        $this->assertEquals(['a' => false, 'b' => false], $this->valkey_glide->hGetDel($key, ['a', 'b']));
+
+        // Field names are binary-safe: a name with an embedded NUL byte must be
+        // sent at its full length, not truncated at the NUL.
+        $this->valkey_glide->del($key);
+        $nul_field = "a\0b";
+        $this->assertEquals(2, $this->valkey_glide->hSet($key, [$nul_field => 'nv', 'plain' => 'pv']));
+        $this->assertEquals([$nul_field => 'nv'], $this->valkey_glide->hGetDel($key, [$nul_field]));
+        $this->assertFalse($this->valkey_glide->hExists($key, $nul_field));
+        $this->assertEquals('pv', $this->valkey_glide->hGet($key, 'plain'));
+
+        // Batch mode: hGetDel chains and its field => value map is returned in
+        // order by exec(), with false for a missing field, and the fields are
+        // deleted afterwards.
+        $this->valkey_glide->del($key);
+        $this->assertEquals(3, $this->valkey_glide->hSet($key, ['b1' => 'bv1', 'b2' => 'bv2', 'b3' => 'bv3']));
+        $this->assertEquals(
+            [['b1' => 'bv1', 'missing' => false], 'bv3'],
+            $this->valkey_glide->multi()
+                ->hGetDel($key, ['b1', 'missing'])
+                ->hGet($key, 'b3')
+                ->exec()
+        );
+        $this->assertFalse($this->valkey_glide->hExists($key, 'b1'));
+        $this->assertEquals('bv3', $this->valkey_glide->hGet($key, 'b3'));
+
+        // Duplicate field names are deduplicated and the command still runs
+        // (matching PHPRedis, which dedups its field list). The field is returned
+        // once under its key and deleted.
+        $this->valkey_glide->del($key);
+        $this->assertEquals(1, $this->valkey_glide->hSet($key, ['dup' => 'dv']));
+        $this->assertEquals(['dup' => 'dv'], $this->valkey_glide->hGetDel($key, ['dup', 'dup']));
+        $this->assertFalse($this->valkey_glide->hExists($key, 'dup'));
+
+        // Non-string field names are normalized once (PHP string cast) and that
+        // normalized name is used consistently for the request and the returned
+        // map. In particular false becomes "" (not "0"), so false and "0" are
+        // distinct fields and both values round-trip without one overwriting the
+        // other.
+        $this->valkey_glide->del($key);
+        $this->assertEquals(2, $this->valkey_glide->hSet($key, ['' => 'v_empty', '0' => 'v_zero']));
+        $this->assertEquals(
+            ['' => 'v_empty', '0' => 'v_zero'],
+            $this->valkey_glide->hGetDel($key, [false, '0'])
+        );
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
+
+        // A key holding a non-hash value returns false (PHP client wrong-type
+        // convention), matching the GLIDE reference clients.
+        $this->valkey_glide->del($key);
+        $this->valkey_glide->set($key, 'not_a_hash');
+        $this->assertFalse($this->valkey_glide->hGetDel($key, ['field']));
+        $this->assertEquals('not_a_hash', $this->valkey_glide->get($key));
     }
 
     public function testHashFieldExpirationCommandValidation(): void
