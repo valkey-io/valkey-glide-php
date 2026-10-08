@@ -103,9 +103,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         if ($this->migrateDestClient === null) {
             $this->waitFor(function () {
+                @exec('valkey-cli -p ' . self::MIGRATE_DEST_PORT . ' REPLICAOF NO ONE 2>/dev/null');
                 $c = new ValkeyGlide();
                 try {
-                    $c->connect(addresses: [['host' => '127.0.0.1', 'port' => self::MIGRATE_DEST_PORT]]);
+                    $c->connect(
+                        addresses: [['host' => '127.0.0.1', 'port' => self::MIGRATE_DEST_PORT]],
+                        node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STATIC
+                    );
                     $info = @$c->info('REPLICATION');
                     if (is_array($info) && ($info['role'] ?? '') !== 'master') {
                         @$c->replicaof();
@@ -3647,12 +3651,17 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         } finally {
             $client->close();
 
-            // Restore: promote 6382 back to primary (retry replicaof until role becomes master)
+            // Run valkey-cli as immediate fallback to trigger failback
+            @exec('valkey-cli -p 6382 REPLICAOF NO ONE 2>/dev/null');
+
+            // Restore: promote 6382 back to primary (retry replicaof with STATIC mode)
             $this->waitFor(function () {
+                @exec('valkey-cli -p 6382 REPLICAOF NO ONE 2>/dev/null');
                 $restoreClient = new ValkeyGlide();
                 try {
                     $restoreClient->connect(
-                        addresses: [['host' => '127.0.0.1', 'port' => 6382]]
+                        addresses: [['host' => '127.0.0.1', 'port' => 6382]],
+                        node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STATIC
                     );
                     @$restoreClient->replicaof();
                     $info = @$restoreClient->info('REPLICATION');
@@ -3666,10 +3675,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
             // Restore 6383 as replica of 6382 (6383 became primary during failover)
             $this->waitFor(function () {
+                @exec('valkey-cli -p 6383 REPLICAOF 127.0.0.1 6382 2>/dev/null');
                 $replica = new ValkeyGlide();
                 try {
                     $replica->connect(
-                        addresses: [['host' => '127.0.0.1', 'port' => 6383]]
+                        addresses: [['host' => '127.0.0.1', 'port' => 6383]],
+                        node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STATIC
                     );
                     @$replica->replicaof('127.0.0.1', 6382);
                     $info = @$replica->info('REPLICATION');
