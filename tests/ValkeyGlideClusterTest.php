@@ -515,6 +515,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         foreach ($info as $nodeInfo) {
             if (
                 (isset($nodeInfo['rdb_bgsave_in_progress']) && $nodeInfo['rdb_bgsave_in_progress'] == '1')
+                || (isset($nodeInfo['rdb_bgsave_scheduled']) && $nodeInfo['rdb_bgsave_scheduled'] == '1')
                 || (isset($nodeInfo['aof_rewrite_in_progress']) && $nodeInfo['aof_rewrite_in_progress'] == '1')
             ) {
                 return true;
@@ -579,19 +580,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         // A successful CANCEL (when a save IS in progress) would return an array
         // for multi-node routes since at least one node returns a success response.
         $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
-        if ($result !== false) {
-            $this->assertIsArray($result);
-            $this->assertNotEmpty($result);
-            foreach ($result as $nodeAddress => $nodeResult) {
-                $this->assertIsString($nodeAddress);
-                $this->assertTrue($nodeResult);
-            }
-        } else {
-            $this->assertFalse($result);
-        }
+        $this->assertFalse($result);
 
         $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
-        $this->assertIsBool($result);
+        $this->assertFalse($result);
     }
 
     public function testBgSaveWithReplyLiteral()
@@ -639,19 +631,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
             $this->withOptReplyLiteralEnabled(function () {
                 $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
-                if ($result !== false) {
-                    $this->assertIsArray($result);
-                    $this->assertNotEmpty($result);
-                    foreach ($result as $nodeAddress => $nodeResult) {
-                        $this->assertIsString($nodeAddress);
-                        $this->assertSame('Background saving cancelled', $nodeResult);
-                    }
-                } else {
-                    $this->assertFalse($result);
-                }
+                $this->assertFalse($result);
 
                 $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
-                $this->assertTrue($result === false || $result === 'Background saving cancelled');
+                $this->assertFalse($result);
             });
         }
     }

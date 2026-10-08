@@ -2678,7 +2678,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
             $this->withOptReplyLiteralEnabled(function () {
                 $result = $this->valkey_glide->bgSave('CANCEL');
-                $this->assertTrue($result === false || $result === 'Background saving cancelled');
+                $this->assertFalse($result);
             });
         }
     }
@@ -3428,8 +3428,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     protected function isSaveInProgress(): bool
     {
         $info = $this->valkey_glide->info('persistence');
-        return $info['rdb_bgsave_in_progress'] == '1'
-            || $info['aof_rewrite_in_progress'] == '1';
+        return ($info['rdb_bgsave_in_progress'] ?? '0') == '1'
+            || ($info['rdb_bgsave_scheduled'] ?? '0') == '1'
+            || ($info['aof_rewrite_in_progress'] ?? '0') == '1';
     }
 
     /**
