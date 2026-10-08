@@ -74,6 +74,7 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests
 
 require_once __DIR__ . "/ValkeyGlideTest.php";
 require_once __DIR__ . '/TestConstants.php';
+require_once __DIR__ . "/ValkeyGlideClusterClientTrait.php";
 
 /**
  * Most ValkeyGlideCluster tests should work the same as the standard ValkeyGlide object
@@ -82,6 +83,8 @@ require_once __DIR__ . '/TestConstants.php';
  */
 class ValkeyGlideClusterTest extends ValkeyGlideTest
 {
+    use ValkeyGlideClusterClientTrait;
+
     private $valkey_glide_types = [
         ValkeyGlide::VALKEY_GLIDE_STRING,
         ValkeyGlide::VALKEY_GLIDE_SET,
@@ -426,9 +429,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     /* Override newInstance as we want a ValkeyGlideCluster object with multi-database support */
-    protected function newInstance(?int $databaseId = 0)
+    protected function newInstance()
     {
-        return parent::newInstance($databaseId ?? 0);
+        return $this->newClusterInstance(0);
     }
 
     /* Override getPort to return cluster port */
@@ -507,21 +510,29 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     /**
-     * Override for cluster - info() requires a route parameter and checks all primaries.
+     * Override for cluster - info() requires a route parameter. Checks all nodes,
+     * because 'randomNode' BGSAVE calls in these tests may land on a replica.
      */
     protected function isSaveInProgress(): bool
     {
-        $info = $this->valkey_glide->info('allPrimaries', 'persistence');
+        $info = $this->valkey_glide->info('allNodes', 'persistence');
         foreach ($info as $nodeInfo) {
             if (
                 (isset($nodeInfo['rdb_bgsave_in_progress']) && $nodeInfo['rdb_bgsave_in_progress'] == '1')
-                || (isset($nodeInfo['rdb_bgsave_scheduled']) && $nodeInfo['rdb_bgsave_scheduled'] == '1')
                 || (isset($nodeInfo['aof_rewrite_in_progress']) && $nodeInfo['aof_rewrite_in_progress'] == '1')
             ) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Override for cluster - cancel pending/in-progress saves on every node.
+     */
+    protected function cancelBgSave(): void
+    {
+        @$this->valkey_glide->bgSave('allNodes', 'CANCEL');
     }
 
     public function testBgSave()
@@ -569,7 +580,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             return;
         }
 
-        $this->waitForSaveNotInProgress();
+        $this->waitForNoPendingSave();
 
         // When no save is in progress, CANCEL returns false (not an array) even for
         // multi-node routes. This is because the glide-core's response aggregation
@@ -618,7 +629,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             }
         });
 
-        $this->waitForSaveNotInProgress();
+        $this->waitForNoPendingSave();
 
         $this->withOptReplyLiteralEnabled(function () {
             $result = $this->valkey_glide->bgSave('randomNode', 'SCHEDULE');
@@ -667,7 +678,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
 
         if ($this->minVersionCheck('8.1.0')) {
-            $this->waitForSaveNotInProgress();
+            $this->waitForNoPendingSave();
 
             $this->valkey_glide->pipeline();
             $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');

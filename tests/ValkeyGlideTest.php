@@ -2649,7 +2649,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             return;
         }
 
-        $this->waitForSaveNotInProgress();
+        $this->waitForNoPendingSave();
 
         $result = $this->valkey_glide->bgSave('CANCEL');
         $this->assertFalse($result);
@@ -2665,7 +2665,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->assertContains($result, $this->bgsaveResponses());
         });
 
-        $this->waitForSaveNotInProgress();
+        $this->waitForNoPendingSave();
 
         $this->withOptReplyLiteralEnabled(function () {
             $result = $this->valkey_glide->bgSave('SCHEDULE');
@@ -2697,7 +2697,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $result = $this->valkey_glide->exec();
         $this->assertTrue($result[0]);
 
-        $this->waitForSaveNotInProgress();
+        $this->waitForNoPendingSave();
 
         $this->valkey_glide->pipeline();
         $this->valkey_glide->bgSave('SCHEDULE');
@@ -3429,7 +3429,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     {
         $info = $this->valkey_glide->info('persistence');
         return ($info['rdb_bgsave_in_progress'] ?? '0') == '1'
-            || ($info['rdb_bgsave_scheduled'] ?? '0') == '1'
             || ($info['aof_rewrite_in_progress'] ?? '0') == '1';
     }
 
@@ -3443,6 +3442,31 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             10,
             'Timed out waiting for background save to complete'
         );
+    }
+
+    /**
+     * Issue BGSAVE CANCEL and ignore the result. Clears a pending scheduled save
+     * and aborts an in-progress one. Requires Valkey 8.1.0+.
+     */
+    protected function cancelBgSave(): void
+    {
+        @$this->valkey_glide->bgSave('CANCEL');
+    }
+
+    /**
+     * Wait until no background save is in progress AND none is scheduled.
+     *
+     * A save queued by BGSAVE SCHEDULE is not visible in INFO persistence (the
+     * server does not expose its internal "scheduled" flag), so waiting on INFO
+     * alone is not enough: a leftover scheduled save makes a later BGSAVE CANCEL
+     * succeed instead of failing. Explicitly cancel to clear it, then wait for
+     * any child that was killed by the cancel to be reaped.
+     */
+    protected function waitForNoPendingSave(): void
+    {
+        $this->waitForSaveNotInProgress();
+        $this->cancelBgSave();
+        $this->waitForSaveNotInProgress();
     }
 
     public function testTTL()

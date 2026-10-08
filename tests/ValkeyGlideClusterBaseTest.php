@@ -72,6 +72,7 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests
 * <http://www.zend.com>.
 */
 require_once __DIR__ . "/ValkeyGlideBaseTest.php";
+require_once __DIR__ . "/ValkeyGlideClusterClientTrait.php";
 
 /**
  * ValkeyGlide Cluster Base Test Class
@@ -80,6 +81,8 @@ require_once __DIR__ . "/ValkeyGlideBaseTest.php";
  */
 abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest
 {
+    use ValkeyGlideClusterClientTrait;
+
     private $valkey_glide_types = [
         ValkeyGlide::VALKEY_GLIDE_STRING,
         ValkeyGlide::VALKEY_GLIDE_SET,
@@ -121,63 +124,10 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest
         echo "Connected to $server_type cluster base server version: {$this->version}\n";
     }
 
-    /**
-     * Get cluster addresses, reading from VALKEY_CLUSTER_SEEDS env var if available,
-     * or defaulting to the configured host and cluster port.
-     */
-    protected function getClusterAddresses(): array
-    {
-        $addresses = [];
-        $envSeeds = getenv('VALKEY_CLUSTER_SEEDS');
-        if (!empty($envSeeds)) {
-            foreach (explode(',', $envSeeds) as $seed) {
-                $seed = trim($seed);
-                if (empty($seed)) {
-                    continue;
-                }
-                if (str_contains($seed, ':')) {
-                    [$h, $p] = explode(':', $seed, 2);
-                    $addresses[] = ['host' => $h, 'port' => (int) $p];
-                } else {
-                    $addresses[] = ['host' => $this->getHost(), 'port' => (int) $seed];
-                }
-            }
-        }
-        if (empty($addresses)) {
-            $addresses = [['host' => $this->getHost(), 'port' => $this->getPort()]];
-        }
-        return $addresses;
-    }
-
     /* Override newInstance as we want a ValkeyGlideCluster object */
-    protected function newInstance(?int $databaseId = null)
+    protected function newInstance()
     {
-        $addresses = $this->getClusterAddresses();
-        $attempts = 3;
-        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
-            try {
-                $options = [
-                    'addresses' => $addresses,
-                    'use_tls' => false,
-                    'credentials' => $this->getAuth(),
-                    'read_from' => ValkeyGlide::READ_FROM_PRIMARY,
-                    'request_timeout' => 10000,
-                ];
-                if ($databaseId !== null) {
-                    $options['database_id'] = $databaseId;
-                }
-                return new ValkeyGlideCluster(...$options);
-            } catch (Exception $ex) {
-                if ($attempt === $attempts) {
-                    TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());
-                    //TestSuite::errorMessage("Seeds: %s\n", implode(' ', self::$seeds));
-                    TestSuite::errorMessage("Seed source: %s\n", self::$seed_source);
-                    exit(1);
-                }
-                echo "Warning: Cluster client connection attempt $attempt failed ({$ex->getMessage()}), retrying in 500ms...\n";
-                usleep(500000);
-            }
-        }
+        return $this->newClusterInstance();
     }
 
     protected function keyTypeToString($key_type)
