@@ -57,7 +57,7 @@ trait ValkeyGlideClusterClientTrait
         $addresses = $this->getClusterAddresses();
         $options = [
             'addresses' => $addresses,
-            'use_tls' => false,
+            'use_tls' => (bool) ($this->getTLS() ?? false),
             'credentials' => $this->getAuth(),
             'read_from' => ValkeyGlide::READ_FROM_PRIMARY,
             'request_timeout' => 10000,

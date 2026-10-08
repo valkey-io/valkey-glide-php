@@ -111,7 +111,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
                         node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STATIC
                     );
                     $info = @$c->info('REPLICATION');
-                    if (is_array($info) && ($info['role'] ?? '') !== 'master') {
+                    if (!is_array($info) || ($info['role'] ?? '') !== 'master') {
                         @$c->replicaof();
                         return false;
                     }

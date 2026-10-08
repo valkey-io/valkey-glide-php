@@ -26,11 +26,29 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
         );
     }
 
+    /**
+     * Return the first reachable cluster seed address, probing available seeds.
+     *
+     * @return array{host: string, port: int}
+     */
+    private function getReachableClusterAddress(): array
+    {
+        $addresses = $this->getClusterAddresses();
+        foreach ($addresses as $addr) {
+            $fp = @fsockopen($addr['host'], $addr['port'], $errno, $errstr, 0.5);
+            if ($fp) {
+                fclose($fp);
+                return $addr;
+            }
+        }
+        return $addresses[0] ?? ['host' => $this->getHost(), 'port' => $this->getPort()];
+    }
+
     public function testAddressResolverWithFakeAddress()
     {
         $this->skipIfTlsEnabled();
 
-        $primaryAddress = $this->getClusterAddresses()[0];
+        $primaryAddress = $this->getReachableClusterAddress();
         $realHost = $primaryAddress['host'];
         $realPort = $primaryAddress['port'];
 
@@ -103,7 +121,7 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
     {
         $this->skipIfTlsEnabled();
 
-        $primaryAddress = $this->getClusterAddresses()[0];
+        $primaryAddress = $this->getReachableClusterAddress();
         $realHost = $primaryAddress['host'];
         $realPort = $primaryAddress['port'];
 
