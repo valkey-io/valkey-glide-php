@@ -102,6 +102,23 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     protected function getMigrateDestClient(): ValkeyGlide
     {
         if ($this->migrateDestClient === null) {
+            $this->waitFor(function () {
+                $c = new ValkeyGlide();
+                try {
+                    $c->connect(addresses: [['host' => '127.0.0.1', 'port' => self::MIGRATE_DEST_PORT]]);
+                    $info = @$c->info('REPLICATION');
+                    if (is_array($info) && ($info['role'] ?? '') !== 'master') {
+                        @$c->replicaof();
+                        return false;
+                    }
+                    return true;
+                } catch (Throwable) {
+                    return false;
+                } finally {
+                    @$c->close();
+                }
+            }, 15, "Destination server on port " . self::MIGRATE_DEST_PORT . " is not ready as primary");
+
             $this->migrateDestClient = new ValkeyGlide();
             $this->migrateDestClient->connect(
                 addresses: [['host' => '127.0.0.1', 'port' => self::MIGRATE_DEST_PORT]]
@@ -3626,22 +3643,44 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->assertTrue($result);
 
             // Wait for 6382 to become slave (failover completed)
-            $this->waitForRole($client, 'slave');
+            $this->waitForRole($client, 'slave', 30);
         } finally {
-            // Restore: promote 6382 back to primary
-            $client->replicaof();
-            $this->waitForRole($client, 'master');
+            $client->close();
+
+            // Restore: promote 6382 back to primary (retry replicaof until role becomes master)
+            $this->waitFor(function () {
+                $restoreClient = new ValkeyGlide();
+                try {
+                    $restoreClient->connect(
+                        addresses: [['host' => '127.0.0.1', 'port' => 6382]]
+                    );
+                    @$restoreClient->replicaof();
+                    $info = @$restoreClient->info('REPLICATION');
+                    return is_array($info) && ($info['role'] ?? '') === 'master';
+                } catch (Throwable) {
+                    return false;
+                } finally {
+                    @$restoreClient->close();
+                }
+            }, 30, "Timed out promoting 6382 back to master");
 
             // Restore 6383 as replica of 6382 (6383 became primary during failover)
-            $replica = new ValkeyGlide();
-            $replica->connect(
-                addresses: [['host' => '127.0.0.1', 'port' => 6383]]
-            );
-            $replica->replicaof('127.0.0.1', 6382);
-            $replica->close();
+            $this->waitFor(function () {
+                $replica = new ValkeyGlide();
+                try {
+                    $replica->connect(
+                        addresses: [['host' => '127.0.0.1', 'port' => 6383]]
+                    );
+                    @$replica->replicaof('127.0.0.1', 6382);
+                    $info = @$replica->info('REPLICATION');
+                    return is_array($info) && ($info['role'] ?? '') === 'slave';
+                } catch (Throwable) {
+                    return false;
+                } finally {
+                    @$replica->close();
+                }
+            }, 30, "Timed out restoring 6383 as replica of 6382");
         }
-
-        $client->close();
     }
 
     /**
