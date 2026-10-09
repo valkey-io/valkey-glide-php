@@ -72,6 +72,7 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests
 * <http://www.zend.com>.
 */
 require_once __DIR__ . "/ValkeyGlideBaseTest.php";
+require_once __DIR__ . "/ValkeyGlideClusterClientTrait.php";
 
 /**
  * ValkeyGlide Cluster Base Test Class
@@ -80,6 +81,8 @@ require_once __DIR__ . "/ValkeyGlideBaseTest.php";
  */
 abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest
 {
+    use ValkeyGlideClusterClientTrait;
+
     private $valkey_glide_types = [
         ValkeyGlide::VALKEY_GLIDE_STRING,
         ValkeyGlide::VALKEY_GLIDE_SET,
@@ -124,19 +127,7 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest
     /* Override newInstance as we want a ValkeyGlideCluster object */
     protected function newInstance()
     {
-        try {
-            return new ValkeyGlideCluster(
-                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
-                use_tls: false,
-                credentials: $this->getAuth(),
-                read_from: ValkeyGlide::READ_FROM_PRIMARY
-            );
-        } catch (Exception $ex) {
-            TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());
-            //TestSuite::errorMessage("Seeds: %s\n", implode(' ', self::$seeds));
-            TestSuite::errorMessage("Seed source: %s\n", self::$seed_source);
-            exit(1);
-        }
+        return $this->newClusterInstance();
     }
 
     protected function keyTypeToString($key_type)

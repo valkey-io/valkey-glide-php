@@ -7,24 +7,65 @@ require_once __DIR__ . '/TestConstants.php';
 
 class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
 {
+    public function setUp()
+    {
+        // Intentionally do not call parent::setUp(); each test creates its own client.
+    }
+
+    public function tearDown()
+    {
+        // No shared client to close.
+    }
+
+    private function newClusterClient(array $addresses, ?callable $resolver): ValkeyGlideCluster
+    {
+        return new ValkeyGlideCluster(
+            addresses: $addresses,
+            address_resolver: $resolver,
+            periodic_checks: ValkeyGlideCluster::PERIODIC_CHECK_DISABLED,
+        );
+    }
+
+    /**
+     * Return the first reachable cluster seed address, probing available seeds.
+     *
+     * @return array{host: string, port: int}
+     */
+    private function getReachableClusterAddress(): array
+    {
+        $addresses = $this->getClusterAddresses();
+        foreach ($addresses as $addr) {
+            $fp = @fsockopen($addr['host'], $addr['port'], $errno, $errstr, 0.5);
+            if ($fp) {
+                fclose($fp);
+                return $addr;
+            }
+        }
+        return $addresses[0] ?? ['host' => $this->getHost(), 'port' => $this->getPort()];
+    }
+
     public function testAddressResolverWithFakeAddress()
     {
         $this->skipIfTlsEnabled();
 
-        $realHost = $this->getHost();
-        $realPort = $this->getPort();
+        $primaryAddress = $this->getReachableClusterAddress();
+        $realHost = $primaryAddress['host'];
+        $realPort = $primaryAddress['port'];
 
         $resolver = function (string $host, int $port) use ($realHost, $realPort): array {
             return ['host' => $realHost, 'port' => $realPort];
         };
 
-        $client = new ValkeyGlideCluster(
+        $client = $this->newClusterClient(
             addresses: [['host' => 'fake.nonexistent.host', 'port' => 9999]],
-            address_resolver: $resolver,
+            resolver: $resolver,
         );
 
-        $this->assertConnected($client);
-        $client->close();
+        try {
+            $this->assertConnected($client);
+        } finally {
+            $client->close();
+        }
     }
 
     public function testAddressResolverExceptionFallsBackToOriginal()
@@ -37,14 +78,17 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
             throw new RuntimeException("resolver error");
         };
 
-        $client = new ValkeyGlideCluster(
-            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
-            address_resolver: $resolver,
+        $client = $this->newClusterClient(
+            addresses: $this->getClusterAddresses(),
+            resolver: $resolver,
         );
 
-        $this->assertTrue($called);
-        $this->assertConnected($client);
-        $client->close();
+        try {
+            $this->assertTrue($called);
+            $this->assertConnected($client);
+        } finally {
+            $client->close();
+        }
     }
 
     public function testAddressResolverReturnsInvalidFallsBackToOriginal()
@@ -57,14 +101,17 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
             return null;
         };
 
-        $client = new ValkeyGlideCluster(
-            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
-            address_resolver: $resolver,
+        $client = $this->newClusterClient(
+            addresses: $this->getClusterAddresses(),
+            resolver: $resolver,
         );
 
-        $this->assertTrue($called);
-        $this->assertConnected($client);
-        $client->close();
+        try {
+            $this->assertTrue($called);
+            $this->assertConnected($client);
+        } finally {
+            $client->close();
+        }
     }
 
     /**
@@ -74,8 +121,9 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
     {
         $this->skipIfTlsEnabled();
 
-        $realHost = $this->getHost();
-        $realPort = $this->getPort();
+        $primaryAddress = $this->getReachableClusterAddress();
+        $realHost = $primaryAddress['host'];
+        $realPort = $primaryAddress['port'];
 
         $calledA = false;
         $resolverA = function (string $host, int $port) use ($realHost, $realPort, &$calledA): array {
@@ -89,35 +137,42 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
             return ['host' => $realHost, 'port' => $realPort];
         };
 
-        $clientA = new ValkeyGlideCluster(
-            addresses: [['host' => 'fake-a.nonexistent', 'port' => 9998]],
-            address_resolver: $resolverA,
-        );
+        $clientA = null;
+        $clientB = null;
+        try {
+            $clientA = $this->newClusterClient(
+                addresses: [['host' => 'fake-a.nonexistent', 'port' => 9998]],
+                resolver: $resolverA,
+            );
 
-        $clientB = new ValkeyGlideCluster(
-            addresses: [['host' => 'fake-b.nonexistent', 'port' => 9999]],
-            address_resolver: $resolverB,
-        );
+            $clientB = $this->newClusterClient(
+                addresses: [['host' => 'fake-b.nonexistent', 'port' => 9999]],
+                resolver: $resolverB,
+            );
 
-        $this->assertTrue($calledA, 'Resolver A must have been invoked for client A');
-        $this->assertTrue($calledB, 'Resolver B must have been invoked for client B');
-        $this->assertConnected($clientA);
-        $this->assertConnected($clientB);
-
-        $clientA->close();
-        $clientB->close();
+            $this->assertTrue($calledA, 'Resolver A must have been invoked for client A');
+            $this->assertTrue($calledB, 'Resolver B must have been invoked for client B');
+            $this->assertConnected($clientA);
+            $this->assertConnected($clientB);
+        } finally {
+            $clientA?->close();
+            $clientB?->close();
+        }
     }
 
     public function testNullAddressResolverConnectsNormally()
     {
         $this->skipIfTlsEnabled();
 
-        $client = new ValkeyGlideCluster(
-            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
-            address_resolver: null,
+        $client = $this->newClusterClient(
+            addresses: $this->getClusterAddresses(),
+            resolver: null,
         );
 
-        $this->assertConnected($client);
-        $client->close();
+        try {
+            $this->assertConnected($client);
+        } finally {
+            $client->close();
+        }
     }
 }
