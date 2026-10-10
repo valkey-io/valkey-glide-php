@@ -39,6 +39,7 @@ extern struct CommandResult* get_cache_metrics(const void* client_adapter_ptr,
                                                int32_t     metrics_type);
 
 #include "valkey_glide_otel.h"  // Include OTEL support
+#include "valkey_glide_persistent.h"
 
 /* Enum support includes - must be BEFORE arginfo includes */
 #if PHP_VERSION_ID >= 80100
@@ -125,7 +126,9 @@ zend_object* create_valkey_glide_object(zend_class_entry* ce) {
            sizeof(valkey_glide_object_handlers));
     valkey_glide_object_handlers.offset   = XtOffsetOf(valkey_glide_object, std);
     valkey_glide_object_handlers.free_obj = free_valkey_glide_object;
-    valkey_glide->std.handlers            = &valkey_glide_object_handlers;
+    /* A copy would share the GLIDE client handle and batch state */
+    valkey_glide_object_handlers.clone_obj = NULL;
+    valkey_glide->std.handlers             = &valkey_glide_object_handlers;
 
     return &valkey_glide->std;
 }
@@ -143,7 +146,9 @@ zend_object* create_valkey_glide_cluster_object(zend_class_entry* ce)  // TODO c
            sizeof(valkey_glide_cluster_object_handlers));
     valkey_glide_cluster_object_handlers.offset   = XtOffsetOf(valkey_glide_object, std);
     valkey_glide_cluster_object_handlers.free_obj = free_valkey_glide_object;
-    valkey_glide->std.handlers                    = &valkey_glide_cluster_object_handlers;
+    /* A copy would share the GLIDE client handle and batch state */
+    valkey_glide_cluster_object_handlers.clone_obj = NULL;
+    valkey_glide->std.handlers                     = &valkey_glide_cluster_object_handlers;
 
     return &valkey_glide->std;
 }
@@ -778,9 +783,129 @@ const zend_function_entry valkey_glide_cluster_methods[] = {
            arginfo_class_ValkeyGlideCluster___construct,
            ZEND_ACC_PUBLIC | ZEND_ACC_CTOR) PHP_FE_END};
 
+/* valkey_glide.max_persistent_clients: persistent clients kept per process */
+PHP_INI_BEGIN()
+PHP_INI_ENTRY("valkey_glide.max_persistent_clients",
+              VALKEY_GLIDE_DEFAULT_MAX_PERSISTENT_CLIENTS,
+              PHP_INI_SYSTEM,
+              NULL)
+PHP_INI_END()
+
 /**
  * PHP_MINIT_FUNCTION
  */
+/* Fork guard: GLIDE's Rust runtime does not survive fork(), so a method called
+ * on a client inherited from the parent process throws instead of using it.
+ * Methods run through valkey_glide_fork_guard(), which then calls the original
+ * handler. Wrapping the handlers (rather than an object handler such as
+ * get_method) also covers call_user_func(), Reflection and closures. */
+#define FORK_GUARD_CLASSES 3
+#define FORK_GUARD_MONITOR 2 /* index of ValkeyGlideMonitor */
+static zend_class_entry* fork_guard_classes[FORK_GUARD_CLASSES];
+/* Original handlers per class, keyed by method name as declared */
+static HashTable fork_guard_handlers[FORK_GUARD_CLASSES];
+
+/* Methods that do not use the client handle (or release it) stay callable */
+static bool fork_guard_exempt(zend_string* name) {
+    return zend_string_equals_literal_ci(name, "close") ||
+           zend_string_equals_literal_ci(name, "__destruct") ||
+           zend_string_equals_literal_ci(name, "getLastError") ||
+           zend_string_equals_literal_ci(name, "clearLastError") ||
+           zend_string_equals_literal_ci(name, "getOption") ||
+           zend_string_equals_literal_ci(name, "setOption");
+}
+
+static ZEND_NAMED_FUNCTION(valkey_glide_fork_guard) {
+    zend_function* func  = EX(func);
+    int            index = 0;
+    while (index < FORK_GUARD_CLASSES && func->common.scope != fork_guard_classes[index]) {
+        index++;
+    }
+    zif_handler handler = index < FORK_GUARD_CLASSES
+                              ? (zif_handler) zend_hash_find_ptr(&fork_guard_handlers[index],
+                                                                 func->common.function_name)
+                              : NULL;
+    if (!handler) {
+        zend_throw_error(
+            NULL, "Valkey GLIDE: no handler for method %s", ZSTR_VAL(func->common.function_name));
+        RETURN_THROWS();
+    }
+
+    /* Non-static methods only are wrapped, so $this is an instance of the class */
+    zend_object* object = Z_OBJ(EX(This));
+    bool         inherited;
+    if (index == FORK_GUARD_MONITOR) {
+        valkey_glide_monitor_object* monitor = VALKEY_GLIDE_MONITOR_GET_OBJECT(object);
+        inherited = monitor->monitor_client_ptr && monitor->client_pid != getpid();
+    } else {
+        valkey_glide_object* valkey_glide =
+            VALKEY_GLIDE_PHP_GET_OBJECT(valkey_glide_object, object);
+        inherited = valkey_glide->glide_client && valkey_glide->client_pid != getpid();
+    }
+    if (inherited) {
+        zend_throw_exception(get_valkey_glide_exception_ce(), VALKEY_GLIDE_FORK_ERROR, 0);
+        RETURN_THROWS();
+    }
+
+    handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
+static bool fork_guard_wraps(zend_class_entry* ce, zend_function* func) {
+    return func->type == ZEND_INTERNAL_FUNCTION && func->common.scope == ce &&
+           !(func->common.fn_flags & ZEND_ACC_STATIC) &&
+           !fork_guard_exempt(func->common.function_name);
+}
+
+static void fork_guard_wrap_class(int index, zend_class_entry* ce) {
+    fork_guard_classes[index] = ce;
+    zend_hash_init(&fork_guard_handlers[index], 0, NULL, NULL, 1);
+
+    zend_function* func;
+    ZEND_HASH_FOREACH_PTR(&ce->function_table, func) {
+        if (!fork_guard_wraps(ce, func)) {
+            continue;
+        }
+        /* A persistent copy of the name: opcache may move interned strings */
+        zend_string* name = zend_string_init(
+            ZSTR_VAL(func->common.function_name), ZSTR_LEN(func->common.function_name), 1);
+        zend_hash_add_ptr(
+            &fork_guard_handlers[index], name, (void*) func->internal_function.handler);
+        zend_string_release_ex(name, 1);
+        func->internal_function.handler = valkey_glide_fork_guard;
+    }
+    ZEND_HASH_FOREACH_END();
+}
+
+static void fork_guard_minit(void) {
+    fork_guard_wrap_class(0, valkey_glide_ce);
+    fork_guard_wrap_class(1, valkey_glide_cluster_ce);
+    fork_guard_wrap_class(FORK_GUARD_MONITOR, valkey_glide_monitor_ce);
+}
+
+/* Restore the original handlers */
+static void fork_guard_mshutdown(void) {
+    for (int i = 0; i < FORK_GUARD_CLASSES; i++) {
+        zend_class_entry* ce = fork_guard_classes[i];
+        if (!ce) {
+            continue;
+        }
+        zend_function* func;
+        ZEND_HASH_FOREACH_PTR(&ce->function_table, func) {
+            if (func->type == ZEND_INTERNAL_FUNCTION &&
+                func->internal_function.handler == valkey_glide_fork_guard) {
+                zif_handler handler = (zif_handler) zend_hash_find_ptr(&fork_guard_handlers[i],
+                                                                       func->common.function_name);
+                if (handler) {
+                    func->internal_function.handler = handler;
+                }
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+        zend_hash_destroy(&fork_guard_handlers[i]);
+        fork_guard_classes[i] = NULL;
+    }
+}
+
 PHP_MINIT_FUNCTION(valkey_glide) {
     /* Initialize the logger system early to prevent crashes */
     int logger_result = valkey_glide_logger_init("warn", NULL);
@@ -792,6 +917,10 @@ PHP_MINIT_FUNCTION(valkey_glide) {
             "Failed to initialize ValkeyGlide logger, will auto-initialize on first use");
     }
     valkey_glide_logger_debug("php_init", "Initializing Valkey Glide PHP extension");
+    /* Shared by all threads; created once, before any request */
+    init_pubsub_callbacks();
+    REGISTER_INI_ENTRIES();
+    valkey_glide_persistent_minit(module_number);
     /* ValkeyGlide class - use generated registration function */
     valkey_glide_ce = register_class_ValkeyGlide();
 
@@ -807,6 +936,9 @@ PHP_MINIT_FUNCTION(valkey_glide) {
 
     /* Register mock constructor class used for testing only. */
     register_mock_constructor_class();
+
+    /* After the classes above are registered */
+    fork_guard_minit();
 
     /* ValkeyGlideException class */
     valkey_glide_exception_ce = register_class_ValkeyGlideException(spl_ce_RuntimeException);
@@ -835,6 +967,8 @@ PHP_MINIT_FUNCTION(valkey_glide) {
 }
 
 PHP_MSHUTDOWN_FUNCTION(valkey_glide) {
+    fork_guard_mshutdown();
+    UNREGISTER_INI_ENTRIES();
     valkey_glide_pubsub_shutdown();
     valkey_glide_monitor_shutdown();
     valkey_glide_resolver_shutdown();
@@ -843,6 +977,8 @@ PHP_MSHUTDOWN_FUNCTION(valkey_glide) {
 
 PHP_RSHUTDOWN_FUNCTION(valkey_glide) {
     valkey_glide_resolver_shutdown();
+    /* Pub/sub callbacks registered by this request are request memory */
+    valkey_glide_pubsub_request_shutdown();
     return SUCCESS;
 }
 
@@ -922,11 +1058,8 @@ void free_valkey_glide_object(zend_object* object) {
     /* Free the last error message if set */
     valkey_glide_clear_last_error(valkey_glide);
 
-    /* Free the Valkey Glide client if it exists */
-    if (valkey_glide->glide_client) {
-        close_glide_client(valkey_glide->glide_client);
-        valkey_glide->glide_client = NULL;
-    }
+    /* Close the Valkey Glide client, or keep a persistent one for the next request */
+    valkey_glide_release_client(valkey_glide, false);
 
     /* Mark the resolver callback as closed. After this, any Rust background
        thread that calls the resolver will get an immediate 0 return (fallback
@@ -1124,7 +1257,9 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
                                           zval*                client_side_cache,
                                           zval*                address_resolver,
                                           zval*                circuit_breaker,
-                                          zend_long            node_discovery_mode) {
+                                          zend_long            node_discovery_mode,
+                                          const char*          persistent_id,
+                                          size_t               persistent_id_len) {
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
 
@@ -1229,6 +1364,26 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
         return FAILURE;
     }
 
+    /* With persistent_id, reuse a client this worker kept from an earlier request */
+    zend_string* persistent_key = NULL;
+    if (persistent_id) {
+        bool attached = valkey_glide_persistent_begin(valkey_glide,
+                                                      &client_config,
+                                                      VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED,
+                                                      false,
+                                                      false,
+                                                      persistent_id,
+                                                      persistent_id_len,
+                                                      &persistent_key);
+        if (attached || EG(exception)) {
+            if (created_addresses) {
+                zval_ptr_dtor(&addresses_array);
+            }
+            valkey_glide_cleanup_client_config(&client_config);
+            return attached ? SUCCESS : FAILURE;
+        }
+    }
+
     /* Issue the connection request. */
     AddressResolverCallback   resolver_cb = NULL;
     const ConnectionResponse* conn_resp   = create_glide_client(&client_config, &resolver_cb);
@@ -1238,6 +1393,19 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
         zval_ptr_dtor(&addresses_array);
     }
 
+    /* No response: building the request failed (an exception is pending) */
+    if (!conn_resp) {
+        if (!EG(exception)) {
+            zend_throw_exception(
+                get_valkey_glide_exception_ce(), "Failed to build the connection request", 0);
+        }
+        valkey_glide_cleanup_client_config(&client_config);
+        if (persistent_key) {
+            zend_string_release(persistent_key);
+        }
+        return FAILURE;
+    }
+
     if (conn_resp->connection_error_message) {
         VALKEY_LOG_ERROR("valkey_glide_create_connection", conn_resp->connection_error_message);
         zend_throw_exception(
@@ -1245,12 +1413,19 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
         valkey_glide_resolver_release(resolver_cb);
         free_connection_response((ConnectionResponse*) conn_resp);
         valkey_glide_cleanup_client_config(&client_config);
+        if (persistent_key) {
+            zend_string_release(persistent_key);
+        }
         return FAILURE;
     }
 
     VALKEY_LOG_INFO("valkey_glide_create_connection", "ValkeyGlide client connected successfully");
     valkey_glide->glide_client = conn_resp->conn_ptr;
+    valkey_glide->client_pid   = getpid();
     valkey_glide->resolver_cb  = resolver_cb;
+    if (persistent_key) {
+        valkey_glide_persistent_store(valkey_glide, persistent_key, client_config.database_id);
+    }
 
     free_connection_response((ConnectionResponse*) conn_resp);
 
@@ -1270,7 +1445,9 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
    Establishes connection to Valkey server. Supports both PHPRedis-compatible
    (host/port) and ValkeyGlide-style (addresses array) parameters.
    Returns true on success, false on failure. */
-PHP_METHOD(ValkeyGlide, connect) {
+/* Shared by connect() and pconnect(); `persistent` makes the client persistent
+ * even without a persistent_id. */
+static void valkey_glide_connect(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
     char*  host                     = NULL;
     size_t host_len                 = 0;
     char*  persistent_id            = NULL;
@@ -1331,6 +1508,11 @@ PHP_METHOD(ValkeyGlide, connect) {
     Z_PARAM_STRING_OR_NULL(lib_name, lib_name_len)
     Z_PARAM_STRING_OR_NULL(client_info_tag, client_info_tag_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
+
+    if (persistent && persistent_id == NULL) {
+        persistent_id     = "";
+        persistent_id_len = 0;
+    }
 
     /* Apply defaults for nullable parameters */
     zend_long port = (port_zval && Z_TYPE_P(port_zval) != IS_NULL) ? Z_LVAL_P(port_zval) : 6379;
@@ -1438,7 +1620,9 @@ PHP_METHOD(ValkeyGlide, connect) {
                                                 client_side_cache,
                                                 address_resolver,
                                                 circuit_breaker,
-                                                node_discovery_mode);
+                                                node_discovery_mode,
+                                                persistent_id,
+                                                persistent_id_len);
 
     /* Clean up temporary addresses array if we created it */
     if (host != NULL) {
@@ -1451,6 +1635,17 @@ PHP_METHOD(ValkeyGlide, connect) {
         RETURN_FALSE;
     }
 }
+
+PHP_METHOD(ValkeyGlide, connect) {
+    valkey_glide_connect(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
+}
+
+/* {{{ proto boolean ValkeyGlide::pconnect(...)
+   Same as connect(), with a persistent client (PHPRedis compatible). */
+PHP_METHOD(ValkeyGlide, pconnect) {
+    valkey_glide_connect(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
+}
+/* }}} */
 /* }}} */
 
 /* {{{ proto ValkeyGlide ValkeyGlide::__destruct()
@@ -1471,10 +1666,8 @@ PHP_METHOD(ValkeyGlide, close) {
 
     valkey_glide_clear_batch_state(valkey_glide);
 
-    if (valkey_glide->glide_client) {
-        close_glide_client(valkey_glide->glide_client);
-        valkey_glide->glide_client = NULL;
-    }
+    /* close() also closes a persistent client, as in PHPRedis >= 4.2 */
+    valkey_glide_release_client(valkey_glide, true);
 
     /* Mark resolver as closed so background Rust threads get immediate
        fallback instead of calling into PHP. Memory freed at RSHUTDOWN. */
@@ -1562,6 +1755,8 @@ PHP_METHOD(ValkeyGlide, subscribe) {
         zend_throw_exception(get_valkey_glide_exception_ce(), "Client not connected", 0);
         RETURN_FALSE;
     }
+    /* Subscriptions are connection state: do not hand the client to a later request */
+    valkey_glide_mark_connection_state_changed(valkey_glide);
     valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
 
@@ -1572,6 +1767,8 @@ PHP_METHOD(ValkeyGlide, psubscribe) {
         zend_throw_exception(get_valkey_glide_exception_ce(), "Client not connected", 0);
         RETURN_FALSE;
     }
+    /* Subscriptions are connection state: do not hand the client to a later request */
+    valkey_glide_mark_connection_state_changed(valkey_glide);
     valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
 

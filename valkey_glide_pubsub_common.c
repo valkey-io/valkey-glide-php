@@ -112,48 +112,90 @@ void cond_destroy(cond_t* c) {
 #endif
 }
 
-// Global pubsub callback storage
+// Global pubsub callback storage. The table is persistent and shared by all
+// PHP threads (the push callback looks entries up from a GLIDE thread); each
+// entry is request memory of the thread that registered it.
 static HashTable pubsub_callbacks;
 static bool      pubsub_callbacks_initialized = false;
+// Guards pubsub_callbacks. The push callback holds it while it uses an entry,
+// so an entry is only freed (by its own PHP thread) after removal under it.
+static mutex_t pubsub_callbacks_mutex;
+// Process that owns the registry. After fork() the child must not take the
+// inherited mutex: a GLIDE thread may have held it, and that thread is not in
+// the child. The child starts an empty registry of its own instead.
+static pid_t pubsub_callbacks_pid;
 
-// Initialize pubsub callbacks
+// Call before any use of the registry from a PHP thread
+static void pubsub_callbacks_after_fork(void) {
+    if (pubsub_callbacks_pid != getpid()) {
+        mutex_init(&pubsub_callbacks_mutex);
+        /* The table has no destructor: the parent's entries are only dropped */
+        zend_hash_clean(&pubsub_callbacks);
+        pubsub_callbacks_pid = getpid();
+    }
+}
+
+static uintptr_t current_thread_id(void) {
+#ifdef _WIN32
+    return (uintptr_t) GetCurrentThreadId();
+#else
+    return (uintptr_t) pthread_self();
+#endif
+}
+
+// Initialize pubsub callbacks (module startup)
 void init_pubsub_callbacks(void) {
     if (!pubsub_callbacks_initialized) {
-        zend_hash_init(&pubsub_callbacks, 16, NULL, cleanup_callback_info, 0);
+        // No destructor: entries are freed outside the mutex, by their owner
+        zend_hash_init(&pubsub_callbacks, 16, NULL, NULL, 1);
+        mutex_init(&pubsub_callbacks_mutex);
+        pubsub_callbacks_pid         = getpid();
         pubsub_callbacks_initialized = true;
     }
 }
 
-// Find pubsub callback by client key
-zval* find_pubsub_callback(const char* client_key) {
+// Find pubsub callback by client key. For PHP threads: an entry is only
+// removed by the thread that registered it.
+pubsub_callback_info* find_pubsub_callback(const char* client_key) {
     if (!pubsub_callbacks_initialized) {
         return NULL;
     }
-    return zend_hash_str_find(&pubsub_callbacks, client_key, strlen(client_key));
+    pubsub_callbacks_after_fork();
+    mutex_lock(&pubsub_callbacks_mutex);
+    pubsub_callback_info* info =
+        zend_hash_str_find_ptr(&pubsub_callbacks, client_key, strlen(client_key));
+    mutex_unlock(&pubsub_callbacks_mutex);
+    return info;
 }
 
-// Remove pubsub callback by client key
-void remove_pubsub_callback(const char* client_key) {
-    if (pubsub_callbacks_initialized) {
-        zend_hash_str_del(&pubsub_callbacks, client_key, strlen(client_key));
+// Remove pubsub callback by client key and return it (to be freed by the caller)
+static pubsub_callback_info* take_pubsub_callback(const char* client_key, size_t key_len) {
+    pubsub_callbacks_after_fork();
+    mutex_lock(&pubsub_callbacks_mutex);
+    pubsub_callback_info* info = zend_hash_str_find_ptr(&pubsub_callbacks, client_key, key_len);
+    if (info) {
+        zend_hash_str_del(&pubsub_callbacks, client_key, key_len);
     }
+    mutex_unlock(&pubsub_callbacks_mutex);
+    return info;
+}
+
+// Free a queued message (allocated by the push callback with malloc)
+static void free_pubsub_message(pubsub_message* msg) {
+    free(msg->channel);
+    free(msg->message);
+    free(msg->pattern);
+    free(msg);
 }
 
 // Cleanup callback info
-void cleanup_callback_info(zval* zv) {
-    pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(zv);
+void cleanup_callback_info(pubsub_callback_info* info) {
     if (info) {
         // Free all messages in queue
         pubsub_message* msg = info->queue_head;
         while (msg) {
             pubsub_message* next = msg->next;
-            if (msg->channel)
-                efree(msg->channel);
-            if (msg->message)
-                efree(msg->message);
-            if (msg->pattern)
-                efree(msg->pattern);
-            efree(msg);
+            free_pubsub_message(msg);
             msg = next;
         }
 
@@ -194,72 +236,81 @@ void pubsub_callback_handler(uintptr_t      client_ptr,
         return;
     }
 
-    char client_key[32];
-    int  key_len = snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
-
-    zval* callback_zv = zend_hash_str_find(&pubsub_callbacks, client_key, key_len);
-    if (!callback_zv) {
-        return;
-    }
-
-    pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
-    if (!info || !info->is_active) {
-        return;
-    }
-
     // Only handle message types
     if (kind != PUBSUB_KIND_MESSAGE && kind != PUBSUB_KIND_PMESSAGE &&
         kind != PUBSUB_KIND_SMESSAGE) {
         return;
     }
 
-    // Allocate and populate message node
-    pubsub_message* msg = (pubsub_message*) emalloc(sizeof(pubsub_message));
-    if (!msg)
+    // Runs on a GLIDE thread: no PHP allocator or zvals here, and the entry is
+    // used only while pubsub_callbacks_mutex keeps its owner from freeing it
+    char client_key[32];
+    int  key_len = snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
+
+    mutex_lock(&pubsub_callbacks_mutex);
+    pubsub_callback_info* info = zend_hash_str_find_ptr(&pubsub_callbacks, client_key, key_len);
+    if (!info || !info->is_active) {
+        mutex_unlock(&pubsub_callbacks_mutex);
         return;
+    }
+
+    // Reserve room in the queue before copying anything, or drop the message
+    bool   has_pattern = pattern && pattern_len > 0;
+    size_t size =
+        (size_t) channel_len + (size_t) message_len + (has_pattern ? (size_t) pattern_len : 0);
+    mutex_lock(&info->queue_mutex);
+    bool room = info->queue_depth < PUBSUB_QUEUE_MAX_DEPTH &&
+                size <= PUBSUB_QUEUE_MAX_BYTES - info->queue_bytes;
+    if (room) {
+        info->queue_depth++;
+        info->queue_bytes += size;
+    } else {
+        info->dropped_count++;
+        /* Wake the subscribe loop so it reports the drop */
+        cond_signal(&info->queue_cond);
+    }
+    mutex_unlock(&info->queue_mutex);
+    if (!room) {
+        mutex_unlock(&pubsub_callbacks_mutex);
+        return;
+    }
+
+    // Allocate and populate message node (malloc of at least 1 byte, so an
+    // empty payload is not mistaken for a failed allocation)
+    pubsub_message* msg = (pubsub_message*) calloc(1, sizeof(pubsub_message));
+    if (msg) {
+        msg->channel = (uint8_t*) malloc(channel_len > 0 ? (size_t) channel_len : 1);
+        msg->message = (uint8_t*) malloc(message_len > 0 ? (size_t) message_len : 1);
+        if (has_pattern) {
+            msg->pattern = (uint8_t*) malloc((size_t) pattern_len);
+        }
+    }
+    if (!msg || !msg->channel || !msg->message || (has_pattern && !msg->pattern)) {
+        if (msg) {
+            free_pubsub_message(msg);
+        }
+        mutex_lock(&info->queue_mutex);
+        info->queue_depth--;
+        info->queue_bytes -= size;
+        info->dropped_count++;
+        cond_signal(&info->queue_cond);
+        mutex_unlock(&info->queue_mutex);
+        mutex_unlock(&pubsub_callbacks_mutex);
+        return;
+    }
 
     msg->kind = kind;
     msg->next = NULL;
-
-    // Copy channel
-    msg->channel = (uint8_t*) emalloc(channel_len);
-    if (msg->channel) {
-        memcpy(msg->channel, channel, channel_len);
-        msg->channel_len = channel_len;
-    } else {
-        efree(msg);
-        return;
+    memcpy(msg->channel, channel, channel_len);
+    msg->channel_len = channel_len;
+    memcpy(msg->message, message, message_len);
+    msg->message_len = message_len;
+    if (has_pattern) {
+        memcpy(msg->pattern, pattern, pattern_len);
+        msg->pattern_len = pattern_len;
     }
 
-    // Copy message
-    msg->message = (uint8_t*) emalloc(message_len);
-    if (msg->message) {
-        memcpy(msg->message, message, message_len);
-        msg->message_len = message_len;
-    } else {
-        efree(msg->channel);
-        efree(msg);
-        return;
-    }
-
-    // Copy pattern if present
-    if (pattern && pattern_len > 0) {
-        msg->pattern = (uint8_t*) emalloc(pattern_len);
-        if (msg->pattern) {
-            memcpy(msg->pattern, pattern, pattern_len);
-            msg->pattern_len = pattern_len;
-        } else {
-            efree(msg->message);
-            efree(msg->channel);
-            efree(msg);
-            return;
-        }
-    } else {
-        msg->pattern     = NULL;
-        msg->pattern_len = 0;
-    }
-
-    // Add to queue (thread-safe)
+    // Add to queue (thread-safe); its room is already reserved
     mutex_lock(&info->queue_mutex);
     if (info->queue_tail) {
         info->queue_tail->next = msg;
@@ -269,6 +320,7 @@ void pubsub_callback_handler(uintptr_t      client_ptr,
     info->queue_tail = msg;
     cond_signal(&info->queue_cond);
     mutex_unlock(&info->queue_mutex);
+    mutex_unlock(&pubsub_callbacks_mutex);
 }
 
 // Register callback
@@ -287,8 +339,12 @@ void php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* cl
     info->is_active = true;
 
     // Initialize message queue
-    info->queue_head = NULL;
-    info->queue_tail = NULL;
+    info->queue_head     = NULL;
+    info->queue_tail     = NULL;
+    info->queue_depth    = 0;
+    info->queue_bytes    = 0;
+    info->dropped_count  = 0;
+    info->reported_drops = 0;
     mutex_init(&info->queue_mutex);
     cond_init(&info->queue_cond);
 
@@ -297,11 +353,14 @@ void php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* cl
     zend_hash_init(info->subscribed_channels, 8, NULL, ZVAL_PTR_DTOR, 0);
 
     info->in_subscribe_mode = false;
+    info->owner_thread      = current_thread_id();
 
-    // Store the pointer in a zval using ZVAL_PTR
-    zval callback_zv;
-    ZVAL_PTR(&callback_zv, info);
-    zend_hash_str_update(&pubsub_callbacks, client_key, key_len, &callback_zv);
+    // Store the pointer, replacing (and then freeing) any earlier entry
+    pubsub_callback_info* previous = take_pubsub_callback(client_key, key_len);
+    mutex_lock(&pubsub_callbacks_mutex);
+    zend_hash_str_update_ptr(&pubsub_callbacks, client_key, key_len, info);
+    mutex_unlock(&pubsub_callbacks_mutex);
+    cleanup_callback_info(previous);
 }
 
 // Unregister callback
@@ -312,15 +371,12 @@ void php_unregister_pubsub_callback(uintptr_t client_ptr) {
     char client_key[32];
     int  key_len = snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
 
-    zval* callback_zv = zend_hash_str_find(&pubsub_callbacks, client_key, key_len);
-    if (callback_zv) {
-        pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
-        if (info) {
-            info->is_active = false;
-            cond_signal(&info->queue_cond);
-        }
-        // Delete from hashtable - this will call cleanup_callback_info
-        zend_hash_str_del(&pubsub_callbacks, client_key, key_len);
+    // Remove from the table first, so the push callback no longer sees it
+    pubsub_callback_info* info = take_pubsub_callback(client_key, key_len);
+    if (info) {
+        info->is_active = false;
+        cond_signal(&info->queue_cond);
+        cleanup_callback_info(info);
     }
 }
 
@@ -332,11 +388,7 @@ bool is_client_in_subscribe_mode(uintptr_t client_ptr) {
     char client_key[32];
     snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
 
-    zval* callback_zv = find_pubsub_callback(client_key);
-    if (!callback_zv)
-        return false;
-
-    pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
+    pubsub_callback_info* info = find_pubsub_callback(client_key);
     return info ? info->in_subscribe_mode : false;
 }
 
@@ -344,19 +396,19 @@ bool is_client_in_subscribe_mode(uintptr_t client_ptr) {
 static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub_type) {
     char client_key[32];
     snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
-    zval* callback_zv = find_pubsub_callback(client_key);
-    if (!callback_zv)
+    pubsub_callback_info* info = find_pubsub_callback(client_key);
+    if (!info)
         return;
 
-    pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
-    info->in_subscribe_mode    = true;
+    info->in_subscribe_mode = true;
 
     while (info->is_active && zend_hash_num_elements(info->subscribed_channels) > 0) {
         pubsub_message* msg = NULL;
 
         mutex_lock(&info->queue_mutex);
         while (!info->queue_head && info->is_active &&
-               zend_hash_num_elements(info->subscribed_channels) > 0) {
+               zend_hash_num_elements(info->subscribed_channels) > 0 &&
+               info->dropped_count == info->reported_drops) {
             cond_wait(&info->queue_cond, &info->queue_mutex);
         }
         if (info->queue_head) {
@@ -365,8 +417,18 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
             if (!info->queue_head) {
                 info->queue_tail = NULL;
             }
+            info->queue_depth--;
+            info->queue_bytes -= (size_t) msg->channel_len + (size_t) msg->message_len +
+                                 (msg->pattern ? (size_t) msg->pattern_len : 0);
         }
+        size_t dropped = info->dropped_count;
         mutex_unlock(&info->queue_mutex);
+
+        if (dropped != info->reported_drops) {
+            VALKEY_LOG_WARN_FMT(
+                "pubsub", "Subscriber queue full: %zu message(s) dropped so far", dropped);
+            info->reported_drops = dropped;
+        }
 
         if (msg) {
             zval php_channel, php_message, php_pattern;
@@ -400,13 +462,7 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
                 zval_ptr_dtor(&php_pattern);
             }
 
-            if (msg->channel)
-                efree(msg->channel);
-            if (msg->message)
-                efree(msg->message);
-            if (msg->pattern)
-                efree(msg->pattern);
-            efree(msg);
+            free_pubsub_message(msg);
         }
     }
 
@@ -474,14 +530,12 @@ static int execute_subscribe_command(const void*      connection,
 
     char client_key[32];
     snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
-    zval* callback_zv = find_pubsub_callback(client_key);
-    if (!callback_zv) {
+    pubsub_callback_info* info = find_pubsub_callback(client_key);
+    if (!info) {
         VALKEY_LOG_ERROR(command_name, "Failed to find pubsub callback after command execution");
         ZVAL_FALSE(return_value);
         return 0;
     }
-
-    pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
 
     // Add channels to subscribed set
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(items_array), item_zv) {
@@ -541,22 +595,19 @@ static void execute_unsubscribe_command(const void*      connection,
         // Update subscription set
         char client_key[32];
         snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
-        zval* callback_zv = find_pubsub_callback(client_key);
-        if (callback_zv) {
-            pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
-            if (info) {
-                // Remove channels from subscribed set
-                ZEND_HASH_FOREACH_VAL(items_ht, item_zv) {
-                    convert_to_string(item_zv);
-                    zend_hash_str_del(
-                        info->subscribed_channels, Z_STRVAL_P(item_zv), Z_STRLEN_P(item_zv));
-                }
-                ZEND_HASH_FOREACH_END();
+        pubsub_callback_info* info = find_pubsub_callback(client_key);
+        if (info) {
+            // Remove channels from subscribed set
+            ZEND_HASH_FOREACH_VAL(items_ht, item_zv) {
+                convert_to_string(item_zv);
+                zend_hash_str_del(
+                    info->subscribed_channels, Z_STRVAL_P(item_zv), Z_STRLEN_P(item_zv));
+            }
+            ZEND_HASH_FOREACH_END();
 
-                if (zend_hash_num_elements(info->subscribed_channels) == 0) {
-                    info->is_active = false;
-                    cond_signal(&info->queue_cond);
-                }
+            if (zend_hash_num_elements(info->subscribed_channels) == 0) {
+                info->is_active = false;
+                cond_signal(&info->queue_cond);
             }
         }
     } else {
@@ -575,14 +626,11 @@ static void execute_unsubscribe_command(const void*      connection,
         // Update subscription set
         char client_key[32];
         snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) connection);
-        zval* callback_zv = find_pubsub_callback(client_key);
-        if (callback_zv) {
-            pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
-            if (info) {
-                zend_hash_clean(info->subscribed_channels);
-                info->is_active = false;
-                cond_signal(&info->queue_cond);
-            }
+        pubsub_callback_info* info = find_pubsub_callback(client_key);
+        if (info) {
+            zend_hash_clean(info->subscribed_channels);
+            info->is_active = false;
+            cond_signal(&info->queue_cond);
         }
     }
 }
@@ -743,32 +791,59 @@ void valkey_glide_pubsub_callback(uintptr_t      client_adapter_ptr,
                                   int64_t        channel_len,
                                   const uint8_t* pattern,
                                   int64_t        pattern_len) {
-    char client_key[32];
-    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_adapter_ptr);
-
-    zval* callback_zv = find_pubsub_callback(client_key);
-    if (callback_zv) {
-        pubsub_callback_info* info = (pubsub_callback_info*) Z_PTR_P(callback_zv);
-        if (info && info->is_active) {
-            pubsub_callback_handler(client_adapter_ptr,
-                                    (int) kind,
-                                    message,
-                                    message_len,
-                                    channel,
-                                    channel_len,
-                                    pattern,
-                                    pattern_len);
-        } else {
-            remove_pubsub_callback(client_key);
-        }
-    }
+    /* Runs on a GLIDE thread. Inactive entries are removed by their PHP thread */
+    pubsub_callback_handler(client_adapter_ptr,
+                            (int) kind,
+                            message,
+                            message_len,
+                            channel,
+                            channel_len,
+                            pattern,
+                            pattern_len);
 }
 
 
-// Shutdown function
+// Request shutdown: drop the callbacks this request registered (their memory
+// is released with the request). Other threads' entries stay (ZTS).
+void valkey_glide_pubsub_request_shutdown(void) {
+    if (!pubsub_callbacks_initialized) {
+        return;
+    }
+    pubsub_callbacks_after_fork();
+    uintptr_t             self  = current_thread_id();
+    pubsub_callback_info* owned = NULL; /* removed entries, linked via next_removed */
+
+    mutex_lock(&pubsub_callbacks_mutex);
+    zend_string* key;
+    void*        ptr;
+    ZEND_HASH_FOREACH_STR_KEY_PTR(&pubsub_callbacks, key, ptr) {
+        pubsub_callback_info* info = (pubsub_callback_info*) ptr;
+        if (info && info->owner_thread == self) {
+            info->next_removed = owned;
+            owned              = info;
+            zend_hash_del(&pubsub_callbacks, key);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+    mutex_unlock(&pubsub_callbacks_mutex);
+
+    /* Free outside the mutex: releasing the callback can run PHP code */
+    while (owned) {
+        pubsub_callback_info* next = owned->next_removed;
+        cleanup_callback_info(owned);
+        owned = next;
+    }
+}
+
+// Module shutdown: every request has ended, so the table is empty
 void valkey_glide_pubsub_shutdown(void) {
     if (pubsub_callbacks_initialized) {
-        zend_hash_destroy(&pubsub_callbacks);
+        /* In a forked child, drop the parent's entries and lock state first */
+        pubsub_callbacks_after_fork();
+        /* Clear the flag first so nothing looks entries up while the table
+         * is being destroyed */
         pubsub_callbacks_initialized = false;
+        zend_hash_destroy(&pubsub_callbacks);
+        mutex_destroy(&pubsub_callbacks_mutex);
     }
 }
