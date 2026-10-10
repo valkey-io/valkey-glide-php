@@ -190,6 +190,18 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue(version_compare($this->version, '2.4.0') >= 0);
     }
 
+    public function testCloneIsNotAllowed()
+    {
+        $threw = false;
+        try {
+            $copy = clone $this->valkey_glide;
+        } catch (Error $e) {
+            $threw = str_contains($e->getMessage(), 'Trying to clone an uncloneable object');
+        }
+        $this->assertTrue($threw);
+        $this->assertTrue($this->valkey_glide->set('clone-key', 'v'));
+    }
+
     public function testPing()
     {
         /* Reply literal off */
