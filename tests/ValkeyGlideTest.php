@@ -190,6 +190,62 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue(version_compare($this->version, '2.4.0') >= 0);
     }
 
+    public function testCloneIsNotAllowed()
+    {
+        $threw = false;
+        try {
+            $copy = clone $this->valkey_glide;
+        } catch (Error $e) {
+            $threw = str_contains($e->getMessage(), 'Trying to clone an uncloneable object');
+        }
+        $this->assertTrue($threw);
+        $this->assertTrue($this->valkey_glide->set('clone-key', 'v'));
+    }
+
+    /* Command line running $script in a new PHP process with this extension, plus
+     * pcntl and posix when they are loaded here as shared extensions */
+    protected function phpSubprocessCommand(string $script, string ...$args): array
+    {
+        $extension_path = __DIR__ . '/../modules/valkey_glide.so';
+        $extension = file_exists($extension_path) ? $extension_path : 'valkey_glide';
+        $cmd = [PHP_BINARY, '-n', '-d', "extension=$extension"];
+        foreach (['pcntl', 'posix'] as $name) {
+            $shared = ini_get('extension_dir') . "/$name." . PHP_SHLIB_SUFFIX;
+            if (extension_loaded($name) && file_exists($shared)) {
+                array_push($cmd, '-d', "extension=$shared");
+            }
+        }
+        return array_merge($cmd, [$script], $args);
+    }
+
+    /* A forked child cannot use, and does not close, a client it inherited */
+    public function testClientInheritedThroughFork()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The fork helper connects without TLS or auth');
+        }
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped('proc_open is not available');
+        }
+
+        $cmd = $this->phpSubprocessCommand(
+            __DIR__ . '/scripts/fork_inherited_client.php',
+            $this->valkey_glide instanceof ValkeyGlideCluster ? '1' : '0',
+            $this->getHost(),
+            (string) $this->getPort()
+        );
+        $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
+        $this->assertTrue(is_resource($proc));
+        $out = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        proc_close($proc);
+
+        if (str_contains($out, 'pcntl_fork')) {
+            $this->markTestSkipped('pcntl is not available');
+        }
+        $this->assertEquals(['child' => 'ok', 'parent_works' => true], json_decode($out, true));
+    }
+
     public function testPing()
     {
         /* Reply literal off */
@@ -9370,5 +9426,199 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
         $this->assertConnected($client);
         $client->close();
+    }
+
+    /* Clients created with persistent_id / $persistent survive the request and are
+     * reused by the next one in the same process, as in a PHP-FPM worker */
+    public function testPersistentClientAcrossRequests()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The web server helper connects without TLS or auth');
+        }
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped('proc_open is not available');
+        }
+
+        $is_cluster = $this->valkey_glide instanceof ValkeyGlideCluster;
+
+        /* Find a free port for the PHP built-in web server */
+        $probe = stream_socket_server('tcp://127.0.0.1:0');
+        $web_port = (int) substr(strrchr(stream_socket_get_name($probe, false), ':'), 1);
+        fclose($probe);
+
+        $extension_path = __DIR__ . '/../modules/valkey_glide.so';
+        $extension = file_exists($extension_path) ? $extension_path : 'valkey_glide';
+        /* One server process, so every request sees the clients kept by earlier ones */
+        $env = getenv();
+        unset($env['PHP_CLI_SERVER_WORKERS']);
+        $start = function (array $ini = []) use ($extension, $web_port, $env) {
+            $cmd = [PHP_BINARY, '-n', '-d', "extension=$extension"];
+            foreach ($ini as $setting) {
+                array_push($cmd, '-d', $setting);
+            }
+            array_push($cmd, '-S', "127.0.0.1:$web_port", __DIR__ . '/scripts/persistent_client_web.php');
+            $server = proc_open($cmd, [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, null, $env);
+            $this->assertTrue(is_resource($server));
+            return $server;
+        };
+        $stop = function ($server) {
+            proc_terminate($server);
+            proc_close($server);
+        };
+        $server = $start();
+
+        /* Returns the decoded JSON reply; fails the test on an error page */
+        $context = stream_context_create(['http' => ['ignore_errors' => true, 'timeout' => 10]]);
+        $get = function (array $query = []) use ($web_port, $is_cluster, $context) {
+            $query += ['cluster' => $is_cluster ? '1' : '0', 'host' => $this->getHost(),
+                       'port' => $this->getPort(), 'persistent' => '1'];
+            $url = "http://127.0.0.1:$web_port/?" . http_build_query($query);
+            for ($attempt = 0; $attempt < 50; $attempt++) {
+                $body = @file_get_contents($url, false, $context);
+                if ($body !== false) {
+                    $reply = json_decode($body, true);
+                    $this->assertTrue(is_array($reply), "Unexpected reply: $body");
+                    return is_array($reply) ? $reply : ['id' => null];
+                }
+                usleep(100000); /* server still starting */
+            }
+            $this->assertTrue(false, 'The web server did not answer');
+            return ['id' => null];
+        };
+        $id = fn (array $query = []) => $get($query)['id'];
+
+        try {
+            /* Persistent: every request uses the same server connection */
+            $first = $id();
+            $this->assertTrue(ctype_digit((string) $first));
+            $this->assertEquals($first, $id());
+            $this->assertEquals($first, $id());
+
+            /* Not persistent: a new connection per request */
+            $plain1 = $id(['persistent' => '0']);
+            $plain2 = $id(['persistent' => '0']);
+            $this->assertNotEquals($first, $plain1);
+            $this->assertNotEquals($plain1, $plain2);
+
+            /* A second object with the same configuration in one request gets its own connection */
+            $two = $get(['action' => 'two']);
+            $this->assertEquals($first, $two['id']);
+            $this->assertNotEquals($first, $two['other_id']);
+            $this->assertEquals($first, $id());
+
+            /* WATCH from one request does not abort the next request's transaction */
+            $this->valkey_glide->del('{persistent}:watched');
+            $this->assertEquals($first, $id(['action' => 'watch']));
+            $this->valkey_glide->set('{persistent}:watched', 'changed');
+            $txn = $get(['action' => 'transaction']);
+            $this->assertEquals($first, $txn['id']);
+            $this->assertEquals([true], $txn['exec']);
+            $this->valkey_glide->del('{persistent}:watched');
+
+            /* Same when EXEC ran but WATCH covered another slot (another node in a cluster) */
+            $this->valkey_glide->del('{persistent}:watched', '{persistent_other}:watched');
+            $two = $get(['action' => 'watch_two_slots_exec']);
+            $this->assertEquals($first, $two['id']);
+            $this->assertEquals([true], $two['exec']);
+            $this->valkey_glide->set('{persistent_other}:watched', 'changed');
+            $txn = $get(['action' => 'transaction_other']);
+            $this->assertEquals($first, $txn['id']);
+            $this->assertEquals([true], $txn['exec']);
+            $this->valkey_glide->del('{persistent}:watched', '{persistent_other}:watched');
+
+            /* Same when the request queued an UNWATCH that never ran */
+            $this->assertEquals($first, $id(['action' => 'watch_queued_unwatch']));
+            $this->valkey_glide->set('{persistent}:watched', 'changed');
+            $txn = $get(['action' => 'transaction']);
+            $this->assertEquals($first, $txn['id']);
+            $this->assertEquals([true], $txn['exec']);
+            $this->valkey_glide->del('{persistent}:watched');
+
+            /* Same with the client held in a static property (released after RSHUTDOWN) */
+            $this->assertEquals($first, $id(['action' => 'watch_static']));
+            $this->valkey_glide->set('{persistent}:watched', 'changed');
+            $txn = $get(['action' => 'transaction']);
+            $this->assertEquals($first, $txn['id']);
+            $this->assertEquals([true], $txn['exec']);
+            $this->valkey_glide->del('{persistent}:watched');
+
+            /* A client held in a static property is released after RSHUTDOWN and still kept */
+            $this->assertEquals($first, $id(['action' => 'static']));
+            $this->assertEquals($first, $id());
+
+            if (!$is_cluster) {
+                /* After select() the kept client is back on the configured database */
+                $selected = $get(['action' => 'select']);
+                $this->assertEquals($first, $selected['id']);
+                $this->assertEquals(0, $selected['db']);
+                $after = $get();
+                $this->assertEquals($first, $after['id']);
+                $this->assertEquals(0, $after['db']);
+
+                /* A SELECT that times out still runs on the server; it must not leak */
+                $slow = ['timeout' => 200];
+                $paused = $get($slow + ['action' => 'paused_select']);
+                $this->assertNotEquals(true, $paused['select']);
+                usleep(800000); /* let the pause end */
+                $this->assertEquals(0, $get($slow)['db']);
+            }
+
+            /* close(), and requests that change connection state, end the reuse */
+            $actions = ['close', 'reset', 'setname'];
+            if (!$is_cluster) {
+                $actions[] = 'raw_select';
+                $actions[] = 'stringable_select';
+            }
+            $current = $first;
+            foreach ($actions as $action) {
+                $this->assertEquals($current, $id(['action' => $action]));
+                $next = $id();
+                $this->assertNotEquals($current, $next);
+                $this->assertEquals($next, $id());
+                $current = $next;
+            }
+
+            /* At valkey_glide.max_persistent_clients, a new configuration replaces
+             * the least recently used idle client */
+            $stop($server);
+            $server = $start(['valkey_glide.max_persistent_clients=1']);
+            $kept = $id();
+            $this->assertEquals($kept, $id());
+            $other = ['timeout' => 1234];
+            $replacement = $id($other);
+            $this->assertNotEquals($kept, $replacement);
+            $this->assertEquals($replacement, $id($other));
+            $this->assertNotEquals($kept, $id());
+        } finally {
+            $stop($server);
+        }
+    }
+
+    /* A forked child must not close (or reuse) a persistent client it inherited */
+    public function testPersistentClientAcrossFork()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The fork helper connects without TLS or auth');
+        }
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped('proc_open is not available');
+        }
+
+        $cmd = $this->phpSubprocessCommand(
+            __DIR__ . '/scripts/persistent_client_fork.php',
+            $this->valkey_glide instanceof ValkeyGlideCluster ? '1' : '0',
+            $this->getHost(),
+            (string) $this->getPort()
+        );
+        $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
+        $this->assertTrue(is_resource($proc));
+        $out = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        proc_close($proc);
+
+        if (str_contains($out, 'pcntl_fork')) {
+            $this->markTestSkipped('pcntl is not available');
+        }
+        $this->assertEquals(['child_exited_cleanly' => true, 'parent_reused' => true], json_decode($out, true));
     }
 }
