@@ -9,6 +9,8 @@
  * glide-core that validate_printable_ascii() below depends on. Use explicit byte
  * ranges instead. */
 #include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <zend_smart_str.h>
 
 #include "include/glide_bindings.h"
@@ -429,6 +431,8 @@ typedef struct {
 
     /* Last command error message (PHPRedis getLastError/clearLastError), NULL if none */
     zend_string* last_error;
+
+    pid_t client_pid; /* process that created glide_client (fork detection) */
 
     zend_object std; /* MUST be last - PHP allocates extra memory after this */
 } valkey_glide_object;

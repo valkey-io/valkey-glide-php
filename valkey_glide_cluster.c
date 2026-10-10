@@ -122,6 +122,7 @@ static int valkey_glide_cluster_create_connection(
     } else {
         VALKEY_LOG_INFO("cluster_construct", "ValkeyGlide cluster client created successfully");
         valkey_glide->glide_client = conn_resp->conn_ptr;
+        valkey_glide->client_pid   = getpid();
         valkey_glide->resolver_cb  = resolver_cb;
     }
 
@@ -332,10 +333,14 @@ PHP_METHOD(ValkeyGlideCluster, close) {
 
     valkey_glide_clear_batch_state(valkey_glide);
 
-    if (valkey_glide->glide_client) {
-        close_glide_client(valkey_glide->glide_client);
-        php_release_pubsub_callback((uintptr_t) valkey_glide->glide_client);
-        valkey_glide->glide_client = NULL;
+    /* Read before valkey_glide_close_client() clears the handle */
+    uintptr_t client_ptr = (uintptr_t) valkey_glide->glide_client;
+    bool      owned      = client_ptr && valkey_glide->client_pid == getpid();
+    valkey_glide_close_client(valkey_glide);
+    /* The registry lock may have been held at fork() by a thread the child
+     * does not have, so an inherited client leaves the registry alone */
+    if (owned) {
+        php_release_pubsub_callback(client_ptr);
     }
 
     /* Mark resolver as closed so background Rust threads get immediate
