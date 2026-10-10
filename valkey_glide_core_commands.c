@@ -411,6 +411,19 @@ static const ConnectionResponse* create_base_glide_client(
     /* Free the request bytes as they're no longer needed */
     efree(request_bytes);
 
+    /* No response at all: report it and give the resolver slot back */
+    if (!conn_resp) {
+        if (address_resolver_cb) {
+            valkey_glide_resolver_release(address_resolver_cb);
+        }
+        if (out_resolver_cb) {
+            *out_resolver_cb = NULL;
+        }
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "Failed to create client: no connection response", 0);
+        return NULL;
+    }
+
     /* Check if there was an error */
     if (conn_resp->connection_error_message) {
         VALKEY_LOG_ERROR("client_creation", conn_resp->connection_error_message);
@@ -1031,6 +1044,13 @@ void close_glide_client(const void* glide_client) {
     }
     /* Close the client using the close_client function from glide_bindings.h */
     close_client(glide_client);
+}
+
+void valkey_glide_close_client(valkey_glide_object* valkey_glide) {
+    if (valkey_glide->glide_client && valkey_glide->client_pid == getpid()) {
+        close_glide_client(valkey_glide->glide_client);
+    }
+    valkey_glide->glide_client = NULL;
 }
 
 /* Execute an ECHO command using the Valkey Glide client */

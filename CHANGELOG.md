@@ -6,6 +6,16 @@
 
 * An AZ-affinity read strategy (`READ_FROM_AZ_AFFINITY`, `READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY`, or `READ_FROM_AZ_AFFINITY_ALL_NODES`) configured without a valid `client_az` now throws at client creation. Previously the core logged a warning and downgraded the strategy to `PreferReplica`, so reads silently went to arbitrary nodes. A `client_az` that is empty, whitespace-only, contains a NUL byte, or has leading/trailing whitespace is rejected ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
 
+### Fixes
+
+* `ValkeyGlideCluster::__construct()` on an already connected object now throws instead of replacing (and leaking) the existing client
+* The pub/sub callback registry is released at the end of each request; it was allocated per request but reused by later requests in the same worker (PHP-FPM)
+* Failing to build the connection request, or getting no connection response, is reported as an exception instead of dereferencing a NULL response
+* Pub/sub messages are delivered thread-safely, and at most 10,000 messages or 64 MiB are queued per subscriber: when a slow callback falls behind, newer messages are dropped and a warning is logged instead of memory growing without bound
+* `clone` on a `ValkeyGlide` or `ValkeyGlideCluster` object now throws an `Error`; the copy shared the client handle and crashed on first use
+* `script()`, `geoadd()`, `geohash()`, `geopos()`, `xinfo()`, `zadd()` and cluster route parsing no longer read uninitialized variadic arguments when called without them (`script('FLUSH')` could crash)
+* A client (`ValkeyGlide`, `ValkeyGlideCluster`, `ValkeyGlideMonitor`) inherited through `fork()` is no longer closed by the child, which crashed (macOS) or hung (Linux) the child at exit. Calling a method on it in the child, directly or through `call_user_func()`, Reflection or a closure, now throws `ValkeyGlideException`, except `close()`, which only drops the handle, and `getLastError()`, `clearLastError()`, `getOption()` and `setOption()`, which do not use the client. Creating a new client in a child after the parent used GLIDE still crashes or hangs until the core is fixed ([#349](https://github.com/valkey-io/valkey-glide-php/issues/349))
+
 ### Changes
 
 * Add `HGETDEL` command for standalone and cluster clients ([#343](https://github.com/valkey-io/valkey-glide-php/pull/343))

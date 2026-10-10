@@ -2239,6 +2239,17 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         return call_user_func_array([$this->valkey_glide, 'rawCommand'], $args);
     }
 
+    /* Constructing a connected cluster client again must not drop its client */
+    public function testConstructWhenAlreadyConnected()
+    {
+        $client = $this->newInstance();
+        $this->assertThrowsMatch($client, function ($c) {
+            $c->__construct(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        }, '/already connected/');
+        $this->assertTrue($client->ping('{key}'));
+        $client->close();
+    }
+
     /* Test that rawCommand and EVAL can be configured to return simple string values */
     public function testReplyLiteral()
     {

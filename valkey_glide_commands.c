@@ -40,6 +40,9 @@ static int parse_cluster_route(int                  argc,
                                zval**               args,
                                int*                 args_count,
                                core_command_args_t* core_args) {
+    /* Not set by the parser when there are no variadic arguments */
+    *args       = NULL;
+    *args_count = 0;
     if (zend_parse_method_parameters(argc, *object, "O*", object, ce, args, args_count) ==
         FAILURE) {
         return 0;

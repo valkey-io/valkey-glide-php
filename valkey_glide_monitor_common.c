@@ -34,6 +34,7 @@ typedef struct monitor_registry_entry {
 static monitor_registry_entry* monitor_registry_head = NULL;
 static mutex_t                 monitor_registry_mutex;
 static bool                    monitor_registry_initialized = false;
+static pid_t                   monitor_registry_pid; /* process that owns the registry */
 
 // Initialize the native registry. Callback state is owned by the active
 // monitor invocation, not by a process-global Zend HashTable, so it remains
@@ -42,6 +43,7 @@ void init_monitor_callbacks(void) {
     if (!monitor_registry_initialized) {
         mutex_init(&monitor_registry_mutex);
         monitor_registry_initialized = true;
+        monitor_registry_pid         = getpid();
     }
 }
 
@@ -359,6 +361,12 @@ void php_unregister_monitor_callback(uintptr_t client_ptr, monitor_callback_info
 
 // Shutdown monitor subsystem - called during module shutdown
 void valkey_glide_monitor_shutdown(void) {
+    /* In a forked child the registry, its locks and its connections belong to
+     * the parent: a lock held by a producer thread at fork() would never be
+     * released, and closing the connections crashes or hangs */
+    if (monitor_registry_initialized && monitor_registry_pid != getpid()) {
+        return;
+    }
     if (monitor_registry_initialized) {
         // Mark every registered monitor inactive and wake any blocked
         // consumer, then release the lock BEFORE closing clients. This

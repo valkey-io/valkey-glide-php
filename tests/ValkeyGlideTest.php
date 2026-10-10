@@ -190,6 +190,62 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue(version_compare($this->version, '2.4.0') >= 0);
     }
 
+    public function testCloneIsNotAllowed()
+    {
+        $threw = false;
+        try {
+            $copy = clone $this->valkey_glide;
+        } catch (Error $e) {
+            $threw = str_contains($e->getMessage(), 'Trying to clone an uncloneable object');
+        }
+        $this->assertTrue($threw);
+        $this->assertTrue($this->valkey_glide->set('clone-key', 'v'));
+    }
+
+    /* Command line running $script in a new PHP process with this extension, plus
+     * pcntl and posix when they are loaded here as shared extensions */
+    protected function phpSubprocessCommand(string $script, string ...$args): array
+    {
+        $extension_path = __DIR__ . '/../modules/valkey_glide.so';
+        $extension = file_exists($extension_path) ? $extension_path : 'valkey_glide';
+        $cmd = [PHP_BINARY, '-n', '-d', "extension=$extension"];
+        foreach (['pcntl', 'posix'] as $name) {
+            $shared = ini_get('extension_dir') . "/$name." . PHP_SHLIB_SUFFIX;
+            if (extension_loaded($name) && file_exists($shared)) {
+                array_push($cmd, '-d', "extension=$shared");
+            }
+        }
+        return array_merge($cmd, [$script], $args);
+    }
+
+    /* A forked child cannot use, and does not close, a client it inherited */
+    public function testClientInheritedThroughFork()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The fork helper connects without TLS or auth');
+        }
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped('proc_open is not available');
+        }
+
+        $cmd = $this->phpSubprocessCommand(
+            __DIR__ . '/scripts/fork_inherited_client.php',
+            $this->valkey_glide instanceof ValkeyGlideCluster ? '1' : '0',
+            $this->getHost(),
+            (string) $this->getPort()
+        );
+        $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
+        $this->assertTrue(is_resource($proc));
+        $out = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        proc_close($proc);
+
+        if (str_contains($out, 'pcntl_fork')) {
+            $this->markTestSkipped('pcntl is not available');
+        }
+        $this->assertEquals(['child' => 'ok', 'parent_works' => true], json_decode($out, true));
+    }
+
     public function testPing()
     {
         /* Reply literal off */
