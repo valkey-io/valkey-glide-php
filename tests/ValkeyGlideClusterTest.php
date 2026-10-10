@@ -2239,6 +2239,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         return call_user_func_array([$this->valkey_glide, 'rawCommand'], $args);
     }
 
+    public function testEmptyOrDiscardedMultiReportsFailedUnwatch()
+    {
+        $this->markTestSkipped('Needs the same ACL user on every node');
+    }
+
     /* Test that rawCommand and EVAL can be configured to return simple string values */
     public function testReplyLiteral()
     {

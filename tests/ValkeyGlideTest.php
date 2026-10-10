@@ -9425,6 +9425,35 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $other->close();
     }
 
+    /* If the UNWATCH for an empty or discarded MULTI fails, report the failure */
+    public function testEmptyOrDiscardedMultiReportsFailedUnwatch()
+    {
+        $user = 'glide_no_unwatch';
+        $this->assertTrue($this->valkey_glide->rawCommand('ACL', 'SETUSER', $user, 'reset', 'on', '>pw', '~*', '&*', '+@all', '-unwatch'));
+
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            credentials: ['username' => $user, 'password' => 'pw']
+        );
+
+        try {
+            foreach (['exec', 'discard'] as $end) {
+                $client->clearLastError();
+                $client->multi();
+                $this->assertFalse(@$client->$end());
+                $this->assertStringContains('unwatch', strtolower((string) $client->getLastError()));
+
+                /* The client left batch mode, so later commands run normally */
+                $this->assertTrue($client->set('{watch}unwatch_fail', 'v'));
+            }
+        } finally {
+            $client->del('{watch}unwatch_fail');
+            $client->close();
+            $this->valkey_glide->rawCommand('ACL', 'DELUSER', $user);
+        }
+    }
+
     public function testEvalNilInBatch()
     {
         /* A Lua nil is returned as null in a batch, as outside one */
