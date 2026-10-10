@@ -40,6 +40,7 @@ extern struct CommandResult* get_cache_metrics(const void* client_adapter_ptr,
 
 #include "valkey_glide_otel.h"  // Include OTEL support
 #include "valkey_glide_persistent.h"
+#include "valkey_glide_prefix.h"
 
 /* Enum support includes - must be BEFORE arginfo includes */
 #if PHP_VERSION_ID >= 80100
@@ -812,7 +813,8 @@ static bool fork_guard_exempt(zend_string* name) {
            zend_string_equals_literal_ci(name, "getLastError") ||
            zend_string_equals_literal_ci(name, "clearLastError") ||
            zend_string_equals_literal_ci(name, "getOption") ||
-           zend_string_equals_literal_ci(name, "setOption");
+           zend_string_equals_literal_ci(name, "setOption") ||
+           zend_string_equals_literal_ci(name, "_prefix");
 }
 
 static ZEND_NAMED_FUNCTION(valkey_glide_fork_guard) {
@@ -984,6 +986,7 @@ PHP_RSHUTDOWN_FUNCTION(valkey_glide) {
     valkey_glide_resolver_shutdown();
     /* Pub/sub callbacks registered by this request are request memory */
     valkey_glide_pubsub_request_shutdown();
+    valkey_glide_prefix_shutdown();
     return SUCCESS;
 }
 
@@ -1062,6 +1065,11 @@ void free_valkey_glide_object(zend_object* object) {
 
     /* Free the last error message if set */
     valkey_glide_clear_last_error(valkey_glide);
+
+    if (valkey_glide->prefix) {
+        zend_string_release(valkey_glide->prefix);
+        valkey_glide->prefix = NULL;
+    }
 
     /* Close the Valkey Glide client, or keep a persistent one for the next request */
     valkey_glide_release_client(valkey_glide, false);
@@ -1431,6 +1439,7 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     if (persistent_key) {
         valkey_glide_persistent_store(valkey_glide, persistent_key, client_config.database_id);
     }
+    valkey_glide_prefix_track_client(valkey_glide->glide_client, valkey_glide);
 
     free_connection_response((ConnectionResponse*) conn_resp);
 
