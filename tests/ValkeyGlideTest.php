@@ -9371,4 +9371,210 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->assertConnected($client);
         $client->close();
     }
+
+    public function testEmptyMultiExec()
+    {
+        $this->valkey_glide->del('{empty}key');
+
+        /* An empty transaction returns [] and leaves multi mode, so later commands run normally */
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->multi());
+        $this->assertEquals([], $this->valkey_glide->exec());
+        $this->assertTrue($this->valkey_glide->set('{empty}key', 'v'));
+        $this->assertEquals('v', $this->valkey_glide->get('{empty}key'));
+
+        $this->valkey_glide->del('{empty}key');
+    }
+
+    public function testEmptyPipelineExec()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped();
+        }
+
+        $this->valkey_glide->del('{empty}key');
+
+        $this->valkey_glide->pipeline();
+        $this->assertEquals([], $this->valkey_glide->exec());
+        $this->assertTrue($this->valkey_glide->set('{empty}key', 'v'));
+        $this->assertEquals('v', $this->valkey_glide->get('{empty}key'));
+
+        $this->valkey_glide->del('{empty}key');
+    }
+
+    /* MULTI is buffered client-side, so an empty or discarded transaction must still clear WATCH */
+    public function testEmptyOrDiscardedMultiClearsWatch()
+    {
+        $other = $this->newInstance();
+
+        foreach (['exec', 'discard'] as $end) {
+            $this->valkey_glide->del('{watch}key', '{watch}other');
+
+            $this->assertTrue($this->valkey_glide->watch('{watch}key'));
+            $this->valkey_glide->multi();
+            $this->valkey_glide->$end();
+
+            /* A change to the formerly watched key must not abort the next transaction */
+            $other->set('{watch}key', 'changed');
+            $this->valkey_glide->multi();
+            $this->valkey_glide->set('{watch}other', 'v');
+            $this->assertEquals([true], $this->valkey_glide->exec());
+            $this->assertEquals('v', $this->valkey_glide->get('{watch}other'));
+        }
+
+        $this->valkey_glide->del('{watch}key', '{watch}other');
+        $other->close();
+    }
+
+    /* If the UNWATCH for an empty or discarded MULTI fails, report the failure */
+    public function testEmptyOrDiscardedMultiReportsFailedUnwatch()
+    {
+        $user = 'glide_no_unwatch';
+        $this->assertTrue($this->valkey_glide->rawCommand('ACL', 'SETUSER', $user, 'reset', 'on', '>pw', '~*', '&*', '+@all', '-unwatch'));
+
+        $client = new ValkeyGlide();
+        try {
+            $client->connect(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                use_tls: $this->getTLS(),
+                credentials: ['username' => $user, 'password' => 'pw'],
+                advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null
+            );
+
+            foreach (['exec', 'discard'] as $end) {
+                $client->clearLastError();
+                $client->multi();
+                $this->assertFalse(@$client->$end());
+                $this->assertStringContains('unwatch', strtolower((string) $client->getLastError()));
+
+                /* The client left batch mode, so later commands run normally */
+                $this->assertTrue($client->set('{watch}unwatch_fail', 'v'));
+            }
+        } finally {
+            $this->valkey_glide->del('{watch}unwatch_fail');
+            $client->close();
+            $this->valkey_glide->rawCommand('ACL', 'DELUSER', $user);
+        }
+    }
+
+    public function testEvalNilInBatch()
+    {
+        /* A Lua nil is returned as null in a batch, as outside one */
+        $this->assertNull($this->valkey_glide->eval('return nil'));
+
+        $this->valkey_glide->multi();
+        $this->valkey_glide->eval('return nil');
+        $this->valkey_glide->eval('return 1');
+        $this->assertEquals([null, 1], $this->valkey_glide->exec());
+
+        if ($this->havePipeline()) {
+            $this->valkey_glide->pipeline();
+            $this->valkey_glide->eval('return nil');
+            $this->assertEquals([null], $this->valkey_glide->exec());
+        }
+    }
+
+    public function testEvalInMulti()
+    {
+        $script = "return redis.call('GET', KEYS[1])";
+        $this->valkey_glide->del('{eval}key');
+
+        /* EVAL / EVALSHA are queued and return the client, so they see writes
+         * made earlier in the same transaction */
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->multi());
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->set('{eval}key', 'v'));
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->eval($script, ['{eval}key'], 1));
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->evalsha(sha1($script), ['{eval}key'], 1));
+        $this->assertEquals(
+            $this->valkey_glide,
+            $this->valkey_glide->eval("return {KEYS[1], ARGV[1]}", ['{eval}key', 'arg'], 1)
+        );
+        $this->assertEquals([true, 'v', 'v', ['{eval}key', 'arg']], $this->valkey_glide->exec());
+
+        $this->valkey_glide->del('{eval}key');
+    }
+
+    public function testEvalInPipeline()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped();
+        }
+
+        $script = "return redis.call('GET', KEYS[1])";
+        $this->valkey_glide->del('{eval}key');
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->set('{eval}key', 'v');
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->eval($script, ['{eval}key'], 1));
+        $this->assertEquals([true, 'v'], $this->valkey_glide->exec());
+
+        $this->valkey_glide->del('{eval}key');
+    }
+
+    public function testFunctionLoadReplace()
+    {
+        if (!$this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('FUNCTION LOAD requires 7.0.0+');
+        }
+
+        $lib = function (string $reply) {
+            return "#!lua name=replacelib\n" .
+                "redis.register_function('replace_fn', function(keys, args) return '$reply' end)";
+        };
+
+        /* FCALL gets a key so cluster mode routes it to a primary; a keyless FCALL may reach a read-only replica */
+        $this->valkey_glide->functionLoad($lib('v1'), true);
+        $this->assertEquals('v1', $this->valkey_glide->fcall('replace_fn', ['{fn}key']));
+
+        /* Loading an existing library without REPLACE fails */
+        $this->assertFalse(@$this->valkey_glide->functionLoad($lib('v2')));
+        $this->assertEquals('v1', $this->valkey_glide->fcall('replace_fn', ['{fn}key']));
+
+        /* With REPLACE the library is overwritten, via both entry points */
+        $this->assertEquals('replacelib', $this->valkey_glide->functionLoad($lib('v2'), true));
+        $this->assertEquals('v2', $this->valkey_glide->fcall('replace_fn', ['{fn}key']));
+
+        $this->assertEquals('replacelib', $this->valkey_glide->function('load', $lib('v3'), true));
+        $this->assertEquals('v3', $this->valkey_glide->fcall('replace_fn', ['{fn}key']));
+
+        $this->assertTrue($this->valkey_glide->functionDelete('replacelib'));
+    }
+
+    public function testFunctionLoadInMulti()
+    {
+        if (!$this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('FUNCTION LOAD requires 7.0.0+');
+        }
+
+        $lib = "#!lua name=multilib\n" .
+            "redis.register_function('multi_fn', function(keys, args) return args[1] end)";
+
+        /* FUNCTION LOAD is queued, so FCALL later in the transaction can use it */
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->multi());
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->functionLoad($lib, true));
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->function('load', $lib, true));
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->fcall('multi_fn', ['{fn}key'], ['arg']));
+        $this->assertEquals(['multilib', 'multilib', 'arg'], $this->valkey_glide->exec());
+
+        $this->valkey_glide->functionDelete('multilib');
+    }
+
+    public function testFunctionLoadInPipeline()
+    {
+        if (!$this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('FUNCTION LOAD requires 7.0.0+');
+        }
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped();
+        }
+
+        $lib = "#!lua name=pipelib\n" .
+            "redis.register_function('pipe_fn', function(keys, args) return args[1] end)";
+
+        $this->valkey_glide->pipeline();
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->functionLoad($lib, true));
+        $this->valkey_glide->fcall('pipe_fn', ['{fn}key'], ['arg']);
+        $this->assertEquals(['pipelib', 'arg'], $this->valkey_glide->exec());
+
+        $this->valkey_glide->functionDelete('pipelib');
+    }
 }

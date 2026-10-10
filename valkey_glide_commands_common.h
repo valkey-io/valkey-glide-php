@@ -302,7 +302,8 @@ void  execute_eval_ro_command(zval* object, int argc, zval* return_value, bool i
 void  execute_evalsha_ro_command(zval* object, int argc, zval* return_value, bool is_cluster);
 int   execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_load_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_function_load_internal(valkey_glide_object* valkey_glide,
+int execute_function_load_internal(zval*                object,
+                                   valkey_glide_object* valkey_glide,
                                    char*                library_code,
                                    size_t               library_code_len,
                                    zend_bool            replace,
