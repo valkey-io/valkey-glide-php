@@ -20,6 +20,7 @@
 #include "common.h"
 #include "logger.h"
 #include "valkey_glide_z_common.h"
+#include "valkey_glide_prefix.h"
 
 /* Import the string conversion functions from command_response.c */
 extern char* long_to_string(long value, size_t* len);
@@ -1798,6 +1799,16 @@ int execute_cluster_scan_command(const void* glide_client,
         return 0;
     }
 
+    /* With OPT_SCAN = SCAN_PREFIX, apply OPT_PREFIX to the MATCH pattern */
+    zend_string*         prefixed_pattern = NULL;
+    valkey_glide_object* valkey_glide     = valkey_glide_prefix_find_object(glide_client);
+    if (pattern && pattern_len > 0 && valkey_glide && valkey_glide->prefix &&
+        valkey_glide->scan_prefix) {
+        prefixed_pattern = valkey_glide_prefix_key(valkey_glide, pattern, pattern_len);
+        pattern          = ZSTR_VAL(prefixed_pattern);
+        pattern_len      = ZSTR_LEN(prefixed_pattern);
+    }
+
     /* Build arguments array */
     /* Count arguments: pattern (MATCH + value), count (COUNT + value), type (TYPE + value) */
     int arg_count = 0;
@@ -1886,6 +1897,10 @@ int execute_cluster_scan_command(const void* glide_client,
     }
     if (args_len) {
         efree(args_len);
+    }
+
+    if (prefixed_pattern) {
+        zend_string_release(prefixed_pattern);
     }
 
     return success;

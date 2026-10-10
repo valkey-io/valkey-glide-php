@@ -935,6 +935,10 @@ SETOPTION_METHOD_IMPL(ValkeyGlide)
 GETOPTION_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto string ValkeyGlide::_prefix(string key) */
+PREFIX_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto string|null ValkeyGlide::getLastError() */
 GETLASTERROR_METHOD_IMPL(ValkeyGlide)
 /* }}} */
