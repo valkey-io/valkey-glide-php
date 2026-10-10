@@ -1017,10 +1017,10 @@ int execute_xautoclaim_command(zval* object, int argc, zval* return_value, zend_
  */
 int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
-    char*                op     = NULL;
-    size_t               op_len = 0;
-    zval*                z_args;
-    int                  args_count;
+    char*                op         = NULL;
+    size_t               op_len     = 0;
+    zval*                z_args     = NULL;
+    int                  args_count = 0;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(

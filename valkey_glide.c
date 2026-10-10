@@ -125,7 +125,9 @@ zend_object* create_valkey_glide_object(zend_class_entry* ce) {
            sizeof(valkey_glide_object_handlers));
     valkey_glide_object_handlers.offset   = XtOffsetOf(valkey_glide_object, std);
     valkey_glide_object_handlers.free_obj = free_valkey_glide_object;
-    valkey_glide->std.handlers            = &valkey_glide_object_handlers;
+    /* A copy would share the GLIDE client handle and batch state */
+    valkey_glide_object_handlers.clone_obj = NULL;
+    valkey_glide->std.handlers             = &valkey_glide_object_handlers;
 
     return &valkey_glide->std;
 }
@@ -143,7 +145,9 @@ zend_object* create_valkey_glide_cluster_object(zend_class_entry* ce)  // TODO c
            sizeof(valkey_glide_cluster_object_handlers));
     valkey_glide_cluster_object_handlers.offset   = XtOffsetOf(valkey_glide_object, std);
     valkey_glide_cluster_object_handlers.free_obj = free_valkey_glide_object;
-    valkey_glide->std.handlers                    = &valkey_glide_cluster_object_handlers;
+    /* A copy would share the GLIDE client handle and batch state */
+    valkey_glide_cluster_object_handlers.clone_obj = NULL;
+    valkey_glide->std.handlers                     = &valkey_glide_cluster_object_handlers;
 
     return &valkey_glide->std;
 }
@@ -792,6 +796,8 @@ PHP_MINIT_FUNCTION(valkey_glide) {
             "Failed to initialize ValkeyGlide logger, will auto-initialize on first use");
     }
     valkey_glide_logger_debug("php_init", "Initializing Valkey Glide PHP extension");
+    /* Shared by all threads; created once, before any request */
+    init_pubsub_callbacks();
     /* ValkeyGlide class - use generated registration function */
     valkey_glide_ce = register_class_ValkeyGlide();
 
@@ -843,6 +849,8 @@ PHP_MSHUTDOWN_FUNCTION(valkey_glide) {
 
 PHP_RSHUTDOWN_FUNCTION(valkey_glide) {
     valkey_glide_resolver_shutdown();
+    /* Pub/sub callbacks registered by this request are request memory */
+    valkey_glide_pubsub_request_shutdown();
     return SUCCESS;
 }
 
@@ -1236,6 +1244,16 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     /* Clean up temporary addresses array if we created it */
     if (created_addresses) {
         zval_ptr_dtor(&addresses_array);
+    }
+
+    /* No response: building the request failed (an exception is pending) */
+    if (!conn_resp) {
+        if (!EG(exception)) {
+            zend_throw_exception(
+                get_valkey_glide_exception_ce(), "Failed to build the connection request", 0);
+        }
+        valkey_glide_cleanup_client_config(&client_config);
+        return FAILURE;
     }
 
     if (conn_resp->connection_error_message) {
