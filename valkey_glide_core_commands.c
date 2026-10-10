@@ -38,6 +38,7 @@ extern zend_class_entry* ce;
 extern zend_class_entry* get_valkey_glide_exception_ce();
 
 #include "valkey_glide_pubsub_common.h"
+#include "valkey_glide_prefix.h"
 
 /* Import the string conversion functions from command_response.c */
 extern char* long_to_string(long value, size_t* len);
@@ -1029,6 +1030,7 @@ void close_glide_client(const void* glide_client) {
     if (!glide_client) {
         return;
     }
+    valkey_glide_prefix_untrack_client(glide_client);
     /* Close the client using the close_client function from glide_bindings.h */
     close_client(glide_client);
 }

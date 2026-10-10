@@ -15,6 +15,7 @@
 
 ### Changes
 
+* Add PHPRedis-compatible client-side key prefixing: `OPT_PREFIX` (via `setOption()`/`getOption()`) and `_prefix()` for standalone and cluster clients. The prefix is applied to every key argument, including multi-key commands, the `KEYS` of `EVAL`/`EVALSHA`/`FCALL`, and commands queued in `multi()`/`pipeline()`. `OPT_SCAN` with `SCAN_PREFIX`/`SCAN_NOPREFIX` controls whether the `SCAN` `MATCH` pattern is prefixed ([#342](https://github.com/valkey-io/valkey-glide-php/issues/342))
 * Add `HGETDEL` command for standalone and cluster clients ([#343](https://github.com/valkey-io/valkey-glide-php/pull/343))
 * Add PHP 8.4 and 8.5 to the supported versions and the CI test matrix
 * Add `READ_FROM_AZ_AFFINITY_ALL_NODES` read strategy for standalone and cluster clients ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))

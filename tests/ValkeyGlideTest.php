@@ -9577,4 +9577,329 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
         $this->valkey_glide->functionDelete('pipelib');
     }
+
+    /* ===== OPT_PREFIX ===== */
+
+    /* Hash-tagged so every prefixed key maps to one slot in cluster mode */
+    protected const KEY_PREFIX = '{pfx}:';
+
+    /* Return a new client with OPT_PREFIX set; $this->valkey_glide stays unprefixed */
+    protected function newPrefixedInstance(string $prefix = self::KEY_PREFIX)
+    {
+        $client = $this->newInstance();
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, $prefix));
+        return $client;
+    }
+
+    /* Collect every key matching $pattern using SCAN */
+    protected function scanAllKeys($client, ?string $pattern): array
+    {
+        $keys = [];
+        $it = null;
+        do {
+            $batch = $client->scan($it, $pattern, 1000);
+            if (is_array($batch)) {
+                $keys = array_merge($keys, $batch);
+            }
+        } while ($it != 0);
+        sort($keys);
+        return $keys;
+    }
+
+    public function testPrefixOption()
+    {
+        $client = $this->newInstance();
+
+        $this->assertNull($client->getOption(ValkeyGlide::OPT_PREFIX));
+        $this->assertEquals('key', $client->_prefix('key'));
+
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, self::KEY_PREFIX));
+        $this->assertEquals(self::KEY_PREFIX, $client->getOption(ValkeyGlide::OPT_PREFIX));
+        $this->assertEquals(self::KEY_PREFIX . 'key', $client->_prefix('key'));
+        $this->assertEquals(self::KEY_PREFIX, $client->_prefix(''));
+
+        /* An empty prefix clears the option, as in PHPRedis */
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, ''));
+        $this->assertNull($client->getOption(ValkeyGlide::OPT_PREFIX));
+        $this->assertEquals('key', $client->_prefix('key'));
+
+        /* A value that fails to convert leaves the current prefix in place */
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, self::KEY_PREFIX));
+        $throwing = new class () {
+            public function __toString(): string
+            {
+                throw new RuntimeException('no string');
+            }
+        };
+        $this->assertThrowsMatch($throwing, function ($value) use ($client) {
+            $client->setOption(ValkeyGlide::OPT_PREFIX, $value);
+        }, '/no string/');
+        $this->assertEquals(self::KEY_PREFIX, $client->getOption(ValkeyGlide::OPT_PREFIX));
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, ''));
+
+        $this->assertEquals(ValkeyGlide::SCAN_NOPREFIX, $client->getOption(ValkeyGlide::OPT_SCAN));
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_PREFIX));
+        $this->assertEquals(ValkeyGlide::SCAN_PREFIX, $client->getOption(ValkeyGlide::OPT_SCAN));
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_NOPREFIX));
+        $this->assertEquals(ValkeyGlide::SCAN_NOPREFIX, $client->getOption(ValkeyGlide::OPT_SCAN));
+        $this->assertFalse($client->setOption(ValkeyGlide::OPT_SCAN, 99));
+
+        $client->close();
+    }
+
+    public function testPrefixSingleKeyCommands()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}str", "{$p}hash", "{$p}list", "{$p}set", "{$p}zset", 'str');
+
+        $client = $this->newPrefixedInstance();
+
+        $this->assertTrue($client->set('str', 'value'));
+        $this->assertEquals('value', $client->get('str'));
+        $this->assertKeyEquals('value', "{$p}str", $raw);
+        $this->assertKeyMissing('str', $raw);
+
+        $this->assertEquals(1, $client->hSet('hash', 'f', 'v'));
+        $this->assertEquals('v', $raw->hGet("{$p}hash", 'f'));
+
+        $this->assertEquals(2, $client->rPush('list', 'a', 'b'));
+        $this->assertEquals(['a', 'b'], $raw->lRange("{$p}list", 0, -1));
+
+        $this->assertEquals(1, $client->sAdd('set', 'm'));
+        $this->assertTrue($raw->sIsMember("{$p}set", 'm'));
+
+        $this->assertEquals(1, $client->zAdd('zset', 1, 'm'));
+        $this->assertEquals(1.0, $raw->zScore("{$p}zset", 'm'));
+
+        $this->assertEquals(1, $client->exists('str'));
+        $this->assertTrue($client->expire('str', 100));
+        $this->assertGT(0, $raw->ttl("{$p}str"));
+
+        $raw->del("{$p}str", "{$p}hash", "{$p}list", "{$p}set", "{$p}zset");
+        $client->close();
+    }
+
+    public function testPrefixMultiKeyCommands()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $names = ['a', 'b', 'c', 'renamed', 's1', 's2', 'sdst', 'z1', 'z2', 'zdst', 'l1', 'l2', 'missing'];
+        $raw->del(array_map(fn ($k) => $p . $k, $names));
+
+        $client = $this->newPrefixedInstance();
+
+        /* MSET / MGET / EXISTS / DEL / UNLINK take only keys (or key-value pairs) */
+        $this->assertTrue($client->mset(['a' => '1', 'b' => '2', 'c' => '3']));
+        $this->assertEquals(['1', '2', '3'], $raw->mget(["{$p}a", "{$p}b", "{$p}c"]));
+        $this->assertEquals(['1', '2', false], $client->mget(['a', 'b', 'missing']));
+        $this->assertEquals(2, $client->exists('a', 'b', 'missing'));
+
+        $this->assertTrue($client->rename('c', 'renamed'));
+        $this->assertKeyEquals('3', "{$p}renamed", $raw);
+
+        $this->assertEquals(2, $client->del('a', 'missing', 'renamed'));
+        $this->assertEquals(1, $client->unlink('b'));
+        $this->assertKeyMissing("{$p}a", $raw);
+        $this->assertKeyMissing("{$p}b", $raw);
+
+        /* Set and sorted-set store commands: destination and sources */
+        $client->sAdd('s1', 'x', 'y');
+        $client->sAdd('s2', 'y', 'z');
+        $this->assertEquals(1, $client->sInterStore('sdst', 's1', 's2'));
+        $this->assertEquals(['y'], $raw->sMembers("{$p}sdst"));
+
+        $client->zAdd('z1', 1, 'x');
+        $client->zAdd('z2', 2, 'x');
+        $this->assertEquals(1, $client->zUnionStore('zdst', ['z1', 'z2']));
+        $this->assertEquals(3.0, $raw->zScore("{$p}zdst", 'x'));
+
+        /* Source and destination keys */
+        $client->rPush('l1', 'v');
+        $this->assertEquals('v', $client->lMove('l1', 'l2', 'LEFT', 'RIGHT'));
+        $this->assertEquals(['v'], $raw->lRange("{$p}l2", 0, -1));
+
+        /* Blocking pops return the key name as stored, with the prefix */
+        $this->assertEquals(["{$p}l2", 'v'], $client->blPop(['l1', 'l2'], 1));
+
+        $raw->del(array_map(fn ($k) => $p . $k, $names));
+        $client->close();
+    }
+
+    public function testPrefixEval()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}k1", "{$p}k2");
+
+        $client = $this->newPrefixedInstance();
+        $client->set('k1', 'v1');
+
+        /* KEYS are prefixed, ARGV is not */
+        $script = "return {KEYS[1], KEYS[2], ARGV[1], redis.call('GET', KEYS[1])}";
+        $this->assertEquals(
+            ["{$p}k1", "{$p}k2", 'arg', 'v1'],
+            $client->eval($script, ['k1', 'k2', 'arg'], 2)
+        );
+
+        $sha = sha1($script);
+        $this->assertEquals(
+            ["{$p}k1", "{$p}k2", 'arg', 'v1'],
+            $client->evalsha($sha, ['k1', 'k2', 'arg'], 2)
+        );
+
+        $raw->del("{$p}k1", "{$p}k2");
+        $client->close();
+    }
+
+    public function testPrefixFcall()
+    {
+        if (!$this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('FCALL requires 7.0.0+');
+        }
+
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $lib = "#!lua name=prefixlib\n" .
+            "redis.register_function('prefix_echo', function(keys, args) return {keys[1], args[1]} end)";
+        $this->assertEquals('prefixlib', $raw->functionLoad($lib, true));
+
+        $client = $this->newPrefixedInstance();
+        $this->assertEquals(["{$p}k", 'arg'], $client->fcall('prefix_echo', ['k'], ['arg']));
+
+        $raw->functionDelete('prefixlib');
+        $client->close();
+    }
+
+    public function testPrefixEvalInMulti()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}ek");
+
+        $client = $this->newPrefixedInstance();
+        $client->multi();
+        $client->set('ek', 'v');
+        $client->eval("return {KEYS[1], redis.call('GET', KEYS[1])}", ['ek'], 1);
+        $this->assertEquals([true, ["{$p}ek", 'v']], $client->exec());
+
+        $raw->del("{$p}ek");
+        $client->close();
+    }
+
+    public function testPrefixMulti()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}t1", "{$p}t2", "{$p}cnt");
+
+        $client = $this->newPrefixedInstance();
+
+        /* Several keys in one transaction: with a hash-tagged prefix this is
+         * valid in cluster mode as well */
+        $client->multi();
+        $client->set('t1', 'a');
+        $client->set('t2', 'b');
+        $client->mget(['t1', 't2']);
+        $client->incr('cnt');
+        $client->del('t1');
+        $this->assertEquals([true, true, ['a', 'b'], 1, 1], $client->exec());
+
+        $this->assertKeyMissing("{$p}t1", $raw);
+        $this->assertKeyEquals('b', "{$p}t2", $raw);
+        $this->assertKeyEquals('1', "{$p}cnt", $raw);
+
+        $raw->del("{$p}t1", "{$p}t2", "{$p}cnt");
+        $client->close();
+    }
+
+    public function testPrefixPipeline()
+    {
+        $p = self::KEY_PREFIX;
+        $raw = $this->valkey_glide;
+        $raw->del("{$p}p1", "{$p}p2");
+
+        $client = $this->newPrefixedInstance();
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped();
+        }
+
+        $client->pipeline();
+        $client->set('p1', 'x');
+        $client->rPush('p2', 'y');
+        $client->get('p1');
+        $client->lRange('p2', 0, -1);
+        $this->assertEquals([true, 1, 'x', ['y']], $client->exec());
+
+        $this->assertKeyEquals('x', "{$p}p1", $raw);
+
+        $raw->del("{$p}p1", "{$p}p2");
+        $client->close();
+    }
+
+    public function testPrefixSortAndStreams()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}nums", "{$p}sorted", "{$p}stream");
+
+        $client = $this->newPrefixedInstance();
+
+        /* SORT prefixes the key and the STORE destination */
+        $client->rPush('nums', '3', '1', '2');
+        $this->assertEquals(['1', '2', '3'], $client->sort('nums'));
+        $this->assertEquals(3, $client->sort('nums', ['store' => 'sorted']));
+        $this->assertEquals(['1', '2', '3'], $raw->lRange("{$p}sorted", 0, -1));
+
+        /* XREAD prefixes the stream keys, not the IDs; replies use stored names */
+        $id = $client->xAdd('stream', '*', ['f' => 'v']);
+        $this->assertIsString($id);
+        $this->assertEquals(1, $raw->xLen("{$p}stream"));
+        $this->assertEquals(["{$p}stream" => [$id => ['f' => 'v']]], $client->xRead(['stream' => '0']));
+
+        $raw->del("{$p}nums", "{$p}sorted", "{$p}stream");
+        $client->close();
+    }
+
+    public function testPrefixScan()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}scan_a", "{$p}scan_b");
+
+        $client = $this->newPrefixedInstance();
+        $client->set('scan_a', '1');
+        $client->set('scan_b', '2');
+
+        /* Default (SCAN_NOPREFIX): MATCH pattern is sent unchanged, as in PHPRedis */
+        $this->assertEquals([], $this->scanAllKeys($client, 'scan_*'));
+        $this->assertEquals(["{$p}scan_a", "{$p}scan_b"], $this->scanAllKeys($client, "{$p}scan_*"));
+
+        /* SCAN_PREFIX: MATCH pattern is prefixed; key names are returned as stored */
+        $client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_PREFIX);
+        $this->assertEquals(["{$p}scan_a", "{$p}scan_b"], $this->scanAllKeys($client, 'scan_*'));
+
+        $raw->del("{$p}scan_a", "{$p}scan_b");
+        $client->close();
+    }
+
+    public function testPrefixNotAppliedToRawCommand()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del('rawkey', "{$p}rawkey");
+
+        /* rawCommand sends arguments unchanged, as in PHPRedis */
+        $client = $this->newPrefixedInstance();
+        $args = ['SET', 'rawkey', 'v'];
+        if ($client instanceof ValkeyGlideCluster) {
+            array_unshift($args, 'rawkey');
+        }
+        $this->assertTrue($client->rawCommand(...$args));
+        $this->assertKeyEquals('v', 'rawkey', $raw);
+        $this->assertKeyMissing("{$p}rawkey", $raw);
+
+        $raw->del('rawkey');
+        $client->close();
+    }
 }

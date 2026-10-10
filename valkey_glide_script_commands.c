@@ -3,6 +3,7 @@
 #include "include/glide_bindings.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
+#include "valkey_glide_prefix.h"
 #include "valkey_glide_z_common.h"
 
 // Helper macros for validating CommandResult in script commands
@@ -193,16 +194,22 @@ static void execute_eval_style_command(const char* cmd_name,
         ZEND_HASH_FOREACH_END();
     }
 
+    /* Sent as CustomCommand, so apply OPT_PREFIX to the KEYS portion here */
+    valkey_glide_prefixed_args_t prefixed;
+    bool                         is_prefixed = valkey_glide_prefix_arg_range(
+        valkey_glide, cmd_count, cmd_args, cmd_args_len, 3, keys_count, &prefixed);
+
     /* In multi() / pipeline(), queue the command and return $this for chaining */
     if (valkey_glide->is_in_batch_mode) {
         int res = buffer_command_for_batch(valkey_glide,
                                            CustomCommand,
-                                           cmd_args,
-                                           cmd_args_len,
+                                           is_prefixed ? prefixed.args : cmd_args,
+                                           is_prefixed ? prefixed.args_len : cmd_args_len,
                                            cmd_count,
                                            NULL,
                                            process_eval_response);
 
+        valkey_glide_prefixed_args_free(&prefixed);
         efree(cmd_args);
         efree(cmd_args_len);
 
@@ -213,9 +220,13 @@ static void execute_eval_style_command(const char* cmd_name,
         return;
     }
 
-    CommandResult* result = execute_command(
-        valkey_glide->glide_client, CustomCommand, cmd_count, cmd_args, cmd_args_len);
+    CommandResult* result = execute_command(valkey_glide->glide_client,
+                                            CustomCommand,
+                                            cmd_count,
+                                            is_prefixed ? prefixed.args : cmd_args,
+                                            is_prefixed ? prefixed.args_len : cmd_args_len);
 
+    valkey_glide_prefixed_args_free(&prefixed);
     efree(cmd_args);
     efree(cmd_args_len);
 
