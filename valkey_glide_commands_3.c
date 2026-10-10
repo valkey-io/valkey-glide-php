@@ -599,7 +599,7 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
 
             /* Use shared internal helper */
             return execute_function_load_internal(
-                valkey_glide, library_code, library_code_len, replace, return_value);
+                object, valkey_glide, library_code, library_code_len, replace, return_value);
         } else if (strcasecmp(operation, "DELETE") == 0) {
             /* DELETE expects: library_name */
             if (args_count < 1) {
@@ -936,9 +936,16 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     }
 
     /* Check if we're in batch mode and have buffered commands */
-    if (!valkey_glide->is_in_batch_mode || valkey_glide->command_count == 0) {
+    if (!valkey_glide->is_in_batch_mode) {
         ZVAL_FALSE(return_value);
         return 0;
+    }
+
+    /* An empty multi()/pipeline() returns an empty array and leaves batch mode, as in PHPRedis */
+    if (valkey_glide->command_count == 0) {
+        valkey_glide_clear_batch_state(valkey_glide);
+        array_init(return_value);
+        return 1;
     }
 
     /* Convert buffered commands to FFI BatchInfo structure */
