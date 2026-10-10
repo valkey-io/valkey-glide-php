@@ -1046,6 +1046,13 @@ void close_glide_client(const void* glide_client) {
     close_client(glide_client);
 }
 
+void valkey_glide_close_client(valkey_glide_object* valkey_glide) {
+    if (valkey_glide->glide_client && valkey_glide->client_pid == getpid()) {
+        close_glide_client(valkey_glide->glide_client);
+    }
+    valkey_glide->glide_client = NULL;
+}
+
 /* Execute an ECHO command using the Valkey Glide client */
 int execute_echo_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
