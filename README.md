@@ -487,6 +487,28 @@ echo "PING result: " . $pingResult . "\n";
 $client->close();
 ```
 
+### Persistent Clients (PHP-FPM)
+
+By default a client is closed at the end of the request. In PHP-FPM and other long-lived worker processes, a persistent client stays open and later requests in the same process reuse it, instead of connecting (and, for clusters, discovering the topology) on every request.
+
+```php
+$client = new ValkeyGlide();
+$client->connect(addresses: [['host' => 'localhost', 'port' => 6379]], persistent_id: 'app');
+
+$cluster = new ValkeyGlideCluster(addresses: [['host' => 'localhost', 'port' => 7001]], persistent: true);
+```
+
+A kept client is reused only by a request that uses the same configuration (and, for `ValkeyGlide`, the same `persistent_id`):
+
+- One object uses it at a time; another object with the same configuration in the same request gets its own client.
+- After `select()`, the configured database is selected again at the end of the request. A `WATCH` still active at the end of the request is cleared with `UNWATCH`. If either fails, the client is closed instead of kept.
+- The client is closed, not kept, after the request changes other connection state: `reset()`, `client('SETNAME', ...)` and other `CLIENT` subcommands that change the connection, `subscribe()`/`psubscribe()`, `updateConnectionPassword()`, or `SELECT`, `AUTH`, `HELLO`, `MULTI`, `WATCH` and similar commands sent through `rawCommand()`.
+- `close()` closes it.
+- It is never reused or closed by a process other than the one that created it (`fork()`).
+- It is not kept when an `address_resolver` is configured.
+
+The ini setting `valkey_glide.max_persistent_clients` (default `32`) limits how many clients each process keeps (each thread, in a thread-safe (ZTS) build such as FrankenPHP: four threads can keep up to 4 × 32 clients). When it is reached, the least recently used client that no object is using is closed to make room (for example after a password rotation, the client with the old password); if all kept clients are in use, the new client is closed at the end of the request as usual. `0` disables persistent clients.
+
 ## Building & Testing
 
 Development instructions for local building & testing the package are in the [DEVELOPER.md](DEVELOPER.md) file.
