@@ -1445,7 +1445,9 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
    Establishes connection to Valkey server. Supports both PHPRedis-compatible
    (host/port) and ValkeyGlide-style (addresses array) parameters.
    Returns true on success, false on failure. */
-PHP_METHOD(ValkeyGlide, connect) {
+/* Shared by connect() and pconnect(); `persistent` makes the client persistent
+ * even without a persistent_id. */
+static void valkey_glide_connect(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
     char*  host                     = NULL;
     size_t host_len                 = 0;
     char*  persistent_id            = NULL;
@@ -1506,6 +1508,11 @@ PHP_METHOD(ValkeyGlide, connect) {
     Z_PARAM_STRING_OR_NULL(lib_name, lib_name_len)
     Z_PARAM_STRING_OR_NULL(client_info_tag, client_info_tag_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
+
+    if (persistent && persistent_id == NULL) {
+        persistent_id     = "";
+        persistent_id_len = 0;
+    }
 
     /* Apply defaults for nullable parameters */
     zend_long port = (port_zval && Z_TYPE_P(port_zval) != IS_NULL) ? Z_LVAL_P(port_zval) : 6379;
@@ -1628,6 +1635,17 @@ PHP_METHOD(ValkeyGlide, connect) {
         RETURN_FALSE;
     }
 }
+
+PHP_METHOD(ValkeyGlide, connect) {
+    valkey_glide_connect(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
+}
+
+/* {{{ proto boolean ValkeyGlide::pconnect(...)
+   Same as connect(), with a persistent client (PHPRedis compatible). */
+PHP_METHOD(ValkeyGlide, pconnect) {
+    valkey_glide_connect(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
+}
+/* }}} */
 /* }}} */
 
 /* {{{ proto ValkeyGlide ValkeyGlide::__destruct()

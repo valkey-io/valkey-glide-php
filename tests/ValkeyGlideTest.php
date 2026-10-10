@@ -9500,6 +9500,23 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $this->assertNotEquals($first, $plain1);
             $this->assertNotEquals($plain1, $plain2);
 
+            if (!$is_cluster) {
+                /* pconnect() without a persistent_id keeps its own client */
+                $pconnected = $id(['pconnect' => '1']);
+                $this->assertNotEquals($first, $pconnected);
+                $this->assertEquals($pconnected, $id(['pconnect' => '1']));
+
+                /* PHPRedis-style positional pconnect($host, $port, $timeout, $persistent_id):
+                 * one client per ID */
+                $id_a = $id(['pconnect' => '1', 'pconnect_id' => 'a']);
+                $id_b = $id(['pconnect' => '1', 'pconnect_id' => 'b']);
+                $this->assertNotEquals($id_a, $id_b);
+                $this->assertNotEquals($pconnected, $id_a);
+                $this->assertEquals($id_a, $id(['pconnect' => '1', 'pconnect_id' => 'a']));
+                $this->assertEquals($id_b, $id(['pconnect' => '1', 'pconnect_id' => 'b']));
+                $this->assertEquals($first, $id());
+            }
+
             /* A second object with the same configuration in one request gets its own connection */
             $two = $get(['action' => 'two']);
             $this->assertEquals($first, $two['id']);

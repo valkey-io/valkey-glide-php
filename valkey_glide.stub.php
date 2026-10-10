@@ -498,6 +498,42 @@ class ValkeyGlide
         ?string $client_info_tag = null,
     ): bool;
 
+    /**
+     * Connect with a persistent client: same as connect(), but the client is
+     * kept open after the request and reused by later requests in this worker
+     * process that use the same persistent_id (default: none) and
+     * configuration. See "Persistent Clients" in the README.
+     *
+     * @see ValkeyGlide::connect
+     */
+    public function pconnect(
+        ?string $host = null,
+        ?int $port = null,
+        ?float $timeout = null,
+        ?string $persistent_id = null,
+        ?int $retry_interval = null,
+        ?float $read_timeout = null,
+        ?array $addresses = null,
+        ?bool $use_tls = null,
+        ?array $credentials = null,
+        ?int $read_from = null,
+        ?int $request_timeout = null,
+        ?array $reconnect_strategy = null,
+        ?int $database_id = null,
+        ?string $client_name = null,
+        ?string $client_az = null,
+        ?array $advanced_config = null,
+        ?bool $lazy_connect = null,
+        resource|array|null $context = null,
+        ?array $compression = null,
+        ?array $client_side_cache = null,
+        ?callable $address_resolver = null,
+        ?array $circuit_breaker = null,
+        ?int $node_discovery_mode = null,
+        ?string $lib_name = null,
+        ?string $client_info_tag = null,
+    ): bool;
+
     public function __destruct();
 
     /**

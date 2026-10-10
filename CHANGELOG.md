@@ -19,6 +19,7 @@
 ### Changes
 
 * Add persistent clients for PHP-FPM and other long-lived worker processes: `connect(persistent_id: ...)` and `new ValkeyGlideCluster(persistent: true)` keep the client open after the request and reuse it in later requests that use the same configuration, instead of connecting (and, for clusters, discovering the topology) on every request. New ini setting `valkey_glide.max_persistent_clients` (default 32) caps kept clients per process (per thread under ZTS). See "Persistent Clients" in the README ([#219](https://github.com/valkey-io/valkey-glide-php/issues/219))
+* Add `ValkeyGlide::pconnect()`, which takes the same arguments as `connect()` and always uses a persistent client (PHPRedis compatible)
 * Add `HGETDEL` command for standalone and cluster clients ([#343](https://github.com/valkey-io/valkey-glide-php/pull/343))
 * Add PHP 8.4 and 8.5 to the supported versions and the CI test matrix
 * Add `READ_FROM_AZ_AFFINITY_ALL_NODES` read strategy for standalone and cluster clients ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
