@@ -394,7 +394,11 @@ class ValkeyGlide
      * @param string|null $host Hostname
      * @param int|null $port Port number (default: 6379, used with $host)
      * @param float|null $timeout Connection timeout in seconds
-     * @param string|null $persistent_id Persistent connection ID (not implemented)
+     * @param string|null $persistent_id Keep the client open after the request ends and reuse it
+     *                                   in later requests of the same worker process (e.g.
+     *                                   PHP-FPM) that use the same ID and configuration. See
+     *                                   "Persistent Clients" in the README for when a kept
+     *                                   client is reused or closed.
      * @param int|null $retry_interval Retry interval in milliseconds (not implemented)
      * @param float|null $read_timeout Read timeout in seconds (not implemented)
      * @param array|null $addresses Server addresses array: [['host' => 'x', 'port' => y], ...] (ValkeyGlide-style)

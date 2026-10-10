@@ -416,6 +416,9 @@ typedef enum {
     VALKEY_GLIDE_OPT_REPLY_LITERAL = 1 /* Return "OK" string instead of true for Ok responses */
 } valkey_glide_option_t;
 
+/* Persistent client entry (valkey_glide_persistent.c) */
+typedef struct valkey_glide_persistent_client valkey_glide_persistent_client_t;
+
 typedef struct {
     const void*           glide_client; /* Valkey Glide client pointer */
     struct batch_command* buffered_commands;
@@ -428,6 +431,13 @@ typedef struct {
     bool opt_reply_literal; /* OPT_REPLY_LITERAL: return "OK" string instead of true */
 
     AddressResolverCallback resolver_cb; /* NULL if no address resolver */
+
+    /* Persistent client (persistent_id / $persistent), NULL if not persistent */
+    valkey_glide_persistent_client_t* persistent;
+    zend_string*                      persistent_key;
+    bool persistent_dirty;    /* request changed connection state (SELECT, ...): do not reuse */
+    bool persistent_watching; /* WATCH may be active: UNWATCH before the client is reused */
+    bool persistent_selected; /* select() was called: restore the configured database */
 
     /* Last command error message (PHPRedis getLastError/clearLastError), NULL if none */
     zend_string* last_error;

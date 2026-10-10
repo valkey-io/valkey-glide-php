@@ -32,6 +32,7 @@
 #include "valkey_glide_cluster_arginfo.h"
 #include "zend_attributes.h"
 #endif
+#include "valkey_glide_persistent.h"
 
 /*
  * PHP Methods
@@ -42,7 +43,8 @@ static int valkey_glide_cluster_create_connection(
     valkey_glide_object*                         valkey_glide,
     valkey_glide_php_common_constructor_params_t common_params,
     zend_long                                    periodic_checks,
-    zend_bool                                    periodic_checks_is_null) {
+    zend_bool                                    periodic_checks_is_null,
+    zend_bool                                    persistent) {
     /* Constructing again would drop the current client without releasing it */
     if (valkey_glide->glide_client != NULL) {
         const char* error_message = "ValkeyGlideCluster is already connected";
@@ -97,6 +99,24 @@ static int valkey_glide_cluster_create_connection(
         }
     }
 
+    /* With $persistent, reuse a client this worker kept from an earlier request */
+    zend_string* persistent_key = NULL;
+    if (persistent) {
+        bool attached =
+            valkey_glide_persistent_begin(valkey_glide,
+                                          &client_config.base,
+                                          client_config.periodic_checks_status,
+                                          true,
+                                          client_config.refresh_topology_from_initial_nodes,
+                                          "",
+                                          0,
+                                          &persistent_key);
+        if (attached || EG(exception)) {
+            valkey_glide_cleanup_client_config(&client_config.base);
+            return attached ? SUCCESS : FAILURE;
+        }
+    }
+
     /* Issue the connection request. */
     AddressResolverCallback   resolver_cb = NULL;
     const ConnectionResponse* conn_resp = create_glide_cluster_client(&client_config, &resolver_cb);
@@ -108,6 +128,9 @@ static int valkey_glide_cluster_create_connection(
                 get_valkey_glide_exception_ce(), "Failed to build the connection request", 0);
         }
         valkey_glide_cleanup_client_config(&client_config.base);
+        if (persistent_key) {
+            zend_string_release(persistent_key);
+        }
         return FAILURE;
     }
 
@@ -118,12 +141,19 @@ static int valkey_glide_cluster_create_connection(
         valkey_glide_resolver_release(resolver_cb);
         free_connection_response((ConnectionResponse*) conn_resp);
         valkey_glide_cleanup_client_config(&client_config.base);
+        if (persistent_key) {
+            zend_string_release(persistent_key);
+        }
         return FAILURE;
     } else {
         VALKEY_LOG_INFO("cluster_construct", "ValkeyGlide cluster client created successfully");
         valkey_glide->glide_client = conn_resp->conn_ptr;
         valkey_glide->client_pid   = getpid();
         valkey_glide->resolver_cb  = resolver_cb;
+        if (persistent_key) {
+            valkey_glide_persistent_store(
+                valkey_glide, persistent_key, client_config.base.database_id);
+        }
     }
 
     free_connection_response((ConnectionResponse*) conn_resp);
@@ -245,8 +275,9 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());
 
     /* Check if PHPRedis-style parameters are used */
+    /* $persistent is not PHPRedis-specific: it also applies to GLIDE-style addresses */
     zend_bool using_phpredis_style = (name != NULL || seeds != NULL || !timeout_is_null ||
-                                      !read_timeout_is_null || !persistent_is_null || auth != NULL);
+                                      !read_timeout_is_null || auth != NULL);
 
     /* Detect conflicting parameters */
     if (using_phpredis_style && addresses != NULL) {
@@ -316,8 +347,11 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     common_params.circuit_breaker         = circuit_breaker;
 
     /* Call helper function to create cluster connection */
-    valkey_glide_cluster_create_connection(
-        valkey_glide, common_params, periodic_checks, periodic_checks_is_null);
+    valkey_glide_cluster_create_connection(valkey_glide,
+                                           common_params,
+                                           periodic_checks,
+                                           periodic_checks_is_null,
+                                           !persistent_is_null && persistent);
 }
 
 static zend_function_entry valkey_glide_cluster_methods[] = {
@@ -333,7 +367,8 @@ PHP_METHOD(ValkeyGlideCluster, close) {
 
     valkey_glide_clear_batch_state(valkey_glide);
 
-    valkey_glide_close_client(valkey_glide);
+    /* close() also closes a persistent client, as in PHPRedis >= 4.2 */
+    valkey_glide_release_client(valkey_glide, true);
 
     /* Mark resolver as closed so background Rust threads get immediate
        fallback instead of calling into PHP. Memory freed at RSHUTDOWN. */
@@ -928,6 +963,8 @@ PHP_METHOD(ValkeyGlideCluster, subscribe) {
         zend_throw_exception(get_valkey_glide_exception_ce(), "Client not connected", 0);
         RETURN_FALSE;
     }
+    /* Subscriptions are connection state: do not hand the client to a later request */
+    valkey_glide_mark_connection_state_changed(valkey_glide);
     valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
 /* }}} */
@@ -940,6 +977,8 @@ PHP_METHOD(ValkeyGlideCluster, psubscribe) {
         zend_throw_exception(get_valkey_glide_exception_ce(), "Client not connected", 0);
         RETURN_FALSE;
     }
+    /* Subscriptions are connection state: do not hand the client to a later request */
+    valkey_glide_mark_connection_state_changed(valkey_glide);
     valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAM_PASSTHRU, valkey_glide->glide_client);
 }
 /* }}} */

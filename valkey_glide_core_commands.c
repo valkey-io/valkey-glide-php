@@ -32,6 +32,7 @@
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
 #include "valkey_glide_list_common.h"
+#include "valkey_glide_persistent.h"
 #include "valkey_glide_z_common.h"
 
 extern zend_class_entry* ce;
@@ -2382,6 +2383,9 @@ void execute_update_connection_password(zval*             object,
                              0);
         return;
     }
+
+    /* The client's credentials no longer match its persistent key */
+    valkey_glide_mark_connection_state_changed(valkey_glide);
 
     /* Call FFI function */
     CommandResult* result =
