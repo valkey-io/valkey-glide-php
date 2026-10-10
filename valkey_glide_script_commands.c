@@ -122,8 +122,13 @@ void execute_script_flush_command(zval* object, zval* return_value, bool is_clus
 }
 
 
-// Batch result processor for eval-style commands
+// Batch result processor for eval-style commands. A Lua nil is a valid reply,
+// so it is returned as null (as outside a batch) rather than as a failure.
 static int process_eval_response(CommandResponse* response, void* output, zval* return_value) {
+    if (response && response->response_type == Null) {
+        ZVAL_NULL(return_value);
+        return 1;
+    }
     return command_response_to_zval(response, return_value, 0, false);
 }
 

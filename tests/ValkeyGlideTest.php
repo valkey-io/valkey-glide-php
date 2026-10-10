@@ -9401,6 +9401,47 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->valkey_glide->del('{empty}key');
     }
 
+    /* MULTI is buffered client-side, so an empty or discarded transaction must still clear WATCH */
+    public function testEmptyOrDiscardedMultiClearsWatch()
+    {
+        $other = $this->newInstance();
+
+        foreach (['exec', 'discard'] as $end) {
+            $this->valkey_glide->del('{watch}key', '{watch}other');
+
+            $this->assertTrue($this->valkey_glide->watch('{watch}key'));
+            $this->valkey_glide->multi();
+            $this->valkey_glide->$end();
+
+            /* A change to the formerly watched key must not abort the next transaction */
+            $other->set('{watch}key', 'changed');
+            $this->valkey_glide->multi();
+            $this->valkey_glide->set('{watch}other', 'v');
+            $this->assertEquals([true], $this->valkey_glide->exec());
+            $this->assertEquals('v', $this->valkey_glide->get('{watch}other'));
+        }
+
+        $this->valkey_glide->del('{watch}key', '{watch}other');
+        $other->close();
+    }
+
+    public function testEvalNilInBatch()
+    {
+        /* A Lua nil is returned as null in a batch, as outside one */
+        $this->assertNull($this->valkey_glide->eval('return nil'));
+
+        $this->valkey_glide->multi();
+        $this->valkey_glide->eval('return nil');
+        $this->valkey_glide->eval('return 1');
+        $this->assertEquals([null, 1], $this->valkey_glide->exec());
+
+        if ($this->havePipeline()) {
+            $this->valkey_glide->pipeline();
+            $this->valkey_glide->eval('return nil');
+            $this->assertEquals([null], $this->valkey_glide->exec());
+        }
+    }
+
     public function testEvalInMulti()
     {
         $script = "return redis.call('GET', KEYS[1])";

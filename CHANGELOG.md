@@ -9,7 +9,7 @@
 ### Fixes
 
 * `eval()`, `evalSha()`, `eval_ro()` and `evalsha_ro()` called inside `multi()` or `pipeline()` are now queued with the batch and return the client, instead of executing immediately outside the transaction
-* `exec()` after an empty `multi()` or `pipeline()` now returns `[]` and leaves batch mode, as in PHPRedis; previously it returned `false` and left the client in batch mode, so every later command was buffered and never sent
+* `exec()` after an empty `multi()` or `pipeline()` now returns `[]` and leaves batch mode, as in PHPRedis; previously it returned `false` and left the client in batch mode, so every later command was buffered and never sent. An empty or discarded `multi()` also clears `WATCH`, as the server's `EXEC`/`DISCARD` would
 * `functionLoad($code, true)` and `function('load', $code, true)` now send `FUNCTION LOAD REPLACE <code>`; previously `REPLACE` was sent after the code and the server rejected the command
 * `functionLoad()` and `function('load', ...)` called inside `multi()` or `pipeline()` are now queued with the batch and return the client, instead of executing immediately outside the transaction
 

@@ -893,6 +893,17 @@ int execute_pipeline_command(zval* object, int argc, zval* return_value, zend_cl
 }
 
 /* Execute a DISCARD command using the Valkey Glide client - UPDATED FOR BUFFERING */
+/* MULTI is buffered client-side, so a transaction that never reaches the server
+ * (empty, or discarded) must clear WATCH itself, as the server's EXEC/DISCARD would.
+ * UNWATCH is routed to all primaries in cluster mode. */
+static void unwatch_for_client_side_transaction(valkey_glide_object* valkey_glide) {
+    CommandResult* result = execute_command(valkey_glide->glide_client, UnWatch, 0, NULL, NULL);
+    valkey_glide_record_command_error(valkey_glide, result);
+    if (result) {
+        free_command_result(result);
+    }
+}
+
 int execute_discard_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
 
@@ -910,7 +921,11 @@ int execute_discard_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Clear batch state if we're in batch mode */
     if (valkey_glide->is_in_batch_mode) {
+        bool is_multi = valkey_glide->batch_type == MULTI;
         valkey_glide_clear_batch_state(valkey_glide);
+        if (is_multi) {
+            unwatch_for_client_side_transaction(valkey_glide);
+        }
         ZVAL_TRUE(return_value);
         return 1;
     } else {
@@ -943,7 +958,11 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
 
     /* An empty multi()/pipeline() returns an empty array and leaves batch mode, as in PHPRedis */
     if (valkey_glide->command_count == 0) {
+        bool is_multi = valkey_glide->batch_type == MULTI;
         valkey_glide_clear_batch_state(valkey_glide);
+        if (is_multi) {
+            unwatch_for_client_side_transaction(valkey_glide);
+        }
         array_init(return_value);
         return 1;
     }
