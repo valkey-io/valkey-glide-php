@@ -122,6 +122,7 @@ static int valkey_glide_cluster_create_connection(
     } else {
         VALKEY_LOG_INFO("cluster_construct", "ValkeyGlide cluster client created successfully");
         valkey_glide->glide_client = conn_resp->conn_ptr;
+        valkey_glide->client_pid   = getpid();
         valkey_glide->resolver_cb  = resolver_cb;
     }
 
@@ -332,10 +333,7 @@ PHP_METHOD(ValkeyGlideCluster, close) {
 
     valkey_glide_clear_batch_state(valkey_glide);
 
-    if (valkey_glide->glide_client) {
-        close_glide_client(valkey_glide->glide_client);
-        valkey_glide->glide_client = NULL;
-    }
+    valkey_glide_close_client(valkey_glide);
 
     /* Mark resolver as closed so background Rust threads get immediate
        fallback instead of calling into PHP. Memory freed at RSHUTDOWN. */
