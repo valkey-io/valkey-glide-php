@@ -9432,12 +9432,14 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->assertTrue($this->valkey_glide->rawCommand('ACL', 'SETUSER', $user, 'reset', 'on', '>pw', '~*', '&*', '+@all', '-unwatch'));
 
         $client = new ValkeyGlide();
-        $client->connect(
-            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
-            credentials: ['username' => $user, 'password' => 'pw']
-        );
-
         try {
+            $client->connect(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                use_tls: $this->getTLS(),
+                credentials: ['username' => $user, 'password' => 'pw'],
+                advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null
+            );
+
             foreach (['exec', 'discard'] as $end) {
                 $client->clearLastError();
                 $client->multi();
@@ -9448,7 +9450,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
                 $this->assertTrue($client->set('{watch}unwatch_fail', 'v'));
             }
         } finally {
-            $client->del('{watch}unwatch_fail');
+            $this->valkey_glide->del('{watch}unwatch_fail');
             $client->close();
             $this->valkey_glide->rawCommand('ACL', 'DELUSER', $user);
         }
