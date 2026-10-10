@@ -1228,14 +1228,14 @@ class ValkeyGlideCluster
      * Inspect the state of the Pub/Sub subsystem.
      *
      * In addition to the standard subcommands, cluster clients support the sharded
-     * introspection subcommand <code>"shardchannels"</code> (requires cluster mode and
-     * Valkey/Redis 7.0+). Unlike the non-sharded <code>"channels"</code>/<code>"numsub"</code>
-     * subcommands, <code>"shardchannels"</code> is routed to all cluster nodes and the
-     * per-node results are combined, so the returned list is a cluster-wide view of the
-     * active shard channels rather than a single node's context.
+     * introspection subcommands <code>"shardchannels"</code> and <code>"shardnumsub"</code>
+     * (requires cluster mode and Valkey/Redis 7.0+). These are routed to all cluster nodes
+     * and the per-node results are combined, so the result is a cluster-wide view of the
+     * shard channels rather than a single node's context.
      *
      * @see ValkeyGlide::pubsub
      * @see https://valkey.io/commands/pubsub-shardchannels/
+     * @see https://valkey.io/commands/pubsub-shardnumsub/
      */
     public function pubsub(string $command, mixed $arg = null): mixed;
 
@@ -1405,6 +1405,59 @@ class ValkeyGlideCluster
     public function sscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): array|false;
 
     /**
+     * Posts a message to the given shard channel.
+     *
+     * The message is routed only to the primary that owns the channel's hash slot and is
+     * propagated within that shard, rather than being broadcast to every node in the
+     * cluster as with PUBLISH. Requires Valkey/Redis 7.0+.
+     *
+     * @param string $channel The shard channel to publish to.
+     * @param string $message The message to publish.
+     *
+     * @return int The number of shard subscribers that received the message.
+     *
+     * @see https://valkey.io/commands/spublish
+     * @see ValkeyGlideCluster::ssubscribe()
+     *
+     * @example $valkey_glide_cluster->spublish('orders.{eu}', 'created');
+     */
+    public function spublish(string $channel, string $message): int;
+
+    /**
+     * Subscribes the client to the specified shard channels.
+     *
+     * Each shard channel is subscribed on the node that owns its hash slot. Requires
+     * Valkey/Redis 7.0+.
+     *
+     * @param array    $channels One or more shard channel names.
+     * @param callable $cb       The callback invoked when a message arrives on one of the
+     *                           subscribed shard channels, called as
+     *                           <code>$cb($client, $channel, $message)</code>.
+     *
+     * @return bool True on success. Note that this command will block the client in a
+     *              subscribe loop, waiting for messages to arrive, until every shard
+     *              channel has been unsubscribed.
+     *
+     * @see https://valkey.io/commands/ssubscribe
+     * @see ValkeyGlideCluster::sunsubscribe()
+     *
+     * @example
+     * $valkey_glide_cluster->ssubscribe(['channel-1', 'channel-2'], function ($client, $channel, $message) {
+     *     echo "[$channel]: $message\n";
+     *
+     *     // Unsubscribe from the shard channel when we read 'quit'
+     *     if ($message == 'quit') {
+     *         $client->sunsubscribe([$channel]);
+     *     }
+     * });
+     *
+     * // Once we read 'quit' from both channel-1 and channel-2 the subscribe loop will be
+     * // broken and this command will execute.
+     * echo "Subscribe loop ended\n";
+     */
+    public function ssubscribe(array $channels, callable $cb): bool;
+
+    /**
      * @see ValkeyGlide::strlen
      */
     public function strlen(string $key): ValkeyGlideCluster|int|false;
@@ -1413,6 +1466,20 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::subscribe
      */
     public function subscribe(array $channels, callable $cb): bool;
+
+    /**
+     * Unsubscribes the client from the given shard channels, or from all shard channels
+     * if none are given. Intended to be called from within an ssubscribe() callback.
+     *
+     * @param array|null $channels One or more shard channels to unsubscribe from, or null
+     *                             for all shard channels.
+     *
+     * @return bool True on success.
+     *
+     * @see https://valkey.io/commands/sunsubscribe
+     * @see ValkeyGlideCluster::ssubscribe()
+     */
+    public function sunsubscribe(?array $channels = null): bool;
 
     /**
      * @see ValkeyGlide::sunion()

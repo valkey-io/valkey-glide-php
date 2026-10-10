@@ -660,6 +660,43 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
                               return_value);
 }
 
+// SSubscribe implementation (sharded channels, cluster mode only)
+void valkey_glide_ssubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection) {
+    zval *    channels, *callback;
+    zend_long timeout_ms = 0;
+
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+    Z_PARAM_ARRAY(channels)
+    Z_PARAM_ZVAL(callback)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(timeout_ms)
+    ZEND_PARSE_PARAMETERS_END();
+
+    if (is_client_in_subscribe_mode((uintptr_t) connection)) {
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "Client is in subscribe mode. Only unsubscribe commands are allowed.",
+                             0);
+        RETURN_FALSE;
+    }
+
+    if (!zend_is_callable(callback, 0, NULL)) {
+        VALKEY_LOG_ERROR("ssubscribe", "Callback is not callable");
+        zend_throw_exception(get_valkey_glide_exception_ce(), "Callback must be callable", 0);
+        RETURN_FALSE;
+    }
+
+    php_register_pubsub_callback((uintptr_t) connection, callback, ZEND_THIS);
+
+    execute_subscribe_command(connection,
+                              channels,
+                              timeout_ms,
+                              REQUEST_TYPE_SSUBSCRIBE,
+                              REQUEST_TYPE_SUNSUBSCRIBE,
+                              "ssubscribe",
+                              "SSubscribe command failed",
+                              return_value);
+}
+
 // Unsubscribe implementation
 void valkey_glide_unsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection) {
     zval* channels = NULL;
@@ -688,8 +725,27 @@ void valkey_glide_punsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* co
     RETVAL_TRUE;
 }
 
-// Publish implementation
-void valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection) {
+// SUnsubscribe implementation (sharded channels, cluster mode only)
+void valkey_glide_sunsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection) {
+    zval* channels = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_ARRAY_OR_NULL(channels)
+    ZEND_PARSE_PARAMETERS_END();
+
+    execute_unsubscribe_command(connection, channels, REQUEST_TYPE_SUNSUBSCRIBE, "sunsubscribe");
+
+    RETVAL_TRUE;
+}
+
+// Helper: Execute publish command (PUBLISH or SPUBLISH)
+static void execute_publish_command(INTERNAL_FUNCTION_PARAMETERS,
+                                    const void*      connection,
+                                    enum RequestType publish_type,
+                                    const char*      command_name,
+                                    const char*      error_fallback,
+                                    const char*      failure_msg) {
     zend_string *channel, *message;
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
@@ -707,31 +763,51 @@ void valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
 
     // Call FFI command
     struct CommandResult* result =
-        command(connection, 0, REQUEST_TYPE_PUBLISH, 2, args, args_len, NULL, 0, 0);
+        command(connection, 0, publish_type, 2, args, args_len, NULL, 0, 0);
 
     if (result) {
         if (result->response && !result->command_error) {
             if (result->response->response_type == Int) {
                 RETVAL_LONG(result->response->int_value);
             } else {
-                VALKEY_LOG_ERROR("publish", "Unexpected response type from publish command");
+                VALKEY_LOG_ERROR(command_name, "Unexpected response type from publish command");
                 RETVAL_LONG(0);
             }
         } else {
             const char* error_msg =
                 result->command_error && result->command_error->command_error_message
                     ? result->command_error->command_error_message
-                    : "Publish failed";
-            VALKEY_LOG_ERROR("publish", error_msg);
+                    : error_fallback;
+            VALKEY_LOG_ERROR(command_name, error_msg);
             zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
             RETVAL_FALSE;
         }
         free_command_result(result);
     } else {
-        VALKEY_LOG_ERROR("publish", "Publish command failed");
-        zend_throw_exception(get_valkey_glide_exception_ce(), "Publish command failed", 0);
+        VALKEY_LOG_ERROR(command_name, failure_msg);
+        zend_throw_exception(get_valkey_glide_exception_ce(), failure_msg, 0);
         RETVAL_FALSE;
     }
+}
+
+// Publish implementation
+void valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection) {
+    execute_publish_command(INTERNAL_FUNCTION_PARAM_PASSTHRU,
+                            connection,
+                            REQUEST_TYPE_PUBLISH,
+                            "publish",
+                            "Publish failed",
+                            "Publish command failed");
+}
+
+// SPublish implementation (sharded channels, cluster mode only)
+void valkey_glide_spublish_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection) {
+    execute_publish_command(INTERNAL_FUNCTION_PARAM_PASSTHRU,
+                            connection,
+                            REQUEST_TYPE_SPUBLISH,
+                            "spublish",
+                            "SPublish failed",
+                            "SPublish command failed");
 }
 
 // C callback handler for FFI - called from Rust
