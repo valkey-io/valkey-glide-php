@@ -373,6 +373,48 @@ class ValkeyGlide
     public const OPT_REPLY_LITERAL = UNKNOWN;
 
     /**
+     * Runtime option: Key prefix (PHPRedis OPT_PREFIX).
+     * When set, the prefix is prepended to every key argument, including keys of
+     * multi-key commands, the KEYS portion of FCALL/EVAL/EVALSHA, the KEYS
+     * pattern, and commands queued in multi() or pipeline(). Replies are not
+     * changed, so key names returned by the server include the prefix.
+     * Setting an empty string removes the prefix.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_OPT_PREFIX
+     *
+     */
+    public const OPT_PREFIX = UNKNOWN;
+
+    /**
+     * Runtime option: SCAN behaviour (PHPRedis OPT_SCAN).
+     * Accepts SCAN_PREFIX or SCAN_NOPREFIX.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_OPT_SCAN
+     *
+     */
+    public const OPT_SCAN = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: prefix the SCAN MATCH pattern with OPT_PREFIX.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_PREFIX
+     *
+     */
+    public const SCAN_PREFIX = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: send the SCAN MATCH pattern unchanged (default).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_NOPREFIX
+     *
+     */
+    public const SCAN_NOPREFIX = UNKNOWN;
+
+    /**
      * Create a new ValkeyGlide instance with the provided configuration.
      *
      * The constructor creates an unconnected client instance.
@@ -512,6 +554,14 @@ class ValkeyGlide
      * @return mixed The option value, or false if the option is not set or invalid
      */
     public function getOption(int $option): mixed;
+
+    /**
+     * Prepend the OPT_PREFIX key prefix to a key.
+     *
+     * @param string $key The key to prefix
+     * @return string The prefixed key, or the key unchanged when no prefix is set
+     */
+    public function _prefix(string $key): string; // phpcs:ignore PSR2.Methods.MethodDeclaration.Underscore
 
     /**
      * Get the last error message returned by the server, if any.

@@ -39,6 +39,7 @@ extern struct CommandResult* get_cache_metrics(const void* client_adapter_ptr,
                                                int32_t     metrics_type);
 
 #include "valkey_glide_otel.h"  // Include OTEL support
+#include "valkey_glide_prefix.h"
 
 /* Enum support includes - must be BEFORE arginfo includes */
 #if PHP_VERSION_ID >= 80100
@@ -843,6 +844,7 @@ PHP_MSHUTDOWN_FUNCTION(valkey_glide) {
 
 PHP_RSHUTDOWN_FUNCTION(valkey_glide) {
     valkey_glide_resolver_shutdown();
+    valkey_glide_prefix_shutdown();
     return SUCCESS;
 }
 
@@ -921,6 +923,11 @@ void free_valkey_glide_object(zend_object* object) {
 
     /* Free the last error message if set */
     valkey_glide_clear_last_error(valkey_glide);
+
+    if (valkey_glide->prefix) {
+        zend_string_release(valkey_glide->prefix);
+        valkey_glide->prefix = NULL;
+    }
 
     /* Free the Valkey Glide client if it exists */
     if (valkey_glide->glide_client) {
@@ -1251,6 +1258,7 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     VALKEY_LOG_INFO("valkey_glide_create_connection", "ValkeyGlide client connected successfully");
     valkey_glide->glide_client = conn_resp->conn_ptr;
     valkey_glide->resolver_cb  = resolver_cb;
+    valkey_glide_prefix_track_client(valkey_glide->glide_client, valkey_glide);
 
     free_connection_response((ConnectionResponse*) conn_resp);
 

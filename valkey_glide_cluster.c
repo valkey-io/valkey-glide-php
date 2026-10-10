@@ -30,6 +30,7 @@
 #include "valkey_glide_cluster_legacy_arginfo.h"
 #else
 #include "valkey_glide_cluster_arginfo.h"
+#include "valkey_glide_prefix.h"
 #include "zend_attributes.h"
 #endif
 
@@ -105,6 +106,7 @@ static int valkey_glide_cluster_create_connection(
         VALKEY_LOG_INFO("cluster_construct", "ValkeyGlide cluster client created successfully");
         valkey_glide->glide_client = conn_resp->conn_ptr;
         valkey_glide->resolver_cb  = resolver_cb;
+        valkey_glide_prefix_track_client(valkey_glide->glide_client, valkey_glide);
     }
 
     free_connection_response((ConnectionResponse*) conn_resp);
@@ -1371,6 +1373,10 @@ SETOPTION_METHOD_IMPL(ValkeyGlideCluster)
 
 /* {{{ proto mixed ValkeyGlideCluster::getOption(int option) */
 GETOPTION_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string ValkeyGlideCluster::_prefix(string key) */
+PREFIX_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto string|null ValkeyGlideCluster::getLastError() */

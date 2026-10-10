@@ -97,6 +97,8 @@ Requirements:
    <file name="valkey_glide_function_commands.c" role="src" />
    <file name="valkey_glide_address_resolver.c" role="src" />
    <file name="valkey_glide_address_resolver.h" role="src" />
+   <file name="valkey_glide_prefix.c" role="src" />
+   <file name="valkey_glide_prefix.h" role="src" />
    <file name="valkey_glide_otel.h" role="src" />
    <file name="valkey_glide_otel.c" role="src" />
    <file name="valkey_glide_pubsub_common.c" role="src" />

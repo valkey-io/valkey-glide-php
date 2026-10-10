@@ -6,8 +6,16 @@
 
 * An AZ-affinity read strategy (`READ_FROM_AZ_AFFINITY`, `READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY`, or `READ_FROM_AZ_AFFINITY_ALL_NODES`) configured without a valid `client_az` now throws at client creation. Previously the core logged a warning and downgraded the strategy to `PreferReplica`, so reads silently went to arbitrary nodes. A `client_az` that is empty, whitespace-only, contains a NUL byte, or has leading/trailing whitespace is rejected ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
 
+### Fixes
+
+* `eval()`, `evalSha()`, `eval_ro()` and `evalsha_ro()` called inside `multi()` or `pipeline()` are now queued with the batch and return the client, instead of executing immediately outside the transaction
+* `exec()` after an empty `multi()` or `pipeline()` now returns `[]` and leaves batch mode, as in PHPRedis; previously it returned `false` and left the client in batch mode, so every later command was buffered and never sent. An empty or discarded `multi()` also clears `WATCH`, as the server's `EXEC`/`DISCARD` would
+* `functionLoad($code, true)` and `function('load', $code, true)` now send `FUNCTION LOAD REPLACE <code>`; previously `REPLACE` was sent after the code and the server rejected the command
+* `functionLoad()` and `function('load', ...)` called inside `multi()` or `pipeline()` are now queued with the batch and return the client, instead of executing immediately outside the transaction
+
 ### Changes
 
+* Add PHPRedis-compatible client-side key prefixing: `OPT_PREFIX` (via `setOption()`/`getOption()`) and `_prefix()` for standalone and cluster clients. The prefix is applied to every key argument, including multi-key commands, the `KEYS` of `EVAL`/`EVALSHA`/`FCALL`, and commands queued in `multi()`/`pipeline()`. `OPT_SCAN` with `SCAN_PREFIX`/`SCAN_NOPREFIX` controls whether the `SCAN` `MATCH` pattern is prefixed ([#342](https://github.com/valkey-io/valkey-glide-php/issues/342))
 * Add `HGETDEL` command for standalone and cluster clients ([#343](https://github.com/valkey-io/valkey-glide-php/pull/343))
 * Add PHP 8.4 and 8.5 to the supported versions and the CI test matrix
 * Add `READ_FROM_AZ_AFFINITY_ALL_NODES` read strategy for standalone and cluster clients ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
