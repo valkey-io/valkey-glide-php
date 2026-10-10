@@ -15,6 +15,10 @@
 * `clone` on a `ValkeyGlide` or `ValkeyGlideCluster` object now throws an `Error`; the copy shared the client handle and crashed on first use ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))
 * `script()`, `geoadd()`, `geohash()`, `geopos()`, `xinfo()`, `zadd()` and cluster route parsing no longer read uninitialized variadic arguments when called without them (`script('FLUSH')` could crash) ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))
 * A client (`ValkeyGlide`, `ValkeyGlideCluster`, `ValkeyGlideMonitor`) inherited through `fork()` is no longer closed by the child, which crashed (macOS) or hung (Linux) the child at exit. Calling a method on it in the child, directly or through `call_user_func()`, Reflection or a closure, now throws `ValkeyGlideException`, except `close()`, which only drops the handle, and `getLastError()`, `clearLastError()`, `getOption()` and `setOption()`, which do not use the client. Creating a new client in a child after the parent used GLIDE still crashes or hangs until the core is fixed ([#349](https://github.com/valkey-io/valkey-glide-php/issues/349))
+* `eval()`, `evalSha()`, `eval_ro()` and `evalsha_ro()` called inside `multi()` or `pipeline()` are now queued with the batch and return the client, instead of executing immediately outside the transaction
+* `exec()` after an empty `multi()` or `pipeline()` now returns `[]` and leaves batch mode, as in PHPRedis; previously it returned `false` and left the client in batch mode, so every later command was buffered and never sent
+* `functionLoad($code, true)` and `function('load', $code, true)` now send `FUNCTION LOAD REPLACE <code>`; previously `REPLACE` was sent after the code and the server rejected the command
+* `functionLoad()` and `function('load', ...)` called inside `multi()` or `pipeline()` are now queued with the batch and return the client, instead of executing immediately outside the transaction
 
 ### Changes
 
