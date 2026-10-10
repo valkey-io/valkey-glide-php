@@ -3,6 +3,7 @@
 #include "include/glide_bindings.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
+#include "valkey_glide_z_common.h"
 
 // Helper macros for validating CommandResult in script commands
 #define VALIDATE_SCRIPT_RESULT_OR_RETURN_FALSE(valkey_glide, result)       \
@@ -121,6 +122,11 @@ void execute_script_flush_command(zval* object, zval* return_value, bool is_clus
 }
 
 
+// Batch result processor for eval-style commands
+static int process_eval_response(CommandResponse* response, void* output, zval* return_value) {
+    return command_response_to_zval(response, return_value, 0, false);
+}
+
 // Helper to build and execute eval-style commands
 static void execute_eval_style_command(const char* cmd_name,
                                        size_t      cmd_len,
@@ -180,6 +186,26 @@ static void execute_eval_style_command(const char* cmd_name,
             cmd_args_len[idx++] = Z_STRLEN_P(entry);
         }
         ZEND_HASH_FOREACH_END();
+    }
+
+    /* In multi() / pipeline(), queue the command and return $this for chaining */
+    if (valkey_glide->is_in_batch_mode) {
+        int res = buffer_command_for_batch(valkey_glide,
+                                           CustomCommand,
+                                           cmd_args,
+                                           cmd_args_len,
+                                           cmd_count,
+                                           NULL,
+                                           process_eval_response);
+
+        efree(cmd_args);
+        efree(cmd_args_len);
+
+        if (!res) {
+            RETURN_FALSE;
+        }
+        ZVAL_COPY(return_value, object);
+        return;
     }
 
     CommandResult* result = execute_command(
