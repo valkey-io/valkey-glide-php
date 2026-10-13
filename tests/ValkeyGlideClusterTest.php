@@ -1495,8 +1495,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             return is_int($v) && $v >= -1;
         });
 
-        $cluster = $this->valkey_glide->info("randomNode", "cluster");
-        $this->assertArrayKey($cluster, 'cluster_io_main_thread_fallbacks', function ($v) {
+        $clusterInfo = $this->valkey_glide->info("randomNode", "cluster_info");
+        $this->assertArrayKey($clusterInfo, 'cluster_io_main_thread_fallbacks', function ($v) {
             return is_int($v) && $v >= 0;
         });
     }
