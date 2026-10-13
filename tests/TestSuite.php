@@ -213,7 +213,7 @@ class TestSuite
         $lines [] = sprintf(
             "%s %s - %s",
             $prefix,
-            self::makeBold($fn),
+            self::makeBold($fn ?? '(unknown)'),
             $msg ? $msg : '(no message)'
         );
 
