@@ -458,7 +458,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertEmpty(array $v): bool
+    protected function assertEmpty(array|Countable $v): bool
     {
         if (count($v)) {
             self::$errors[] = $this->assertionTrace("%s is not empty", $this->printArg($v));
