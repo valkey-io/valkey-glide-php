@@ -95,6 +95,16 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     protected const MIGRATE_DEST_PORT = 6382;
 
     /**
+     * Valid values for the "rdb_*_bgsave_type" INFO persistence fields.
+     * Since Valkey 9.2.0.
+     */
+    protected const BGSAVE_TYPES = [
+        'fork' => true,
+        'forkless' => true,
+        'none' => true
+    ];
+
+    /**
      * Shared destination client for migrate tests.
      */
     protected ?ValkeyGlide $migrateDestClient = null;
@@ -3721,12 +3731,34 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             }
         }
 
+        // Valkey 7.0
+        // ----------
+
         if (! $this->minVersionCheck('7.0.0')) {
             return;
         }
 
         $res = $this->valkey_glide->info('server', 'memory');
         $this->assertTrue(is_array($res) && isset($res['redis_version']) && isset($res['used_memory']));
+
+        // Valkey 9.2
+        // ----------
+
+        if (! $this->minVersionCheck('9.2.0')) {
+            return;
+        }
+
+        $persistence = $this->valkey_glide->info('persistence');
+
+        $this->assertArrayKey($persistence, 'rdb_current_bgsave_type', function ($v) {
+            return isset(self::BGSAVE_TYPES[$v]);
+        });
+        $this->assertArrayKey($persistence, 'rdb_last_bgsave_type', function ($v) {
+            return isset(self::BGSAVE_TYPES[$v]);
+        });
+        $this->assertArrayKey($persistence, 'forkless_estimated_seconds_remaining', function ($v) {
+            return is_int($v) && $v >= -1;
+        });
     }
 
     public function testInfoCommandStats()

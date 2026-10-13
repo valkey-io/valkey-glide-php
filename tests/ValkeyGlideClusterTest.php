@@ -268,6 +268,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertFalse(@$this->valkey_glide->config('allNodes', 'set', []));
         $this->assertFalse(@$this->valkey_glide->config('allNodes', 'set', [0, 1, 2]));
     }
+
     public function testFlushDB()
     {
         $key = "key:0";
@@ -1475,6 +1476,29 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $allSectionsInfo = $this->valkey_glide->info("randomNode");
         $this->assertIsArray($allSectionsInfo);
         $this->assertGT(10, count($allSectionsInfo), "All sections should return many fields");
+
+        // Valkey 9.2
+        // ----------
+
+        if (! $this->minVersionCheck('9.2.0')) {
+            return;
+        }
+
+        $persistence = $this->valkey_glide->info("randomNode", "persistence");
+        $this->assertArrayKey($persistence, 'rdb_current_bgsave_type', function ($v) {
+            return isset(self::BGSAVE_TYPES[$v]);
+        });
+        $this->assertArrayKey($persistence, 'rdb_last_bgsave_type', function ($v) {
+            return isset(self::BGSAVE_TYPES[$v]);
+        });
+        $this->assertArrayKey($persistence, 'forkless_estimated_seconds_remaining', function ($v) {
+            return is_int($v) && $v >= -1;
+        });
+
+        $cluster = $this->valkey_glide->info("randomNode", "cluster");
+        $this->assertArrayKey($cluster, 'cluster_io_main_thread_fallbacks', function ($v) {
+            return is_int($v) && $v >= 0;
+        });
     }
 
     public function testClient()

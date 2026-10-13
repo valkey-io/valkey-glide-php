@@ -85,6 +85,9 @@ class TestSuite
     private string $host;
     private ?int $port = 6379;
 
+    /* ValkeyGlide client instance, set by subclasses */
+    protected ValkeyGlide|ValkeyGlideCluster|null $valkey_glide = null;
+
     /* ValkeyGlide authentication we'll use */
     private string|array|null $auth;
 
