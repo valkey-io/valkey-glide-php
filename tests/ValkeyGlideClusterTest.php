@@ -82,7 +82,7 @@ require_once __DIR__ . '/TestConstants.php';
  */
 class ValkeyGlideClusterTest extends ValkeyGlideTest
 {
-    private $valkey_glide_types = [
+    private array $valkey_glide_types = [
         ValkeyGlide::VALKEY_GLIDE_STRING,
         ValkeyGlide::VALKEY_GLIDE_SET,
         ValkeyGlide::VALKEY_GLIDE_LIST,
@@ -91,8 +91,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     ];
 
 
-    private static $debug_logged = false;
-    private static $version_logged = false;
+    private static bool $debug_logged = false;
+    private static bool $version_logged = false;
 
     protected static array $seeds = [];
     private static string $seed_source = '';
@@ -392,13 +392,13 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
 
 
     /* Load our seeds on construction */
-    public function __construct($host, $port, $auth, $tls)
+    public function __construct(string $host, ?int $port, string|array|null $auth, bool $tls)
     {
         parent::__construct($host, $port, $auth, $tls);
     }
 
     /* Override setUp to get info from a specific node */
-    public function setUp()
+    public function setUp(): void
     {
         $this->valkey_glide    = $this->newInstance();
         $info           = $this->valkey_glide->info("randomNode");
@@ -427,7 +427,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     /* Override newInstance as we want a ValkeyGlideCluster object */
-    protected function newInstance()
+    protected function newInstance(): ValkeyGlideCluster
     {
         try {
             return new ValkeyGlideCluster(
@@ -453,7 +453,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     /* Override getPort to return cluster port */
-    public function getPort()
+    public function getPort(): int
     {
         return $this->getTLS() ? 8001 : 7001;
     }
@@ -611,7 +611,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
      * Assert that CANCEL with no save in progress returns false, tolerating the
      * race where a prior save is still finishing on some cluster node.
      */
-    protected function assertBgSaveCancelReturnsFalse($route)
+    protected function assertBgSaveCancelReturnsFalse(string $route): void
     {
         $result = false;
         $this->waitFor(
@@ -2124,7 +2124,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
-    protected function keyTypeToString($key_type)
+    protected function keyTypeToString(int $key_type): string
     {
         switch ($key_type) {
             case ValkeyGlide::VALKEY_GLIDE_STRING:
@@ -2144,17 +2144,18 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
-    protected function genKeyName($key_index, $key_type)
+    protected function genKeyName(int $key_index, int $key_type): string
     {
         return sprintf('%s-%s', $this->keyTypeToString($key_type), $key_index);
     }
 
-    protected function setKeyVals($key_index, $key_type, &$arr_ref)
+    protected function setKeyVals(int $key_index, int $key_type, array &$arr_ref): string
     {
         $key = $this->genKeyName($key_index, $key_type);
 
         $this->valkey_glide->del($key);
 
+        $value = null;
         switch ($key_type) {
             case ValkeyGlide::VALKEY_GLIDE_STRING:
                 $value = "$key-value";
@@ -2205,7 +2206,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     /* Verify that our ZSET values are identical */
-    protected function checkZSetEquality($a, $b)
+    protected function checkZSetEquality(array $a, array $b): void
     {
         /* If the count is off, the array keys are different or the sums are
          * different, we know there is something off */
@@ -2219,7 +2220,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
-    protected function checkKeyValue($key, $key_type, $value)
+    protected function checkKeyValue(string $key, int $key_type, mixed $value): void
     {
         switch ($key_type) {
             case ValkeyGlide::VALKEY_GLIDE_STRING:
@@ -2257,7 +2258,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals(['A', 'B', 'C', 'D'], $this->valkey_glide->lrange('mylist', 0, -1));
     }
 
-    protected function rawCommandArray($key, $args)
+    protected function rawCommandArray(string $key, array $args): mixed
     {
         array_unshift($args, $key);
         return call_user_func_array([$this->valkey_glide, 'rawCommand'], $args);

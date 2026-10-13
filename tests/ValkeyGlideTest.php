@@ -3749,7 +3749,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $persistence = $this->valkey_glide->info('persistence');
-
         $this->assertArrayKey($persistence, 'rdb_current_bgsave_type', function ($v) {
             return isset(self::BGSAVE_TYPES[$v]);
         });
@@ -7298,7 +7297,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     // GEO* command tests
     //
 
-    protected function rawCommandArray($key, $args)
+    protected function rawCommandArray(string $key, array $args): mixed
     {
         return call_user_func_array([$this->valkey_glide, 'rawCommand'], $args);
     }

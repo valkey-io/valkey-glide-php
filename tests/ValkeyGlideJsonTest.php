@@ -10,7 +10,7 @@ require_once __DIR__ . "/ValkeyGlideBaseTest.php";
  */
 class ValkeyGlideJsonTest extends ValkeyGlideBaseTest
 {
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
 
