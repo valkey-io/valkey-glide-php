@@ -8,6 +8,7 @@
 
 ### Changes
 
+* Fix cluster clients with periodic checks enabled (the default) sending a topology check interval of 0 seconds to the core. The core ran `CLUSTER SLOTS` checks back-to-back, so every idle client burned about 5% of a CPU core and flooded the cluster with topology queries. The core's default 60-second interval is now used ([#344](https://github.com/valkey-io/valkey-glide-php/issues/344))
 * Add `HGETDEL` command for standalone and cluster clients ([#343](https://github.com/valkey-io/valkey-glide-php/pull/343))
 * Add PHP 8.4 and 8.5 to the supported versions and the CI test matrix
 * Add `READ_FROM_AZ_AFFINITY_ALL_NODES` read strategy for standalone and cluster clients ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
