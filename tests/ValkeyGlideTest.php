@@ -9561,6 +9561,8 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
                 $pconnected = $id(['pconnect' => '1']);
                 $this->assertNotEquals($first, $pconnected);
                 $this->assertEquals($pconnected, $id(['pconnect' => '1']));
+                /* pconnect() without an ID is persistent, connect(persistent_id: '') is not */
+                $this->assertNotEquals($pconnected, $empty1);
 
                 /* PHPRedis-style positional pconnect($host, $port, $timeout, $persistent_id):
                  * one client per ID */
@@ -9570,6 +9572,9 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
                 $this->assertNotEquals($pconnected, $id_a);
                 $this->assertEquals($id_a, $id(['pconnect' => '1', 'pconnect_id' => 'a']));
                 $this->assertEquals($id_b, $id(['pconnect' => '1', 'pconnect_id' => 'b']));
+                /* PHPRedis-style positional retry_interval and read_timeout after the ID:
+                 * still persistent_id 'a', so the same client */
+                $this->assertEquals($id_a, $id(['pconnect' => '1', 'pconnect_id' => 'a', 'pconnect_all' => '1']));
                 $this->assertEquals($first, $id());
             }
 
@@ -9664,6 +9669,14 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $this->assertNotEquals($kept, $replacement);
             $this->assertEquals($replacement, $id($other));
             $this->assertNotEquals($kept, $id());
+
+            /* With valkey_glide.max_persistent_clients=0 nothing is kept, not even by pconnect() */
+            $stop($server);
+            $server = $start(['valkey_glide.max_persistent_clients=0']);
+            $this->assertNotEquals($id(), $id());
+            if (!$is_cluster) {
+                $this->assertNotEquals($id(['pconnect' => '1']), $id(['pconnect' => '1']));
+            }
         } finally {
             $stop($server);
         }
