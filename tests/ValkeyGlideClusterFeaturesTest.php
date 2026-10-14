@@ -520,10 +520,11 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $after = $this->countClusterCommandCalls($valkey_glide);
         $valkey_glide->close();
 
-        // The default interval is 60 seconds, so an idle client issues no topology
-        // queries in a 2 second window. Other live clients in this process may fire
-        // one check each, hence the small allowance. The bug produced hundreds per
-        // second.
+        // With the 60 second default interval, this idle client should issue no
+        // CLUSTER calls in the window. Commandstats is server-wide, though, so checks
+        // from other open clients can also land in it. The bug issued over 5,000 in
+        // 2 seconds on a test setup. The threshold of 20 is arbitrary: it leaves room
+        // for that noise and stays far below the bug's level.
         $this->assertLT(20, $after - $before);
     }
 
