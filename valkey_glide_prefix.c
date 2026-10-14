@@ -32,7 +32,8 @@ void valkey_glide_prefix_track_client(const void* glide_client, valkey_glide_obj
         ALLOC_HASHTABLE(tracked_clients);
         zend_hash_init(tracked_clients, 8, NULL, NULL, 0);
     }
-    zend_hash_index_update_ptr(tracked_clients, (zend_ulong) (uintptr_t) glide_client, valkey_glide);
+    zend_hash_index_update_ptr(
+        tracked_clients, (zend_ulong) (uintptr_t) glide_client, valkey_glide);
 }
 
 void valkey_glide_prefix_untrack_client(const void* glide_client) {
@@ -94,11 +95,14 @@ zend_string* valkey_glide_prefix_key(valkey_glide_object* valkey_glide,
  * KEY POSITIONS
  * ==================================================================== */
 
-#define ARG_IS(i, literal)                                 \
-    (args_len[i] == sizeof(literal) - 1 &&                 \
+#define ARG_IS(i, literal)                 \
+    (args_len[i] == sizeof(literal) - 1 && \
      strncasecmp((const char*) args[i], literal, sizeof(literal) - 1) == 0)
 
-static void mark_range(bool* is_key, unsigned long arg_count, unsigned long from, unsigned long to) {
+static void mark_range(bool*         is_key,
+                       unsigned long arg_count,
+                       unsigned long from,
+                       unsigned long to) {
     for (unsigned long i = from; i < to && i < arg_count; i++) {
         is_key[i] = true;
     }
@@ -561,12 +565,8 @@ bool valkey_glide_prefix_client_args(const void*                   glide_client,
                                      const uintptr_t*              args,
                                      const unsigned long*          args_len,
                                      valkey_glide_prefixed_args_t* out) {
-    return valkey_glide_prefix_command_args(valkey_glide_prefix_find_object(glide_client),
-                                            cmd_type,
-                                            arg_count,
-                                            args,
-                                            args_len,
-                                            out);
+    return valkey_glide_prefix_command_args(
+        valkey_glide_prefix_find_object(glide_client), cmd_type, arg_count, args, args_len, out);
 }
 
 bool valkey_glide_prefix_arg_range(valkey_glide_object*          valkey_glide,
