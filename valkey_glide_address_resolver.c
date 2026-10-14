@@ -3,9 +3,24 @@
 #include "valkey_glide_address_resolver.h"
 
 #include <ffi.h>
+#include <pthread.h>
 #include <stdatomic.h>
+#include <stdlib.h>
 #include <string.h>
 #include <zend_exceptions.h>
+
+/* Upper bound on cached resolutions per client; a cluster has far fewer nodes */
+#define RESOLVER_CACHE_MAX 1024
+
+/* An address the PHP callable resolved, replayed for calls from other threads */
+typedef struct resolver_cache_entry {
+    char*    host;
+    size_t   host_len;
+    uint16_t port;
+    char*    resolved_host;
+    size_t   resolved_host_len;
+    uint16_t resolved_port;
+} resolver_cache_entry_t;
 
 typedef struct resolver_closure {
     zval                     callable;
@@ -13,6 +28,11 @@ typedef struct resolver_closure {
     ffi_closure*             closure;
     void*                    fn_ptr;
     atomic_int               closed; /* 1 = client closed, callback becomes no-op */
+    pthread_t                owner;  /* PHP thread that created the client */
+    pthread_mutex_t          cache_lock;
+    resolver_cache_entry_t*  cache;
+    size_t                   cache_len;
+    size_t                   cache_cap;
     struct resolver_closure* next;
 } resolver_closure_t;
 
@@ -29,6 +49,105 @@ static ffi_type* arg_types[7] = {
     &ffi_type_pointer, /* uintptr_t *resolved_host_len */
 };
 
+/* Caller holds cache_lock */
+static resolver_cache_entry_t* resolver_cache_find(resolver_closure_t* ctx,
+                                                   const uint8_t*      host,
+                                                   size_t              host_len,
+                                                   uint16_t            port) {
+    for (size_t i = 0; i < ctx->cache_len; i++) {
+        resolver_cache_entry_t* entry = &ctx->cache[i];
+        if (entry->port == port && entry->host_len == host_len &&
+            memcmp(entry->host, host, host_len) == 0) {
+            return entry;
+        }
+    }
+    return NULL;
+}
+
+/* Record a resolution made on the owner thread. Uses malloc, not the Zend
+ * allocator, because other threads read the cache. */
+static void resolver_cache_store(resolver_closure_t* ctx,
+                                 const uint8_t*      host,
+                                 size_t              host_len,
+                                 uint16_t            port,
+                                 const char*         resolved_host,
+                                 size_t              resolved_host_len,
+                                 uint16_t            resolved_port) {
+    char* resolved_copy = malloc(resolved_host_len);
+    if (!resolved_copy)
+        return;
+    memcpy(resolved_copy, resolved_host, resolved_host_len);
+
+    pthread_mutex_lock(&ctx->cache_lock);
+    resolver_cache_entry_t* entry = resolver_cache_find(ctx, host, host_len, port);
+    if (entry) {
+        free(entry->resolved_host);
+        entry->resolved_host     = resolved_copy;
+        entry->resolved_host_len = resolved_host_len;
+        entry->resolved_port     = resolved_port;
+        pthread_mutex_unlock(&ctx->cache_lock);
+        return;
+    }
+
+    char* host_copy = NULL;
+    if (ctx->cache_len < RESOLVER_CACHE_MAX && (host_copy = malloc(host_len ? host_len : 1))) {
+        if (ctx->cache_len == ctx->cache_cap) {
+            size_t                  cap   = ctx->cache_cap ? ctx->cache_cap * 2 : 8;
+            resolver_cache_entry_t* grown = realloc(ctx->cache, cap * sizeof(*grown));
+            if (grown) {
+                ctx->cache     = grown;
+                ctx->cache_cap = cap;
+            }
+        }
+        if (ctx->cache_len < ctx->cache_cap) {
+            memcpy(host_copy, host, host_len);
+            ctx->cache[ctx->cache_len++] = (resolver_cache_entry_t){
+                .host              = host_copy,
+                .host_len          = host_len,
+                .port              = port,
+                .resolved_host     = resolved_copy,
+                .resolved_host_len = resolved_host_len,
+                .resolved_port     = resolved_port,
+            };
+            pthread_mutex_unlock(&ctx->cache_lock);
+            return;
+        }
+    }
+    pthread_mutex_unlock(&ctx->cache_lock);
+    free(host_copy);
+    free(resolved_copy);
+}
+
+/* Answer a call from a thread other than the owner from the cache. Returns the
+ * resolved port, or 0 (use the original address) when the address is not cached. */
+static uint16_t resolver_cache_lookup(resolver_closure_t* ctx,
+                                      const uint8_t*      host,
+                                      size_t              host_len,
+                                      uint16_t            port,
+                                      uint8_t*            out_buf,
+                                      size_t              buf_len,
+                                      uintptr_t*          written) {
+    uint16_t resolved_port = 0;
+    pthread_mutex_lock(&ctx->cache_lock);
+    resolver_cache_entry_t* entry = resolver_cache_find(ctx, host, host_len, port);
+    if (entry && entry->resolved_host_len < buf_len) {
+        memcpy(out_buf, entry->resolved_host, entry->resolved_host_len);
+        *written      = entry->resolved_host_len;
+        resolved_port = entry->resolved_port;
+    }
+    pthread_mutex_unlock(&ctx->cache_lock);
+    return resolved_port;
+}
+
+static void resolver_cache_free(resolver_closure_t* ctx) {
+    for (size_t i = 0; i < ctx->cache_len; i++) {
+        free(ctx->cache[i].host);
+        free(ctx->cache[i].resolved_host);
+    }
+    free(ctx->cache);
+    pthread_mutex_destroy(&ctx->cache_lock);
+}
+
 static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void* userdata) {
     resolver_closure_t* ctx = (resolver_closure_t*) userdata;
 
@@ -40,15 +159,6 @@ static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void
         *(uint16_t*) ret = 0;
         return;
     }
-
-    /*
-     * THREAD SAFETY: The Rust FFI layer invokes this callback synchronously
-     * during create_client() and during reconnection attempts. PHP's Zend Engine
-     * is not thread-safe; all Zend API calls here (call_user_function, EG, etc.)
-     * must only execute on the PHP request thread. This is guaranteed by the
-     * Glide sync client (SyncClient type) which blocks the calling thread for
-     * all operations including reconnects.
-     */
 
     /* client_id is args[0] but we don't need it - PHP uses closure userdata for routing */
     const uint8_t* host     = *(const uint8_t**) args[1];
@@ -62,6 +172,21 @@ static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void
 
     if (buf_len == 0 || !written)
         return;
+
+    /*
+     * THREAD SAFETY: The core calls this during create_client() on the PHP
+     * thread, but cluster clients also call it from background threads (the
+     * periodic topology check, reconnects). PHP's Zend Engine is not
+     * thread-safe, so the PHP callable (call_user_function, EG, the Zend
+     * allocator) only runs on the thread that created the client. Other
+     * threads get the result the callable last returned for the same address,
+     * or the original address if it was never resolved on the PHP thread.
+     */
+    if (!pthread_equal(pthread_self(), ctx->owner)) {
+        *(uint16_t*) ret =
+            resolver_cache_lookup(ctx, host, host_len, port, out_buf, buf_len, written);
+        return;
+    }
 
     zval args_z[2], retval;
     ZVAL_UNDEF(&retval); /* Initialize retval before use */
@@ -109,6 +234,7 @@ static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void
         return;
 
     *(uint16_t*) ret = (uint16_t) rport;
+    resolver_cache_store(ctx, host, host_len, port, (const char*) out_buf, rlen, (uint16_t) rport);
 }
 
 AddressResolverCallback valkey_glide_resolver_acquire(zval* callable) {
@@ -119,6 +245,8 @@ AddressResolverCallback valkey_glide_resolver_acquire(zval* callable) {
 
     ZVAL_COPY(&ctx->callable, callable);
     atomic_init(&ctx->closed, 0);
+    ctx->owner = pthread_self();
+    pthread_mutex_init(&ctx->cache_lock, NULL);
 
     ctx->closure = ffi_closure_alloc(sizeof(ffi_closure), &ctx->fn_ptr);
     if (!ctx->closure)
@@ -139,6 +267,7 @@ AddressResolverCallback valkey_glide_resolver_acquire(zval* callable) {
 fail:
     if (ctx->closure)
         ffi_closure_free(ctx->closure);
+    resolver_cache_free(ctx);
     zval_ptr_dtor(&ctx->callable);
     pefree(ctx, 1);
     return NULL;
@@ -168,6 +297,7 @@ void valkey_glide_resolver_release(AddressResolverCallback cb) {
         if ((AddressResolverCallback) cur->fn_ptr == cb) {
             *pp = cur->next;
             ffi_closure_free(cur->closure);
+            resolver_cache_free(cur);
             zval_ptr_dtor(&cur->callable);
             pefree(cur, 1);
             return;
@@ -181,6 +311,7 @@ void valkey_glide_resolver_shutdown(void) {
     while (cur) {
         resolver_closure_t* next = cur->next;
         ffi_closure_free(cur->closure);
+        resolver_cache_free(cur);
         zval_ptr_dtor(&cur->callable);
         pefree(cur, 1);
         cur = next;

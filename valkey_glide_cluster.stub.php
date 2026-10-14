@@ -276,7 +276,14 @@ class ValkeyGlideCluster
      * @param array|null $client_side_cache     Client-side cache configuration array from ClientSideCache::toArray():
      *                                          ['cache_id' => string, 'max_cache_kb' => int, 'entry_ttl_ms' => int,
      *                                          'eviction_policy' => ?int, 'enable_metrics' => bool]
-     * @param callable|null $address_resolver   Custom address resolver callback
+     * @param callable|null $address_resolver   Custom address resolver callback:
+     *                                          fn(string $host, int $port): array returning
+     *                                          ['host' => string, 'port' => int]. It is only called
+     *                                          on the PHP thread, while the client is constructed.
+     *                                          Reconnects and topology refreshes in the background
+     *                                          reuse those results; an address first seen later
+     *                                          (for example a node added after construction) is
+     *                                          used unresolved until the client is recreated.
      * @param array|null $circuit_breaker       Circuit breaker configuration:
      *                                          ['window_size_ms' => int, 'failure_rate_threshold' => float,
      *                                           'min_errors' => int, 'open_timeout_ms' => int,
