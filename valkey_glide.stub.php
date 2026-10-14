@@ -504,7 +504,11 @@ class ValkeyGlide
      * Connect with a persistent client: same as connect(), but the client is
      * kept open after the request and reused by later requests in this worker
      * process that use the same persistent_id (default: none) and
-     * configuration. See "Persistent Clients" in the README.
+     * configuration. The client is not kept when valkey_glide.max_persistent_clients
+     * is 0. See "Persistent Clients" in the README.
+     *
+     * The parameters, return value and exceptions are identical to connect(),
+     * except that an empty persistent_id is not ignored: it is the same as none.
      *
      * @see ValkeyGlide::connect
      */

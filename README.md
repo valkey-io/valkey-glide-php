@@ -499,7 +499,9 @@ $client->connect(addresses: [['host' => 'localhost', 'port' => 6379]], persisten
 $cluster = new ValkeyGlideCluster(addresses: [['host' => 'localhost', 'port' => 7001]], persistent: true);
 ```
 
-A kept client is reused only by a request that uses the same configuration (and, for `ValkeyGlide`, the same `persistent_id`; `pconnect()` without one uses no ID):
+`pconnect()` without a `persistent_id` keys the client by configuration alone: `pconnect()` calls with identical configuration share a client, and calls with different configuration do not.
+
+A kept client is reused only by a request that uses the same configuration (and, for `ValkeyGlide`, the same `persistent_id`):
 
 - One object uses it at a time; another object with the same configuration in the same request gets its own client.
 - After `select()`, the configured database is selected again at the end of the request. A `WATCH` still active at the end of the request is cleared with `UNWATCH`. If either fails, the client is closed instead of kept.
