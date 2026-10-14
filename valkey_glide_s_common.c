@@ -19,8 +19,8 @@
 #include "command_response.h"
 #include "common.h"
 #include "logger.h"
-#include "valkey_glide_z_common.h"
 #include "valkey_glide_prefix.h"
+#include "valkey_glide_z_common.h"
 
 /* Import the string conversion functions from command_response.c */
 extern char* long_to_string(long value, size_t* len);
