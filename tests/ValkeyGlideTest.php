@@ -9534,6 +9534,11 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $this->assertNotEquals($plain1, $plain2);
 
             if (!$is_cluster) {
+                /* An empty persistent_id is ignored, as in PHPRedis: a new connection per request */
+                $empty1 = $id(['empty_id' => '1']);
+                $this->assertNotEquals($first, $empty1);
+                $this->assertNotEquals($empty1, $id(['empty_id' => '1']));
+
                 /* pconnect() without a persistent_id keeps its own client */
                 $pconnected = $id(['pconnect' => '1']);
                 $this->assertNotEquals($first, $pconnected);
