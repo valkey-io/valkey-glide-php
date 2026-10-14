@@ -17,6 +17,7 @@
 
 ### Changes
 
+* Fix crashes (segfault or `zend_mm_heap corrupted`) in cluster clients configured with an `address_resolver`. The core also resolves addresses on background threads (periodic topology checks, reconnects), and the PHP resolver ran there, concurrently with the PHP thread. The resolver now runs only on the PHP thread; background threads reuse the addresses it resolved, or the original address for one it never saw ([#357](https://github.com/valkey-io/valkey-glide-php/pull/357))
 * Add `HGETDEL` command for standalone and cluster clients ([#343](https://github.com/valkey-io/valkey-glide-php/pull/343))
 * Add PHP 8.4 and 8.5 to the supported versions and the CI test matrix
 * Add `READ_FROM_AZ_AFFINITY_ALL_NODES` read strategy for standalone and cluster clients ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
