@@ -88,11 +88,6 @@ abstract class ValkeyGlideBaseTest extends TestSuite
         parent::__construct($host, $port, $auth, $tls);
     }
 
-    /**
-     * @var ValkeyGlide
-     */
-    public $valkey_glide;
-
     /* City lat/long */
     protected $cities = [
         'Chico'         => [-121.837478, 39.728494],
@@ -160,7 +155,7 @@ abstract class ValkeyGlideBaseTest extends TestSuite
         return $currentMajor >= $minMajorVersion;
     }
 
-    public function setUp()
+    public function setUp(): void
     {
         $this->valkey_glide = $this->newInstance();
         $info = $this->valkey_glide->info();
@@ -245,19 +240,29 @@ abstract class ValkeyGlideBaseTest extends TestSuite
             'port' => $this->getPort()
         ]];
 
+        // Build credentials from auth if provided
+        $credentials = null;
+        if ($this->getAuth()) {
+            $this->getAuthParts($user, $pass);
+            $credentials = ['password' => $pass];
+            if ($user) {
+                $credentials['username'] = $user;
+            }
+        }
+
         // Connect with TLS if needed
         if ($this->getTLS()) {
             $client->connect(
                 addresses: $addresses,
                 use_tls: true,
+                credentials: $credentials,
                 advanced_config: ['tls_config' => ['use_insecure_tls' => true]]
             );
         } else {
-            $client->connect(addresses: $addresses);
-        }
-
-        if ($this->getAuth()) {
-            $this->assertTrue($client->auth($this->getAuth()));
+            $client->connect(
+                addresses: $addresses,
+                credentials: $credentials
+            );
         }
 
         return $client;

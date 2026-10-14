@@ -90,7 +90,7 @@ class IamAuthTest extends ValkeyGlideBaseTest
 {
     private $originalEnvVars = [];
 
-    public function setUp()
+    public function setUp(): void
     {
         // Save original AWS environment variables
         $this->originalEnvVars = [

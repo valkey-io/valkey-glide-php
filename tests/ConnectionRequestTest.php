@@ -108,7 +108,7 @@ class ConnectionRequestTest extends \TestSuite
         return $connection_request;
     }
 
-    public function setUp()
+    public function setUp(): void
     {
         // No-op.
     }

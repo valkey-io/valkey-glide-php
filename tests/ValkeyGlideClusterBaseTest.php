@@ -98,7 +98,7 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest
         //self::$seeds = $this->loadSeeds($host, $port);TODO
     }
 
-    public function getPort()
+    public function getPort(): int
     {
         if ($this->getTLS()) {
             return self::TLS_PORT_CLUSTER;
@@ -109,7 +109,7 @@ abstract class ValkeyGlideClusterBaseTest extends ValkeyGlideBaseTest
     }
 
     /* Override setUp to get info from a specific node */
-    public function setUp()
+    public function setUp(): void
     {
         $this->valkey_glide = $this->newInstance();
         $info = $this->valkey_glide->info("randomNode");

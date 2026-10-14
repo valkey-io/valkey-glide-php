@@ -85,29 +85,32 @@ class TestSuite
     private string $host;
     private ?int $port = 6379;
 
+    /* ValkeyGlide client instance, set by subclasses */
+    protected ValkeyGlide|ValkeyGlideCluster|null $valkey_glide = null;
+
     /* ValkeyGlide authentication we'll use */
-    private $auth;
+    private string|array|null $auth;
 
     /* Indicates if TLS should be enabled during connection. */
     private bool $tls;
 
     /* ValkeyGlide server version */
-    protected $version;
+    protected string|null $version;
     protected bool $is_valkey;
 
     private static bool $colorize = false;
 
-    private static $BOLD_ON = "\033[1m";
-    private static $BOLD_OFF = "\033[0m";
+    private static string $BOLD_ON = "\033[1m";
+    private static string $BOLD_OFF = "\033[0m";
 
-    private static $GREEN = "\033[0;32m";
-    private static $YELLOW = "\033[0;33m";
-    private static $RED = "\033[0;31m";
+    private static string $GREEN = "\033[0;32m";
+    private static string $YELLOW = "\033[0;33m";
+    private static string $RED = "\033[0;31m";
 
     public static array $errors = [];
     public static array $warnings = [];
 
-    public function __construct(string $host, ?int $port, $auth, $tls)
+    public function __construct(string $host, ?int $port, string|array|null $auth, bool $tls)
     {
         $this->host = $host;
         $this->port = $port;
@@ -118,19 +121,19 @@ class TestSuite
     /**
      * Default setUp is a no-op. Subclasses can override to initialize resources.
      */
-    public function setUp()
+    public function setUp(): void
     {
     }
 
-    public function getHost()
+    public function getHost(): string
     {
         return $this->host;
     }
-    public function getPort()
+    public function getPort(): ?int
     {
         return $this->port;
     }
-    public function getAuth()
+    public function getAuth(): string|array|null
     {
         return $this->auth;
     }
@@ -140,7 +143,7 @@ class TestSuite
         return $this->tls;
     }
 
-    public static function errorMessage(string $fmt, ...$args)
+    public static function errorMessage(string $fmt, mixed ...$args): void
     {
         $msg = vsprintf($fmt . "\n", $args);
 
@@ -151,27 +154,27 @@ class TestSuite
         }
     }
 
-    public static function makeBold(string $msg)
+    public static function makeBold(string $msg): string
     {
         return self::$colorize ? self::$BOLD_ON . $msg . self::$BOLD_OFF : $msg;
     }
 
-    public static function makeSucces(string $msg)
+    public static function makeSucces(string $msg): string
     {
         return self::$colorize ? self::$GREEN . $msg . self::$BOLD_OFF : $msg;
     }
 
-    public static function makeFail(string $msg)
+    public static function makeFail(string $msg): string
     {
         return self::$colorize ? self::$RED . $msg . self::$BOLD_OFF : $msg;
     }
 
-    public static function makeWarning(string $msg)
+    public static function makeWarning(string $msg): string
     {
         return self::$colorize ? self::$YELLOW . $msg . self::$BOLD_OFF : $msg;
     }
 
-    protected function printArg($v)
+    protected function printArg(mixed $v): string
     {
         if (is_null($v)) {
             return '(null)';
@@ -184,7 +187,7 @@ class TestSuite
         }
     }
 
-    protected function findTestFunction($bt)
+    protected function findTestFunction(array $bt): ?string
     {
         $i = 0;
         while (isset($bt[$i])) {
@@ -196,7 +199,7 @@ class TestSuite
         return null;
     }
 
-    protected function assertionTrace(?string $fmt = null, ...$args)
+    protected function assertionTrace(?string $fmt = null, mixed ...$args): string
     {
         $prefix = 'Assertion failed:';
 
@@ -210,7 +213,7 @@ class TestSuite
         $lines [] = sprintf(
             "%s %s - %s",
             $prefix,
-            self::makeBold($fn),
+            self::makeBold($fn ?? '(unknown)'),
             $msg ? $msg : '(no message)'
         );
 
@@ -238,12 +241,12 @@ class TestSuite
         return implode("\n", $lines) . "\n";
     }
 
-    protected function assert($fmt, ...$args)
+    protected function assert(string $fmt, mixed ...$args): void
     {
         self::$errors [] = $this->assertionTrace($fmt, ...$args);
     }
 
-    protected function assertKeyEquals($expected, $key, $redis = null): bool
+    protected function assertKeyEquals(mixed $expected, string $key, mixed $redis = null): bool
     {
         $actual = ($redis ??= $this->valkey_glide)->get($key);
         if ($actual === $expected) {
@@ -259,7 +262,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertKeyEqualsWeak($expected, $key, $redis = null): bool
+    protected function assertKeyEqualsWeak(mixed $expected, string $key, mixed $redis = null): bool
     {
         $actual = ($redis ??= $this->valkey_glide)->get($key);
         if ($actual == $expected) {
@@ -275,7 +278,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertKeyExists($key, $redis = null): bool
+    protected function assertKeyExists(string $key, mixed $redis = null): bool
     {
         if (($redis ??= $this->valkey_glide)->exists($key)) {
             return true;
@@ -286,7 +289,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertKeyMissing($key, $redis = null): bool
+    protected function assertKeyMissing(string $key, mixed $redis = null): bool
     {
         if (! ($redis ??= $this->valkey_glide)->exists($key)) {
             return true;
@@ -297,7 +300,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertTrue($value, ?string $message = null): bool
+    protected function assertTrue(mixed $value, ?string $message = null): bool
     {
         if ($value === true) {
             return true;
@@ -327,7 +330,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertFalse($value): bool
+    protected function assertFalse(mixed $value): bool
     {
         if ($value === false) {
             return true;
@@ -342,7 +345,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertNull($value): bool
+    protected function assertNull(mixed $value): bool
     {
         if ($value === null) {
             return true;
@@ -357,7 +360,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertInArray($ele, $arr, ?callable $cb = null): bool
+    protected function assertInArray(mixed $ele, array $arr, ?callable $cb = null): bool
     {
         $cb ??= function ($v) {
             return true;
@@ -379,7 +382,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertIsString($v): bool
+    protected function assertIsString(mixed $v): bool
     {
         if (is_string($v)) {
             return true;
@@ -390,7 +393,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertIsBool($v): bool
+    protected function assertIsBool(mixed $v): bool
     {
         if (is_bool($v)) {
             return true;
@@ -401,7 +404,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertIsInt($v): bool
+    protected function assertIsInt(mixed $v): bool
     {
         if (is_int($v)) {
             return true;
@@ -412,7 +415,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertIsFloat($v): bool
+    protected function assertIsFloat(mixed $v): bool
     {
         if (is_float($v)) {
             return true;
@@ -423,7 +426,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertIsObject($v, ?string $type = null): bool
+    protected function assertIsObject(mixed $v, ?string $type = null): bool
     {
         if (! is_object($v)) {
             self::$errors [] = $this->assertionTrace("%s is not an object", $this->printArg($v));
@@ -440,7 +443,7 @@ class TestSuite
         return true;
     }
 
-    protected function assertSameType($expected, $actual): bool
+    protected function assertSameType(mixed $expected, mixed $actual): bool
     {
         if (gettype($expected) === gettype($actual)) {
             return true;
@@ -455,7 +458,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertEmpty($v): bool
+    protected function assertEmpty(array|Countable $v): bool
     {
         if (count($v)) {
             self::$errors[] = $this->assertionTrace("%s is not empty", $this->printArg($v));
@@ -465,7 +468,7 @@ class TestSuite
         return true;
     }
 
-    protected function assertIsArray($v, ?int $size = null): bool
+    protected function assertIsArray(mixed $v, ?int $size = null): bool
     {
         if (! is_array($v)) {
             self::$errors [] = $this->assertionTrace("%s is not an array", $this->printArg($v));
@@ -480,7 +483,7 @@ class TestSuite
         return true;
     }
 
-    protected function assertArrayKey($arr, $key, ?callable $cb = null): bool
+    protected function assertArrayKey(array $arr, string|int $key, ?callable $cb = null): bool
     {
         $cb ??= function ($v) {
             return true;
@@ -510,7 +513,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertArrayKeyEquals($arr, $key, $value): bool
+    protected function assertArrayKeyEquals(array $arr, string|int $key, mixed $value): bool
     {
         if (! isset($arr[$key])) {
             self::$errors [] = $this->assertionTrace(
@@ -535,7 +538,7 @@ class TestSuite
         return true;
     }
 
-    protected function assertValidate($val, callable $cb): bool
+    protected function assertValidate(mixed $val, callable $cb): bool
     {
         if ($cb($val)) {
             return true;
@@ -546,7 +549,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertThrowsMatch($arg, callable $cb, $regex = null): bool
+    protected function assertThrowsMatch(mixed $arg, callable $cb, ?string $regex = null): bool
     {
         $threw = $match = false;
 
@@ -568,7 +571,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertLTE($maximum, $value): bool
+    protected function assertLTE(int|float $maximum, int|float $value): bool
     {
         if ($value <= $maximum) {
             return true;
@@ -579,7 +582,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertLT($minimum, $value): bool
+    protected function assertLT(int|float $minimum, int|float $value): bool
     {
         if ($value < $minimum) {
             return true;
@@ -590,7 +593,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertGT($maximum, $value): bool
+    protected function assertGT(int|float $maximum, int|float $value): bool
     {
         if ($value > $maximum) {
             return true;
@@ -601,7 +604,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertGTE($minimum, $value): bool
+    protected function assertGTE(int|float $minimum, int|float $value): bool
     {
         if ($value >= $minimum) {
             return true;
@@ -612,7 +615,7 @@ class TestSuite
         return false;
     }
 
-    protected function externalCmdFailure($cmd, $output, $msg = null, $exit_code = null)
+    protected function externalCmdFailure(string $cmd, ?string $output, ?string $msg = null, ?int $exit_code = null): void
     {
         $bt = debug_backtrace(false);
 
@@ -638,7 +641,7 @@ class TestSuite
         self::$errors[] = implode("\n", $lines) . "\n";
     }
 
-    protected function assertBetween($value, $min, $max, bool $exclusive = false): bool
+    protected function assertBetween(int|float $value, int|float $min, int|float $max, bool $exclusive = false): bool
     {
         if ($min > $max) {
             [$max, $min] = [$min, $max];
@@ -666,7 +669,7 @@ class TestSuite
 
     /* Replica of PHPUnit's assertion.  Basically are two arrays the same without
    '   respect to order. */
-    protected function assertEqualsCanonicalizing($expected, $actual, $keep_keys = false): bool
+    protected function assertEqualsCanonicalizing(mixed $expected, mixed $actual, bool $keep_keys = false): bool
     {
         if ($expected instanceof Traversable) {
             $expected = iterator_to_array($expected);
@@ -697,7 +700,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertEqualsWeak($expected, $actual): bool
+    protected function assertEqualsWeak(mixed $expected, mixed $actual): bool
     {
         if ($expected == $actual) {
             return true;
@@ -712,7 +715,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertEquals($expected, $actual): bool
+    protected function assertEquals(mixed $expected, mixed $actual): bool
     {
         if ($expected === $actual) {
             return true;
@@ -727,7 +730,7 @@ class TestSuite
         return false;
     }
 
-    public function assertNotEquals($wrong_value, $test_value): bool
+    public function assertNotEquals(mixed $wrong_value, mixed $test_value): bool
     {
         if ($wrong_value !== $test_value) {
             return true;
@@ -742,7 +745,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertStringContains(string $needle, $haystack): bool
+    protected function assertStringContains(string $needle, mixed $haystack): bool
     {
         if (! is_string($haystack)) {
             self::$errors [] = $this->assertionTrace("'%s' is not a string", $this->printArg($haystack));
@@ -772,7 +775,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertCount($expectedCount, $array): bool
+    protected function assertCount(int $expectedCount, mixed $array): bool
     {
         if (!is_array($array)) {
             self::$errors [] = $this->assertionTrace("%s is not an array", $this->printArg($array));
@@ -792,7 +795,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertContains($needle, $haystack): bool
+    protected function assertContains(mixed $needle, mixed $haystack): bool
     {
         if (!is_array($haystack)) {
             self::$errors [] = $this->assertionTrace("%s is not an array", $this->printArg($haystack));
@@ -812,7 +815,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertArrayHasKey($key, $array): bool
+    protected function assertArrayHasKey(string|int $key, mixed $array): bool
     {
         if (!is_array($array)) {
             self::$errors [] = $this->assertionTrace("%s is not an array", $this->printArg($array));
@@ -832,7 +835,7 @@ class TestSuite
         return false;
     }
 
-    protected function assertNotNull($value): bool
+    protected function assertNotNull(mixed $value): bool
     {
         if ($value !== null) {
             return true;
@@ -910,7 +913,7 @@ class TestSuite
         return $result;
     }
 
-    private static function findFile($path, $file)
+    private static function findFile(string $path, string $file): ?string
     {
         $files = glob($path . '/*', GLOB_NOSORT);
 
@@ -925,7 +928,7 @@ class TestSuite
     }
 
     /* Small helper method that tries to load a custom test case class */
-    public static function loadTestClass($class)
+    public static function loadTestClass(string $class): string
     {
         $filename = "{$class}.php";
 
@@ -952,20 +955,20 @@ class TestSuite
     }
 
     /* Flag colorization */
-    public static function flagColorization(bool $override)
+    public static function flagColorization(bool $override): void
     {
         self::$colorize = $override && function_exists('posix_isatty') &&
                           defined('STDOUT') && posix_isatty(STDOUT);
     }
 
     public static function run(
-        $class_name,
+        string $class_name,
         ?string $limit = null,
         ?string $host = null,
         ?int $port = null,
-        $auth = null,
-        $tls = null,
-    ) {
+        string|array|null $auth = null,
+        ?bool $tls = null,
+    ): int {
         echo "Running tests for class '$class_name'...\n";
         if ($limit) {
             $limit = strtolower($limit);

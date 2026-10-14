@@ -19,13 +19,13 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
     }
 
     /* Override getPort to return cluster port */
-    public function getPort()
+    public function getPort(): int
     {
         return $this->getTLS() ? 8001 : 7001;
     }
 
       /* Override setUp to get info from a specific node */
-    public function setUp()
+    public function setUp(): void
     {
         $this->valkey_glide    = $this->newInstance();
         $info           = $this->valkey_glide->info("randomNode");
