@@ -3731,15 +3731,17 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             }
         }
 
-        // Valkey 7.0
+        // Redis 7.0+
         // ----------
 
         if (! $this->minVersionCheck('7.0.0')) {
             return;
         }
 
-        $res = $this->valkey_glide->info('server', 'memory');
-        $this->assertTrue(is_array($res) && isset($res['redis_version']) && isset($res['used_memory']));
+        // Multiple INFO sections
+        $multi_section = $this->valkey_glide->info('server', 'memory');
+        $this->assertArrayKey($multi_section, 'redis_version');
+        $this->assertArrayKey($multi_section, 'used_memory');
 
         // Valkey 9.2
         // ----------
