@@ -117,6 +117,26 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         return implode(' ', $cmd_parts);
     }
 
+    /* Wait for the result a subscriber script writes, and return it (null on
+     * timeout). The script creates the file and then writes it, so a file that
+     * exists but is empty is still being written: keep polling until it has
+     * content instead of reading it on first sight. */
+    private function waitForResult(string $result_file, float $seconds = 3.0): ?string
+    {
+        $deadline = microtime(true) + $seconds;
+        do {
+            if (file_exists($result_file)) {
+                $content = file_get_contents($result_file);
+                if ($content !== false && $content !== '') {
+                    return $content;
+                }
+            }
+            usleep(100000);
+        } while (microtime(true) < $deadline);
+
+        return null;
+    }
+
     public function testPubSubPublish()
     {
         // Test publish command works with 0 subscribers
@@ -577,18 +597,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $pub->publish($channel, 'trigger');
         $pub->close();
 
-        $success = false;
-        $timeout = time() + 3;
-        while (!$success && time() < $timeout) {
-            if (file_exists($result_file)) {
-                $content = file_get_contents($result_file);
-                if ($content === 'PASS') {
-                    $success = true;
-                }
-                break;
-            }
-            usleep(100000);
-        }
+        $content = $this->waitForResult($result_file);
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -599,7 +608,10 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($result_file);
         @unlink($error_file);
 
-        $this->assertTrue($success, 'Commands should be blocked during subscribe mode');
+        $this->assertTrue(
+            $content === 'PASS',
+            'Commands should be blocked during subscribe mode (result: ' . var_export($content, true) . ')'
+        );
     }
 
     public function testPubSubModalModeBlocksSubscribe()
@@ -654,18 +666,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $pub->publish($channel, 'trigger');
         $pub->close();
 
-        $success = false;
-        $timeout = time() + 3;
-        while (!$success && time() < $timeout) {
-            if (file_exists($result_file)) {
-                $content = file_get_contents($result_file);
-                if ($content === 'PASS') {
-                    $success = true;
-                }
-                break;
-            }
-            usleep(100000);
-        }
+        $content = $this->waitForResult($result_file);
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -676,7 +677,10 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($result_file);
         @unlink($error_file);
 
-        $this->assertTrue($success, 'Subscribe should be blocked during subscribe mode');
+        $this->assertTrue(
+            $content === 'PASS',
+            'Subscribe should be blocked during subscribe mode (result: ' . var_export($content, true) . ')'
+        );
     }
 
     public function testPubSubPSubscribe()
@@ -838,23 +842,14 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $pub->publish($channel2, 'bong');
         $pub->close();
 
-        $success = false;
-        $timeout = time() + 3;
-        while (!$success && time() < $timeout) {
-            if (file_exists($result_file)) {
-                $content = file_get_contents($result_file);
-                $messages = explode(',', $content);
-                // Should have received bing on channel1 and bong on channel2, but NOT should_not_receive
-                $this->assertContains($channel1 . ':bing', $messages);
-                $this->assertContains($channel2 . ':bong', $messages);
-                // Verify we didn't receive message after unsubscribing from channel1
-                $has_should_not_receive = in_array($channel1 . ':should_not_receive', $messages);
-                $this->assertFalse($has_should_not_receive);
-                $success = true;
-                break;
-            }
-            usleep(100000);
-        }
+        $content = $this->waitForResult($result_file);
+        $messages = $content === null ? [] : explode(',', $content);
+        // Should have received bing on channel1 and bong on channel2, but NOT should_not_receive
+        $this->assertContains($channel1 . ':bing', $messages);
+        $this->assertContains($channel2 . ':bong', $messages);
+        // Verify we didn't receive message after unsubscribing from channel1
+        $has_should_not_receive = in_array($channel1 . ':should_not_receive', $messages);
+        $this->assertFalse($has_should_not_receive);
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -865,7 +860,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($result_file);
         @unlink($error_file);
 
-        $this->assertTrue($success);
+        $this->assertNotNull($content);
     }
 
     public function testPubSubUnsubscribeNonExistentChannel()
