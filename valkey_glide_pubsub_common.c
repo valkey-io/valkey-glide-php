@@ -264,7 +264,7 @@ void pubsub_callback_handler(uintptr_t      client_ptr,
 
     mutex_lock(&pubsub_callbacks_mutex);
     pubsub_callback_info* info = zend_hash_str_find_ptr(&pubsub_callbacks, client_key, key_len);
-    if (!info || !info->is_active) {
+    if (!info) {
         mutex_unlock(&pubsub_callbacks_mutex);
         return;
     }
@@ -278,6 +278,12 @@ void pubsub_callback_handler(uintptr_t      client_ptr,
     size_t size =
         (size_t) channel_len + (size_t) message_len + (has_pattern ? (size_t) pattern_len : 0);
     mutex_lock(&info->queue_mutex);
+    // is_active is written by the PHP thread under queue_mutex
+    if (!info->is_active) {
+        mutex_unlock(&info->queue_mutex);
+        mutex_unlock(&pubsub_callbacks_mutex);
+        return;
+    }
     bool room = info->queue_depth == 0 || (info->queue_depth < PUBSUB_QUEUE_MAX_DEPTH &&
                                            info->queue_bytes <= PUBSUB_QUEUE_MAX_BYTES &&
                                            size <= PUBSUB_QUEUE_MAX_BYTES - info->queue_bytes);
@@ -375,9 +381,12 @@ void php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* cl
     info->client_closed     = false;
     info->owner_thread      = current_thread_id();
 
-    // Store the pointer, replacing (and then freeing) any earlier entry
-    pubsub_callback_info* previous = take_pubsub_callback(client_key, key_len);
+    // Store the pointer, replacing any earlier entry in the same critical
+    // section (so the push callback never finds the key missing in between),
+    // then free the old entry outside the mutex
+    pubsub_callbacks_after_fork();
     mutex_lock(&pubsub_callbacks_mutex);
+    pubsub_callback_info* previous = zend_hash_str_find_ptr(&pubsub_callbacks, client_key, key_len);
     zend_hash_str_update_ptr(&pubsub_callbacks, client_key, key_len, info);
     mutex_unlock(&pubsub_callbacks_mutex);
     cleanup_callback_info(previous);
@@ -701,8 +710,10 @@ static void execute_unsubscribe_command(const void*      connection,
             ZEND_HASH_FOREACH_END();
 
             if (zend_hash_num_elements(info->subscribed_channels) == 0) {
+                mutex_lock(&info->queue_mutex);
                 info->is_active = false;
                 cond_signal(&info->queue_cond);
+                mutex_unlock(&info->queue_mutex);
             }
         }
     } else {
@@ -724,8 +735,10 @@ static void execute_unsubscribe_command(const void*      connection,
         pubsub_callback_info* info = find_pubsub_callback(client_key);
         if (info) {
             zend_hash_clean(info->subscribed_channels);
+            mutex_lock(&info->queue_mutex);
             info->is_active = false;
             cond_signal(&info->queue_cond);
+            mutex_unlock(&info->queue_mutex);
         }
     }
 }

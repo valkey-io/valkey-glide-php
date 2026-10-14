@@ -1517,6 +1517,10 @@ static void valkey_glide_connect(INTERNAL_FUNCTION_PARAMETERS, bool persistent) 
     if (persistent && persistent_id == NULL) {
         persistent_id     = "";
         persistent_id_len = 0;
+    } else if (!persistent && persistent_id != NULL && persistent_id_len == 0) {
+        /* PHPRedis ignores persistent_id in connect(), and callers written for
+         * it pass "" for a non-persistent connection */
+        persistent_id = NULL;
     }
 
     /* Apply defaults for nullable parameters */

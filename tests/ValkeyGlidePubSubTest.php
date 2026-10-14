@@ -1271,22 +1271,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $pub->publish($channel2, 'bong');
         $pub->close();
 
-        $success = false;
-        $timeout = microtime(true) + 5;
-        while (!$success && microtime(true) < $timeout) {
-            $content = $this->waitForFileToHaveContent($result_file, 0.1);
-            if ($content !== null) {
-                $messages = explode(',', $content);
-                // Should have received bing on channel1 and bong on channel2, but NOT should_not_receive
-                $this->assertContains($channel1 . ':bing', $messages);
-                $this->assertContains($channel2 . ':bong', $messages);
-                // Verify we didn't receive message after unsubscribing from channel1
-                $has_should_not_receive = in_array($channel1 . ':should_not_receive', $messages);
-                $this->assertFalse($has_should_not_receive);
-                $success = true;
-                break;
-            }
-        }
+        $content = $this->waitForFileToHaveContent($result_file);
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -1298,7 +1283,14 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($unsubscribed_file);
         @unlink($error_file);
 
-        $this->assertTrue($success);
+        $this->assertNotNull($content);
+        $messages = $content === null ? [] : explode(',', $content);
+        // Should have received bing on channel1 and bong on channel2, but NOT should_not_receive
+        $this->assertContains($channel1 . ':bing', $messages);
+        $this->assertContains($channel2 . ':bong', $messages);
+        // Verify we didn't receive message after unsubscribing from channel1
+        $has_should_not_receive = in_array($channel1 . ':should_not_receive', $messages);
+        $this->assertFalse($has_should_not_receive);
     }
 
     /**

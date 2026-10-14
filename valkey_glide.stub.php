@@ -398,7 +398,9 @@ class ValkeyGlide
      *                                   in later requests of the same worker process (e.g.
      *                                   PHP-FPM) that use the same ID and configuration. See
      *                                   "Persistent Clients" in the README for when a kept
-     *                                   client is reused or closed.
+     *                                   client is reused or closed. An empty string is ignored,
+     *                                   as in PHPRedis (use pconnect() for a persistent client
+     *                                   without an ID).
      * @param int|null $retry_interval Retry interval in milliseconds (not implemented)
      * @param float|null $read_timeout Read timeout in seconds (not implemented)
      * @param array|null $addresses Server addresses array: [['host' => 'x', 'port' => y], ...] (ValkeyGlide-style)
