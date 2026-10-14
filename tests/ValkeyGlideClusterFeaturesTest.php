@@ -494,6 +494,61 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $valkey_glide->close();
     }
 
+    /**
+     * Regression test for issue #344. With periodic checks enabled (the default) the
+     * client used to send a manual interval of 0 seconds, so the core ran topology
+     * checks back-to-back, flooding the cluster with CLUSTER SLOTS and burning CPU.
+     * An idle client must not issue a stream of CLUSTER commands.
+     */
+    public function testPeriodicChecksEnabledDoesNotFloodClusterSlots()
+    {
+        $valkey_glide = new ValkeyGlideCluster(
+            addresses: [['host' => '127.0.0.1', 'port' => 7001]],
+            use_tls: false,
+            credentials: $this->getAuth(),
+            read_from: ValkeyGlide::READ_FROM_PRIMARY,
+            periodic_checks: ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS
+        );
+        $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
+
+        // The initial topology refresh already issued CLUSTER SLOTS, so a zero
+        // baseline means the stats were not parsed and the test would be vacuous.
+        $before = $this->countClusterCommandCalls($valkey_glide);
+        $this->assertGT(0, $before);
+
+        sleep(2);
+        $after = $this->countClusterCommandCalls($valkey_glide);
+        $valkey_glide->close();
+
+        // The default interval is 60 seconds, so an idle client issues no topology
+        // queries in a 2 second window. Other live clients in this process may fire
+        // one check each, hence the small allowance. The bug produced hundreds per
+        // second.
+        $this->assertLT(20, $after - $before);
+    }
+
+    /** Sums the call counts of every CLUSTER subcommand across all nodes. */
+    private function countClusterCommandCalls(ValkeyGlideCluster $client): int
+    {
+        $calls = 0;
+        foreach ($client->info('allNodes', 'commandstats') as $node_info) {
+            if (!is_array($node_info)) {
+                continue;
+            }
+            foreach ($node_info as $key => $value) {
+                if (strncmp($key, 'cmdstat_cluster', 15) !== 0) {
+                    continue;
+                }
+                if (is_array($value)) {
+                    $calls += (int) ($value['calls'] ?? 0);
+                } elseif (preg_match('/calls=(\d+)/', (string) $value, $m)) {
+                    $calls += (int) $m[1];
+                }
+            }
+        }
+        return $calls;
+    }
+
     // ==============================================
     // CLIENT AVAILABILITY ZONE PARAMETER TESTS
     // ==============================================

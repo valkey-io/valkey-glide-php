@@ -169,8 +169,8 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
 
     /* Build the connection request. */
     size_t   protobuf_message_len;
-    uint8_t* request_bytes =
-        create_connection_request(&protobuf_message_len, &client_config, 0, false, false);
+    uint8_t* request_bytes = create_connection_request(
+        &protobuf_message_len, &client_config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false);
 
     zval* php_request =
         build_php_connection_request(request_bytes, protobuf_message_len, &client_config);
