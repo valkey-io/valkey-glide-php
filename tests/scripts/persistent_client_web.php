@@ -6,7 +6,7 @@
  * request is visible to the next, as in a PHP-FPM worker.
  *
  * Query parameters: cluster, host, port (required), persistent, empty_id, pconnect,
- * pconnect_id, timeout, action.
+ * pconnect_id, pconnect_all, timeout, action.
  * Prints JSON with the server-side CLIENT ID of the connection the request used.
  */
 
@@ -30,12 +30,14 @@ $empty_id   = ($_GET['empty_id'] ?? '0') === '1';
 $pconnect   = ($_GET['pconnect'] ?? '0') === '1';
 /* With pconnect_id, pconnect() is called PHPRedis-style: host, port, timeout, persistent_id */
 $pconnect_id = $_GET['pconnect_id'] ?? null;
+/* With pconnect_all, the PHPRedis-style call also passes retry_interval and read_timeout */
+$pconnect_all = ($_GET['pconnect_all'] ?? '0') === '1';
 /* A different timeout is a different configuration, so a different kept client */
 $timeout    = isset($_GET['timeout']) ? (int) $_GET['timeout'] : null;
 $action     = $_GET['action'] ?? '';
 $key        = '{persistent}:watched';
 
-$connect = function () use ($is_cluster, $host, $port, $persistent, $empty_id, $pconnect, $pconnect_id, $timeout) {
+$connect = function () use ($is_cluster, $host, $port, $persistent, $empty_id, $pconnect, $pconnect_id, $pconnect_all, $timeout) {
     if ($is_cluster) {
         return new ValkeyGlideCluster(
             addresses: [['host' => $host, 'port' => $port]],
@@ -45,7 +47,12 @@ $connect = function () use ($is_cluster, $host, $port, $persistent, $empty_id, $
     }
     $client = new ValkeyGlide();
     if ($pconnect && $pconnect_id !== null) {
-        $client->pconnect($host, $port, 0.0, $pconnect_id);
+        /* 0.0 = no timeout, as in PHPRedis */
+        if ($pconnect_all) {
+            $client->pconnect($host, $port, 0.0, $pconnect_id, 100, 0.0);
+        } else {
+            $client->pconnect($host, $port, 0.0, $pconnect_id);
+        }
         return $client;
     }
     if ($pconnect) {
