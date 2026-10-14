@@ -843,13 +843,6 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $pub->close();
 
         $content = $this->waitForResult($result_file);
-        $messages = $content === null ? [] : explode(',', $content);
-        // Should have received bing on channel1 and bong on channel2, but NOT should_not_receive
-        $this->assertContains($channel1 . ':bing', $messages);
-        $this->assertContains($channel2 . ':bong', $messages);
-        // Verify we didn't receive message after unsubscribing from channel1
-        $has_should_not_receive = in_array($channel1 . ':should_not_receive', $messages);
-        $this->assertFalse($has_should_not_receive);
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -861,6 +854,13 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($error_file);
 
         $this->assertNotNull($content);
+        $messages = $content === null ? [] : explode(',', $content);
+        // Should have received bing on channel1 and bong on channel2, but NOT should_not_receive
+        $this->assertContains($channel1 . ':bing', $messages);
+        $this->assertContains($channel2 . ':bong', $messages);
+        // Verify we didn't receive message after unsubscribing from channel1
+        $has_should_not_receive = in_array($channel1 . ':should_not_receive', $messages);
+        $this->assertFalse($has_should_not_receive);
     }
 
     public function testPubSubUnsubscribeNonExistentChannel()

@@ -27,6 +27,10 @@ $client_id = fn ($c) => $is_cluster ? $c->rawCommand('{persistent}', 'CLIENT', '
 $parent_id = $client_id($connect());
 
 $pid = pcntl_fork();
+if ($pid === -1) {
+    echo json_encode(['child_exited_cleanly' => false, 'parent_reused' => false]);
+    exit(1);
+}
 if ($pid === 0) {
     /* Process shutdown destroys the inherited persistent list */
     exit(0);
