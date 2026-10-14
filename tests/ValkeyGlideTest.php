@@ -9928,4 +9928,31 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
         $this->valkey_glide->functionDelete(self::ECHO_ARG_LIBRARY_NAME);
     }
+
+    /* A PHPRedis-style integer timeout is applied as seconds, not dropped */
+    public function testConnectWithIntegerTimeout()
+    {
+        if ($this->valkey_glide instanceof ValkeyGlideCluster) {
+            $this->markTestSkipped('connect() is standalone only');
+        }
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The PHPRedis-style connect() connects without TLS or auth');
+        }
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT PAUSE WRITE requires 6.2+');
+        }
+
+        $client = new ValkeyGlide();
+        $client->connect($this->getHost(), $this->getPort(), 1);
+
+        /* The write blocks longer than the 1 second timeout but shorter than the
+         * 5 second default, which an ignored timeout falls back to */
+        $this->valkey_glide->rawCommand('CLIENT', 'PAUSE', '3000', 'WRITE');
+        try {
+            $this->assertFalse($client->set('connect_timeout:key', 'value'));
+        } finally {
+            $this->valkey_glide->rawCommand('CLIENT', 'UNPAUSE');
+            $client->close();
+        }
+    }
 }
