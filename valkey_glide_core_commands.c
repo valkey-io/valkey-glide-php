@@ -2549,6 +2549,20 @@ void execute_update_connection_password(zval*             object,
         return;
     }
 
+    /* With immediate_auth the core stores the password before sending AUTH, so a failed AUTH
+     * still leaves the core on the new password. Store it first, so the saved request used to
+     * recreate the client follows the core even when AUTH then fails. */
+    if (immediate_auth) {
+        CommandResult* stored =
+            update_connection_password(valkey_glide->glide_client, 0, password, false);
+        if (stored && !stored->command_error && stored->response &&
+            stored->response->response_type == Ok) {
+            update_saved_request_password(valkey_glide, password);
+        }
+        if (stored)
+            free_command_result(stored);
+    }
+
     /* Call FFI function */
     CommandResult* result =
         update_connection_password(valkey_glide->glide_client,
