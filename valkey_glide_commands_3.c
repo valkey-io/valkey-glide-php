@@ -989,6 +989,11 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
                                          0      /* span_ptr */
     );
 
+    /* EXEC ends any WATCH */
+    if (batch_info.is_atomic) {
+        valkey_glide->is_watching = false;
+    }
+
     /* Free CmdInfo structures */
     for (i = 0; i < valkey_glide->command_count; i++) {
         efree(cmd_infos[i]);

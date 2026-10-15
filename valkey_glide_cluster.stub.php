@@ -197,6 +197,58 @@ class ValkeyGlideCluster
     public const OPT_REPLY_LITERAL = UNKNOWN;
 
     /**
+     * Runtime option: read routing, same as PHPRedis RedisCluster::OPT_SLAVE_FAILOVER.
+     * Takes one of the FAILOVER_* constants. GLIDE fixes read routing when the client is created,
+     * so changing the mode recreates the client (a reconnect unless `lazy_connect` is set).
+     * Connection state set by commands, such as CLIENT SETNAME, is not carried over, so the
+     * change fails (returns false, see getLastError()) while keys are watched, inside MULTI or
+     * a pipeline, and while subscribed. Setting a mode whose routing is already in use does
+     * nothing. Overrides the constructor's `read_from`: an AZ affinity strategy reports the
+     * nearest mode (FAILOVER_DISTRIBUTE_SLAVES or FAILOVER_DISTRIBUTE), and any change replaces
+     * it.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_OPT_SLAVE_FAILOVER
+     */
+    public const OPT_SLAVE_FAILOVER = UNKNOWN;
+
+    /**
+     * OPT_SLAVE_FAILOVER mode: read from the primary (read_from PRIMARY).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_FAILOVER_NONE
+     */
+    public const FAILOVER_NONE = UNKNOWN;
+
+    /**
+     * OPT_SLAVE_FAILOVER mode: read from the primary (read_from PRIMARY). This approximates the
+     * PHPRedis behaviour: PHPRedis retries a failed read on a replica, while GLIDE retries on the
+     * new primary once the topology refresh finds it, so this behaves as FAILOVER_NONE.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_FAILOVER_ERROR
+     */
+    public const FAILOVER_ERROR = UNKNOWN;
+
+    /**
+     * OPT_SLAVE_FAILOVER mode: spread reads across the primary and replicas (core ReadFrom
+     * AllNodes).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_FAILOVER_DISTRIBUTE
+     */
+    public const FAILOVER_DISTRIBUTE = UNKNOWN;
+
+    /**
+     * OPT_SLAVE_FAILOVER mode: read from replicas, falling back to the primary when a shard has
+     * none (read_from PREFER_REPLICA).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_FAILOVER_DISTRIBUTE_SLAVES
+     */
+    public const FAILOVER_DISTRIBUTE_SLAVES = UNKNOWN;
+
+    /**
      * Create a new ValkeyGlideCluster instance with the provided configuration.
      * Supports both PHPRedis RedisCluster-style and ValkeyGlide-style parameters.
      *
@@ -224,7 +276,7 @@ class ValkeyGlideCluster
      *                                              ValkeyGlide::IAM_CONFIG_REFRESH_INTERVAL => 300 // optional, defaults to 300
      *                                            ]]
      *                                          Note: username is REQUIRED for IAM authentication.
-     * @param int|null $read_from               Read strategy for the client.
+     * @param int|null $read_from               Read strategy for the client (default: READ_FROM_PRIMARY).
      * @param int|null $request_timeout         Request timeout in milliseconds.
      * @param array|null $reconnect_strategy    Reconnection strategy ['num_of_retries' => 3, 'factor' => 2,
      *                                          'exponent_base' => 10, 'jitter_percent' => 15].
@@ -326,7 +378,8 @@ class ValkeyGlideCluster
     /**
      * Set a client option.
      *
-     * @param int $option The option to set (e.g., ValkeyGlideCluster::OPT_REPLY_LITERAL)
+     * @param int $option The option to set: ValkeyGlideCluster::OPT_REPLY_LITERAL or
+     *                    ValkeyGlideCluster::OPT_SLAVE_FAILOVER
      * @param mixed $value The value to set for the option
      * @return bool True on success, false on failure
      */
@@ -335,7 +388,8 @@ class ValkeyGlideCluster
     /**
      * Get a client option value.
      *
-     * @param int $option The option to get (e.g., ValkeyGlideCluster::OPT_REPLY_LITERAL)
+     * @param int $option The option to get: ValkeyGlideCluster::OPT_REPLY_LITERAL or
+     *                    ValkeyGlideCluster::OPT_SLAVE_FAILOVER
      * @return mixed The option value, or false if the option is not set or invalid
      */
     public function getOption(int $option): mixed;
