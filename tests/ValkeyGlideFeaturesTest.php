@@ -2074,6 +2074,11 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($this->valkey_glide->setOption(1, 0)); // Redis::SERIALIZER_NONE
             $this->assertTrue($this->valkey_glide->getOption(ValkeyGlide::OPT_REPLY_LITERAL));
             $this->assertEquals(1, count($deprecations));
+
+            $this->assertTrue($this->valkey_glide->setOption(1, false));
+            $this->assertFalse($this->valkey_glide->getOption(ValkeyGlide::OPT_REPLY_LITERAL));
+            $this->assertFalse($this->valkey_glide->getOption(1));
+            $this->assertEquals(2, count($deprecations));
         } finally {
             restore_error_handler();
             $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
