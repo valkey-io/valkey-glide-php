@@ -119,8 +119,11 @@ static int valkey_glide_cluster_create_connection(
     }
 
     /* Issue the connection request. */
-    AddressResolverCallback   resolver_cb = NULL;
-    const ConnectionResponse* conn_resp = create_glide_cluster_client(&client_config, &resolver_cb);
+    AddressResolverCallback   resolver_cb   = NULL;
+    uint8_t*                  request_bytes = NULL;
+    size_t                    request_len   = 0;
+    const ConnectionResponse* conn_resp =
+        create_glide_cluster_client(&client_config, &resolver_cb, &request_bytes, &request_len);
 
     /* No response: building the request failed (an exception is pending) */
     if (!conn_resp) {
@@ -156,6 +159,14 @@ static int valkey_glide_cluster_create_connection(
                 valkey_glide, persistent_key, client_config.base.database_id);
         }
         valkey_glide_prefix_track_client(valkey_glide->glide_client, valkey_glide);
+        /* Kept so OPT_SLAVE_FAILOVER can recreate the client with a different read_from */
+        if (valkey_glide->connection_request) {
+            efree(valkey_glide->connection_request);
+        }
+        valkey_glide->connection_request     = request_bytes;
+        valkey_glide->connection_request_len = request_len;
+        valkey_glide->opt_slave_failover =
+            valkey_glide_read_from_to_failover(client_config.base.read_from);
     }
 
     free_connection_response((ConnectionResponse*) conn_resp);
@@ -176,8 +187,7 @@ static void map_phpredis_to_valkey_params(zval**     addresses,
                                           double     read_timeout,
                                           zend_bool  read_timeout_is_null,
                                           zval**     credentials,
-                                          zval*      auth,
-                                          zend_long* read_from) {
+                                          zval*      auth) {
     /* Map seeds to addresses */
     if (seeds != NULL) {
         *addresses = seeds;
@@ -194,10 +204,7 @@ static void map_phpredis_to_valkey_params(zval**     addresses,
         *credentials = auth;
     }
 
-    /* Set default read_from for cluster if not specified */
-    if (*read_from == 0) {
-        *read_from = VALKEY_GLIDE_READ_FROM_PREFER_REPLICA;
-    }
+    /* read_from is left at PRIMARY, matching the PHPRedis FAILOVER_NONE default */
 }
 
 PHP_METHOD(ValkeyGlideCluster, __construct) {
@@ -304,8 +311,7 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
                                       read_timeout,
                                       read_timeout_is_null,
                                       &credentials,
-                                      auth,
-                                      &read_from);
+                                      auth);
     }
 
     /* Handle context (shared between PHPRedis and ValkeyGlide) */

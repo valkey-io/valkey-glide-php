@@ -1083,6 +1083,11 @@ void free_valkey_glide_object(zend_object* object) {
         valkey_glide->resolver_cb = NULL;
     }
 
+    if (valkey_glide->connection_request) {
+        efree(valkey_glide->connection_request);
+        valkey_glide->connection_request = NULL;
+    }
+
     /* Clean up the standard object */
     zend_object_std_dtor(&valkey_glide->std);
 }

@@ -139,8 +139,17 @@ void free_command_result(CommandResult* command_result_ptr);
 const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config,
                                               AddressResolverCallback* out_resolver_cb);
 
+/* out_request and out_request_len receive the serialized connection request on success (caller
+ * frees with efree()); pass NULL for both to discard it. */
 const ConnectionResponse* create_glide_cluster_client(
-    valkey_glide_cluster_client_configuration_t* config, AddressResolverCallback* out_resolver_cb);
+    valkey_glide_cluster_client_configuration_t* config,
+    AddressResolverCallback*                     out_resolver_cb,
+    uint8_t**                                    out_request,
+    size_t*                                      out_request_len);
+
+/* OPT_SLAVE_FAILOVER support (cluster only) */
+zend_long valkey_glide_read_from_to_failover(valkey_glide_read_from_t read_from);
+bool      valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value);
 
 /* Return the protobuf message representing the connection request. Caller must free the result with
  * efree() */
@@ -923,6 +932,8 @@ static inline bool valkey_glide_legacy_reply_literal(zval* value) {
                 }                                                             \
                 valkey_glide->opt_reply_literal = zval_is_true(value);        \
                 RETURN_TRUE;                                                  \
+            case VALKEY_GLIDE_OPT_SLAVE_FAILOVER:                             \
+                RETURN_BOOL(valkey_glide_set_failover(valkey_glide, value));  \
             default:                                                          \
                 RETURN_FALSE;                                                 \
         }                                                                     \
@@ -960,6 +971,11 @@ static inline zend_long valkey_glide_scan_option(const valkey_glide_object* valk
                 RETURN_NULL();                                                \
             case VALKEY_GLIDE_OPT_SCAN:                                       \
                 RETURN_LONG(valkey_glide_scan_option(valkey_glide));          \
+            case VALKEY_GLIDE_OPT_SLAVE_FAILOVER:                             \
+                if (!valkey_glide->connection_request) {                      \
+                    RETURN_FALSE;                                             \
+                }                                                             \
+                RETURN_LONG(valkey_glide->opt_slave_failover);                \
             default:                                                          \
                 RETURN_FALSE;                                                 \
         }                                                                     \
