@@ -22,7 +22,10 @@ typedef pthread_cond_t  cond_t;
 #define REQUEST_TYPE_PSUBSCRIBE PSubscribeBlocking
 #define REQUEST_TYPE_UNSUBSCRIBE UnsubscribeBlocking
 #define REQUEST_TYPE_PUNSUBSCRIBE PUnsubscribeBlocking
+#define REQUEST_TYPE_SSUBSCRIBE SSubscribeBlocking
+#define REQUEST_TYPE_SUNSUBSCRIBE SUnsubscribeBlocking
 #define REQUEST_TYPE_PUBLISH Publish
+#define REQUEST_TYPE_SPUBLISH SPublish
 
 // Message queue node
 typedef struct pubsub_message {
@@ -119,6 +122,11 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
 void valkey_glide_unsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
 void valkey_glide_punsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
 void valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
+
+// Sharded pubsub (cluster mode only, Valkey 7.0+)
+void valkey_glide_ssubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
+void valkey_glide_sunsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
+void valkey_glide_spublish_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
 
 
 #endif  // VALKEY_GLIDE_PUBSUB_COMMON_H
