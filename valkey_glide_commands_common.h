@@ -863,10 +863,10 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
     } while (0)
 
 /* The deprecated OPT_REPLY_LITERAL value 1 is PHPRedis's OPT_SERIALIZER, whose values are ints, so
- * it is treated as OPT_REPLY_LITERAL only when the value is a bool (or for getOption, value NULL).
- * Returns false when the option should be rejected. */
+ * setOption treats it as OPT_REPLY_LITERAL only when the value is a bool. Returns false when the
+ * option should be rejected. */
 static inline bool valkey_glide_legacy_reply_literal(zval* value) {
-    if (value && Z_TYPE_P(value) != IS_TRUE && Z_TYPE_P(value) != IS_FALSE) {
+    if (Z_TYPE_P(value) != IS_TRUE && Z_TYPE_P(value) != IS_FALSE) {
         return false;
     }
     php_error_docref(NULL,
@@ -875,7 +875,9 @@ static inline bool valkey_glide_legacy_reply_literal(zval* value) {
     return true;
 }
 
-/* Option methods - matching PHPRedis setOption/getOption API */
+/* Option methods - matching PHPRedis setOption/getOption API. getOption(1) answers with the
+ * OPT_REPLY_LITERAL setting without a deprecation notice, since PHPRedis code reads OPT_SERIALIZER
+ * that way. */
 #define SETOPTION_METHOD_IMPL(class_name)                                     \
     PHP_METHOD(class_name, setOption) {                                       \
         zend_long option;                                                     \
@@ -949,8 +951,6 @@ static inline zend_long valkey_glide_scan_option(const valkey_glide_object* valk
                                                                               \
         switch (option) {                                                     \
             case VALKEY_GLIDE_OPT_REPLY_LITERAL_LEGACY:                       \
-                valkey_glide_legacy_reply_literal(NULL);                      \
-                RETURN_BOOL(valkey_glide->opt_reply_literal);                 \
             case VALKEY_GLIDE_OPT_REPLY_LITERAL:                              \
                 RETURN_BOOL(valkey_glide->opt_reply_literal);                 \
             case VALKEY_GLIDE_OPT_PREFIX:                                     \
