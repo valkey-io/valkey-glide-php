@@ -4,10 +4,12 @@
 
 ### Breaking Changes
 
+* `ValkeyGlideCluster` constructed with PHPRedis-style parameters (`$seeds`, `$auth`, ...) now reads from primaries when `read_from` is not given, matching PHPRedis `RedisCluster`. It previously defaulted to `READ_FROM_PREFER_REPLICA`. Pass `read_from: ValkeyGlide::READ_FROM_PREFER_REPLICA` or set `OPT_SLAVE_FAILOVER` to `FAILOVER_DISTRIBUTE_SLAVES` to keep replica reads
 * An AZ-affinity read strategy (`READ_FROM_AZ_AFFINITY`, `READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY`, or `READ_FROM_AZ_AFFINITY_ALL_NODES`) configured without a valid `client_az` now throws at client creation. Previously the core logged a warning and downgraded the strategy to `PreferReplica`, so reads silently went to arbitrary nodes. A `client_az` that is empty, whitespace-only, contains a NUL byte, or has leading/trailing whitespace is rejected ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
 
 ### Changes
 
+* Add PHPRedis-compatible `ValkeyGlideCluster::setOption()`/`getOption()` support for `OPT_SLAVE_FAILOVER` with `FAILOVER_NONE`, `FAILOVER_ERROR`, `FAILOVER_DISTRIBUTE` and `FAILOVER_DISTRIBUTE_SLAVES`. Changing the mode recreates the client with the matching read strategy
 * Add `HGETDEL` command for standalone and cluster clients ([#343](https://github.com/valkey-io/valkey-glide-php/pull/343))
 * Add PHP 8.4 and 8.5 to the supported versions and the CI test matrix
 * Add `READ_FROM_AZ_AFFINITY_ALL_NODES` read strategy for standalone and cluster clients ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
