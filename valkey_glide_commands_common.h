@@ -862,6 +862,19 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
         }                                                                                   \
     } while (0)
 
+/* The deprecated OPT_REPLY_LITERAL value 1 is PHPRedis's OPT_SERIALIZER, whose values are ints, so
+ * it is treated as OPT_REPLY_LITERAL only when the value is a bool (or for getOption, value NULL).
+ * Returns false when the option should be rejected. */
+static inline bool valkey_glide_legacy_reply_literal(zval* value) {
+    if (value && Z_TYPE_P(value) != IS_TRUE && Z_TYPE_P(value) != IS_FALSE) {
+        return false;
+    }
+    php_error_docref(NULL,
+                     E_DEPRECATED,
+                     "Option 1 is deprecated, use OPT_REPLY_LITERAL (8), the PHPRedis value");
+    return true;
+}
+
 /* Option methods - matching PHPRedis setOption/getOption API */
 #define SETOPTION_METHOD_IMPL(class_name)                                     \
     PHP_METHOD(class_name, setOption) {                                       \
@@ -902,6 +915,12 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
                     default:                                                  \
                         RETURN_FALSE;                                         \
                 }                                                             \
+            case VALKEY_GLIDE_OPT_REPLY_LITERAL_LEGACY:                       \
+                if (!valkey_glide_legacy_reply_literal(value)) {              \
+                    RETURN_FALSE;                                             \
+                }                                                             \
+                valkey_glide->opt_reply_literal = zval_is_true(value);        \
+                RETURN_TRUE;                                                  \
             default:                                                          \
                 RETURN_FALSE;                                                 \
         }                                                                     \
@@ -929,6 +948,9 @@ static inline zend_long valkey_glide_scan_option(const valkey_glide_object* valk
         }                                                                     \
                                                                               \
         switch (option) {                                                     \
+            case VALKEY_GLIDE_OPT_REPLY_LITERAL_LEGACY:                       \
+                valkey_glide_legacy_reply_literal(NULL);                      \
+                RETURN_BOOL(valkey_glide->opt_reply_literal);                 \
             case VALKEY_GLIDE_OPT_REPLY_LITERAL:                              \
                 RETURN_BOOL(valkey_glide->opt_reply_literal);                 \
             case VALKEY_GLIDE_OPT_PREFIX:                                     \

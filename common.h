@@ -413,9 +413,12 @@ struct batch_command {
 
 /* Client runtime options - matching PHPRedis behavior */
 typedef enum {
-    VALKEY_GLIDE_OPT_REPLY_LITERAL = 1, /* Return "OK" string instead of true for Ok responses */
-    VALKEY_GLIDE_OPT_PREFIX        = 2, /* Key prefix applied to every key argument */
-    VALKEY_GLIDE_OPT_SCAN          = 4  /* SCAN behaviour: SCAN_RETRY and SCAN_PREFIX bits */
+    /* Deprecated value of OPT_REPLY_LITERAL. PHPRedis uses 1 for OPT_SERIALIZER, so it is only
+     * accepted with a bool value. Remove in the next major release. */
+    VALKEY_GLIDE_OPT_REPLY_LITERAL_LEGACY = 1,
+    VALKEY_GLIDE_OPT_PREFIX               = 2, /* Key prefix applied to every key argument */
+    VALKEY_GLIDE_OPT_SCAN                 = 4, /* SCAN behaviour: SCAN_RETRY and SCAN_PREFIX bits */
+    VALKEY_GLIDE_OPT_REPLY_LITERAL = 8 /* Return "OK" string instead of true for Ok responses */
 } valkey_glide_option_t;
 
 /* Persistent client entry (valkey_glide_persistent.c) */
