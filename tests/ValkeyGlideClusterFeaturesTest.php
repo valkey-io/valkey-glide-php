@@ -1718,6 +1718,31 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertTrue($client->unwatch());
             $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
 
+            // A queued UNWATCH that is discarded never reaches the server
+            $this->assertTrue($client->watch($key));
+            $client->multi();
+            $client->unwatch();
+            $client->discard();
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+
+            // A transaction rejected before EXEC leaves the WATCH in place
+            $client->multi();
+            $client->set('{slot_a}' . $key, 'value');
+            $client->set('{slot_b}' . $key, 'value');
+            try {
+                $this->assertFalse($client->exec());
+            } catch (ValkeyGlideException $e) {
+            }
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertTrue($client->unwatch());
+
+            // A queued WATCH that is discarded never reaches the server
+            $client->multi();
+            $client->watch($key);
+            $client->discard();
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+
             // EXEC ends the WATCH
             $this->assertTrue($client->watch($key));
             $client->multi();
@@ -1748,6 +1773,34 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 credentials: ['username' => $user, 'password' => 'old_password'],
             );
             $this->assertEquals('OK', $client->updateConnectionPassword('new_password', false));
+            $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'resetpass', '>new_password');
+
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->ping(['type' => 'primarySlotKey', 'key' => 'test']));
+        } finally {
+            $client?->close();
+            $this->valkey_glide->rawcommand('allNodes', 'ACL', 'DELUSER', $user);
+        }
+    }
+
+    public function testOptSlaveFailoverUsesPasswordFromFailedImmediateAuth()
+    {
+        // updateConnectionPassword() with immediate auth stores the password in the core before it
+        // authenticates, so a recreated client must use it even though that authentication failed
+        $user = 'failover_test_' . uniqid();
+        $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'on', '>old_password', '~*', '&*', '+@all');
+        $client = null;
+
+        try {
+            $client = new ValkeyGlideCluster(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                credentials: ['username' => $user, 'password' => 'old_password'],
+            );
+            try {
+                $client->updateConnectionPassword('new_password', true);
+                $this->fail('Immediate auth with a password the server does not accept yet must fail');
+            } catch (ValkeyGlideException $e) {
+            }
             $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'resetpass', '>new_password');
 
             $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
