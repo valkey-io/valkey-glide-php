@@ -1562,8 +1562,9 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
     public function testOptReplyLiteralLegacyValue()
     {
-        // 1 was OPT_REPLY_LITERAL before it moved to the PHPRedis value 8. It still works with a bool
-        // value and emits E_DEPRECATED; an int value is PHPRedis OPT_SERIALIZER and is rejected.
+        // 1 was OPT_REPLY_LITERAL before it moved to the PHPRedis value 8. setOption() still accepts it
+        // with a bool value and emits E_DEPRECATED; an int value is PHPRedis OPT_SERIALIZER and is
+        // rejected. getOption(1) stays quiet, since PHPRedis code reads OPT_SERIALIZER that way.
         $deprecations = [];
         set_error_handler(function (int $errno, string $errstr) use (&$deprecations): bool {
             $deprecations[] = $errstr;
@@ -1574,12 +1575,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertTrue($this->valkey_glide->setOption(1, true));
             $this->assertTrue($this->valkey_glide->getOption(ValkeyGlideCluster::OPT_REPLY_LITERAL));
             $this->assertTrue($this->valkey_glide->getOption(1));
-            $this->assertEquals(2, count($deprecations));
+            $this->assertEquals(1, count($deprecations));
 
             $this->assertFalse($this->valkey_glide->setOption(1, 1)); // Redis::SERIALIZER_PHP
             $this->assertFalse($this->valkey_glide->setOption(1, 0)); // Redis::SERIALIZER_NONE
             $this->assertTrue($this->valkey_glide->getOption(ValkeyGlideCluster::OPT_REPLY_LITERAL));
-            $this->assertEquals(2, count($deprecations));
+            $this->assertEquals(1, count($deprecations));
         } finally {
             restore_error_handler();
             $this->valkey_glide->setOption(ValkeyGlideCluster::OPT_REPLY_LITERAL, false);
