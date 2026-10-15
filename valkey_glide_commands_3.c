@@ -900,6 +900,38 @@ int execute_pipeline_command(zval* object, int argc, zval* return_value, zend_cl
     return initialize_batch_mode(valkey_glide, PIPELINE, object, return_value);
 }
 
+/* Track whether the server may still hold a WATCH after a batch executes. The flag is
+ * only cleared once the server has ended the watch, since OPT_SLAVE_FAILOVER relies on it
+ * to avoid dropping the watched connection. */
+static void update_watch_state(valkey_glide_object*  valkey_glide,
+                               bool                  is_atomic,
+                               struct CommandResult* result) {
+    bool executed = result && !result->command_error;
+
+    if (is_atomic) {
+        /* The server ends every WATCH when it runs EXEC, including EXEC aborted by a watched
+         * key. A batch rejected before EXEC (a cross-slot transaction, a connection error)
+         * leaves the watch in place. */
+        if (executed)
+            valkey_glide->is_watching = false;
+        return;
+    }
+
+    /* Pipeline commands run in order: the last WATCH or UNWATCH to execute decides */
+    bool have_responses = executed && result->response &&
+                          result->response->response_type == Array &&
+                          result->response->array_value_len == valkey_glide->command_count;
+    for (size_t i = 0; i < valkey_glide->command_count; i++) {
+        enum RequestType type = valkey_glide->buffered_commands[i].request_type;
+        if (type == Watch) {
+            valkey_glide->is_watching = true;
+        } else if (type == UnWatch && have_responses &&
+                   result->response->array_value[i].response_type != Error) {
+            valkey_glide->is_watching = false;
+        }
+    }
+}
+
 /* Execute a DISCARD command using the Valkey Glide client - UPDATED FOR BUFFERING */
 /* MULTI is buffered client-side, so a transaction that never reaches the server
  * (empty, or discarded) must clear WATCH itself, as the server's EXEC/DISCARD would.
@@ -1034,10 +1066,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
                                          0      /* span_ptr */
     );
 
-    /* EXEC ends any WATCH */
-    if (batch_info.is_atomic) {
-        valkey_glide->is_watching = false;
-    }
+    update_watch_state(valkey_glide, batch_info.is_atomic, result);
 
     /* Free CmdInfo structures */
     for (i = 0; i < valkey_glide->command_count; i++) {

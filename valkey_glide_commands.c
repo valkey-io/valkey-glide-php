@@ -1536,14 +1536,17 @@ int execute_watch_command(zval* object, int argc, zval* return_value, zend_class
         int keys_count = zend_hash_num_elements(Z_ARRVAL(z_args[0]));
         if (execute_multi_key_command(
                 valkey_glide, Watch, &z_args[0], keys_count, object, return_value)) {
-            valkey_glide->is_watching = true;
+            /* A queued WATCH is tracked when the batch executes */
+            if (!valkey_glide->is_in_batch_mode)
+                valkey_glide->is_watching = true;
             return 1;
         }
     } else {
         /* Pattern 2: Multiple string arguments or single string */
         if (execute_multi_key_command(
                 valkey_glide, Watch, z_args, arg_count, object, return_value)) {
-            valkey_glide->is_watching = true;
+            if (!valkey_glide->is_in_batch_mode)
+                valkey_glide->is_watching = true;
             return 1;
         }
     }
@@ -1574,10 +1577,11 @@ int execute_unwatch_command(zval* object, int argc, zval* return_value, zend_cla
     bool queued = valkey_glide->is_in_batch_mode;
 
     if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+        /* A queued UNWATCH is tracked when the batch executes; DISCARD drops it unsent */
         if (!queued) {
             valkey_glide->persistent_watching = false;
+            valkey_glide->is_watching         = false;
         }
-        valkey_glide->is_watching = false;
         return 1;
     } else {
         return 0;
