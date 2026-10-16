@@ -520,11 +520,18 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $after = $this->countClusterCommandCalls($valkey_glide);
         $valkey_glide->close();
 
-        // With the 60 second default interval, this idle client should issue no
-        // CLUSTER calls in the window. Commandstats is server-wide, though, so checks
-        // from other open clients can also land in it. The bug issued over 5,000 in
-        // 2 seconds on a test setup. The threshold of 20 is arbitrary: it leaves room
-        // for that noise and stays far below the bug's level.
+        // With glide-core's 60 second default interval, this idle client should issue
+        // no CLUSTER calls in the 2 second window. Commandstats is server-wide, though,
+        // so periodic checks from other clients open on the shared test cluster can
+        // also land in it.
+        // Before the fix for https://github.com/valkey-io/valkey-glide-php/issues/344,
+        // ValkeyGlideCluster sent a periodic check interval of 0 seconds whenever
+        // periodic checks were enabled (the default), so the core re-ran topology
+        // checks back-to-back: over 5,000 CLUSTER calls in these 2 seconds on a test
+        // setup, and about 5% CPU per idle PHP process.
+        // The threshold of 20 is not derived from a formula: it leaves room for the
+        // other clients' checks and is still orders of magnitude below what the bug
+        // produces, so the test fails if the interval regresses to 0.
         $this->assertLT(20, $after - $before);
     }
 
