@@ -81,6 +81,7 @@ $channel1 = $argv[3];
 $channel2 = $argv[4];
 $sync_file = $argv[5];
 $result_file = $argv[6];
+$unsubscribed_file = $argv[7];
 $error_file = $result_file . '.error';
 
 try {
@@ -88,10 +89,11 @@ try {
     $subscriber->connect(addresses: [['host' => $host, 'port' => $port]]);
     file_put_contents($sync_file, 'ready');
 
-    $subscriber->subscribe([$channel1, $channel2], function ($client, $ch, $msg) use ($result_file, $channel1, $channel2) {
+    $subscriber->subscribe([$channel1, $channel2], function ($client, $ch, $msg) use ($result_file, $unsubscribed_file, $channel1, $channel2) {
         if ($ch === $channel1) {
             // Unsubscribe from channel1 only - should NOT break loop
             $client->unsubscribe([$channel1]);
+            file_put_contents($unsubscribed_file, 'unsubscribed');
         } elseif ($ch === $channel2) {
             // Got message on channel2 after unsubscribing from channel1 - success!
             file_put_contents($result_file, 'SUCCESS');

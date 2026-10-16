@@ -81,6 +81,7 @@ $channel1 = $argv[3];
 $channel2 = $argv[4];
 $sync_file = $argv[5];
 $result_file = $argv[6];
+$unsubscribed_file = $argv[7];
 $error_file = $result_file . '.error';
 
 try {
@@ -89,11 +90,12 @@ try {
     file_put_contents($sync_file, 'ready');
 
     $received = [];
-    $client->subscribe([$channel1, $channel2], function ($c, $ch, $msg) use (&$received, $channel1, $channel2, $result_file) {
+    $client->subscribe([$channel1, $channel2], function ($c, $ch, $msg) use (&$received, $channel1, $channel2, $result_file, $unsubscribed_file) {
         $received[] = "$ch:$msg";
 
         if ($msg === 'bing' && $ch === $channel1) {
             $c->unsubscribe([$channel1]);
+            file_put_contents($unsubscribed_file, 'unsubscribed');
         }
 
         if ($msg === 'bong' && $ch === $channel2) {
