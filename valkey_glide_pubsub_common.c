@@ -217,6 +217,21 @@ void cleanup_callback_info(pubsub_callback_info* info) {
     }
 }
 
+// Count a dropped message (queue_mutex held). Only the first drop the subscribe
+// loop has not reported yet wakes it, so a flood of drops does not keep waking it
+static void pubsub_count_drop(pubsub_callback_info* info) {
+    info->dropped_count++;
+    if (info->dropped_count == info->reported_drops + 1) {
+        cond_signal(&info->queue_cond);
+    }
+}
+
+// Whether the subscribe loop should log dropped messages now (queue_mutex held):
+// at most once per second, so sustained overload does not flood the log
+static bool pubsub_drop_report_due(pubsub_callback_info* info, time_t now) {
+    return info->dropped_count != info->reported_drops && now != info->last_drop_report;
+}
+
 // C callback handler for FFI
 void pubsub_callback_handler(uintptr_t      client_ptr,
                              int            kind,
@@ -248,7 +263,24 @@ void pubsub_callback_handler(uintptr_t      client_ptr,
         return;
     }
 
-    bool has_pattern = pattern && pattern_len > 0;
+    // Reserve room in the queue before copying anything, or drop the message
+    bool   has_pattern = pattern && pattern_len > 0;
+    size_t size =
+        (size_t) channel_len + (size_t) message_len + (has_pattern ? (size_t) pattern_len : 0);
+    mutex_lock(&info->queue_mutex);
+    bool room = info->queue_depth < PUBSUB_QUEUE_MAX_DEPTH &&
+                size <= PUBSUB_QUEUE_MAX_BYTES - info->queue_bytes;
+    if (room) {
+        info->queue_depth++;
+        info->queue_bytes += size;
+    } else {
+        pubsub_count_drop(info);
+    }
+    mutex_unlock(&info->queue_mutex);
+    if (!room) {
+        mutex_unlock(&pubsub_callbacks_mutex);
+        return;
+    }
 
     // Allocate and populate message node (malloc of at least 1 byte, so an
     // empty payload is not mistaken for a failed allocation)
@@ -264,6 +296,11 @@ void pubsub_callback_handler(uintptr_t      client_ptr,
         if (msg) {
             free_pubsub_message(msg);
         }
+        mutex_lock(&info->queue_mutex);
+        info->queue_depth--;
+        info->queue_bytes -= size;
+        pubsub_count_drop(info);
+        mutex_unlock(&info->queue_mutex);
         mutex_unlock(&pubsub_callbacks_mutex);
         return;
     }
@@ -279,7 +316,7 @@ void pubsub_callback_handler(uintptr_t      client_ptr,
         msg->pattern_len = pattern_len;
     }
 
-    // Add to queue (thread-safe)
+    // Add to queue (thread-safe); its room is already reserved
     mutex_lock(&info->queue_mutex);
     if (info->queue_tail) {
         info->queue_tail->next = msg;
@@ -308,9 +345,14 @@ void php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* cl
     info->is_active = true;
 
     // Initialize message queue
-    info->queue_head = NULL;
-    info->queue_tail = NULL;
-    info->in_flight  = NULL;
+    info->queue_head       = NULL;
+    info->queue_tail       = NULL;
+    info->queue_depth      = 0;
+    info->queue_bytes      = 0;
+    info->dropped_count    = 0;
+    info->reported_drops   = 0;
+    info->last_drop_report = 0;
+    info->in_flight        = NULL;
     mutex_init(&info->queue_mutex);
     cond_init(&info->queue_cond);
 
@@ -373,8 +415,15 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
 
         mutex_lock(&info->queue_mutex);
         while (!info->queue_head && info->is_active &&
-               zend_hash_num_elements(info->subscribed_channels) > 0) {
-            cond_wait(&info->queue_cond, &info->queue_mutex);
+               zend_hash_num_elements(info->subscribed_channels) > 0 &&
+               !pubsub_drop_report_due(info, time(NULL))) {
+            if (info->dropped_count != info->reported_drops) {
+                /* Drops are pending but the once-per-second limit is not up yet;
+                 * no later drop signals again, so wake up in time to report them */
+                cond_timedwait(&info->queue_cond, &info->queue_mutex, 1000);
+            } else {
+                cond_wait(&info->queue_cond, &info->queue_mutex);
+            }
         }
         if (info->queue_head) {
             msg              = info->queue_head;
@@ -382,8 +431,23 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
             if (!info->queue_head) {
                 info->queue_tail = NULL;
             }
+            info->queue_depth--;
+            info->queue_bytes -= (size_t) msg->channel_len + (size_t) msg->message_len +
+                                 (msg->pattern ? (size_t) msg->pattern_len : 0);
+        }
+        time_t now     = time(NULL);
+        bool   report  = pubsub_drop_report_due(info, now);
+        size_t dropped = info->dropped_count;
+        if (report) {
+            info->reported_drops   = dropped;
+            info->last_drop_report = now;
         }
         mutex_unlock(&info->queue_mutex);
+
+        if (report) {
+            VALKEY_LOG_WARN_FMT(
+                "pubsub", "Subscriber queue full: %zu message(s) dropped so far", dropped);
+        }
 
         if (msg) {
             // Native memory: keep it reachable from the entry until it is freed,
@@ -424,6 +488,17 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
             info->in_flight = NULL;
             free_pubsub_message(msg);
         }
+    }
+
+    // Drops not reported yet because of the once-per-second limit
+    mutex_lock(&info->queue_mutex);
+    size_t dropped       = info->dropped_count;
+    bool   unreported    = dropped != info->reported_drops;
+    info->reported_drops = dropped;
+    mutex_unlock(&info->queue_mutex);
+    if (unreported) {
+        VALKEY_LOG_WARN_FMT(
+            "pubsub", "Subscriber queue full: %zu message(s) dropped in total", dropped);
     }
 
     struct CommandResult* unsub_result =
