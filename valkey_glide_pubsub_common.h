@@ -37,16 +37,19 @@ typedef struct pubsub_message {
 } pubsub_message;
 
 // Pubsub callback info structure
-typedef struct {
+typedef struct pubsub_callback_info {
     zval            callback;
     zval            client_obj;
     bool            is_active;
     pubsub_message* queue_head;
     pubsub_message* queue_tail;
+    pubsub_message* in_flight;  // dequeued message being delivered (subscribe loop only)
     mutex_t         queue_mutex;
     cond_t          queue_cond;
     HashTable*      subscribed_channels;  // HashTable of subscribed channel/pattern names
     bool            in_subscribe_mode;
+    uintptr_t       owner_thread;               // PHP thread whose request registered it (ZTS)
+    struct pubsub_callback_info* next_removed;  // list used while freeing at request shutdown
 } pubsub_callback_info;
 
 // FFI function declarations
@@ -87,31 +90,30 @@ void cond_signal(cond_t* c);
 void cond_destroy(cond_t* c);
 
 // Pubsub management functions
-void  init_pubsub_callbacks(void);
-void  cleanup_callback_info(zval* zv);
-void  php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* client_obj);
-void  php_unregister_pubsub_callback(uintptr_t client_ptr);
-zval* find_pubsub_callback(const char* client_key);
-void  remove_pubsub_callback(const char* client_key);
-bool  is_client_in_subscribe_mode(uintptr_t client_ptr);
-void  pubsub_callback_handler(uintptr_t      client_ptr,
-                              int            kind,
-                              const uint8_t* message,
-                              int64_t        message_len,
-                              const uint8_t* channel,
-                              int64_t        channel_len,
-                              const uint8_t* pattern,
-                              int64_t        pattern_len);
-void  valkey_glide_pubsub_callback(uintptr_t      client_adapter_ptr,
-                                   enum PushKind  kind,
-                                   const uint8_t* message,
-                                   int64_t        message_len,
-                                   const uint8_t* channel,
-                                   int64_t        channel_len,
-                                   const uint8_t* pattern,
-                                   int64_t        pattern_len);
-void  valkey_glide_pubsub_shutdown(void);
-void  valkey_glide_pubsub_request_shutdown(void);
+void init_pubsub_callbacks(void);
+void cleanup_callback_info(pubsub_callback_info* info);
+void php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* client_obj);
+void php_unregister_pubsub_callback(uintptr_t client_ptr);
+pubsub_callback_info* find_pubsub_callback(const char* client_key);
+bool                  is_client_in_subscribe_mode(uintptr_t client_ptr);
+void                  pubsub_callback_handler(uintptr_t      client_ptr,
+                                              int            kind,
+                                              const uint8_t* message,
+                                              int64_t        message_len,
+                                              const uint8_t* channel,
+                                              int64_t        channel_len,
+                                              const uint8_t* pattern,
+                                              int64_t        pattern_len);
+void                  valkey_glide_pubsub_callback(uintptr_t      client_adapter_ptr,
+                                                   enum PushKind  kind,
+                                                   const uint8_t* message,
+                                                   int64_t        message_len,
+                                                   const uint8_t* channel,
+                                                   int64_t        channel_len,
+                                                   const uint8_t* pattern,
+                                                   int64_t        pattern_len);
+void                  valkey_glide_pubsub_shutdown(void);
+void                  valkey_glide_pubsub_request_shutdown(void);
 
 // Common pubsub method implementations
 void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);

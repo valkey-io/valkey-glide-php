@@ -10,6 +10,7 @@
 
 * `ValkeyGlideCluster::__construct()` on an already connected object now throws instead of replacing (and leaking) the existing client ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))
 * The pub/sub callback registry is released at the end of each request; it was allocated per request but reused by later requests in the same worker (PHP-FPM) ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))
+* The pub/sub push callback, which runs on a GLIDE thread, no longer allocates queued messages with PHP's request allocator or races with PHP threads changing the callback registry; under ZTS, one request ending no longer frees another thread's subscribers, and a forked child starts its own registry ([#362](https://github.com/valkey-io/valkey-glide-php/issues/362))
 * Failing to build the connection request, or getting no connection response, is reported as an exception instead of dereferencing a NULL response ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))
 * `clone` on a `ValkeyGlide` or `ValkeyGlideCluster` object now throws an `Error`; the copy shared the client handle and crashed on first use ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))
 * `script()`, `geoadd()`, `geohash()`, `geopos()`, `xinfo()`, `zadd()` and cluster route parsing no longer read uninitialized variadic arguments when called without them (`script('FLUSH')` could crash) ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))
