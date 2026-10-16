@@ -117,6 +117,15 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         return implode(' ', $cmd_parts);
     }
 
+    /**
+     * Wait until each channel has at least the expected number of subscribers.
+     *
+     * @param ValkeyGlide $client Client used to query PUBSUB NUMSUB.
+     * @param array<string, int> $expectedCounts Minimum subscriber count for each channel.
+     * @param float $timeoutSeconds Maximum time to poll, in seconds.
+     * @return bool Whether all minimum counts were reached before polling stopped.
+     * @throws UnexpectedValueException If PUBSUB NUMSUB returns a non-array response.
+     */
     private function waitForSubscribers(ValkeyGlide $client, array $expectedCounts, float $timeoutSeconds = 5): bool
     {
         $timeout = microtime(true) + $timeoutSeconds;
@@ -154,6 +163,13 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         return false;
     }
 
+    /**
+     * Wait for a subprocess signal or result file to contain data.
+     *
+     * @param string $path File to poll.
+     * @param float $timeoutSeconds Maximum time to poll, in seconds.
+     * @return string|null First non-empty content read, or null if polling times out.
+     */
     private function waitForFileContent(string $path, float $timeoutSeconds = 5): ?string
     {
         $timeout = microtime(true) + $timeoutSeconds;
@@ -185,6 +201,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertEquals(0, $count, 'Subscriber count should be 0 when no subscribers');
     }
 
+    /**
+     * Verify publishing reports two subscribers and delivers the message to both.
+     */
     public function testPubSubPublishWithTwoSubscribers()
     {
         // Test publish returns correct count with 2 subscribers
@@ -295,6 +314,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertTrue($success1 && $success2, 'Both subscribers should receive message');
     }
 
+    /**
+     * Verify a registered subscriber receives the published channel and message.
+     */
     public function testPubSubMessageDelivery()
     {
         // Test that messages are actually delivered to subscribers
@@ -420,6 +442,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertTrue($success, 'Message should be delivered to subscriber callback');
     }
 
+    /**
+     * Verify unsubscribing from a callback ends the subscription loop.
+     */
     public function testPubSubUnsubscribe()
     {
         // Test that unsubscribe breaks the subscribe loop
@@ -494,6 +519,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertTrue($success, 'Unsubscribe should be called and break subscribe loop');
     }
 
+    /**
+     * Verify the second channel still delivers messages after unsubscribing from the first.
+     */
     public function testPubSubPartialUnsubscribe()
     {
         // Test that unsubscribing from one channel doesn't break the loop
@@ -576,6 +604,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertTrue($success, 'Should receive message on second channel after unsubscribing from first');
     }
 
+    /**
+     * Verify regular commands are rejected while the client is in subscribe mode.
+     */
     public function testPubSubModalMode()
     {
         // Test that client is in modal mode during subscribe - only unsubscribe allowed
@@ -647,6 +678,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertTrue($success, 'Commands should be blocked during subscribe mode');
     }
 
+    /**
+     * Verify another subscribe call is rejected while the client is in subscribe mode.
+     */
     public function testPubSubModalModeBlocksSubscribe()
     {
         $channel = 'test_modal_sub_' . uniqid();
@@ -724,6 +758,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertTrue($result === 'PASS', 'Subscribe should be blocked during subscribe mode');
     }
 
+    /**
+     * Verify a pattern subscription receives a message on a matching channel.
+     */
     public function testPubSubPSubscribe()
     {
         $pattern = 'test_psub_*';
@@ -823,6 +860,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertGTE(0, $result);
     }
 
+    /**
+     * Verify unsubscribed channels stop delivering while remaining channels still deliver.
+     */
     public function testPubSubSelectiveUnsubscribe()
     {
         // Test unsubscribing from one channel while remaining subscribed to another
@@ -921,6 +961,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertTrue($success);
     }
 
+    /**
+     * Verify unsubscribing from an unknown channel preserves the active subscription.
+     */
     public function testPubSubUnsubscribeNonExistentChannel()
     {
         // Test edge case: unsubscribe from channel we never subscribed to

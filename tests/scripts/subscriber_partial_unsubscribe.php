@@ -89,17 +89,28 @@ try {
     $subscriber->connect(addresses: [['host' => $host, 'port' => $port]]);
     file_put_contents($sync_file, 'ready');
 
-    $subscriber->subscribe([$channel1, $channel2], function ($client, $ch, $msg) use ($result_file, $unsubscribed_file, $channel1, $channel2) {
-        if ($ch === $channel1) {
-            // Unsubscribe from channel1 only - should NOT break loop
-            $client->unsubscribe([$channel1]);
-            file_put_contents($unsubscribed_file, 'unsubscribed');
-        } elseif ($ch === $channel2) {
-            // Got message on channel2 after unsubscribing from channel1 - success!
-            file_put_contents($result_file, 'SUCCESS');
-            $client->unsubscribe();
+    $subscriber->subscribe(
+        [$channel1, $channel2],
+        /**
+         * Signal the first channel unsubscribe, then report delivery on the second channel.
+         *
+         * @param ValkeyGlide $client Subscribed client.
+         * @param string $ch Channel that delivered the message.
+         * @param string $msg Published message.
+         * @return void
+         */
+        function ($client, $ch, $msg) use ($result_file, $unsubscribed_file, $channel1, $channel2) {
+            if ($ch === $channel1) {
+                // Unsubscribe from channel1 only - should NOT break loop
+                $client->unsubscribe([$channel1]);
+                file_put_contents($unsubscribed_file, 'unsubscribed');
+            } elseif ($ch === $channel2) {
+                // Got message on channel2 after unsubscribing from channel1 - success!
+                file_put_contents($result_file, 'SUCCESS');
+                $client->unsubscribe();
+            }
         }
-    });
+    );
 } catch (Exception $e) {
     file_put_contents($error_file, $e->getMessage() . "\n" . $e->getTraceAsString());
     file_put_contents($sync_file, 'error');
