@@ -1,0 +1,10 @@
+name: Configure APT retries
+description: Configure APT to retry transient download failures
+
+runs:
+  using: composite
+  steps:
+    - name: Configure APT retries
+      shell: bash
+      run: |
+        echo 'Acquire::Retries "5";' | sudo tee /etc/apt/apt.conf.d/99-valkey-glide-retries >/dev/null

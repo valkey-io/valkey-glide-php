@@ -35,6 +35,9 @@ runs:
         restore-keys: |
           apt-${{ runner.os }}-
 
+    - name: Configure APT retries
+      uses: ./.github/actions/configure-apt-retries
+
     - name: Install system dependencies (cached)
       shell: bash
       env:
