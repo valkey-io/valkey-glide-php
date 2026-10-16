@@ -8,6 +8,7 @@
 
 ### Changes
 
+* `OPT_REPLY_LITERAL` is now 8, as in PHPRedis. It was 1, the PHPRedis value of `OPT_SERIALIZER`, so PHPRedis code that set a serializer turned on reply literals instead. Option 1 still accepts a bool for reply literals but is deprecated ([#368](https://github.com/valkey-io/valkey-glide-php/issues/368))
 * Add `HGETDEL` command for standalone and cluster clients ([#343](https://github.com/valkey-io/valkey-glide-php/pull/343))
 * Add PHP 8.4 and 8.5 to the supported versions and the CI test matrix
 * Add `READ_FROM_AZ_AFFINITY_ALL_NODES` read strategy for standalone and cluster clients ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
