@@ -490,6 +490,9 @@ static void mark_keys(valkey_glide_object* valkey_glide,
             break;
 
         default:
+            /* Not a key command, or not registered here: its arguments are sent
+             * unchanged. A newly exposed command that takes keys must be added
+             * above, or its keys silently skip the prefix. */
             break;
     }
 }
