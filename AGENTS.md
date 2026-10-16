@@ -93,7 +93,7 @@ make test
 found" / "protoc-c not found" without them. The glide-core FFI build also needs a
 Rust toolchain.
 
-`make test` builds the servers it needs — `tests/start_valkey_with_replicas.sh`
+`make test` starts the servers it needs — `tests/start_valkey_with_replicas.sh`
 then `tests/create-valkey-cluster.sh` (these launch `valkey-server` directly for the
 plaintext servers and use `valkey-glide/utils/cluster_manager.py` only for the
 TLS/mTLS/auth variants) — then runs the default class list in `tests/TestValkeyGlide.php`.
