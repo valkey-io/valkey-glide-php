@@ -113,6 +113,10 @@ runs:
         extensions: tokenizer, json, ctype, iconv, mbstring, simplexml
         tools: none
 
+    - name: Configure APT retries
+      if: steps.package-info.outputs.is-rc != 'true'
+      uses: ./.github/actions/configure-apt-retries
+
     - name: Install system dependencies
       if: steps.package-info.outputs.is-rc != 'true'
       shell: bash
