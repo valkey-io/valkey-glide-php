@@ -88,10 +88,12 @@ make
 make test
 ```
 
-`configure` requires the **protobuf-c** library and its `protoc-c` compiler
-(`libprotobuf-c-dev` on Debian/Ubuntu) — it aborts with "protobuf-c library not
-found" / "protoc-c not found" without them. The glide-core FFI build also needs a
-Rust toolchain.
+The build needs the **protobuf-c** library (`libprotobuf-c-dev`) and its `protoc-c`
+compiler (`protobuf-c-compiler`), plus a Rust toolchain for the glide-core FFI. The
+library is required to link; `protoc-c` generates the `*.pb-c.c` sources. A normal
+checkout defers that generation to `make` (configure prints "protobuf files will be
+generated during make"), so a missing `protoc-c` surfaces at build time; the PECL
+build path generates at configure and aborts there if `protoc-c` is absent.
 
 `make test` starts the servers it needs — `tests/start_valkey_with_replicas.sh`
 then `tests/create-valkey-cluster.sh` (these launch `valkey-server` directly for the
@@ -99,8 +101,8 @@ plaintext servers and use `valkey-glide/utils/cluster_manager.py` only for the
 TLS/mTLS/auth variants) — then runs the default class list in `tests/TestValkeyGlide.php`.
 It does **not** stop the servers afterward; run `tests/stop-servers.sh` yourself when
 done. The default list omits the JSON, Search, ClientSideCache, and TLS suites — run
-those by passing `--class`. To filter, invoke the runner directly with the built
-extension loaded:
+those with `--class` (the TLS suites also need the `--tls` flag, or TLS stays off and
+the tests skip). To filter, invoke the runner directly with the built extension loaded:
 `php -n -d extension=./modules/valkey_glide.so tests/TestValkeyGlide.php --class=<ClassName> --test=<substring>`
 (`--test` is a case-insensitive substring match on method names).
 
@@ -179,7 +181,7 @@ See **Architecture Quick Facts** above for client types, API style, platforms, P
 
 **Implementation:** C extension (PHP (Zend) extension API) delegating to the glide-core Rust library over C FFI
 **Testing:** Proprietary TestSuite framework (`tests/TestSuite.php`, entry point `tests/TestValkeyGlide.php`), run via `make test`
-**Dependencies:** PHP dev headers (phpize), a C toolchain, Rust toolchain (glide-core FFI build), and the protobuf-c library + `protoc-c` compiler (`libprotobuf-c-dev` on Debian/Ubuntu)
+**Dependencies:** PHP dev headers (phpize), a C toolchain, Rust toolchain (glide-core FFI build), and the protobuf-c library + `protoc-c` compiler (`libprotobuf-c-dev` + `protobuf-c-compiler` on Debian/Ubuntu)
 
 ## If You Need More
 
