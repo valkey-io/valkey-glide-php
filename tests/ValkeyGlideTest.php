@@ -9942,6 +9942,24 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         return $client;
     }
 
+    /* A persistent client with this suite's address (no TLS or auth) */
+    protected function newPersistentInstance()
+    {
+        if ($this->valkey_glide instanceof ValkeyGlideCluster) {
+            return new ValkeyGlideCluster(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                read_from: ValkeyGlide::READ_FROM_PRIMARY,
+                persistent: true
+            );
+        }
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            persistent_id: 'prefix_test'
+        );
+        return $client;
+    }
+
     /* Collect every key matching $pattern using SCAN */
     protected function scanAllKeys($client, ?string $pattern): array
     {
@@ -10252,5 +10270,54 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
         $raw->del('rawkey');
         $client->close();
+    }
+
+    /* OPT_PREFIX belongs to the object, not to a kept persistent client: the next
+     * object that reuses the client starts without the prefix and applies its own */
+    public function testPrefixWithPersistentClientReuse()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The persistent client connects without TLS or auth');
+        }
+
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del('ppkey', "{$p}ppkey", 'other:ppkey');
+        $client_id = function ($client) {
+            return $client instanceof ValkeyGlideCluster
+                ? $client->rawCommand('ppkey', 'CLIENT', 'ID')
+                : $client->rawCommand('CLIENT', 'ID');
+        };
+
+        $client = $this->newPersistentInstance();
+        $id = $client_id($client);
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, $p));
+        $this->assertTrue($client->set('ppkey', 'first'));
+        $this->assertKeyEquals('first', "{$p}ppkey", $raw);
+        /* Releases the client to the persistent list without closing it */
+        $client = null;
+
+        /* Same configuration: the kept client is reused, without the old prefix */
+        $client = $this->newPersistentInstance();
+        $this->assertEquals($id, $client_id($client));
+        $this->assertNull($client->getOption(ValkeyGlide::OPT_PREFIX));
+        $this->assertTrue($client->set('ppkey', 'second'));
+        $this->assertKeyEquals('second', 'ppkey', $raw);
+        $this->assertKeyEquals('first', "{$p}ppkey", $raw);
+
+        /* Its own prefix applies */
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, 'other:'));
+        $this->assertTrue($client->set('ppkey', 'third'));
+        $this->assertKeyEquals('third', 'other:ppkey', $raw);
+
+        /* close() ends the kept client; the next object gets a new one and its prefix */
+        $client->close();
+        $client = $this->newPersistentInstance();
+        $this->assertNotEquals($id, $client_id($client));
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, $p));
+        $this->assertEquals('first', $client->get('ppkey'));
+
+        $client->close();
+        $raw->del('ppkey', "{$p}ppkey", 'other:ppkey');
     }
 }
