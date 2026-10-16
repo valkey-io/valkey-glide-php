@@ -4,17 +4,17 @@ This file provides AI agents and developers with the minimum but sufficient cont
 
 ## Repository Overview
 
-This is the PHP client binding for Valkey GLIDE, providing a sync client implementations. The PHP client is intended to have the same programming interface as PHPRedis, differing only when constructing instances of the client (standalone and cluster). It is implemented as a Zend extension.
+This is the PHP client binding for Valkey GLIDE, providing a synchronous (blocking) client. The PHP client is intended to have the same programming interface as PHPRedis, differing only when constructing instances of the client (standalone and cluster). It is implemented as a PHP (Zend) extension.
 
-**Primary Languages:** PHP, C (Zend Framework)
-**Build System:** Standard automake-based system for Zend extensions. phpize, configure, make, make install.
-**Architecture:** PHP API stubs implemented using the Zend Framework in C. Implementations delegate communication
+**Primary Languages:** PHP, C (PHP (Zend) extension API)
+**Build System:** Standard autoconf/libtool-based build for PHP extensions. phpize, configure, make, make install.
+**Architecture:** PHP API stubs implemented as a C extension against the PHP (Zend) extension API. Implementations delegate communication
 to the GLIDE Core written in Rust using C FFI headers.
 
 **Key Components:**
 
-- `./` - PHP API stubs (*.php.stub files),
-- `src/` - Mock classes for testing.
+- `./` - PHP API stubs (`*.stub.php` files),
+- `src/` - Mock classes for testing, plus generated protobuf C sources (`*.pb-c.c/.h`) and arginfo headers.
 - `tests/` - Test suite (primarily integration tests)
 - `config.m4` and `Makefile.frag` - Templates for configure and Makefile
 - `package.xml` - File manifest for PECL packages
@@ -23,9 +23,9 @@ to the GLIDE Core written in Rust using C FFI headers.
 
 ## Architecture Quick Facts
 
-**Core Implementation:** C wrappers around glide-core Rust library exposed through PHP's Zend framework.
+**Core Implementation:** C wrappers around the glide-core Rust library, exposed through the PHP (Zend) extension API.
 **Client Types:** ValkeyGlide and ValkeyGlideCluster represent standalone and cluster clients respectively.
-**API Styles:** Blocking API, matching PHPRedis.
+**API Style:** Blocking API, matching PHPRedis.
 **Communication:** Direct FFI (sync)
 
 **Supported Platforms:**
@@ -36,7 +36,7 @@ to the GLIDE Core written in Rust using C FFI headers.
 
 **PHP Versions:** 8.2, 8.3, 8.4, 8.5
 
-**Packages:** `valkey-io/valkey-glide-php`
+**Packages:** `valkey-io/valkey-glide-php` (Packagist, via PIE); `valkey_glide` (PECL tarball from GitHub releases)
 
 ## Connection function implementation flow
 
@@ -67,7 +67,12 @@ These methods should work generically on a `ValkeyGlide` or `ValkeyGlideCluster`
 ## Test Framework
 
 Tests are written using a proprietary test framework rather than an existing framework
-such as PHPUnit. The base class for test suites is TestSuite and it is in tests/TestSuite.php. This framework doesn't integrate into IDEs such as PhpStorm and doesn't provide a way to run individual test methods or by pattern so switching to a well-known framework may be beneficial.
+such as PHPUnit. The base class for test suites is TestSuite and it is in tests/TestSuite.php;
+the entry point is `tests/TestValkeyGlide.php`. It doesn't integrate into IDEs such as
+PhpStorm, but the runner does accept `--class` and `--test` filters (the latter a
+case-insensitive substring match on method names) when invoked directly — `make test`
+simply has no pass-through for them. Switching to a well-known framework may still be
+beneficial.
 
 ## Build and Test Rules (Agents)
 
@@ -81,6 +86,23 @@ make
 
 # Testing
 make test
+```
+
+`configure` requires the **protobuf-c** library and its `protoc-c` compiler
+(`libprotobuf-c-dev` on Debian/Ubuntu) — it aborts with "protobuf-c library not
+found" / "protoc-c not found" without them. The glide-core FFI build also needs a
+Rust toolchain.
+
+`make test` builds the servers it needs — `tests/start_valkey_with_replicas.sh`
+then `tests/create-valkey-cluster.sh` (these launch `valkey-server` directly for the
+plaintext servers and use `valkey-glide/utils/cluster_manager.py` only for the
+TLS/mTLS/auth variants) — then runs the default class list in `tests/TestValkeyGlide.php`.
+It does **not** stop the servers afterward; run `tests/stop-servers.sh` yourself when
+done. The default list omits the JSON, Search, ClientSideCache, and TLS suites — run
+those by passing `--class`. To filter, invoke the runner directly with the built
+extension loaded:
+`php -n -d extension=./modules/valkey_glide.so tests/TestValkeyGlide.php --class=<ClassName> --test=<substring>`
+(`--test` is a case-insensitive substring match on method names).
 
 ## Contribution Requirements
 
@@ -90,7 +112,7 @@ All commits must include a `Signed-off-by` line:
 
 ```bash
 # Add signoff to new commits
-git commit -s -m "feat(python): add new command implementation"
+git commit -s -m "feat(php): add new command implementation"
 
 # Configure automatic signoff
 git config --global format.signOff true
@@ -112,7 +134,7 @@ Use conventional commit format:
 [optional body]
 ```
 
-**Example:** `feat(python): implement async cluster scan with routing options`
+**Example:** `feat(php): implement cluster scan with routing options`
 
 ### Code Quality Requirements
 
@@ -128,8 +150,12 @@ Use conventional commit format:
 ./lint-c.sh --fix    # Fix
 
 # PHP code only
-./lint-php.sh        # Check
-./lint-php.sh --fix  # Fix
+./lint-php.sh          # Check
+./lint-php.sh --fix    # Fix
+
+# Markdown only
+./lint-md.sh           # Check
+./lint-md.sh --fix     # Fix
 ```
 
 ## Guardrails & Policies
@@ -142,25 +168,24 @@ See the .gitignore
 
 - [ ] Build passes: `phpize, ./configure, make` succeeds
 - [ ] All tests pass: `make test` succeeds
-- [ ] Linting passes: `./lint.sh` does not report warnings
+- [ ] Linting passes: `./lint.sh` does not report warnings (runs the C, PHP, and Markdown linters)
 - [ ] No generated outputs committed (check `.gitignore`)
 - [ ] DCO signoff present: `git log --format="%B" -n 1 | grep "Signed-off-by"`
 - [ ] Conventional commit format used
-- [ ] Documentation follows Google Style format
 
 ## Quick Facts for Reasoners
 
-**Packages:** `valkey-glide` (async), `valkey-glide-sync` (sync) on PyPI
-**API Styles:** Async (asyncio/trio), Sync (blocking)
-**Client Types:** GlideClient (standalone), GlideClusterClient (cluster) for both async/sync
-**Key Features:** Dual client architecture, shared logic, multi-async framework support
-**Testing:** pytest with async backend selection, shared test suite
-**Platforms:** Linux (Ubuntu, AL2/AL2023), macOS (Intel/Apple Silicon)
-**Dependencies:** Python 3.9+, Rust toolchain, protobuf compiler
+See **Architecture Quick Facts** above for client types, API style, platforms, PHP versions, and packages. Additional facts:
+
+**Implementation:** C extension (PHP (Zend) extension API) delegating to the glide-core Rust library over C FFI
+**Testing:** Proprietary TestSuite framework (`tests/TestSuite.php`, entry point `tests/TestValkeyGlide.php`), run via `make test`
+**Dependencies:** PHP dev headers (phpize), a C toolchain, Rust toolchain (glide-core FFI build), and the protobuf-c library + `protoc-c` compiler (`libprotobuf-c-dev` on Debian/Ubuntu)
 
 ## If You Need More
 
 - **Getting Started:** [README.md](./README.md)
 - **Development Setup:** [DEVELOPER.md](./DEVELOPER.md)
-- **Examples:** [../examples/](../examples/)
+- **Contributing:** [CONTRIBUTING.md](./CONTRIBUTING.md)
+- **Examples:** [examples/](./examples/)
 - **Test Suites:** [tests/](./tests/) directory
+- **Upstream FFI / core:** [valkey-glide](https://github.com/valkey-io/valkey-glide) (`ffi/`, `glide-core/`)
