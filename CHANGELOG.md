@@ -8,6 +8,7 @@
 
 ### Changes
 
+* Fix `ValkeyGlide::connect()` ignoring a PHPRedis-style `$timeout` passed as an int or numeric string (for example `connect('localhost', 6379, 5)`): it was read as a raw double, so the 5 second default request timeout was used instead. It is now converted to a float ([#366](https://github.com/valkey-io/valkey-glide-php/issues/366))
 * Add `HGETDEL` command for standalone and cluster clients ([#343](https://github.com/valkey-io/valkey-glide-php/pull/343))
 * Add PHP 8.4 and 8.5 to the supported versions and the CI test matrix
 * Add `READ_FROM_AZ_AFFINITY_ALL_NODES` read strategy for standalone and cluster clients ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
