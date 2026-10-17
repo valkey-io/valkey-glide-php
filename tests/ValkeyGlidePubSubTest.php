@@ -972,7 +972,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             null,
             $env
         );
-        $this->assertTrue(is_resource($server));
+        if (!$this->assertTrue(is_resource($server), 'Failed to start the web server')) {
+            return;
+        }
 
         $publisher = null;
         try {
@@ -991,7 +993,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
                         usleep(100000);
                     }
                 }
-                $this->assertTrue((bool) $socket, 'The web server did not answer');
+                if (!$this->assertTrue((bool) $socket, 'The web server did not answer')) {
+                    return;
+                }
                 fwrite($socket, "GET /?$query HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n");
                 stream_set_blocking($socket, false);
 
