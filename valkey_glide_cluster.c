@@ -43,6 +43,14 @@ static int valkey_glide_cluster_create_connection(
     valkey_glide_php_common_constructor_params_t common_params,
     zend_long                                    periodic_checks,
     zend_bool                                    periodic_checks_is_null) {
+    /* Constructing again would drop the current client without releasing it */
+    if (valkey_glide->glide_client != NULL) {
+        const char* error_message = "ValkeyGlideCluster is already connected";
+        VALKEY_LOG_ERROR("cluster_construct", error_message);
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+        return FAILURE;
+    }
+
     /* Validate addresses - cluster mode requires at least one address */
     if (common_params.addresses == NULL || Z_TYPE_P(common_params.addresses) != IS_ARRAY ||
         zend_hash_num_elements(Z_ARRVAL_P(common_params.addresses)) == 0) {
@@ -93,6 +101,16 @@ static int valkey_glide_cluster_create_connection(
     AddressResolverCallback   resolver_cb = NULL;
     const ConnectionResponse* conn_resp = create_glide_cluster_client(&client_config, &resolver_cb);
 
+    /* No response: building the request failed (an exception is pending) */
+    if (!conn_resp) {
+        if (!EG(exception)) {
+            zend_throw_exception(
+                get_valkey_glide_exception_ce(), "Failed to build the connection request", 0);
+        }
+        valkey_glide_cleanup_client_config(&client_config.base);
+        return FAILURE;
+    }
+
     if (conn_resp->connection_error_message) {
         VALKEY_LOG_ERROR("cluster_construct", conn_resp->connection_error_message);
         zend_throw_exception(
@@ -104,6 +122,7 @@ static int valkey_glide_cluster_create_connection(
     } else {
         VALKEY_LOG_INFO("cluster_construct", "ValkeyGlide cluster client created successfully");
         valkey_glide->glide_client = conn_resp->conn_ptr;
+        valkey_glide->client_pid   = getpid();
         valkey_glide->resolver_cb  = resolver_cb;
     }
 
@@ -314,10 +333,7 @@ PHP_METHOD(ValkeyGlideCluster, close) {
 
     valkey_glide_clear_batch_state(valkey_glide);
 
-    if (valkey_glide->glide_client) {
-        close_glide_client(valkey_glide->glide_client);
-        valkey_glide->glide_client = NULL;
-    }
+    valkey_glide_close_client(valkey_glide);
 
     /* Mark resolver as closed so background Rust threads get immediate
        fallback instead of calling into PHP. Memory freed at RSHUTDOWN. */
