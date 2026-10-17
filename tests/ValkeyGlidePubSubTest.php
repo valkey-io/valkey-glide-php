@@ -117,6 +117,26 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         return implode(' ', $cmd_parts);
     }
 
+    /* Wait for the result a subscriber script writes, and return it (null on
+     * timeout). The script creates the file and then writes it, so a file that
+     * exists but is empty is still being written: keep polling until it has
+     * content instead of reading it on first sight. */
+    private function waitForResult(string $result_file, float $seconds = 3.0): ?string
+    {
+        $deadline = microtime(true) + $seconds;
+        do {
+            if (file_exists($result_file)) {
+                $content = file_get_contents($result_file);
+                if ($content !== false && $content !== '') {
+                    return $content;
+                }
+            }
+            usleep(100000);
+        } while (microtime(true) < $deadline);
+
+        return null;
+    }
+
     public function testPubSubPublish()
     {
         // Test publish command works with 0 subscribers
@@ -577,18 +597,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $pub->publish($channel, 'trigger');
         $pub->close();
 
-        $success = false;
-        $timeout = time() + 3;
-        while (!$success && time() < $timeout) {
-            if (file_exists($result_file)) {
-                $content = file_get_contents($result_file);
-                if ($content === 'PASS') {
-                    $success = true;
-                }
-                break;
-            }
-            usleep(100000);
-        }
+        $content = $this->waitForResult($result_file);
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -599,7 +608,10 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($result_file);
         @unlink($error_file);
 
-        $this->assertTrue($success, 'Commands should be blocked during subscribe mode');
+        $this->assertTrue(
+            $content === 'PASS',
+            'Commands should be blocked during subscribe mode (result: ' . var_export($content, true) . ')'
+        );
     }
 
     public function testPubSubModalModeBlocksSubscribe()
@@ -654,18 +666,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $pub->publish($channel, 'trigger');
         $pub->close();
 
-        $success = false;
-        $timeout = time() + 3;
-        while (!$success && time() < $timeout) {
-            if (file_exists($result_file)) {
-                $content = file_get_contents($result_file);
-                if ($content === 'PASS') {
-                    $success = true;
-                }
-                break;
-            }
-            usleep(100000);
-        }
+        $content = $this->waitForResult($result_file);
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -676,7 +677,10 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($result_file);
         @unlink($error_file);
 
-        $this->assertTrue($success, 'Subscribe should be blocked during subscribe mode');
+        $this->assertTrue(
+            $content === 'PASS',
+            'Subscribe should be blocked during subscribe mode (result: ' . var_export($content, true) . ')'
+        );
     }
 
     public function testPubSubPSubscribe()
@@ -838,23 +842,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $pub->publish($channel2, 'bong');
         $pub->close();
 
-        $success = false;
-        $timeout = time() + 3;
-        while (!$success && time() < $timeout) {
-            if (file_exists($result_file)) {
-                $content = file_get_contents($result_file);
-                $messages = explode(',', $content);
-                // Should have received bing on channel1 and bong on channel2, but NOT should_not_receive
-                $this->assertContains($channel1 . ':bing', $messages);
-                $this->assertContains($channel2 . ':bong', $messages);
-                // Verify we didn't receive message after unsubscribing from channel1
-                $has_should_not_receive = in_array($channel1 . ':should_not_receive', $messages);
-                $this->assertFalse($has_should_not_receive);
-                $success = true;
-                break;
-            }
-            usleep(100000);
-        }
+        $content = $this->waitForResult($result_file);
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -865,7 +853,14 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($result_file);
         @unlink($error_file);
 
-        $this->assertTrue($success);
+        $this->assertNotNull($content);
+        $messages = $content === null ? [] : explode(',', $content);
+        // Should have received bing on channel1 and bong on channel2, but NOT should_not_receive
+        $this->assertContains($channel1 . ':bing', $messages);
+        $this->assertContains($channel2 . ':bong', $messages);
+        // Verify we didn't receive message after unsubscribing from channel1
+        $has_should_not_receive = in_array($channel1 . ':should_not_receive', $messages);
+        $this->assertFalse($has_should_not_receive);
     }
 
     public function testPubSubUnsubscribeNonExistentChannel()
@@ -943,5 +938,78 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($error_file);
 
         $this->assertTrue($success, 'Should still receive messages after unsubscribing from non-existent channel');
+    }
+
+    /* The pub/sub callback registry is request memory: a PHP-FPM style worker must
+     * be able to subscribe again in later requests after it was released */
+    public function testSubscribeInConsecutiveRequests()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The web server helper connects without TLS or auth');
+        }
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped('proc_open is not available');
+        }
+
+        $probe = stream_socket_server('tcp://127.0.0.1:0');
+        $web_port = (int) substr(strrchr(stream_socket_get_name($probe, false), ':'), 1);
+        fclose($probe);
+
+        $extension_path = __DIR__ . '/../modules/valkey_glide.so';
+        $extension = file_exists($extension_path) ? $extension_path : 'valkey_glide';
+        /* One server process, so every request runs in the same worker */
+        $env = getenv();
+        unset($env['PHP_CLI_SERVER_WORKERS']);
+        $server = proc_open(
+            [PHP_BINARY, '-n', '-d', "extension=$extension", '-S', "127.0.0.1:$web_port", __DIR__ . '/scripts/pubsub_web.php'],
+            [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']],
+            $pipes,
+            null,
+            $env
+        );
+        $this->assertTrue(is_resource($server));
+
+        $publisher = null;
+        try {
+            $publisher = new ValkeyGlide();
+            $publisher->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+
+            for ($request = 1; $request <= 3; $request++) {
+                $channel = 'pubsub_requests_' . uniqid();
+                $query = http_build_query(['host' => $this->getHost(), 'port' => $this->getPort(), 'channel' => $channel]);
+
+                /* Wait for the server to start */
+                $socket = false;
+                for ($attempt = 0; $attempt < 50 && !$socket; $attempt++) {
+                    $socket = @stream_socket_client("tcp://127.0.0.1:$web_port", $errno, $errstr, 1);
+                    if (!$socket) {
+                        usleep(100000);
+                    }
+                }
+                $this->assertTrue((bool) $socket, 'The web server did not answer');
+                fwrite($socket, "GET /?$query HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n");
+                stream_set_blocking($socket, false);
+
+                /* Publish until the request (subscribed, then unsubscribed on the first message) returns */
+                $response = '';
+                $deadline = microtime(true) + 5;
+                while (!feof($socket) && microtime(true) < $deadline) {
+                    $publisher->publish($channel, "message $request");
+                    $read = [$socket];
+                    $write = $except = null;
+                    if (stream_select($read, $write, $except, 0, 100000)) {
+                        $response .= fread($socket, 8192);
+                    }
+                }
+                fclose($socket);
+
+                $body = substr($response, (int) strpos($response, "\r\n\r\n") + 4);
+                $this->assertEquals(['received' => "message $request"], json_decode($body, true));
+            }
+        } finally {
+            $publisher?->close();
+            proc_terminate($server);
+            proc_close($server);
+        }
     }
 }

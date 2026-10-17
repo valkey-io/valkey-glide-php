@@ -2264,6 +2264,38 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         return call_user_func_array([$this->valkey_glide, 'rawCommand'], $args);
     }
 
+    /* Constructing a connected cluster client again must not drop its client */
+    public function testConstructWhenAlreadyConnected()
+    {
+        $client = $this->newInstance();
+        $this->assertThrowsMatch($client, function ($c) {
+            $c->__construct(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        }, '/already connected/');
+        $this->assertTrue($client->ping('{key}'));
+        $client->close();
+    }
+
+    public function testEmptyOrDiscardedMultiReportsFailedUnwatch()
+    {
+        $this->markTestSkipped('Needs the same ACL user on every node');
+    }
+
+    /* Collect every key matching $pattern across all primaries using cluster SCAN */
+    protected function scanAllKeys($client, ?string $pattern): array
+    {
+        $keys = [];
+        $cursor = new ClusterScanCursor();
+        do {
+            $batch = $client->scan($cursor, $pattern, 1000);
+            if (is_array($batch)) {
+                $keys = array_merge($keys, $batch);
+            }
+            $cursor = new ClusterScanCursor($cursor->getNextCursor());
+        } while (!$cursor->isFinished());
+        sort($keys);
+        return $keys;
+    }
+
     /* Test that rawCommand and EVAL can be configured to return simple string values */
     public function testReplyLiteral()
     {

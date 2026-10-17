@@ -26,6 +26,8 @@
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
 #include "valkey_glide_hash_common.h"
+#include "valkey_glide_persistent.h"
+#include "valkey_glide_prefix.h"
 #include "valkey_glide_z_common.h"
 
 /* Helper functions for batch state management */
@@ -211,6 +213,14 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
         }
     }
 
+    /* Apply OPT_PREFIX now; the prefixed arguments are copied below */
+    valkey_glide_prefixed_args_t prefixed;
+    if (valkey_glide_prefix_command_args(
+            valkey_glide, cmd_type, arg_count, args, arg_lengths, &prefixed)) {
+        args        = prefixed.args;
+        arg_lengths = prefixed.args_len;
+    }
+
     struct batch_command* cmd = &valkey_glide->buffered_commands[valkey_glide->command_count];
 
     /* Store command details */
@@ -245,6 +255,8 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
         cmd->args        = NULL;
         cmd->arg_lengths = NULL;
     }
+
+    valkey_glide_prefixed_args_free(&prefixed);
 
     valkey_glide->command_count++;
     return 1;
@@ -599,7 +611,7 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
 
             /* Use shared internal helper */
             return execute_function_load_internal(
-                valkey_glide, library_code, library_code_len, replace, return_value);
+                object, valkey_glide, library_code, library_code_len, replace, return_value);
         } else if (strcasecmp(operation, "DELETE") == 0) {
             /* DELETE expects: library_name */
             if (args_count < 1) {
@@ -678,8 +690,8 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
     valkey_glide_object* valkey_glide;
     char*                operation = NULL;
     size_t               operation_len;
-    zval*                z_args;
-    int                  args_count;
+    zval*                z_args       = NULL;
+    int                  args_count   = 0;
     int                  param_offset = 0;
 
     /* Check if this is a cluster call (has route parameter first) */
@@ -893,6 +905,26 @@ int execute_pipeline_command(zval* object, int argc, zval* return_value, zend_cl
 }
 
 /* Execute a DISCARD command using the Valkey Glide client - UPDATED FOR BUFFERING */
+/* MULTI is buffered client-side, so a transaction that never reaches the server
+ * (empty, or discarded) must clear WATCH itself, as the server's EXEC/DISCARD would.
+ * UNWATCH is routed to all primaries in cluster mode. Returns false if it failed;
+ * the error is available from getLastError(). */
+static bool unwatch_for_client_side_transaction(valkey_glide_object* valkey_glide) {
+    CommandResult* result = execute_command(valkey_glide->glide_client, UnWatch, 0, NULL, NULL);
+    bool           ok     = result && !result->command_error;
+    if (!ok) {
+        if (result) {
+            valkey_glide_record_command_error(valkey_glide, result);
+        } else {
+            valkey_glide_set_last_error(valkey_glide, "UNWATCH failed");
+        }
+    }
+    if (result) {
+        free_command_result(result);
+    }
+    return ok;
+}
+
 int execute_discard_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
 
@@ -910,7 +942,12 @@ int execute_discard_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Clear batch state if we're in batch mode */
     if (valkey_glide->is_in_batch_mode) {
+        bool is_multi = valkey_glide->batch_type == MULTI;
         valkey_glide_clear_batch_state(valkey_glide);
+        if (is_multi && !unwatch_for_client_side_transaction(valkey_glide)) {
+            ZVAL_FALSE(return_value);
+            return 0;
+        }
         ZVAL_TRUE(return_value);
         return 1;
     } else {
@@ -936,9 +973,21 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     }
 
     /* Check if we're in batch mode and have buffered commands */
-    if (!valkey_glide->is_in_batch_mode || valkey_glide->command_count == 0) {
+    if (!valkey_glide->is_in_batch_mode) {
         ZVAL_FALSE(return_value);
         return 0;
+    }
+
+    /* An empty multi()/pipeline() returns an empty array and leaves batch mode, as in PHPRedis */
+    if (valkey_glide->command_count == 0) {
+        bool is_multi = valkey_glide->batch_type == MULTI;
+        valkey_glide_clear_batch_state(valkey_glide);
+        if (is_multi && !unwatch_for_client_side_transaction(valkey_glide)) {
+            ZVAL_FALSE(return_value);
+            return 0;
+        }
+        array_init(return_value);
+        return 1;
     }
 
     /* Convert buffered commands to FFI BatchInfo structure */
@@ -1007,6 +1056,12 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
             return 0;
         }
         status = 1; /* Assume success unless we find issues */
+        /* EXEC ran on the server, which clears WATCH. In a cluster it ran on
+         * one node only, while WATCH may cover others: keep the flag so the
+         * release-time UNWATCH (sent to all primaries) clears them */
+        if (valkey_glide->batch_type == MULTI && ce != get_valkey_glide_cluster_ce()) {
+            valkey_glide->persistent_watching = false;
+        }
         if (result->response) {
             if (result->response->response_type != Array ||
                 result->response->array_value_len != valkey_glide->command_count) {
@@ -1970,6 +2025,22 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
         return 0;
     }
 
+    /* CLIENT SETNAME, TRACKING, REPLY, ... change the connection's state */
+    int sub_idx = (is_cluster && !valkey_glide->is_in_batch_mode && arg_count >= 2) ? 1 : 0;
+    if (arg_count > sub_idx) {
+        /* Convert in place, so the check sees the subcommand that is sent */
+        if (Z_TYPE(z_args[sub_idx]) != IS_STRING) {
+            convert_to_string(&z_args[sub_idx]);
+            if (EG(exception)) {
+                return 0;
+            }
+        }
+        if (valkey_glide_command_changes_connection_state(
+                "CLIENT", 6, Z_STRVAL(z_args[sub_idx]), Z_STRLEN(z_args[sub_idx]))) {
+            valkey_glide_mark_connection_state_changed(valkey_glide);
+        }
+    }
+
     /* Check if we're in batch mode */
     if (valkey_glide->is_in_batch_mode) {
         /* In batch mode, ignore routing and treat all arguments as command arguments */
@@ -2097,6 +2168,26 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
         if (zend_parse_method_parameters(argc, object, "O+", &object, ce, &z_args, &arg_count) ==
             FAILURE) {
             return 0;
+        }
+    }
+
+    /* SELECT, AUTH, CLIENT SETNAME, SUBSCRIBE, ... change the connection's state.
+     * Convert the name and subcommand in place first, so the check sees the
+     * bytes that are sent (a Stringable converts once). */
+    for (int i = 0; i < arg_count && i < 2; i++) {
+        if (Z_TYPE(z_args[i]) != IS_STRING) {
+            convert_to_string(&z_args[i]);
+            if (EG(exception)) {
+                return 0;
+            }
+        }
+    }
+    {
+        const char* sub     = arg_count > 1 ? Z_STRVAL(z_args[1]) : NULL;
+        size_t      sub_len = arg_count > 1 ? Z_STRLEN(z_args[1]) : 0;
+        if (valkey_glide_command_changes_connection_state(
+                Z_STRVAL(z_args[0]), Z_STRLEN(z_args[0]), sub, sub_len)) {
+            valkey_glide_mark_connection_state_changed(valkey_glide);
         }
     }
 

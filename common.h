@@ -9,6 +9,8 @@
  * glide-core that validate_printable_ascii() below depends on. Use explicit byte
  * ranges instead. */
 #include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <zend_smart_str.h>
 
 #include "include/glide_bindings.h"
@@ -411,8 +413,17 @@ struct batch_command {
 
 /* Client runtime options - matching PHPRedis behavior */
 typedef enum {
-    VALKEY_GLIDE_OPT_REPLY_LITERAL = 1 /* Return "OK" string instead of true for Ok responses */
+    VALKEY_GLIDE_OPT_REPLY_LITERAL = 1, /* Return "OK" string instead of true for Ok responses */
+    VALKEY_GLIDE_OPT_PREFIX        = 2, /* Key prefix applied to every key argument */
+    VALKEY_GLIDE_OPT_SCAN          = 4  /* SCAN behaviour (only SCAN_PREFIX/SCAN_NOPREFIX) */
 } valkey_glide_option_t;
+
+/* Persistent client entry (valkey_glide_persistent.c) */
+typedef struct valkey_glide_persistent_client valkey_glide_persistent_client_t;
+
+/* OPT_SCAN values, numerically identical to PHPRedis */
+#define VALKEY_GLIDE_SCAN_PREFIX 2   /* Prefix the SCAN MATCH pattern with OPT_PREFIX */
+#define VALKEY_GLIDE_SCAN_NOPREFIX 3 /* Send the SCAN MATCH pattern unchanged (default) */
 
 typedef struct {
     const void*           glide_client; /* Valkey Glide client pointer */
@@ -423,12 +434,23 @@ typedef struct {
     bool                  is_in_batch_mode;
 
     /* Runtime options (like PHPRedis OPT_* settings) */
-    bool opt_reply_literal; /* OPT_REPLY_LITERAL: return "OK" string instead of true */
+    bool         opt_reply_literal; /* OPT_REPLY_LITERAL: return "OK" string instead of true */
+    zend_string* prefix;            /* OPT_PREFIX: key prefix, NULL if unset */
+    bool         scan_prefix;       /* OPT_SCAN == SCAN_PREFIX: prefix the SCAN MATCH pattern */
 
     AddressResolverCallback resolver_cb; /* NULL if no address resolver */
 
+    /* Persistent client (persistent_id / $persistent), NULL if not persistent */
+    valkey_glide_persistent_client_t* persistent;
+    zend_string*                      persistent_key;
+    bool persistent_dirty;    /* request changed connection state (SELECT, ...): do not reuse */
+    bool persistent_watching; /* WATCH may be active: UNWATCH before the client is reused */
+    bool persistent_selected; /* select() was called: restore the configured database */
+
     /* Last command error message (PHPRedis getLastError/clearLastError), NULL if none */
     zend_string* last_error;
+
+    pid_t client_pid; /* process that created glide_client (fork detection) */
 
     zend_object std; /* MUST be last - PHP allocates extra memory after this */
 } valkey_glide_object;

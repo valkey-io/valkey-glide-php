@@ -22,6 +22,7 @@
 #include "logger.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_otel.h"
+#include "valkey_glide_prefix.h"
 
 #define DEBUG_COMMAND_RESPONSE_TO_ZVAL 0
 
@@ -309,6 +310,14 @@ CommandResult* execute_command_with_route(const void*          glide_client,
         return NULL;
     }
 
+    /* Apply the client's OPT_PREFIX to key arguments */
+    valkey_glide_prefixed_args_t prefixed;
+    if (valkey_glide_prefix_client_args(
+            glide_client, command_type, arg_count, args, args_len, &prefixed)) {
+        args     = prefixed.args;
+        args_len = prefixed.args_len;
+    }
+
     /* Create OTEL span for tracing */
     uint64_t span_ptr = valkey_glide_create_span(command_type);
 
@@ -326,6 +335,7 @@ CommandResult* execute_command_with_route(const void*          glide_client,
 
     /* Cleanup span */
     valkey_glide_drop_span(span_ptr);
+    valkey_glide_prefixed_args_free(&prefixed);
 
     /* Free route allocations */
     cleanup_route(route_bytes, &route);
@@ -355,6 +365,14 @@ CommandResult* execute_command(const void*          glide_client,
         return NULL;
     }
 
+    /* Apply the client's OPT_PREFIX to key arguments */
+    valkey_glide_prefixed_args_t prefixed;
+    if (valkey_glide_prefix_client_args(
+            glide_client, command_type, arg_count, args, args_len, &prefixed)) {
+        args     = prefixed.args;
+        args_len = prefixed.args_len;
+    }
+
     /* Create OTEL span for tracing */
     uint64_t span_ptr = valkey_glide_create_span(command_type);
 
@@ -372,6 +390,7 @@ CommandResult* execute_command(const void*          glide_client,
 
     /* Cleanup span */
     valkey_glide_drop_span(span_ptr);
+    valkey_glide_prefixed_args_free(&prefixed);
 
     return result;
 }

@@ -3,6 +3,8 @@
 #include "include/glide_bindings.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
+#include "valkey_glide_prefix.h"
+#include "valkey_glide_z_common.h"
 
 // Helper macros for validating CommandResult in script commands
 #define VALIDATE_SCRIPT_RESULT_OR_RETURN_FALSE(valkey_glide, result)       \
@@ -121,6 +123,16 @@ void execute_script_flush_command(zval* object, zval* return_value, bool is_clus
 }
 
 
+// Batch result processor for eval-style commands. A Lua nil is a valid reply,
+// so it is returned as null (as outside a batch) rather than as a failure.
+static int process_eval_response(CommandResponse* response, void* output, zval* return_value) {
+    if (response && response->response_type == Null) {
+        ZVAL_NULL(return_value);
+        return 1;
+    }
+    return command_response_to_zval(response, return_value, 0, false);
+}
+
 // Helper to build and execute eval-style commands
 static void execute_eval_style_command(const char* cmd_name,
                                        size_t      cmd_len,
@@ -182,9 +194,39 @@ static void execute_eval_style_command(const char* cmd_name,
         ZEND_HASH_FOREACH_END();
     }
 
-    CommandResult* result = execute_command(
-        valkey_glide->glide_client, CustomCommand, cmd_count, cmd_args, cmd_args_len);
+    /* Sent as CustomCommand, so apply OPT_PREFIX to the KEYS portion here */
+    valkey_glide_prefixed_args_t prefixed;
+    bool                         is_prefixed = valkey_glide_prefix_arg_range(
+        valkey_glide, cmd_count, cmd_args, cmd_args_len, 3, keys_count, &prefixed);
 
+    /* In multi() / pipeline(), queue the command and return $this for chaining */
+    if (valkey_glide->is_in_batch_mode) {
+        int res = buffer_command_for_batch(valkey_glide,
+                                           CustomCommand,
+                                           is_prefixed ? prefixed.args : cmd_args,
+                                           is_prefixed ? prefixed.args_len : cmd_args_len,
+                                           cmd_count,
+                                           NULL,
+                                           process_eval_response);
+
+        valkey_glide_prefixed_args_free(&prefixed);
+        efree(cmd_args);
+        efree(cmd_args_len);
+
+        if (!res) {
+            RETURN_FALSE;
+        }
+        ZVAL_COPY(return_value, object);
+        return;
+    }
+
+    CommandResult* result = execute_command(valkey_glide->glide_client,
+                                            CustomCommand,
+                                            cmd_count,
+                                            is_prefixed ? prefixed.args : cmd_args,
+                                            is_prefixed ? prefixed.args_len : cmd_args_len);
+
+    valkey_glide_prefixed_args_free(&prefixed);
     efree(cmd_args);
     efree(cmd_args_len);
 

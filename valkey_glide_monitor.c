@@ -89,6 +89,16 @@ zend_object* create_valkey_glide_monitor_object(zend_class_entry* ce) {
 /* Stop the monitor and release its connection + queue state. Idempotent. */
 static void valkey_glide_monitor_teardown(valkey_glide_monitor_object* obj) {
     if (obj->monitor_client_ptr) {
+        if (obj->client_pid != getpid()) {
+            /* Inherited through fork(): the producer thread is not in this
+             * process, and a lock it held at fork() would never be released.
+             * Forget the connection and its state (the parent owns them)
+             * without closing or locking anything; closing it from the child
+             * crashes or hangs. */
+            obj->monitor_client_ptr = NULL;
+            obj->info               = NULL;
+            return;
+        }
         /* Close the FFI connection FIRST so the background producer stops
          * before we free the callback state it writes into. */
         close_monitor_client(obj->monitor_client_ptr);
@@ -277,6 +287,7 @@ PHP_METHOD(ValkeyGlideMonitor, __construct) {
 
     obj->monitor_client_ptr = monitor_client_ptr;
     obj->info               = info;
+    obj->client_pid         = getpid();
 }
 
 /* ------------------------------------------------------------------ */

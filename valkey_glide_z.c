@@ -1687,15 +1687,11 @@ int execute_zmpop_command_internal(valkey_glide_object* valkey_glide,
             valkey_glide, cmd_type, args, args_len, arg_count, NULL, process_zmpop_result);
     } else {
         /* Execute the command */
-        cmd_result = command(valkey_glide->glide_client,
-                             0,         /* channel */
-                             cmd_type,  /* command type */
-                             arg_count, /* number of arguments */
-                             args,      /* arguments */
-                             args_len,  /* argument lengths */
-                             NULL,      /* route bytes */
-                             0,         /* route bytes length */
-                             0          /* span_ptr */
+        cmd_result = execute_command(valkey_glide->glide_client,
+                                     cmd_type,  /* command type */
+                                     arg_count, /* number of arguments */
+                                     args,      /* arguments */
+                                     args_len   /* argument lengths */
         );
     }
 
@@ -1844,7 +1840,7 @@ int execute_zmpop_command(zval* object, int argc, zval* return_value, zend_class
 int execute_zadd_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     char*  key = NULL;
     size_t key_len;
-    zval*  z_args;
+    zval*  z_args              = NULL;
     int    variadic_argc       = 0;
     int    flags               = 0; /* No flags by default */
     long   result_value        = 0;
