@@ -1844,7 +1844,7 @@ int execute_zmpop_command(zval* object, int argc, zval* return_value, zend_class
 int execute_zadd_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     char*  key = NULL;
     size_t key_len;
-    zval*  z_args;
+    zval*  z_args              = NULL;
     int    variadic_argc       = 0;
     int    flags               = 0; /* No flags by default */
     long   result_value        = 0;
