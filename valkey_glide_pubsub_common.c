@@ -171,16 +171,6 @@ void cleanup_callback_info(zval* zv) {
     }
 }
 
-// Cleanup callback info for pointer-based storage
-void cleanup_callback_info_ptr(void* ptr) {
-    pubsub_callback_info* info = (pubsub_callback_info*) ptr;
-    if (info) {
-        zval_dtor(&info->callback);
-        zval_dtor(&info->client_obj);
-        efree(info);
-    }
-}
-
 // C callback handler for FFI
 void pubsub_callback_handler(uintptr_t      client_ptr,
                              int            kind,
@@ -764,6 +754,17 @@ void valkey_glide_pubsub_callback(uintptr_t      client_adapter_ptr,
     }
 }
 
+
+// Request shutdown: the table and its entries are request memory, so release
+// them before a later request in the same worker (PHP-FPM) can use them
+void valkey_glide_pubsub_request_shutdown(void) {
+    if (pubsub_callbacks_initialized) {
+        /* Clear the flag first so nothing looks entries up while the table
+         * is being destroyed */
+        pubsub_callbacks_initialized = false;
+        zend_hash_destroy(&pubsub_callbacks);
+    }
+}
 
 // Shutdown function
 void valkey_glide_pubsub_shutdown(void) {

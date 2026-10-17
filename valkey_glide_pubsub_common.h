@@ -89,7 +89,6 @@ void cond_destroy(cond_t* c);
 // Pubsub management functions
 void  init_pubsub_callbacks(void);
 void  cleanup_callback_info(zval* zv);
-void  cleanup_callback_info_ptr(void* ptr);
 void  php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* client_obj);
 void  php_unregister_pubsub_callback(uintptr_t client_ptr);
 zval* find_pubsub_callback(const char* client_key);
@@ -112,6 +111,7 @@ void  valkey_glide_pubsub_callback(uintptr_t      client_adapter_ptr,
                                    const uint8_t* pattern,
                                    int64_t        pattern_len);
 void  valkey_glide_pubsub_shutdown(void);
+void  valkey_glide_pubsub_request_shutdown(void);
 
 // Common pubsub method implementations
 void valkey_glide_subscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
