@@ -394,7 +394,13 @@ class ValkeyGlide
      * @param string|null $host Hostname
      * @param int|null $port Port number (default: 6379, used with $host)
      * @param float|null $timeout Connection timeout in seconds
-     * @param string|null $persistent_id Persistent connection ID (not implemented)
+     * @param string|null $persistent_id Keep the client open after the request ends and reuse it
+     *                                   in later requests of the same worker process (e.g.
+     *                                   PHP-FPM) that use the same ID and configuration. See
+     *                                   "Persistent Clients" in the README for when a kept
+     *                                   client is reused or closed. An empty string is ignored,
+     *                                   as in PHPRedis (use pconnect() for a persistent client
+     *                                   without an ID).
      * @param int|null $retry_interval Retry interval in milliseconds (not implemented)
      * @param float|null $read_timeout Read timeout in seconds (not implemented)
      * @param array|null $addresses Server addresses array: [['host' => 'x', 'port' => y], ...] (ValkeyGlide-style)
@@ -467,6 +473,46 @@ class ValkeyGlide
      * $client->connect();  // Connects to localhost:6379
      */
     public function connect(
+        ?string $host = null,
+        ?int $port = null,
+        ?float $timeout = null,
+        ?string $persistent_id = null,
+        ?int $retry_interval = null,
+        ?float $read_timeout = null,
+        ?array $addresses = null,
+        ?bool $use_tls = null,
+        ?array $credentials = null,
+        ?int $read_from = null,
+        ?int $request_timeout = null,
+        ?array $reconnect_strategy = null,
+        ?int $database_id = null,
+        ?string $client_name = null,
+        ?string $client_az = null,
+        ?array $advanced_config = null,
+        ?bool $lazy_connect = null,
+        resource|array|null $context = null,
+        ?array $compression = null,
+        ?array $client_side_cache = null,
+        ?callable $address_resolver = null,
+        ?array $circuit_breaker = null,
+        ?int $node_discovery_mode = null,
+        ?string $lib_name = null,
+        ?string $client_info_tag = null,
+    ): bool;
+
+    /**
+     * Connect with a persistent client: same as connect(), but the client is
+     * kept open after the request and reused by later requests in this worker
+     * process that use the same persistent_id (default: none) and
+     * configuration. The client is not kept when valkey_glide.max_persistent_clients
+     * is 0. See "Persistent Clients" in the README.
+     *
+     * The parameters, return value and exceptions are identical to connect(),
+     * except that an empty persistent_id is not ignored: it is the same as none.
+     *
+     * @see ValkeyGlide::connect
+     */
+    public function pconnect(
         ?string $host = null,
         ?int $port = null,
         ?float $timeout = null,

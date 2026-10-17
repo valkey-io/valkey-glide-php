@@ -122,6 +122,15 @@ typedef struct ClientAdapter ClientAdapter;
 
 /* Function to close a Valkey Glide client */
 void close_glide_client(const void* glide_client);
+
+/* Close the object's client and clear the handle. A client inherited through
+ * fork() is only forgotten: closing it from the child crashes or hangs, and
+ * the parent still owns it. */
+void valkey_glide_close_client(valkey_glide_object* valkey_glide);
+
+/* Exception message for a client used after fork() */
+#define VALKEY_GLIDE_FORK_ERROR "Cannot use a client created before fork() in the child process"
+
 void free_command_response(CommandResponse* command_response_ptr);
 void free_command_result(CommandResult* command_result_ptr);
 
