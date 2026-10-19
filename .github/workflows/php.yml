@@ -825,6 +825,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Configure APT retries
+        uses: ./.github/actions/configure-apt-retries
+
       - name: Set up PHP
         uses: shivammathur/setup-php@728c6c6b8cf02c2e48117716a91ee48313958a19 # v2
         with:
@@ -854,9 +857,9 @@ jobs:
           if ! apt-cache show clang-format-18 > /dev/null 2>&1; then
             wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
             echo "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
-            sudo apt-get -o Acquire::Retries=5 update
+            sudo apt-get update
           fi
-          sudo apt-get -o Acquire::Retries=5 install -y clang-format-18
+          sudo apt-get install -y clang-format-18
           sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
 
           # Install markdownlint-cli for markdown linting.
