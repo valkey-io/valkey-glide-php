@@ -763,7 +763,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $result = null;
         $timeout = microtime(true) + 5;
         while ($result === null && microtime(true) < $timeout) {
-            $result = $this->waitForFileContent($result_file, 'PASS', 0.1);
+            $result = $this->waitForFileToHaveContent($result_file, 0.1);
             if ($result !== null) {
                 break;
             }
