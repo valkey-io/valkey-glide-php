@@ -240,6 +240,9 @@ jobs:
           else
             pip install "click==8.1.7"
           fi
+          # Pluggy 1.7.0 causes scancode to fail:
+          # https://github.com/aboutcode-org/scancode-toolkit/issues/5363
+          pip install "pluggy<1.7.0"
           pip install scancode-toolkit
 
       - name: Install and setup aboutcode-toolkit
