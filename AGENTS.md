@@ -89,11 +89,17 @@ make test
 ```
 
 The build needs the **protobuf-c** library (`libprotobuf-c-dev`) and its `protoc-c`
-compiler (`protobuf-c-compiler`), plus a Rust toolchain for the glide-core FFI. The
-library is required to link; `protoc-c` generates the `*.pb-c.c` sources. A normal
-checkout defers that generation to `make` (configure prints "protobuf files will be
-generated during make"), so a missing `protoc-c` surfaces at build time; the PECL
-build path generates at configure and aborts there if `protoc-c` is absent.
+compiler (`protobuf-c-compiler`), plus a Rust toolchain and `cbindgen` for the
+glide-core FFI. On Linux `configure` aborts if the protobuf-c library is missing. When
+`protoc-c` is on PATH, `configure` generates the `src/*.pb-c.c` sources itself; without
+it, `configure` prints "protobuf files will be generated during make", but `make` cannot
+generate them either and the build fails on the missing sources. The PECL tarball build
+(has `.submodule-commits`) aborts at `configure` instead.
+
+Before the first `make test`, run `composer install` and generate the PHP protobuf
+classes the ConnectionRequest suite loads from `tests/Connection_request/`:
+`protoc --proto_path=valkey-glide/glide-core/src/protobuf --php_out=tests/ valkey-glide/glide-core/src/protobuf/connection_request.proto`.
+Neither is needed for the build itself.
 
 `make test` starts the servers it needs — `tests/start_valkey_with_replicas.sh`
 then `tests/create-valkey-cluster.sh` (these launch `valkey-server` directly for the
@@ -102,9 +108,11 @@ TLS/mTLS/auth variants) — then runs the default class list in `tests/TestValke
 It does **not** stop the servers afterward; run `tests/stop-servers.sh` yourself when
 done. The default list omits the JSON, Search, ClientSideCache, and TLS suites — run
 those with `--class` (the TLS suites also need the `--tls` flag, or TLS stays off and
-the tests skip). To filter, invoke the runner directly with the built extension loaded:
+the tests skip; the JSON and Search suites need a server with that module loaded, which
+`make test` does not start — CI runs them against module-enabled containers on
+`--port=6389` (standalone) / `--port=9001` (cluster), and the tests skip otherwise). To
+filter, invoke the runner directly with the built extension loaded:
 `php -n -d extension=./modules/valkey_glide.so tests/TestValkeyGlide.php --class=<ClassName> --test=<substring>`
-(`--test` is a case-insensitive substring match on method names).
 
 ## Contribution Requirements
 
@@ -181,7 +189,7 @@ See **Architecture Quick Facts** above for client types, API style, platforms, P
 
 **Implementation:** C extension (PHP (Zend) extension API) delegating to the glide-core Rust library over C FFI
 **Testing:** Proprietary TestSuite framework (`tests/TestSuite.php`, entry point `tests/TestValkeyGlide.php`), run via `make test`
-**Dependencies:** PHP dev headers (phpize), a C toolchain, Rust toolchain (glide-core FFI build), and the protobuf-c library + `protoc-c` compiler (`libprotobuf-c-dev` + `protobuf-c-compiler` on Debian/Ubuntu)
+**Dependencies:** PHP dev headers (phpize), a C toolchain, Rust toolchain plus `cbindgen` (`cargo install cbindgen`) for the glide-core FFI build, the protobuf-c library + `protoc-c` compiler (`libprotobuf-c-dev` + `protobuf-c-compiler` on Debian/Ubuntu), and for `make test` only: `composer` and `protoc`
 
 ## If You Need More
 
