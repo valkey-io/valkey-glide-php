@@ -119,14 +119,16 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
     /**
      * Wait until each channel has at least the expected number of subscribers.
+     * If $isUnsubscribe is true, wait until each channel has at most the expected number of subscribers.
      *
      * @param ValkeyGlide $client Client used to query PUBSUB NUMSUB.
-     * @param array<string, int> $expectedCounts Minimum subscriber count for each channel.
+     * @param array<string, int> $expectedCounts Minimum/Maximum subscriber count for each channel.
      * @param float $timeoutSeconds Maximum time to poll, in seconds.
-     * @return bool Whether all minimum counts were reached before polling stopped.
+     * @param bool $isUnsubscribe Whether to check for at most the expected count (true) or at least the expected count (false).
+     * @return bool Whether all minimum/maximum counts were reached before polling stopped.
      * @throws UnexpectedValueException If PUBSUB NUMSUB returns a non-array response.
      */
-    private function waitForSubscribers(ValkeyGlide $client, array $expectedCounts, float $timeoutSeconds = 5): bool
+    private function waitForSubscribers(ValkeyGlide $client, array $expectedCounts, float $timeoutSeconds = 5, bool $isUnsubscribe = false): bool
     {
         $timeout = microtime(true) + $timeoutSeconds;
         $channels = array_keys($expectedCounts);
@@ -147,7 +149,11 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
             $ready = true;
             foreach ($expectedCounts as $channel => $expectedCount) {
-                if (($counts[$channel] ?? 0) < $expectedCount) {
+                if (!$isUnsubscribe && ($counts[$channel] ?? 0) < $expectedCount) {
+                    $ready = false;
+                    break;
+                }
+                else if ($isUnsubscribe && ($counts[$channel] ?? 0) > $expectedCount) {
                     $ready = false;
                     break;
                 }
@@ -629,10 +635,10 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         );
         $pub->publish($channel1, 'msg1');
         $unsubscribed_file = $result_file . '.unsubscribed';
-        $timeout = microtime(true) + 5;
-        while (!file_exists($unsubscribed_file) && microtime(true) < $timeout) {
-            usleep(50000);
-        }
+        $this->assertTrue(
+            $this->waitForSubscribers($pub, [$channel1 => 0, $channel2 => 1], 5, true),
+            'First channel should be unsubscribed before publishing to second channel'
+        );
         $this->assertTrue(file_exists($unsubscribed_file), 'First channel should be unsubscribed');
         $pub->publish($channel2, 'msg2');
         $pub->close();
@@ -970,10 +976,10 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         );
         $pub->publish($channel1, 'bing');
         $unsubscribed_file = $result_file . '.unsubscribed';
-        $timeout = microtime(true) + 5;
-        while (!file_exists($unsubscribed_file) && microtime(true) < $timeout) {
-            usleep(50000);
-        }
+        $this->assertTrue(
+            $this->waitForSubscribers($pub, [$channel1 => 0, $channel2 => 1], 5, true),
+            'First channel should be unsubscribed before publishing to second channel'
+        );
         $this->assertTrue(file_exists($unsubscribed_file), 'First channel should be unsubscribed');
         $pub->publish($channel1, 'should_not_receive');
         $pub->publish($channel2, 'bong');
