@@ -167,10 +167,35 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
      * Wait for a subprocess signal or result file to contain data.
      *
      * @param string $path File to poll.
+     * @param string $expectedContent Content to expect in the file.
      * @param float $timeoutSeconds Maximum time to poll, in seconds.
-     * @return string|null First non-empty content read, or null if polling times out.
+     * @return bool Whether the expected content was found.
      */
-    private function waitForFileContent(string $path, float $timeoutSeconds = 5): ?string
+    private function waitForFileContent(string $path, string $expectedContent = '',float $timeoutSeconds = 5): bool
+    {
+        $timeout = microtime(true) + $timeoutSeconds;
+        do {
+            if (file_exists($path)) {
+                $content = file_get_contents($path);
+                if ($content !== false && $content === $expectedContent) {
+                    return true;
+                }
+            }
+
+            usleep(50000);
+        } while (microtime(true) < $timeout);
+
+        return false;
+    }
+
+    /**
+     * Wait for non-empty content in a file.
+     *
+     * @param string $path File to poll.
+     * @param float $timeoutSeconds Maximum time to poll, in seconds.
+     * @return string|null Content read from file, or null if timeout reached.
+     */
+    private function waitForFileToHaveContent(string $path, float $timeoutSeconds = 5): ?string
     {
         $timeout = microtime(true) + $timeoutSeconds;
         do {
@@ -417,7 +442,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertGTE(1, $count, 'Should have at least 1 subscriber');
 
         // Wait for callback result
-        $success = $this->waitForFileContent($result_file) === 'SUCCESS';
+        $success = $this->waitForFileContent($result_file, 'SUCCESS');
 
         // Cleanup
         if (isset($pipes[0]) && is_resource($pipes[0])) {
@@ -504,7 +529,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $pub->close();
 
         // Wait for unsubscribe signal
-        $success = $this->waitForFileContent($unsub_file) !== null;
+        $success = $this->waitForFileContent($unsub_file, 'unsubscribed') === true;
 
         // Cleanup
         foreach ($pipes as $pipe) {
@@ -589,7 +614,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $pub->publish($channel2, 'msg2');
         $pub->close();
 
-        $success = $this->waitForFileContent($result_file) === 'SUCCESS';
+        $success = $this->waitForFileContent($result_file, 'SUCCESS');
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -664,7 +689,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $pub->publish($channel, 'trigger');
         $pub->close();
 
-        $success = $this->waitForFileContent($result_file) === 'PASS';
+        $success = $this->waitForFileContent($result_file, 'PASS');
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -738,7 +763,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $result = null;
         $timeout = microtime(true) + 5;
         while ($result === null && microtime(true) < $timeout) {
-            $result = $this->waitForFileContent($result_file, 0.1);
+            $result = $this->waitForFileContent($result_file, 'PASS', 0.1);
             if ($result !== null) {
                 break;
             }
@@ -815,7 +840,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $success = false;
         $timeout = microtime(true) + 5;
         while (!$success && microtime(true) < $timeout) {
-            $success = $this->waitForFileContent($result_file, 0.1) !== null;
+            $success = $this->waitForFileContent($result_file, 'pattern_message', 0.1) !== false;
             if ($success) {
                 break;
             }
@@ -934,7 +959,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $success = false;
         $timeout = microtime(true) + 5;
         while (!$success && microtime(true) < $timeout) {
-            $content = $this->waitForFileContent($result_file, 0.1);
+            $content = $this->waitForFileToHaveContent($result_file, 0.1);
             if ($content !== null) {
                 $messages = explode(',', $content);
                 // Should have received bing on channel1 and bong on channel2, but NOT should_not_receive
@@ -1023,7 +1048,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $pub->publish($channel1, 'test_message');
         $pub->close();
 
-        $success = $this->waitForFileContent($result_file) === 'RECEIVED';
+        $success = $this->waitForFileContent($result_file, 'RECEIVED') === true;
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
