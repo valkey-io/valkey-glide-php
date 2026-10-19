@@ -105,6 +105,10 @@ runs:
           echo "✓ Stable version detected - PECL installation test will run"
         fi
 
+    - name: Configure APT retries
+      if: steps.package-info.outputs.is-rc != 'true'
+      uses: ./.github/actions/configure-apt-retries
+
     - name: Setup PHP
       if: steps.package-info.outputs.is-rc != 'true'
       uses: shivammathur/setup-php@728c6c6b8cf02c2e48117716a91ee48313958a19 # v2
@@ -112,10 +116,6 @@ runs:
         php-version: ${{ inputs.php-version }}
         extensions: tokenizer, json, ctype, iconv, mbstring, simplexml
         tools: none
-
-    - name: Configure APT retries
-      if: steps.package-info.outputs.is-rc != 'true'
-      uses: ./.github/actions/configure-apt-retries
 
     - name: Install system dependencies
       if: steps.package-info.outputs.is-rc != 'true'
