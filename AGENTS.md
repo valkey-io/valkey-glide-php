@@ -189,7 +189,7 @@ See **Architecture Quick Facts** above for client types, API style, platforms, P
 
 **Implementation:** C extension (PHP (Zend) extension API) delegating to the glide-core Rust library over C FFI
 **Testing:** Proprietary TestSuite framework (`tests/TestSuite.php`, entry point `tests/TestValkeyGlide.php`), run via `make test`
-**Dependencies:** PHP dev headers (phpize), a C toolchain, Rust toolchain plus `cbindgen` (`cargo install cbindgen`) for the glide-core FFI build, the protobuf-c library + `protoc-c` compiler (`libprotobuf-c-dev` + `protobuf-c-compiler` on Debian/Ubuntu), and for `make test` only: `composer` and `protoc`
+**Dependencies:** PHP dev headers (phpize), a C toolchain, Rust toolchain plus `cbindgen` (`cargo install cbindgen`) for the glide-core FFI build, the protobuf-c library + `protoc-c` compiler (`libprotobuf-c-dev` + `protobuf-c-compiler` on Debian/Ubuntu), `composer` for `./lint.sh` and `make test` (both install/require the `vendor/` toolchain), and `protoc` for `make test` only
 
 ## If You Need More
 
