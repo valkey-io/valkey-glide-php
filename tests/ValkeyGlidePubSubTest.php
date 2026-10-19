@@ -289,12 +289,35 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             usleep(100000);
         }
 
-        $this->assertTrue(file_exists($sync_file1), 'First subscriber should signal ready');
-        $this->assertTrue(file_exists($sync_file2), 'Second subscriber should signal ready');
-        $this->assertTrue(
-            $this->waitForSubscribers($pub, [$channel => 2]),
-            'Both subscribers should be registered before publishing'
-        );
+        $subscribers_ready = file_exists($sync_file1)
+            && file_exists($sync_file2)
+            && $this->waitForSubscribers($pub, [$channel => 2]);
+        if (!$subscribers_ready) {
+            $pub->close();
+            foreach ($pipes1 as $pipe) {
+                @fclose($pipe);
+            }
+            foreach ($pipes2 as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc1);
+            @proc_terminate($proc2);
+            @proc_close($proc1);
+            @proc_close($proc2);
+            @unlink($sync_file1);
+            @unlink($sync_file2);
+            @unlink($result_file1);
+            @unlink($result_file2);
+            @unlink($result_file1 . '.error');
+            @unlink($result_file2 . '.error');
+
+            $this->assertTrue(
+                false,
+                'Both subscribers should be ready and registered before publishing'
+            );
+            return;
+        }
+
         $count = $pub->publish($channel, $message);
         $pub->close();
 
