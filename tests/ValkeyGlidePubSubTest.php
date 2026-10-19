@@ -171,7 +171,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
      * @param float $timeoutSeconds Maximum time to poll, in seconds.
      * @return bool Whether the expected content was found.
      */
-    private function waitForFileContent(string $path, string $expectedContent = '',float $timeoutSeconds = 5): bool
+    private function waitForFileContent(string $path, string $expectedContent = '', float $timeoutSeconds = 5): bool
     {
         $timeout = microtime(true) + $timeoutSeconds;
         do {
