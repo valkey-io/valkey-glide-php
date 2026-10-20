@@ -106,7 +106,10 @@ then `tests/create-valkey-cluster.sh` (these launch `valkey-server` directly for
 plaintext servers and use `valkey-glide/utils/cluster_manager.py` only for the
 TLS/mTLS/auth variants) — then runs the default class list in `tests/TestValkeyGlide.php`.
 It does **not** stop the servers afterward; run `tests/stop-servers.sh` yourself when
-done. The default list omits the JSON, Search, ClientSideCache, and TLS suites — run
+done. That script does not stop the mTLS servers (standalone `6405`, cluster
+`8101`–`8106`), so if those started, stop them separately with
+`valkey-glide/utils/cluster_manager.py --tls stop --prefix mtls-standalone` and
+`--prefix mtls-cluster`. The default list omits the JSON, Search, ClientSideCache, and TLS suites — run
 those with `--class` (the TLS suites also need the `--tls` flag, or TLS stays off and
 the tests skip; the JSON and Search suites need a server with that module loaded, which
 `make test` does not start — CI runs them against module-enabled containers on
