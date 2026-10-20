@@ -634,11 +634,15 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             'Both channel subscriptions should be registered before publishing'
         );
         $pub->publish($channel1, 'msg1');
-        $unsubscribed_file = $result_file . '.unsubscribed';
         $this->assertTrue(
             $this->waitForSubscribers($pub, [$channel1 => 0, $channel2 => 1], 5, true),
             'First channel should be unsubscribed before publishing to second channel'
         );
+        $unsubscribed_file = $result_file . '.unsubscribed';
+        $timeout = microtime(true) + 5;
+        while (!file_exists($unsubscribed_file) && microtime(true) < $timeout) {
+            usleep(100000);
+        }
         $this->assertTrue(file_exists($unsubscribed_file), 'First channel should be unsubscribed');
         $pub->publish($channel2, 'msg2');
         $pub->close();
@@ -865,16 +869,12 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $pub = new ValkeyGlide();
         $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub->publish($channel, 'pattern_message');
 
-        $success = false;
-        $timeout = microtime(true) + 5;
-        while (!$success && microtime(true) < $timeout) {
-            $success = $this->waitForFileContent($result_file, 'pattern_message', 0.1) !== false;
-            if ($success) {
-                break;
-            }
-            $pub->publish($channel, 'pattern_message');
-        }
+        $this->assertTrue(
+            $this->waitForFileContent($result_file, 'pattern_message', 5),
+            'Pattern subscribe should receive matching messages'
+        );
         $pub->close();
 
         foreach ($pipes as $pipe) {
@@ -885,8 +885,6 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($sync_file);
         @unlink($result_file);
         @unlink($error_file);
-
-        $this->assertTrue($success, 'Pattern subscribe should receive matching messages');
     }
 
     public function testPubSubChannels()
