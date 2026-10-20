@@ -86,7 +86,7 @@ try {
     file_put_contents($sync_file, '1');
 
     $client->psubscribe([$pattern], function ($client, $channel, $message, $pattern) use ($result_file) {
-        file_put_contents($result_file, '1');
+        file_put_contents($result_file, $message);
         $client->punsubscribe();
     });
 

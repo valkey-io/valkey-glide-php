@@ -81,6 +81,7 @@ $channel1 = $argv[3];
 $channel2 = $argv[4];
 $sync_file = $argv[5];
 $result_file = $argv[6];
+$unsubscribed_file = $argv[7];
 $error_file = $result_file . '.error';
 
 try {
@@ -89,18 +90,30 @@ try {
     file_put_contents($sync_file, 'ready');
 
     $received = [];
-    $client->subscribe([$channel1, $channel2], function ($c, $ch, $msg) use (&$received, $channel1, $channel2, $result_file) {
-        $received[] = "$ch:$msg";
+    $client->subscribe(
+        [$channel1, $channel2],
+        /**
+         * Record deliveries and signal the first channel unsubscribe before the next publish.
+         *
+         * @param ValkeyGlide $c Subscribed client.
+         * @param string $ch Channel that delivered the message.
+         * @param string $msg Published message.
+         * @return void
+         */
+        function ($c, $ch, $msg) use (&$received, $channel1, $channel2, $result_file, $unsubscribed_file) {
+            $received[] = "$ch:$msg";
 
-        if ($msg === 'bing' && $ch === $channel1) {
-            $c->unsubscribe([$channel1]);
-        }
+            if ($msg === 'bing' && $ch === $channel1) {
+                $c->unsubscribe([$channel1]);
+                file_put_contents($unsubscribed_file, 'unsubscribed');
+            }
 
-        if ($msg === 'bong' && $ch === $channel2) {
-            file_put_contents($result_file, implode(',', $received));
-            $c->unsubscribe([$channel2]);
+            if ($msg === 'bong' && $ch === $channel2) {
+                file_put_contents($result_file, implode(',', $received));
+                $c->unsubscribe([$channel2]);
+            }
         }
-    });
+    );
 } catch (Exception $e) {
     file_put_contents($error_file, $e->getMessage() . "\n" . $e->getTraceAsString());
     file_put_contents($sync_file, 'error');

@@ -117,6 +117,137 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         return implode(' ', $cmd_parts);
     }
 
+    /**
+     * Wait until each channel has at least the expected number of subscribers.
+     * If $isUnsubscribe is true, wait until each channel has at most the expected number of subscribers.
+     *
+     * @param ValkeyGlide $client Client used to query PUBSUB NUMSUB.
+     * @param array<string, int> $expectedCounts Minimum/Maximum subscriber count for each channel.
+     * @param float $timeoutSeconds Maximum time to poll, in seconds.
+     * @param bool $isUnsubscribe Whether to check for at most the expected count (true) or at least the expected count (false).
+     * @return bool Whether all minimum/maximum counts were reached before polling stopped.
+     * @throws UnexpectedValueException If PUBSUB NUMSUB returns a non-array response.
+     */
+    private function waitForSubscribers(ValkeyGlide $client, array $expectedCounts, float $timeoutSeconds = 5, bool $isUnsubscribe = false): bool
+    {
+        $timeout = microtime(true) + $timeoutSeconds;
+        $channels = array_keys($expectedCounts);
+
+        do {
+            $counts = $client->pubsub('numsub', $channels);
+            if (!is_array($counts)) {
+                throw new UnexpectedValueException('PUBSUB NUMSUB should return an array');
+            }
+
+            if (array_is_list($counts)) {
+                $counts_by_channel = [];
+                for ($i = 0; $i + 1 < count($counts); $i += 2) {
+                    $counts_by_channel[$counts[$i]] = $counts[$i + 1];
+                }
+                $counts = $counts_by_channel;
+            }
+
+            $ready = true;
+            foreach ($expectedCounts as $channel => $expectedCount) {
+                if (!$isUnsubscribe && ($counts[$channel] ?? 0) < $expectedCount) {
+                    $ready = false;
+                    break;
+                } elseif ($isUnsubscribe && ($counts[$channel] ?? 0) > $expectedCount) {
+                    $ready = false;
+                    break;
+                }
+            }
+
+            if ($ready) {
+                return true;
+            }
+
+            usleep(50000);
+        } while (microtime(true) < $timeout);
+
+        return false;
+    }
+
+    /**
+     * Wait until the server reports at least the expected number of pattern subscriptions.
+     *
+     * PUBSUB NUMPAT reports a server-wide count, not the subscribed patterns themselves.
+     *
+     * @param ValkeyGlide $client Client used to query PUBSUB NUMPAT.
+     * @param int $minimumCount Minimum number of active pattern subscriptions.
+     * @param float $timeoutSeconds Maximum time to poll, in seconds.
+     * @return bool Whether the minimum count was reached before polling stopped.
+     * @throws UnexpectedValueException If PUBSUB NUMPAT returns a non-integer response.
+     */
+    private function waitForPatternSubscribers(ValkeyGlide $client, int $minimumCount, float $timeoutSeconds = 5): bool
+    {
+        $timeout = microtime(true) + $timeoutSeconds;
+
+        do {
+            $count = $client->pubsub('numpat');
+            if (!is_int($count)) {
+                throw new UnexpectedValueException('PUBSUB NUMPAT should return an integer');
+            }
+
+            if ($count >= $minimumCount) {
+                return true;
+            }
+
+            usleep(50000);
+        } while (microtime(true) < $timeout);
+
+        return false;
+    }
+
+    /**
+     * Wait for a subprocess signal or result file to contain data.
+     *
+     * @param string $path File to poll.
+     * @param string $expectedContent Content to expect in the file.
+     * @param float $timeoutSeconds Maximum time to poll, in seconds.
+     * @return bool Whether the expected content was found.
+     */
+    private function waitForFileContent(string $path, string $expectedContent = '', float $timeoutSeconds = 5): bool
+    {
+        $timeout = microtime(true) + $timeoutSeconds;
+        do {
+            if (file_exists($path)) {
+                $content = file_get_contents($path);
+                if ($content !== false && $content === $expectedContent) {
+                    return true;
+                }
+            }
+
+            usleep(50000);
+        } while (microtime(true) < $timeout);
+
+        return false;
+    }
+
+    /**
+     * Wait for non-empty content in a file.
+     *
+     * @param string $path File to poll.
+     * @param float $timeoutSeconds Maximum time to poll, in seconds.
+     * @return string|null Content read from file, or null if timeout reached.
+     */
+    private function waitForFileToHaveContent(string $path, float $timeoutSeconds = 5): ?string
+    {
+        $timeout = microtime(true) + $timeoutSeconds;
+        do {
+            if (file_exists($path)) {
+                $content = file_get_contents($path);
+                if ($content !== false && $content !== '') {
+                    return $content;
+                }
+            }
+
+            usleep(50000);
+        } while (microtime(true) < $timeout);
+
+        return null;
+    }
+
     public function testPubSubPublish()
     {
         // Test publish command works with 0 subscribers
@@ -131,6 +262,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertEquals(0, $count, 'Subscriber count should be 0 when no subscribers');
     }
 
+    /**
+     * Verify publishing reports two subscribers and delivers the message to both.
+     */
     public function testPubSubPublishWithTwoSubscribers()
     {
         // Test publish returns correct count with 2 subscribers
@@ -182,18 +316,44 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             $pipes2
         );
 
-        // Wait for both subscribers ready
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+
+        // Wait until both subscriptions have been registered by the server.
         $timeout = time() + 5;
         while ((!file_exists($sync_file1) || !file_exists($sync_file2)) && time() < $timeout) {
             usleep(100000);
         }
 
-        $this->assertTrue(file_exists($sync_file1), 'First subscriber should signal ready');
-        $this->assertTrue(file_exists($sync_file2), 'Second subscriber should signal ready');
+        $subscribers_ready = file_exists($sync_file1)
+            && file_exists($sync_file2)
+            && $this->waitForSubscribers($pub, [$channel => 2]);
+        if (!$subscribers_ready) {
+            $pub->close();
+            foreach ($pipes1 as $pipe) {
+                @fclose($pipe);
+            }
+            foreach ($pipes2 as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc1);
+            @proc_terminate($proc2);
+            @proc_close($proc1);
+            @proc_close($proc2);
+            @unlink($sync_file1);
+            @unlink($sync_file2);
+            @unlink($result_file1);
+            @unlink($result_file2);
+            @unlink($result_file1 . '.error');
+            @unlink($result_file2 . '.error');
 
-        // Publish message
-        $pub = new ValkeyGlide();
-        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+            $this->assertTrue(
+                false,
+                'Both subscribers should be ready and registered before publishing'
+            );
+            return;
+        }
+
         $count = $pub->publish($channel, $message);
         $pub->close();
 
@@ -203,8 +363,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         // Wait for both callbacks
         $success1 = false;
         $success2 = false;
-        $timeout = time() + 3;
-        while ((!$success1 || !$success2) && time() < $timeout) {
+        $timeout = microtime(true) + 5;
+        while ((!$success1 || !$success2) && microtime(true) < $timeout) {
             if (file_exists($result_file1)) {
                 $success1 = true;
             }
@@ -235,9 +395,12 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($result_file1 . '.error');
         @unlink($result_file2 . '.error');
 
-        $this->assertTrue($success1 || $success2, 'At least one subscriber should receive message');
+        $this->assertTrue($success1 && $success2, 'Both subscribers should receive message');
     }
 
+    /**
+     * Verify a registered subscriber receives the published channel and message.
+     */
     public function testPubSubMessageDelivery()
     {
         // Test that messages are actually delivered to subscribers
@@ -328,21 +491,17 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         // Publish message
         $pub = new ValkeyGlide();
         $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $this->assertTrue(
+            $this->waitForSubscribers($pub, [$channel => 1]),
+            'Subscriber should be registered before publishing'
+        );
         $count = $pub->publish($channel, $message);
         $pub->close();
 
         $this->assertGTE(1, $count, 'Should have at least 1 subscriber');
 
         // Wait for callback result
-        $success = false;
-        $timeout = time() + 3;
-        while (!$success && time() < $timeout) {
-            if (file_exists($result_file)) {
-                $success = true;
-                break;
-            }
-            usleep(100000);
-        }
+        $success = $this->waitForFileContent($result_file, 'SUCCESS');
 
         // Cleanup
         if (isset($pipes[0]) && is_resource($pipes[0])) {
@@ -367,6 +526,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertTrue($success, 'Message should be delivered to subscriber callback');
     }
 
+    /**
+     * Verify unsubscribing from a callback ends the subscription loop.
+     */
     public function testPubSubUnsubscribe()
     {
         // Test that unsubscribe breaks the subscribe loop
@@ -418,19 +580,15 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         // Publish to trigger callback
         $pub = new ValkeyGlide();
         $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $this->assertTrue(
+            $this->waitForSubscribers($pub, [$channel => 1]),
+            'Subscriber should be registered before publishing'
+        );
         $pub->publish($channel, 'trigger');
         $pub->close();
 
         // Wait for unsubscribe signal
-        $success = false;
-        $timeout = time() + 3;
-        while (!$success && time() < $timeout) {
-            if (file_exists($unsub_file)) {
-                $success = true;
-                break;
-            }
-            usleep(100000);
-        }
+        $success = $this->waitForFileContent($unsub_file, 'unsubscribed') === true;
 
         // Cleanup
         foreach ($pipes as $pipe) {
@@ -445,6 +603,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertTrue($success, 'Unsubscribe should be called and break subscribe loop');
     }
 
+    /**
+     * Verify the second channel still delivers messages after unsubscribing from the first.
+     */
     public function testPubSubPartialUnsubscribe()
     {
         // Test that unsubscribing from one channel doesn't break the loop
@@ -465,7 +626,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             $channel1,
             $channel2,
             $sync_file,
-            $result_file
+            $result_file,
+            $result_file . '.unsubscribed'
         );
 
         $proc = proc_open(
@@ -497,20 +659,25 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $pub = new ValkeyGlide();
         $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $this->assertTrue(
+            $this->waitForSubscribers($pub, [$channel1 => 1, $channel2 => 1]),
+            'Both channel subscriptions should be registered before publishing'
+        );
         $pub->publish($channel1, 'msg1');
-        usleep(100000);
+        $this->assertTrue(
+            $this->waitForSubscribers($pub, [$channel1 => 0, $channel2 => 1], 5, true),
+            'First channel should be unsubscribed before publishing to second channel'
+        );
+        $unsubscribed_file = $result_file . '.unsubscribed';
+        $timeout = microtime(true) + 5;
+        while (!file_exists($unsubscribed_file) && microtime(true) < $timeout) {
+            usleep(100000);
+        }
+        $this->assertTrue(file_exists($unsubscribed_file), 'First channel should be unsubscribed');
         $pub->publish($channel2, 'msg2');
         $pub->close();
 
-        $success = false;
-        $timeout = time() + 3;
-        while (!$success && time() < $timeout) {
-            if (file_exists($result_file)) {
-                $success = true;
-                break;
-            }
-            usleep(100000);
-        }
+        $success = $this->waitForFileContent($result_file, 'SUCCESS');
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -519,11 +686,15 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @proc_close($proc);
         @unlink($sync_file);
         @unlink($result_file);
+        @unlink($unsubscribed_file);
         @unlink($error_file);
 
         $this->assertTrue($success, 'Should receive message on second channel after unsubscribing from first');
     }
 
+    /**
+     * Verify regular commands are rejected while the client is in subscribe mode.
+     */
     public function testPubSubModalMode()
     {
         // Test that client is in modal mode during subscribe - only unsubscribe allowed
@@ -574,21 +745,14 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $pub = new ValkeyGlide();
         $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $this->assertTrue(
+            $this->waitForSubscribers($pub, [$channel => 1]),
+            'Subscriber should be registered before publishing'
+        );
         $pub->publish($channel, 'trigger');
         $pub->close();
 
-        $success = false;
-        $timeout = time() + 3;
-        while (!$success && time() < $timeout) {
-            if (file_exists($result_file)) {
-                $content = file_get_contents($result_file);
-                if ($content === 'PASS') {
-                    $success = true;
-                }
-                break;
-            }
-            usleep(100000);
-        }
+        $success = $this->waitForFileContent($result_file, 'PASS');
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -602,6 +766,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertTrue($success, 'Commands should be blocked during subscribe mode');
     }
 
+    /**
+     * Verify another subscribe call is rejected while the client is in subscribe mode.
+     */
     public function testPubSubModalModeBlocksSubscribe()
     {
         $channel = 'test_modal_sub_' . uniqid();
@@ -651,21 +818,21 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $pub = new ValkeyGlide();
         $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
-        $pub->publish($channel, 'trigger');
-        $pub->close();
+        $this->assertTrue(
+            $this->waitForSubscribers($pub, [$channel => 1]),
+            'Subscriber should be registered before publishing'
+        );
 
-        $success = false;
-        $timeout = time() + 3;
-        while (!$success && time() < $timeout) {
-            if (file_exists($result_file)) {
-                $content = file_get_contents($result_file);
-                if ($content === 'PASS') {
-                    $success = true;
-                }
+        $result = null;
+        $timeout = microtime(true) + 5;
+        while ($result === null && microtime(true) < $timeout) {
+            $result = $this->waitForFileToHaveContent($result_file, 0.1);
+            if ($result !== null) {
                 break;
             }
-            usleep(100000);
+            $pub->publish($channel, 'trigger');
         }
+        $pub->close();
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -676,9 +843,12 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($result_file);
         @unlink($error_file);
 
-        $this->assertTrue($success, 'Subscribe should be blocked during subscribe mode');
+        $this->assertTrue($result === 'PASS', 'Subscribe should be blocked during subscribe mode');
     }
 
+    /**
+     * Verify a pattern subscription receives a message on a matching channel.
+     */
     public function testPubSubPSubscribe()
     {
         $pattern = 'test_psub_*';
@@ -699,6 +869,13 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             $sync_file,
             $result_file
         );
+
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $initial_pattern_count = $pub->pubsub('numpat');
+        if (!is_int($initial_pattern_count)) {
+            throw new UnexpectedValueException('PUBSUB NUMPAT should return an integer');
+        }
 
         $proc = proc_open(
             $cmd,
@@ -727,20 +904,18 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
 
-        $pub = new ValkeyGlide();
-        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
-        $pub->publish($channel, 'pattern_message');
-        $pub->close();
+        $this->assertTrue(
+            $this->waitForPatternSubscribers($pub, $initial_pattern_count + 1),
+            'Pattern subscription should be registered on the server before publishing'
+        );
 
-        $success = false;
-        $timeout = time() + 3;
-        while (!$success && time() < $timeout) {
-            if (file_exists($result_file)) {
-                $success = true;
-                break;
-            }
-            usleep(100000);
-        }
+        $pub->publish($channel, 'pattern_message');
+
+        $this->assertTrue(
+            $this->waitForFileContent($result_file, 'pattern_message', 5),
+            'Pattern subscribe should receive matching messages'
+        );
+        $pub->close();
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -750,8 +925,6 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($sync_file);
         @unlink($result_file);
         @unlink($error_file);
-
-        $this->assertTrue($success, 'Pattern subscribe should receive matching messages');
     }
 
     public function testPubSubChannels()
@@ -779,6 +952,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $this->assertGTE(0, $result);
     }
 
+    /**
+     * Verify unsubscribed channels stop delivering while remaining channels still deliver.
+     */
     public function testPubSubSelectiveUnsubscribe()
     {
         // Test unsubscribing from one channel while remaining subscribed to another
@@ -799,7 +975,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             $channel1,
             $channel2,
             $sync_file,
-            $result_file
+            $result_file,
+            $result_file . '.unsubscribed'
         );
 
         $proc = proc_open(
@@ -831,18 +1008,30 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $pub = new ValkeyGlide();
         $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $this->assertTrue(
+            $this->waitForSubscribers($pub, [$channel1 => 1, $channel2 => 1]),
+            'Both channel subscriptions should be registered before publishing'
+        );
         $pub->publish($channel1, 'bing');
-        usleep(200000);
+        $this->assertTrue(
+            $this->waitForSubscribers($pub, [$channel1 => 0, $channel2 => 1], 5, true),
+            'First channel should be unsubscribed before publishing to second channel'
+        );
+        $unsubscribed_file = $result_file . '.unsubscribed';
+        $timeout = microtime(true) + 5;
+        while (!file_exists($unsubscribed_file) && microtime(true) < $timeout) {
+            usleep(100000);
+        }
+        $this->assertTrue(file_exists($unsubscribed_file), 'First channel should be unsubscribed');
         $pub->publish($channel1, 'should_not_receive');
-        usleep(200000);
         $pub->publish($channel2, 'bong');
         $pub->close();
 
         $success = false;
-        $timeout = time() + 3;
-        while (!$success && time() < $timeout) {
-            if (file_exists($result_file)) {
-                $content = file_get_contents($result_file);
+        $timeout = microtime(true) + 5;
+        while (!$success && microtime(true) < $timeout) {
+            $content = $this->waitForFileToHaveContent($result_file, 0.1);
+            if ($content !== null) {
                 $messages = explode(',', $content);
                 // Should have received bing on channel1 and bong on channel2, but NOT should_not_receive
                 $this->assertContains($channel1 . ':bing', $messages);
@@ -853,7 +1042,6 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
                 $success = true;
                 break;
             }
-            usleep(100000);
         }
 
         foreach ($pipes as $pipe) {
@@ -863,11 +1051,15 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @proc_close($proc);
         @unlink($sync_file);
         @unlink($result_file);
+        @unlink($unsubscribed_file);
         @unlink($error_file);
 
         $this->assertTrue($success);
     }
 
+    /**
+     * Verify unsubscribing from an unknown channel preserves the active subscription.
+     */
     public function testPubSubUnsubscribeNonExistentChannel()
     {
         // Test edge case: unsubscribe from channel we never subscribed to
@@ -920,18 +1112,14 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $pub = new ValkeyGlide();
         $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $this->assertTrue(
+            $this->waitForSubscribers($pub, [$channel1 => 1]),
+            'Subscriber should be registered before publishing'
+        );
         $pub->publish($channel1, 'test_message');
         $pub->close();
 
-        $success = false;
-        $timeout = time() + 3;
-        while (!$success && time() < $timeout) {
-            if (file_exists($result_file)) {
-                $success = true;
-                break;
-            }
-            usleep(100000);
-        }
+        $success = $this->waitForFileContent($result_file, 'RECEIVED') === true;
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
