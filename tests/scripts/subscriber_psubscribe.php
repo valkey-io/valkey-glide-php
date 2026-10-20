@@ -83,12 +83,12 @@ try {
     $client = new ValkeyGlide();
     $client->connect(addresses: [['host' => $host, 'port' => $port]]);
 
+    file_put_contents($sync_file, '1');
+
     $client->psubscribe([$pattern], function ($client, $channel, $message, $pattern) use ($result_file) {
         file_put_contents($result_file, $message);
         $client->punsubscribe();
     });
-
-    file_put_contents($sync_file, '1');
 
     $client->close();
 } catch (Exception $e) {
