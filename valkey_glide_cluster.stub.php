@@ -356,6 +356,11 @@ class ValkeyGlideCluster
     public function append(string $key, mixed $value): ValkeyGlideCluster|bool|int;
 
     /**
+     * @see ValkeyGlide::delIfEq()
+     */
+    public function delIfEq(string $key, string $value): ValkeyGlideCluster|bool;
+
+    /**
      * @see ValkeyGlide::bitcount
      */
     public function bitcount(string $key, int $start = 0, int $end = -1, bool $bybit = false): ValkeyGlideCluster|bool|int;

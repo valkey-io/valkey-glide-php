@@ -730,6 +730,10 @@ PEXPIRETIME_METHOD_IMPL(ValkeyGlideCluster)
 APPEND_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto bool ValkeyGlideCluster::delIfEq(string key, string value) */
+DELIFEQ_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto long ValkeyGlideCluster::getbit(string key, long val) */
 GETBIT_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */

@@ -110,6 +110,50 @@ int execute_append_command(zval* object, int argc, zval* return_value, zend_clas
     return 0;
 }
 
+/* Execute a DELIFEQ command using the Valkey Glide client */
+int execute_delifeq_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char *               key = NULL, *value = NULL;
+    size_t               key_len = 0, value_len = 0;
+
+    /* Parse parameters */
+    if (zend_parse_method_parameters(
+            argc, object, "Oss", &object, ce, &key, &key_len, &value, &value_len) == FAILURE) {
+        return 0;
+    }
+
+    /* Get ValkeyGlide object */
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+
+    /* If we have a Glide client, use it */
+    if (valkey_glide->glide_client) {
+        core_command_args_t args = {0};
+        args.glide_client        = valkey_glide->glide_client;
+        args.cmd_type            = DelIfEq;
+        args.key                 = key;
+        args.key_len             = key_len;
+
+        /* Add the comparison value argument */
+        args.args[0].type                  = CORE_ARG_TYPE_STRING;
+        args.args[0].data.string_arg.value = value;
+        args.args[0].data.string_arg.len   = value_len;
+        args.arg_count                     = 1;
+
+        if (execute_core_command(
+                valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+            if (valkey_glide->is_in_batch_mode) {
+                /* In batch mode, return $this for method chaining */
+                ZVAL_COPY(return_value, object);
+                return 1;
+            }
+
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 /* Execute a GETRANGE command using the Valkey Glide client - MIGRATED TO CORE FRAMEWORK */
 int execute_getrange_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
