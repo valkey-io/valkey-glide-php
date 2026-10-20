@@ -152,8 +152,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
                 if (!$isUnsubscribe && ($counts[$channel] ?? 0) < $expectedCount) {
                     $ready = false;
                     break;
-                } 
-                elseif ($isUnsubscribe && ($counts[$channel] ?? 0) > $expectedCount) {
+                } elseif ($isUnsubscribe && ($counts[$channel] ?? 0) > $expectedCount) {
                     $ready = false;
                     break;
                 }
