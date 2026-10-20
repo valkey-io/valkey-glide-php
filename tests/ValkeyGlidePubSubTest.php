@@ -169,6 +169,37 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
     }
 
     /**
+     * Wait until the server reports at least the expected number of pattern subscriptions.
+     *
+     * PUBSUB NUMPAT reports a server-wide count, not the subscribed patterns themselves.
+     *
+     * @param ValkeyGlide $client Client used to query PUBSUB NUMPAT.
+     * @param int $minimumCount Minimum number of active pattern subscriptions.
+     * @param float $timeoutSeconds Maximum time to poll, in seconds.
+     * @return bool Whether the minimum count was reached before polling stopped.
+     * @throws UnexpectedValueException If PUBSUB NUMPAT returns a non-integer response.
+     */
+    private function waitForPatternSubscribers(ValkeyGlide $client, int $minimumCount, float $timeoutSeconds = 5): bool
+    {
+        $timeout = microtime(true) + $timeoutSeconds;
+
+        do {
+            $count = $client->pubsub('numpat');
+            if (!is_int($count)) {
+                throw new UnexpectedValueException('PUBSUB NUMPAT should return an integer');
+            }
+
+            if ($count >= $minimumCount) {
+                return true;
+            }
+
+            usleep(50000);
+        } while (microtime(true) < $timeout);
+
+        return false;
+    }
+
+    /**
      * Wait for a subprocess signal or result file to contain data.
      *
      * @param string $path File to poll.
@@ -839,6 +870,13 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             $result_file
         );
 
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $initial_pattern_count = $pub->pubsub('numpat');
+        if (!is_int($initial_pattern_count)) {
+            throw new UnexpectedValueException('PUBSUB NUMPAT should return an integer');
+        }
+
         $proc = proc_open(
             $cmd,
             [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
@@ -866,8 +904,11 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
 
-        $pub = new ValkeyGlide();
-        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $this->assertTrue(
+            $this->waitForPatternSubscribers($pub, $initial_pattern_count + 1),
+            'Pattern subscription should be registered on the server before publishing'
+        );
+
         $pub->publish($channel, 'pattern_message');
 
         $this->assertTrue(
@@ -972,11 +1013,15 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             'Both channel subscriptions should be registered before publishing'
         );
         $pub->publish($channel1, 'bing');
-        $unsubscribed_file = $result_file . '.unsubscribed';
         $this->assertTrue(
             $this->waitForSubscribers($pub, [$channel1 => 0, $channel2 => 1], 5, true),
             'First channel should be unsubscribed before publishing to second channel'
         );
+        $unsubscribed_file = $result_file . '.unsubscribed';
+        $timeout = microtime(true) + 5;
+        while (!file_exists($unsubscribed_file) && microtime(true) < $timeout) {
+            usleep(100000);
+        }
         $this->assertTrue(file_exists($unsubscribed_file), 'First channel should be unsubscribed');
         $pub->publish($channel1, 'should_not_receive');
         $pub->publish($channel2, 'bong');
