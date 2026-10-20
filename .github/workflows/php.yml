@@ -825,6 +825,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Configure APT retries
+        uses: ./.github/actions/configure-apt-retries
+
       - name: Set up PHP
         uses: shivammathur/setup-php@728c6c6b8cf02c2e48117716a91ee48313958a19 # v2
         with:
