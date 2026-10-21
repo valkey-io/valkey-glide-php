@@ -9823,6 +9823,13 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         );
         $this->assertEquals([true, 'v', 'v', ['{eval}key', 'arg']], $this->valkey_glide->exec());
 
+        /* Empty arguments are queued as empty strings, not dropped */
+        $this->valkey_glide->multi();
+        $this->valkey_glide->set('{eval}key', '');
+        $this->valkey_glide->eval("return {ARGV[1], ARGV[2]}", ['', 'x'], 0);
+        $this->assertEquals([true, ['', 'x']], $this->valkey_glide->exec());
+        $this->assertEquals('', $this->valkey_glide->get('{eval}key'));
+
         $this->valkey_glide->del('{eval}key');
     }
 

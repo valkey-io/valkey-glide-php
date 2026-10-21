@@ -228,19 +228,15 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
 
         uintptr_t i;
         for (i = 0; i < arg_count; i++) {
-            if (args[i] && arg_lengths[i] > 0) {
-                cmd->args[i] = (uint8_t*) emalloc(arg_lengths[i] + 1);
-                if (cmd->args[i]) {
-                    memcpy(cmd->args[i], ((uint8_t**) args)[i], arg_lengths[i]);
-                    cmd->args[i][arg_lengths[i]] = '\0';
-                    cmd->arg_lengths[i]          = arg_lengths[i];
-                } else {
-                    cmd->arg_lengths[i] = 0;
-                }
-            } else {
-                cmd->args[i]        = NULL;
-                cmd->arg_lengths[i] = 0;
+            /* Allocate even for empty arguments: the FFI builds a slice from each
+             * pointer, and Rust requires a non-null pointer even for length 0 */
+            uintptr_t len       = args[i] ? arg_lengths[i] : 0;
+            cmd->args[i]        = (uint8_t*) emalloc(len + 1);
+            cmd->arg_lengths[i] = len;
+            if (len > 0) {
+                memcpy(cmd->args[i], ((uint8_t**) args)[i], len);
             }
+            cmd->args[i][len] = '\0';
         }
     } else {
         cmd->args        = NULL;
