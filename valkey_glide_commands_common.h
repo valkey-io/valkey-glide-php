@@ -887,6 +887,12 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
                 RETURN_BOOL(valkey_glide_set_prefix(valkey_glide, value));    \
             case VALKEY_GLIDE_OPT_SCAN:                                       \
                 switch (zval_get_long(value)) {                               \
+                    case VALKEY_GLIDE_SCAN_NORETRY:                           \
+                        valkey_glide->scan_retry = false;                     \
+                        RETURN_TRUE;                                          \
+                    case VALKEY_GLIDE_SCAN_RETRY:                             \
+                        valkey_glide->scan_retry = true;                      \
+                        RETURN_TRUE;                                          \
                     case VALKEY_GLIDE_SCAN_PREFIX:                            \
                         valkey_glide->scan_prefix = true;                     \
                         RETURN_TRUE;                                          \
@@ -901,34 +907,40 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
         }                                                                     \
     }
 
-#define GETOPTION_METHOD_IMPL(class_name)                                            \
-    PHP_METHOD(class_name, getOption) {                                              \
-        zend_long option;                                                            \
-                                                                                     \
-        ZEND_PARSE_PARAMETERS_START(1, 1)                                            \
-        Z_PARAM_LONG(option)                                                         \
-        ZEND_PARSE_PARAMETERS_END();                                                 \
-                                                                                     \
-        valkey_glide_object* valkey_glide =                                          \
-            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());        \
-        if (!valkey_glide) {                                                         \
-            RETURN_FALSE;                                                            \
-        }                                                                            \
-                                                                                     \
-        switch (option) {                                                            \
-            case VALKEY_GLIDE_OPT_REPLY_LITERAL:                                     \
-                RETURN_BOOL(valkey_glide->opt_reply_literal);                        \
-            case VALKEY_GLIDE_OPT_PREFIX:                                            \
-                if (valkey_glide->prefix) {                                          \
-                    RETURN_STR_COPY(valkey_glide->prefix);                           \
-                }                                                                    \
-                RETURN_NULL();                                                       \
-            case VALKEY_GLIDE_OPT_SCAN:                                              \
-                RETURN_LONG(valkey_glide->scan_prefix ? VALKEY_GLIDE_SCAN_PREFIX     \
-                                                      : VALKEY_GLIDE_SCAN_NOPREFIX); \
-            default:                                                                 \
-                RETURN_FALSE;                                                        \
-        }                                                                            \
+/* OPT_SCAN as getOption() reports it: a bitmask of SCAN_RETRY and SCAN_PREFIX,
+ * as in PHPRedis */
+static inline zend_long valkey_glide_scan_option(const valkey_glide_object* valkey_glide) {
+    return (valkey_glide->scan_retry ? VALKEY_GLIDE_SCAN_RETRY : 0) |
+           (valkey_glide->scan_prefix ? VALKEY_GLIDE_SCAN_PREFIX : 0);
+}
+
+#define GETOPTION_METHOD_IMPL(class_name)                                     \
+    PHP_METHOD(class_name, getOption) {                                       \
+        zend_long option;                                                     \
+                                                                              \
+        ZEND_PARSE_PARAMETERS_START(1, 1)                                     \
+        Z_PARAM_LONG(option)                                                  \
+        ZEND_PARSE_PARAMETERS_END();                                          \
+                                                                              \
+        valkey_glide_object* valkey_glide =                                   \
+            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis()); \
+        if (!valkey_glide) {                                                  \
+            RETURN_FALSE;                                                     \
+        }                                                                     \
+                                                                              \
+        switch (option) {                                                     \
+            case VALKEY_GLIDE_OPT_REPLY_LITERAL:                              \
+                RETURN_BOOL(valkey_glide->opt_reply_literal);                 \
+            case VALKEY_GLIDE_OPT_PREFIX:                                     \
+                if (valkey_glide->prefix) {                                   \
+                    RETURN_STR_COPY(valkey_glide->prefix);                    \
+                }                                                             \
+                RETURN_NULL();                                                \
+            case VALKEY_GLIDE_OPT_SCAN:                                       \
+                RETURN_LONG(valkey_glide_scan_option(valkey_glide));          \
+            default:                                                          \
+                RETURN_FALSE;                                                 \
+        }                                                                     \
     }
 
 /* Key prefix helper - matching PHPRedis _prefix() */

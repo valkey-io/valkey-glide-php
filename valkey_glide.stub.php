@@ -388,13 +388,35 @@ class ValkeyGlide
 
     /**
      * Runtime option: SCAN behaviour (PHPRedis OPT_SCAN).
-     * Accepts SCAN_PREFIX or SCAN_NOPREFIX.
+     * Accepts SCAN_RETRY, SCAN_NORETRY, SCAN_PREFIX or SCAN_NOPREFIX; the
+     * retry and prefix settings are independent. getOption() returns a
+     * bitmask of SCAN_RETRY and SCAN_PREFIX (0 by default).
      *
      * @var int
      * @cvalue VALKEY_GLIDE_OPT_SCAN
      *
      */
     public const OPT_SCAN = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: return empty SCAN pages to the caller (default).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_NORETRY
+     *
+     */
+    public const SCAN_NORETRY = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: keep scanning until a page has elements or the scan
+     * completes, so SCAN, SSCAN, HSCAN and ZSCAN never return an empty page
+     * mid-scan.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_RETRY
+     *
+     */
+    public const SCAN_RETRY = UNKNOWN;
 
     /**
      * OPT_SCAN value: prefix the SCAN MATCH pattern with OPT_PREFIX.
