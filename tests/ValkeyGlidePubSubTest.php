@@ -459,6 +459,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
                 @proc_close($proc);
             }
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         // If sync file doesn't exist, check stderr
@@ -575,6 +576,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         // Publish to trigger callback
@@ -601,6 +603,110 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($error_file);
 
         $this->assertTrue($success, 'Unsubscribe should be called and break subscribe loop');
+    }
+
+    /**
+     * Wait for a subscriber process to exit by itself, draining its output so
+     * it cannot block on a full pipe. Returns its exit code, null on timeout.
+     */
+    private function waitForExit($proc, array $pipes, float $timeoutSeconds = 5): ?int
+    {
+        // Pipe 0 is the subscriber's stdin, which the parent can only write to
+        $output = [$pipes[1], $pipes[2]];
+        foreach ($output as $pipe) {
+            stream_set_blocking($pipe, false);
+        }
+        $timeout = microtime(true) + $timeoutSeconds;
+        do {
+            foreach ($output as $pipe) {
+                stream_get_contents($pipe);
+            }
+            $status = proc_get_status($proc);
+            if (!$status['running']) {
+                return $status['exitcode'];
+            }
+            usleep(50000);
+        } while (microtime(true) < $timeout);
+        return null;
+    }
+
+    /**
+     * Verify closing the client from a callback ends the subscription loop.
+     */
+    public function testPubSubCloseInCallback()
+    {
+        $channel = 'test_close_cb_' . uniqid();
+        $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'result_');
+
+        @unlink($sync_file);
+        @unlink($result_file);
+
+        $sub_script = __DIR__ . '/scripts/subscriber_close_in_callback.php';
+
+        $cmd = $this->buildSubscriberCommand(
+            $sub_script,
+            $this->getHost(),
+            $this->getPort(),
+            $channel,
+            $sync_file,
+            $result_file
+        );
+
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
+
+        // Wait for subscriber ready
+        $timeout = time() + 5;
+        while (!file_exists($sync_file) && time() < $timeout) {
+            usleep(100000);
+        }
+
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            @unlink($sync_file);
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber script error: ' . $error);
+            return;
+        }
+
+        // Publish to trigger the callback that closes the client
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $this->assertTrue(
+            $this->waitForSubscribers($pub, [$channel => 1]),
+            'Subscriber should be registered before publishing'
+        );
+        $pub->publish($channel, 'trigger');
+        $pub->close();
+
+        // subscribe() hung here before close() ended the loop
+        $success = $this->waitForFileContent($result_file, 'returned') === true;
+        $result = @file_get_contents($result_file);
+        // A crash while the subscriber shuts down shows only in its exit code
+        $exit_code = $success ? $this->waitForExit($proc, $pipes) : null;
+
+        foreach ($pipes as $pipe) {
+            @fclose($pipe);
+        }
+        @proc_terminate($proc);
+        @proc_close($proc);
+        @unlink($sync_file);
+        @unlink($result_file);
+        @unlink($error_file);
+
+        $this->assertTrue($success, 'close() in the callback should end the subscribe loop');
+        $this->assertEquals('returned', $result, 'A client reconnected in the callback should work');
+        $this->assertEquals(0, $exit_code, 'The subscriber should exit cleanly');
     }
 
     /**
@@ -653,6 +759,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
@@ -739,6 +846,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
@@ -812,6 +920,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
@@ -900,6 +1009,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
@@ -1002,6 +1112,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         $this->assertTrue(file_exists($sync_file));
@@ -1106,6 +1217,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         $this->assertTrue(file_exists($sync_file));
@@ -1160,7 +1272,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             null,
             $env
         );
-        $this->assertTrue(is_resource($server));
+        if (!$this->assertTrue(is_resource($server), 'Failed to start the web server')) {
+            return;
+        }
 
         $publisher = null;
         try {
@@ -1179,7 +1293,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
                         usleep(100000);
                     }
                 }
-                $this->assertTrue((bool) $socket, 'The web server did not answer');
+                if (!$this->assertTrue((bool) $socket, 'The web server did not answer')) {
+                    return;
+                }
                 fwrite($socket, "GET /?$query HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n");
                 stream_set_blocking($socket, false);
 

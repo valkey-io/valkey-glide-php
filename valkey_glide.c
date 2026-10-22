@@ -796,6 +796,8 @@ PHP_MINIT_FUNCTION(valkey_glide) {
             "Failed to initialize ValkeyGlide logger, will auto-initialize on first use");
     }
     valkey_glide_logger_debug("php_init", "Initializing Valkey Glide PHP extension");
+    /* Shared by all threads; created once, before any request */
+    init_pubsub_callbacks();
     /* ValkeyGlide class - use generated registration function */
     valkey_glide_ce = register_class_ValkeyGlide();
 
@@ -1489,6 +1491,7 @@ PHP_METHOD(ValkeyGlide, close) {
 
     if (valkey_glide->glide_client) {
         close_glide_client(valkey_glide->glide_client);
+        php_release_pubsub_callback((uintptr_t) valkey_glide->glide_client);
         valkey_glide->glide_client = NULL;
     }
 
