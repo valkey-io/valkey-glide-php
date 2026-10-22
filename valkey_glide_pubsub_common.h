@@ -50,7 +50,8 @@ typedef struct pubsub_callback_info {
     bool            in_subscribe_mode;
     bool            client_closed;              // close() was called from the subscribe callback
     uintptr_t       owner_thread;               // PHP thread whose request registered it (ZTS)
-    struct pubsub_callback_info* next_removed;  // list used while freeing at request shutdown
+    struct pubsub_callback_info* next_removed;  // list used while freeing at request shutdown,
+                                                // or of entries detached by close()
 } pubsub_callback_info;
 
 // FFI function declarations

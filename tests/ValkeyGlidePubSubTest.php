@@ -604,6 +604,29 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
     }
 
     /**
+     * Wait for a subscriber process to exit by itself, draining its output so
+     * it cannot block on a full pipe. Returns its exit code, null on timeout.
+     */
+    private function waitForExit($proc, array $pipes, float $timeoutSeconds = 5): ?int
+    {
+        foreach ($pipes as $pipe) {
+            stream_set_blocking($pipe, false);
+        }
+        $timeout = microtime(true) + $timeoutSeconds;
+        do {
+            foreach ($pipes as $pipe) {
+                stream_get_contents($pipe);
+            }
+            $status = proc_get_status($proc);
+            if (!$status['running']) {
+                return $status['exitcode'];
+            }
+            usleep(50000);
+        } while (microtime(true) < $timeout);
+        return null;
+    }
+
+    /**
      * Verify closing the client from a callback ends the subscription loop.
      */
     public function testPubSubCloseInCallback()
@@ -663,6 +686,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
 
         // subscribe() hung here before close() ended the loop
         $success = $this->waitForFileContent($result_file, 'returned') === true;
+        $result = @file_get_contents($result_file);
+        // A crash while the subscriber shuts down shows only in its exit code
+        $exit_code = $success ? $this->waitForExit($proc, $pipes) : null;
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -674,6 +700,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($error_file);
 
         $this->assertTrue($success, 'close() in the callback should end the subscribe loop');
+        $this->assertEquals('returned', $result, 'A client reconnected in the callback should work');
+        $this->assertEquals(0, $exit_code, 'The subscriber should exit cleanly');
     }
 
     /**

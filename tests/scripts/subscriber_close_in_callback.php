@@ -87,12 +87,17 @@ try {
     $subscriber->connect(addresses: [['host' => $host, 'port' => $port]]);
     file_put_contents($sync_file, 'ready');
 
-    $subscriber->subscribe([$channel], function ($client, $ch, $msg) {
+    $pinged = false;
+    $subscriber->subscribe([$channel], function ($client, $ch, $msg) use ($host, $port, &$pinged) {
         $client->close();
+        // The new connection may get the closed client's address; it must
+        // not inherit that client's subscribe state
+        $client->connect(addresses: [['host' => $host, 'port' => $port]]);
+        $pinged = $client->ping() === true;
     });
 
     // Reached only if closing the client ended the subscribe loop
-    file_put_contents($result_file, 'returned');
+    file_put_contents($result_file, $pinged ? 'returned' : 'returned, ping failed');
 } catch (Exception $e) {
     file_put_contents($error_file, $e->getMessage() . "\n" . $e->getTraceAsString());
     file_put_contents($sync_file, 'error');

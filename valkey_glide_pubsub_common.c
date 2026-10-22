@@ -124,6 +124,12 @@ static mutex_t pubsub_callbacks_mutex;
 // inherited mutex: a GLIDE thread may have held it, and that thread is not in
 // the child. The child starts an empty registry of its own instead.
 static pid_t pubsub_callbacks_pid;
+// Entries of clients closed from their own subscribe callback, linked via
+// next_removed. They are out of the table, so neither the push callback nor a
+// new client at the same address finds them; the subscribe loop frees its
+// entry when the callback returns, and request shutdown frees any left by a
+// bailout. Only the PHP thread that owns them touches this list.
+ZEND_TLS pubsub_callback_info* pubsub_detached = NULL;
 
 // Call before any use of the registry from a PHP thread
 static void pubsub_callbacks_after_fork(void) {
@@ -349,8 +355,9 @@ void php_unregister_pubsub_callback(uintptr_t client_ptr) {
 
 // Drop a closed client's entry now instead of at request end, so a message
 // still in flight is not queued for nobody. A close() from inside the
-// subscribe callback keeps the entry, because the subscribe loop still uses
-// it; the loop ends when the callback returns and frees the entry itself
+// subscribe callback cannot free the entry, because the subscribe loop still
+// uses it: it is detached instead, and the loop ends when the callback returns
+// and frees it
 void php_release_pubsub_callback(uintptr_t client_ptr) {
     if (!is_client_in_subscribe_mode(client_ptr)) {
         php_unregister_pubsub_callback(client_ptr);
@@ -358,14 +365,27 @@ void php_release_pubsub_callback(uintptr_t client_ptr) {
     }
 
     char client_key[32];
-    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
+    int  key_len = snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
 
-    pubsub_callback_info* info = find_pubsub_callback(client_key);
+    // Out of the table, the push callback can no longer reach it, and a client
+    // that connect() gives the same address starts without it
+    pubsub_callback_info* info = take_pubsub_callback(client_key, key_len);
     if (info) {
-        mutex_lock(&pubsub_callbacks_mutex);
         info->client_closed = true;
         info->is_active     = false;
-        mutex_unlock(&pubsub_callbacks_mutex);
+        info->next_removed  = pubsub_detached;
+        pubsub_detached     = info;
+    }
+}
+
+// Unlink an entry that php_release_pubsub_callback() detached
+static void forget_detached_callback(pubsub_callback_info* info) {
+    pubsub_callback_info** link = &pubsub_detached;
+    while (*link && *link != info) {
+        link = &(*link)->next_removed;
+    }
+    if (*link) {
+        *link = info->next_removed;
     }
 }
 
@@ -459,7 +479,13 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
     }
 
     info->in_subscribe_mode = false;
-    php_unregister_pubsub_callback(connection);
+    if (info->client_closed) {
+        // Detached by close(): no longer in the table under this key
+        forget_detached_callback(info);
+        cleanup_callback_info(info);
+    } else {
+        php_unregister_pubsub_callback(connection);
+    }
 }
 
 // Helper: Execute subscribe command
@@ -812,6 +838,14 @@ void valkey_glide_pubsub_request_shutdown(void) {
     }
     ZEND_HASH_FOREACH_END();
     mutex_unlock(&pubsub_callbacks_mutex);
+
+    /* Entries of clients closed in a callback that a bailout abandoned */
+    while (pubsub_detached) {
+        pubsub_callback_info* next    = pubsub_detached->next_removed;
+        pubsub_detached->next_removed = owned;
+        owned                         = pubsub_detached;
+        pubsub_detached               = next;
+    }
 
     /* Free outside the mutex: releasing the callback can run PHP code */
     while (owned) {
