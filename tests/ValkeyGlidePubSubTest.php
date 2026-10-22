@@ -757,6 +757,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         // The subscriber is on the prefixed channel
@@ -777,6 +778,8 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         $pub->close();
 
         $success = $this->waitForFileContent($result_file, $prefix . $channel . '|hello') === true;
+        // A crash while the subscriber shuts down shows only in its exit code
+        $exit_code = $success ? $this->waitForExit($proc, $pipes) : null;
 
         foreach ($pipes as $pipe) {
             @fclose($pipe);
@@ -788,6 +791,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($error_file);
 
         $this->assertTrue($success, 'The callback should receive the prefixed channel and message');
+        $this->assertEquals(0, $exit_code, 'The subscriber should exit cleanly');
     }
 
     /**
