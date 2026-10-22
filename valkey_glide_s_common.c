@@ -567,6 +567,15 @@ typedef struct {
     char*            cursor;
     zval*            scan_iter;
 } scan_data_t;
+/* Replace the caller's cursor with "0" after a failed SCAN. The caller owns
+ * and later frees the cursor, so it must stay an allocated string. */
+static void scan_cursor_done(scan_data_t* args) {
+    if (args->cursor) {
+        efree(args->cursor);
+    }
+    args->cursor = estrdup("0");
+}
+
 int process_s_scan_result_async(CommandResponse* response, void* output, zval* return_value) {
     scan_data_t* args   = (scan_data_t*) output;
     int          status = 0;
@@ -580,7 +589,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
         } else {
             VALKEY_LOG_ERROR("scan_processing",
                              "No response received in process_s_scan_result_async");
-            args->cursor = "0";
+            scan_cursor_done(args);
         }
 
         ZVAL_NULL(return_value);
@@ -593,7 +602,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
             efree(args->cursor);
             efree(args);
         } else {
-            args->cursor = "0";
+            scan_cursor_done(args);
         }
         ZVAL_NULL(return_value);
 
@@ -613,7 +622,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
             efree(args->cursor);
             efree(args);
         } else {
-            args->cursor = "0";
+            scan_cursor_done(args);
         }
         ZVAL_NULL(return_value);
         return 0;
@@ -628,7 +637,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
             efree(args->cursor);
             efree(args);
         } else {
-            args->cursor = "0";
+            scan_cursor_done(args);
         }
 
         return 0;
