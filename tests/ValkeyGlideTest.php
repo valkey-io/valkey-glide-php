@@ -9975,6 +9975,38 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         return $keys;
     }
 
+    /* Every page one SCAN pass returns, in order (false counts as an empty page) */
+    protected function scanPages($client, string $pattern, int $count): array
+    {
+        $pages = [];
+        $it = null;
+        do {
+            $batch = $client->scan($it, $pattern, $count);
+            $pages[] = is_array($batch) ? $batch : [];
+        } while ($it != 0);
+        return $pages;
+    }
+
+    /* Every page one SSCAN pass returns, in order (false counts as an empty page) */
+    protected function sscanPages($client, string $key, string $pattern, int $count): array
+    {
+        $pages = [];
+        $it = null;
+        do {
+            $batch = $client->sscan($key, $it, $pattern, $count);
+            $pages[] = is_array($batch) ? $batch : [];
+        } while ($it != 0);
+        return $pages;
+    }
+
+    /* With SCAN_RETRY only the last page of a pass may be empty */
+    protected function assertNoEmptyPageBeforeLast(array $pages): void
+    {
+        foreach (array_slice($pages, 0, -1) as $page) {
+            $this->assertNotEquals([], $page, 'SCAN_RETRY must not return an empty page mid-scan');
+        }
+    }
+
     public function testPrefixOption()
     {
         $client = $this->newInstance();
@@ -10006,11 +10038,19 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->assertEquals(self::KEY_PREFIX, $client->getOption(ValkeyGlide::OPT_PREFIX));
         $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, ''));
 
-        $this->assertEquals(ValkeyGlide::SCAN_NOPREFIX, $client->getOption(ValkeyGlide::OPT_SCAN));
+        /* OPT_SCAN is a bitmask of independent RETRY and PREFIX bits, as in PHPRedis */
+        $this->assertEquals(ValkeyGlide::SCAN_NORETRY, $client->getOption(ValkeyGlide::OPT_SCAN));
         $this->assertTrue($client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_PREFIX));
         $this->assertEquals(ValkeyGlide::SCAN_PREFIX, $client->getOption(ValkeyGlide::OPT_SCAN));
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_RETRY));
+        $this->assertEquals(
+            ValkeyGlide::SCAN_RETRY | ValkeyGlide::SCAN_PREFIX,
+            $client->getOption(ValkeyGlide::OPT_SCAN)
+        );
         $this->assertTrue($client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_NOPREFIX));
-        $this->assertEquals(ValkeyGlide::SCAN_NOPREFIX, $client->getOption(ValkeyGlide::OPT_SCAN));
+        $this->assertEquals(ValkeyGlide::SCAN_RETRY, $client->getOption(ValkeyGlide::OPT_SCAN));
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_NORETRY));
+        $this->assertEquals(ValkeyGlide::SCAN_NORETRY, $client->getOption(ValkeyGlide::OPT_SCAN));
         $this->assertFalse($client->setOption(ValkeyGlide::OPT_SCAN, 99));
 
         $client->close();
@@ -10249,6 +10289,44 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->assertEquals(["{$p}scan_a", "{$p}scan_b"], $this->scanAllKeys($client, 'scan_*'));
 
         $raw->del("{$p}scan_a", "{$p}scan_b");
+        $client->close();
+    }
+
+    /* OPT_SCAN SCAN_RETRY: SCAN and SSCAN keep going past empty pages, as in PHPRedis */
+    public function testScanRetry()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+
+        /* One matching key among many, so most COUNT 10 pages match nothing */
+        $fill = [];
+        for ($i = 0; $i < 300; $i++) {
+            $fill["{$p}retry_fill_{$i}"] = 'v';
+        }
+        $raw->mset($fill);
+        $raw->set("{$p}retry_match", 'v');
+
+        /* A set large enough not to be returned in a single page */
+        $raw->del("{$p}retry_set");
+        $raw->sadd("{$p}retry_set", ...array_merge(range(0, 499), ['retry_member']));
+
+        $client = $this->newInstance();
+
+        /* Default (SCAN_NORETRY): empty pages are returned to the caller */
+        $this->assertContains([], $this->scanPages($client, "{$p}retry_match", 10));
+        $this->assertContains([], $this->sscanPages($client, "{$p}retry_set", 'retry_*', 10));
+
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_RETRY));
+
+        $pages = $this->scanPages($client, "{$p}retry_match", 10);
+        $this->assertNoEmptyPageBeforeLast($pages);
+        $this->assertEquals(["{$p}retry_match"], array_merge(...$pages));
+
+        $pages = $this->sscanPages($client, "{$p}retry_set", 'retry_*', 10);
+        $this->assertNoEmptyPageBeforeLast($pages);
+        $this->assertEquals(['retry_member'], array_merge(...$pages));
+
+        $raw->del(...array_merge(array_keys($fill), ["{$p}retry_match", "{$p}retry_set"]));
         $client->close();
     }
 

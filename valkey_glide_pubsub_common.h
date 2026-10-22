@@ -109,6 +109,11 @@ void cleanup_callback_info(pubsub_callback_info* info);
 void php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* client_obj);
 void php_unregister_pubsub_callback(uintptr_t client_ptr);
 void php_release_pubsub_callback(uintptr_t client_ptr);
+struct CommandResult* pubsub_command(const void*          connection,
+                                     enum RequestType     command_type,
+                                     unsigned long        arg_count,
+                                     const uintptr_t*     args,
+                                     const unsigned long* args_len);
 pubsub_callback_info* find_pubsub_callback(const char* client_key);
 bool                  is_client_in_subscribe_mode(uintptr_t client_ptr);
 void                  pubsub_callback_handler(uintptr_t      client_ptr,

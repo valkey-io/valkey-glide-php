@@ -2280,6 +2280,18 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     /* Collect every key matching $pattern across all primaries using cluster SCAN */
+    protected function scanPages($client, string $pattern, int $count): array
+    {
+        $pages = [];
+        $cursor = new ClusterScanCursor();
+        do {
+            $batch = $client->scan($cursor, $pattern, $count);
+            $pages[] = is_array($batch) ? $batch : [];
+            $cursor = new ClusterScanCursor($cursor->getNextCursor());
+        } while (!$cursor->isFinished());
+        return $pages;
+    }
+
     protected function scanAllKeys($client, ?string $pattern): array
     {
         $keys = [];
