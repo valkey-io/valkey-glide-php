@@ -334,6 +334,7 @@ PHP_METHOD(ValkeyGlideCluster, close) {
 
     if (valkey_glide->glide_client) {
         close_glide_client(valkey_glide->glide_client);
+        php_release_pubsub_callback((uintptr_t) valkey_glide->glide_client);
         valkey_glide->glide_client = NULL;
     }
 

@@ -346,6 +346,15 @@ void php_unregister_pubsub_callback(uintptr_t client_ptr) {
     }
 }
 
+// Drop a closed client's entry now instead of at request end, so a message
+// still in flight is not queued for nobody. A close() from inside the
+// subscribe callback keeps the entry, because the subscribe loop still uses it
+void php_release_pubsub_callback(uintptr_t client_ptr) {
+    if (!is_client_in_subscribe_mode(client_ptr)) {
+        php_unregister_pubsub_callback(client_ptr);
+    }
+}
+
 // Check if client is in subscribe mode
 bool is_client_in_subscribe_mode(uintptr_t client_ptr) {
     if (!pubsub_callbacks_initialized)
