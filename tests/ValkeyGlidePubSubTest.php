@@ -604,6 +604,79 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
     }
 
     /**
+     * Verify closing the client from a callback ends the subscription loop.
+     */
+    public function testPubSubCloseInCallback()
+    {
+        $channel = 'test_close_cb_' . uniqid();
+        $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'result_');
+
+        @unlink($sync_file);
+        @unlink($result_file);
+
+        $sub_script = __DIR__ . '/scripts/subscriber_close_in_callback.php';
+
+        $cmd = $this->buildSubscriberCommand(
+            $sub_script,
+            $this->getHost(),
+            $this->getPort(),
+            $channel,
+            $sync_file,
+            $result_file
+        );
+
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
+
+        // Wait for subscriber ready
+        $timeout = time() + 5;
+        while (!file_exists($sync_file) && time() < $timeout) {
+            usleep(100000);
+        }
+
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            @unlink($sync_file);
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+
+        // Publish to trigger the callback that closes the client
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $this->assertTrue(
+            $this->waitForSubscribers($pub, [$channel => 1]),
+            'Subscriber should be registered before publishing'
+        );
+        $pub->publish($channel, 'trigger');
+        $pub->close();
+
+        // subscribe() hung here before close() ended the loop
+        $success = $this->waitForFileContent($result_file, 'returned') === true;
+
+        foreach ($pipes as $pipe) {
+            @fclose($pipe);
+        }
+        @proc_terminate($proc);
+        @proc_close($proc);
+        @unlink($sync_file);
+        @unlink($result_file);
+        @unlink($error_file);
+
+        $this->assertTrue($success, 'close() in the callback should end the subscribe loop');
+    }
+
+    /**
      * Verify the second channel still delivers messages after unsubscribing from the first.
      */
     public function testPubSubPartialUnsubscribe()

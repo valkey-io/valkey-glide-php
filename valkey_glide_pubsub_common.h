@@ -48,6 +48,7 @@ typedef struct pubsub_callback_info {
     cond_t          queue_cond;
     HashTable*      subscribed_channels;  // HashTable of subscribed channel/pattern names
     bool            in_subscribe_mode;
+    bool            client_closed;              // close() was called from the subscribe callback
     uintptr_t       owner_thread;               // PHP thread whose request registered it (ZTS)
     struct pubsub_callback_info* next_removed;  // list used while freeing at request shutdown
 } pubsub_callback_info;

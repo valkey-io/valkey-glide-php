@@ -319,6 +319,7 @@ void php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* cl
     zend_hash_init(info->subscribed_channels, 8, NULL, ZVAL_PTR_DTOR, 0);
 
     info->in_subscribe_mode = false;
+    info->client_closed     = false;
     info->owner_thread      = current_thread_id();
 
     // Store the pointer, replacing (and then freeing) any earlier entry
@@ -348,10 +349,23 @@ void php_unregister_pubsub_callback(uintptr_t client_ptr) {
 
 // Drop a closed client's entry now instead of at request end, so a message
 // still in flight is not queued for nobody. A close() from inside the
-// subscribe callback keeps the entry, because the subscribe loop still uses it
+// subscribe callback keeps the entry, because the subscribe loop still uses
+// it; the loop ends when the callback returns and frees the entry itself
 void php_release_pubsub_callback(uintptr_t client_ptr) {
     if (!is_client_in_subscribe_mode(client_ptr)) {
         php_unregister_pubsub_callback(client_ptr);
+        return;
+    }
+
+    char client_key[32];
+    snprintf(client_key, sizeof(client_key), "%lu", (unsigned long) client_ptr);
+
+    pubsub_callback_info* info = find_pubsub_callback(client_key);
+    if (info) {
+        mutex_lock(&pubsub_callbacks_mutex);
+        info->client_closed = true;
+        info->is_active     = false;
+        mutex_unlock(&pubsub_callbacks_mutex);
     }
 }
 
@@ -435,10 +449,13 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
         }
     }
 
-    struct CommandResult* unsub_result =
-        command((const void*) connection, 0, unsub_type, 0, NULL, NULL, NULL, 0, 0);
-    if (unsub_result) {
-        free_command_result(unsub_result);
+    // A client closed from the callback has no connection to unsubscribe on
+    if (!info->client_closed) {
+        struct CommandResult* unsub_result =
+            command((const void*) connection, 0, unsub_type, 0, NULL, NULL, NULL, 0, 0);
+        if (unsub_result) {
+            free_command_result(unsub_result);
+        }
     }
 
     info->in_subscribe_mode = false;
