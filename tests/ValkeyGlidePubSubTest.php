@@ -611,12 +611,14 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
      */
     private function waitForExit($proc, array $pipes, float $timeoutSeconds = 5): ?int
     {
-        foreach ($pipes as $pipe) {
+        // Pipe 0 is the subscriber's stdin, which the parent can only write to
+        $output = [$pipes[1], $pipes[2]];
+        foreach ($output as $pipe) {
             stream_set_blocking($pipe, false);
         }
         $timeout = microtime(true) + $timeoutSeconds;
         do {
-            foreach ($pipes as $pipe) {
+            foreach ($output as $pipe) {
                 stream_get_contents($pipe);
             }
             $status = proc_get_status($proc);
