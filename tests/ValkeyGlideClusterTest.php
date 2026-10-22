@@ -2280,6 +2280,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     /* Collect every key matching $pattern across all primaries using cluster SCAN */
+    /* A failed SCAN (here an unknown cursor id) returns false; it used to
+     * corrupt the heap by freeing a string literal */
+    public function testScanInvalidCursor()
+    {
+        $this->assertFalse($this->valkey_glide->scan(new ClusterScanCursor('no-such-cursor-id')));
+        $this->assertTrue($this->valkey_glide->ping('{key}'));
+    }
+
     protected function scanPages($client, string $pattern, int $count): array
     {
         $pages = [];
