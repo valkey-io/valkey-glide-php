@@ -459,6 +459,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
                 @proc_close($proc);
             }
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         // If sync file doesn't exist, check stderr
@@ -575,6 +576,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         // Publish to trigger callback
@@ -672,6 +674,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         // Publish to trigger the callback that closes the client
@@ -754,6 +757,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
@@ -840,6 +844,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
@@ -913,6 +918,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
@@ -1001,6 +1007,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
@@ -1103,6 +1110,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         $this->assertTrue(file_exists($sync_file));
@@ -1207,6 +1215,7 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @proc_terminate($proc);
             @proc_close($proc);
             $this->fail('Subscriber script error: ' . $error);
+            return;
         }
 
         $this->assertTrue(file_exists($sync_file));
