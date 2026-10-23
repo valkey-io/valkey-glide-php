@@ -1283,10 +1283,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->set('key', 'val');
         $this->assertKeyExists('key');
 
-        /* Add multiple keys */
+        /* Add multiple keys. Key 0 is always added, because EXISTS with no
+         * keys is a server error rather than a count of 0. */
         $mkeys = [];
         for ($i = 0; $i < 10; $i++) {
-            if (rand(1, 2) == 1) {
+            if ($i == 0 || rand(1, 2) == 1) {
                 $mkey = "{exists}key:$i";
                 $this->valkey_glide->set($mkey, $i);
                 $mkeys[] = $mkey;
@@ -1295,9 +1296,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         /* Test passing an array as well as the keys variadic */
         $this->assertEquals(count($mkeys), $this->valkey_glide->exists($mkeys));
-        if (count($mkeys)) {
-            $this->assertEquals(count($mkeys), $this->valkey_glide->exists(...$mkeys));
-        }
+        $this->assertEquals(count($mkeys), $this->valkey_glide->exists(...$mkeys));
     }
 
     public function testTouch()
@@ -3625,8 +3624,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             // Wait for 6382 to become slave (failover completed)
             $this->waitForRole($client, 'slave');
         } finally {
+            // 6382 reports the slave role before the failover finishes, and
+            // REPLICAOF is rejected until it has
+            $this->waitForFailoverState($client, 'no-failover');
+
             // Restore: promote 6382 back to primary
-            $client->replicaof();
+            $this->assertTrue($client->replicaof());
             $this->waitForRole($client, 'master');
 
             // Restore 6383 as replica of 6382 (6383 became primary during failover)
@@ -3663,6 +3666,21 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             },
             $timeoutSeconds,
             "Timed out waiting for role to become '$expectedRole'"
+        );
+    }
+
+    /**
+     * Poll until a server's master_failover_state reaches the expected state, or fail after timeout.
+     */
+    protected function waitForFailoverState(ValkeyGlide $client, string $expectedState, int $timeoutSeconds = 5): void
+    {
+        $this->waitFor(
+            function () use ($client, $expectedState) {
+                $info = $client->info('REPLICATION');
+                return is_array($info) && ($info['master_failover_state'] ?? null) === $expectedState;
+            },
+            $timeoutSeconds,
+            "Timed out waiting for failover state to become '$expectedState'"
         );
     }
 
