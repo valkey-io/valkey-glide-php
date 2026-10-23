@@ -441,9 +441,9 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
     /**
      * Start a sharded-channel subscriber in a background process using valkey-cli.
      *
-     * The PHP client does not yet implement SSUBSCRIBE (see follow-up issue), so
-     * external valkey-cli processes are used to hold live sharded subscriptions
-     * while the PHP client queries PUBSUB SHARDCHANNELS.
+     * External valkey-cli processes hold live sharded subscriptions while the
+     * PHP client queries PUBSUB SHARDCHANNELS, keeping those tests independent
+     * of the PHP client's own ssubscribe() implementation.
      *
      * A single valkey-cli SSUBSCRIBE can only cover channels in one slot (a
      * multi-channel subscribe across slots fails with CROSSSLOT), so callers
@@ -557,9 +557,8 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
      *
      * Mirrors valkey-glide's cross-language pubsub_shardchannels tests. Sharded
      * pub/sub is a cluster-only feature available since Valkey/Redis 7.0. A live
-     * sharded subscriber is created via valkey-cli (PHP-native SSUBSCRIBE is not
-     * yet implemented) so we can assert real active-channel behaviour, matching
-     * the reference suites.
+     * sharded subscriber is created via valkey-cli so we can assert real
+     * active-channel behaviour, matching the reference suites.
      *
      * @see https://valkey.io/commands/pubsub-shardchannels/
      */
@@ -672,10 +671,174 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
     }
 
     /**
-     * PUBSUB SHARDNUMSUB is not yet supported by the PHP client and must raise
-     * an exception until it is implemented (see follow-up issue).
+     * Convert a flat NUMSUB/SHARDNUMSUB reply ([channel, count, ...]) into a
+     * channel => count map so assertions do not depend on reply ordering.
      */
-    public function testPubSubShardNumSubNotSupported()
+    private function numsubToMap(array $flat): array
+    {
+        $map = [];
+        for ($i = 0; $i + 1 < count($flat); $i += 2) {
+            $map[$flat[$i]] = $flat[$i + 1];
+        }
+        return $map;
+    }
+
+    /**
+     * Start a PHP-native ssubscribe() subscriber in a background process. The
+     * subscriber exits after receiving $message on $channel and unsubscribing,
+     * either from the channel or, when $mode is 'all', via sunsubscribe().
+     *
+     * @return array{proc: resource, pipes: array, sync_file: string, result_file: string}
+     */
+    private function startNativeShardSubscriber(string $channel, string $message, string $mode = '')
+    {
+        $sync_file   = tempnam(sys_get_temp_dir(), 'sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'result_');
+        @unlink($sync_file);
+        @unlink($result_file);
+
+        $cmd = $this->buildSubscriberCommand(
+            __DIR__ . '/scripts/subscriber_ssubscribe_cluster.php',
+            '127.0.0.1',
+            7001,
+            $channel,
+            $message,
+            $sync_file,
+            $result_file,
+            $mode
+        );
+
+        $proc = proc_open($cmd, [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
+        foreach ([1, 2] as $i) {
+            if (isset($pipes[$i]) && is_resource($pipes[$i])) {
+                stream_set_blocking($pipes[$i], false);
+            }
+        }
+
+        return [
+            'proc' => $proc,
+            'pipes' => $pipes,
+            'sync_file' => $sync_file,
+            'result_file' => $result_file,
+        ];
+    }
+
+    private function stopNativeShardSubscriber(array $handle)
+    {
+        foreach ($handle['pipes'] as $pipe) {
+            @fclose($pipe);
+        }
+        @proc_terminate($handle['proc']);
+        @proc_close($handle['proc']);
+        @unlink($handle['sync_file']);
+        @unlink($handle['result_file']);
+        @unlink($handle['result_file'] . '.error');
+    }
+
+    /**
+     * Poll PUBSUB SHARDNUMSUB until $channel reports $expected subscribers or the
+     * timeout elapses. Returns the last observed count.
+     */
+    private function waitForShardNumSub(string $channel, int $expected, int $timeout_sec = 5): int
+    {
+        $count    = -1;
+        $deadline = time() + $timeout_sec;
+        do {
+            $map   = $this->numsubToMap($this->valkey_glide->pubsub('shardnumsub', [$channel]));
+            $count = $map[$channel] ?? -1;
+            if ($count === $expected) {
+                break;
+            }
+            usleep(100000);
+        } while (time() < $deadline);
+        return $count;
+    }
+
+    private function waitForFile(string $file, int $timeout_sec = 5): bool
+    {
+        $deadline = time() + $timeout_sec;
+        while (!file_exists($file) && time() < $deadline) {
+            usleep(100000);
+        }
+        return file_exists($file);
+    }
+
+    /**
+     * PUBSUB SHARDNUMSUB: reports per-channel shard subscriber counts, using a
+     * PHP-native ssubscribe() subscriber to produce a non-zero count.
+     *
+     * @see https://valkey.io/commands/pubsub-shardnumsub/
+     */
+    public function testPubSubShardNumSub()
+    {
+        if (! $this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('Sharded pub/sub requires Valkey/Redis 7.0+');
+            return;
+        }
+
+        $suffix   = uniqid();
+        $channel  = 'test_shardnumsub_' . $suffix;
+        $idle     = 'test_shardnumsub_idle_' . $suffix;
+        $message  = 'shardnumsub_quit_' . $suffix;
+
+        // No subscribers yet: every requested channel is reported with count 0.
+        $map = $this->numsubToMap($this->valkey_glide->pubsub('shardnumsub', [$channel, $idle]));
+        $this->assertEquals(0, $map[$channel] ?? null);
+        $this->assertEquals(0, $map[$idle] ?? null);
+
+        $handle = $this->startNativeShardSubscriber($channel, $message);
+        try {
+            $this->assertEquals(
+                1,
+                $this->waitForShardNumSub($channel, 1),
+                'SHARDNUMSUB should report the PHP-native shard subscriber'
+            );
+
+            $map = $this->numsubToMap($this->valkey_glide->pubsub('shardnumsub', [$channel, $idle]));
+            $this->assertEquals(1, $map[$channel] ?? null);
+            $this->assertEquals(0, $map[$idle] ?? null, 'Unrelated shard channel should stay at 0');
+
+            // Release the subscriber; its count must drop back to 0.
+            $this->assertEquals(1, $this->valkey_glide->spublish($channel, $message));
+            $this->assertTrue($this->waitForFile($handle['result_file']), 'Subscriber should receive the message');
+            $this->assertEquals(0, $this->waitForShardNumSub($channel, 0));
+        } finally {
+            $this->stopNativeShardSubscriber($handle);
+        }
+    }
+
+    /**
+     * PUBSUB NUMSUB vs SHARDNUMSUB: a shard subscriber is counted only by
+     * SHARDNUMSUB, never by the regular NUMSUB.
+     */
+    public function testPubSubNumSubAndShardNumSubSeparation()
+    {
+        if (! $this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('Sharded pub/sub requires Valkey/Redis 7.0+');
+            return;
+        }
+
+        $channel = 'test_numsub_separation_' . uniqid();
+        $message = 'separation_quit';
+
+        $handle = $this->startNativeShardSubscriber($channel, $message);
+        try {
+            $this->assertEquals(1, $this->waitForShardNumSub($channel, 1));
+
+            $numsub = $this->numsubToMap($this->valkey_glide->pubsub('numsub', [$channel]));
+            $this->assertEquals(0, $numsub[$channel] ?? null, 'NUMSUB must not count shard subscribers');
+
+            // A regular PUBLISH does not reach the shard subscriber either.
+            $this->assertEquals(0, $this->valkey_glide->publish($channel, $message));
+
+            $this->valkey_glide->spublish($channel, $message);
+            $this->assertTrue($this->waitForFile($handle['result_file']));
+        } finally {
+            $this->stopNativeShardSubscriber($handle);
+        }
+    }
+
+    public function testPubSubShardNumSubRequiresArray()
     {
         if (! $this->minVersionCheck('7.0.0')) {
             $this->markTestSkipped('Sharded pub/sub requires Valkey/Redis 7.0+');
@@ -684,10 +847,165 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
 
         $threw = false;
         try {
-            $this->valkey_glide->pubsub('shardnumsub', ['some_channel']);
+            $this->valkey_glide->pubsub('shardnumsub');
         } catch (\Throwable $e) {
             $threw = true;
         }
-        $this->assertTrue($threw, 'SHARDNUMSUB should throw until it is implemented');
+        $this->assertTrue($threw, 'SHARDNUMSUB without a channel array should throw');
+    }
+
+    /**
+     * sunsubscribe() with no arguments unsubscribes from every shard channel and
+     * ends the ssubscribe() loop.
+     */
+    public function testPubSubSUnsubscribeAll()
+    {
+        if (! $this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('Sharded pub/sub requires Valkey/Redis 7.0+');
+            return;
+        }
+
+        $channel = 'test_sunsubscribe_all_' . uniqid();
+        $message = 'sunsubscribe_all_quit';
+
+        $handle = $this->startNativeShardSubscriber($channel, $message, 'all');
+        try {
+            $this->assertEquals(1, $this->waitForShardNumSub($channel, 1));
+
+            $this->valkey_glide->spublish($channel, $message);
+            $this->assertTrue($this->waitForFile($handle['result_file']), 'Subscriber should receive the message');
+            $this->assertEquals(0, $this->waitForShardNumSub($channel, 0), 'sunsubscribe() should drop all shard subscriptions');
+
+            // The subscribe loop ends, so the subscriber process exits on its own.
+            $deadline = time() + 5;
+            while (proc_get_status($handle['proc'])['running'] && time() < $deadline) {
+                usleep(100000);
+            }
+            $this->assertFalse(
+                proc_get_status($handle['proc'])['running'],
+                'ssubscribe() loop should exit after sunsubscribe()'
+            );
+        } finally {
+            $this->stopNativeShardSubscriber($handle);
+        }
+    }
+
+    public function testPubSubSSubscribeRequiresCallable()
+    {
+        $threw = false;
+        try {
+            $this->valkey_glide->ssubscribe(['test_ssubscribe_invalid'], 'no_such_function_' . uniqid());
+        } catch (\Throwable $e) {
+            $threw = true;
+        }
+        $this->assertTrue($threw, 'ssubscribe() with a non-callable callback should throw');
+    }
+
+    public function testPubSubSPublish()
+    {
+        if (! $this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('Sharded pub/sub requires Valkey/Redis 7.0+');
+            return;
+        }
+
+        $channel = 'test_spublish_' . uniqid();
+
+        $count = $this->valkey_glide->spublish($channel, 'test_message');
+
+        $this->assertIsInt($count, 'SPublish should return integer subscriber count');
+        $this->assertEquals(0, $count, 'SPublish with no shard subscribers should return 0');
+    }
+
+    public function testPubSubSSubscribeMessageDelivery()
+    {
+        if (! $this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('Sharded pub/sub requires Valkey/Redis 7.0+');
+            return;
+        }
+
+        $channel = 'test_ssubscribe_' . uniqid();
+        $message = 'shard_msg_' . time();
+        $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'result_');
+
+        @unlink($sync_file);
+        @unlink($result_file);
+
+        $sub_script = __DIR__ . '/scripts/subscriber_ssubscribe_cluster.php';
+
+        $cmd = $this->buildSubscriberCommand(
+            $sub_script,
+            '127.0.0.1',
+            7001,
+            $channel,
+            $message,
+            $sync_file,
+            $result_file
+        );
+
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
+
+        // Wait for subscriber ready
+        $timeout = time() + 5;
+        while (!file_exists($sync_file) && time() < $timeout) {
+            usleep(100000);
+        }
+
+        // Check for error file immediately
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            @unlink($sync_file);
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber script error: ' . $error);
+        }
+
+        $this->assertTrue(file_exists($sync_file), 'Subscriber should signal ready');
+
+        // The sync file is written just before ssubscribe() is issued, so retry
+        // until the slot owner reports the shard subscriber.
+        $count = 0;
+        $timeout = time() + 5;
+        while ($count < 1 && time() < $timeout) {
+            $count = $this->valkey_glide->spublish($channel, $message);
+            if ($count < 1) {
+                usleep(100000);
+            }
+        }
+
+        // Wait for callback result
+        $success = false;
+        $timeout = time() + 5;
+        while (!$success && time() < $timeout) {
+            if (file_exists($result_file)) {
+                $success = true;
+                break;
+            }
+            usleep(100000);
+        }
+        $received_channel = $success ? file_get_contents($result_file) : null;
+
+        // Cleanup
+        foreach ($pipes as $pipe) {
+            @fclose($pipe);
+        }
+        @proc_terminate($proc);
+        @proc_close($proc);
+        @unlink($sync_file);
+        @unlink($result_file);
+        @unlink($error_file);
+
+        $this->assertGTE(1, $count, 'SPublish should reach at least 1 shard subscriber');
+        $this->assertTrue($success, 'Shard message should be delivered to ssubscribe callback');
+        $this->assertEquals($channel, $received_channel, 'Callback should receive the shard channel name');
     }
 }
