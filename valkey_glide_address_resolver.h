@@ -9,6 +9,10 @@
  * Allocate a libffi closure that, when called by Rust, dispatches to the
  * PHP callable. Returns NULL on allocation failure.
  * The caller must store the returned cb and pass it to close() when done.
+ *
+ * The PHP callable only runs on the thread that called acquire(). Calls from
+ * other threads (the core's background tasks) are answered from the results
+ * the callable returned on that thread, or fall back to the original address.
  */
 AddressResolverCallback valkey_glide_resolver_acquire(zval* callable);
 
