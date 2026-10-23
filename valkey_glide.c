@@ -1353,7 +1353,7 @@ PHP_METHOD(ValkeyGlide, connect) {
     /* Apply defaults for nullable parameters */
     zend_long port = (port_zval && Z_TYPE_P(port_zval) != IS_NULL) ? Z_LVAL_P(port_zval) : 6379;
     double    timeout =
-        (timeout_zval && Z_TYPE_P(timeout_zval) != IS_NULL) ? Z_DVAL_P(timeout_zval) : 0.0;
+        (timeout_zval && Z_TYPE_P(timeout_zval) != IS_NULL) ? zval_get_double(timeout_zval) : 0.0;
     zend_bool use_tls = (use_tls_zval && Z_TYPE_P(use_tls_zval) != IS_NULL)
                             ? (Z_TYPE_P(use_tls_zval) == IS_TRUE)
                             : false;
