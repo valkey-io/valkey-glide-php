@@ -27,6 +27,7 @@
 #include "common.h"
 #include "include/glide/connection_request.pb-c.h"
 #include "include/glide_bindings.h"
+#include "valkey_glide_prefix.h"
 
 // Function declarations
 char* store_script_and_get_hash(const char* script);
@@ -122,6 +123,15 @@ typedef struct ClientAdapter ClientAdapter;
 
 /* Function to close a Valkey Glide client */
 void close_glide_client(const void* glide_client);
+
+/* Close the object's client and clear the handle. A client inherited through
+ * fork() is only forgotten: closing it from the child crashes or hangs, and
+ * the parent still owns it. */
+void valkey_glide_close_client(valkey_glide_object* valkey_glide);
+
+/* Exception message for a client used after fork() */
+#define VALKEY_GLIDE_FORK_ERROR "Cannot use a client created before fork() in the child process"
+
 void free_command_response(CommandResponse* command_response_ptr);
 void free_command_result(CommandResult* command_result_ptr);
 
@@ -302,7 +312,8 @@ void  execute_eval_ro_command(zval* object, int argc, zval* return_value, bool i
 void  execute_evalsha_ro_command(zval* object, int argc, zval* return_value, bool is_cluster);
 int   execute_function_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_function_load_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_function_load_internal(valkey_glide_object* valkey_glide,
+int execute_function_load_internal(zval*                object,
+                                   valkey_glide_object* valkey_glide,
                                    char*                library_code,
                                    size_t               library_code_len,
                                    zend_bool            replace,
@@ -872,10 +883,36 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
             case VALKEY_GLIDE_OPT_REPLY_LITERAL:                              \
                 valkey_glide->opt_reply_literal = zval_is_true(value);        \
                 RETURN_TRUE;                                                  \
+            case VALKEY_GLIDE_OPT_PREFIX:                                     \
+                RETURN_BOOL(valkey_glide_set_prefix(valkey_glide, value));    \
+            case VALKEY_GLIDE_OPT_SCAN:                                       \
+                switch (zval_get_long(value)) {                               \
+                    case VALKEY_GLIDE_SCAN_NORETRY:                           \
+                        valkey_glide->scan_retry = false;                     \
+                        RETURN_TRUE;                                          \
+                    case VALKEY_GLIDE_SCAN_RETRY:                             \
+                        valkey_glide->scan_retry = true;                      \
+                        RETURN_TRUE;                                          \
+                    case VALKEY_GLIDE_SCAN_PREFIX:                            \
+                        valkey_glide->scan_prefix = true;                     \
+                        RETURN_TRUE;                                          \
+                    case VALKEY_GLIDE_SCAN_NOPREFIX:                          \
+                        valkey_glide->scan_prefix = false;                    \
+                        RETURN_TRUE;                                          \
+                    default:                                                  \
+                        RETURN_FALSE;                                         \
+                }                                                             \
             default:                                                          \
                 RETURN_FALSE;                                                 \
         }                                                                     \
     }
+
+/* OPT_SCAN as getOption() reports it: a bitmask of SCAN_RETRY and SCAN_PREFIX,
+ * as in PHPRedis */
+static inline zend_long valkey_glide_scan_option(const valkey_glide_object* valkey_glide) {
+    return (valkey_glide->scan_retry ? VALKEY_GLIDE_SCAN_RETRY : 0) |
+           (valkey_glide->scan_prefix ? VALKEY_GLIDE_SCAN_PREFIX : 0);
+}
 
 #define GETOPTION_METHOD_IMPL(class_name)                                     \
     PHP_METHOD(class_name, getOption) {                                       \
@@ -894,9 +931,31 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
         switch (option) {                                                     \
             case VALKEY_GLIDE_OPT_REPLY_LITERAL:                              \
                 RETURN_BOOL(valkey_glide->opt_reply_literal);                 \
+            case VALKEY_GLIDE_OPT_PREFIX:                                     \
+                if (valkey_glide->prefix) {                                   \
+                    RETURN_STR_COPY(valkey_glide->prefix);                    \
+                }                                                             \
+                RETURN_NULL();                                                \
+            case VALKEY_GLIDE_OPT_SCAN:                                       \
+                RETURN_LONG(valkey_glide_scan_option(valkey_glide));          \
             default:                                                          \
                 RETURN_FALSE;                                                 \
         }                                                                     \
+    }
+
+/* Key prefix helper - matching PHPRedis _prefix() */
+#define PREFIX_METHOD_IMPL(class_name)                                                   \
+    PHP_METHOD(class_name, _prefix) {                                                    \
+        zend_string* key;                                                                \
+                                                                                         \
+        ZEND_PARSE_PARAMETERS_START(1, 1)                                                \
+        Z_PARAM_STR(key)                                                                 \
+        ZEND_PARSE_PARAMETERS_END();                                                     \
+                                                                                         \
+        valkey_glide_object* valkey_glide =                                              \
+            VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());            \
+                                                                                         \
+        RETURN_STR(valkey_glide_prefix_key(valkey_glide, ZSTR_VAL(key), ZSTR_LEN(key))); \
     }
 
 /* Error introspection methods - matching PHPRedis getLastError/clearLastError API */

@@ -32,11 +32,13 @@
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
 #include "valkey_glide_list_common.h"
+#include "valkey_glide_persistent.h"
 #include "valkey_glide_z_common.h"
 
 extern zend_class_entry* ce;
 extern zend_class_entry* get_valkey_glide_exception_ce();
 
+#include "valkey_glide_prefix.h"
 #include "valkey_glide_pubsub_common.h"
 
 /* Import the string conversion functions from command_response.c */
@@ -1042,8 +1044,16 @@ void close_glide_client(const void* glide_client) {
     if (!glide_client) {
         return;
     }
+    valkey_glide_prefix_untrack_client(glide_client);
     /* Close the client using the close_client function from glide_bindings.h */
     close_client(glide_client);
+}
+
+void valkey_glide_close_client(valkey_glide_object* valkey_glide) {
+    if (valkey_glide->glide_client && valkey_glide->client_pid == getpid()) {
+        close_glide_client(valkey_glide->glide_client);
+    }
+    valkey_glide->glide_client = NULL;
 }
 
 /* Execute an ECHO command using the Valkey Glide client */
@@ -2375,6 +2385,9 @@ void execute_update_connection_password(zval*             object,
                              0);
         return;
     }
+
+    /* The client's credentials no longer match its persistent key */
+    valkey_glide_mark_connection_state_changed(valkey_glide);
 
     /* Call FFI function */
     CommandResult* result =

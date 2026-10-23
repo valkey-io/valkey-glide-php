@@ -373,6 +373,70 @@ class ValkeyGlide
     public const OPT_REPLY_LITERAL = UNKNOWN;
 
     /**
+     * Runtime option: Key prefix (PHPRedis OPT_PREFIX).
+     * When set, the prefix is prepended to every key argument, including keys of
+     * multi-key commands, the KEYS portion of FCALL/EVAL/EVALSHA, the KEYS
+     * pattern, and commands queued in multi() or pipeline(). Replies are not
+     * changed, so key names returned by the server include the prefix.
+     * Setting an empty string removes the prefix.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_OPT_PREFIX
+     *
+     */
+    public const OPT_PREFIX = UNKNOWN;
+
+    /**
+     * Runtime option: SCAN behaviour (PHPRedis OPT_SCAN).
+     * Accepts SCAN_RETRY, SCAN_NORETRY, SCAN_PREFIX or SCAN_NOPREFIX; the
+     * retry and prefix settings are independent. getOption() returns a
+     * bitmask of SCAN_RETRY and SCAN_PREFIX (0 by default).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_OPT_SCAN
+     *
+     */
+    public const OPT_SCAN = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: return empty SCAN pages to the caller (default).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_NORETRY
+     *
+     */
+    public const SCAN_NORETRY = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: keep scanning until a page has elements or the scan
+     * completes, so SCAN, SSCAN, HSCAN and ZSCAN never return an empty page
+     * mid-scan.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_RETRY
+     *
+     */
+    public const SCAN_RETRY = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: prefix the SCAN MATCH pattern with OPT_PREFIX.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_PREFIX
+     *
+     */
+    public const SCAN_PREFIX = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: send the SCAN MATCH pattern unchanged (default).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_NOPREFIX
+     *
+     */
+    public const SCAN_NOPREFIX = UNKNOWN;
+
+    /**
      * Create a new ValkeyGlide instance with the provided configuration.
      *
      * The constructor creates an unconnected client instance.
@@ -394,7 +458,13 @@ class ValkeyGlide
      * @param string|null $host Hostname
      * @param int|null $port Port number (default: 6379, used with $host)
      * @param float|null $timeout Connection timeout in seconds
-     * @param string|null $persistent_id Persistent connection ID (not implemented)
+     * @param string|null $persistent_id Keep the client open after the request ends and reuse it
+     *                                   in later requests of the same worker process (e.g.
+     *                                   PHP-FPM) that use the same ID and configuration. See
+     *                                   "Persistent Clients" in the README for when a kept
+     *                                   client is reused or closed. An empty string is ignored,
+     *                                   as in PHPRedis (use pconnect() for a persistent client
+     *                                   without an ID).
      * @param int|null $retry_interval Retry interval in milliseconds (not implemented)
      * @param float|null $read_timeout Read timeout in seconds (not implemented)
      * @param array|null $addresses Server addresses array: [['host' => 'x', 'port' => y], ...] (ValkeyGlide-style)
@@ -494,6 +564,46 @@ class ValkeyGlide
         ?string $client_info_tag = null,
     ): bool;
 
+    /**
+     * Connect with a persistent client: same as connect(), but the client is
+     * kept open after the request and reused by later requests in this worker
+     * process that use the same persistent_id (default: none) and
+     * configuration. The client is not kept when valkey_glide.max_persistent_clients
+     * is 0. See "Persistent Clients" in the README.
+     *
+     * The parameters, return value and exceptions are identical to connect(),
+     * except that an empty persistent_id is not ignored: it is the same as none.
+     *
+     * @see ValkeyGlide::connect
+     */
+    public function pconnect(
+        ?string $host = null,
+        ?int $port = null,
+        ?float $timeout = null,
+        ?string $persistent_id = null,
+        ?int $retry_interval = null,
+        ?float $read_timeout = null,
+        ?array $addresses = null,
+        ?bool $use_tls = null,
+        ?array $credentials = null,
+        ?int $read_from = null,
+        ?int $request_timeout = null,
+        ?array $reconnect_strategy = null,
+        ?int $database_id = null,
+        ?string $client_name = null,
+        ?string $client_az = null,
+        ?array $advanced_config = null,
+        ?bool $lazy_connect = null,
+        resource|array|null $context = null,
+        ?array $compression = null,
+        ?array $client_side_cache = null,
+        ?callable $address_resolver = null,
+        ?array $circuit_breaker = null,
+        ?int $node_discovery_mode = null,
+        ?string $lib_name = null,
+        ?string $client_info_tag = null,
+    ): bool;
+
     public function __destruct();
 
     /**
@@ -512,6 +622,14 @@ class ValkeyGlide
      * @return mixed The option value, or false if the option is not set or invalid
      */
     public function getOption(int $option): mixed;
+
+    /**
+     * Prepend the OPT_PREFIX key prefix to a key.
+     *
+     * @param string $key The key to prefix
+     * @return string The prefixed key, or the key unchanged when no prefix is set
+     */
+    public function _prefix(string $key): string; // phpcs:ignore PSR2.Methods.MethodDeclaration.Underscore
 
     /**
      * Get the last error message returned by the server, if any.

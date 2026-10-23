@@ -36,14 +36,25 @@ typedef struct pubsub_message {
     struct pubsub_message* next;
 } pubsub_message;
 
+// Maximum number of messages, and of payload bytes, queued for one subscriber
+// before new ones are dropped (and counted), so a slow callback cannot exhaust
+// memory: queued messages are allocated outside PHP's memory_limit.
+#define PUBSUB_QUEUE_MAX_DEPTH 10000
+#define PUBSUB_QUEUE_MAX_BYTES ((size_t) 64 * 1024 * 1024)
+
 // Pubsub callback info structure
 typedef struct pubsub_callback_info {
     zval            callback;
     zval            client_obj;
-    bool            is_active;
+    bool            is_active;  // false once unsubscribed (written under queue_mutex)
     pubsub_message* queue_head;
     pubsub_message* queue_tail;
-    pubsub_message* in_flight;  // dequeued message being delivered (subscribe loop only)
+    size_t          queue_depth;       // queued messages (protected by queue_mutex)
+    size_t          queue_bytes;       // their payload bytes (protected by queue_mutex)
+    size_t          dropped_count;     // messages dropped on a full queue (queue_mutex)
+    size_t          reported_drops;    // dropped_count already logged (queue_mutex)
+    time_t          last_drop_report;  // when drops were last logged (queue_mutex)
+    pubsub_message* in_flight;         // dequeued message being delivered (subscribe loop only)
     mutex_t         queue_mutex;
     cond_t          queue_cond;
     HashTable*      subscribed_channels;  // HashTable of subscribed channel/pattern names
@@ -97,6 +108,11 @@ void cleanup_callback_info(pubsub_callback_info* info);
 void php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* client_obj);
 void php_unregister_pubsub_callback(uintptr_t client_ptr);
 void php_release_pubsub_callback(uintptr_t client_ptr);
+struct CommandResult* pubsub_command(const void*          connection,
+                                     enum RequestType     command_type,
+                                     unsigned long        arg_count,
+                                     const uintptr_t*     args,
+                                     const unsigned long* args_len);
 pubsub_callback_info* find_pubsub_callback(const char* client_key);
 bool                  is_client_in_subscribe_mode(uintptr_t client_ptr);
 void                  pubsub_callback_handler(uintptr_t      client_ptr,
