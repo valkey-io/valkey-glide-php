@@ -5348,6 +5348,68 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals('not_a_hash', $this->valkey_glide->get($key));
     }
 
+    public function testDelIfEq(): void
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('DELIFEQ requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $key        = $this->createRandomString(16);
+        $value      = $this->createRandomString(16);
+        $wrongValue = $this->createRandomString(16);
+
+        $this->valkey_glide->del($key);
+
+        // Key does not exist yet - nothing to delete.
+        $this->assertFalse($this->valkey_glide->delIfEq($key, $value));
+
+        $this->assertTrue($this->valkey_glide->set($key, $value));
+
+        // Value does not match - key remains untouched.
+        $this->assertFalse($this->valkey_glide->delIfEq($key, $wrongValue));
+        $this->assertEquals($value, $this->valkey_glide->get($key));
+
+        // Value matches exactly - key is deleted.
+        $this->assertTrue($this->valkey_glide->delIfEq($key, $value));
+        $this->assertFalse($this->valkey_glide->get($key));
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
+
+        // Comparison is exact: a value that only partially matches does not delete.
+        $this->assertTrue($this->valkey_glide->set($key, 'hello world'));
+        $this->assertFalse($this->valkey_glide->delIfEq($key, 'hello'));
+        $this->assertEquals('hello world', $this->valkey_glide->get($key));
+        $this->assertTrue($this->valkey_glide->delIfEq($key, 'hello world'));
+
+        // Binary-safe comparison value, including an embedded NUL byte.
+        $binary = "bin\0ary" . random_bytes(4);
+        $this->assertTrue($this->valkey_glide->set($key, $binary));
+        $this->assertFalse($this->valkey_glide->delIfEq($key, substr($binary, 0, 3)));
+        $this->assertTrue($this->valkey_glide->delIfEq($key, $binary));
+
+        // A key holding a non-string value returns false and records a
+        // WRONGTYPE error via getLastError(), matching this client's
+        // established wrong-type convention (see testGetLastError).
+        $this->valkey_glide->del($key);
+        $this->assertEquals(1, $this->valkey_glide->sAdd($key, 'member'));
+        $this->assertTrue($this->valkey_glide->clearLastError());
+        $this->assertFalse($this->valkey_glide->delIfEq($key, 'member'));
+        $err = $this->valkey_glide->getLastError();
+        $this->assertIsString($err);
+        $this->assertStringContains('WRONGTYPE', $err);
+        $this->valkey_glide->del($key);
+
+        // Batch mode: delIfEq chains and its boolean result is returned by exec().
+        $this->assertTrue($this->valkey_glide->set($key, $value));
+        $this->assertEquals(
+            [false, true],
+            $this->valkey_glide->multi()
+                ->delIfEq($key, $wrongValue)
+                ->delIfEq($key, $value)
+                ->exec()
+        );
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
+    }
+
     public function testHashFieldExpirationCommandValidation(): void
     {
         if (!$this->compare_major_version_number(9)) {

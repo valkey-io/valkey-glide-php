@@ -548,6 +548,26 @@ class ValkeyGlide
     public function append(string $key, mixed $value): ValkeyGlide|int|false;
 
     /**
+     * Deletes a ValkeyGlide STRING key if its value equals the given comparison value.
+     *
+     * @param string $key   The key to delete.
+     * @param string $value The comparison value. The key is only deleted if its current value
+     *                       matches exactly.
+     *
+     * @return ValkeyGlide|bool `true` if `key` was deleted, or `false` if `key` did not exist or
+     *                           its value did not match `value`.
+     *
+     * @since Valkey 9.0 and above.
+     *
+     * @see https://valkey.io/commands/delifeq/
+     *
+     * @example
+     * $valkey_glide->set('foo', 'bar');
+     * $valkey_glide->delIfEq('foo', 'bar'); // true, key is deleted
+     */
+    public function delIfEq(string $key, string $value): ValkeyGlide|bool;
+
+    /**
      * Count the number of set bits in a ValkeyGlide string.
      *
      * @see https://valkey.io/commands/bitcount/
