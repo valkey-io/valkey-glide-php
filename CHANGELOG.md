@@ -14,9 +14,11 @@
 * Failing to build the connection request, or getting no connection response, is reported as an exception instead of dereferencing a NULL response ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))
 * `clone` on a `ValkeyGlide` or `ValkeyGlideCluster` object now throws an `Error`; the copy shared the client handle and crashed on first use ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))
 * `script()`, `geoadd()`, `geohash()`, `geopos()`, `xinfo()`, `zadd()` and cluster route parsing no longer read uninitialized variadic arguments when called without them (`script('FLUSH')` could crash) ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))
+* A client (`ValkeyGlide`, `ValkeyGlideCluster`, `ValkeyGlideMonitor`) inherited through `fork()` is no longer closed by the child, which crashed (macOS) or hung (Linux) the child at exit. Calling a method on it in the child, directly or through `call_user_func()`, Reflection or a closure, now throws `ValkeyGlideException`, except `close()`, which only drops the handle, and `getLastError()`, `clearLastError()`, `getOption()` and `setOption()`, which do not use the client. Creating a new client in a child after the parent used GLIDE still crashes or hangs until the core is fixed ([#349](https://github.com/valkey-io/valkey-glide-php/issues/349))
 
 ### Changes
 
+* At most 10,000 messages or 64 MiB of payload are queued per pub/sub subscriber. When a slow callback falls behind, newer messages are dropped and a warning with the drop count is logged (at most once per second); previously every message was queued, without a limit ([#363](https://github.com/valkey-io/valkey-glide-php/issues/363))
 * Add `HGETDEL` command for standalone and cluster clients ([#343](https://github.com/valkey-io/valkey-glide-php/pull/343))
 * Add PHP 8.4 and 8.5 to the supported versions and the CI test matrix
 * Add `READ_FROM_AZ_AFFINITY_ALL_NODES` read strategy for standalone and cluster clients ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
