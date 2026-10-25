@@ -1913,6 +1913,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 $client->rawcommand($channel, 'SUBSCRIBE');
             } catch (ValkeyGlideClusterException $e) {
             }
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
             $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
 
             // A raw SUBSCRIBE subscribes on the server even though the call reports false, and
