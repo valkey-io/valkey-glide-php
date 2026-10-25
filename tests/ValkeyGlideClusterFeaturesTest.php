@@ -1848,7 +1848,14 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             // A WATCH or UNWATCH sent through rawcommand() is tracked too
             $this->assertTrue($client->rawcommand($key, 'watch', $key));
             $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            // An UNWATCH routed to one node may leave a watch on another primary in place
             $this->assertTrue($client->rawcommand($key, 'UNWATCH'));
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertTrue($client->rawcommand('allPrimaries', 'UNWATCH'));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertTrue($client->rawcommand($key, 'WATCH', $key));
+            $this->assertTrue($client->rawcommand('allNodes', 'unwatch'));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
             $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
             $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
 

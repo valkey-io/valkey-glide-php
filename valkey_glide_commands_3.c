@@ -2158,6 +2158,17 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
     return 0;
 }
 
+/* Whether a rawcommand() route sends the command to every primary. A cluster UNWATCH routed
+ * to one node leaves the watches held on the other primaries in place. */
+static bool rawcommand_route_reaches_all_primaries(zval* route) {
+    if (!route)
+        return true; /* Standalone: the single connection holds every watch */
+
+    return Z_TYPE_P(route) == IS_STRING &&
+           (zend_string_equals_literal_ci(Z_STR_P(route), "allPrimaries") ||
+            zend_string_equals_literal_ci(Z_STR_P(route), "allNodes"));
+}
+
 /* Execute rawcommand command */
 int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -2229,7 +2240,8 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
         if (Z_TYPE(z_args[0]) == IS_STRING) {
             if (zend_string_equals_literal_ci(Z_STR(z_args[0]), "WATCH"))
                 valkey_glide->is_watching = true;
-            else if (zend_string_equals_literal_ci(Z_STR(z_args[0]), "UNWATCH"))
+            else if (zend_string_equals_literal_ci(Z_STR(z_args[0]), "UNWATCH") &&
+                     rawcommand_route_reaches_all_primaries(route))
                 valkey_glide->is_watching = false;
         }
         return 1;
