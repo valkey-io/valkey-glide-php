@@ -411,7 +411,7 @@ static const ConnectionResponse* create_base_glide_client(
         request_bytes, len, &client_type, valkey_glide_pubsub_callback, address_resolver_cb, 0);
 
     /* Hand the request bytes to the caller if asked, otherwise free them */
-    if (out_request && !conn_resp->connection_error_message) {
+    if (out_request && conn_resp && !conn_resp->connection_error_message) {
         *out_request     = request_bytes;
         *out_request_len = len;
     } else {
@@ -602,6 +602,13 @@ bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
                                                         valkey_glide->resolver_cb,
                                                         0);
 
+    if (!conn_resp) {
+        valkey_glide_set_last_error(valkey_glide,
+                                    "OPT_SLAVE_FAILOVER: failed to create client: no connection "
+                                    "response");
+        efree(request_bytes);
+        return false;
+    }
     if (conn_resp->connection_error_message) {
         VALKEY_LOG_ERROR("set_slave_failover", conn_resp->connection_error_message);
         valkey_glide_set_last_error(valkey_glide, conn_resp->connection_error_message);
