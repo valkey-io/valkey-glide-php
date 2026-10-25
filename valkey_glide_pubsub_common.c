@@ -492,16 +492,19 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
         }
         mutex_unlock(&info->queue_mutex);
 
+        // Native memory: keep it reachable from the entry until it is freed, so
+        // request shutdown frees it if PHP bails out of the warning below (it
+        // allocates) or of the callback
+        if (msg) {
+            info->in_flight = msg;
+        }
+
         if (report) {
             VALKEY_LOG_WARN_FMT(
                 "pubsub", "Subscriber queue full: %zu message(s) dropped so far", dropped);
         }
 
         if (msg) {
-            // Native memory: keep it reachable from the entry until it is freed,
-            // so request shutdown frees it if PHP bails out of the callback
-            info->in_flight = msg;
-
             zval php_channel, php_message, php_pattern;
             ZVAL_STRINGL(&php_channel, (char*) msg->channel, msg->channel_len);
             ZVAL_STRINGL(&php_message, (char*) msg->message, msg->message_len);
