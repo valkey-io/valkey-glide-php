@@ -393,6 +393,14 @@ PHP_METHOD(ValkeyGlideCluster, close) {
         valkey_glide->resolver_cb = NULL;
     }
 
+    /* Only OPT_SLAVE_FAILOVER reads the saved request, and not once closed; it may hold a
+     * password, so do not keep it until the object is destroyed */
+    if (valkey_glide->connection_request) {
+        efree(valkey_glide->connection_request);
+        valkey_glide->connection_request = NULL;
+    }
+    valkey_glide->connection_request_len = 0;
+
     RETURN_TRUE;
 }
 

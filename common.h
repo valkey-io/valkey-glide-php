@@ -448,6 +448,7 @@ typedef struct {
     int                   batch_type; /* ATOMIC, MULTI, or PIPELINE */
     bool                  is_in_batch_mode;
     bool                  is_watching; /* WATCH sent and not yet ended by EXEC or UNWATCH */
+    bool raw_subscribed; /* SUBSCRIBE sent through rawcommand(), which keeps no unsubscribe count */
 
     /* Runtime options (like PHPRedis OPT_* settings) */
     bool         opt_reply_literal;  /* OPT_REPLY_LITERAL: return "OK" string instead of true */

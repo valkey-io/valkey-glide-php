@@ -536,12 +536,13 @@ bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
     zend_long                   failover = zval_get_long(value);
     ConnectionRequest__ReadFrom read_from;
 
-    /* Standalone clients have no saved request; PHPRedis Redis also rejects this option */
-    if (!valkey_glide->connection_request) {
-        return false;
-    }
+    /* close() also releases the saved request, so check for a closed client first */
     if (!valkey_glide->glide_client) {
         valkey_glide_set_last_error(valkey_glide, "OPT_SLAVE_FAILOVER: client is closed");
+        return false;
+    }
+    /* Standalone clients have no saved request; PHPRedis Redis also rejects this option */
+    if (!valkey_glide->connection_request) {
         return false;
     }
     if (!failover_to_read_from(failover, &read_from)) {
@@ -575,7 +576,7 @@ bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
                  sizeof(client_key),
                  "%lu",
                  (unsigned long) (uintptr_t) valkey_glide->glide_client);
-        if (find_pubsub_callback(client_key)) {
+        if (valkey_glide->raw_subscribed || find_pubsub_callback(client_key)) {
             refusal = "OPT_SLAVE_FAILOVER cannot be changed while subscribed";
         }
     }

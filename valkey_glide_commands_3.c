@@ -2232,6 +2232,14 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
         }
     }
 
+    /* A raw (P|S)SUBSCRIBE can subscribe on the server even when the call reports failure, and
+     * nothing records it for OPT_SLAVE_FAILOVER to refuse recreating the client */
+    if (Z_TYPE(z_args[0]) == IS_STRING &&
+        (zend_string_equals_literal_ci(Z_STR(z_args[0]), "SUBSCRIBE") ||
+         zend_string_equals_literal_ci(Z_STR(z_args[0]), "PSUBSCRIBE") ||
+         zend_string_equals_literal_ci(Z_STR(z_args[0]), "SSUBSCRIBE")))
+        valkey_glide->raw_subscribed = true;
+
     /* Execute the raw command using the Glide client */
     if (execute_rawcommand_command_internal(
             valkey_glide->glide_client, z_args, arg_count, return_value, route)) {

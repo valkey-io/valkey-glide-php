@@ -1898,6 +1898,29 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         // Closed, even for the current mode
         $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
         $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+        $this->assertTrue(str_contains($client->getLastError(), 'closed'));
+    }
+
+    public function testOptSlaveFailoverRejectedAfterRawSubscribe()
+    {
+        $client = $this->newInstance();
+        $admin = $this->newInstance();
+        $channel = 'test_opt_slave_failover_raw_sub_' . uniqid();
+
+        try {
+            // A raw SUBSCRIBE subscribes on the server even though the call reports false, and
+            // recreating the client would drop that subscription
+            try {
+                $client->rawcommand($channel, 'SUBSCRIBE', $channel);
+            } catch (ValkeyGlideClusterException $e) {
+            }
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertEquals(ValkeyGlideCluster::FAILOVER_NONE, $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER));
+            $this->assertEquals([$channel, 1], $admin->rawcommand('allPrimaries', 'PUBSUB', 'NUMSUB', $channel));
+        } finally {
+            $client->close();
+            $admin->close();
+        }
     }
 
     public function testOptSlaveFailoverUsesUpdatedPassword()
