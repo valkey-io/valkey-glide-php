@@ -533,6 +533,10 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
      */
     public function testPubSubOversizedMessage()
     {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The subscriber script connects without TLS or auth');
+        }
+
         $channel = 'test_oversized_' . uniqid();
         $big_len = 64 * 1024 * 1024 + 1;
         $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
@@ -568,13 +572,22 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
                 'Subscriber should be registered before publishing'
             );
 
+            // While the callback is blocked, the oversized message enters the
+            // empty queue and pushes it over the byte cap, so the small
+            // messages after it are dropped
+            $this->assertEquals(1, $admin->publish($channel, 'block'));
+            usleep(500000);
             $this->assertEquals(1, $admin->publish($channel, str_repeat('x', $big_len)));
+            for ($i = 0; $i < 3; $i++) {
+                $this->assertEquals(1, $admin->publish($channel, 'x'));
+            }
+            sleep(4);
             $this->assertEquals(1, $admin->publish($channel, 'sentinel'));
 
             $this->assertEquals(
-                $big_len . ',' . strlen('sentinel'),
+                strlen('block') . ',' . $big_len . ',' . strlen('sentinel'),
                 $this->waitForFileToHaveContent($result_file, 30),
-                'Both the oversized message and the sentinel should be delivered'
+                'The oversized message and the sentinel should be delivered, the messages queued behind it dropped'
             );
         } finally {
             $admin->config('SET', 'client-output-buffer-limit', $limits);
