@@ -38,7 +38,8 @@ typedef struct pubsub_message {
 
 // Maximum number of messages, and of payload bytes, queued for one subscriber
 // before new ones are dropped (and counted), so a slow callback cannot exhaust
-// memory: queued messages are allocated outside PHP's memory_limit.
+// memory: queued messages are allocated outside PHP's memory_limit. A message
+// larger than the byte cap is still queued when the queue is empty.
 #define PUBSUB_QUEUE_MAX_DEPTH 10000
 #define PUBSUB_QUEUE_MAX_BYTES ((size_t) 64 * 1024 * 1024)
 

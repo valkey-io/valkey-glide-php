@@ -528,6 +528,71 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
     }
 
     /**
+     * Verify a message larger than the subscriber queue's 64 MiB byte cap is
+     * still delivered when the queue is empty, followed by a small one.
+     */
+    public function testPubSubOversizedMessage()
+    {
+        $channel = 'test_oversized_' . uniqid();
+        $big_len = 64 * 1024 * 1024 + 1;
+        $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'result_');
+        $error_file = $result_file . '.error';
+        @unlink($sync_file);
+        @unlink($result_file);
+
+        // The default pub/sub output buffer hard limit (32 MiB) would make the
+        // server disconnect the subscriber instead of sending the message
+        $admin = new ValkeyGlide();
+        $admin->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $limits = $admin->config('GET', 'client-output-buffer-limit')['client-output-buffer-limit'];
+        $admin->config('SET', 'client-output-buffer-limit', 'pubsub 0 0 0');
+
+        $cmd = $this->buildSubscriberCommand(
+            __DIR__ . '/scripts/subscriber_oversized_message.php',
+            $this->getHost(),
+            $this->getPort(),
+            $channel,
+            $sync_file,
+            $result_file
+        );
+        $proc = proc_open($cmd, [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
+
+        try {
+            $this->assertTrue($this->waitForFileToHaveContent($sync_file) !== null, 'Subscriber should signal ready');
+            if (file_exists($error_file)) {
+                $this->fail('Subscriber script error: ' . file_get_contents($error_file));
+            }
+            $this->assertTrue(
+                $this->waitForSubscribers($admin, [$channel => 1]),
+                'Subscriber should be registered before publishing'
+            );
+
+            $this->assertEquals(1, $admin->publish($channel, str_repeat('x', $big_len)));
+            $this->assertEquals(1, $admin->publish($channel, 'sentinel'));
+
+            $this->assertEquals(
+                $big_len . ',' . strlen('sentinel'),
+                $this->waitForFileToHaveContent($result_file, 30),
+                'Both the oversized message and the sentinel should be delivered'
+            );
+        } finally {
+            $admin->config('SET', 'client-output-buffer-limit', $limits);
+            $admin->close();
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            if (is_resource($proc)) {
+                @proc_terminate($proc);
+                @proc_close($proc);
+            }
+            @unlink($sync_file);
+            @unlink($result_file);
+            @unlink($error_file);
+        }
+    }
+
+    /**
      * Verify unsubscribing from a callback ends the subscription loop.
      */
     public function testPubSubUnsubscribe()

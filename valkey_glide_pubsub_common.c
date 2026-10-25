@@ -269,13 +269,15 @@ void pubsub_callback_handler(uintptr_t      client_ptr,
         return;
     }
 
-    // Reserve room in the queue before copying anything, or drop the message
+    // Reserve room in the queue before copying anything, or drop the message.
+    // An empty queue always admits one message, so one larger than the byte
+    // cap is still delivered and memory stays bounded by that one message
     bool   has_pattern = pattern && pattern_len > 0;
     size_t size =
         (size_t) channel_len + (size_t) message_len + (has_pattern ? (size_t) pattern_len : 0);
     mutex_lock(&info->queue_mutex);
-    bool room = info->queue_depth < PUBSUB_QUEUE_MAX_DEPTH &&
-                size <= PUBSUB_QUEUE_MAX_BYTES - info->queue_bytes;
+    bool room = info->queue_depth == 0 || (info->queue_depth < PUBSUB_QUEUE_MAX_DEPTH &&
+                                           size <= PUBSUB_QUEUE_MAX_BYTES - info->queue_bytes);
     if (room) {
         info->queue_depth++;
         info->queue_bytes += size;
