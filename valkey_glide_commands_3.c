@@ -2224,7 +2224,14 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
     /* Execute the raw command using the Glide client */
     if (execute_rawcommand_command_internal(
             valkey_glide->glide_client, z_args, arg_count, return_value, route)) {
-        /* Return value already set in execute_rawcommand_command */
+        /* Return value already set in execute_rawcommand_command. A raw WATCH or UNWATCH
+         * changes the watch state just like watch() and unwatch() */
+        if (Z_TYPE(z_args[0]) == IS_STRING) {
+            if (zend_string_equals_literal_ci(Z_STR(z_args[0]), "WATCH"))
+                valkey_glide->is_watching = true;
+            else if (zend_string_equals_literal_ci(Z_STR(z_args[0]), "UNWATCH"))
+                valkey_glide->is_watching = false;
+        }
         return 1;
     }
 
