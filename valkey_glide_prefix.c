@@ -194,13 +194,16 @@ static void mark_migrate(bool*                is_key,
     }
 }
 
-/* SCAN cursor [MATCH pattern] [COUNT n] [TYPE t]: only the pattern, and only
- * with OPT_SCAN = SCAN_PREFIX, matching PHPRedis. */
+/* [key] cursor [MATCH pattern] [COUNT n] [TYPE t]: only the pattern, and only
+ * with OPT_SCAN = SCAN_PREFIX. Like PHPRedis, this also applies to the MATCH of
+ * HSCAN, SSCAN and ZSCAN, even though it matches fields or members there.
+ * `from` is the index of the first option after the cursor. */
 static void mark_scan_match(bool*                is_key,
                             unsigned long        arg_count,
                             const uintptr_t*     args,
-                            const unsigned long* args_len) {
-    for (unsigned long i = 1; i + 1 < arg_count; i++) {
+                            const unsigned long* args_len,
+                            unsigned long        from) {
+    for (unsigned long i = from; i + 1 < arg_count; i++) {
         if (ARG_IS(i, "MATCH")) {
             is_key[i + 1] = true;
             return;
@@ -260,7 +263,6 @@ static void mark_keys(valkey_glide_object* valkey_glide,
         case HPTtl:
         case HPersist:
         case HRandField:
-        case HScan:
         case HSet:
         case HSetEx:
         case HSetNX:
@@ -326,7 +328,6 @@ static void mark_keys(valkey_glide_object* valkey_glide,
         case SPop:
         case SRandMember:
         case SRem:
-        case SScan:
         case Set:
         case SetBit:
         case SetEx:
@@ -374,7 +375,6 @@ static void mark_keys(valkey_glide_object* valkey_glide,
         case ZRevRangeByLex:
         case ZRevRangeByScore:
         case ZRevRank:
-        case ZScan:
         case ZScore:
             mark_range(is_key, arg_count, 0, 1);
             break;
@@ -506,7 +506,17 @@ static void mark_keys(valkey_glide_object* valkey_glide,
 
         case Scan:
             if (valkey_glide->scan_prefix) {
-                mark_scan_match(is_key, arg_count, args, args_len);
+                mark_scan_match(is_key, arg_count, args, args_len, 1);
+            }
+            break;
+
+        /* HSCAN/SSCAN/ZSCAN key cursor [MATCH pattern] ... */
+        case HScan:
+        case SScan:
+        case ZScan:
+            mark_range(is_key, arg_count, 0, 1);
+            if (valkey_glide->scan_prefix) {
+                mark_scan_match(is_key, arg_count, args, args_len, 2);
             }
             break;
 

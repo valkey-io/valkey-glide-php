@@ -295,6 +295,21 @@ CommandResult* execute_command_with_route(const void*          glide_client,
         return NULL;
     }
 
+    /* A key route names the key whose slot picks the node, so it gets the
+     * client's OPT_PREFIX like the command's own keys, as in PHPRedis */
+    valkey_glide_object* prefix_owner = valkey_glide_prefix_find_object(glide_client);
+    if (route.type == ROUTE_TYPE_KEY && prefix_owner && prefix_owner->prefix) {
+        zend_string* prefixed_key = valkey_glide_prefix_key(
+            prefix_owner, route.data.key_route.key, route.data.key_route.key_len);
+        if (route.data.key_route.key_allocated) {
+            efree(route.data.key_route.key);
+        }
+        route.data.key_route.key     = estrndup(ZSTR_VAL(prefixed_key), ZSTR_LEN(prefixed_key));
+        route.data.key_route.key_len = ZSTR_LEN(prefixed_key);
+        route.data.key_route.key_allocated = 1;
+        zend_string_release(prefixed_key);
+    }
+
     /* Create serialized route bytes */
     size_t   route_bytes_len = 0;
     uint8_t* route_bytes     = create_route_bytes_from_route(&route, &route_bytes_len);

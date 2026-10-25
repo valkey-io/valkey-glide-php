@@ -10226,12 +10226,12 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
     {
         $p = self::KEY_PREFIX;
         $raw = $this->valkey_glide;
-        $raw->del("{$p}p1", "{$p}p2");
-
-        $client = $this->newPrefixedInstance();
         if (!$this->havePipeline()) {
             $this->markTestSkipped();
         }
+        $raw->del("{$p}p1", "{$p}p2");
+
+        $client = $this->newPrefixedInstance();
 
         $client->pipeline();
         $client->set('p1', 'x');
@@ -10292,6 +10292,37 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $client->close();
     }
 
+    /* SCAN_PREFIX also prefixes the MATCH of HSCAN, SSCAN and ZSCAN, as in PHPRedis */
+    public function testPrefixScanMatchOfKeyedScans()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}hscan", "{$p}sscan", "{$p}zscan");
+        $raw->hset("{$p}hscan", 'f1', 'v', "{$p}f1", 'v');
+        $raw->sadd("{$p}sscan", 'f1', "{$p}f1");
+        $raw->zadd("{$p}zscan", 1, 'f1', 2, "{$p}f1");
+
+        $client = $this->newPrefixedInstance();
+        $matches = function () use ($client) {
+            $it = null;
+            $h = $client->hscan('hscan', $it, 'f*', 100);
+            $it = null;
+            $s = $client->sscan('sscan', $it, 'f*', 100);
+            $it = null;
+            $z = $client->zscan('zscan', $it, 'f*', 100);
+            return [array_keys($h ?: []), $s ?: [], array_keys($z ?: [])];
+        };
+
+        /* Default (SCAN_NOPREFIX): the pattern is sent unchanged */
+        $this->assertEquals([['f1'], ['f1'], ['f1']], $matches());
+
+        $client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_PREFIX);
+        $this->assertEquals([["{$p}f1"], ["{$p}f1"], ["{$p}f1"]], $matches());
+
+        $raw->del("{$p}hscan", "{$p}sscan", "{$p}zscan");
+        $client->close();
+    }
+
     /* OPT_SCAN SCAN_RETRY: SCAN and SSCAN keep going past empty pages, as in PHPRedis */
     public function testScanRetry()
     {
@@ -10340,6 +10371,8 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $client = $this->newPrefixedInstance();
         $args = ['SET', 'rawkey', 'v'];
         if ($client instanceof ValkeyGlideCluster) {
+            /* The route key is prefixed, as in PHPRedis, so the server redirects
+             * the unprefixed SET to the node that owns it */
             array_unshift($args, 'rawkey');
         }
         $this->assertTrue($client->rawCommand(...$args));

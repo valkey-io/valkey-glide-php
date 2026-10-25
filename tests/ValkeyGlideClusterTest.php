@@ -504,6 +504,29 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->valkey_glide->del('some-prefix:some-item');
     }
 
+    /* A key route is prefixed like a key, so the command reaches the node that owns the prefixed key */
+    public function testPrefixRouteKey()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $node = fn ($client, $route) => $client->rawcommand($route, 'CLUSTER', 'MYID');
+
+        /* A key whose own slot lives on a different node than its prefixed form */
+        $key = null;
+        for ($i = 0; $i < 100 && $key === null; $i++) {
+            if ($node($raw, "route_{$i}") !== $node($raw, "{$p}route_{$i}")) {
+                $key = "route_{$i}";
+            }
+        }
+        $this->assertNotNull($key);
+
+        $client = $this->newPrefixedInstance();
+        $expected = $node($raw, "{$p}{$key}");
+        $this->assertEquals($expected, $node($client, $key));
+        $this->assertEquals($expected, $node($client, ['type' => 'primarySlotKey', 'key' => $key]));
+        $client->close();
+    }
+
     public function testDBSize()
     {
         for ($i = 0; $i < 10; $i++) {

@@ -30,10 +30,10 @@
 #include "valkey_glide_cluster_legacy_arginfo.h"
 #else
 #include "valkey_glide_cluster_arginfo.h"
-#include "valkey_glide_prefix.h"
 #include "zend_attributes.h"
 #endif
 #include "valkey_glide_persistent.h"
+#include "valkey_glide_prefix.h"
 
 /*
  * PHP Methods
