@@ -248,6 +248,41 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         return null;
     }
 
+    /* Wait until a file's content starts with $prefix */
+    private function waitForFileToMatch(string $path, string $prefix, float $timeoutSeconds = 5): ?string
+    {
+        $timeout = microtime(true) + $timeoutSeconds;
+        do {
+            $content = @file_get_contents($path);
+            if ($content !== false && str_starts_with($content, $prefix)) {
+                return $content;
+            }
+            usleep(50000);
+        } while (microtime(true) < $timeout);
+
+        return null;
+    }
+
+    /* Wait until the server holds no unsent output for any subscribed client */
+    private function waitForSubscriberOutputFlushed(ValkeyGlide $client, float $timeoutSeconds = 5): bool
+    {
+        $timeout = microtime(true) + $timeoutSeconds;
+        do {
+            $flushed = true;
+            foreach (explode("\n", trim($client->rawcommand('CLIENT', 'LIST'))) as $line) {
+                if (preg_match('/ sub=([1-9]\d*) /', $line) && !preg_match('/ omem=0 /', $line)) {
+                    $flushed = false;
+                }
+            }
+            if ($flushed) {
+                return true;
+            }
+            usleep(50000);
+        } while (microtime(true) < $timeout);
+
+        return false;
+    }
+
     public function testPubSubPublish()
     {
         // Test publish command works with 0 subscribers
@@ -576,12 +611,29 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             // empty queue and pushes it over the byte cap, so the small
             // messages after it are dropped
             $this->assertEquals(1, $admin->publish($channel, 'block'));
-            usleep(500000);
+            $this->assertNotNull(
+                $this->waitForFileToHaveContent($result_file . '.blocked', 10),
+                'The callback should block on the first message'
+            );
             $this->assertEquals(1, $admin->publish($channel, str_repeat('x', $big_len)));
             for ($i = 0; $i < 3; $i++) {
                 $this->assertEquals(1, $admin->publish($channel, 'x'));
             }
-            sleep(4);
+            $this->assertTrue(
+                $this->waitForSubscriberOutputFlushed($admin, 30),
+                'The server should finish sending the messages to the subscriber'
+            );
+            // The server has written everything to the socket; give the client
+            // a moment to read it into the queue before releasing the callback
+            usleep(500000);
+            touch($result_file . '.release');
+
+            // Publish the sentinel once the oversized message has left the queue
+            $this->assertNotNull($this->waitForFileToMatch(
+                $result_file . '.progress',
+                strlen('block') . ',' . $big_len,
+                30
+            ));
             $this->assertEquals(1, $admin->publish($channel, 'sentinel'));
 
             $this->assertEquals(
@@ -602,6 +654,9 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
             @unlink($sync_file);
             @unlink($result_file);
             @unlink($error_file);
+            foreach (['.blocked', '.release', '.progress'] as $suffix) {
+                @unlink($result_file . $suffix);
+            }
         }
     }
 

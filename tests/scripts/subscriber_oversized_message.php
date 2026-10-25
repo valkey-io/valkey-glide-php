@@ -74,8 +74,10 @@
 // Subscriber script for testPubSubOversizedMessage
 // Args: host, port, channel, sync_file, result_file
 // Writes the lengths of the messages received, comma-separated, once the
-// "sentinel" message arrives. A "block" message holds up the callback for
-// 3 seconds so that messages published meanwhile stay queued.
+// "sentinel" message arrives, and the lengths so far to <result_file>.progress
+// after every message. A "block" message creates <result_file>.blocked and
+// holds up the callback until <result_file>.release exists, so that messages
+// published meanwhile stay queued.
 
 $host = $argv[1];
 $port = (int)$argv[2];
@@ -93,8 +95,13 @@ try {
     $subscriber->subscribe([$channel], function ($client, $ch, $msg) use ($result_file, $channel, &$lengths) {
         $lengths[] = strlen($msg);
         if ($msg === 'block') {
-            sleep(3);
-        } elseif ($msg === 'sentinel') {
+            file_put_contents($result_file . '.blocked', '1');
+            for ($i = 0; $i < 600 && !file_exists($result_file . '.release'); $i++) {
+                usleep(100000);
+            }
+        }
+        file_put_contents($result_file . '.progress', implode(',', $lengths));
+        if ($msg === 'sentinel') {
             file_put_contents($result_file, implode(',', $lengths));
             $client->unsubscribe([$channel]);
         }
