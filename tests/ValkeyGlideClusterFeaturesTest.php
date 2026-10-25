@@ -1908,6 +1908,13 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $channel = 'test_opt_slave_failover_raw_sub_' . uniqid();
 
         try {
+            // A SUBSCRIBE without a channel is rejected by the server and subscribes to nothing
+            try {
+                $client->rawcommand($channel, 'SUBSCRIBE');
+            } catch (ValkeyGlideClusterException $e) {
+            }
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+
             // A raw SUBSCRIBE subscribes on the server even though the call reports false, and
             // recreating the client would drop that subscription
             try {
@@ -1916,7 +1923,15 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             }
             $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
             $this->assertEquals(ValkeyGlideCluster::FAILOVER_NONE, $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER));
-            $this->assertEquals([$channel, 1], $admin->rawcommand('allPrimaries', 'PUBSUB', 'NUMSUB', $channel));
+
+            // The call can return before the server registers the subscription
+            $deadline = microtime(true) + 5;
+            $numsub = $admin->rawcommand('allPrimaries', 'PUBSUB', 'NUMSUB', $channel);
+            while ($numsub[1] == 0 && microtime(true) < $deadline) {
+                usleep(10000);
+                $numsub = $admin->rawcommand('allPrimaries', 'PUBSUB', 'NUMSUB', $channel);
+            }
+            $this->assertEquals([$channel, 1], $numsub);
         } finally {
             $client->close();
             $admin->close();

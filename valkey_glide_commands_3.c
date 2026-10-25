@@ -2233,8 +2233,9 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
     }
 
     /* A raw (P|S)SUBSCRIBE can subscribe on the server even when the call reports failure, and
-     * nothing records it for OPT_SLAVE_FAILOVER to refuse recreating the client */
-    if (Z_TYPE(z_args[0]) == IS_STRING &&
+     * nothing records it for OPT_SLAVE_FAILOVER to refuse recreating the client. Without a
+     * channel the server rejects it, so there is nothing to record */
+    if (arg_count > 1 && Z_TYPE(z_args[0]) == IS_STRING &&
         (zend_string_equals_literal_ci(Z_STR(z_args[0]), "SUBSCRIBE") ||
          zend_string_equals_literal_ci(Z_STR(z_args[0]), "PSUBSCRIBE") ||
          zend_string_equals_literal_ci(Z_STR(z_args[0]), "SSUBSCRIBE")))
