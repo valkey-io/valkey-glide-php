@@ -36,6 +36,13 @@ typedef struct pubsub_message {
     struct pubsub_message* next;
 } pubsub_message;
 
+// Maximum number of messages, and of payload bytes, queued for one subscriber
+// before new ones are dropped (and counted), so a slow callback cannot exhaust
+// memory: queued messages are allocated outside PHP's memory_limit. A message
+// larger than the byte cap is still queued when the queue is empty.
+#define PUBSUB_QUEUE_MAX_DEPTH 10000
+#define PUBSUB_QUEUE_MAX_BYTES ((size_t) 64 * 1024 * 1024)
+
 // Pubsub callback info structure
 typedef struct pubsub_callback_info {
     zval            callback;
@@ -43,7 +50,12 @@ typedef struct pubsub_callback_info {
     bool            is_active;
     pubsub_message* queue_head;
     pubsub_message* queue_tail;
-    pubsub_message* in_flight;  // dequeued message being delivered (subscribe loop only)
+    size_t          queue_depth;       // queued messages (protected by queue_mutex)
+    size_t          queue_bytes;       // their payload bytes (protected by queue_mutex)
+    size_t          dropped_count;     // messages dropped on a full queue (queue_mutex)
+    size_t          reported_drops;    // dropped_count already logged (queue_mutex)
+    time_t          last_drop_report;  // when drops were last logged (queue_mutex)
+    pubsub_message* in_flight;         // dequeued message being delivered (subscribe loop only)
     mutex_t         queue_mutex;
     cond_t          queue_cond;
     HashTable*      subscribed_channels;  // HashTable of subscribed channel/pattern names

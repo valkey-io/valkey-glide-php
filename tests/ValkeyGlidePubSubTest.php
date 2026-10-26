@@ -248,6 +248,41 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         return null;
     }
 
+    /* Wait until a file's content starts with $prefix */
+    private function waitForFileToMatch(string $path, string $prefix, float $timeoutSeconds = 5): ?string
+    {
+        $timeout = microtime(true) + $timeoutSeconds;
+        do {
+            $content = @file_get_contents($path);
+            if ($content !== false && str_starts_with($content, $prefix)) {
+                return $content;
+            }
+            usleep(50000);
+        } while (microtime(true) < $timeout);
+
+        return null;
+    }
+
+    /* Wait until the server holds no unsent output for any subscribed client */
+    private function waitForSubscriberOutputFlushed(ValkeyGlide $client, float $timeoutSeconds = 5): bool
+    {
+        $timeout = microtime(true) + $timeoutSeconds;
+        do {
+            $flushed = true;
+            foreach (explode("\n", trim($client->rawcommand('CLIENT', 'LIST'))) as $line) {
+                if (preg_match('/ sub=([1-9]\d*) /', $line) && !preg_match('/ omem=0 /', $line)) {
+                    $flushed = false;
+                }
+            }
+            if ($flushed) {
+                return true;
+            }
+            usleep(50000);
+        } while (microtime(true) < $timeout);
+
+        return false;
+    }
+
     public function testPubSubPublish()
     {
         // Test publish command works with 0 subscribers
@@ -525,6 +560,104 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
         @unlink($error_file);
 
         $this->assertTrue($success, 'Message should be delivered to subscriber callback');
+    }
+
+    /**
+     * Verify a message larger than the subscriber queue's 64 MiB byte cap is
+     * still delivered when the queue is empty, followed by a small one.
+     */
+    public function testPubSubOversizedMessage()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The subscriber script connects without TLS or auth');
+        }
+
+        $channel = 'test_oversized_' . uniqid();
+        $big_len = 64 * 1024 * 1024 + 1;
+        $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'result_');
+        $error_file = $result_file . '.error';
+        @unlink($sync_file);
+        @unlink($result_file);
+
+        // The default pub/sub output buffer hard limit (32 MiB) would make the
+        // server disconnect the subscriber instead of sending the message
+        $admin = new ValkeyGlide();
+        $admin->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $limits = $admin->config('GET', 'client-output-buffer-limit')['client-output-buffer-limit'];
+        $admin->config('SET', 'client-output-buffer-limit', 'pubsub 0 0 0');
+
+        $cmd = $this->buildSubscriberCommand(
+            __DIR__ . '/scripts/subscriber_oversized_message.php',
+            $this->getHost(),
+            $this->getPort(),
+            $channel,
+            $sync_file,
+            $result_file
+        );
+        $proc = proc_open($cmd, [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
+
+        try {
+            $this->assertTrue($this->waitForFileToHaveContent($sync_file) !== null, 'Subscriber should signal ready');
+            if (file_exists($error_file)) {
+                $this->fail('Subscriber script error: ' . file_get_contents($error_file));
+            }
+            $this->assertTrue(
+                $this->waitForSubscribers($admin, [$channel => 1]),
+                'Subscriber should be registered before publishing'
+            );
+
+            // While the callback is blocked, the oversized message enters the
+            // empty queue and pushes it over the byte cap, so the small
+            // messages after it are dropped
+            $this->assertEquals(1, $admin->publish($channel, 'block'));
+            $this->assertNotNull(
+                $this->waitForFileToHaveContent($result_file . '.blocked', 10),
+                'The callback should block on the first message'
+            );
+            $this->assertEquals(1, $admin->publish($channel, str_repeat('x', $big_len)));
+            for ($i = 0; $i < 3; $i++) {
+                $this->assertEquals(1, $admin->publish($channel, 'x'));
+            }
+            $this->assertTrue(
+                $this->waitForSubscriberOutputFlushed($admin, 30),
+                'The server should finish sending the messages to the subscriber'
+            );
+            // The server has written everything to the socket; give the client
+            // a moment to read it into the queue before releasing the callback
+            usleep(500000);
+            touch($result_file . '.release');
+
+            // Publish the sentinel once the oversized message has left the queue
+            $this->assertNotNull($this->waitForFileToMatch(
+                $result_file . '.progress',
+                strlen('block') . ',' . $big_len,
+                30
+            ));
+            $this->assertEquals(1, $admin->publish($channel, 'sentinel'));
+
+            $this->assertEquals(
+                strlen('block') . ',' . $big_len . ',' . strlen('sentinel'),
+                $this->waitForFileToHaveContent($result_file, 30),
+                'The oversized message and the sentinel should be delivered, the messages queued behind it dropped'
+            );
+        } finally {
+            $admin->config('SET', 'client-output-buffer-limit', $limits);
+            $admin->close();
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            if (is_resource($proc)) {
+                @proc_terminate($proc);
+                @proc_close($proc);
+            }
+            @unlink($sync_file);
+            @unlink($result_file);
+            @unlink($error_file);
+            foreach (['.blocked', '.release', '.progress'] as $suffix) {
+                @unlink($result_file . $suffix);
+            }
+        }
     }
 
     /**
