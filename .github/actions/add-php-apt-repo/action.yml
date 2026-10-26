@@ -1,0 +1,23 @@
+name: Add PHP APT repository
+description: Add Ondřej Surý's packages.sury.org PHP repository (replaces the deprecated ppa:ondrej/php)
+
+runs:
+  using: composite
+  steps:
+    - name: Add packages.sury.org PHP repository
+      shell: bash
+      run: |
+        # setup-php may already have added it (it uses packages.sury.org on Ubuntu 26.04 and the
+        # PPA on older releases); a second entry with another keyring breaks apt-get update
+        if grep -rqsE 'packages\.sury\.org/php|ondrej/php' /etc/apt/sources.list /etc/apt/sources.list.d/; then
+          echo "PHP repository already configured"
+          exit 0
+        fi
+        # Same steps as https://packages.sury.org/php/README.txt
+        sudo apt-get update
+        sudo apt-get install -y lsb-release ca-certificates curl
+        curl -sSLo /tmp/debsuryorg-archive-keyring.deb https://packages.sury.org/debsuryorg-archive-keyring.deb
+        sudo dpkg -i /tmp/debsuryorg-archive-keyring.deb
+        echo "deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" \
+          | sudo tee /etc/apt/sources.list.d/php.list >/dev/null
+        sudo apt-get update

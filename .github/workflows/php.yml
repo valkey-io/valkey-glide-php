@@ -233,7 +233,7 @@ jobs:
         run: GLIDE_NAME=GlidePHP GLIDE_VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' ../../common.h | sed 's/.*"\([^"]*\)"/\1/') cargo build --release
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@728c6c6b8cf02c2e48117716a91ee48313958a19 # v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
         with:
           php-version: ${{ env.BASE_PHP_VERSION }}
           extensions: none
@@ -443,7 +443,7 @@ jobs:
           GLIDE_NAME=GlidePHP GLIDE_VERSION=$(grep -o '#define VALKEY_GLIDE_PHP_VERSION "[^"]*"' ../../common.h | sed 's/.*"\([^"]*\)"/\1/') CFLAGS="-g -O0" cargo build --target x86_64-unknown-linux-gnu --release
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@728c6c6b8cf02c2e48117716a91ee48313958a19 # v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
         with:
           php-version: ${{ env.BASE_PHP_VERSION }}
           extensions: tokenizer, json, ctype, iconv, mbstring, simplexml, curl
@@ -829,16 +829,17 @@ jobs:
         uses: ./.github/actions/configure-apt-retries
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@728c6c6b8cf02c2e48117716a91ee48313958a19 # v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
         with:
           php-version: ${{ env.BASE_PHP_VERSION }}
           extensions: none
           tools: phpcs, phpstan
 
+      - name: Add PHP APT repository
+        uses: ./.github/actions/add-php-apt-repo
+
       - name: Install system dependencies
         run: |
-          # Add ondrej/php PPA for PHP versions not in default Ubuntu 24.04 repos
-          sudo add-apt-repository -y ppa:ondrej/php || true
           sudo apt-get update
           sudo apt-get install -y \
               php${{ env.BASE_PHP_VERSION }}-dev \

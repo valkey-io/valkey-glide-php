@@ -38,6 +38,9 @@ runs:
     - name: Configure APT retries
       uses: ./.github/actions/configure-apt-retries
 
+    - name: Add PHP APT repository
+      uses: ./.github/actions/add-php-apt-repo
+
     - name: Install system dependencies (cached)
       shell: bash
       env:
@@ -46,13 +49,6 @@ runs:
         # Skip update if cache hit and recent
         if [ ! -f "$HOME/.apt-cache-updated" ] || [ $(find "$HOME/.apt-cache-updated" -mmin +60 2>/dev/null) ]; then
           echo "Updating APT cache..."
-          
-          # Add PHP repository for older PHP versions on Ubuntu 24.04
-          if [ "$PHP_VERSION" != "8.3" ]; then
-            echo "Adding PHP repository for PHP $PHP_VERSION..."
-            sudo add-apt-repository ppa:ondrej/php -y
-          fi
-          
           sudo apt-get update
           touch "$HOME/.apt-cache-updated"
         else
