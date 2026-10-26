@@ -1911,7 +1911,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             // A SUBSCRIBE without a channel is rejected by the server and subscribes to nothing
             try {
                 $client->rawcommand($channel, 'SUBSCRIBE');
-            } catch (ValkeyGlideClusterException $e) {
+            } catch (ValkeyGlideException $e) {
             }
             $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
             $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
@@ -1920,7 +1920,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             // recreating the client would drop that subscription
             try {
                 $client->rawcommand($channel, 'SUBSCRIBE', $channel);
-            } catch (ValkeyGlideClusterException $e) {
+            } catch (ValkeyGlideException $e) {
             }
             $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
             $this->assertEquals(ValkeyGlideCluster::FAILOVER_NONE, $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER));
@@ -1936,6 +1936,39 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         } finally {
             $client->close();
             $admin->close();
+        }
+    }
+
+    public function testOptSlaveFailoverAfterReconstruct()
+    {
+        $client = $this->newInstance();
+        $key = 'test_opt_slave_failover_reconstruct_' . uniqid();
+        $reconstruct = fn () => $client->__construct(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            credentials: $this->getAuth(),
+            read_from: ValkeyGlide::READ_FROM_PRIMARY
+        );
+
+        try {
+            // close() ends the WATCH, so the client constructed again can change the routing
+            $this->assertTrue($client->watch($key));
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $client->close();
+            $reconstruct();
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+
+            // Likewise for a raw SUBSCRIBE, which otherwise blocks the change for good
+            try {
+                $client->rawcommand($key, 'SUBSCRIBE', $key);
+            } catch (ValkeyGlideException $e) {
+            }
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $client->close();
+            $reconstruct();
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+        } finally {
+            $client->close();
         }
     }
 

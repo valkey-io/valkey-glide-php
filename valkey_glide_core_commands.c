@@ -565,6 +565,14 @@ bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
         return true;
     }
 
+    /* setOption() is exempt from the fork guard, but a new mode uses the handle (pub/sub
+     * registry, close_glide_client()), which a child must not touch for an inherited client */
+    if (valkey_glide->client_pid != getpid()) {
+        connection_request__connection_request__free_unpacked(conn_req, NULL);
+        zend_throw_exception(get_valkey_glide_exception_ce(), VALKEY_GLIDE_FORK_ERROR, 0);
+        return false;
+    }
+
     const char* refusal = NULL;
     if (valkey_glide->is_in_batch_mode) {
         refusal = "OPT_SLAVE_FAILOVER cannot be changed inside MULTI or pipeline";

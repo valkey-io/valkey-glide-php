@@ -401,6 +401,11 @@ PHP_METHOD(ValkeyGlideCluster, close) {
     }
     valkey_glide->connection_request_len = 0;
 
+    /* The watch and raw subscription ended with the connection; a client constructed again on
+     * this object must not inherit their OPT_SLAVE_FAILOVER refusal */
+    valkey_glide->is_watching    = false;
+    valkey_glide->raw_subscribed = false;
+
     RETURN_TRUE;
 }
 
