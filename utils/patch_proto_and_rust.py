@@ -241,6 +241,23 @@ def patch_rust_types_rs(rust_types_file):
             needs_patching = True
             log_message("Applied unix_socket_path patch")
 
+        # Fix the proto test initializer: `protobuf::NodeAddress` in-tree tests
+        # still wrap unix_socket_path in Some(...), which no longer compiles once
+        # the field is a plain Chars. Only the proto type is affected; the
+        # crate::client::NodeAddress struct keeps Option<PathBuf>.
+        proto_uds_init_pattern = (
+            r'(protobuf::NodeAddress \{\s*)'
+            r'unix_socket_path: Some\(path\.into\(\)\),'
+        )
+        proto_uds_init_replacement = r'\1unix_socket_path: path.into(),'
+        if re.search(proto_uds_init_pattern, new_content, re.DOTALL):
+            if not needs_patching:
+                create_backup(rust_types_file)
+            new_content = re.sub(
+                proto_uds_init_pattern, proto_uds_init_replacement, new_content, flags=re.DOTALL)
+            needs_patching = True
+            log_message("Applied proto NodeAddress test-initializer patch")
+
         # Fix cert_reload.interval_seconds: changed from Option<u32> to u32.
         cert_reload_interval_pattern = r'interval_seconds: proto_reload\.interval_seconds\.filter\(\|&s\| s != 0\),'
         cert_reload_interval_replacement = 'interval_seconds: none_if_zero(proto_reload.interval_seconds),'
@@ -293,6 +310,7 @@ def verify_rust_patch(rust_types_file):
         client_cert_path_fixed = 'Some(value.client_cert_path.to_string()).filter(|p| !p.is_empty())' in content
         client_key_path_fixed = 'Some(value.client_key_path.to_string()).filter(|p| !p.is_empty())' in content
         unix_socket_path_fixed = 'Some(PathBuf::from(&*value.unix_socket_path))' in content
+        proto_uds_init_fixed = 'unix_socket_path: Some(path.into())' not in content
         cert_reload_interval_fixed = 'interval_seconds: none_if_zero(proto_reload.interval_seconds)' in content
         recovery_queue_fixed = 'let recovery_requests_queue_size = none_if_zero(value.recovery_requests_queue_size);' in content
 
@@ -301,6 +319,7 @@ def verify_rust_patch(rust_types_file):
                      max_decompressed_fixed and eviction_fixed and
                      client_cert_path_fixed and client_key_path_fixed and
                      unix_socket_path_fixed and
+                     proto_uds_init_fixed and
                      cert_reload_interval_fixed and recovery_queue_fixed)
 
         if all_fixed:
@@ -330,6 +349,8 @@ def verify_rust_patch(rust_types_file):
                 missing.append("client_key_path fix")
             if not unix_socket_path_fixed:
                 missing.append("unix_socket_path fix")
+            if not proto_uds_init_fixed:
+                missing.append("proto NodeAddress test-initializer fix")
             if not cert_reload_interval_fixed:
                 missing.append("cert_reload.interval_seconds fix")
             if not recovery_queue_fixed:
