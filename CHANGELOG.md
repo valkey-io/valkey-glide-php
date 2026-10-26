@@ -8,7 +8,7 @@
 
 ### Fixes
 
-* IAM authentication now requires TLS: configuring IAM auth without TLS is rejected at client creation instead of sending the IAM token over a plaintext connection ([#NNN](https://github.com/valkey-io/valkey-glide-php/issues/NNN))
+* IAM authentication now requires TLS: configuring IAM auth without TLS is rejected at client creation instead of sending the IAM token over a plaintext connection ([#391](https://github.com/valkey-io/valkey-glide-php/pull/391))
 * `ValkeyGlideCluster::__construct()` on an already connected object now throws instead of replacing (and leaking) the existing client ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))
 * The pub/sub callback registry is released at the end of each request; it was allocated per request but reused by later requests in the same worker (PHP-FPM) ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))
 * The pub/sub push callback, which runs on a GLIDE thread, no longer allocates queued messages with PHP's request allocator or races with PHP threads changing the callback registry; under ZTS, one request ending no longer frees another thread's subscribers, and a forked child starts its own registry ([#362](https://github.com/valkey-io/valkey-glide-php/issues/362))
