@@ -862,6 +862,8 @@ jobs:
           fi
           sudo apt-get install -y clang-format-18
           sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
+          # Newer images (Ubuntu 26.04) ship a newer clang-format that wins over the alternative
+          echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
 
           # Install markdownlint-cli for markdown linting.
           npm install -g markdownlint-cli@0.44.0
