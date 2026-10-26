@@ -24,7 +24,7 @@ env:
 
 jobs:
   load-matrix:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       host-matrix: ${{ steps.load.outputs.host-matrix }}
       container-host-matrix: ${{ steps.load.outputs.container-host-matrix }}
