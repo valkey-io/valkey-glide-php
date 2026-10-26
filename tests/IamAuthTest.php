@@ -293,7 +293,7 @@ class IamAuthTest extends ValkeyGlideBaseTest
                 );
                 $this->assertTrue(false, 'Expected IAM-without-TLS to be rejected at client creation');
             } catch (ValkeyGlideException $e) {
-                $this->assertStringContains('TLS', $e->getMessage());
+                $this->assertStringContains('IAM authentication requires TLS', $e->getMessage());
             }
         } finally {
             $this->restoreEnvironmentVariables();
