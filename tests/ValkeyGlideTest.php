@@ -10135,6 +10135,54 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $client->close();
     }
 
+    public function testPrefixMigrate()
+    {
+        $raw = $this->valkey_glide;
+        $dest = $this->getMigrateDestClient();
+        $p = self::KEY_PREFIX;
+        $key = 'migrate_' . $this->createRandomString();
+        $raw->del("{$p}{$key}", $p);
+
+        $client = $this->newPrefixedInstance();
+
+        $client->set($key, 'v1');
+        $this->assertTrue($client->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, $key, 0, 5000));
+        $this->assertKeyMissing("{$p}{$key}", $raw);
+        $this->assertEquals('v1', $dest->get("{$p}{$key}"));
+
+        /* An empty key on its own is a real key, named exactly the prefix. It is
+         * created without the prefix because an empty key argument does not
+         * reach the server yet, with or without OPT_PREFIX */
+        $raw->set($p, 'v2');
+        $this->assertTrue($client->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, '', 0, 5000));
+        $this->assertKeyMissing($p, $raw);
+        $this->assertEquals('v2', $dest->get($p));
+
+        $client->close();
+    }
+
+    public function testPrefixMigrateMultiKey()
+    {
+        $raw = $this->valkey_glide;
+        $dest = $this->getMigrateDestClient();
+        $p = self::KEY_PREFIX;
+        $key1 = 'migrate_multi1_' . $this->createRandomString();
+        $key2 = 'migrate_multi2_' . $this->createRandomString();
+
+        $client = $this->newPrefixedInstance();
+        $client->set($key1, 'v1');
+        $client->set($key2, 'v2');
+
+        /* The keys after KEYS get the prefix, the empty placeholder before them does not */
+        $this->assertTrue($client->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, [$key1, $key2], 0, 5000));
+        $this->assertKeyMissing("{$p}{$key1}", $raw);
+        $this->assertKeyMissing("{$p}{$key2}", $raw);
+        $this->assertEquals('v1', $dest->get("{$p}{$key1}"));
+        $this->assertEquals('v2', $dest->get("{$p}{$key2}"));
+
+        $client->close();
+    }
+
     public function testPrefixEval()
     {
         $raw = $this->valkey_glide;

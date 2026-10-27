@@ -179,7 +179,9 @@ static void mark_migrate(bool*                is_key,
                          unsigned long        arg_count,
                          const uintptr_t*     args,
                          const unsigned long* args_len) {
-    if (arg_count > 2 && args_len[2] > 0) {
+    /* An empty key is only the multi-key placeholder when KEYS follows; on its
+     * own it is a real key, named exactly the prefix once prefixed */
+    if (arg_count > 2) {
         is_key[2] = true;
     }
     for (unsigned long i = 5; i < arg_count; i++) {
@@ -188,6 +190,9 @@ static void mark_migrate(bool*                is_key,
         } else if (ARG_IS(i, "AUTH2")) {
             i += 2;
         } else if (ARG_IS(i, "KEYS")) {
+            if (args_len[2] == 0) {
+                is_key[2] = false;
+            }
             mark_range(is_key, arg_count, i + 1, arg_count);
             return;
         }
