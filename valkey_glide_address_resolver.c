@@ -130,6 +130,9 @@ static uint16_t resolver_cache_lookup(resolver_closure_t* ctx,
     uint16_t resolved_port = 0;
     pthread_mutex_lock(&ctx->cache_lock);
     resolver_cache_entry_t* entry = resolver_cache_find(ctx, host, host_len, port);
+    /* Always true today: entries are only stored when they fit the buffer the
+     * owner thread was given, and the core always passes 1024 bytes. Kept in
+     * case the core ever passes buffers of different sizes. */
     if (entry && entry->resolved_host_len < buf_len) {
         memcpy(out_buf, entry->resolved_host, entry->resolved_host_len);
         *written      = entry->resolved_host_len;
@@ -139,6 +142,18 @@ static uint16_t resolver_cache_lookup(resolver_closure_t* ctx,
     return resolved_port;
 }
 
+/* Free the cache. Only safe once no core thread can call this resolver: a
+ * background thread could otherwise read freed entries, and destroying
+ * cache_lock while another thread holds it is undefined.
+ *
+ * Nothing here enforces that. Callers rely on the core having dropped the
+ * client (close_client() returned, or create_client() failed), which drops its
+ * Tokio runtime, and that Drop blocks until the runtime's worker threads have
+ * stopped (https://docs.rs/tokio/latest/tokio/runtime/struct.Runtime.html#shutdown).
+ * close_client() does not document that it joins the background threads; it
+ * is a side effect. If the core ever shuts the runtime down without waiting
+ * (shutdown_background(), shutdown_timeout()), a background thread can still
+ * be inside resolver_cache_lookup() reading the memory freed here. */
 static void resolver_cache_free(resolver_closure_t* ctx) {
     for (size_t i = 0; i < ctx->cache_len; i++) {
         free(ctx->cache[i].host);
@@ -297,6 +312,7 @@ void valkey_glide_resolver_release(AddressResolverCallback cb) {
         if ((AddressResolverCallback) cur->fn_ptr == cb) {
             *pp = cur->next;
             ffi_closure_free(cur->closure);
+            /* Relies on the core having stopped its threads; see resolver_cache_free() */
             resolver_cache_free(cur);
             zval_ptr_dtor(&cur->callable);
             pefree(cur, 1);
@@ -311,6 +327,7 @@ void valkey_glide_resolver_shutdown(void) {
     while (cur) {
         resolver_closure_t* next = cur->next;
         ffi_closure_free(cur->closure);
+        /* Same requirement as release(); see resolver_cache_free() */
         resolver_cache_free(cur);
         zval_ptr_dtor(&cur->callable);
         pefree(cur, 1);
