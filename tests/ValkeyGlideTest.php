@@ -855,6 +855,72 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(0, $this->valkey_glide->exists('key'));
     }
 
+    /**
+     * An empty string is a valid key, value, member and list element, and must be
+     * sent to the server rather than treated as a missing argument.
+     * https://github.com/valkey-io/valkey-glide-php/issues/392
+     */
+    public function testEmptyStringKeysAndValues()
+    {
+        $r = $this->valkey_glide;
+        $r->del('', '{e}a', '{e}b');
+
+        /* Strings, and key-only, bit, range and expire commands on the empty key */
+        $this->assertTrue($r->set('', 'v'));
+        $this->assertEquals('v', $r->get(''));
+        $this->assertEquals(1, $r->exists(''));
+        $this->assertEquals(2, $r->append('', 'w'));
+        $this->assertEquals(2, $r->strlen(''));
+        $this->assertEquals('v', $r->getRange('', 0, 0));
+        $this->assertEquals(1, $r->getBit('', 1));
+        $this->assertTrue($r->expire('', 100));
+        $this->assertBetween($r->ttl(''), 1, 100);
+        $this->assertTrue($r->persist(''));
+        $this->assertEquals('vw', $r->getSet('', ''));
+        $this->assertEquals('', $r->get(''));
+        $dump = $r->dump('');
+        $this->assertEquals(1, $r->del(''));
+        $this->assertTrue($r->restore('', 0, $dump));
+        $this->assertEquals('', $r->getDel(''));
+        $this->assertEquals(1, $r->incr(''));
+        $this->assertEquals(1, $r->del(''));
+
+        /* Lists: empty key, empty elements, empty pivot */
+        $this->assertEquals(2, $r->rPush('', '', 'a'));
+        $this->assertEquals(0, $r->lPos('', ''));
+        $this->assertEquals(3, $r->lInsert('', 'AFTER', '', ''));
+        $this->assertEquals(['', '', 'a'], $r->lRange('', 0, -1));
+        $this->assertEquals(2, $r->lRem('', '', 0));
+        $this->assertEquals('a', $r->lMove('', '', 'LEFT', 'RIGHT'));
+        $this->assertEquals(1, $r->lLen(''));
+        $this->assertEquals('a', $r->lPop(''));
+
+        /* Sets: empty key, empty members */
+        $this->assertEquals(2, $r->sAdd('', '', 'm'));
+        $this->assertTrue($r->sIsMember('', ''));
+        $this->assertEquals(2, $r->sCard(''));
+        $it = null;
+        $members = $r->sscan('', $it);
+        sort($members);
+        $this->assertEquals(['', 'm'], $members);
+        $this->assertEquals(2, $r->sInterStore('', ''));
+        $this->assertEquals(1, $r->sRem('', 'm'));
+        $this->assertEquals(1, $r->del(''));
+        $r->sAdd('{e}a', '');
+        $this->assertTrue($r->sMove('{e}a', '{e}b', ''));
+        $this->assertEquals([''], $r->sMembers('{e}b'));
+
+        /* Streams on the empty key */
+        $id = $r->xAdd('', '*', ['' => '']);
+        $this->assertIsString($id);
+        $this->assertEquals(1, $r->xLen(''));
+        $this->assertEquals([$id => ['' => '']], $r->xRange('', '-', '+'));
+        $this->assertEquals(1, $r->xDel('', [$id]));
+        $this->assertEquals(0, $r->xTrim('', 0));
+
+        $r->del('', '{e}a', '{e}b');
+    }
+
     public function testSetEXAT()
     {
         // EXAT option was introduced in Redis/Valkey 6.2.0
