@@ -910,6 +910,25 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($r->sMove('{e}a', '{e}b', ''));
         $this->assertEquals([''], $r->sMembers('{e}b'));
 
+        /* Hashes: empty key, empty fields and values */
+        $this->assertEquals(2, $r->hSet('', '', '', 'f', 'v'));
+        $this->assertEquals('', $r->hGet('', ''));
+        /* hMGet() skips empty fields, as PHPRedis does (see testHashes) */
+        $this->assertEquals(['f' => 'v'], $r->hMGet('', ['f']));
+        $this->assertTrue($r->hExists('', ''));
+        $this->assertEquals(1, $r->hDel('', ''));
+        $this->assertEquals(1, $r->del(''));
+
+        /* Batches queue the empty arguments too */
+        $this->assertEquals($r, $r->multi());
+        $r->set('', '');
+        $r->get('');
+        $r->del('');
+        $r->sAdd('', '');
+        $r->sIsMember('', '');
+        $r->del('');
+        $this->assertEquals([true, '', 1, 1, true, 1], $r->exec());
+
         /* Streams on the empty key */
         $id = $r->xAdd('', '*', ['' => '']);
         $this->assertIsString($id);
