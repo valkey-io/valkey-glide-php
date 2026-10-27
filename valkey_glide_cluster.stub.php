@@ -268,10 +268,11 @@ class ValkeyGlideCluster
      * so changing the mode recreates the client (a reconnect unless `lazy_connect` is set).
      * Connection state set by commands, such as CLIENT SETNAME, is not carried over, so the
      * change fails (returns false, see getLastError()) while keys are watched, inside MULTI or
-     * a pipeline, and while subscribed. Setting a mode whose routing is already in use does
-     * nothing. Overrides the constructor's `read_from`: an AZ affinity strategy reports the
-     * nearest mode (FAILOVER_DISTRIBUTE_SLAVES or FAILOVER_DISTRIBUTE), and any change replaces
-     * it.
+     * a pipeline, while subscribed, and on a persistent client (`$persistent`), which later
+     * requests reuse with the routing it was created with. Setting a mode whose routing is
+     * already in use does nothing. Overrides the constructor's `read_from`: an AZ affinity
+     * strategy reports the nearest mode (FAILOVER_DISTRIBUTE_SLAVES or FAILOVER_DISTRIBUTE), and
+     * any change replaces it.
      *
      * @var int
      * @cvalue VALKEY_GLIDE_OPT_SLAVE_FAILOVER

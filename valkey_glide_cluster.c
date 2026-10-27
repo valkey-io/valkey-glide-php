@@ -113,6 +113,10 @@ static int valkey_glide_cluster_create_connection(
                                           0,
                                           &persistent_key);
         if (attached || EG(exception)) {
+            if (attached) {
+                valkey_glide->opt_slave_failover =
+                    valkey_glide_read_from_to_failover(client_config.base.read_from);
+            }
             valkey_glide_cleanup_client_config(&client_config.base);
             return attached ? SUCCESS : FAILURE;
         }

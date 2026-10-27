@@ -541,12 +541,31 @@ bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
         valkey_glide_set_last_error(valkey_glide, "OPT_SLAVE_FAILOVER: client is closed");
         return false;
     }
-    /* Standalone clients have no saved request; PHPRedis Redis also rejects this option */
-    if (!valkey_glide->connection_request) {
+    /* Standalone clients have no read routing to change; PHPRedis Redis also rejects this option */
+    if (!instanceof_function(valkey_glide->std.ce, get_valkey_glide_cluster_ce())) {
         return false;
     }
     if (!failover_to_read_from(failover, &read_from)) {
         valkey_glide_set_last_error(valkey_glide, "OPT_SLAVE_FAILOVER: unknown FAILOVER_* mode");
+        return false;
+    }
+
+    /* A persistent client is shared with later requests that expect the routing in its key,
+     * and one reused from an earlier request has no saved request to recreate it from */
+    if (valkey_glide->persistent) {
+        ConnectionRequest__ReadFrom current;
+        if (failover_to_read_from(valkey_glide->opt_slave_failover, &current) &&
+            current == read_from) {
+            valkey_glide->opt_slave_failover = failover;
+            return true;
+        }
+        valkey_glide_set_last_error(valkey_glide,
+                                    "OPT_SLAVE_FAILOVER cannot be changed on a persistent client");
+        return false;
+    }
+    if (!valkey_glide->connection_request) {
+        valkey_glide_set_last_error(valkey_glide,
+                                    "OPT_SLAVE_FAILOVER: no saved connection request");
         return false;
     }
 
