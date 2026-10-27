@@ -404,9 +404,10 @@ jobs:
             ~/.cargo/git/db/
             valkey-glide/ffi/target/
             valkey-glide/glide-core/target/
-          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          # Same key as the Cargo cache in setup-valkey-glide on this image
+          key: cargo-${{ runner.os }}-ubuntu-26.04-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            cargo-${{ runner.os }}-
+            cargo-${{ runner.os }}-ubuntu-26.04-
 
       - name: Setup ValkeyGlide with enhanced caching
         uses: ./.github/workflows/setup-valkey-glide
@@ -427,7 +428,7 @@ jobs:
           workspaces: |
             valkey-glide/ffi
             valkey-glide/glide-core
-          key: valgrind
+          key: valgrind-ubuntu-26.04
 
       - name: Pre-build Rust components
         run: |
@@ -897,11 +898,11 @@ jobs:
             valkey-glide/ffi/target
             valkey-glide/glide-core/src/generated
             include/
-          key: x86_64-unknown-linux-gnu-php-lint
+          key: x86_64-unknown-linux-gnu-ubuntu-26.04-php-lint
           restore-keys: |
-            x86_64-unknown-linux-gnu-php
-            x86_64-unknown-linux-gnu-glide-core
-            x86_64-unknown-linux-gnu
+            x86_64-unknown-linux-gnu-ubuntu-26.04-php
+            x86_64-unknown-linux-gnu-ubuntu-26.04-glide-core
+            x86_64-unknown-linux-gnu-ubuntu-26.04
 
       - name: Initialize PHP extension build system
         run: |

@@ -25,15 +25,24 @@ runs:
         echo "engine-version: $ENGINE_VERSION"
         echo "github-token: [REDACTED]"
 
+    # Callers run on more than one Ubuntu release, and the cached apt lists and Cargo
+    # target directories are release-specific, so the cache keys name the release
+    - name: Identify the runner image
+      id: runner-image
+      shell: bash
+      run: |
+        . /etc/os-release
+        echo "id=${ID}-${VERSION_ID}" >> "$GITHUB_OUTPUT"
+
     - name: Cache APT packages
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: |
           /var/cache/apt/archives
           /var/lib/apt/lists
-        key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/apt-packages.txt') }}
+        key: apt-${{ runner.os }}-${{ steps.runner-image.outputs.id }}-${{ hashFiles('.github/workflows/apt-packages.txt') }}
         restore-keys: |
-          apt-${{ runner.os }}-
+          apt-${{ runner.os }}-${{ steps.runner-image.outputs.id }}-
 
     - name: Configure APT retries
       uses: ./.github/actions/configure-apt-retries
@@ -76,9 +85,9 @@ runs:
           ~/.cargo/git/db/
           valkey-glide/ffi/target/
           valkey-glide/glide-core/target/
-        key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+        key: cargo-${{ runner.os }}-${{ steps.runner-image.outputs.id }}-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
-          cargo-${{ runner.os }}-
+          cargo-${{ runner.os }}-${{ steps.runner-image.outputs.id }}-
 
     - name: Configure Cargo for speed
       shell: bash
