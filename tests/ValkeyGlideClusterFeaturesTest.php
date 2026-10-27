@@ -502,13 +502,17 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
      */
     public function testPeriodicChecksEnabledDoesNotFloodClusterSlots()
     {
-        $valkey_glide = new ValkeyGlideCluster(
-            addresses: [['host' => '127.0.0.1', 'port' => 7001]],
-            use_tls: false,
-            credentials: $this->getAuth(),
-            read_from: ValkeyGlide::READ_FROM_PRIMARY,
-            periodic_checks: ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS
-        );
+        $params = [
+            'addresses'       => [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            'use_tls'         => $this->getTLS(),
+            'credentials'     => $this->getAuth(),
+            'read_from'       => ValkeyGlide::READ_FROM_PRIMARY,
+            'periodic_checks' => ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS,
+        ];
+        if ($this->getTLS()) {
+            $params['advanced_config'] = ['tls_config' => ['use_insecure_tls' => true]];
+        }
+        $valkey_glide = new ValkeyGlideCluster(...$params);
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
 
         // The initial topology refresh already issued CLUSTER SLOTS, so a zero
