@@ -528,11 +528,13 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     /**
-     * Override for cluster - info() requires a route parameter and checks all primaries.
+     * Override for cluster - info() requires a route parameter and checks all nodes.
+     * Replicas too: 'randomNode' can route BGSAVE to a replica, and a save left running
+     * there makes a later 'randomNode' CANCEL succeed.
      */
     protected function isSaveInProgress(): bool
     {
-        $info = $this->valkey_glide->info('allPrimaries', 'persistence');
+        $info = $this->valkey_glide->info('allNodes', 'persistence');
         foreach ($info as $nodeInfo) {
             if (
                 (isset($nodeInfo['rdb_bgsave_in_progress']) && $nodeInfo['rdb_bgsave_in_progress'] == '1')
@@ -670,11 +672,8 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             $this->waitForSaveNotInProgress();
 
             $this->withOptReplyLiteralEnabled(function () {
-                $result = $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
-                $this->assertFalse($result);
-
-                $result = $this->valkey_glide->bgSave('randomNode', 'CANCEL');
-                $this->assertFalse($result);
+                $this->assertBgSaveCancelReturnsFalse('allPrimaries');
+                $this->assertBgSaveCancelReturnsFalse('randomNode');
             });
         }
     }
