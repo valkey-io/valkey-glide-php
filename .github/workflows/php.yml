@@ -77,7 +77,7 @@ env:
 
 jobs:
   get-matrices:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       engine-matrix-output: ${{ steps.get-matrices.outputs.engine-matrix-output }}
       host-matrix-output: ${{ steps.get-matrices.outputs.host-matrix-output }}
@@ -357,7 +357,7 @@ jobs:
   test-php-valgrind:
     name: PHP Valgrind Tests - EngineVersion ${{ matrix.engine.version }} (Ubuntu)
     needs: get-matrices
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -387,13 +387,13 @@ jobs:
             include/
             src/*.pb-c.c
             src/*.pb-c.h
-          key: ubuntu-24.04-php-valgrind-${{ env.BASE_PHP_VERSION }}-${{ hashFiles('**/Cargo.lock', '.github/workflows/apt-packages.txt', 'valkey-glide/glide-core/src/protobuf/**/*.proto') }}
+          key: ubuntu-26.04-php-valgrind-${{ env.BASE_PHP_VERSION }}-${{ hashFiles('**/Cargo.lock', '.github/workflows/apt-packages.txt', 'valkey-glide/glide-core/src/protobuf/**/*.proto') }}
           restore-keys: |
-            ubuntu-24.04-php-valgrind-${{ env.BASE_PHP_VERSION }}-
-            ubuntu-24.04-php-valgrind-
-            ubuntu-24.04-php-
-            ubuntu-24.04-glide-core
-            ubuntu-24.04
+            ubuntu-26.04-php-valgrind-${{ env.BASE_PHP_VERSION }}-
+            ubuntu-26.04-php-valgrind-
+            ubuntu-26.04-php-
+            ubuntu-26.04-glide-core
+            ubuntu-26.04
 
       - name: Cache Cargo dependencies (early)
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -819,7 +819,7 @@ jobs:
 
   lint:
     timeout-minutes: 15
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -916,7 +916,7 @@ jobs:
           ./lint.sh
 
   get-containers:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: ${{ github.event.inputs.full-matrix == 'true' || github.event_name == 'schedule' }}
     outputs:
       engine-matrix-output: ${{ steps.get-matrices.outputs.engine-matrix-output }}
@@ -1074,7 +1074,7 @@ jobs:
 
   test-modules-linux:
     name: Modules Tests (Linux)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 35
     permissions:
       contents: read
