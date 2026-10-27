@@ -8,8 +8,9 @@ runs:
       shell: bash
       run: |
         # setup-php may already have added it (it uses packages.sury.org on Ubuntu 26.04 and the
-        # PPA on older releases); a second entry with another keyring breaks apt-get update
-        if grep -rqsE 'packages\.sury\.org/php|ondrej/php' /etc/apt/sources.list /etc/apt/sources.list.d/; then
+        # PPA on older releases); a second entry with another keyring breaks apt-get update.
+        # indextargets lists only the sources APT reads, not comments, disabled or backup files.
+        if apt-get indextargets --format '$(URI)' | grep -E 'packages\.sury\.org/php/|ondrej/php/' >/dev/null; then
           echo "PHP repository already configured"
           exit 0
         fi
@@ -18,6 +19,13 @@ runs:
         sudo apt-get install -y lsb-release ca-certificates curl
         curl -sSLo /tmp/debsuryorg-archive-keyring.deb https://packages.sury.org/debsuryorg-archive-keyring.deb
         sudo dpkg -i /tmp/debsuryorg-archive-keyring.deb
-        echo "deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" \
-          | sudo tee /etc/apt/sources.list.d/php.list >/dev/null
+        # deb822 with the URIs and Suites lines setup-php matches on, so a setup-php step that runs
+        # after this one finds the entry and reuses it instead of adding its own
+        sudo tee /etc/apt/sources.list.d/php.sources >/dev/null <<EOF
+        Types: deb
+        URIs: https://packages.sury.org/php/
+        Suites: $(lsb_release -sc)
+        Components: main
+        Signed-By: /usr/share/keyrings/debsuryorg-archive-keyring.gpg
+        EOF
         sudo apt-get update
