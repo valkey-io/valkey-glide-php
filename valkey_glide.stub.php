@@ -373,6 +373,70 @@ class ValkeyGlide
     public const OPT_REPLY_LITERAL = UNKNOWN;
 
     /**
+     * Runtime option: Key prefix (PHPRedis OPT_PREFIX).
+     * When set, the prefix is prepended to every key argument, including keys of
+     * multi-key commands, the KEYS portion of FCALL/EVAL/EVALSHA, the KEYS
+     * pattern, and commands queued in multi() or pipeline(). Replies are not
+     * changed, so key names returned by the server include the prefix.
+     * Setting an empty string removes the prefix.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_OPT_PREFIX
+     *
+     */
+    public const OPT_PREFIX = UNKNOWN;
+
+    /**
+     * Runtime option: SCAN behaviour (PHPRedis OPT_SCAN).
+     * Accepts SCAN_RETRY, SCAN_NORETRY, SCAN_PREFIX or SCAN_NOPREFIX; the
+     * retry and prefix settings are independent. getOption() returns a
+     * bitmask of SCAN_RETRY and SCAN_PREFIX (0 by default).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_OPT_SCAN
+     *
+     */
+    public const OPT_SCAN = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: return empty SCAN pages to the caller (default).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_NORETRY
+     *
+     */
+    public const SCAN_NORETRY = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: keep scanning until a page has elements or the scan
+     * completes, so SCAN, SSCAN, HSCAN and ZSCAN never return an empty page
+     * mid-scan.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_RETRY
+     *
+     */
+    public const SCAN_RETRY = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: prefix the SCAN MATCH pattern with OPT_PREFIX.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_PREFIX
+     *
+     */
+    public const SCAN_PREFIX = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: send the SCAN MATCH pattern unchanged (default).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_NOPREFIX
+     *
+     */
+    public const SCAN_NOPREFIX = UNKNOWN;
+
+    /**
      * Create a new ValkeyGlide instance with the provided configuration.
      *
      * The constructor creates an unconnected client instance.
@@ -442,7 +506,10 @@ class ValkeyGlide
      * @param array|null $client_side_cache Client-side cache configuration array from ClientSideCache::toArray():
      *                                      ['cache_id' => string, 'max_cache_kb' => int, 'entry_ttl_ms' => int,
      *                                       'eviction_policy' => ?int, 'enable_metrics' => bool]
-     * @param callable|null $address_resolver Custom address resolver callback
+     * @param callable|null $address_resolver Custom address resolver callback:
+     *                                        fn(string $host, int $port): array returning
+     *                                        ['host' => string, 'port' => int]. It is only called
+     *                                        on the PHP thread, while connecting.
      * @param array|null $circuit_breaker Circuit breaker configuration:
      *                                    ['window_size_ms' => int, 'failure_rate_threshold' => float,
      *                                     'min_errors' => int, 'open_timeout_ms' => int,
@@ -558,6 +625,14 @@ class ValkeyGlide
      * @return mixed The option value, or false if the option is not set or invalid
      */
     public function getOption(int $option): mixed;
+
+    /**
+     * Prepend the OPT_PREFIX key prefix to a key.
+     *
+     * @param string $key The key to prefix
+     * @return string The prefixed key, or the key unchanged when no prefix is set
+     */
+    public function _prefix(string $key): string; // phpcs:ignore PSR2.Methods.MethodDeclaration.Underscore
 
     /**
      * Get the last error message returned by the server, if any.

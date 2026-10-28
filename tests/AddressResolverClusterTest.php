@@ -120,4 +120,56 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
         $this->assertConnected($client);
         $client->close();
     }
+
+    /**
+     * The core also resolves addresses on background threads (reconnects, periodic
+     * topology checks). The PHP resolver must only run on the PHP thread: running it
+     * on another thread corrupted the Zend heap and crashed the process.
+     */
+    public function testAddressResolverNotCalledFromBackgroundThreads()
+    {
+        $this->skipIfTlsEnabled();
+
+        $calls = 0;
+        $resolver = function (string $host, int $port) use (&$calls): array {
+            $calls++;
+            return ['host' => $host, 'port' => $port];
+        };
+
+        /* Periodic checks disabled, so only the reconnects below resolve in the background */
+        $client = new ValkeyGlideCluster(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            address_resolver: $resolver,
+            periodic_checks: ValkeyGlideCluster::PERIODIC_CHECK_DISABLED,
+        );
+        $this->assertTrue($client->ping('allPrimaries'));
+        $this->assertGT(0, $calls);
+        $calls_after_connect = $calls;
+
+        /* Drop the client's connections; the core reconnects in the background
+         * while this thread sleeps */
+        $admin = new ValkeyGlideCluster(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            periodic_checks: ValkeyGlideCluster::PERIODIC_CHECK_DISABLED,
+        );
+        $admin->rawCommand('allNodes', 'CLIENT', 'KILL', 'SKIPME', 'yes', 'TYPE', 'normal');
+        $admin->close();
+        sleep(2);
+
+        $this->assertEquals($calls_after_connect, $calls);
+
+        /* Reconnects using the addresses resolved on this thread */
+        $reconnected = false;
+        for ($attempt = 0; $attempt < 20 && !$reconnected; $attempt++) {
+            try {
+                $reconnected = $client->ping('allPrimaries') === true;
+            } catch (ValkeyGlideException $e) {
+            }
+            if (!$reconnected) {
+                usleep(500000);
+            }
+        }
+        $this->assertTrue($reconnected);
+        $client->close();
+    }
 }

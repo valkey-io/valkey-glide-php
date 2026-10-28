@@ -83,6 +83,10 @@ abstract class ValkeyGlideBaseTest extends TestSuite
 {
     private static $debug_logged = false;
     private static $version_logged = false;
+
+    /* Connection timeout (ms) for the suites' clients. The 250 ms default leaves
+     * a cluster client about 750 ms to connect, which a busy CI runner can miss */
+    protected const CONNECTION_TIMEOUT_MS = 2000;
     public function __construct($host, $port, $auth, $tls)
     {
         parent::__construct($host, $port, $auth, $tls);
@@ -256,12 +260,16 @@ abstract class ValkeyGlideBaseTest extends TestSuite
                 addresses: $addresses,
                 use_tls: true,
                 credentials: $credentials,
-                advanced_config: ['tls_config' => ['use_insecure_tls' => true]]
+                advanced_config: [
+                    'tls_config' => ['use_insecure_tls' => true],
+                    'connection_timeout' => self::CONNECTION_TIMEOUT_MS,
+                ]
             );
         } else {
             $client->connect(
                 addresses: $addresses,
-                credentials: $credentials
+                credentials: $credentials,
+                advanced_config: ['connection_timeout' => self::CONNECTION_TIMEOUT_MS]
             );
         }
 

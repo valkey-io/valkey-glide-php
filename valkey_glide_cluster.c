@@ -33,6 +33,7 @@
 #include "zend_attributes.h"
 #endif
 #include "valkey_glide_persistent.h"
+#include "valkey_glide_prefix.h"
 
 /*
  * PHP Methods
@@ -154,6 +155,7 @@ static int valkey_glide_cluster_create_connection(
             valkey_glide_persistent_store(
                 valkey_glide, persistent_key, client_config.base.database_id);
         }
+        valkey_glide_prefix_track_client(valkey_glide->glide_client, valkey_glide);
     }
 
     free_connection_response((ConnectionResponse*) conn_resp);
@@ -1434,6 +1436,10 @@ SETOPTION_METHOD_IMPL(ValkeyGlideCluster)
 
 /* {{{ proto mixed ValkeyGlideCluster::getOption(int option) */
 GETOPTION_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
+/* {{{ proto string ValkeyGlideCluster::_prefix(string key) */
+PREFIX_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto string|null ValkeyGlideCluster::getLastError() */

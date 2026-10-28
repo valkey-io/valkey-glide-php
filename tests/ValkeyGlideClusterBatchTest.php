@@ -47,6 +47,7 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
                 use_tls: false,
                 credentials: $this->getAuth(),
                 read_from: ValkeyGlide::READ_FROM_PRIMARY,
+                advanced_config: ['connection_timeout' => self::CONNECTION_TIMEOUT_MS],
             );
         } catch (Exception $ex) {
             TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());
