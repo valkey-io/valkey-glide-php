@@ -598,7 +598,8 @@ bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
     if (valkey_glide->is_in_batch_mode) {
         refusal = "OPT_SLAVE_FAILOVER cannot be changed inside MULTI or pipeline";
     } else if (valkey_glide->is_watching) {
-        refusal = "OPT_SLAVE_FAILOVER cannot be changed while keys are watched";
+        refusal =
+            "OPT_SLAVE_FAILOVER cannot be changed while keys are watched; call unwatch() first";
     } else {
         char client_key[32];
         snprintf(client_key,

@@ -905,14 +905,16 @@ int execute_pipeline_command(zval* object, int argc, zval* return_value, zend_cl
  * to avoid dropping the watched connection. */
 static void update_watch_state(valkey_glide_object*  valkey_glide,
                                bool                  is_atomic,
+                               bool                  is_cluster,
                                struct CommandResult* result) {
     bool executed = result && !result->command_error;
 
     if (is_atomic) {
         /* The server ends every WATCH when it runs EXEC, including EXEC aborted by a watched
          * key. A batch rejected before EXEC (a cross-slot transaction, a connection error)
-         * leaves the watch in place. */
-        if (executed)
+         * leaves the watch in place. In a cluster EXEC runs on one node, while WATCH went to
+         * the primary of each watched key's slot: the others keep theirs until unwatch(). */
+        if (executed && !is_cluster)
             valkey_glide->is_watching = false;
         return;
     }
@@ -1066,7 +1068,8 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
                                          0      /* span_ptr */
     );
 
-    update_watch_state(valkey_glide, batch_info.is_atomic, result);
+    update_watch_state(
+        valkey_glide, batch_info.is_atomic, ce == get_valkey_glide_cluster_ce(), result);
 
     /* Free CmdInfo structures */
     for (i = 0; i < valkey_glide->command_count; i++) {

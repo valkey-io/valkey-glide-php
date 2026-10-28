@@ -1884,11 +1884,14 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
             $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
 
-            // EXEC ends the WATCH
+            // EXEC ends the WATCH only on the node it ran on, so the change waits for unwatch()
             $this->assertTrue($client->watch($key));
             $client->multi();
             $client->set($key, 'value');
             $this->assertEquals([true], $client->exec());
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertStringContains('unwatch()', $client->getLastError());
+            $this->assertTrue($client->unwatch());
             $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
             $client->del($key);
         } finally {
@@ -1901,6 +1904,38 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $this->assertTrue(str_contains($client->getLastError(), 'closed'));
     }
 
+
+    public function testOptSlaveFailoverKeepsWatchOnOtherPrimaries()
+    {
+        $client = $this->newInstance();
+        $other = $this->newInstance();
+        // Hash tags in slots served by different primaries ({a} is slot 15495, {b} slot 3300)
+        $keyA = '{a}test_opt_slave_failover_' . uniqid();
+        $keyB = '{b}test_opt_slave_failover_' . uniqid();
+
+        try {
+            // WATCH reaches both primaries; EXEC of a transaction on {a} ends only that watch
+            $this->assertTrue($client->watch($keyA, $keyB));
+            $client->multi();
+            $client->set($keyA, 'value');
+            $this->assertEquals([true], $client->exec());
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+
+            // The watch on {b} is still active: a concurrent write aborts the next transaction
+            $this->assertTrue($other->set($keyB, 'other'));
+            $client->multi();
+            $client->set($keyB, 'mine');
+            $this->assertFalse($client->exec());
+            $this->assertEquals('other', $other->get($keyB));
+
+            $this->assertTrue($client->unwatch());
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+        } finally {
+            $other->del($keyA, $keyB);
+            $other->close();
+            $client->close();
+        }
+    }
     public function testOptSlaveFailoverRejectedAfterRawSubscribe()
     {
         $client = $this->newInstance();

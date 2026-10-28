@@ -263,14 +263,15 @@ class ValkeyGlideCluster
     public const SCAN_NOPREFIX = UNKNOWN;
 
     /**
-     * Runtime option: read routing, same as PHPRedis RedisCluster::OPT_SLAVE_FAILOVER.
-     * Takes one of the FAILOVER_* constants. GLIDE fixes read routing when the client is created,
-     * so changing the mode recreates the client (a reconnect unless `lazy_connect` is set).
-     * Connection state set by commands, such as CLIENT SETNAME, is not carried over, so the
-     * change fails (returns false, see getLastError()) while keys are watched, inside MULTI or
-     * a pipeline, while subscribed, and on a persistent client (`$persistent`), which later
-     * requests reuse with the routing it was created with. Setting a mode whose routing is
-     * already in use does nothing. Overrides the constructor's `read_from`: an AZ affinity
+     * Runtime option: read routing, same as PHPRedis RedisCluster::OPT_SLAVE_FAILOVER. Takes one
+     * of the FAILOVER_* constants. GLIDE fixes read routing when the client is created, so
+     * changing the mode recreates the client (a reconnect unless `lazy_connect` is set).
+     * Connection state set by commands, such as CLIENT SETNAME, is not carried over, so the change
+     * fails (returns false, see getLastError()) while keys are watched, inside MULTI or a
+     * pipeline, while subscribed, and on a persistent client (`$persistent`), which later requests
+     * reuse with the routing it was created with. EXEC only ends the watch on the node it ran on,
+     * so call unwatch() after a transaction before changing the mode. Setting a mode whose routing
+     * is already in use does nothing. Overrides the constructor's `read_from`: an AZ affinity
      * strategy reports the nearest mode (FAILOVER_DISTRIBUTE_SLAVES or FAILOVER_DISTRIBUTE), and
      * any change replaces it.
      *
