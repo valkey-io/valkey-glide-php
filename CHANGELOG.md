@@ -15,6 +15,10 @@
 * `hRandField()` with `withvalues` returns numeric field names as integer array keys (`'7'` becomes `7`), as `hGetAll()` and PHP arrays do. It returned them as string keys ([#443](https://github.com/valkey-io/valkey-glide-php/issues/443))
 * `ValkeyGlideCluster` now rejects a PHPRedis-style parameter combined with the ValkeyGlide-style parameter it stands in for: a non-zero `$read_timeout` with `$request_timeout` (`$read_timeout` silently replaced it), `$auth` with `$credentials` (`$auth` replaced them), and a non-zero `$timeout` with `advanced_config['connection_timeout']`. `$timeout` with `$request_timeout` is now allowed, as they set different timeouts. ([#454](https://github.com/valkey-io/valkey-glide-php/issues/454), [#455](https://github.com/valkey-io/valkey-glide-php/issues/455))
 
+### Features
+
+* Add key-level `NX`/`XX` support to `hSetEx`/`hPSetEx` (Valkey 9.1+) by passing an array as `$mode`, e.g. `['key' => 'NX', 'field' => 'XX']` ([#6154](https://github.com/valkey-io/valkey-glide/issues/6154))
+
 ### Fixes
 
 * `ValkeyGlideCluster` now uses a PHPRedis-style `$auth` given as a password, `[password]`, `[user, password]` or `['user' => ..., 'pass' => ...]`, and converts scalars and a null user as PHPRedis `RedisCluster` does. Only a `$credentials`-style array was read, so these connected without credentials. `false`, `[null]` and `[false]` mean no credentials, as in PHPRedis. Any other `$auth` it can't read now throws instead of connecting without credentials ([#454](https://github.com/valkey-io/valkey-glide-php/issues/454))
