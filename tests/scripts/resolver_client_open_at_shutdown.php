@@ -4,13 +4,15 @@
  * Used by testClientOpenAtRequestShutdown. Runs in its own process so it can
  * end the request with clients still open.
  *
- * Arguments: host port extension
+ * Arguments: host port extension marker
  * Prints "done" before the request ends. The clients live in a static
  * property, so PHP frees them only after the extension's RSHUTDOWN. Until
- * then their background threads may still call the address resolver.
+ * then their background threads may still call the address resolver. The
+ * child process below writes "killed" to the marker file once it has dropped
+ * the clients' connections.
  */
 
-[$script, $host, $port, $extension] = $argv;
+[$script, $host, $port, $extension, $marker] = $argv;
 
 class ResolverShutdownHolder
 {
@@ -36,10 +38,12 @@ for ($i = 0; $i < 3; $i++) {
  * reconnects call the resolver between RSHUTDOWN and the close. */
 $child = 'usleep(300000);'
     . '$c = new ValkeyGlideCluster(addresses: [["host" => $argv[1], "port" => (int) $argv[2]]]);'
-    . '$c->rawcommand("allNodes", "CLIENT", "KILL", "TYPE", "normal", "SKIPME", "yes");'
+    . 'if ($c->rawcommand("allNodes", "CLIENT", "KILL", "TYPE", "normal", "SKIPME", "yes")) {'
+    . '    file_put_contents($argv[3], "killed");'
+    . '}'
     . 'usleep(700000);';
 $GLOBALS['resolver_shutdown_wait'] = popen(implode(' ', array_map('escapeshellarg', [
-    PHP_BINARY, '-n', '-d', "extension=$extension", '-r', $child, $host, $port,
+    PHP_BINARY, '-n', '-d', "extension=$extension", '-r', $child, $host, $port, $marker,
 ])) . ' >/dev/null 2>&1', 'r');
 
 echo "done\n";
