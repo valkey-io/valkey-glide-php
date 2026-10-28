@@ -882,7 +882,7 @@ int prepare_list_position_args(list_command_args_t* args,
     VALIDATE_LIST_CLIENT(args->glide_client);
     VALIDATE_LIST_KEY(args->key, args->key_len);
 
-    if (!args->element || args->element_len <= 0) {
+    if (!args->element) {
         return 0;
     }
 
@@ -989,8 +989,7 @@ int prepare_list_insert_args(list_command_args_t* args,
     VALIDATE_LIST_KEY(args->key, args->key_len);
 
     if (!args->position_opts.position || args->position_opts.position_len <= 0 ||
-        !args->position_opts.pivot || args->position_opts.pivot_len <= 0 || !args->value ||
-        args->value_len <= 0) {
+        !args->position_opts.pivot || !args->value) {
         return 0;
     }
 
@@ -1075,7 +1074,7 @@ int prepare_list_rem_args(list_command_args_t* args,
     VALIDATE_LIST_CLIENT(args->glide_client);
     VALIDATE_LIST_KEY(args->key, args->key_len);
 
-    if (!args->value || args->value_len <= 0) {
+    if (!args->value) {
         return 0;
     }
 
@@ -1183,7 +1182,7 @@ int prepare_list_move_args(list_command_args_t* args,
     VALIDATE_LIST_CLIENT(args->glide_client);
     VALIDATE_LIST_KEY(args->key, args->key_len);
 
-    if (!args->move_opts.dest_key || args->move_opts.dest_key_len <= 0) {
+    if (!args->move_opts.dest_key) {
         return 0;
     }
 

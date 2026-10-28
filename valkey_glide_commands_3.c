@@ -27,6 +27,7 @@
 #include "valkey_glide_core_common.h"
 #include "valkey_glide_hash_common.h"
 #include "valkey_glide_persistent.h"
+#include "valkey_glide_prefix.h"
 #include "valkey_glide_z_common.h"
 
 /* Helper functions for batch state management */
@@ -212,6 +213,14 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
         }
     }
 
+    /* Apply OPT_PREFIX now; the prefixed arguments are copied below */
+    valkey_glide_prefixed_args_t prefixed;
+    if (valkey_glide_prefix_command_args(
+            valkey_glide, cmd_type, arg_count, args, arg_lengths, &prefixed)) {
+        args        = prefixed.args;
+        arg_lengths = prefixed.args_len;
+    }
+
     struct batch_command* cmd = &valkey_glide->buffered_commands[valkey_glide->command_count];
 
     /* Store command details */
@@ -242,6 +251,8 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
         cmd->args        = NULL;
         cmd->arg_lengths = NULL;
     }
+
+    valkey_glide_prefixed_args_free(&prefixed);
 
     valkey_glide->command_count++;
     return 1;
@@ -1326,7 +1337,7 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
     /* If we have a Glide client, use it */
     if (valkey_glide->glide_client) {
         /* Check if key and serialized value are valid */
-        if (!key || key_len <= 0 || !serialized || serialized_len <= 0) {
+        if (!key || !serialized || serialized_len <= 0) {
             return 0;
         }
 

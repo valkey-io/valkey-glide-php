@@ -843,6 +843,91 @@ class ValkeyGlidePubSubTest extends ValkeyGlideBaseTest
     }
 
     /**
+     * Verify OPT_PREFIX applies to SUBSCRIBE, PUBLISH and PUBSUB NUMSUB channels, as in PHPRedis.
+     */
+    public function testPubSubPrefix()
+    {
+        $prefix = 'pfx_' . uniqid() . ':';
+        $channel = 'test_prefix';
+        $sync_file = tempnam(sys_get_temp_dir(), 'sync_');
+        $result_file = tempnam(sys_get_temp_dir(), 'result_');
+
+        @unlink($sync_file);
+        @unlink($result_file);
+
+        $sub_script = __DIR__ . '/scripts/subscriber_prefix.php';
+
+        $cmd = $this->buildSubscriberCommand(
+            $sub_script,
+            $this->getHost(),
+            $this->getPort(),
+            $prefix,
+            $channel,
+            $sync_file,
+            $result_file
+        );
+
+        $proc = proc_open(
+            $cmd,
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $pipes
+        );
+
+        // Wait for subscriber ready
+        $timeout = time() + 5;
+        while (!file_exists($sync_file) && time() < $timeout) {
+            usleep(100000);
+        }
+
+        $error_file = $result_file . '.error';
+        if (file_exists($error_file)) {
+            $error = file_get_contents($error_file);
+            @unlink($error_file);
+            @unlink($sync_file);
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            $this->fail('Subscriber script error: ' . $error);
+            return;
+        }
+
+        // The subscriber is on the prefixed channel
+        $raw = new ValkeyGlide();
+        $raw->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $this->assertTrue(
+            $this->waitForSubscribers($raw, [$prefix . $channel => 1]),
+            'Subscriber should be registered on the prefixed channel'
+        );
+        $raw->close();
+
+        // A prefixed client counts and publishes on the prefixed channel too
+        $pub = new ValkeyGlide();
+        $pub->connect(addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]]);
+        $pub->setOption(ValkeyGlide::OPT_PREFIX, $prefix);
+        $this->assertEquals([$prefix . $channel, 1], $pub->pubsub('numsub', [$channel]));
+        $this->assertEquals(1, $pub->publish($channel, 'hello'));
+        $pub->close();
+
+        $success = $this->waitForFileContent($result_file, $prefix . $channel . '|hello') === true;
+        // A crash while the subscriber shuts down shows only in its exit code
+        $exit_code = $success ? $this->waitForExit($proc, $pipes) : null;
+
+        foreach ($pipes as $pipe) {
+            @fclose($pipe);
+        }
+        @proc_terminate($proc);
+        @proc_close($proc);
+        @unlink($sync_file);
+        @unlink($result_file);
+        @unlink($error_file);
+
+        $this->assertTrue($success, 'The callback should receive the prefixed channel and message');
+        $this->assertEquals(0, $exit_code, 'The subscriber should exit cleanly');
+    }
+
+    /**
      * Verify the second channel still delivers messages after unsubscribing from the first.
      */
     public function testPubSubPartialUnsubscribe()
