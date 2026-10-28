@@ -2416,13 +2416,18 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         }
 
         $client = $this->getCompressedClient();
-        $data = str_repeat('delifeq_data_', 100);
+        // Keep the value below the compression threshold so a regression that removes the
+        // compression guard would make DELIFEQ match and delete the key.
+        $data = 'delifeq_data';
         $key = 'compression_blocked_delifeq_' . uniqid();
 
         try {
             $client->set($key, $data);
+            $this->assertTrue($client->clearLastError());
             $result = $client->delIfEq($key, $data);
             $this->assertFalse($result, 'DELIFEQ should return false when compression is enabled');
+            $this->assertStringContains('incompatible with compression', (string) $client->getLastError());
+            $this->assertEquals($data, $client->get($key), 'DELIFEQ should not delete the key when compression is enabled');
         } finally {
             $client->del($key);
         }

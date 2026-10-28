@@ -548,26 +548,6 @@ class ValkeyGlide
     public function append(string $key, mixed $value): ValkeyGlide|int|false;
 
     /**
-     * Deletes a ValkeyGlide STRING key if its value equals the given comparison value.
-     *
-     * @param string $key   The key to delete.
-     * @param string $value The comparison value. The key is only deleted if its current value
-     *                       matches exactly.
-     *
-     * @return ValkeyGlide|bool `true` if `key` was deleted, or `false` if `key` did not exist or
-     *                           its value did not match `value`.
-     *
-     * @since Valkey 9.0 and above.
-     *
-     * @see https://valkey.io/commands/delifeq/
-     *
-     * @example
-     * $valkey_glide->set('foo', 'bar');
-     * $valkey_glide->delIfEq('foo', 'bar'); // true, key is deleted
-     */
-    public function delIfEq(string $key, string $value): ValkeyGlide|bool;
-
-    /**
      * Count the number of set bits in a ValkeyGlide string.
      *
      * @see https://valkey.io/commands/bitcount/
@@ -1002,6 +982,31 @@ class ValkeyGlide
      * @example $valkey_glide->del(['key:2', 'key:3', 'key:4']);
      */
     public function del(array|string $key, string ...$other_keys): ValkeyGlide|int|false;
+
+    /**
+     * Deletes a string key if its value equals the given comparison value.
+     *
+     * Not supported when compression is enabled, because the server would compare against the
+     * compressed value. In that case the command is rejected and `false` is returned without
+     * deleting the key (see getLastError()).
+     *
+     * @param string $key   The key to delete.
+     * @param string $value The comparison value. The key is only deleted if its current value
+     *                       matches exactly.
+     *
+     * @return ValkeyGlide|bool `true` if `key` was deleted, or `false` if `key` did not exist, its
+     *                           value did not match `value`, or the command failed (e.g. compression
+     *                           is enabled).
+     *
+     * @since Valkey 9.0
+     *
+     * @see https://valkey.io/commands/delifeq/
+     *
+     * @example
+     * $valkey_glide->set('foo', 'bar');
+     * $valkey_glide->delIfEq('foo', 'bar'); // true, key is deleted
+     */
+    public function delIfEq(string $key, string $value): ValkeyGlide|bool;
 
     /**
      * Discard a transaction currently in progress.
