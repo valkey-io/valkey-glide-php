@@ -440,7 +440,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
                 client_name: null,
                 periodic_checks: null,
                 client_az: null,
-                advanced_config: null,
+                advanced_config: ['connection_timeout' => self::CONNECTION_TIMEOUT_MS],
                 lazy_connect: null,
                 database_id: 0 // enable multi-database support
             );
