@@ -47,7 +47,7 @@ typedef struct pubsub_message {
 typedef struct pubsub_callback_info {
     zval            callback;
     zval            client_obj;
-    bool            is_active;
+    bool            is_active;  // false once unsubscribed (written under queue_mutex)
     pubsub_message* queue_head;
     pubsub_message* queue_tail;
     size_t          queue_depth;       // queued messages (protected by queue_mutex)
