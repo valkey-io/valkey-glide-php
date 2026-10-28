@@ -125,24 +125,32 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
 
         $extension_path = __DIR__ . '/../modules/valkey_glide.so';
         $extension = file_exists($extension_path) ? $extension_path : 'valkey_glide';
+        $marker = tempnam(sys_get_temp_dir(), 'resolver_shutdown_');
         $cmd = [PHP_BINARY, '-n', '-d', "extension=$extension",
                 __DIR__ . '/scripts/resolver_client_open_at_shutdown.php',
-                $this->getHost(), (string) $this->getPort(), $extension];
+                $this->getHost(), (string) $this->getPort(), $extension, $marker];
         /* Overwrite freed memory, so a call into a freed resolver crashes. On
          * Linux this also needs libffi to allocate closures with malloc (static
          * trampolines, libffi 3.4+); musl ignores MALLOC_PERTURB_ */
         $env = getenv() + ['MallocScribble' => '1', 'MALLOC_PERTURB_' => '85'];
 
-        for ($run = 0; $run < 3; $run++) {
-            $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, null, $env);
-            $this->assertTrue(is_resource($proc));
-            $out = stream_get_contents($pipes[1]);
-            fclose($pipes[1]);
-            $status = proc_close($proc);
+        try {
+            for ($run = 0; $run < 3; $run++) {
+                file_put_contents($marker, '');
+                $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, null, $env);
+                $this->assertTrue(is_resource($proc));
+                $out = stream_get_contents($pipes[1]);
+                fclose($pipes[1]);
+                $status = proc_close($proc);
 
-            /* The core also logs to stdout */
-            $this->assertStringContains("done\n", $out);
-            $this->assertEquals(0, $status, "Run $run exited with status $status");
+                /* The core also logs to stdout */
+                $this->assertStringContains("done\n", $out);
+                $this->assertEquals(0, $status, "Run $run exited with status $status");
+                /* Without the reconnects nothing calls the resolver after RSHUTDOWN */
+                $this->assertEquals('killed', file_get_contents($marker), "Run $run did not drop the connections");
+            }
+        } finally {
+            @unlink($marker);
         }
     }
 
