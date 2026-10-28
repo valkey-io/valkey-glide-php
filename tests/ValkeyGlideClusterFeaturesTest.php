@@ -1976,20 +1976,40 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     {
         // Later requests reuse a persistent client expecting the routing it was created with. The
         // second pass reuses the client the first pass kept, which has no saved request.
-        for ($pass = 0; $pass < 2; $pass++) {
-            $client = new ValkeyGlideCluster(
-                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
-                persistent: true,
-            );
-            try {
+        $client = null;
+        try {
+            for ($pass = 0; $pass < 2; $pass++) {
+                $client = null; // keep the client for the next pass
+                $client = new ValkeyGlideCluster(
+                    addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                    persistent: true,
+                );
                 $this->assertEquals(ValkeyGlideCluster::FAILOVER_NONE, $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER));
                 $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_ERROR));
                 $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
                 $this->assertStringContains('persistent', $client->getLastError());
                 $this->assertTrue($client->ping(['type' => 'primarySlotKey', 'key' => 'test']));
-            } finally {
-                $client->close();
             }
+        } finally {
+            $client?->close();
+        }
+    }
+
+    public function testOptSlaveFailoverRejectedOnPersistentAzClient()
+    {
+        // AZ affinity reports the nearest mode, but setting it would have to replace the routing
+        $client = new ValkeyGlideCluster(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY,
+            client_az: 'us-east-1a',
+            persistent: true,
+        );
+        try {
+            $this->assertEquals(ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES, $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER));
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertStringContains('persistent', $client->getLastError());
+        } finally {
+            $client->close();
         }
     }
 

@@ -971,11 +971,15 @@ static inline zend_long valkey_glide_scan_option(const valkey_glide_object* valk
                 RETURN_NULL();                                                \
             case VALKEY_GLIDE_OPT_SCAN:                                       \
                 RETURN_LONG(valkey_glide_scan_option(valkey_glide));          \
-            case VALKEY_GLIDE_OPT_SLAVE_FAILOVER:                             \
-                if (!valkey_glide->connection_request) {                      \
+            case VALKEY_GLIDE_OPT_SLAVE_FAILOVER: {                           \
+                /* A reused persistent client has no connection_request */    \
+                zend_class_entry* cluster_ce = get_valkey_glide_cluster_ce(); \
+                if (!valkey_glide->glide_client ||                            \
+                    !instanceof_function(valkey_glide->std.ce, cluster_ce)) { \
                     RETURN_FALSE;                                             \
                 }                                                             \
                 RETURN_LONG(valkey_glide->opt_slave_failover);                \
+            }                                                                 \
             default:                                                          \
                 RETURN_FALSE;                                                 \
         }                                                                     \

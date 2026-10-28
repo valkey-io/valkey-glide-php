@@ -551,10 +551,12 @@ bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
     }
 
     /* A persistent client is shared with later requests that expect the routing in its key,
-     * and one reused from an earlier request has no saved request to recreate it from */
+     * and one reused from an earlier request has no saved request to recreate it from. An AZ
+     * strategy only reports the nearest mode, so even that mode would change its routing. */
     if (valkey_glide->persistent) {
         ConnectionRequest__ReadFrom current;
-        if (failover_to_read_from(valkey_glide->opt_slave_failover, &current) &&
+        if (!valkey_glide->read_from_az &&
+            failover_to_read_from(valkey_glide->opt_slave_failover, &current) &&
             current == read_from) {
             valkey_glide->opt_slave_failover = failover;
             return true;
@@ -655,6 +657,7 @@ bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
     valkey_glide->connection_request     = request_bytes;
     valkey_glide->connection_request_len = request_len;
     valkey_glide->opt_slave_failover     = failover;
+    valkey_glide->read_from_az           = false;
     return true;
 }
 

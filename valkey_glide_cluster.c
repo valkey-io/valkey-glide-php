@@ -116,6 +116,8 @@ static int valkey_glide_cluster_create_connection(
             if (attached) {
                 valkey_glide->opt_slave_failover =
                     valkey_glide_read_from_to_failover(client_config.base.read_from);
+                valkey_glide->read_from_az =
+                    client_config.base.read_from >= VALKEY_GLIDE_READ_FROM_AZ_AFFINITY;
             }
             valkey_glide_cleanup_client_config(&client_config.base);
             return attached ? SUCCESS : FAILURE;
@@ -171,6 +173,8 @@ static int valkey_glide_cluster_create_connection(
         valkey_glide->connection_request_len = request_len;
         valkey_glide->opt_slave_failover =
             valkey_glide_read_from_to_failover(client_config.base.read_from);
+        valkey_glide->read_from_az =
+            client_config.base.read_from >= VALKEY_GLIDE_READ_FROM_AZ_AFFINITY;
     }
 
     free_connection_response((ConnectionResponse*) conn_resp);
