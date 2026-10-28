@@ -394,13 +394,6 @@ PHP_METHOD(ValkeyGlideCluster, close) {
         php_release_pubsub_callback(client_ptr);
     }
 
-    /* Mark resolver as closed so background Rust threads get immediate
-       fallback instead of calling into PHP. Memory freed at RSHUTDOWN. */
-    if (valkey_glide->resolver_cb) {
-        valkey_glide_resolver_close(valkey_glide->resolver_cb);
-        valkey_glide->resolver_cb = NULL;
-    }
-
     /* Only OPT_SLAVE_FAILOVER reads the saved request, and not once closed; it may hold a
      * password, so do not keep it until the object is destroyed */
     if (valkey_glide->connection_request) {

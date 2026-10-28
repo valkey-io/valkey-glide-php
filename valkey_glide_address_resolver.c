@@ -36,7 +36,8 @@ typedef struct resolver_closure {
     struct resolver_closure* next;
 } resolver_closure_t;
 
-static resolver_closure_t* g_closures = NULL;
+/* Closures of this thread's clients (per thread under ZTS) */
+ZEND_TLS resolver_closure_t* g_closures = NULL;
 
 static ffi_type* arg_types[7] = {
     &ffi_type_pointer, /* usize client_id - using pointer type for ABI compat (same size on 64-bit)
@@ -322,16 +323,25 @@ void valkey_glide_resolver_release(AddressResolverCallback cb) {
     }
 }
 
-void valkey_glide_resolver_shutdown(void) {
+void valkey_glide_resolver_request_shutdown(void) {
+    /* A client still open here (a static property, for example) is closed
+     * later, by shutdown_executor(), and its core threads may call the
+     * resolver until then: keep the closure, but make it fall back to the
+     * original address and drop the callable while the request is alive.
+     * The client's close frees the rest. */
+    /* Releasing a callable can free a client it captured, which releases that
+     * client's closure: restart from the head after each one */
     resolver_closure_t* cur = g_closures;
     while (cur) {
-        resolver_closure_t* next = cur->next;
-        ffi_closure_free(cur->closure);
-        /* Same requirement as release(); see resolver_cache_free() */
-        resolver_cache_free(cur);
-        zval_ptr_dtor(&cur->callable);
-        pefree(cur, 1);
-        cur = next;
+        atomic_store(&cur->closed, 1);
+        if (Z_ISUNDEF(cur->callable)) {
+            cur = cur->next;
+            continue;
+        }
+        zval callable;
+        ZVAL_COPY_VALUE(&callable, &cur->callable);
+        ZVAL_UNDEF(&cur->callable);
+        zval_ptr_dtor(&callable);
+        cur = g_closures;
     }
-    g_closures = NULL;
 }
