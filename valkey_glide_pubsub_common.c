@@ -7,6 +7,7 @@
 #include <zend_exceptions.h>
 
 #include "logger.h"
+#include "valkey_glide_prefix.h"
 
 // PubSub message type constants (from PushKind enum)
 #define PUBSUB_KIND_MESSAGE 3
@@ -457,6 +458,24 @@ bool is_client_in_subscribe_mode(uintptr_t client_ptr) {
     return info ? info->in_subscribe_mode : false;
 }
 
+// Send a pub/sub command with the client's OPT_PREFIX applied to its channels,
+// as PHPRedis does; these commands call the FFI directly, not execute_command()
+struct CommandResult* pubsub_command(const void*          connection,
+                                     enum RequestType     command_type,
+                                     unsigned long        arg_count,
+                                     const uintptr_t*     args,
+                                     const unsigned long* args_len) {
+    valkey_glide_prefixed_args_t prefixed;
+    if (valkey_glide_prefix_client_args(
+            connection, command_type, arg_count, args, args_len, &prefixed)) {
+        struct CommandResult* result = command(
+            connection, 0, command_type, arg_count, prefixed.args, prefixed.args_len, NULL, 0, 0);
+        valkey_glide_prefixed_args_free(&prefixed);
+        return result;
+    }
+    return command(connection, 0, command_type, arg_count, args, args_len, NULL, 0, 0);
+}
+
 // Common subscribe blocking loop
 static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub_type) {
     char client_key[32];
@@ -612,7 +631,7 @@ static int execute_subscribe_command(const void*      connection,
     args_len[item_count] = timeout_len;
 
     struct CommandResult* result =
-        command(connection, 0, subscribe_type, total_args, args, args_len, NULL, 0, 0);
+        pubsub_command(connection, subscribe_type, total_args, args, args_len);
 
     efree(args);
     efree(args_len);
@@ -684,7 +703,7 @@ static void execute_unsubscribe_command(const void*      connection,
         args_len[item_count] = 1;
 
         struct CommandResult* result =
-            command(connection, 0, unsubscribe_type, total_args, args, args_len, NULL, 0, 0);
+            pubsub_command(connection, unsubscribe_type, total_args, args, args_len);
 
         efree(args);
         efree(args_len);
@@ -721,7 +740,7 @@ static void execute_unsubscribe_command(const void*      connection,
         unsigned long args_len[1] = {1};
 
         struct CommandResult* result =
-            command(connection, 0, unsubscribe_type, 1, args, args_len, NULL, 0, 0);
+            pubsub_command(connection, unsubscribe_type, 1, args, args_len);
         if (result) {
             if (result->command_error && result->command_error->command_error_message) {
                 VALKEY_LOG_ERROR(command_name, result->command_error->command_error_message);
@@ -863,7 +882,7 @@ void valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
 
     // Call FFI command
     struct CommandResult* result =
-        command(connection, 0, REQUEST_TYPE_PUBLISH, 2, args, args_len, NULL, 0, 0);
+        pubsub_command(connection, REQUEST_TYPE_PUBLISH, 2, args, args_len);
 
     if (result) {
         if (result->response && !result->command_error) {

@@ -22,6 +22,7 @@
 #include "logger.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_otel.h"
+#include "valkey_glide_prefix.h"
 
 #define DEBUG_COMMAND_RESPONSE_TO_ZVAL 0
 
@@ -294,6 +295,21 @@ CommandResult* execute_command_with_route(const void*          glide_client,
         return NULL;
     }
 
+    /* A key route names the key whose slot picks the node, so it gets the
+     * client's OPT_PREFIX like the command's own keys, as in PHPRedis */
+    valkey_glide_object* prefix_owner = valkey_glide_prefix_find_object(glide_client);
+    if (route.type == ROUTE_TYPE_KEY && prefix_owner && prefix_owner->prefix) {
+        zend_string* prefixed_key = valkey_glide_prefix_key(
+            prefix_owner, route.data.key_route.key, route.data.key_route.key_len);
+        if (route.data.key_route.key_allocated) {
+            efree(route.data.key_route.key);
+        }
+        route.data.key_route.key     = estrndup(ZSTR_VAL(prefixed_key), ZSTR_LEN(prefixed_key));
+        route.data.key_route.key_len = ZSTR_LEN(prefixed_key);
+        route.data.key_route.key_allocated = 1;
+        zend_string_release(prefixed_key);
+    }
+
     /* Create serialized route bytes */
     size_t   route_bytes_len = 0;
     uint8_t* route_bytes     = create_route_bytes_from_route(&route, &route_bytes_len);
@@ -307,6 +323,14 @@ CommandResult* execute_command_with_route(const void*          glide_client,
     if (!validate_command_params(glide_client, arg_count, args, args_len)) {
         cleanup_route(route_bytes, &route);
         return NULL;
+    }
+
+    /* Apply the client's OPT_PREFIX to key arguments */
+    valkey_glide_prefixed_args_t prefixed;
+    if (valkey_glide_prefix_client_args(
+            glide_client, command_type, arg_count, args, args_len, &prefixed)) {
+        args     = prefixed.args;
+        args_len = prefixed.args_len;
     }
 
     /* Create OTEL span for tracing */
@@ -326,6 +350,7 @@ CommandResult* execute_command_with_route(const void*          glide_client,
 
     /* Cleanup span */
     valkey_glide_drop_span(span_ptr);
+    valkey_glide_prefixed_args_free(&prefixed);
 
     /* Free route allocations */
     cleanup_route(route_bytes, &route);
@@ -355,6 +380,14 @@ CommandResult* execute_command(const void*          glide_client,
         return NULL;
     }
 
+    /* Apply the client's OPT_PREFIX to key arguments */
+    valkey_glide_prefixed_args_t prefixed;
+    if (valkey_glide_prefix_client_args(
+            glide_client, command_type, arg_count, args, args_len, &prefixed)) {
+        args     = prefixed.args;
+        args_len = prefixed.args_len;
+    }
+
     /* Create OTEL span for tracing */
     uint64_t span_ptr = valkey_glide_create_span(command_type);
 
@@ -372,6 +405,7 @@ CommandResult* execute_command(const void*          glide_client,
 
     /* Cleanup span */
     valkey_glide_drop_span(span_ptr);
+    valkey_glide_prefixed_args_free(&prefixed);
 
     return result;
 }
