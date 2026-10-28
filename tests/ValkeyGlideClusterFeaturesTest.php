@@ -2017,6 +2017,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 $client = null; // keep the client for the next pass
                 $client = new ValkeyGlideCluster(
                     addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                    credentials: $this->getAuth(),
                     persistent: true,
                 );
                 $this->assertEquals(ValkeyGlideCluster::FAILOVER_NONE, $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER));
@@ -2035,6 +2036,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         // AZ affinity reports the nearest mode, but setting it would have to replace the routing
         $client = new ValkeyGlideCluster(
             addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            credentials: $this->getAuth(),
             read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY,
             client_az: 'us-east-1a',
             persistent: true,
