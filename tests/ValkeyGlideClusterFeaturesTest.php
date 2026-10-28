@@ -515,14 +515,18 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $valkey_glide = new ValkeyGlideCluster(...$params);
         $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
 
-        // The initial topology refresh already issued CLUSTER SLOTS, so a zero
-        // baseline means the stats were not parsed and the test would be vacuous.
         $before = $this->countClusterCommandCalls($valkey_glide);
-        $this->assertGT(0, $before);
-
         sleep(2);
         $after = $this->countClusterCommandCalls($valkey_glide);
         $valkey_glide->close();
+
+        // A failed sample must fail the test, not count as zero calls
+        if (!$this->assertIsInt($before) || !$this->assertIsInt($after)) {
+            return;
+        }
+        // The initial topology refresh already issued CLUSTER SLOTS, so a zero
+        // baseline means the stats were not parsed and the test would be vacuous.
+        $this->assertGT(0, $before);
 
         // With glide-core's 60 second default interval, this idle client should issue
         // no CLUSTER calls in the 2 second window. Commandstats is server-wide, though,
@@ -539,13 +543,18 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $this->assertLT(20, $after - $before);
     }
 
-    /** Sums the call counts of every CLUSTER subcommand across all nodes. */
-    private function countClusterCommandCalls(ValkeyGlideCluster $client): int
+    /** Sums the call counts of every CLUSTER subcommand across all nodes, or returns null
+     *  when the stats of any node are missing. */
+    private function countClusterCommandCalls(ValkeyGlideCluster $client): ?int
     {
+        $stats = $client->info('allNodes', 'commandstats');
+        if (!is_array($stats) || !$stats) {
+            return null;
+        }
         $calls = 0;
-        foreach ($client->info('allNodes', 'commandstats') as $node_info) {
+        foreach ($stats as $node_info) {
             if (!is_array($node_info)) {
-                continue;
+                return null;
             }
             foreach ($node_info as $key => $value) {
                 if (strncmp($key, 'cmdstat_cluster', 15) !== 0) {
