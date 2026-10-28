@@ -228,19 +228,15 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
 
         uintptr_t i;
         for (i = 0; i < arg_count; i++) {
-            if (args[i] && arg_lengths[i] > 0) {
-                cmd->args[i] = (uint8_t*) emalloc(arg_lengths[i] + 1);
-                if (cmd->args[i]) {
-                    memcpy(cmd->args[i], ((uint8_t**) args)[i], arg_lengths[i]);
-                    cmd->args[i][arg_lengths[i]] = '\0';
-                    cmd->arg_lengths[i]          = arg_lengths[i];
-                } else {
-                    cmd->arg_lengths[i] = 0;
-                }
-            } else {
-                cmd->args[i]        = NULL;
-                cmd->arg_lengths[i] = 0;
+            /* Allocate even for empty arguments: the FFI builds a slice from each
+             * pointer, and Rust requires a non-null pointer even for length 0 */
+            uintptr_t len       = args[i] ? arg_lengths[i] : 0;
+            cmd->args[i]        = (uint8_t*) emalloc(len + 1);
+            cmd->arg_lengths[i] = len;
+            if (len > 0) {
+                memcpy(cmd->args[i], ((uint8_t**) args)[i], len);
             }
+            cmd->args[i][len] = '\0';
         }
     } else {
         cmd->args        = NULL;
@@ -600,7 +596,7 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
 
             /* Use shared internal helper */
             return execute_function_load_internal(
-                valkey_glide, library_code, library_code_len, replace, return_value);
+                object, valkey_glide, library_code, library_code_len, replace, return_value);
         } else if (strcasecmp(operation, "DELETE") == 0) {
             /* DELETE expects: library_name */
             if (args_count < 1) {
@@ -894,6 +890,26 @@ int execute_pipeline_command(zval* object, int argc, zval* return_value, zend_cl
 }
 
 /* Execute a DISCARD command using the Valkey Glide client - UPDATED FOR BUFFERING */
+/* MULTI is buffered client-side, so a transaction that never reaches the server
+ * (empty, or discarded) must clear WATCH itself, as the server's EXEC/DISCARD would.
+ * UNWATCH is routed to all primaries in cluster mode. Returns false if it failed;
+ * the error is available from getLastError(). */
+static bool unwatch_for_client_side_transaction(valkey_glide_object* valkey_glide) {
+    CommandResult* result = execute_command(valkey_glide->glide_client, UnWatch, 0, NULL, NULL);
+    bool           ok     = result && !result->command_error;
+    if (!ok) {
+        if (result) {
+            valkey_glide_record_command_error(valkey_glide, result);
+        } else {
+            valkey_glide_set_last_error(valkey_glide, "UNWATCH failed");
+        }
+    }
+    if (result) {
+        free_command_result(result);
+    }
+    return ok;
+}
+
 int execute_discard_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
 
@@ -911,7 +927,12 @@ int execute_discard_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Clear batch state if we're in batch mode */
     if (valkey_glide->is_in_batch_mode) {
+        bool is_multi = valkey_glide->batch_type == MULTI;
         valkey_glide_clear_batch_state(valkey_glide);
+        if (is_multi && !unwatch_for_client_side_transaction(valkey_glide)) {
+            ZVAL_FALSE(return_value);
+            return 0;
+        }
         ZVAL_TRUE(return_value);
         return 1;
     } else {
@@ -937,9 +958,21 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     }
 
     /* Check if we're in batch mode and have buffered commands */
-    if (!valkey_glide->is_in_batch_mode || valkey_glide->command_count == 0) {
+    if (!valkey_glide->is_in_batch_mode) {
         ZVAL_FALSE(return_value);
         return 0;
+    }
+
+    /* An empty multi()/pipeline() returns an empty array and leaves batch mode, as in PHPRedis */
+    if (valkey_glide->command_count == 0) {
+        bool is_multi = valkey_glide->batch_type == MULTI;
+        valkey_glide_clear_batch_state(valkey_glide);
+        if (is_multi && !unwatch_for_client_side_transaction(valkey_glide)) {
+            ZVAL_FALSE(return_value);
+            return 0;
+        }
+        array_init(return_value);
+        return 1;
     }
 
     /* Convert buffered commands to FFI BatchInfo structure */
