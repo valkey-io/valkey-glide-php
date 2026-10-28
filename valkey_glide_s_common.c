@@ -125,8 +125,7 @@ int prepare_s_key_members_args(s_command_args_t* args,
                                unsigned long**   args_len_out,
                                char***           allocated_strings,
                                int*              allocated_count) {
-    if (!args->glide_client || !args->key || args->key_len == 0 || !args->members ||
-        args->members_count <= 0) {
+    if (!args->glide_client || !args->key || !args->members || args->members_count <= 0) {
         return 0;
     }
 
@@ -160,7 +159,7 @@ int prepare_s_key_only_args(s_command_args_t* args,
                             unsigned long**   args_len_out,
                             char***           allocated_strings,
                             int*              allocated_count) {
-    if (!args->glide_client || !args->key || args->key_len == 0) {
+    if (!args->glide_client || !args->key) {
         return 0;
     }
 
@@ -182,8 +181,7 @@ int prepare_s_key_member_args(s_command_args_t* args,
                               unsigned long**   args_len_out,
                               char***           allocated_strings,
                               int*              allocated_count) {
-    if (!args->glide_client || !args->key || args->key_len == 0 || !args->member ||
-        args->member_len == 0) {
+    if (!args->glide_client || !args->key || !args->member) {
         return 0;
     }
 
@@ -207,7 +205,7 @@ int prepare_s_key_count_args(s_command_args_t* args,
                              unsigned long**   args_len_out,
                              char***           allocated_strings,
                              int*              allocated_count) {
-    if (!args->glide_client || !args->key || args->key_len == 0) {
+    if (!args->glide_client || !args->key) {
         return 0;
     }
 
@@ -342,8 +340,7 @@ int prepare_s_dst_multi_key_args(s_command_args_t* args,
                                  unsigned long**   args_len_out,
                                  char***           allocated_strings,
                                  int*              allocated_count) {
-    if (!args->glide_client || !args->dst_key || args->dst_key_len == 0 || !args->keys ||
-        args->keys_count <= 0) {
+    if (!args->glide_client || !args->dst_key || !args->keys || args->keys_count <= 0) {
         return 0;
     }
 
@@ -377,8 +374,7 @@ int prepare_s_two_key_member_args(s_command_args_t* args,
                                   unsigned long**   args_len_out,
                                   char***           allocated_strings,
                                   int*              allocated_count) {
-    if (!args->glide_client || !args->src_key || args->src_key_len == 0 || !args->dst_key ||
-        args->dst_key_len == 0 || !args->member || args->member_len == 0) {
+    if (!args->glide_client || !args->src_key || !args->dst_key || !args->member) {
         return 0;
     }
 
@@ -410,7 +406,7 @@ int prepare_s_scan_args(s_command_args_t* args,
 
     int has_pattern = (args->pattern && args->pattern_len > 0);
     int has_count   = args->has_count;
-    int has_key     = (args->key && args->key_len > 0);                     /* For SSCAN */
+    int has_key     = (args->key != NULL);                                  /* For SSCAN */
     int has_type    = args->has_type && (args->type && args->type_len > 0); /* For SCAN only */
 
     unsigned long arg_count =

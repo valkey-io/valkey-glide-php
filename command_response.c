@@ -163,7 +163,7 @@ uint8_t* create_route_bytes_from_route(cluster_route_t* route, size_t* route_byt
     switch (route->type) {
         case ROUTE_TYPE_KEY:
             /* Validate key data */
-            if (!route->data.key_route.key || route->data.key_route.key_len == 0) {
+            if (!route->data.key_route.key) {
                 VALKEY_LOG_ERROR("route_processing", "Invalid key data for route");
                 *route_bytes_len = 0;
                 return NULL;

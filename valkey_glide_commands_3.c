@@ -1326,7 +1326,7 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
     /* If we have a Glide client, use it */
     if (valkey_glide->glide_client) {
         /* Check if key and serialized value are valid */
-        if (!key || key_len <= 0 || !serialized || serialized_len <= 0) {
+        if (!key || !serialized || serialized_len <= 0) {
             return 0;
         }
 

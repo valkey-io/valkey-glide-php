@@ -913,7 +913,7 @@ int prepare_x_len_args(x_command_args_t* args,
                        char***           allocated_strings,
                        int*              allocated_count) {
     /* Check if client and key are valid */
-    if (!args->glide_client || !args->key || args->key_len <= 0) {
+    if (!args->glide_client || !args->key) {
         return 0;
     }
 
@@ -941,8 +941,8 @@ int prepare_x_ack_args(x_command_args_t* args,
                        char***           allocated_strings,
                        int*              allocated_count) {
     /* Check if client and arguments are valid */
-    if (!args->glide_client || !args->key || args->key_len <= 0 || !args->group ||
-        args->group_len <= 0 || !args->ids || args->id_count <= 0) {
+    if (!args->glide_client || !args->key || !args->group || args->group_len <= 0 || !args->ids ||
+        args->id_count <= 0) {
         return 0;
     }
 
@@ -988,8 +988,7 @@ int prepare_x_del_args(x_command_args_t* args,
                        char***           allocated_strings,
                        int*              allocated_count) {
     /* Check if client and arguments are valid */
-    if (!args->glide_client || !args->key || args->key_len <= 0 || !args->ids ||
-        args->id_count <= 0) {
+    if (!args->glide_client || !args->key || !args->ids || args->id_count <= 0) {
         return 0;
     }
 
@@ -1031,8 +1030,8 @@ int prepare_x_range_args(x_command_args_t* args,
                          char***           allocated_strings,
                          int*              allocated_count) {
     /* Check if client and arguments are valid */
-    if (!args->glide_client || !args->key || args->key_len <= 0 || !args->start ||
-        args->start_len <= 0 || !args->end || args->end_len <= 0) {
+    if (!args->glide_client || !args->key || !args->start || args->start_len <= 0 || !args->end ||
+        args->end_len <= 0) {
         return 0;
     }
 
@@ -1101,7 +1100,7 @@ int prepare_x_add_args(x_command_args_t* args,
                        char***           allocated_strings,
                        int*              allocated_count) {
     /* Check if client and arguments are valid */
-    if (!args->glide_client || !args->key || args->key_len <= 0 || !args->id || args->id_len <= 0 ||
+    if (!args->glide_client || !args->key || !args->id || args->id_len <= 0 ||
         !args->field_values || args->fv_count <= 0) {
         return 0;
     }
@@ -1275,8 +1274,7 @@ int prepare_x_pending_args(x_command_args_t* args,
                            char***           allocated_strings,
                            int*              allocated_count) {
     /* Check if client and arguments are valid */
-    if (!args->glide_client || !args->key || args->key_len <= 0 || !args->group ||
-        args->group_len <= 0) {
+    if (!args->glide_client || !args->key || !args->group || args->group_len <= 0) {
         return 0;
     }
 
@@ -1685,9 +1683,8 @@ int prepare_x_claim_args(x_command_args_t* args,
                          char***           allocated_strings,
                          int*              allocated_count) {
     /* Check if client and arguments are valid */
-    if (!args->glide_client || !args->key || args->key_len <= 0 || !args->group ||
-        args->group_len <= 0 || !args->consumer || args->consumer_len <= 0 || !args->ids ||
-        args->id_count <= 0) {
+    if (!args->glide_client || !args->key || !args->group || args->group_len <= 0 ||
+        !args->consumer || args->consumer_len <= 0 || !args->ids || args->id_count <= 0) {
         return 0;
     }
 
@@ -1877,9 +1874,8 @@ int prepare_x_autoclaim_args(x_command_args_t* args,
                              char***           allocated_strings,
                              int*              allocated_count) {
     /* Check if client and arguments are valid */
-    if (!args->glide_client || !args->key || args->key_len <= 0 || !args->group ||
-        args->group_len <= 0 || !args->consumer || args->consumer_len <= 0 || !args->start ||
-        args->start_len <= 0) {
+    if (!args->glide_client || !args->key || !args->group || args->group_len <= 0 ||
+        !args->consumer || args->consumer_len <= 0 || !args->start || args->start_len <= 0) {
         return 0;
     }
 
@@ -1995,8 +1991,8 @@ int prepare_x_trim_args(x_command_args_t* args,
                         char***           allocated_strings,
                         int*              allocated_count) {
     /* Check if client and arguments are valid */
-    if (!args->glide_client || !args->key || args->key_len <= 0 || !args->strategy ||
-        args->strategy_len <= 0 || !args->threshold || args->threshold_len <= 0) {
+    if (!args->glide_client || !args->key || !args->strategy || args->strategy_len <= 0 ||
+        !args->threshold || args->threshold_len <= 0) {
         return 0;
     }
 

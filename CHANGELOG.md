@@ -19,6 +19,7 @@
 * `exec()` after an empty `multi()` or `pipeline()` now returns `[]` and leaves batch mode, as in PHPRedis; previously it returned `false` and left the client in batch mode, so every later command was buffered and never sent. An empty or discarded `multi()` also clears `WATCH`, as the server's `EXEC`/`DISCARD` would ([#360](https://github.com/valkey-io/valkey-glide-php/issues/360))
 * `functionLoad($code, true)` and `function('load', $code, true)` now send `FUNCTION LOAD REPLACE <code>`; previously `REPLACE` was sent after the code and the server rejected the command ([#360](https://github.com/valkey-io/valkey-glide-php/issues/360))
 * `functionLoad()` and `function('load', ...)` called inside `multi()` or `pipeline()` are now queued with the batch and return the client, instead of executing immediately outside the transaction ([#360](https://github.com/valkey-io/valkey-glide-php/issues/360))
+* An empty string is now sent as a key, value, member or list element instead of being treated as a missing argument. Most commands given an empty key (`set('', ...)`, `get('')`, `del('')`, `rPush('', ...)`, `sAdd('', ...)`, `xAdd('', ...)`, ...), and `sAdd()`, `sIsMember()`, `sMove()`, `lRem()`, `lInsert()` and `lPos()` given an empty member or element, went out without their arguments and failed with "wrong number of arguments"; the cluster key route also rejected an empty key ([#392](https://github.com/valkey-io/valkey-glide-php/issues/392))
 
 ### Changes
 
