@@ -8,8 +8,9 @@
  * Prints "done" before the request ends. The clients live in a static
  * property, so PHP frees them only after the extension's RSHUTDOWN. Until
  * then their background threads may still call the address resolver. The
- * child process below writes "killed" to the marker file once it has dropped
- * the clients' connections.
+ * child process below writes "killed" to the marker file once CLIENT KILL
+ * has dropped connections (the reply is the number killed, summed over the
+ * nodes).
  */
 
 [$script, $host, $port, $extension, $marker] = $argv;
@@ -38,7 +39,7 @@ for ($i = 0; $i < 3; $i++) {
  * reconnects call the resolver between RSHUTDOWN and the close. */
 $child = 'usleep(300000);'
     . '$c = new ValkeyGlideCluster(addresses: [["host" => $argv[1], "port" => (int) $argv[2]]]);'
-    . 'if ($c->rawcommand("allNodes", "CLIENT", "KILL", "TYPE", "normal", "SKIPME", "yes")) {'
+    . 'if ($c->rawcommand("allNodes", "CLIENT", "KILL", "TYPE", "normal", "SKIPME", "yes") > 0) {'
     . '    file_put_contents($argv[3], "killed");'
     . '}'
     . 'usleep(700000);';
