@@ -1048,10 +1048,17 @@ void close_glide_client(const void* glide_client) {
 }
 
 void valkey_glide_close_client(valkey_glide_object* valkey_glide) {
+    /* A resolver call racing with the close falls back to the original address */
+    valkey_glide_resolver_close(valkey_glide->resolver_cb);
     if (valkey_glide->glide_client && valkey_glide->client_pid == getpid()) {
         close_glide_client(valkey_glide->glide_client);
     }
     valkey_glide->glide_client = NULL;
+    /* Dropping the core client in close_glide_client() drops its Tokio runtimes,
+     * which waits for their threads (a forked child never had them), so nothing
+     * can call the resolver any more */
+    valkey_glide_resolver_release(valkey_glide->resolver_cb);
+    valkey_glide->resolver_cb = NULL;
 }
 
 /* Execute an ECHO command using the Valkey Glide client */

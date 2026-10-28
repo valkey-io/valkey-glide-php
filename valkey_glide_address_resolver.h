@@ -8,7 +8,8 @@
 /*
  * Allocate a libffi closure that, when called by Rust, dispatches to the
  * PHP callable. Returns NULL on allocation failure.
- * The caller must store the returned cb and pass it to close() when done.
+ * The caller must store the returned cb and free it with release() once the
+ * client is destroyed (valkey_glide_close_client() does this).
  *
  * The PHP callable only runs on the thread that called acquire(). Calls from
  * other threads (the core's background tasks) are answered from the results
@@ -26,13 +27,17 @@ void valkey_glide_resolver_close(AddressResolverCallback cb);
 /*
  * Free the libffi closure allocated by acquire().
  * Must only be called after the Rust client is fully destroyed (all Arc
- * references dropped). Safe to call with NULL.
+ * references dropped): close_client() returned, or create_client() failed.
+ * Until then the core's background threads may still call it. Safe to call
+ * with NULL.
  */
 void valkey_glide_resolver_release(AddressResolverCallback cb);
 
 /*
- * Release all remaining closures (called from MSHUTDOWN/RSHUTDOWN).
+ * Called from RSHUTDOWN: mark every remaining resolver closed and release its
+ * PHP callable. The closures themselves stay until their clients are closed,
+ * which for clients PHP frees after RSHUTDOWN happens later.
  */
-void valkey_glide_resolver_shutdown(void);
+void valkey_glide_resolver_request_shutdown(void);
 
 #endif /* VALKEY_GLIDE_ADDRESS_RESOLVER_H */

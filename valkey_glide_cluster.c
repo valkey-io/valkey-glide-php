@@ -380,13 +380,6 @@ PHP_METHOD(ValkeyGlideCluster, close) {
         php_release_pubsub_callback(client_ptr);
     }
 
-    /* Mark resolver as closed so background Rust threads get immediate
-       fallback instead of calling into PHP. Memory freed at RSHUTDOWN. */
-    if (valkey_glide->resolver_cb) {
-        valkey_glide_resolver_close(valkey_glide->resolver_cb);
-        valkey_glide->resolver_cb = NULL;
-    }
-
     RETURN_TRUE;
 }
 
