@@ -239,19 +239,17 @@ uint8_t* create_connection_request(size_t*                                   len
         conn_req.database_id = 0;
     }
 
-    /* Set the periodic checks for cluster clients. */
+    /* Set the periodic checks for cluster clients. Only an explicit disable is sent.
+     * Otherwise the periodic_checks oneof is left unset (NOT_SET) so the core applies
+     * its default topology check interval. Sending PeriodicChecksManualInterval with
+     * duration_in_sec = 0 made the core run topology checks back-to-back, burning CPU
+     * and flooding the cluster with CLUSTER SLOTS queries (issue #344). */
     ConnectionRequest__PeriodicChecksDisabled periodic_check_disabled_info =
         CONNECTION_REQUEST__PERIODIC_CHECKS_DISABLED__INIT;
-    ConnectionRequest__PeriodicChecksManualInterval periodic_checks_manual_interval_info =
-        CONNECTION_REQUEST__PERIODIC_CHECKS_MANUAL_INTERVAL__INIT;
     if (is_cluster && periodic_checks == VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED) {
         conn_req.periodic_checks_disabled = &periodic_check_disabled_info;
         conn_req.periodic_checks_case =
             CONNECTION_REQUEST__CONNECTION_REQUEST__PERIODIC_CHECKS_PERIODIC_CHECKS_DISABLED;
-    } else {
-        conn_req.periodic_checks_manual_interval = &periodic_checks_manual_interval_info;
-        conn_req.periodic_checks_case =
-            CONNECTION_REQUEST__CONNECTION_REQUEST__PERIODIC_CHECKS_PERIODIC_CHECKS_MANUAL_INTERVAL;
     }
 
     conn_req.protocol = CONNECTION_REQUEST__PROTOCOL_VERSION__RESP3;
