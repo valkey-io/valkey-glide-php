@@ -932,12 +932,12 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::hSetEx
      */
-    public function hSetEx(string $key, int $seconds, ?string $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+    public function hSetEx(string $key, int $seconds, array|string|null $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
 
     /**
      * @see ValkeyGlide::hPSetEx
      */
-    public function hPSetEx(string $key, int $milliseconds, ?string $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+    public function hPSetEx(string $key, int $milliseconds, array|string|null $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
 
     /**
      * @see ValkeyGlide::hGetEx

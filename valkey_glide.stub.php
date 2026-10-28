@@ -1930,14 +1930,16 @@ class ValkeyGlide
      *
      * @param string $key The key of the hash.
      * @param int $seconds The expiration time in seconds.
-     * @param string|null $mode Optional condition (NX, XX).
+     * @param array|string|null $mode Optional condition. A string (NX, XX) is a field-level condition
+     *        (sent as FNX/FXX). An array may specify ['key' => 'NX'|'XX', 'field' => 'NX'|'XX'] for
+     *        key-level (NX/XX, requires Valkey 9.1+) and/or field-level conditions.
      * @param string $field The field name.
      * @param mixed $value The field value.
      * @param mixed $fields_and_vals Additional field-value pairs.
      *
      * @return ValkeyGlide|int|false Returns the number of fields that were added or updated, or false on failure.
      */
-    public function hSetEx(string $key, int $seconds, ?string $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
+    public function hSetEx(string $key, int $seconds, array|string|null $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
 
     /**
      * Set hash fields with expiration time in milliseconds.
@@ -1946,14 +1948,16 @@ class ValkeyGlide
      *
      * @param string $key The key of the hash.
      * @param int $milliseconds The expiration time in milliseconds.
-     * @param string|null $mode Optional condition (NX, XX).
+     * @param array|string|null $mode Optional condition. A string (NX, XX) is a field-level condition
+     *        (sent as FNX/FXX). An array may specify ['key' => 'NX'|'XX', 'field' => 'NX'|'XX'] for
+     *        key-level (NX/XX, requires Valkey 9.1+) and/or field-level conditions.
      * @param string $field The field name.
      * @param mixed $value The field value.
      * @param mixed $fields_and_vals Additional field-value pairs.
      *
      * @return ValkeyGlide|int|false Returns the number of fields that were added or updated, or false on failure.
      */
-    public function hPSetEx(string $key, int $milliseconds, ?string $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
+    public function hPSetEx(string $key, int $milliseconds, array|string|null $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
 
     /**
      * Get hash field values with optional expiration settings.
