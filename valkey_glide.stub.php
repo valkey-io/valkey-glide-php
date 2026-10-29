@@ -365,6 +365,8 @@ class ValkeyGlide
      * Runtime option: Return "OK" string instead of true for OK responses
      * When enabled, commands that return "+OK" from Valkey will return the string "OK"
      * instead of boolean true (the default behavior).
+     * The value is 8, the same as PHPRedis. The previous value 1 (PHPRedis OPT_SERIALIZER) is
+     * deprecated: setOption() still accepts it with a bool value and emits E_DEPRECATED.
      *
      * @var int
      * @cvalue VALKEY_GLIDE_OPT_REPLY_LITERAL
