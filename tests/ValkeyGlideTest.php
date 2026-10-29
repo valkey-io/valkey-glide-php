@@ -10230,6 +10230,30 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $client->close();
     }
 
+    public function testPrefixDelIfEq()
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('DELIFEQ requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}delifeq", 'delifeq');
+
+        $client = $this->newPrefixedInstance();
+
+        // The prefix is applied to the key, so only the prefixed key is compared and deleted.
+        $this->assertTrue($raw->set("{$p}delifeq", 'value'));
+        $this->assertTrue($raw->set('delifeq', 'value'));
+        $this->assertFalse($client->delIfEq('delifeq', 'wrong_value'));
+        $this->assertTrue($client->delIfEq('delifeq', 'value'));
+        $this->assertKeyMissing("{$p}delifeq", $raw);
+        $this->assertKeyEquals('value', 'delifeq', $raw);
+
+        $raw->del("{$p}delifeq", 'delifeq');
+        $client->close();
+    }
+
     public function testPrefixMultiKeyCommands()
     {
         $raw = $this->valkey_glide;

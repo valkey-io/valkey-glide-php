@@ -232,6 +232,7 @@ static void mark_keys(valkey_glide_object* valkey_glide,
         case BitPos:
         case Decr:
         case DecrBy:
+        case DelIfEq:
         case Dump:
         case Expire:
         case ExpireAt:
