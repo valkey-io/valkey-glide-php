@@ -761,6 +761,32 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key1);
     }
 
+    public function testHSetExKeyConditionsBatch()
+    {
+        if (!$this->minVersionCheck('9.1.0')) {
+            $this->markTestSkipped('HSETEX key-level NX/XX requires Valkey 9.1.0+');
+            return;
+        }
+
+        $key = 'batch_hsetex_keycond_' . uniqid();
+
+        $this->valkey_glide->multi();
+        $this->valkey_glide->hSetEx($key, 60, ['key' => 'NX'], 'f1', 'v1');
+        $this->valkey_glide->hSetEx($key, 60, ['key' => 'NX'], 'f1', 'v2');
+        $this->valkey_glide->hSetEx($key, 60, ['key' => 'XX'], 'f1', 'v3');
+        $this->valkey_glide->hPSetEx($key, 60000, ['key' => 'XX', 'field' => 'NX'], 'f1', 'v4');
+        $this->valkey_glide->hGet($key, 'f1');
+        $results = $this->valkey_glide->exec();
+
+        $this->assertEquals(1, $results[0]); // NX, key absent
+        $this->assertEquals(0, $results[1]); // NX, key exists
+        $this->assertEquals(1, $results[2]); // XX, key exists
+        $this->assertEquals(0, $results[3]); // XX + FNX, f1 exists
+        $this->assertEquals('v3', $results[4]);
+
+        $this->valkey_glide->del($key);
+    }
+
     // ===================================================================
     // LIST ADVANCED OPERATIONS BATCH TESTS
     // ===================================================================

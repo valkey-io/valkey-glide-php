@@ -5259,6 +5259,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // String mode keeps its field-level meaning
         $this->assertEquals(0, $this->valkey_glide->hSetEx($key, 60, ValkeyGlide::CONDITION_NX, 'f1', 'x'));
 
+        // Invalid array contents are rejected and leave the hash untouched
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['key' => 'GT'], 'f1', 'bad'));
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['field' => 5], 'f1', 'bad'));
+        $this->assertEquals('v3', $this->valkey_glide->hGet($key, 'f1'));
+
         $this->valkey_glide->del($key);
     }
 

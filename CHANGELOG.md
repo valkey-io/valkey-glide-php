@@ -8,7 +8,7 @@
 
 ### Features
 
-* Add key-level `NX`/`XX` support to `hSetEx`/`hPSetEx` (Valkey 9.1+) by passing an array as `$mode`, e.g. `['key' => 'NX', 'field' => 'XX']` ([#6154](https://github.com/valkey-io/valkey-glide/issues/6154))
+* Add key-level `NX`/`XX` support to `hSetEx`/`hPSetEx` (Valkey 9.1+) by passing an array as `$mode`, e.g. `['key' => 'NX', 'field' => 'XX']` ([#399](https://github.com/valkey-io/valkey-glide-php/issues/399))
 
 ### Fixes
 
