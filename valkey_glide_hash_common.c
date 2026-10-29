@@ -2363,8 +2363,28 @@ static int execute_hash_expiry_command(zval*             object,
         if (cmd_type != HSetEx) {
             return 0;
         }
+
+        // Reject unrecognized entries so a misspelled option can't silently
+        // turn into an unconditional write.
+        zend_string* entry_name;
+        ZEND_HASH_FOREACH_STR_KEY(Z_ARRVAL_P(condition_zv), entry_name) {
+            if (!entry_name || !(zend_string_equals_literal(entry_name, "key") ||
+                                 zend_string_equals_literal(entry_name, "field"))) {
+                return 0;
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+
         zval* key_zv   = zend_hash_str_find(Z_ARRVAL_P(condition_zv), "key", sizeof("key") - 1);
         zval* field_zv = zend_hash_str_find(Z_ARRVAL_P(condition_zv), "field", sizeof("field") - 1);
+
+        // Entries may be PHP references (e.g. ['key' => &$cond])
+        if (key_zv) {
+            ZVAL_DEREF(key_zv);
+        }
+        if (field_zv) {
+            ZVAL_DEREF(field_zv);
+        }
 
         if (key_zv && Z_TYPE_P(key_zv) != IS_NULL) {
             if (Z_TYPE_P(key_zv) != IS_STRING) {
