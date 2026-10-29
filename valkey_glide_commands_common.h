@@ -864,7 +864,7 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
 
 /* The deprecated OPT_REPLY_LITERAL value 1 is PHPRedis's OPT_SERIALIZER, whose values are ints, so
  * setOption treats it as OPT_REPLY_LITERAL only when the value is a bool. Returns false when the
- * option should be rejected. */
+ * option should be rejected, including when an error handler throws on the deprecation notice. */
 static inline bool valkey_glide_legacy_reply_literal(zval* value) {
     if (Z_TYPE_P(value) != IS_TRUE && Z_TYPE_P(value) != IS_FALSE) {
         return false;
@@ -872,7 +872,7 @@ static inline bool valkey_glide_legacy_reply_literal(zval* value) {
     php_error_docref(NULL,
                      E_DEPRECATED,
                      "Option 1 is deprecated, use OPT_REPLY_LITERAL (8), the PHPRedis value");
-    return true;
+    return !EG(exception);
 }
 
 /* Option methods - matching PHPRedis setOption/getOption API. getOption(1) answers with the

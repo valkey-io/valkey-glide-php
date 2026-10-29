@@ -1668,6 +1668,25 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         }
     }
 
+    public function testOptReplyLiteralLegacyValueThrowingHandler()
+    {
+        // An error handler that throws on the deprecation notice makes setOption(1, ...) throw, and the
+        // setting must stay as it was.
+        set_error_handler(function (int $errno, string $errstr): bool {
+            throw new ErrorException($errstr, 0, $errno);
+        }, E_DEPRECATED);
+
+        try {
+            $this->assertThrowsMatch($this->valkey_glide, function (ValkeyGlideCluster $client) {
+                $client->setOption(1, true);
+            }, '/Option 1 is deprecated/');
+            $this->assertFalse($this->valkey_glide->getOption(ValkeyGlideCluster::OPT_REPLY_LITERAL));
+        } finally {
+            restore_error_handler();
+            $this->valkey_glide->setOption(ValkeyGlideCluster::OPT_REPLY_LITERAL, false);
+        }
+    }
+
     public function testClusterSetOptionGetOption()
     {
         $this->assertFalse($this->valkey_glide->getOption(ValkeyGlideCluster::OPT_REPLY_LITERAL));
