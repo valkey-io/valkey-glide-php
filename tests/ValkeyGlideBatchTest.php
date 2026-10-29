@@ -408,6 +408,29 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key1, $key2, $key3);
     }
 
+    public function testDelIfEqBatch()
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('DELIFEQ requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $key = '{xyz}batch_delifeq_' . uniqid();
+
+        $this->valkey_glide->set($key, 'value');
+
+        // Execute DELIFEQ (mismatch, then match) in multi/exec batch
+        $results = $this->valkey_glide->multi()
+            ->delIfEq($key, 'wrong_value')
+            ->delIfEq($key, 'value')
+            ->exec();
+
+        // Verify transaction results
+        $this->assertEquals([false, true], $results);
+
+        // Verify server-side effects
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
+    }
+
     public function testKeyRenameBatch()
     {
         $key1 = '{xyz}batch_rename_1_' . uniqid();
