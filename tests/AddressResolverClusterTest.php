@@ -7,7 +7,7 @@ require_once __DIR__ . '/TestConstants.php';
 
 class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
 {
-    public function setUp()
+    public function setUp(): void
     {
         // Intentionally do not call parent::setUp(); each test creates its own client.
     }
