@@ -5264,6 +5264,20 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['field' => 5], 'f1', 'bad'));
         $this->assertEquals('v3', $this->valkey_glide->hGet($key, 'f1'));
 
+        // Unknown or misspelled array entries are rejected, not silently ignored
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['KEY' => 'NX'], 'f1', 'bad'));
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['kee' => 'NX'], 'f1', 'bad'));
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['key' => 'XX', 'feild' => 'NX'], 'f1', 'bad'));
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['NX'], 'f1', 'bad'));
+        $this->assertEquals('v3', $this->valkey_glide->hGet($key, 'f1'));
+
+        // Array entries that are PHP references are accepted
+        $keyCond = 'XX';
+        $fieldCond = 'XX';
+        $refMode = ['key' => &$keyCond, 'field' => &$fieldCond];
+        $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 60, $refMode, 'f1', 'v5'));
+        $this->assertEquals('v5', $this->valkey_glide->hGet($key, 'f1'));
+
         $this->valkey_glide->del($key);
     }
 
