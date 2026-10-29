@@ -2335,9 +2335,9 @@ static int execute_hash_expiry_command(zval*             object,
     zval*                args     = NULL;
     int                  num_args = 0;
     zend_long            expiry;
-    zval*                condition_zv    = NULL;
-    const char*          condition_str   = NULL;
-    const char*          key_condition   = NULL;
+    zval*                condition_zv  = NULL;
+    const char*          condition_str = NULL;
+    const char*          key_condition = NULL;
 
     // Parse: object, key, expiry, condition (nullable string or array), field1, field2, ...
     if (zend_parse_method_parameters(argc,
