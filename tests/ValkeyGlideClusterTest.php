@@ -555,9 +555,9 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     /**
      * Override for cluster - cancel pending/in-progress saves on every node.
      */
-    protected function cancelBgSave(): void
+    protected function cancelBgSave(): mixed
     {
-        @$this->valkey_glide->bgSave('allNodes', 'CANCEL');
+        return @$this->valkey_glide->bgSave('allNodes', 'CANCEL');
     }
 
     public function testBgSave()

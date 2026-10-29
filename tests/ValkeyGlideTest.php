@@ -3640,28 +3640,34 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     /**
-     * Issue BGSAVE CANCEL and ignore the result. Clears a pending scheduled save
-     * and aborts an in-progress one. Requires Valkey 8.1.0+.
+     * Issue BGSAVE CANCEL and return its result. Clears a pending scheduled save
+     * and aborts an in-progress one (returning non-false), or returns false when
+     * there is nothing to cancel. Requires Valkey 8.1.0+.
      */
-    protected function cancelBgSave(): void
+    protected function cancelBgSave(): mixed
     {
-        @$this->valkey_glide->bgSave('CANCEL');
+        return @$this->valkey_glide->bgSave('CANCEL');
     }
 
     /**
      * Wait until no background save is in progress AND none is scheduled.
      *
-     * A save queued by BGSAVE SCHEDULE is not visible in INFO persistence (the
-     * server does not expose its internal "scheduled" flag), so waiting on INFO
-     * alone is not enough: a leftover scheduled save makes a later BGSAVE CANCEL
-     * succeed instead of failing. Explicitly cancel to clear it, then wait for
-     * any child that was killed by the cancel to be reaped.
+     * A save queued by BGSAVE SCHEDULE is not visible in INFO persistence, so
+     * waiting on INFO alone is not enough: a leftover scheduled save makes a later
+     * BGSAVE CANCEL succeed instead of failing. Poll CANCEL until it reports
+     * there is nothing left to cancel (false). Same approach as testBgSaveCancel,
+     * for tests that must issue CANCEL themselves afterwards.
      */
     protected function waitForNoPendingSave(): void
     {
-        $this->waitForSaveNotInProgress();
-        $this->cancelBgSave();
-        $this->waitForSaveNotInProgress();
+        $this->waitFor(
+            function () {
+                $this->waitForSaveNotInProgress();
+                return $this->cancelBgSave() === false;
+            },
+            15,
+            'Pending background save did not settle (BGSAVE CANCEL kept succeeding)'
+        );
     }
 
     public function testTTL()
@@ -3813,6 +3819,15 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             // Wait for 6382 to become slave (failover completed)
             $this->waitForRole($client, 'slave', 30);
         } finally {
+            // 6382 reports the slave role before the failover finishes, and
+            // REPLICAOF is rejected until it has. Defer any timeout so the
+            // restore below still runs.
+            $failoverError = null;
+            try {
+                $this->waitForFailoverState($client, 'no-failover', 30);
+            } catch (Throwable $e) {
+                $failoverError = $e;
+            }
             $client->close();
 
             // Run valkey-cli as immediate fallback to trigger failback
@@ -3855,6 +3870,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
                     @$replica->close();
                 }
             }, 30, "Timed out restoring 6383 as replica of 6382");
+
+            if ($failoverError !== null) {
+                throw $failoverError;
+            }
         }
     }
 
