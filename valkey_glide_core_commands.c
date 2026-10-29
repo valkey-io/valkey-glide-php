@@ -32,11 +32,13 @@
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
 #include "valkey_glide_list_common.h"
+#include "valkey_glide_persistent.h"
 #include "valkey_glide_z_common.h"
 
 extern zend_class_entry* ce;
 extern zend_class_entry* get_valkey_glide_exception_ce();
 
+#include "valkey_glide_prefix.h"
 #include "valkey_glide_pubsub_common.h"
 
 /* Import the string conversion functions from command_response.c */
@@ -237,19 +239,17 @@ uint8_t* create_connection_request(size_t*                                   len
         conn_req.database_id = 0;
     }
 
-    /* Set the periodic checks for cluster clients. */
+    /* Set the periodic checks for cluster clients. Only an explicit disable is sent.
+     * Otherwise the periodic_checks oneof is left unset (NOT_SET) so the core applies
+     * its default topology check interval. Sending PeriodicChecksManualInterval with
+     * duration_in_sec = 0 made the core run topology checks back-to-back, burning CPU
+     * and flooding the cluster with CLUSTER SLOTS queries (issue #344). */
     ConnectionRequest__PeriodicChecksDisabled periodic_check_disabled_info =
         CONNECTION_REQUEST__PERIODIC_CHECKS_DISABLED__INIT;
-    ConnectionRequest__PeriodicChecksManualInterval periodic_checks_manual_interval_info =
-        CONNECTION_REQUEST__PERIODIC_CHECKS_MANUAL_INTERVAL__INIT;
     if (is_cluster && periodic_checks == VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED) {
         conn_req.periodic_checks_disabled = &periodic_check_disabled_info;
         conn_req.periodic_checks_case =
             CONNECTION_REQUEST__CONNECTION_REQUEST__PERIODIC_CHECKS_PERIODIC_CHECKS_DISABLED;
-    } else {
-        conn_req.periodic_checks_manual_interval = &periodic_checks_manual_interval_info;
-        conn_req.periodic_checks_case =
-            CONNECTION_REQUEST__CONNECTION_REQUEST__PERIODIC_CHECKS_PERIODIC_CHECKS_MANUAL_INTERVAL;
     }
 
     conn_req.protocol = CONNECTION_REQUEST__PROTOCOL_VERSION__RESP3;
@@ -410,6 +410,19 @@ static const ConnectionResponse* create_base_glide_client(
 
     /* Free the request bytes as they're no longer needed */
     efree(request_bytes);
+
+    /* No response at all: report it and give the resolver slot back */
+    if (!conn_resp) {
+        if (address_resolver_cb) {
+            valkey_glide_resolver_release(address_resolver_cb);
+        }
+        if (out_resolver_cb) {
+            *out_resolver_cb = NULL;
+        }
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "Failed to create client: no connection response", 0);
+        return NULL;
+    }
 
     /* Check if there was an error */
     if (conn_resp->connection_error_message) {
@@ -1029,8 +1042,16 @@ void close_glide_client(const void* glide_client) {
     if (!glide_client) {
         return;
     }
+    valkey_glide_prefix_untrack_client(glide_client);
     /* Close the client using the close_client function from glide_bindings.h */
     close_client(glide_client);
+}
+
+void valkey_glide_close_client(valkey_glide_object* valkey_glide) {
+    if (valkey_glide->glide_client && valkey_glide->client_pid == getpid()) {
+        close_glide_client(valkey_glide->glide_client);
+    }
+    valkey_glide->glide_client = NULL;
 }
 
 /* Execute an ECHO command using the Valkey Glide client */
@@ -2362,6 +2383,9 @@ void execute_update_connection_password(zval*             object,
                              0);
         return;
     }
+
+    /* The client's credentials no longer match its persistent key */
+    valkey_glide_mark_connection_state_changed(valkey_glide);
 
     /* Call FFI function */
     CommandResult* result =

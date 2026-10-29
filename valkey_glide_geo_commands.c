@@ -27,7 +27,7 @@ extern zend_class_entry* ce;
 int execute_geoadd_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     char*       key = NULL;
     size_t      key_len;
-    zval*       z_args;
+    zval*       z_args        = NULL;
     int         variadic_argc = 0;
     const void* glide_client  = NULL;
 
@@ -137,7 +137,7 @@ int execute_geodist_command(zval* object, int argc, zval* return_value, zend_cla
 int execute_geohash_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     char*       key = NULL;
     size_t      key_len;
-    zval*       z_args;
+    zval*       z_args        = NULL;
     int         variadic_argc = 0;
     const void* glide_client  = NULL;
 
@@ -186,7 +186,7 @@ int execute_geohash_command(zval* object, int argc, zval* return_value, zend_cla
 int execute_geopos_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     char*       key = NULL;
     size_t      key_len;
-    zval*       z_args;
+    zval*       z_args        = NULL;
     int         variadic_argc = 0;
     const void* glide_client  = NULL;
 

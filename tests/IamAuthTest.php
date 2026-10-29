@@ -90,7 +90,7 @@ class IamAuthTest extends ValkeyGlideBaseTest
 {
     private $originalEnvVars = [];
 
-    public function setUp()
+    public function setUp(): void
     {
         // Save original AWS environment variables
         $this->originalEnvVars = [
@@ -133,11 +133,14 @@ class IamAuthTest extends ValkeyGlideBaseTest
     {
         $client = new ValkeyGlide();
 
+        // IAM auth requires TLS (an IAM token must never traverse plaintext), so
+        // connect over the TLS-enabled server with the test CA cert.
         $connectArgs = [
-            'addresses' => [
-                ['host' => $this->getHost(), 'port' => $this->getPort()]
+            'addresses' => [self::TLS_ADDRESS_STANDALONE],
+            'use_tls' => true,
+            'advanced_config' => [
+                'tls_config' => ['root_certs' => file_get_contents(self::TLS_CERTIFICATE_PATH)]
             ],
-            'use_tls' => false,
             'credentials' => [
                 'username' => 'default',
                 'iamConfig' => [
@@ -150,7 +153,7 @@ class IamAuthTest extends ValkeyGlideBaseTest
         ];
 
         if ($connectionTimeout !== null) {
-            $connectArgs['advanced_config'] = ['connection_timeout' => $connectionTimeout];
+            $connectArgs['advanced_config']['connection_timeout'] = $connectionTimeout;
         }
 
         $client->connect(...$connectArgs);
@@ -174,6 +177,8 @@ class IamAuthTest extends ValkeyGlideBaseTest
      */
     public function testIamAuthenticationWithMockCredentials()
     {
+        $this->skipIfTlsDisabled();
+
         try {
             $this->setMockAwsCredentials();
 
@@ -222,6 +227,8 @@ class IamAuthTest extends ValkeyGlideBaseTest
      */
     public function testAutomaticIamTokenRefresh()
     {
+        $this->skipIfTlsDisabled();
+
         try {
             $this->setMockAwsCredentials();
 
@@ -248,6 +255,46 @@ class IamAuthTest extends ValkeyGlideBaseTest
             // Cleanup
             $client->del('auto_refresh_test');
             $client->close();
+        } finally {
+            $this->restoreEnvironmentVariables();
+        }
+    }
+
+    /**
+     * Test 3: IAM Authentication Requires TLS
+     *
+     * Purpose: Verify that configuring IAM authentication without TLS is
+     * rejected at client creation, so an IAM token is never sent over a
+     * plaintext connection.
+     *
+     * Needs no TLS server: the guard fails closed before any connection, so
+     * this runs in plain CI without skipIfTlsDisabled().
+     */
+    public function testIamAuthenticationRequiresTls()
+    {
+        try {
+            $this->setMockAwsCredentials();
+
+            $client = new ValkeyGlide();
+
+            try {
+                $client->connect(
+                    addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                    use_tls: false,
+                    credentials: [
+                        'username' => 'default',
+                        'iamConfig' => [
+                            'clusterName' => 'test-cluster',
+                            'region' => 'us-east-1',
+                            'service' => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
+                            'refreshIntervalSeconds' => 5
+                        ]
+                    ]
+                );
+                $this->assertTrue(false, 'Expected IAM-without-TLS to be rejected at client creation');
+            } catch (ValkeyGlideException $e) {
+                $this->assertStringContains('IAM authentication requires TLS', $e->getMessage());
+            }
         } finally {
             $this->restoreEnvironmentVariables();
         }

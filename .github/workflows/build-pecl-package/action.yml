@@ -28,6 +28,9 @@ runs:
         done
         cat .submodule-commits
 
+    - name: Configure APT retries
+      uses: ./.github/actions/configure-apt-retries
+
     - name: Create PECL package
       id: create-package
       shell: bash

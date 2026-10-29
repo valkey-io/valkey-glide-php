@@ -10,6 +10,7 @@
 #include "php.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
+#include "valkey_glide_z_common.h"
 
 /**
  * Helper function to handle CommandResult for boolean function commands
@@ -32,10 +33,18 @@ static int handle_function_bool_result(valkey_glide_object* valkey_glide,
     return status;
 }
 
+/* Batch result processor for FUNCTION LOAD (library name) */
+static int process_function_load_response(CommandResponse* response,
+                                          void*            output,
+                                          zval*            return_value) {
+    return command_response_to_zval(response, return_value, 0, false);
+}
+
 /**
  * Internal helper for FUNCTION LOAD - shared by functionLoad() and function('LOAD')
  */
-int execute_function_load_internal(valkey_glide_object* valkey_glide,
+int execute_function_load_internal(zval*                object,
+                                   valkey_glide_object* valkey_glide,
                                    char*                library_code,
                                    size_t               library_code_len,
                                    zend_bool            replace,
@@ -49,12 +58,35 @@ int execute_function_load_internal(valkey_glide_object* valkey_glide,
     uintptr_t*     cmd_args  = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
     unsigned long* args_len  = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
-    cmd_args[0] = (uintptr_t) library_code;
-    args_len[0] = library_code_len;
-
+    /* FUNCTION LOAD [REPLACE] function-code: REPLACE must precede the code */
+    unsigned long code_idx = 0;
     if (replace) {
-        cmd_args[1] = (uintptr_t) "REPLACE";
-        args_len[1] = strlen("REPLACE");
+        cmd_args[0] = (uintptr_t) "REPLACE";
+        args_len[0] = strlen("REPLACE");
+        code_idx    = 1;
+    }
+
+    cmd_args[code_idx] = (uintptr_t) library_code;
+    args_len[code_idx] = library_code_len;
+
+    /* In multi() / pipeline(), queue the command and return $this for chaining */
+    if (valkey_glide->is_in_batch_mode) {
+        int res = buffer_command_for_batch(valkey_glide,
+                                           FunctionLoad,
+                                           cmd_args,
+                                           args_len,
+                                           arg_count,
+                                           NULL,
+                                           process_function_load_response);
+        efree(cmd_args);
+        efree(args_len);
+
+        if (!res) {
+            ZVAL_FALSE(return_value);
+            return 0;
+        }
+        ZVAL_COPY(return_value, object);
+        return 1;
     }
 
     CommandResult* result =
@@ -83,7 +115,7 @@ int execute_function_load_command(zval*             object,
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
 
     return execute_function_load_internal(
-        valkey_glide, library_code, library_code_len, replace, return_value);
+        object, valkey_glide, library_code, library_code_len, replace, return_value);
 }
 
 int execute_function_list_command(zval*             object,

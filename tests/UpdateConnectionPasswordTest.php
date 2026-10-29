@@ -4,7 +4,7 @@ require_once 'TestSuite.php';
 
 class UpdateConnectionPasswordTest extends TestSuite
 {
-    public function setUp()
+    public function setUp(): void
     {
         // No-op.
     }

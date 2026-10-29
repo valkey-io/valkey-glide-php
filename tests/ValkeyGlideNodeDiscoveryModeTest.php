@@ -26,7 +26,7 @@ class ValkeyGlideNodeDiscoveryModeTest extends ValkeyGlideBaseTest
      * These tests require a real primary/replica topology on the well-known
      * ports and are not applicable to TLS-only runs.
      */
-    public function setUp()
+    public function setUp(): void
     {
         // Intentionally do not call parent::setUp(); each test creates its own client.
         $this->skipIfTlsEnabled();

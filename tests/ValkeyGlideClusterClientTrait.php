@@ -61,6 +61,7 @@ trait ValkeyGlideClusterClientTrait
             'credentials' => $this->getAuth(),
             'read_from' => ValkeyGlide::READ_FROM_PRIMARY,
             'request_timeout' => 10000,
+            'advanced_config' => ['connection_timeout' => self::CONNECTION_TIMEOUT_MS],
         ];
         if ($databaseId !== null) {
             $options['database_id'] = $databaseId;

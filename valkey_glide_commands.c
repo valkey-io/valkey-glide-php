@@ -23,6 +23,7 @@
 #include "php.h"
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_core_common.h"
+#include "valkey_glide_persistent.h"
 #include "valkey_glide_z_common.h"
 #include "zend_exceptions.h"
 
@@ -40,6 +41,9 @@ static int parse_cluster_route(int                  argc,
                                zval**               args,
                                int*                 args_count,
                                core_command_args_t* core_args) {
+    /* Not set by the parser when there are no variadic arguments */
+    *args       = NULL;
+    *args_count = 0;
     if (zend_parse_method_parameters(argc, *object, "O*", object, ce, args, args_count) ==
         FAILURE) {
         return 0;
@@ -1038,6 +1042,9 @@ int execute_reset_command(zval* object, int argc, zval* return_value, zend_class
         return 0;
     }
 
+    /* RESET drops authentication, the database and the protocol version */
+    valkey_glide_mark_connection_state_changed(valkey_glide);
+
     /* Setup core command arguments */
     core_command_args_t core_args = {0};
     core_args.glide_client        = valkey_glide->glide_client;
@@ -1516,6 +1523,9 @@ int execute_watch_command(zval* object, int argc, zval* return_value, zend_class
         return 0;
     }
 
+    /* A persistent client is sent UNWATCH before a later request reuses it */
+    valkey_glide->persistent_watching = true;
+
     /* Handle different parameter patterns:
      * 1. watch(['key1', 'key2']) - first arg is array
      * 2. watch('key1', 'key2', 'key3') - multiple string args
@@ -1558,7 +1568,13 @@ int execute_unwatch_command(zval* object, int argc, zval* return_value, zend_cla
     args.glide_client        = valkey_glide->glide_client;
     args.cmd_type            = UnWatch;
 
+    /* In a batch, UNWATCH is only queued: WATCH stays active until it runs */
+    bool queued = valkey_glide->is_in_batch_mode;
+
     if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+        if (!queued) {
+            valkey_glide->persistent_watching = false;
+        }
         return 1;
     } else {
         return 0;
@@ -1989,6 +2005,10 @@ int execute_select_command(zval* object, int argc, zval* return_value, zend_clas
         VALKEY_LOG_ERROR("batch_validation", "SELECT command cannot be used in batch mode");
         return 0;
     }
+
+    /* Set before sending: a SELECT that times out can still run on the server.
+     * A persistent client is returned to its configured database on release. */
+    valkey_glide->persistent_selected = true;
 
     /* Execute the SELECT command using the Glide client */
     if (execute_select_command_internal(valkey_glide, dbindex, return_value)) {

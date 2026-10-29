@@ -219,6 +219,45 @@ def patch_rust_types_rs(rust_types_file):
             needs_patching = True
             log_message("Applied client_key_path patch")
 
+        # Fix unix_socket_path: changed from Option<PathBuf source> to a plain
+        # Chars (proto3 optional stripped). The struct field stays Option<PathBuf>,
+        # so build it from the now-non-Option value, treating an empty string as
+        # unset (an empty path must stay None so client creation rejects it).
+        unix_socket_path_pattern = (
+            r'unix_socket_path: value\s*'
+            r'\.unix_socket_path\s*'
+            r'\.as_ref\(\)\s*'
+            r'\.map\(\|path\| PathBuf::from\(&\*\*path\)\),'
+        )
+        unix_socket_path_replacement = (
+            'unix_socket_path: Some(PathBuf::from(&*value.unix_socket_path))\n'
+            '                .filter(|p| !p.as_os_str().is_empty()),'
+        )
+        if re.search(unix_socket_path_pattern, new_content, re.DOTALL):
+            if not needs_patching:
+                create_backup(rust_types_file)
+            new_content = re.sub(
+                unix_socket_path_pattern, unix_socket_path_replacement, new_content, flags=re.DOTALL)
+            needs_patching = True
+            log_message("Applied unix_socket_path patch")
+
+        # Fix the proto test initializer: `protobuf::NodeAddress` in-tree tests
+        # still wrap unix_socket_path in Some(...), which no longer compiles once
+        # the field is a plain Chars. Only the proto type is affected; the
+        # crate::client::NodeAddress struct keeps Option<PathBuf>.
+        proto_uds_init_pattern = (
+            r'(protobuf::NodeAddress \{\s*)'
+            r'unix_socket_path: Some\(path\.into\(\)\),'
+        )
+        proto_uds_init_replacement = r'\1unix_socket_path: path.into(),'
+        if re.search(proto_uds_init_pattern, new_content, re.DOTALL):
+            if not needs_patching:
+                create_backup(rust_types_file)
+            new_content = re.sub(
+                proto_uds_init_pattern, proto_uds_init_replacement, new_content, flags=re.DOTALL)
+            needs_patching = True
+            log_message("Applied proto NodeAddress test-initializer patch")
+
         # Fix cert_reload.interval_seconds: changed from Option<u32> to u32.
         cert_reload_interval_pattern = r'interval_seconds: proto_reload\.interval_seconds\.filter\(\|&s\| s != 0\),'
         cert_reload_interval_replacement = 'interval_seconds: none_if_zero(proto_reload.interval_seconds),'
@@ -270,6 +309,8 @@ def verify_rust_patch(rust_types_file):
         eviction_fixed = '.enum_value()' in content and '.and_then(|enum_or_unknown|' not in content
         client_cert_path_fixed = 'Some(value.client_cert_path.to_string()).filter(|p| !p.is_empty())' in content
         client_key_path_fixed = 'Some(value.client_key_path.to_string()).filter(|p| !p.is_empty())' in content
+        unix_socket_path_fixed = 'Some(PathBuf::from(&*value.unix_socket_path))' in content
+        proto_uds_init_fixed = 'unix_socket_path: Some(path.into())' not in content
         cert_reload_interval_fixed = 'interval_seconds: none_if_zero(proto_reload.interval_seconds)' in content
         recovery_queue_fixed = 'let recovery_requests_queue_size = none_if_zero(value.recovery_requests_queue_size);' in content
 
@@ -277,6 +318,8 @@ def verify_rust_patch(rust_types_file):
                      refresh_fixed and compression_fixed and read_only_fixed and
                      max_decompressed_fixed and eviction_fixed and
                      client_cert_path_fixed and client_key_path_fixed and
+                     unix_socket_path_fixed and
+                     proto_uds_init_fixed and
                      cert_reload_interval_fixed and recovery_queue_fixed)
 
         if all_fixed:
@@ -304,6 +347,10 @@ def verify_rust_patch(rust_types_file):
                 missing.append("client_cert_path fix")
             if not client_key_path_fixed:
                 missing.append("client_key_path fix")
+            if not unix_socket_path_fixed:
+                missing.append("unix_socket_path fix")
+            if not proto_uds_init_fixed:
+                missing.append("proto NodeAddress test-initializer fix")
             if not cert_reload_interval_fixed:
                 missing.append("cert_reload.interval_seconds fix")
             if not recovery_queue_fixed:
@@ -425,6 +472,47 @@ def patch_ffi_lib_rs(ffi_lib_file):
             needs_patching = True
             log_message("Applied FFI eviction_policy patch")
 
+        # Fix credential_provider_key.is_some(): the proto3-optional string is now a
+        # plain Chars, so test emptiness instead of Option-ness.
+        cred_key_is_some_pattern = r'(\w+)\.credential_provider_key\.is_some\(\)'
+        cred_key_is_some_replacement = r'!\1.credential_provider_key.is_empty()'
+        if re.search(cred_key_is_some_pattern, new_content):
+            if not needs_patching:
+                create_backup(ffi_lib_file)
+            new_content = re.sub(cred_key_is_some_pattern, cred_key_is_some_replacement, new_content)
+            needs_patching = True
+            log_message("Applied FFI credential_provider_key patch")
+
+        # Fix unix_socket_path assignment: Some(path.into()) -> path.into()
+        # (field is now a plain Chars after optional-stripping).
+        uds_assign_pattern = r'node_address\.unix_socket_path = Some\(path\.into\(\)\);'
+        uds_assign_replacement = 'node_address.unix_socket_path = path.into();'
+        if re.search(uds_assign_pattern, new_content):
+            if not needs_patching:
+                create_backup(ffi_lib_file)
+            new_content = re.sub(uds_assign_pattern, uds_assign_replacement, new_content)
+            needs_patching = True
+            log_message("Applied FFI unix_socket_path assignment patch")
+
+        # Fix unix_socket_path read: proto_addr.unix_socket_path.as_deref().map(PathBuf::from)
+        # -> build Option<PathBuf> from the now-non-Option Chars, empty = None.
+        uds_read_pattern = (
+            r'unix_socket_path: proto_addr\s*'
+            r'\.unix_socket_path\s*'
+            r'\.as_deref\(\)\s*'
+            r'\.map\(std::path::PathBuf::from\),'
+        )
+        uds_read_replacement = (
+            'unix_socket_path: Some(std::path::PathBuf::from(&*proto_addr.unix_socket_path))\n'
+            '            .filter(|p| !p.as_os_str().is_empty()),'
+        )
+        if re.search(uds_read_pattern, new_content, re.DOTALL):
+            if not needs_patching:
+                create_backup(ffi_lib_file)
+            new_content = re.sub(uds_read_pattern, uds_read_replacement, new_content, flags=re.DOTALL)
+            needs_patching = True
+            log_message("Applied FFI unix_socket_path read patch")
+
         if needs_patching:
             with open(ffi_lib_file, 'w') as f:
                 f.write(new_content)
@@ -452,6 +540,9 @@ def verify_ffi_patch(ffi_lib_file):
             "compression_level": 'config.compression_level = Some(level_val)' not in content,
             "refresh_interval_seconds": 'iam_creds.refresh_interval_seconds = Some(interval_val)' not in content,
             "eviction_policy": 'config.eviction_policy = Some(::protobuf::EnumOrUnknown::new(policy_enum))' not in content,
+            "credential_provider_key": '.credential_provider_key.is_some()' not in content,
+            "unix_socket_path assignment": 'node_address.unix_socket_path = Some(path.into())' not in content,
+            "unix_socket_path read": '.map(std::path::PathBuf::from),' not in content,
         }
 
         missing = [name for name, fixed in checks.items() if not fixed]
@@ -466,6 +557,38 @@ def verify_ffi_patch(ffi_lib_file):
     except Exception as e:
         log_message(f"Error verifying FFI patch: {e}", "ERROR")
         return False
+
+def patch_ffi_pool_rs(pool_ffi_file):
+    """Patch ffi/src/pool_ffi.rs for fields that lost `optional` in the proto.
+
+    pool_ffi.rs guards pool creation against a credential_provider_key. After
+    optional-stripping that proto3 field is a plain Chars, so `.is_some()` no
+    longer exists -- test emptiness instead.
+    """
+    if not os.path.exists(pool_ffi_file):
+        log_message(f"FFI pool_ffi.rs file not found: {pool_ffi_file}", "WARN")
+        return True
+
+    log_message(f"Patching FFI pool_ffi.rs file: {pool_ffi_file}")
+    try:
+        with open(pool_ffi_file, 'r') as f:
+            content = f.read()
+
+        pattern = r'(\w+)\.credential_provider_key\.is_some\(\)'
+        replacement = r'!\1.credential_provider_key.is_empty()'
+        if re.search(pattern, content):
+            create_backup(pool_ffi_file)
+            new_content = re.sub(pattern, replacement, content)
+            with open(pool_ffi_file, 'w') as f:
+                f.write(new_content)
+            log_message("Applied pool_ffi credential_provider_key patch")
+        else:
+            log_message("FFI pool_ffi.rs already patched (or no matching site)")
+        return True
+    except Exception as e:
+        log_message(f"Error patching {pool_ffi_file}: {e}", "ERROR")
+        return False
+
 
 def main():
     """Main function to run all patching operations.
@@ -483,6 +606,7 @@ def main():
     protobuf_directory = base_dir / "valkey-glide" / "glide-core" / "src" / "protobuf"
     rust_types_file = base_dir / "valkey-glide" / "glide-core" / "src" / "client" / "types.rs"
     ffi_lib_file = base_dir / "valkey-glide" / "ffi" / "src" / "lib.rs"
+    pool_ffi_file = base_dir / "valkey-glide" / "ffi" / "src" / "pool_ffi.rs"
 
     success = True
 
@@ -518,6 +642,11 @@ def main():
                 success = False
     else:
         log_message(f"FFI lib.rs file not found: {ffi_lib_file}", "WARN")
+
+    # Step 4: Patch FFI pool_ffi.rs
+    log_message("=== Phase 4: Patching FFI Code (pool_ffi.rs) ===")
+    if not patch_ffi_pool_rs(str(pool_ffi_file)):
+        success = False
 
     # Summary
     if success:

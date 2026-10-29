@@ -83,15 +83,14 @@ abstract class ValkeyGlideBaseTest extends TestSuite
 {
     private static $debug_logged = false;
     private static $version_logged = false;
+
+    /* Connection timeout (ms) for the suites' clients. The 250 ms default leaves
+     * a cluster client about 750 ms to connect, which a busy CI runner can miss */
+    protected const CONNECTION_TIMEOUT_MS = 2000;
     public function __construct($host, $port, $auth, $tls)
     {
         parent::__construct($host, $port, $auth, $tls);
     }
-
-    /**
-     * @var ValkeyGlide
-     */
-    public $valkey_glide;
 
     /* City lat/long */
     protected $cities = [
@@ -160,7 +159,7 @@ abstract class ValkeyGlideBaseTest extends TestSuite
         return $currentMajor >= $minMajorVersion;
     }
 
-    public function setUp()
+    public function setUp(): void
     {
         $this->valkey_glide = $this->newInstance();
         $info = $this->valkey_glide->info();
@@ -245,19 +244,33 @@ abstract class ValkeyGlideBaseTest extends TestSuite
             'port' => $this->getPort()
         ]];
 
+        // Build credentials from auth if provided
+        $credentials = null;
+        if ($this->getAuth()) {
+            $this->getAuthParts($user, $pass);
+            $credentials = ['password' => $pass];
+            if ($user) {
+                $credentials['username'] = $user;
+            }
+        }
+
         // Connect with TLS if needed
         if ($this->getTLS()) {
             $client->connect(
                 addresses: $addresses,
                 use_tls: true,
-                advanced_config: ['tls_config' => ['use_insecure_tls' => true]]
+                credentials: $credentials,
+                advanced_config: [
+                    'tls_config' => ['use_insecure_tls' => true],
+                    'connection_timeout' => self::CONNECTION_TIMEOUT_MS,
+                ]
             );
         } else {
-            $client->connect(addresses: $addresses);
-        }
-
-        if ($this->getAuth()) {
-            $this->assertTrue($client->auth($this->getAuth()));
+            $client->connect(
+                addresses: $addresses,
+                credentials: $credentials,
+                advanced_config: ['connection_timeout' => self::CONNECTION_TIMEOUT_MS]
+            );
         }
 
         return $client;
