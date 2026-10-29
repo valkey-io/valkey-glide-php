@@ -494,6 +494,82 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $valkey_glide->close();
     }
 
+    /**
+     * Regression test for issue #344. With periodic checks enabled (the default) the
+     * client used to send a manual interval of 0 seconds, so the core ran topology
+     * checks back-to-back, flooding the cluster with CLUSTER SLOTS and burning CPU.
+     * An idle client must not issue a stream of CLUSTER commands.
+     */
+    public function testPeriodicChecksEnabledDoesNotFloodClusterSlots()
+    {
+        $params = [
+            'addresses'       => [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            'use_tls'         => $this->getTLS(),
+            'credentials'     => $this->getAuth(),
+            'read_from'       => ValkeyGlide::READ_FROM_PRIMARY,
+            'periodic_checks' => ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS,
+        ];
+        if ($this->getTLS()) {
+            $params['advanced_config'] = ['tls_config' => ['use_insecure_tls' => true]];
+        }
+        $valkey_glide = new ValkeyGlideCluster(...$params);
+        $this->assertTrue($valkey_glide->ping(['type' => 'primarySlotKey', 'key' => 'test']));
+
+        $before = $this->countClusterCommandCalls($valkey_glide);
+        sleep(2);
+        $after = $this->countClusterCommandCalls($valkey_glide);
+        $valkey_glide->close();
+
+        // A failed sample must fail the test, not count as zero calls
+        if (!$this->assertIsInt($before) || !$this->assertIsInt($after)) {
+            return;
+        }
+        // The initial topology refresh already issued CLUSTER SLOTS, so a zero
+        // baseline means the stats were not parsed and the test would be vacuous.
+        $this->assertGT(0, $before);
+
+        // With glide-core's 60 second default interval, this idle client should issue
+        // no CLUSTER calls in the 2 second window. Commandstats is server-wide, though,
+        // so periodic checks from other clients open on the shared test cluster can
+        // also land in it.
+        // Before the fix for https://github.com/valkey-io/valkey-glide-php/issues/344,
+        // ValkeyGlideCluster sent a periodic check interval of 0 seconds whenever
+        // periodic checks were enabled (the default), so the core re-ran topology
+        // checks back-to-back: over 5,000 CLUSTER calls in these 2 seconds on a test
+        // setup, and about 5% CPU per idle PHP process.
+        // The threshold of 20 is not derived from a formula: it leaves room for the
+        // other clients' checks and is still orders of magnitude below what the bug
+        // produces, so the test fails if the interval regresses to 0.
+        $this->assertLT(20, $after - $before);
+    }
+
+    /** Sums the call counts of every CLUSTER subcommand across all nodes, or returns null
+     *  when the stats of any node are missing. */
+    private function countClusterCommandCalls(ValkeyGlideCluster $client): ?int
+    {
+        $stats = $client->info('allNodes', 'commandstats');
+        if (!is_array($stats) || !$stats) {
+            return null;
+        }
+        $calls = 0;
+        foreach ($stats as $node_info) {
+            if (!is_array($node_info)) {
+                return null;
+            }
+            foreach ($node_info as $key => $value) {
+                if (strncmp($key, 'cmdstat_cluster', 15) !== 0) {
+                    continue;
+                }
+                if (is_array($value)) {
+                    $calls += (int) ($value['calls'] ?? 0);
+                } elseif (preg_match('/calls=(\d+)/', (string) $value, $m)) {
+                    $calls += (int) $m[1];
+                }
+            }
+        }
+        return $calls;
+    }
+
     // ==============================================
     // CLIENT AVAILABILITY ZONE PARAMETER TESTS
     // ==============================================
@@ -1557,7 +1633,58 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     public function testOptReplyLiteralConstant()
     {
         $this->assertTrue(defined('ValkeyGlideCluster::OPT_REPLY_LITERAL'));
-        $this->assertEquals(1, ValkeyGlideCluster::OPT_REPLY_LITERAL);
+        $this->assertEquals(8, ValkeyGlideCluster::OPT_REPLY_LITERAL); // Same as PHPRedis
+    }
+
+    public function testOptReplyLiteralLegacyValue()
+    {
+        // 1 was OPT_REPLY_LITERAL before it moved to the PHPRedis value 8. setOption() still accepts it
+        // with a bool value and emits E_DEPRECATED; an int value is PHPRedis OPT_SERIALIZER and is
+        // rejected. getOption(1) stays quiet, since PHPRedis code reads OPT_SERIALIZER that way.
+        $deprecations = [];
+        set_error_handler(function (int $errno, string $errstr) use (&$deprecations): bool {
+            $deprecations[] = $errstr;
+            return true;
+        }, E_DEPRECATED);
+
+        try {
+            $this->assertTrue($this->valkey_glide->setOption(1, true));
+            $this->assertTrue($this->valkey_glide->getOption(ValkeyGlideCluster::OPT_REPLY_LITERAL));
+            $this->assertTrue($this->valkey_glide->getOption(1));
+            $this->assertEquals(1, count($deprecations));
+
+            $this->assertFalse($this->valkey_glide->setOption(1, 1)); // Redis::SERIALIZER_PHP
+            $this->assertFalse($this->valkey_glide->setOption(1, 0)); // Redis::SERIALIZER_NONE
+            $this->assertTrue($this->valkey_glide->getOption(ValkeyGlideCluster::OPT_REPLY_LITERAL));
+            $this->assertEquals(1, count($deprecations));
+
+            $this->assertTrue($this->valkey_glide->setOption(1, false));
+            $this->assertFalse($this->valkey_glide->getOption(ValkeyGlideCluster::OPT_REPLY_LITERAL));
+            $this->assertFalse($this->valkey_glide->getOption(1));
+            $this->assertEquals(2, count($deprecations));
+        } finally {
+            restore_error_handler();
+            $this->valkey_glide->setOption(ValkeyGlideCluster::OPT_REPLY_LITERAL, false);
+        }
+    }
+
+    public function testOptReplyLiteralLegacyValueThrowingHandler()
+    {
+        // An error handler that throws on the deprecation notice makes setOption(1, ...) throw, and the
+        // setting must stay as it was.
+        set_error_handler(function (int $errno, string $errstr): bool {
+            throw new ErrorException($errstr, 0, $errno);
+        }, E_DEPRECATED);
+
+        try {
+            $this->assertThrowsMatch($this->valkey_glide, function (ValkeyGlideCluster $client) {
+                $client->setOption(1, true);
+            }, '/Option 1 is deprecated/');
+            $this->assertFalse($this->valkey_glide->getOption(ValkeyGlideCluster::OPT_REPLY_LITERAL));
+        } finally {
+            restore_error_handler();
+            $this->valkey_glide->setOption(ValkeyGlideCluster::OPT_REPLY_LITERAL, false);
+        }
     }
 
     public function testClusterSetOptionGetOption()

@@ -19,6 +19,7 @@
 #include "command_response.h"
 #include "common.h"
 #include "logger.h"
+#include "valkey_glide_prefix.h"
 #include "valkey_glide_z_common.h"
 
 /* Import the string conversion functions from command_response.c */
@@ -125,8 +126,7 @@ int prepare_s_key_members_args(s_command_args_t* args,
                                unsigned long**   args_len_out,
                                char***           allocated_strings,
                                int*              allocated_count) {
-    if (!args->glide_client || !args->key || args->key_len == 0 || !args->members ||
-        args->members_count <= 0) {
+    if (!args->glide_client || !args->key || !args->members || args->members_count <= 0) {
         return 0;
     }
 
@@ -160,7 +160,7 @@ int prepare_s_key_only_args(s_command_args_t* args,
                             unsigned long**   args_len_out,
                             char***           allocated_strings,
                             int*              allocated_count) {
-    if (!args->glide_client || !args->key || args->key_len == 0) {
+    if (!args->glide_client || !args->key) {
         return 0;
     }
 
@@ -182,8 +182,7 @@ int prepare_s_key_member_args(s_command_args_t* args,
                               unsigned long**   args_len_out,
                               char***           allocated_strings,
                               int*              allocated_count) {
-    if (!args->glide_client || !args->key || args->key_len == 0 || !args->member ||
-        args->member_len == 0) {
+    if (!args->glide_client || !args->key || !args->member) {
         return 0;
     }
 
@@ -207,7 +206,7 @@ int prepare_s_key_count_args(s_command_args_t* args,
                              unsigned long**   args_len_out,
                              char***           allocated_strings,
                              int*              allocated_count) {
-    if (!args->glide_client || !args->key || args->key_len == 0) {
+    if (!args->glide_client || !args->key) {
         return 0;
     }
 
@@ -342,8 +341,7 @@ int prepare_s_dst_multi_key_args(s_command_args_t* args,
                                  unsigned long**   args_len_out,
                                  char***           allocated_strings,
                                  int*              allocated_count) {
-    if (!args->glide_client || !args->dst_key || args->dst_key_len == 0 || !args->keys ||
-        args->keys_count <= 0) {
+    if (!args->glide_client || !args->dst_key || !args->keys || args->keys_count <= 0) {
         return 0;
     }
 
@@ -377,8 +375,7 @@ int prepare_s_two_key_member_args(s_command_args_t* args,
                                   unsigned long**   args_len_out,
                                   char***           allocated_strings,
                                   int*              allocated_count) {
-    if (!args->glide_client || !args->src_key || args->src_key_len == 0 || !args->dst_key ||
-        args->dst_key_len == 0 || !args->member || args->member_len == 0) {
+    if (!args->glide_client || !args->src_key || !args->dst_key || !args->member) {
         return 0;
     }
 
@@ -410,7 +407,7 @@ int prepare_s_scan_args(s_command_args_t* args,
 
     int has_pattern = (args->pattern && args->pattern_len > 0);
     int has_count   = args->has_count;
-    int has_key     = (args->key && args->key_len > 0);                     /* For SSCAN */
+    int has_key     = (args->key != NULL);                                  /* For SSCAN */
     int has_type    = args->has_type && (args->type && args->type_len > 0); /* For SCAN only */
 
     unsigned long arg_count =
@@ -566,6 +563,15 @@ typedef struct {
     char*            cursor;
     zval*            scan_iter;
 } scan_data_t;
+/* Replace the caller's cursor with "0" after a failed SCAN. The caller owns
+ * and later frees the cursor, so it must stay an allocated string. */
+static void scan_cursor_done(scan_data_t* args) {
+    if (args->cursor) {
+        efree(args->cursor);
+    }
+    args->cursor = estrdup("0");
+}
+
 int process_s_scan_result_async(CommandResponse* response, void* output, zval* return_value) {
     scan_data_t* args   = (scan_data_t*) output;
     int          status = 0;
@@ -579,7 +585,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
         } else {
             VALKEY_LOG_ERROR("scan_processing",
                              "No response received in process_s_scan_result_async");
-            args->cursor = "0";
+            scan_cursor_done(args);
         }
 
         ZVAL_NULL(return_value);
@@ -592,7 +598,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
             efree(args->cursor);
             efree(args);
         } else {
-            args->cursor = "0";
+            scan_cursor_done(args);
         }
         ZVAL_NULL(return_value);
 
@@ -612,7 +618,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
             efree(args->cursor);
             efree(args);
         } else {
-            args->cursor = "0";
+            scan_cursor_done(args);
         }
         ZVAL_NULL(return_value);
         return 0;
@@ -627,7 +633,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
             efree(args->cursor);
             efree(args);
         } else {
-            args->cursor = "0";
+            scan_cursor_done(args);
         }
 
         return 0;
@@ -1798,6 +1804,16 @@ int execute_cluster_scan_command(const void* glide_client,
         return 0;
     }
 
+    /* With OPT_SCAN = SCAN_PREFIX, apply OPT_PREFIX to the MATCH pattern */
+    zend_string*         prefixed_pattern = NULL;
+    valkey_glide_object* valkey_glide     = valkey_glide_prefix_find_object(glide_client);
+    if (pattern && pattern_len > 0 && valkey_glide && valkey_glide->prefix &&
+        valkey_glide->scan_prefix) {
+        prefixed_pattern = valkey_glide_prefix_key(valkey_glide, pattern, pattern_len);
+        pattern          = ZSTR_VAL(prefixed_pattern);
+        pattern_len      = ZSTR_LEN(prefixed_pattern);
+    }
+
     /* Build arguments array */
     /* Count arguments: pattern (MATCH + value), count (COUNT + value), type (TYPE + value) */
     int arg_count = 0;
@@ -1888,9 +1904,37 @@ int execute_cluster_scan_command(const void* glide_client,
         efree(args_len);
     }
 
+    if (prefixed_pattern) {
+        zend_string_release(prefixed_pattern);
+    }
+
     return success;
 }
 
+
+/**
+ * OPT_SCAN SCAN_RETRY: whether to fetch another page because this one was
+ * empty and the scan is not finished, as PHPRedis does
+ */
+static bool scan_retry_needed(valkey_glide_object* valkey_glide,
+                              zval*                return_value,
+                              const char*          cursor) {
+    return valkey_glide->scan_retry && !valkey_glide->is_in_batch_mode &&
+           Z_TYPE_P(return_value) == IS_ARRAY &&
+           zend_hash_num_elements(Z_ARRVAL_P(return_value)) == 0 && cursor &&
+           strcmp(cursor, "0") != 0;
+}
+
+/* The cursor a scan_iter zval holds after a page, NULL if it holds none */
+static const char* scan_iter_cursor(zval* z_iter) {
+    return Z_TYPE_P(z_iter) == IS_STRING ? Z_STRVAL_P(z_iter) : NULL;
+}
+
+/* Drop the empty page of the previous SCAN_RETRY round */
+static void scan_discard_page(zval* return_value) {
+    zval_ptr_dtor(return_value);
+    ZVAL_NULL(return_value);
+}
 
 /**
  * Execute SCAN command with unified signature
@@ -1971,16 +2015,33 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
         long scan_count = has_count ? count : 10;
 
         /* Use cluster scan implementation */
-        if (execute_cluster_scan_command(valkey_glide->glide_client,
-                                         &cursor_ptr,
-                                         scan_pattern,
-                                         scan_pattern_len,
-                                         scan_count,
-                                         (scan_count > 0),
-                                         has_type ? type : NULL,
-                                         has_type ? type_len : 0,
-                                         has_type,
-                                         return_value)) {
+        int   success;
+        char* page_cursor = NULL; /* cursor a SCAN_RETRY round scanned from */
+        while (true) {
+            success = execute_cluster_scan_command(valkey_glide->glide_client,
+                                                   &cursor_ptr,
+                                                   scan_pattern,
+                                                   scan_pattern_len,
+                                                   scan_count,
+                                                   (scan_count > 0),
+                                                   has_type ? type : NULL,
+                                                   has_type ? type_len : 0,
+                                                   has_type,
+                                                   return_value);
+            if (page_cursor) {
+                /* No ClusterScanCursor holds an intermediate cursor, so release it here */
+                remove_cluster_scan_cursor(page_cursor);
+                efree(page_cursor);
+                page_cursor = NULL;
+            }
+            if (!success || !scan_retry_needed(valkey_glide, return_value, cursor_ptr)) {
+                break;
+            }
+            scan_discard_page(return_value);
+            page_cursor = estrdup(cursor_ptr);
+        }
+
+        if (success) {
             /* Update ClusterScanCursor object with new cursor value directly */
             cluster_scan_cursor_object* cursor_obj = CLUSTER_SCAN_CURSOR_ZVAL_GET_OBJECT(z_iter);
 
@@ -2024,20 +2085,6 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
             return 0;
         }
 
-        /* Get cursor string */
-        char* cursor_value;
-        if (Z_TYPE_P(z_iter) == IS_NULL) {
-            /* NULL cursor means start from the beginning (0) */
-            cursor_value = "0";
-        } else if (Z_TYPE_P(z_iter) == IS_STRING) {
-            cursor_value = Z_STRVAL_P(z_iter);
-        } else {
-            return 0;
-        }
-
-        /* Create a copy of cursor for passing to functions */
-        char* cursor_ptr = estrdup(cursor_value);
-
         /* Use empty pattern if not specified */
         const char* scan_pattern     = has_pattern ? pattern : "";
         size_t      scan_pattern_len = has_pattern ? pattern_len : 0;
@@ -2045,25 +2092,48 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
         /* Use default count if not specified */
         long scan_count = has_count ? count : 10;
 
-        /* Use existing non-cluster implementation */
-        s_command_args_t args;
-        INIT_S_COMMAND_ARGS(args);
+        int success;
+        do {
+            if (Z_TYPE_P(return_value) == IS_ARRAY) {
+                scan_discard_page(return_value);
+            }
 
-        args.glide_client = valkey_glide->glide_client;
-        args.cursor       = &cursor_ptr;
-        args.pattern      = scan_pattern;
-        args.pattern_len  = scan_pattern_len;
-        args.count        = scan_count;
-        args.has_count    = (scan_count > 0);
-        args.type         = has_type ? type : NULL;
-        args.type_len     = has_type ? type_len : 0;
-        args.has_type     = has_type;
-        args.scan_iter    = z_iter;
+            /* Get cursor string */
+            char* cursor_value;
+            if (Z_TYPE_P(z_iter) == IS_NULL) {
+                /* NULL cursor means start from the beginning (0) */
+                cursor_value = "0";
+            } else if (Z_TYPE_P(z_iter) == IS_STRING) {
+                cursor_value = Z_STRVAL_P(z_iter);
+            } else {
+                return 0;
+            }
 
+            /* Create a copy of cursor for passing to functions */
+            char* cursor_ptr = estrdup(cursor_value);
 
-        /* Execute the SCAN command using the S-command framework */
-        if (execute_s_generic_command(
-                valkey_glide, Scan, S_CMD_SCAN, S_RESPONSE_SCAN, &args, return_value)) {
+            /* Use existing non-cluster implementation */
+            s_command_args_t args;
+            INIT_S_COMMAND_ARGS(args);
+
+            args.glide_client = valkey_glide->glide_client;
+            args.cursor       = &cursor_ptr;
+            args.pattern      = scan_pattern;
+            args.pattern_len  = scan_pattern_len;
+            args.count        = scan_count;
+            args.has_count    = (scan_count > 0);
+            args.type         = has_type ? type : NULL;
+            args.type_len     = has_type ? type_len : 0;
+            args.has_type     = has_type;
+            args.scan_iter    = z_iter;
+
+            /* Execute the SCAN command using the S-command framework */
+            success = execute_s_generic_command(
+                valkey_glide, Scan, S_CMD_SCAN, S_RESPONSE_SCAN, &args, return_value);
+        } while (success &&
+                 scan_retry_needed(valkey_glide, return_value, scan_iter_cursor(z_iter)));
+
+        if (success) {
             if (valkey_glide->is_in_batch_mode) {
                 ZVAL_COPY(return_value, object);
             }
@@ -2164,20 +2234,6 @@ int execute_scan_command_generic(
         return 0;
     }
 
-    /* Get cursor string */
-    char* cursor_value;
-    if (Z_TYPE_P(z_iter) == IS_NULL) {
-        /* NULL cursor means start from the beginning (0) */
-        cursor_value = "0";
-    } else if (Z_TYPE_P(z_iter) == IS_STRING) {
-        cursor_value = Z_STRVAL_P(z_iter);
-    } else {
-        return 0;
-    }
-
-    /* Create a copy of cursor for passing to functions */
-    char* cursor_ptr = estrdup(cursor_value);
-
     /* Use empty pattern if not specified */
     const char* scan_pattern     = has_pattern ? pattern : "";
     size_t      scan_pattern_len = has_pattern ? pattern_len : 0;
@@ -2185,17 +2241,40 @@ int execute_scan_command_generic(
     /* Use default count if not specified */
     long scan_count = has_count ? count : 10;
 
-    /* Execute the scan command using the generic internal function */
-    if (execute_gen_scan_command_internal(valkey_glide,
-                                          cmd_type,
-                                          key,
-                                          key_len,
-                                          &cursor_ptr,
-                                          scan_pattern,
-                                          scan_pattern_len,
-                                          scan_count,
-                                          z_iter,
-                                          return_value)) {
+    int success;
+    do {
+        if (Z_TYPE_P(return_value) == IS_ARRAY) {
+            scan_discard_page(return_value);
+        }
+
+        /* Get cursor string */
+        char* cursor_value;
+        if (Z_TYPE_P(z_iter) == IS_NULL) {
+            /* NULL cursor means start from the beginning (0) */
+            cursor_value = "0";
+        } else if (Z_TYPE_P(z_iter) == IS_STRING) {
+            cursor_value = Z_STRVAL_P(z_iter);
+        } else {
+            return 0;
+        }
+
+        /* Create a copy of cursor for passing to functions */
+        char* cursor_ptr = estrdup(cursor_value);
+
+        /* Execute the scan command using the generic internal function */
+        success = execute_gen_scan_command_internal(valkey_glide,
+                                                    cmd_type,
+                                                    key,
+                                                    key_len,
+                                                    &cursor_ptr,
+                                                    scan_pattern,
+                                                    scan_pattern_len,
+                                                    scan_count,
+                                                    z_iter,
+                                                    return_value);
+    } while (success && scan_retry_needed(valkey_glide, return_value, scan_iter_cursor(z_iter)));
+
+    if (success) {
         if (valkey_glide->is_in_batch_mode) {
             ZVAL_COPY(return_value, object);
         }
