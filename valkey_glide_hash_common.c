@@ -2386,7 +2386,7 @@ static int execute_hash_expiry_command(zval*             object,
             ZVAL_DEREF(field_zv);
         }
 
-        if (key_zv && Z_TYPE_P(key_zv) != IS_NULL) {
+        if (key_zv) {
             if (Z_TYPE_P(key_zv) != IS_STRING) {
                 return 0;
             }
@@ -2398,7 +2398,7 @@ static int execute_hash_expiry_command(zval*             object,
                 return 0;
             }
         }
-        if (field_zv && Z_TYPE_P(field_zv) != IS_NULL) {
+        if (field_zv) {
             if (Z_TYPE_P(field_zv) != IS_STRING) {
                 return 0;
             }

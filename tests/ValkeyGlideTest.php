@@ -5271,6 +5271,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['NX'], 'f1', 'bad'));
         $this->assertEquals('v3', $this->valkey_glide->hGet($key, 'f1'));
 
+        // Present-but-null entries are rejected, not treated as "no condition"
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['key' => null], 'f1', 'bad'));
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['field' => null], 'f1', 'bad'));
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['key' => 'XX', 'field' => null], 'f1', 'bad'));
+        $this->assertEquals('v3', $this->valkey_glide->hGet($key, 'f1'));
+
         // Array entries that are PHP references are accepted
         $keyCond = 'XX';
         $fieldCond = 'XX';
