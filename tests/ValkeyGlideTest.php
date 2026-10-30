@@ -2298,6 +2298,56 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->sismember('set', 'val2'));
     }
 
+    public function testSIsMemberIfExists()
+    {
+        // SISMEMBER ... XX is Valkey 9.2+. The '-rc1' suffix lets 9.2 release candidates run it.
+        if (!$this->is_valkey || !$this->minVersionCheck('9.2.0-rc1')) {
+            $this->markTestSkipped('SISMEMBER XX requires Valkey 9.2.0+ (current: ' . $this->version . ')');
+        }
+
+        $this->valkey_glide->del('set');
+
+        // Missing key: null, not false
+        $this->assertNull($this->valkey_glide->sIsMemberIfExists('set', 'val'));
+        // Plain SISMEMBER is unchanged and still cannot tell the cases apart
+        $this->assertFalse($this->valkey_glide->sismember('set', 'val'));
+
+        $this->valkey_glide->sAdd('set', 'val');
+
+        // Existing key: strictly true / false
+        $this->assertTrue($this->valkey_glide->sIsMemberIfExists('set', 'val') === true);
+        $this->assertTrue($this->valkey_glide->sIsMemberIfExists('set', 'val2') === false);
+
+        // Removing the last member deletes the key, so it reads as missing again
+        $this->valkey_glide->sRem('set', 'val');
+        $this->assertNull($this->valkey_glide->sIsMemberIfExists('set', 'val'));
+
+        // Empty member is sent as an argument, not dropped
+        $this->valkey_glide->sAdd('set', '');
+        $this->assertTrue($this->valkey_glide->sIsMemberIfExists('set', '') === true);
+
+        // Wrong type is an error (false), not null
+        $this->valkey_glide->del('set');
+        $this->valkey_glide->set('set', 'string');
+        $this->assertTrue($this->valkey_glide->sIsMemberIfExists('set', 'val') === false);
+        $this->valkey_glide->del('set');
+    }
+
+    public function testSIsMemberIfExistsOnOlderServer()
+    {
+        if ($this->is_valkey && $this->minVersionCheck('9.2.0-rc1')) {
+            $this->markTestSkipped('Only applies to servers without SISMEMBER XX');
+        }
+
+        // The XX option is sent and rejected by the server, reported as false like any error
+        $this->valkey_glide->del('set');
+        $this->valkey_glide->sAdd('set', 'val');
+        $this->assertTrue($this->valkey_glide->sIsMemberIfExists('set', 'val') === false);
+        // ...and plain SISMEMBER keeps working
+        $this->assertTrue($this->valkey_glide->sismember('set', 'val'));
+        $this->valkey_glide->del('set');
+    }
+
     public function testSMembers()
     {
         $this->valkey_glide->del('set');

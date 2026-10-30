@@ -48,11 +48,12 @@ typedef enum {
  * S command response types
  */
 typedef enum {
-    S_RESPONSE_INT,   /* Integer response */
-    S_RESPONSE_BOOL,  /* Boolean response (0/1) */
-    S_RESPONSE_SET,   /* Set/Array response */
-    S_RESPONSE_MIXED, /* Mixed response (string or array) */
-    S_RESPONSE_SCAN   /* Scan response (cursor + array) */
+    S_RESPONSE_INT,      /* Integer response */
+    S_RESPONSE_BOOL,     /* Boolean response (0/1) */
+    S_RESPONSE_TRISTATE, /* Integer 1/0/-1 mapped to true/false/null (SISMEMBER XX) */
+    S_RESPONSE_SET,      /* Set/Array response */
+    S_RESPONSE_MIXED,    /* Mixed response (string or array) */
+    S_RESPONSE_SCAN      /* Scan response (cursor + array) */
 } s_response_type_t;
 
 /* ====================================================================
@@ -92,6 +93,7 @@ typedef struct _s_command_args_t {
     int         has_count;         /* Whether count is specified */
     int         has_limit;         /* Whether limit is specified */
     int         has_type;          /* Whether type filter is specified */
+    int         has_xx;            /* Append the XX flag (SISMEMBER, Valkey 9.2+) */
 } s_command_args_t;
 
 /**
@@ -184,6 +186,10 @@ int execute_smove_command(zval* object, int argc, zval* return_value, zend_class
 int execute_spop_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_srandmember_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_sismember_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_sismember_if_exists_command(zval*             object,
+                                        int               argc,
+                                        zval*             return_value,
+                                        zend_class_entry* ce);
 int execute_smembers_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_smismember_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_sinter_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -350,6 +356,19 @@ int execute_scan_command_generic(
         RETURN_FALSE;                                                                \
     }
 
+#define SISMEMBER_IF_EXISTS_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, sIsMemberIfExists) {                                                \
+        if (execute_sismember_if_exists_command(getThis(),                                     \
+                                                ZEND_NUM_ARGS(),                               \
+                                                return_value,                                  \
+                                                strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                                    ? get_valkey_glide_cluster_ce()            \
+                                                    : get_valkey_glide_ce())) {                \
+            return;                                                                            \
+        }                                                                                      \
+        zval_dtor(return_value);                                                               \
+        RETURN_FALSE;                                                                          \
+    }
 #define SMEMBERS_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, sMembers) {                                              \
         if (execute_smembers_command(getThis(),                                     \
