@@ -942,7 +942,11 @@ static void update_watch_state(valkey_glide_object*  valkey_glide,
 static bool unwatch_for_client_side_transaction(valkey_glide_object* valkey_glide) {
     CommandResult* result = execute_command(valkey_glide->glide_client, UnWatch, 0, NULL, NULL);
     bool           ok     = result && !result->command_error;
-    if (!ok) {
+    if (ok) {
+        /* No primary holds a watch any more, so OPT_SLAVE_FAILOVER may recreate the client */
+        valkey_glide->persistent_watching = false;
+        valkey_glide->is_watching         = false;
+    } else {
         if (result) {
             valkey_glide_record_command_error(valkey_glide, result);
         } else {
