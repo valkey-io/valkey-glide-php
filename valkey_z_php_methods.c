@@ -458,26 +458,8 @@ HVALS_METHOD_IMPL(ValkeyGlide);
 
 /* }}} */
 
-/* {{{ proto long ValkeyGlide::hSetEx(string key, long seconds, string field, string value, ...) */
+/* {{{ proto int ValkeyGlide::hSetEx(string key, array fields, ?array expiry = null) */
 HSETEX_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto long ValkeyGlide::hPSetEx(string key, long milliseconds, string field, string value,
- * ...) */
-HPSETEX_METHOD_IMPL(ValkeyGlide)
-/* }}} */
-
-/* {{{ proto mixed ValkeyGlide::hSetExAt(string key, int timestamp, string field, mixed value, mixed
- * ...$fields_and_vals) */
-
-/* {{{ proto mixed ValkeyGlide::hPSetExAt(string key, int timestamp, string field, mixed value,
- * mixed ...$fields_and_vals) */
-
-/* Hash field expiration NX variants */
-
-/* Hash field expiration XX variants */
-
-/* Hash field expiration NX/XX variants */
 /* }}} */
 
 
