@@ -186,7 +186,9 @@ int prepare_s_key_member_args(s_command_args_t* args,
         return 0;
     }
 
-    if (!allocate_s_command_args(2, args_out, args_len_out)) {
+    unsigned long arg_count = args->has_xx ? 3 : 2;
+
+    if (!allocate_s_command_args(arg_count, args_out, args_len_out)) {
         return 0;
     }
 
@@ -195,7 +197,13 @@ int prepare_s_key_member_args(s_command_args_t* args,
     (*args_out)[1]     = (uintptr_t) args->member;
     (*args_len_out)[1] = args->member_len;
 
-    return 2;
+    if (args->has_xx) {
+        /* String literal: static storage, nothing to track or free */
+        (*args_out)[2]     = (uintptr_t) "XX";
+        (*args_len_out)[2] = 2;
+    }
+
+    return arg_count;
 }
 
 /**
@@ -522,6 +530,38 @@ int process_s_bool_result_async(CommandResponse* response, void* output, zval* r
 }
 
 /**
+ * Batch-compatible async result processor for SISMEMBER ... XX.
+ * The server replies 1 (member), 0 (key exists, not a member) or -1 (no such key);
+ * these map to true, false and null. A missing response (command error) maps to
+ * false, the PHPRedis failure value, so it stays distinguishable from null.
+ */
+int process_s_tristate_result_async(CommandResponse* response, void* output, zval* return_value) {
+    if (!response) {
+        ZVAL_FALSE(return_value);
+        return 0;
+    }
+
+    switch (response->response_type) {
+        case Int:
+            if (response->int_value < 0) {
+                ZVAL_NULL(return_value);
+            } else {
+                ZVAL_BOOL(return_value, response->int_value != 0);
+            }
+            return 1;
+        case Bool:
+            ZVAL_BOOL(return_value, response->bool_value);
+            return 1;
+        case Null:
+            ZVAL_NULL(return_value);
+            return 1;
+        default:
+            ZVAL_FALSE(return_value);
+            return 0;
+    }
+}
+
+/**
  * Batch-compatible async result processor for set/array responses
  */
 int process_s_set_result_async(CommandResponse* response, void* output, zval* return_value) {
@@ -806,6 +846,9 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
         case S_RESPONSE_BOOL:
             process_result = process_s_bool_result_async;
             break;
+        case S_RESPONSE_TRISTATE:
+            process_result = process_s_tristate_result_async;
+            break;
         case S_RESPONSE_SET:
             process_result = process_s_set_result_async;
             break;
@@ -1001,9 +1044,11 @@ int execute_srandmember_command(zval* object, int argc, zval* return_value, zend
 }
 
 /**
- * Execute SISMEMBER command using the new signature pattern
+ * Shared implementation of SISMEMBER and SISMEMBER ... XX. With `with_xx` the reply is
+ * parsed as true/false/null (null: the key does not exist); without it, as true/false.
  */
-int execute_sismember_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+static int execute_sismember_impl(
+    zval* object, int argc, zval* return_value, zend_class_entry* ce, int with_xx) {
     valkey_glide_object* valkey_glide;
     char *               key = NULL, *member = NULL;
     size_t               key_len, member_len;
@@ -1027,9 +1072,14 @@ int execute_sismember_command(zval* object, int argc, zval* return_value, zend_c
         args.key_len      = key_len;
         args.member       = member;
         args.member_len   = member_len;
+        args.has_xx       = with_xx;
 
-        if (execute_s_generic_command(
-                valkey_glide, SIsMember, S_CMD_KEY_MEMBER, S_RESPONSE_BOOL, &args, return_value)) {
+        if (execute_s_generic_command(valkey_glide,
+                                      SIsMember,
+                                      S_CMD_KEY_MEMBER,
+                                      with_xx ? S_RESPONSE_TRISTATE : S_RESPONSE_BOOL,
+                                      &args,
+                                      return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 ZVAL_COPY(return_value, object);
             }
@@ -1038,6 +1088,23 @@ int execute_sismember_command(zval* object, int argc, zval* return_value, zend_c
     }
 
     return 0;
+}
+
+/**
+ * Execute SISMEMBER command using the new signature pattern
+ */
+int execute_sismember_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    return execute_sismember_impl(object, argc, return_value, ce, 0);
+}
+
+/**
+ * Execute SISMEMBER key member XX (Valkey 9.2+): true, false, or null if the key is missing
+ */
+int execute_sismember_if_exists_command(zval*             object,
+                                        int               argc,
+                                        zval*             return_value,
+                                        zend_class_entry* ce) {
+    return execute_sismember_impl(object, argc, return_value, ce, 1);
 }
 
 /**
