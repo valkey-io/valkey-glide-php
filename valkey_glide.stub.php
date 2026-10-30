@@ -1111,7 +1111,7 @@ class ValkeyGlide
      *
      * Not supported when compression is enabled, because the server would compare against the
      * compressed value. In that case the command is rejected and `false` is returned without
-     * deleting the key (see getLastError()).
+     * deleting the key (see {@see ValkeyGlide::getLastError()}).
      *
      * @param string $key   The key to delete.
      * @param string $value The comparison value. The key is only deleted if its current value
@@ -1124,6 +1124,7 @@ class ValkeyGlide
      * @since Valkey 9.0
      *
      * @see https://valkey.io/commands/delifeq/
+     * @see https://glide.valkey.io/concepts/client-features/compression/
      *
      * @example
      * $valkey_glide->set('foo', 'bar');
