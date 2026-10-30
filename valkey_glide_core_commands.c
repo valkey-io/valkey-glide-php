@@ -527,6 +527,30 @@ static void update_saved_request_password(valkey_glide_object* valkey_glide, con
     valkey_glide->connection_request_len = request_len;
 }
 
+/* Keep the saved connection request in step with select(), so a client recreated by
+ * OPT_SLAVE_FAILOVER stays on the selected database instead of the constructor's */
+void valkey_glide_update_saved_request_database(valkey_glide_object* valkey_glide,
+                                                zend_long            dbindex) {
+    if (!valkey_glide->connection_request || dbindex < 0 || dbindex > UINT32_MAX) {
+        return;
+    }
+    ConnectionRequest__ConnectionRequest* conn_req = connection_request__connection_request__unpack(
+        NULL, valkey_glide->connection_request_len, valkey_glide->connection_request);
+    if (!conn_req) {
+        return;
+    }
+
+    conn_req->database_id  = (uint32_t) dbindex;
+    size_t   request_len   = connection_request__connection_request__get_packed_size(conn_req);
+    uint8_t* request_bytes = emalloc(request_len);
+    connection_request__connection_request__pack(conn_req, request_bytes);
+    connection_request__connection_request__free_unpacked(conn_req, NULL);
+
+    efree(valkey_glide->connection_request);
+    valkey_glide->connection_request     = request_bytes;
+    valkey_glide->connection_request_len = request_len;
+}
+
 /* Set OPT_SLAVE_FAILOVER on a cluster client. read_from is fixed when the core client is created,
  * so a new mode recreates the client from the saved connection request with only read_from
  * changed. The new client is created before the old one is closed, so a failed reconnect leaves

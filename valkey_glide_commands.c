@@ -2019,6 +2019,10 @@ int execute_select_command(zval* object, int argc, zval* return_value, zend_clas
 
     /* Execute the SELECT command using the Glide client */
     if (execute_select_command_internal(valkey_glide, dbindex, return_value)) {
+        /* A client recreated by OPT_SLAVE_FAILOVER must stay on this database */
+        if (Z_TYPE_P(return_value) == IS_TRUE) {
+            valkey_glide_update_saved_request_database(valkey_glide, dbindex);
+        }
         return 1;
     }
 

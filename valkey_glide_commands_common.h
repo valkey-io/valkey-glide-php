@@ -150,6 +150,8 @@ const ConnectionResponse* create_glide_cluster_client(
 /* OPT_SLAVE_FAILOVER support (cluster only) */
 zend_long valkey_glide_read_from_to_failover(valkey_glide_read_from_t read_from);
 bool      valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value);
+void      valkey_glide_update_saved_request_database(valkey_glide_object* valkey_glide,
+                                                     zend_long            dbindex);
 
 /* Return the protobuf message representing the connection request. Caller must free the result with
  * efree() */

@@ -2125,6 +2125,30 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         }
     }
 
+    public function testOptSlaveFailoverKeepsSelectedDatabase()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Multi-database operations in cluster mode require Valkey 9.0.0+');
+        }
+
+        $client = $this->newInstance();
+        $key    = 'test_opt_slave_failover_db_' . uniqid();
+
+        try {
+            $this->assertTrue($client->select(2));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE));
+
+            // The recreated client writes to the selected database, not the constructor's
+            $this->assertTrue($client->set($key, 'db2'));
+            $this->assertFalse($this->valkey_glide->get($key));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertEquals('db2', $client->get($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
     // ==================== Compression Tests for Supported Commands ====================
 
     /**
