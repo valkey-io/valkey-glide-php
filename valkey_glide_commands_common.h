@@ -364,6 +364,7 @@ int execute_mset_command(zval* object, int argc, zval* return_value, zend_class_
 int execute_msetnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_type_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_append_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_delifeq_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_getrange_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_sort_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_sort_ro_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -846,6 +847,9 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
 
 #define APPEND_METHOD_IMPL(class_name) \
     STANDARD_METHOD_IMPL(class_name, append, execute_append_command)
+
+#define DELIFEQ_METHOD_IMPL(class_name) \
+    STANDARD_METHOD_IMPL(class_name, delIfEq, execute_delifeq_command)
 
 #define GETRANGE_METHOD_IMPL(class_name) \
     STANDARD_METHOD_IMPL(class_name, getRange, execute_getrange_command)

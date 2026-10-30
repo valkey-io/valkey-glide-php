@@ -1107,6 +1107,32 @@ class ValkeyGlide
     public function del(array|string $key, string ...$other_keys): ValkeyGlide|int|false;
 
     /**
+     * Deletes a string key if its value equals the given comparison value.
+     *
+     * Not supported when compression is enabled, because the server would compare against the
+     * compressed value. In that case the command is rejected and `false` is returned without
+     * deleting the key (see {@see ValkeyGlide::getLastError()}).
+     *
+     * @param string $key   The key to delete.
+     * @param string $value The comparison value. The key is only deleted if its current value
+     *                       matches exactly.
+     *
+     * @return ValkeyGlide|bool `true` if `key` was deleted, or `false` if `key` did not exist, its
+     *                           value did not match `value`, or the command failed (e.g. compression
+     *                           is enabled).
+     *
+     * @since Valkey 9.0
+     *
+     * @see https://valkey.io/commands/delifeq/
+     * @see https://glide.valkey.io/concepts/client-features/compression/
+     *
+     * @example
+     * $valkey_glide->set('foo', 'bar');
+     * $valkey_glide->delIfEq('foo', 'bar'); // true, key is deleted
+     */
+    public function delIfEq(string $key, string $value): ValkeyGlide|bool;
+
+    /**
      * Discard a transaction currently in progress.
      *
      * @return ValkeyGlide|bool  True if we could discard the transaction.
