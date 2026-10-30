@@ -32,7 +32,6 @@
 * The OpenTelemetry configuration, which is created once per process, is no longer allocated in request memory. In PHP-FPM and other workers that serve several requests, later requests read freed memory on every command and `setOtelSamplePercentage()` wrote into it, which could crash the worker or corrupt memory ([#426](https://github.com/valkey-io/valkey-glide-php/issues/426))
 
 ### Changes
-* Add `sIsMemberIfExists()` for standalone and cluster clients, which sends `SISMEMBER key member XX` (Valkey 9.2+). It returns `true` if the member exists, `false` if the key exists but the member does not, and `null` if the key does not exist, which `sismember()` cannot tell apart from a missing member. `sismember()` is unchanged ([#7202](https://github.com/valkey-io/valkey-glide/issues/7202))
 
 * At most 10,000 messages or 64 MiB of payload are queued per pub/sub subscriber (a single larger message is still delivered when the queue is empty). When a slow callback falls behind, newer messages are dropped and a warning with the drop count is logged (at most once per second); previously every message was queued, without a limit ([#363](https://github.com/valkey-io/valkey-glide-php/issues/363))
 * Add persistent clients for PHP-FPM and other long-lived worker processes: `connect(persistent_id: ...)` and `new ValkeyGlideCluster(persistent: true)` keep the client open after the request and reuse it in later requests that use the same configuration, instead of connecting (and, for clusters, discovering the topology) on every request. New ini setting `valkey_glide.max_persistent_clients` (default 32) caps kept clients per process (per thread under ZTS). See "Persistent Clients" in the README ([#219](https://github.com/valkey-io/valkey-glide-php/issues/219))
@@ -65,6 +64,7 @@
 * Add `SAVE` command for standalone and cluster clients ([#272](https://github.com/valkey-io/valkey-glide-php/pull/272))
 * Add `BGREWRITEAOF` command for standalone and cluster clients ([#271](https://github.com/valkey-io/valkey-glide-php/pull/271))
 * Add `BGSAVE`, `BGSAVE SCHEDULE`, and `BGSAVE CANCEL` commands for standalone and cluster clients ([#236](https://github.com/valkey-io/valkey-glide-php/issues/236))
+* Add `XX` option for `SISMEMBER` command ([#401](https://github.com/valkey-io/valkey-glide-php/issues/401))
 * Fix pie install from Packagist using PIE pre-packaged-source download method ([#233](https://github.com/valkey-io/valkey-glide-php/pull/233))
 * Fix pie install from Packagist by setting preferred-install to source for submodule resolution ([#232](https://github.com/valkey-io/valkey-glide-php/pull/232))
 * Fix pie install ([#229](https://github.com/valkey-io/valkey-glide-php/pull/229))
