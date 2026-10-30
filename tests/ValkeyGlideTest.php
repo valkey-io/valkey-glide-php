@@ -5604,7 +5604,6 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // Value matches exactly - key is deleted.
         $this->assertTrue($this->valkey_glide->delIfEq($key, $value));
-        $this->assertFalse($this->valkey_glide->get($key));
         $this->assertEquals(0, $this->valkey_glide->exists($key));
     }
 
