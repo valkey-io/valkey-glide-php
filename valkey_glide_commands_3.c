@@ -1033,6 +1033,8 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
                                          NULL,  /* options */
                                          0      /* span_ptr */
     );
+    /* A lazy client's resolver may have closed clients while it ran */
+    valkey_glide_run_deferred_closes();
 
     /* Free CmdInfo structures */
     for (i = 0; i < valkey_glide->command_count; i++) {

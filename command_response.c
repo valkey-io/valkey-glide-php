@@ -347,6 +347,8 @@ CommandResult* execute_command_with_route(const void*          glide_client,
                                     route_bytes_len, /* route bytes length */
                                     span_ptr         /* span pointer */
     );
+    /* A lazy client's resolver may have closed clients while it ran */
+    valkey_glide_run_deferred_closes();
 
     /* Cleanup span */
     valkey_glide_drop_span(span_ptr);
@@ -402,6 +404,8 @@ CommandResult* execute_command(const void*          glide_client,
                                     0,            /* route bytes length */
                                     span_ptr      /* span pointer */
     );
+    /* A lazy client's resolver may have closed clients while it ran */
+    valkey_glide_run_deferred_closes();
 
     /* Cleanup span */
     valkey_glide_drop_span(span_ptr);

@@ -978,12 +978,15 @@ PHP_MSHUTDOWN_FUNCTION(valkey_glide) {
     UNREGISTER_INI_ENTRIES();
     valkey_glide_pubsub_shutdown();
     valkey_glide_monitor_shutdown();
-    valkey_glide_resolver_shutdown();
     return SUCCESS;
 }
 
 PHP_RSHUTDOWN_FUNCTION(valkey_glide) {
-    valkey_glide_resolver_shutdown();
+    /* Clients still open (in static properties, for example) are freed after this */
+    valkey_glide_resolver_request_shutdown();
+    /* Clients closed inside a resolver callable that no create_client() call has
+     * closed since; request shutdown has reset the callable count */
+    valkey_glide_run_deferred_closes();
     /* Pub/sub callbacks registered by this request are request memory */
     valkey_glide_pubsub_request_shutdown();
     valkey_glide_prefix_shutdown();
@@ -1071,17 +1074,9 @@ void free_valkey_glide_object(zend_object* object) {
         valkey_glide->prefix = NULL;
     }
 
-    /* Close the Valkey Glide client, or keep a persistent one for the next request */
+    /* Close the Valkey Glide client (freeing its address resolver), or keep a persistent one
+     * for the next request */
     valkey_glide_release_client(valkey_glide, false);
-
-    /* Mark the resolver callback as closed. After this, any Rust background
-       thread that calls the resolver will get an immediate 0 return (fallback
-       to original address) without touching PHP internals. The actual FFI
-       closure memory is freed later in PHP_RSHUTDOWN_FUNCTION. */
-    if (valkey_glide->resolver_cb) {
-        valkey_glide_resolver_close(valkey_glide->resolver_cb);
-        valkey_glide->resolver_cb = NULL;
-    }
 
     /* Clean up the standard object */
     zend_object_std_dtor(&valkey_glide->std);
@@ -1693,13 +1688,6 @@ PHP_METHOD(ValkeyGlide, close) {
      * does not have, so an inherited client leaves the registry alone */
     if (owned) {
         php_release_pubsub_callback(client_ptr);
-    }
-
-    /* Mark resolver as closed so background Rust threads get immediate
-       fallback instead of calling into PHP. Memory freed at RSHUTDOWN. */
-    if (valkey_glide->resolver_cb) {
-        valkey_glide_resolver_close(valkey_glide->resolver_cb);
-        valkey_glide->resolver_cb = NULL;
     }
 
     RETURN_TRUE;

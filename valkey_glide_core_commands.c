@@ -407,6 +407,9 @@ static const ConnectionResponse* create_base_glide_client(
      * resolver slot mechanism handles routing callbacks to the correct client. */
     const ConnectionResponse* conn_resp = create_client(
         request_bytes, len, &client_type, valkey_glide_pubsub_callback, address_resolver_cb, 0);
+    /* The resolver may have closed clients while it ran. Releasing their
+     * callables can run destructors; an exception one throws stays pending */
+    valkey_glide_run_deferred_closes();
 
     /* Free the request bytes as they're no longer needed */
     efree(request_bytes);
@@ -1047,11 +1050,69 @@ void close_glide_client(const void* glide_client) {
     close_client(glide_client);
 }
 
+/* A core client closed inside a resolver callable, with its resolver. These
+ * are closed after the core call that ran the callable (create_client(), or a
+ * lazy client's first command or batch) returns, else at request shutdown.
+ * A bailout out of a callable leaves the core's runtime context entered, so a
+ * close after it still does not wait; that path is undefined anyway, since
+ * the longjmp crosses Rust frames */
+typedef struct deferred_close {
+    const void*             glide_client;
+    AddressResolverCallback resolver_cb;
+    struct deferred_close*  next;
+} deferred_close_t;
+
+ZEND_TLS deferred_close_t* g_deferred_closes = NULL;
+
+void valkey_glide_run_deferred_closes(void) {
+    if (valkey_glide_resolver_in_callable()) {
+        return;
+    }
+    /* Closing a client can run PHP code that defers another close */
+    while (g_deferred_closes) {
+        deferred_close_t* cur = g_deferred_closes;
+        g_deferred_closes     = cur->next;
+        if (cur->glide_client) {
+            close_glide_client(cur->glide_client);
+        }
+        valkey_glide_resolver_release(cur->resolver_cb);
+        efree(cur);
+    }
+}
+
 void valkey_glide_close_client(valkey_glide_object* valkey_glide) {
+    const void* glide_client = NULL;
+
+    /* A resolver call racing with the close falls back to the original address */
+    valkey_glide_resolver_close(valkey_glide->resolver_cb);
     if (valkey_glide->glide_client && valkey_glide->client_pid == getpid()) {
-        close_glide_client(valkey_glide->glide_client);
+        glide_client = valkey_glide->glide_client;
     }
     valkey_glide->glide_client = NULL;
+    /* Inside a resolver callable the core would drop the client without
+     * waiting for its threads, which may still call its resolver: close both
+     * once no callable runs */
+    if (valkey_glide_resolver_in_callable()) {
+        if (glide_client || valkey_glide->resolver_cb) {
+            deferred_close_t* deferred = emalloc(sizeof(*deferred));
+            deferred->glide_client     = glide_client;
+            deferred->resolver_cb      = valkey_glide->resolver_cb;
+            deferred->next             = g_deferred_closes;
+            g_deferred_closes          = deferred;
+        }
+        valkey_glide->resolver_cb = NULL;
+        return;
+    }
+    if (glide_client) {
+        close_glide_client(glide_client);
+    }
+    /* close_glide_client() releases our reference to the core client. When it is
+     * the last one, the client and its Tokio runtimes are dropped there, which
+     * waits for their threads (a forked child never had them), so nothing can
+     * call the resolver any more. The core holds no other reference by now; see
+     * resolver_cache_free() for that and the other conditions this relies on */
+    valkey_glide_resolver_release(valkey_glide->resolver_cb);
+    valkey_glide->resolver_cb = NULL;
 }
 
 /* Execute an ECHO command using the Valkey Glide client */
