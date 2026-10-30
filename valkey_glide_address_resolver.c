@@ -40,10 +40,12 @@ typedef struct resolver_closure {
 ZEND_TLS resolver_closure_t* g_closures = NULL;
 
 /* PHP resolver callables running on this thread. They run inside the core's
- * block_on(), where dropping a client does not wait for its threads, so a
- * client closed there keeps its resolver (closure, trampoline and cache) for
- * the life of the process */
+ * block_on(), where dropping a client does not wait for its threads */
 ZEND_TLS int g_resolver_depth = 0;
+
+bool valkey_glide_resolver_in_callable(void) {
+    return g_resolver_depth > 0;
+}
 
 static ffi_type* arg_types[7] = {
     &ffi_type_pointer, /* usize client_id - using pointer type for ABI compat (same size on 64-bit)
@@ -171,8 +173,10 @@ static uint16_t resolver_cache_lookup(resolver_closure_t* ctx,
  *   has no credential provider callback (PHP passes none). Otherwise the core
  *   uses shutdown_background(), which does not wait. A PHP resolver callable
  *   runs inside the core's block_on(), so closing or destroying another client
- *   from inside one does not wait for that client's threads;
- *   valkey_glide_resolver_release() keeps that client's resolver instead.
+ *   from inside one would not wait for that client's threads.
+ *   valkey_glide_close_client() defers such a close until no callable runs,
+ *   and valkey_glide_resolver_release() keeps the resolver of a client whose
+ *   creation failed inside one.
  * If any of these stops holding, a background thread can still be inside
  * resolver_cache_lookup() reading the memory freed here. */
 static void resolver_cache_free(resolver_closure_t* ctx) {
@@ -346,11 +350,12 @@ void valkey_glide_resolver_release(AddressResolverCallback cb) {
     while (*pp) {
         resolver_closure_t* cur = *pp;
         if ((AddressResolverCallback) cur->fn_ptr == cb) {
-            /* Inside a resolver callable the core drops the client with
-             * shutdown_background(), so its threads can still be in this
-             * resolver. Nothing reports when they stop: keep the closure and
-             * cache for the life of the process. It stays closed, and request
-             * shutdown drops its callable */
+            /* Inside a resolver callable the core drops a client whose
+             * creation failed with shutdown_background(), so its threads can
+             * still be in this resolver. Nothing reports when they stop: keep
+             * the closure and cache for the life of the process. It stays
+             * closed, and request shutdown drops its callable. Closes are
+             * deferred instead, see valkey_glide_close_client() */
             if (g_resolver_depth > 0)
                 return;
             *pp = cur->next;

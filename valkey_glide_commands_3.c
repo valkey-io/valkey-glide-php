@@ -1071,6 +1071,8 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
                                          NULL,  /* options */
                                          0      /* span_ptr */
     );
+    /* A lazy client's resolver may have closed clients while it ran */
+    valkey_glide_run_deferred_closes();
 
     update_watch_state(
         valkey_glide, batch_info.is_atomic, ce == get_valkey_glide_cluster_ce(), result);
