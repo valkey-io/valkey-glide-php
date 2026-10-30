@@ -2154,6 +2154,39 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         }
     }
 
+    public function testOptSlaveFailoverKeepsRawConnectionState()
+    {
+        // AUTH, CLIENT SETNAME, HELLO and RESET are kept by the core for its reconnects, so the
+        // recreated client must start with the user and name they set, not the constructor's
+        $user   = 'failover_state_' . uniqid();
+        $key    = 'test_opt_slave_failover_state_' . uniqid();
+        $client = null;
+        $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'on', '>state_password', '~*', '&*', '+@all');
+
+        try {
+            $client = $this->newInstance();
+            $this->assertTrue($client->rawcommand('allNodes', 'AUTH', $user, 'state_password'));
+            $this->assertTrue($client->rawcommand('allNodes', 'client', 'setname', 'raw_name'));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE));
+            $this->assertEquals($user, $client->rawcommand($key, 'ACL', 'WHOAMI'));
+            $this->assertEquals('raw_name', $client->rawcommand($key, 'CLIENT', 'GETNAME'));
+
+            $this->assertIsArray($client->rawcommand('allNodes', 'HELLO', '3', 'SETNAME', 'hello_name'));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertEquals('hello_name', $client->rawcommand($key, 'CLIENT', 'GETNAME'));
+            $this->assertEquals($user, $client->rawcommand($key, 'ACL', 'WHOAMI'));
+
+            // RESET drops the name; the core keeps the credentials
+            $this->assertTrue($client->reset());
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE));
+            $this->assertFalse($client->rawcommand($key, 'CLIENT', 'GETNAME'));
+            $this->assertEquals($user, $client->rawcommand($key, 'ACL', 'WHOAMI'));
+        } finally {
+            $client?->close();
+            $this->valkey_glide->rawcommand('allNodes', 'ACL', 'DELUSER', $user);
+        }
+    }
+
     public function testOptSlaveFailoverKeepsRawSelectedDatabase()
     {
         if (version_compare($this->version, '9.0.0') < 0) {
@@ -2164,7 +2197,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $key    = 'test_opt_slave_failover_raw_db_' . uniqid();
 
         try {
-            $this->assertNotFalse($client->rawcommand('allPrimaries', 'select', 3));
+            $this->assertTrue($client->rawcommand('allPrimaries', 'select', 3));
             $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE));
 
             $this->assertTrue($client->set($key, 'db3'));

@@ -266,8 +266,10 @@ class ValkeyGlideCluster
      * Runtime option: read routing, same as PHPRedis RedisCluster::OPT_SLAVE_FAILOVER. Takes one
      * of the FAILOVER_* constants. GLIDE fixes read routing when the client is created, so
      * changing the mode recreates the client (a reconnect unless `lazy_connect` is set).
-     * Connection state set by commands, such as CLIENT SETNAME, is not carried over, so the change
-     * fails (returns false, see getLastError()) while keys are watched, inside MULTI or a
+     * The database, credentials, client name and protocol set by select(), reset(),
+     * updateConnectionPassword() or a raw SELECT, AUTH, HELLO, CLIENT SETNAME or RESET are carried
+     * over. Other connection state is not, so the change fails (returns false, see
+     * getLastError()) while keys are watched, inside MULTI or a
      * pipeline, while subscribed, and on a persistent client (`$persistent`), which later requests
      * reuse with the routing it was created with. EXEC only ends the watch on the node it ran on,
      * so call unwatch() after a transaction before changing the mode. Setting a mode whose routing

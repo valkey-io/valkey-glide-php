@@ -1059,7 +1059,18 @@ int execute_reset_command(zval* object, int argc, zval* return_value, zend_class
                                          ? process_core_status_string_result
                                          : process_core_status_bool_result;
 
-    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+    bool queued = valkey_glide->is_in_batch_mode;
+    if (!execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object)) {
+        return 0;
+    }
+    /* The core keeps RESET's database, client name and protocol for its reconnects, so a client
+     * recreated by OPT_SLAVE_FAILOVER must start from them too. A batched RESET is not kept */
+    if (!queued && Z_TYPE_P(return_value) != IS_FALSE) {
+        zend_string* reset = zend_string_init("RESET", sizeof("RESET") - 1, 0);
+        valkey_glide_track_connection_command(valkey_glide, &reset, 1);
+        zend_string_release(reset);
+    }
+    return 1;
 }
 
 /* Execute a CLIENT PAUSE command using the Valkey Glide client */
