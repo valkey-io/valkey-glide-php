@@ -307,6 +307,10 @@ SRANDMEMBER_METHOD_IMPL(ValkeyGlide)
 SISMEMBER_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto bool|null ValkeyGlide::sIsMemberIfExists(string key, string member) */
+SISMEMBER_IF_EXISTS_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto array ValkeyGlide::sMembers(string key) */
 SMEMBERS_METHOD_IMPL(ValkeyGlide)
 /* }}} */

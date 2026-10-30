@@ -54,6 +54,7 @@
 * Add `SAVE` command for standalone and cluster clients ([#272](https://github.com/valkey-io/valkey-glide-php/pull/272))
 * Add `BGREWRITEAOF` command for standalone and cluster clients ([#271](https://github.com/valkey-io/valkey-glide-php/pull/271))
 * Add `BGSAVE`, `BGSAVE SCHEDULE`, and `BGSAVE CANCEL` commands for standalone and cluster clients ([#236](https://github.com/valkey-io/valkey-glide-php/issues/236))
+* Add `XX` option for `SISMEMBER` command ([#401](https://github.com/valkey-io/valkey-glide-php/issues/401))
 * Fix pie install from Packagist using PIE pre-packaged-source download method ([#233](https://github.com/valkey-io/valkey-glide-php/pull/233))
 * Fix pie install from Packagist by setting preferred-install to source for submodule resolution ([#232](https://github.com/valkey-io/valkey-glide-php/pull/232))
 * Fix pie install ([#229](https://github.com/valkey-io/valkey-glide-php/pull/229))

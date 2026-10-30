@@ -1548,6 +1548,36 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key1, $key2, $key3);
     }
 
+    public function testSIsMemberIfExistsBatch()
+    {
+        if (!$this->is_valkey || !$this->minVersionCheck('9.2.0-rc1')) {
+            $this->markTestSkipped('SISMEMBER XX requires Valkey 9.2.0+ (current: ' . $this->version . ')');
+        }
+
+        $key     = '{bb}batch_sismember_xx_' . uniqid();
+        $missing = '{bb}batch_sismember_xx_missing_' . uniqid();
+
+        $this->valkey_glide->sadd($key, 'member1');
+
+        foreach (['multi', 'pipeline'] as $mode) {
+            $results = $this->valkey_glide->$mode()
+                ->sIsMemberIfExists($key, 'member1')
+                ->sIsMemberIfExists($key, 'nonexistent')
+                ->sIsMemberIfExists($missing, 'member1')
+                ->sismember($missing, 'member1')
+                ->exec();
+
+            $this->assertIsArray($results);
+            $this->assertCount(4, $results);
+            $this->assertTrue($results[0] === true); // member present
+            $this->assertTrue($results[1] === false); // key present, member absent
+            $this->assertNull($results[2]); // key absent
+            $this->assertTrue($results[3] === false); // plain SISMEMBER unchanged
+        }
+
+        $this->valkey_glide->del($key);
+    }
+
     protected function sequence($mode)
     {
 
