@@ -5309,6 +5309,74 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertHSetExTimestampVariants($key);
     }
 
+    /**
+     * Test HSETEX key-level NX/XX conditions (Valkey 9.1+), alone and combined
+     * with field-level conditions.
+     */
+    public function testHSetExKeyConditions()
+    {
+        if (!$this->minVersionCheck('9.1.0')) {
+            $this->markTestSkipped('HSETEX key-level NX/XX requires Valkey 9.1.0 or higher');
+            return;
+        }
+
+        $key = $this->createRandomString(10) . '_hsetex_keycond';
+        $missing = $this->createRandomString(10) . '_hsetex_missing';
+        $nx = ['key' => ValkeyGlide::CONDITION_NX];
+        $xx = ['key' => ValkeyGlide::CONDITION_XX];
+
+        // NX: key absent -> succeeds; second NX -> no-op
+        $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 60, $nx, 'f1', 'v1'));
+        $this->assertEquals('v1', $this->valkey_glide->hGet($key, 'f1'));
+        $this->assertEquals(0, $this->valkey_glide->hSetEx($key, 60, $nx, 'f1', 'nope'));
+        $this->assertEquals('v1', $this->valkey_glide->hGet($key, 'f1'));
+
+        // XX: key exists -> succeeds; key absent -> no-op, key not created
+        $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 60, $xx, 'f1', 'v2'));
+        $this->assertEquals('v2', $this->valkey_glide->hGet($key, 'f1'));
+        $this->assertEquals(0, $this->valkey_glide->hSetEx($missing, 60, $xx, 'f1', 'v1'));
+        $this->assertEquals(0, $this->valkey_glide->exists($missing));
+
+        // Millisecond variant
+        $this->assertEquals(1, $this->valkey_glide->hPSetEx($key, 60000, $xx, 'f1', 'v3'));
+        $this->assertEquals('v3', $this->valkey_glide->hGet($key, 'f1'));
+
+        // Combined key (XX) + field (NX -> FNX): key exists, f1 exists -> fails; f2 new -> succeeds
+        $both = ['key' => ValkeyGlide::CONDITION_XX, 'field' => ValkeyGlide::CONDITION_NX];
+        $this->assertEquals(0, $this->valkey_glide->hSetEx($key, 60, $both, 'f1', 'x'));
+        $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 60, $both, 'f2', 'v2'));
+
+        // String mode keeps its field-level meaning
+        $this->assertEquals(0, $this->valkey_glide->hSetEx($key, 60, ValkeyGlide::CONDITION_NX, 'f1', 'x'));
+
+        // Invalid array contents are rejected and leave the hash untouched
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['key' => 'GT'], 'f1', 'bad'));
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['field' => 5], 'f1', 'bad'));
+        $this->assertEquals('v3', $this->valkey_glide->hGet($key, 'f1'));
+
+        // Unknown or misspelled array entries are rejected, not silently ignored
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['KEY' => 'NX'], 'f1', 'bad'));
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['kee' => 'NX'], 'f1', 'bad'));
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['key' => 'XX', 'feild' => 'NX'], 'f1', 'bad'));
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['NX'], 'f1', 'bad'));
+        $this->assertEquals('v3', $this->valkey_glide->hGet($key, 'f1'));
+
+        // Present-but-null entries are rejected, not treated as "no condition"
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['key' => null], 'f1', 'bad'));
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['field' => null], 'f1', 'bad'));
+        $this->assertFalse($this->valkey_glide->hSetEx($key, 60, ['key' => 'XX', 'field' => null], 'f1', 'bad'));
+        $this->assertEquals('v3', $this->valkey_glide->hGet($key, 'f1'));
+
+        // Array entries that are PHP references are accepted
+        $keyCond = 'XX';
+        $fieldCond = 'XX';
+        $refMode = ['key' => &$keyCond, 'field' => &$fieldCond];
+        $this->assertEquals(1, $this->valkey_glide->hSetEx($key, 60, $refMode, 'f1', 'v5'));
+        $this->assertEquals('v5', $this->valkey_glide->hGet($key, 'f1'));
+
+        $this->valkey_glide->del($key);
+    }
+
     public function testHashExpireNxXxVariants(): void
     {
         if (!$this->compare_major_version_number(9)) {

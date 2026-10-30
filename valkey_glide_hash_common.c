@@ -342,6 +342,8 @@ static int prepare_h_args_unified(h_command_args_t*     args,
 
     // Calculate argument count
     int arg_count = 1;  // key
+    if (config->condition_prefix && args->key_mode)
+        arg_count++;
     if (config->needs_condition && args->mode)
         arg_count++;
     if (config->needs_expiry && args->expiry > 0)
@@ -362,6 +364,13 @@ static int prepare_h_args_unified(h_command_args_t*     args,
     (*args_out)[arg_idx]     = (uintptr_t) args->key;
     (*args_len_out)[arg_idx] = args->key_len;
     arg_idx++;
+
+    // Add key-level condition (NX/XX) - HSETEX only, precedes the field-level condition
+    if (config->condition_prefix && args->key_mode) {
+        (*args_out)[arg_idx]     = (uintptr_t) args->key_mode;
+        (*args_len_out)[arg_idx] = strlen(args->key_mode);
+        arg_idx++;
+    }
 
     // Add condition
     if (config->needs_condition && args->mode) {
@@ -2326,22 +2335,82 @@ static int execute_hash_expiry_command(zval*             object,
     zval*                args     = NULL;
     int                  num_args = 0;
     zend_long            expiry;
-    char*                condition_str = NULL;
-    size_t               condition_len = 0;
+    zval*                condition_zv  = NULL;
+    const char*          condition_str = NULL;
+    const char*          key_condition = NULL;
 
-    // Parse: object, key, expiry, condition (nullable), field1, field2, ... (variadic parameters)
+    // Parse: object, key, expiry, condition (nullable string or array), field1, field2, ...
     if (zend_parse_method_parameters(argc,
                                      object,
-                                     "Osls!+",
+                                     "Oslz!+",
                                      &object,
                                      ce,
                                      &key,
                                      &key_len,
                                      &expiry,
-                                     &condition_str,
-                                     &condition_len,
+                                     &condition_zv,
                                      &args,
                                      &num_args) == FAILURE) {
+        return 0;
+    }
+
+    if (condition_zv && Z_TYPE_P(condition_zv) == IS_STRING) {
+        // Field-level condition (HSETEX: FNX/FXX, HEXPIRE: NX/XX)
+        condition_str = Z_STRVAL_P(condition_zv);
+    } else if (condition_zv && Z_TYPE_P(condition_zv) == IS_ARRAY) {
+        // Array form is only supported by HSETEX:
+        //   ['key' => 'NX'|'XX', 'field' => 'NX'|'XX']
+        if (cmd_type != HSetEx) {
+            return 0;
+        }
+
+        // Reject unrecognized entries so a misspelled option can't silently
+        // turn into an unconditional write.
+        zend_string* entry_name;
+        ZEND_HASH_FOREACH_STR_KEY(Z_ARRVAL_P(condition_zv), entry_name) {
+            if (!entry_name || !(zend_string_equals_literal(entry_name, "key") ||
+                                 zend_string_equals_literal(entry_name, "field"))) {
+                return 0;
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+
+        zval* key_zv   = zend_hash_str_find(Z_ARRVAL_P(condition_zv), "key", sizeof("key") - 1);
+        zval* field_zv = zend_hash_str_find(Z_ARRVAL_P(condition_zv), "field", sizeof("field") - 1);
+
+        // Entries may be PHP references (e.g. ['key' => &$cond])
+        if (key_zv) {
+            ZVAL_DEREF(key_zv);
+        }
+        if (field_zv) {
+            ZVAL_DEREF(field_zv);
+        }
+
+        if (key_zv) {
+            if (Z_TYPE_P(key_zv) != IS_STRING) {
+                return 0;
+            }
+            if (zend_string_equals_literal_ci(Z_STR_P(key_zv), "NX")) {
+                key_condition = "NX";
+            } else if (zend_string_equals_literal_ci(Z_STR_P(key_zv), "XX")) {
+                key_condition = "XX";
+            } else {
+                return 0;
+            }
+        }
+        if (field_zv) {
+            if (Z_TYPE_P(field_zv) != IS_STRING) {
+                return 0;
+            }
+            if (zend_string_equals_literal_ci(Z_STR_P(field_zv), "NX")) {
+                condition_str = "NX";
+            } else if (zend_string_equals_literal_ci(Z_STR_P(field_zv), "XX")) {
+                condition_str = "XX";
+            } else {
+                return 0;
+            }
+        }
+    } else if (condition_zv) {
         return 0;
     }
 
@@ -2369,6 +2438,7 @@ static int execute_hash_expiry_command(zval*             object,
     hargs.expiry           = (long long) expiry;
     hargs.expiry_type      = (char*) expiry_type;
     hargs.mode             = (char*) final_condition;
+    hargs.key_mode         = key_condition;
 
     if (execute_h_simple_command(
             valkey_glide, cmd_type, &hargs, NULL, response_type, return_value)) {

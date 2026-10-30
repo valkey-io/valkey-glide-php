@@ -51,6 +51,7 @@ typedef struct _h_command_args_t {
     zval*         field_values; /* Associative array or alternating field/value array */
     const char*   expiry_type;  /* Expiry type string: EX, PX, EXAT, PXAT, KEEPTTL, PERSIST */
     const char*   mode;         /* Mode: NX, XX, GT, LT */
+    const char*   key_mode;     /* HSETEX key-level condition: NX, XX (Valkey 9.1+) */
     size_t        key_len;      /* Hash key length */
     size_t        field_len;    /* Field name length */
     size_t        value_len;    /* Field value length */

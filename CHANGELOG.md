@@ -7,6 +7,10 @@
 * `ValkeyGlideCluster` constructed with PHPRedis-style parameters (`$seeds`, `$auth`, ...) now reads from primaries when `read_from` is not given, matching PHPRedis `RedisCluster`. It previously defaulted to `READ_FROM_PREFER_REPLICA`. Pass `read_from: ValkeyGlide::READ_FROM_PREFER_REPLICA` or set `OPT_SLAVE_FAILOVER` to `FAILOVER_DISTRIBUTE_SLAVES` to keep replica reads ([#369](https://github.com/valkey-io/valkey-glide-php/issues/369))
 * An AZ-affinity read strategy (`READ_FROM_AZ_AFFINITY`, `READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY`, or `READ_FROM_AZ_AFFINITY_ALL_NODES`) configured without a valid `client_az` now throws at client creation. Previously the core logged a warning and downgraded the strategy to `PreferReplica`, so reads silently went to arbitrary nodes. A `client_az` that is empty, whitespace-only, contains a NUL byte, or has leading/trailing whitespace is rejected ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
 
+### Features
+
+* Add key-level `NX`/`XX` support to `hSetEx`/`hPSetEx` (Valkey 9.1+) by passing an array as `$mode`, e.g. `['key' => 'NX', 'field' => 'XX']` ([#399](https://github.com/valkey-io/valkey-glide-php/issues/399))
+
 ### Fixes
 
 * IAM authentication now requires TLS: configuring IAM auth without TLS is rejected at client creation instead of sending the IAM token over a plaintext connection ([#391](https://github.com/valkey-io/valkey-glide-php/pull/391))
