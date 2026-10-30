@@ -74,6 +74,7 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests
 
 require_once __DIR__ . "/ValkeyGlideTest.php";
 require_once __DIR__ . '/TestConstants.php';
+require_once __DIR__ . "/ValkeyGlideClusterClientTrait.php";
 
 /**
  * Most ValkeyGlideCluster tests should work the same as the standard ValkeyGlide object
@@ -82,6 +83,8 @@ require_once __DIR__ . '/TestConstants.php';
  */
 class ValkeyGlideClusterTest extends ValkeyGlideTest
 {
+    use ValkeyGlideClusterClientTrait;
+
     private array $valkey_glide_types = [
         ValkeyGlide::VALKEY_GLIDE_STRING,
         ValkeyGlide::VALKEY_GLIDE_SET,
@@ -426,30 +429,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
-    /* Override newInstance as we want a ValkeyGlideCluster object */
+    /* Override newInstance as we want a ValkeyGlideCluster object with multi-database support */
     protected function newInstance(): ValkeyGlideCluster
     {
-        try {
-            return new ValkeyGlideCluster(
-                addresses: [['host' => '127.0.0.1', 'port' => 7001]],
-                use_tls: false,
-                credentials: $this->getAuth(),
-                read_from: ValkeyGlide::READ_FROM_PRIMARY,
-                request_timeout: null,
-                reconnect_strategy: null,
-                client_name: null,
-                periodic_checks: null,
-                client_az: null,
-                advanced_config: ['connection_timeout' => self::CONNECTION_TIMEOUT_MS],
-                lazy_connect: null,
-                database_id: 0 // enable multi-database support
-            );
-        } catch (Exception $ex) {
-            TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());
-            //TestSuite::errorMessage("Seeds: %s\n", implode(' ', self::$seeds));
-            TestSuite::errorMessage("Seed source: %s\n", self::$seed_source);
-            exit(1);
-        }
+        return $this->newClusterInstance(0);
     }
 
     /* Override getPort to return cluster port */
@@ -567,6 +550,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             }
         }
         return false;
+    }
+
+    /**
+     * Override for cluster - cancel pending/in-progress saves on every node.
+     */
+    protected function cancelBgSave(): mixed
+    {
+        return @$this->valkey_glide->bgSave('allNodes', 'CANCEL');
     }
 
     public function testBgSave()
@@ -692,7 +683,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         });
 
         if ($this->minVersionCheck('8.1.0')) {
-            $this->waitForSaveNotInProgress();
+            $this->waitForNoPendingSave();
 
             $this->withOptReplyLiteralEnabled(function () {
                 $this->assertBgSaveCancelReturnsFalse('allPrimaries');
@@ -729,7 +720,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
 
         if ($this->minVersionCheck('8.1.0')) {
-            $this->waitForSaveNotInProgress();
+            $this->waitForNoPendingSave();
 
             $this->valkey_glide->pipeline();
             $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');

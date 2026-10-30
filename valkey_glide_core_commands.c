@@ -375,7 +375,9 @@ static const ConnectionResponse* create_base_glide_client(
     valkey_glide_periodic_checks_status_t     periodic_checks,
     bool                                      is_cluster,
     bool                                      refresh_topology_from_initial_nodes,
-    AddressResolverCallback*                  out_resolver_cb) {
+    AddressResolverCallback*                  out_resolver_cb,
+    uint8_t**                                 out_request,
+    size_t*                                   out_request_len) {
     size_t   len;
     uint8_t* request_bytes = create_connection_request(
         &len, config, periodic_checks, is_cluster, refresh_topology_from_initial_nodes);
@@ -408,8 +410,13 @@ static const ConnectionResponse* create_base_glide_client(
     const ConnectionResponse* conn_resp = create_client(
         request_bytes, len, &client_type, valkey_glide_pubsub_callback, address_resolver_cb, 0);
 
-    /* Free the request bytes as they're no longer needed */
-    efree(request_bytes);
+    /* Hand the request bytes to the caller if asked, otherwise free them */
+    if (out_request && conn_resp && !conn_resp->connection_error_message) {
+        *out_request     = request_bytes;
+        *out_request_len = len;
+    } else {
+        efree(request_bytes);
+    }
 
     /* No response at all: report it and give the resolver slot back */
     if (!conn_resp) {
@@ -436,16 +443,354 @@ static const ConnectionResponse* create_base_glide_client(
 const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config,
                                               AddressResolverCallback* out_resolver_cb) {
     return create_base_glide_client(
-        config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false, out_resolver_cb);
+        config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false, out_resolver_cb, NULL, NULL);
 }
 
 const ConnectionResponse* create_glide_cluster_client(
-    valkey_glide_cluster_client_configuration_t* config, AddressResolverCallback* out_resolver_cb) {
+    valkey_glide_cluster_client_configuration_t* config,
+    AddressResolverCallback*                     out_resolver_cb,
+    uint8_t**                                    out_request,
+    size_t*                                      out_request_len) {
     return create_base_glide_client(&config->base,
                                     config->periodic_checks_status,
                                     true,
                                     config->refresh_topology_from_initial_nodes,
-                                    out_resolver_cb);
+                                    out_resolver_cb,
+                                    out_request,
+                                    out_request_len);
+}
+
+/* Map an OPT_SLAVE_FAILOVER mode to the protobuf read_from. Returns false for an unknown mode. */
+static bool failover_to_read_from(zend_long failover, ConnectionRequest__ReadFrom* read_from) {
+    switch (failover) {
+        case VALKEY_GLIDE_FAILOVER_NONE:
+        case VALKEY_GLIDE_FAILOVER_ERROR:
+            /* The core already retries on a promoted replica, so ERROR needs no routing change */
+            *read_from = CONNECTION_REQUEST__READ_FROM__Primary;
+            return true;
+        case VALKEY_GLIDE_FAILOVER_DISTRIBUTE:
+            *read_from = CONNECTION_REQUEST__READ_FROM__AllNodes;
+            return true;
+        case VALKEY_GLIDE_FAILOVER_DISTRIBUTE_SLAVES:
+            *read_from = CONNECTION_REQUEST__READ_FROM__PreferReplica;
+            return true;
+        default:
+            return false;
+    }
+}
+
+zend_long valkey_glide_read_from_to_failover(valkey_glide_read_from_t read_from) {
+    switch (read_from) {
+        case VALKEY_GLIDE_READ_FROM_PRIMARY:
+            return VALKEY_GLIDE_FAILOVER_NONE;
+        case VALKEY_GLIDE_READ_FROM_PREFER_REPLICA:
+        case VALKEY_GLIDE_READ_FROM_AZ_AFFINITY:
+            return VALKEY_GLIDE_FAILOVER_DISTRIBUTE_SLAVES;
+        default:
+            /* AZ strategies that also read from the primary */
+            return VALKEY_GLIDE_FAILOVER_DISTRIBUTE;
+    }
+}
+
+/* Changes to the saved connection request. A NULL string leaves that field unchanged */
+typedef struct {
+    const char*                        username;
+    const char*                        password;
+    const char*                        client_name; /* "" clears it */
+    bool                               set_database;
+    uint32_t                           database_id;
+    bool                               set_protocol;
+    ConnectionRequest__ProtocolVersion protocol;
+} saved_request_update_t;
+
+/* Apply connection state the core keeps for its own reconnects to the saved connection request,
+ * so a client recreated by OPT_SLAVE_FAILOVER starts in the same state */
+static void update_saved_request(valkey_glide_object*          valkey_glide,
+                                 const saved_request_update_t* update) {
+    if (!valkey_glide->connection_request) {
+        return;
+    }
+    ConnectionRequest__ConnectionRequest* conn_req = connection_request__connection_request__unpack(
+        NULL, valkey_glide->connection_request_len, valkey_glide->connection_request);
+    if (!conn_req) {
+        return;
+    }
+
+    /* Point the message at our own strings for packing, then restore its pointers so
+     * free_unpacked() only frees what unpack() allocated */
+    ConnectionRequest__AuthenticationInfo  new_info = CONNECTION_REQUEST__AUTHENTICATION_INFO__INIT;
+    ConnectionRequest__AuthenticationInfo* saved_info        = conn_req->authentication_info;
+    ConnectionRequest__AuthenticationInfo* info              = saved_info ? saved_info : &new_info;
+    char*                                  saved_username    = info->username;
+    char*                                  saved_password    = info->password;
+    char*                                  saved_client_name = conn_req->client_name;
+
+    if (update->username || update->password) {
+        conn_req->authentication_info = info;
+    }
+    if (update->username) {
+        info->username = (char*) update->username;
+    }
+    if (update->password) {
+        info->password = (char*) update->password;
+    }
+    if (update->client_name) {
+        conn_req->client_name = (char*) update->client_name;
+    }
+    if (update->set_database) {
+        conn_req->database_id = update->database_id;
+    }
+    if (update->set_protocol) {
+        conn_req->protocol = update->protocol;
+    }
+
+    size_t   request_len   = connection_request__connection_request__get_packed_size(conn_req);
+    uint8_t* request_bytes = emalloc(request_len);
+    connection_request__connection_request__pack(conn_req, request_bytes);
+
+    info->username                = saved_username;
+    info->password                = saved_password;
+    conn_req->authentication_info = saved_info;
+    conn_req->client_name         = saved_client_name;
+    connection_request__connection_request__free_unpacked(conn_req, NULL);
+
+    efree(valkey_glide->connection_request);
+    valkey_glide->connection_request     = request_bytes;
+    valkey_glide->connection_request_len = request_len;
+}
+
+/* Keep the saved connection request in step with updateConnectionPassword(), so a client recreated
+ * by OPT_SLAVE_FAILOVER authenticates with the current password. NULL or "" clears it. */
+static void update_saved_request_password(valkey_glide_object* valkey_glide, const char* password) {
+    saved_request_update_t update = {.password = password ? password : ""};
+    update_saved_request(valkey_glide, &update);
+}
+
+/* Keep the saved connection request in step with select(), so a client recreated by
+ * OPT_SLAVE_FAILOVER stays on the selected database instead of the constructor's */
+void valkey_glide_update_saved_request_database(valkey_glide_object* valkey_glide,
+                                                zend_long            dbindex) {
+    if (dbindex < 0 || dbindex > UINT32_MAX) {
+        return;
+    }
+    saved_request_update_t update = {.set_database = true, .database_id = (uint32_t) dbindex};
+    update_saved_request(valkey_glide, &update);
+}
+
+#define ARG_IS(i, literal) zend_string_equals_literal_ci(args[i], literal)
+
+/* Mirror a successful AUTH, HELLO, CLIENT SETNAME, SELECT or RESET into the saved connection
+ * request, parsing it the way glide-core does when it keeps the change for its reconnects. Unlike
+ * the core, AUTH with only a password clears the saved username, to match the live connection.
+ * args are the command's words, starting with its name. */
+void valkey_glide_track_connection_command(valkey_glide_object* valkey_glide,
+                                           zend_string**        args,
+                                           int                  argc) {
+    saved_request_update_t update = {0};
+
+    if (!valkey_glide->connection_request || argc < 1) {
+        return;
+    }
+    if (ARG_IS(0, "SELECT")) {
+        zend_long dbindex;
+        if (argc > 1 &&
+            is_numeric_string(ZSTR_VAL(args[1]), ZSTR_LEN(args[1]), &dbindex, NULL, 0) == IS_LONG) {
+            valkey_glide_update_saved_request_database(valkey_glide, dbindex);
+        }
+        return;
+    }
+    if (ARG_IS(0, "AUTH")) {
+        /* AUTH password, or AUTH username password. AUTH password authenticates as the
+         * default user, so clear a saved username */
+        if (argc == 2) {
+            update.username = "";
+            update.password = ZSTR_VAL(args[1]);
+        } else if (argc > 2) {
+            update.username = ZSTR_VAL(args[1]);
+            update.password = ZSTR_VAL(args[2]);
+        }
+    } else if (ARG_IS(0, "CLIENT")) {
+        if (argc > 2 && ARG_IS(1, "SETNAME")) {
+            update.client_name = ZSTR_VAL(args[2]);
+        }
+    } else if (ARG_IS(0, "HELLO")) {
+        /* HELLO protover [AUTH username password] [SETNAME clientname] */
+        if (argc > 1 && zend_string_equals_literal(args[1], "2")) {
+            update.set_protocol = true;
+            update.protocol     = CONNECTION_REQUEST__PROTOCOL_VERSION__RESP2;
+        } else if (argc > 1 && zend_string_equals_literal(args[1], "3")) {
+            update.set_protocol = true;
+            update.protocol     = CONNECTION_REQUEST__PROTOCOL_VERSION__RESP3;
+        }
+        for (int i = 2; i < argc;) {
+            if (ARG_IS(i, "AUTH")) {
+                if (i + 1 < argc) {
+                    update.username = ZSTR_VAL(args[i + 1]);
+                }
+                if (i + 2 < argc) {
+                    update.password = ZSTR_VAL(args[i + 2]);
+                }
+                i += 3;
+            } else if (ARG_IS(i, "SETNAME")) {
+                if (i + 1 < argc) {
+                    update.client_name = ZSTR_VAL(args[i + 1]);
+                }
+                i += 2;
+            } else {
+                i++;
+            }
+        }
+    } else if (ARG_IS(0, "RESET")) {
+        /* RESET returns to database 0, drops the client name and switches to RESP2; the core
+         * keeps the credentials for reconnects */
+        update.client_name  = "";
+        update.set_database = true;
+        update.database_id  = 0;
+        update.set_protocol = true;
+        update.protocol     = CONNECTION_REQUEST__PROTOCOL_VERSION__RESP2;
+    } else {
+        return;
+    }
+    update_saved_request(valkey_glide, &update);
+}
+
+#undef ARG_IS
+
+/* Set OPT_SLAVE_FAILOVER on a cluster client. read_from is fixed when the core client is created,
+ * so a new mode recreates the client from the saved connection request with only read_from
+ * changed. The new client is created before the old one is closed, so a failed reconnect leaves
+ * the client as it was. State the core keeps for its reconnects (database, credentials, client
+ * name, protocol) is mirrored into the saved request as it changes; other connection state is
+ * not carried over, so the change is refused while a WATCH, MULTI, pipeline or subscription is
+ * open. */
+bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
+    zend_long                   failover = zval_get_long(value);
+    ConnectionRequest__ReadFrom read_from;
+
+    /* close() also releases the saved request, so check for a closed client first */
+    if (!valkey_glide->glide_client) {
+        valkey_glide_set_last_error(valkey_glide, "OPT_SLAVE_FAILOVER: client is closed");
+        return false;
+    }
+    /* Standalone clients have no read routing to change; PHPRedis Redis also rejects this option */
+    if (!instanceof_function(valkey_glide->std.ce, get_valkey_glide_cluster_ce())) {
+        return false;
+    }
+    if (!failover_to_read_from(failover, &read_from)) {
+        valkey_glide_set_last_error(valkey_glide, "OPT_SLAVE_FAILOVER: unknown FAILOVER_* mode");
+        return false;
+    }
+
+    /* A persistent client is shared with later requests that expect the routing in its key,
+     * and one reused from an earlier request has no saved request to recreate it from. An AZ
+     * strategy only reports the nearest mode, so even that mode would change its routing. */
+    if (valkey_glide->persistent) {
+        ConnectionRequest__ReadFrom current;
+        if (!valkey_glide->read_from_az &&
+            failover_to_read_from(valkey_glide->opt_slave_failover, &current) &&
+            current == read_from) {
+            valkey_glide->opt_slave_failover = failover;
+            return true;
+        }
+        valkey_glide_set_last_error(valkey_glide,
+                                    "OPT_SLAVE_FAILOVER cannot be changed on a persistent client");
+        return false;
+    }
+    if (!valkey_glide->connection_request) {
+        valkey_glide_set_last_error(valkey_glide,
+                                    "OPT_SLAVE_FAILOVER: no saved connection request");
+        return false;
+    }
+
+    ConnectionRequest__ConnectionRequest* conn_req = connection_request__connection_request__unpack(
+        NULL, valkey_glide->connection_request_len, valkey_glide->connection_request);
+    if (!conn_req) {
+        valkey_glide_set_last_error(valkey_glide, "OPT_SLAVE_FAILOVER: invalid connection request");
+        return false;
+    }
+
+    /* Compare against the routing actually in use: an AZ strategy reports the nearest mode, but
+     * setting that mode still has to replace it */
+    if (conn_req->read_from == read_from) {
+        connection_request__connection_request__free_unpacked(conn_req, NULL);
+        valkey_glide->opt_slave_failover = failover;
+        return true;
+    }
+
+    /* setOption() is exempt from the fork guard, but a new mode uses the handle (pub/sub
+     * registry, close_glide_client()), which a child must not touch for an inherited client */
+    if (valkey_glide->client_pid != getpid()) {
+        connection_request__connection_request__free_unpacked(conn_req, NULL);
+        zend_throw_exception(get_valkey_glide_exception_ce(), VALKEY_GLIDE_FORK_ERROR, 0);
+        return false;
+    }
+
+    const char* refusal = NULL;
+    if (valkey_glide->is_in_batch_mode) {
+        refusal = "OPT_SLAVE_FAILOVER cannot be changed inside MULTI or pipeline";
+    } else if (valkey_glide->is_watching) {
+        refusal =
+            "OPT_SLAVE_FAILOVER cannot be changed while keys are watched; call unwatch() first";
+    } else {
+        char client_key[32];
+        snprintf(client_key,
+                 sizeof(client_key),
+                 "%lu",
+                 (unsigned long) (uintptr_t) valkey_glide->glide_client);
+        if (valkey_glide->raw_subscribed || find_pubsub_callback(client_key)) {
+            refusal = "OPT_SLAVE_FAILOVER cannot be changed while subscribed";
+        }
+    }
+    if (refusal) {
+        connection_request__connection_request__free_unpacked(conn_req, NULL);
+        valkey_glide_set_last_error(valkey_glide, refusal);
+        return false;
+    }
+
+    conn_req->read_from    = read_from;
+    size_t   request_len   = connection_request__connection_request__get_packed_size(conn_req);
+    uint8_t* request_bytes = emalloc(request_len);
+    connection_request__connection_request__pack(conn_req, request_bytes);
+    connection_request__connection_request__free_unpacked(conn_req, NULL);
+
+    ClientType client_type;
+    client_type.tag = SyncClient;
+
+    /* Reuse the object's resolver slot; it is tied to the PHP callable, not to the core client */
+    const ConnectionResponse* conn_resp = create_client(request_bytes,
+                                                        request_len,
+                                                        &client_type,
+                                                        valkey_glide_pubsub_callback,
+                                                        valkey_glide->resolver_cb,
+                                                        0);
+
+    if (!conn_resp) {
+        valkey_glide_set_last_error(valkey_glide,
+                                    "OPT_SLAVE_FAILOVER: failed to create client: no connection "
+                                    "response");
+        efree(request_bytes);
+        return false;
+    }
+    if (conn_resp->connection_error_message) {
+        VALKEY_LOG_ERROR("set_slave_failover", conn_resp->connection_error_message);
+        valkey_glide_set_last_error(valkey_glide, conn_resp->connection_error_message);
+        free_connection_response((ConnectionResponse*) conn_resp);
+        efree(request_bytes);
+        return false;
+    }
+
+    close_glide_client(valkey_glide->glide_client);
+    valkey_glide->glide_client = conn_resp->conn_ptr;
+    free_connection_response((ConnectionResponse*) conn_resp);
+    /* close_glide_client() untracked the old handle; OPT_PREFIX looks the object up by handle */
+    valkey_glide_prefix_track_client(valkey_glide->glide_client, valkey_glide);
+
+    efree(valkey_glide->connection_request);
+    valkey_glide->connection_request     = request_bytes;
+    valkey_glide->connection_request_len = request_len;
+    valkey_glide->opt_slave_failover     = failover;
+    valkey_glide->read_from_az           = false;
+    return true;
 }
 
 /* Custom result processor for SET commands with GET option support */
@@ -2387,6 +2732,20 @@ void execute_update_connection_password(zval*             object,
     /* The client's credentials no longer match its persistent key */
     valkey_glide_mark_connection_state_changed(valkey_glide);
 
+    /* With immediate_auth the core stores the password before sending AUTH, so a failed AUTH
+     * still leaves the core on the new password. Store it first, so the saved request used to
+     * recreate the client follows the core even when AUTH then fails. */
+    if (immediate_auth) {
+        CommandResult* stored =
+            update_connection_password(valkey_glide->glide_client, 0, password, false);
+        if (stored && !stored->command_error && stored->response &&
+            stored->response->response_type == Ok) {
+            update_saved_request_password(valkey_glide, password);
+        }
+        if (stored)
+            free_command_result(stored);
+    }
+
     /* Call FFI function */
     CommandResult* result =
         update_connection_password(valkey_glide->glide_client,
@@ -2424,6 +2783,7 @@ void execute_update_connection_password(zval*             object,
 
     /* Process response */
     if (result->response->response_type == Ok) {
+        update_saved_request_password(valkey_glide, password);
         ZVAL_STRING(return_value, "OK");
     } else if (result->response->response_type == Error) {
         VALKEY_LOG_ERROR_FMT(
