@@ -168,6 +168,7 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
 
         $clientB = new ValkeyGlideCluster(
             addresses: [['host' => 'fake-b.nonexistent', 'port' => 9999]],
+            credentials: $this->getAuth(),
             address_resolver: $resolver,
         );
         $this->assertConnected($clientB);
@@ -181,6 +182,7 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
         };
         $clientA = new ValkeyGlideCluster(
             addresses: [['host' => 'fake-a.nonexistent', 'port' => 9998]],
+            credentials: $this->getAuth(),
             address_resolver: $resolverA,
         );
 
