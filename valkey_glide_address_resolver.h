@@ -40,4 +40,11 @@ void valkey_glide_resolver_release(AddressResolverCallback cb);
  */
 void valkey_glide_resolver_request_shutdown(void);
 
+/*
+ * Whether a PHP resolver callable is running on this thread. It runs inside
+ * the core's block_on(), where dropping a client does not wait for its
+ * threads, so a client closed there must be closed later.
+ */
+bool valkey_glide_resolver_in_callable(void);
+
 #endif /* VALKEY_GLIDE_ADDRESS_RESOLVER_H */

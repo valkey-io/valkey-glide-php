@@ -155,20 +155,37 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
     }
 
     /**
-     * Closing a client from inside another client's resolver drops it without
-     * waiting for its background threads, so its resolver must not be freed.
+     * The core does not wait for a client's threads when it is dropped inside a
+     * resolver callable, so a client closed there is closed once the callable
+     * has returned, here when the constructor that called it returns.
      */
     public function testCloseClientFromResolver()
+    {
+        $this->closeClientFromResolver(false);
+    }
+
+    /**
+     * A lazy client calls its resolver from its first command, so a client
+     * closed there is closed when that command returns.
+     */
+    public function testCloseClientFromLazyClientResolver()
+    {
+        $this->closeClientFromResolver(true);
+    }
+
+    private function closeClientFromResolver(bool $lazy): void
     {
         $this->skipIfTlsEnabled();
 
         $realHost = $this->getHost();
         $realPort = $this->getPort();
         $resolver = fn (string $host, int $port): array => ['host' => $realHost, 'port' => $realPort];
+        $nameB = 'resolver_closed_' . uniqid();
 
         $clientB = new ValkeyGlideCluster(
             addresses: [['host' => 'fake-b.nonexistent', 'port' => 9999]],
             credentials: $this->getAuth(),
+            client_name: $nameB,
             address_resolver: $resolver,
         );
         $this->assertConnected($clientB);
@@ -183,11 +200,25 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
         $clientA = new ValkeyGlideCluster(
             addresses: [['host' => 'fake-a.nonexistent', 'port' => 9998]],
             credentials: $this->getAuth(),
+            lazy_connect: $lazy,
             address_resolver: $resolverA,
         );
 
-        $this->assertNull($clientB, 'Resolver A must have closed client B');
         $this->assertConnected($clientA);
+        $this->assertNull($clientB, 'Resolver A must have closed client B');
+
+        /* The server sees B's connections go once they are closed */
+        $deadline = microtime(true) + 2;
+        while (true) {
+            $lists = $clientA->rawcommand('allNodes', 'CLIENT', 'LIST');
+            $this->assertIsArray($lists);
+            $open = str_contains(implode("\n", $lists), "name=$nameB ");
+            if (!$open || microtime(true) >= $deadline) {
+                break;
+            }
+            usleep(50000);
+        }
+        $this->assertFalse($open, 'Client B must be closed once the call that ran resolver A returns');
         $clientA->close();
     }
 

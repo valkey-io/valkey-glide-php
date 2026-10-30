@@ -984,6 +984,9 @@ PHP_MSHUTDOWN_FUNCTION(valkey_glide) {
 PHP_RSHUTDOWN_FUNCTION(valkey_glide) {
     /* Clients still open (in static properties, for example) are freed after this */
     valkey_glide_resolver_request_shutdown();
+    /* Clients closed inside a resolver callable that no create_client() call has
+     * closed since; request shutdown has reset the callable count */
+    valkey_glide_run_deferred_closes();
     /* Pub/sub callbacks registered by this request are request memory */
     valkey_glide_pubsub_request_shutdown();
     valkey_glide_prefix_shutdown();
