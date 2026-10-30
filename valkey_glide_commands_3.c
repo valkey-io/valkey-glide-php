@@ -2255,6 +2255,14 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
             else if (zend_string_equals_literal_ci(Z_STR(z_args[0]), "UNWATCH") &&
                      rawcommand_route_reaches_all_primaries(route))
                 valkey_glide->is_watching = false;
+            /* The core keeps a SELECT on any route for reconnects, so a client recreated by
+             * OPT_SLAVE_FAILOVER must keep it too. The name loop above made the index a string */
+            else if (zend_string_equals_literal_ci(Z_STR(z_args[0]), "SELECT") && arg_count == 2) {
+                zend_long dbindex;
+                if (is_numeric_string(
+                        Z_STRVAL(z_args[1]), Z_STRLEN(z_args[1]), &dbindex, NULL, 0) == IS_LONG)
+                    valkey_glide_update_saved_request_database(valkey_glide, dbindex);
+            }
         }
         return 1;
     }
