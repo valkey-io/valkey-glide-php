@@ -154,6 +154,41 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
         }
     }
 
+    /**
+     * Closing a client from inside another client's resolver drops it without
+     * waiting for its background threads, so its resolver must not be freed.
+     */
+    public function testCloseClientFromResolver()
+    {
+        $this->skipIfTlsEnabled();
+
+        $realHost = $this->getHost();
+        $realPort = $this->getPort();
+        $resolver = fn (string $host, int $port): array => ['host' => $realHost, 'port' => $realPort];
+
+        $clientB = new ValkeyGlideCluster(
+            addresses: [['host' => 'fake-b.nonexistent', 'port' => 9999]],
+            address_resolver: $resolver,
+        );
+        $this->assertConnected($clientB);
+
+        $resolverA = function (string $host, int $port) use ($realHost, $realPort, &$clientB): array {
+            if ($clientB !== null) {
+                $clientB->close();
+                $clientB = null;
+            }
+            return ['host' => $realHost, 'port' => $realPort];
+        };
+        $clientA = new ValkeyGlideCluster(
+            addresses: [['host' => 'fake-a.nonexistent', 'port' => 9998]],
+            address_resolver: $resolverA,
+        );
+
+        $this->assertNull($clientB, 'Resolver A must have closed client B');
+        $this->assertConnected($clientA);
+        $clientA->close();
+    }
+
     public function testNullAddressResolverConnectsNormally()
     {
         $this->skipIfTlsEnabled();
