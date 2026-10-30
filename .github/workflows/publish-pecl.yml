@@ -41,7 +41,7 @@ on:
 jobs:
   prepare-version-bump:
     name: Prepare Version Bump${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry-run == 'true')) && ' (DRY RUN)' || '' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
     outputs:
       branch-name: ${{ steps.setup-branch.outputs.branch-name }}
@@ -141,7 +141,7 @@ jobs:
 
   wait-for-merge-and-tag:
     name: Create Release Tag
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: prepare-version-bump
     if: github.event_name == 'workflow_dispatch' && needs.prepare-version-bump.outputs.dry-run != 'true'
     environment: release-approval # This requires manual approval
@@ -192,7 +192,7 @@ jobs:
 
   validate-version:
     name: Validate Version
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: github.event_name == 'release'
     outputs:
       is-rc: ${{ steps.check-rc.outputs.is-rc }}
@@ -217,7 +217,7 @@ jobs:
           source: "release"
 
   build-packages:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: [validate-version, wait-for-merge-and-tag, prepare-version-bump]
     if: |
       always() &&

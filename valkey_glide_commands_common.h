@@ -139,8 +139,22 @@ void free_command_result(CommandResult* command_result_ptr);
 const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config,
                                               AddressResolverCallback* out_resolver_cb);
 
+/* out_request and out_request_len receive the serialized connection request on success (caller
+ * frees with efree()); pass NULL for both to discard it. */
 const ConnectionResponse* create_glide_cluster_client(
-    valkey_glide_cluster_client_configuration_t* config, AddressResolverCallback* out_resolver_cb);
+    valkey_glide_cluster_client_configuration_t* config,
+    AddressResolverCallback*                     out_resolver_cb,
+    uint8_t**                                    out_request,
+    size_t*                                      out_request_len);
+
+/* OPT_SLAVE_FAILOVER support (cluster only) */
+zend_long valkey_glide_read_from_to_failover(valkey_glide_read_from_t read_from);
+bool      valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value);
+void      valkey_glide_update_saved_request_database(valkey_glide_object* valkey_glide,
+                                                     zend_long            dbindex);
+void      valkey_glide_track_connection_command(valkey_glide_object* valkey_glide,
+                                                zend_string**        args,
+                                                int                  argc);
 
 /* Return the protobuf message representing the connection request. Caller must free the result with
  * efree() */
@@ -927,6 +941,8 @@ static inline bool valkey_glide_legacy_reply_literal(zval* value) {
                 }                                                             \
                 valkey_glide->opt_reply_literal = zval_is_true(value);        \
                 RETURN_TRUE;                                                  \
+            case VALKEY_GLIDE_OPT_SLAVE_FAILOVER:                             \
+                RETURN_BOOL(valkey_glide_set_failover(valkey_glide, value));  \
             default:                                                          \
                 RETURN_FALSE;                                                 \
         }                                                                     \
@@ -964,6 +980,15 @@ static inline zend_long valkey_glide_scan_option(const valkey_glide_object* valk
                 RETURN_NULL();                                                \
             case VALKEY_GLIDE_OPT_SCAN:                                       \
                 RETURN_LONG(valkey_glide_scan_option(valkey_glide));          \
+            case VALKEY_GLIDE_OPT_SLAVE_FAILOVER: {                           \
+                /* A reused persistent client has no connection_request */    \
+                zend_class_entry* cluster_ce = get_valkey_glide_cluster_ce(); \
+                if (!valkey_glide->glide_client ||                            \
+                    !instanceof_function(valkey_glide->std.ce, cluster_ce)) { \
+                    RETURN_FALSE;                                             \
+                }                                                             \
+                RETURN_LONG(valkey_glide->opt_slave_failover);                \
+            }                                                                 \
             default:                                                          \
                 RETURN_FALSE;                                                 \
         }                                                                     \

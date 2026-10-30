@@ -1059,7 +1059,18 @@ int execute_reset_command(zval* object, int argc, zval* return_value, zend_class
                                          ? process_core_status_string_result
                                          : process_core_status_bool_result;
 
-    return execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object);
+    bool queued = valkey_glide->is_in_batch_mode;
+    if (!execute_and_handle_batch(valkey_glide, &core_args, processor, return_value, object)) {
+        return 0;
+    }
+    /* The core keeps RESET's database, client name and protocol for its reconnects, so a client
+     * recreated by OPT_SLAVE_FAILOVER must start from them too. A batched RESET is not kept */
+    if (!queued && Z_TYPE_P(return_value) != IS_FALSE) {
+        zend_string* reset = zend_string_init("RESET", sizeof("RESET") - 1, 0);
+        valkey_glide_track_connection_command(valkey_glide, &reset, 1);
+        zend_string_release(reset);
+    }
+    return 1;
 }
 
 /* Execute a CLIENT PAUSE command using the Valkey Glide client */
@@ -1536,12 +1547,17 @@ int execute_watch_command(zval* object, int argc, zval* return_value, zend_class
         int keys_count = zend_hash_num_elements(Z_ARRVAL(z_args[0]));
         if (execute_multi_key_command(
                 valkey_glide, Watch, &z_args[0], keys_count, object, return_value)) {
+            /* A queued WATCH is tracked when the batch executes */
+            if (!valkey_glide->is_in_batch_mode)
+                valkey_glide->is_watching = true;
             return 1;
         }
     } else {
         /* Pattern 2: Multiple string arguments or single string */
         if (execute_multi_key_command(
                 valkey_glide, Watch, z_args, arg_count, object, return_value)) {
+            if (!valkey_glide->is_in_batch_mode)
+                valkey_glide->is_watching = true;
             return 1;
         }
     }
@@ -1572,8 +1588,10 @@ int execute_unwatch_command(zval* object, int argc, zval* return_value, zend_cla
     bool queued = valkey_glide->is_in_batch_mode;
 
     if (execute_core_command(valkey_glide, &args, NULL, process_core_bool_result, return_value)) {
+        /* A queued UNWATCH is tracked when the batch executes; DISCARD drops it unsent */
         if (!queued) {
             valkey_glide->persistent_watching = false;
+            valkey_glide->is_watching         = false;
         }
         return 1;
     } else {
@@ -2012,6 +2030,10 @@ int execute_select_command(zval* object, int argc, zval* return_value, zend_clas
 
     /* Execute the SELECT command using the Glide client */
     if (execute_select_command_internal(valkey_glide, dbindex, return_value)) {
+        /* A client recreated by OPT_SLAVE_FAILOVER must stay on this database */
+        if (Z_TYPE_P(return_value) == IS_TRUE) {
+            valkey_glide_update_saved_request_database(valkey_glide, dbindex);
+        }
         return 1;
     }
 
