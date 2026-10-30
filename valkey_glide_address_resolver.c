@@ -152,9 +152,22 @@ static uint16_t resolver_cache_lookup(resolver_closure_t* ctx,
  * Tokio runtime, and that Drop blocks until the runtime's worker threads have
  * stopped (https://docs.rs/tokio/latest/tokio/runtime/struct.Runtime.html#shutdown).
  * close_client() does not document that it joins the background threads; it
- * is a side effect. If the core ever shuts the runtime down without waiting
- * (shutdown_background(), shutdown_timeout()), a background thread can still
- * be inside resolver_cache_lookup() reading the memory freed here. */
+ * is a side effect, and it only holds while all of these do:
+ * - close_client() releases the last reference to the core's ClientAdapter.
+ *   It only decrements the strong count; the client and its runtimes are
+ *   dropped there only when nothing else holds one. In the core today the
+ *   other references are taken per call (execute_command(), batch() and the
+ *   like) and, for a sync client, dropped before that call returns, which is
+ *   before this PHP thread can call close_client(). The pub/sub task keeps a
+ *   raw pointer, not a reference, and the periodic checks and reconnects are
+ *   tasks on the runtimes, not owners of them.
+ * - ClientAdapter's Drop is not running inside a Tokio runtime, and the client
+ *   has no credential provider callback (PHP passes none). Otherwise the core
+ *   uses shutdown_background(), which does not wait. A PHP resolver callable
+ *   runs inside the core's block_on(), so closing or destroying another client
+ *   from inside one does not wait for that client's threads.
+ * If any of these stops holding, a background thread can still be inside
+ * resolver_cache_lookup() reading the memory freed here. */
 static void resolver_cache_free(resolver_closure_t* ctx) {
     for (size_t i = 0; i < ctx->cache_len; i++) {
         free(ctx->cache[i].host);

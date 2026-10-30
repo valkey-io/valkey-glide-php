@@ -1054,9 +1054,11 @@ void valkey_glide_close_client(valkey_glide_object* valkey_glide) {
         close_glide_client(valkey_glide->glide_client);
     }
     valkey_glide->glide_client = NULL;
-    /* Dropping the core client in close_glide_client() drops its Tokio runtimes,
-     * which waits for their threads (a forked child never had them), so nothing
-     * can call the resolver any more */
+    /* close_glide_client() releases our reference to the core client. When it is
+     * the last one, the client and its Tokio runtimes are dropped there, which
+     * waits for their threads (a forked child never had them), so nothing can
+     * call the resolver any more. The core holds no other reference by now; see
+     * resolver_cache_free() for that and the other conditions this relies on */
     valkey_glide_resolver_release(valkey_glide->resolver_cb);
     valkey_glide->resolver_cb = NULL;
 }
