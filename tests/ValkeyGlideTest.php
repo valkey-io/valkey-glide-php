@@ -126,6 +126,27 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     protected function getMigrateDestClient(): ValkeyGlide
     {
         if ($this->migrateDestClient === null) {
+            $this->waitFor(function () {
+                @exec('valkey-cli -p ' . self::MIGRATE_DEST_PORT . ' REPLICAOF NO ONE 2>/dev/null');
+                $c = new ValkeyGlide();
+                try {
+                    $c->connect(
+                        addresses: [['host' => '127.0.0.1', 'port' => self::MIGRATE_DEST_PORT]],
+                        node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STATIC
+                    );
+                    $info = @$c->info('REPLICATION');
+                    if (!is_array($info) || ($info['role'] ?? '') !== 'master') {
+                        @$c->replicaof();
+                        return false;
+                    }
+                    return true;
+                } catch (Throwable) {
+                    return false;
+                } finally {
+                    @$c->close();
+                }
+            }, 15, "Destination server on port " . self::MIGRATE_DEST_PORT . " is not ready as primary");
+
             $this->migrateDestClient = new ValkeyGlide();
             $this->migrateDestClient->connect(
                 addresses: [['host' => '127.0.0.1', 'port' => self::MIGRATE_DEST_PORT]]
@@ -2848,7 +2869,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         });
 
         if ($this->minVersionCheck('8.1.0')) {
-            $this->waitForSaveNotInProgress();
+            $this->waitForNoPendingSave();
 
             $this->withOptReplyLiteralEnabled(function () {
                 $result = $this->valkey_glide->bgSave('CANCEL');
@@ -2879,7 +2900,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result[0]);
 
         if ($this->minVersionCheck('8.1.0')) {
-            $this->waitForSaveNotInProgress();
+            $this->waitForNoPendingSave();
 
             $this->valkey_glide->pipeline();
             $this->valkey_glide->bgSave('CANCEL');
@@ -3602,8 +3623,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     protected function isSaveInProgress(): bool
     {
         $info = $this->valkey_glide->info('persistence');
-        return $info['rdb_bgsave_in_progress'] == '1'
-            || $info['aof_rewrite_in_progress'] == '1';
+        return ($info['rdb_bgsave_in_progress'] ?? '0') == '1'
+            || ($info['aof_rewrite_in_progress'] ?? '0') == '1';
     }
 
     /**
@@ -3615,6 +3636,37 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             fn() => !$this->isSaveInProgress(),
             10,
             'Timed out waiting for background save to complete'
+        );
+    }
+
+    /**
+     * Issue BGSAVE CANCEL and return its result. Clears a pending scheduled save
+     * and aborts an in-progress one (returning non-false), or returns false when
+     * there is nothing to cancel. Requires Valkey 8.1.0+.
+     */
+    protected function cancelBgSave(): mixed
+    {
+        return @$this->valkey_glide->bgSave('CANCEL');
+    }
+
+    /**
+     * Wait until no background save is in progress AND none is scheduled.
+     *
+     * A save queued by BGSAVE SCHEDULE is not visible in INFO persistence, so
+     * waiting on INFO alone is not enough: a leftover scheduled save makes a later
+     * BGSAVE CANCEL succeed instead of failing. Poll CANCEL until it reports
+     * there is nothing left to cancel (false). Same approach as testBgSaveCancel,
+     * for tests that must issue CANCEL themselves afterwards.
+     */
+    protected function waitForNoPendingSave(): void
+    {
+        $this->waitFor(
+            function () {
+                $this->waitForSaveNotInProgress();
+                return $this->cancelBgSave() === false;
+            },
+            15,
+            'Pending background save did not settle (BGSAVE CANCEL kept succeeding)'
         );
     }
 
@@ -3765,26 +3817,64 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->assertTrue($result);
 
             // Wait for 6382 to become slave (failover completed)
-            $this->waitForRole($client, 'slave');
+            $this->waitForRole($client, 'slave', 30);
         } finally {
             // 6382 reports the slave role before the failover finishes, and
-            // REPLICAOF is rejected until it has
-            $this->waitForFailoverState($client, 'no-failover');
+            // REPLICAOF is rejected until it has. Defer any timeout so the
+            // restore below still runs.
+            $failoverError = null;
+            try {
+                $this->waitForFailoverState($client, 'no-failover', 30);
+            } catch (Throwable $e) {
+                $failoverError = $e;
+            }
+            $client->close();
 
-            // Restore: promote 6382 back to primary
-            $this->assertTrue($client->replicaof());
-            $this->waitForRole($client, 'master');
+            // Run valkey-cli as immediate fallback to trigger failback
+            @exec('valkey-cli -p 6382 REPLICAOF NO ONE 2>/dev/null');
+
+            // Restore: promote 6382 back to primary (retry replicaof with STATIC mode)
+            $this->waitFor(function () {
+                @exec('valkey-cli -p 6382 REPLICAOF NO ONE 2>/dev/null');
+                $restoreClient = new ValkeyGlide();
+                try {
+                    $restoreClient->connect(
+                        addresses: [['host' => '127.0.0.1', 'port' => 6382]],
+                        node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STATIC
+                    );
+                    @$restoreClient->replicaof();
+                    $info = @$restoreClient->info('REPLICATION');
+                    return is_array($info) && ($info['role'] ?? '') === 'master';
+                } catch (Throwable) {
+                    return false;
+                } finally {
+                    @$restoreClient->close();
+                }
+            }, 30, "Timed out promoting 6382 back to master");
 
             // Restore 6383 as replica of 6382 (6383 became primary during failover)
-            $replica = new ValkeyGlide();
-            $replica->connect(
-                addresses: [['host' => '127.0.0.1', 'port' => 6383]]
-            );
-            $replica->replicaof('127.0.0.1', 6382);
-            $replica->close();
-        }
+            $this->waitFor(function () {
+                @exec('valkey-cli -p 6383 REPLICAOF 127.0.0.1 6382 2>/dev/null');
+                $replica = new ValkeyGlide();
+                try {
+                    $replica->connect(
+                        addresses: [['host' => '127.0.0.1', 'port' => 6383]],
+                        node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STATIC
+                    );
+                    @$replica->replicaof('127.0.0.1', 6382);
+                    $info = @$replica->info('REPLICATION');
+                    return is_array($info) && ($info['role'] ?? '') === 'slave';
+                } catch (Throwable) {
+                    return false;
+                } finally {
+                    @$replica->close();
+                }
+            }, 30, "Timed out restoring 6383 as replica of 6382");
 
-        $client->close();
+            if ($failoverError !== null) {
+                throw $failoverError;
+            }
+        }
     }
 
     /**
@@ -3800,7 +3890,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     /**
      * Poll until a server reaches the expected role, or fail after timeout.
      */
-    protected function waitForRole(ValkeyGlide $client, string $expectedRole, int $timeoutSeconds = 5): void
+    protected function waitForRole(ValkeyGlide $client, string $expectedRole, int $timeoutSeconds = 15): void
     {
         $this->waitFor(
             function () use ($client, $expectedRole) {
