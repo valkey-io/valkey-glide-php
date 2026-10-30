@@ -560,6 +560,10 @@ SMEMBERS_METHOD_IMPL(ValkeyGlideCluster)
 SISMEMBER_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto bool|null ValkeyGlideCluster::sIsMemberIfExists(string key, string member) */
+SISMEMBER_IF_EXISTS_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto array ValkeyGlideCluster::smismember(string key, string member0, ...memberN) */
 SMISMEMBER_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */

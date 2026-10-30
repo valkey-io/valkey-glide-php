@@ -3604,6 +3604,32 @@ class ValkeyGlide
     public function sismember(string $key, mixed $value): ValkeyGlide|bool;
 
     /**
+     * Check whether a given value is the member of a SET, telling a missing key apart from
+     * a missing member (SISMEMBER with the XX option).
+     *
+     * Unlike sismember(), which returns false both when the member is absent and when the key
+     * does not exist, this method returns null when the key does not exist.
+     *
+     * Requires Valkey 9.2.0 or later. Older servers reject the XX option, and the call
+     * then returns false (the same value as any other command error).
+     *
+     * @see https://valkey.io/commands/sismember/
+     *
+     * @param string $key   The Valkey set to check.
+     * @param mixed  $value The value to test.
+     *
+     * @return ValkeyGlide|bool|null True if the member exists, false if the key exists but the
+     *                               member does not, null if the key does not exist, and false
+     *                               on error. In a multi()/pipeline() batch, returns the client.
+     *
+     * @example $valkey_glide->sAdd('myset', 'a');
+     * @example $valkey_glide->sIsMemberIfExists('myset', 'a');       // true
+     * @example $valkey_glide->sIsMemberIfExists('myset', 'b');       // false
+     * @example $valkey_glide->sIsMemberIfExists('missing-set', 'a'); // null
+     */
+    public function sIsMemberIfExists(string $key, mixed $value): ValkeyGlide|bool|null;
+
+    /**
      * Update one or more keys last modified metadata.
      *
      * @see https://valkey.io/commands/touch/
