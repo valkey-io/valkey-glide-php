@@ -1723,6 +1723,508 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         }
     }
 
+    public function testOptSlaveFailoverConstants()
+    {
+        // Same values as PHPRedis RedisCluster, so code written for PHPRedis works unchanged
+        $this->assertEquals(5, ValkeyGlideCluster::OPT_SLAVE_FAILOVER);
+        $this->assertEquals(0, ValkeyGlideCluster::FAILOVER_NONE);
+        $this->assertEquals(1, ValkeyGlideCluster::FAILOVER_ERROR);
+        $this->assertEquals(2, ValkeyGlideCluster::FAILOVER_DISTRIBUTE);
+        $this->assertEquals(3, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES);
+    }
+
+    /**
+     * GET calls served so far by primaries and by replicas, from INFO commandstats on every node.
+     * INFO allNodes answers [address, section, address, section, ...], keyed here by address.
+     */
+    private function getCallsByRole(ValkeyGlideCluster $client): array
+    {
+        $byNode = function (array $reply): array {
+            $sections = [];
+            for ($i = 0; $i + 1 < count($reply); $i += 2) {
+                $sections[array_key_first($reply[$i]) . ':' . reset($reply[$i])] = $reply[$i + 1];
+            }
+            return $sections;
+        };
+        $stats = $byNode($client->info('allNodes', 'commandstats'));
+        $roles = $byNode($client->info('allNodes', 'replication'));
+        $calls = ['master' => 0, 'slave' => 0];
+        foreach ($roles as $node => $replication) {
+            $role = $replication['role'] ?? null;
+            if (!isset($calls[$role])) {
+                continue;
+            }
+            if (preg_match('/calls=(\d+)/', $stats[$node]['cmdstat_get'] ?? '', $m)) {
+                $calls[$role] += (int) $m[1];
+            }
+        }
+        return $calls;
+    }
+
+    private function readCallsByRole(ValkeyGlideCluster $client, string $key): array
+    {
+        $before = $this->getCallsByRole($client);
+        for ($i = 0; $i < 20; $i++) {
+            $client->get($key);
+        }
+        $after = $this->getCallsByRole($client);
+        return ['master' => $after['master'] - $before['master'], 'slave' => $after['slave'] - $before['slave']];
+    }
+
+    public function testOptSlaveFailoverRoutesReads()
+    {
+        $client = $this->newInstance();
+        $key    = 'test_opt_slave_failover_' . uniqid();
+
+        try {
+            $client->set($key, 'value');
+            $this->assertEquals(ValkeyGlideCluster::FAILOVER_NONE, $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER));
+            $this->assertEquals(['master' => 20, 'slave' => 0], $this->readCallsByRole($client, $key));
+
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertEquals(ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES, $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER));
+            $this->assertEquals(['master' => 0, 'slave' => 20], $this->readCallsByRole($client, $key));
+
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE));
+            $calls = $this->readCallsByRole($client, $key);
+            $this->assertGT(0, $calls['master']);
+            $this->assertGT(0, $calls['slave']);
+
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_ERROR));
+            $this->assertEquals(['master' => 20, 'slave' => 0], $this->readCallsByRole($client, $key));
+
+            // Writes and the rest of the connection survive the recreated client
+            $this->assertTrue($client->set($key, 'value2'));
+            $this->assertEquals('value2', $client->get($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testPhpRedisStyleConstructorReadsFromPrimary()
+    {
+        // PHPRedis RedisCluster reads from primaries until OPT_SLAVE_FAILOVER says otherwise
+        $client = new ValkeyGlideCluster(null, [['host' => $this->getHost(), 'port' => $this->getPort()]], auth: $this->getAuth());
+        $key    = 'test_phpredis_style_read_from_' . uniqid();
+
+        try {
+            $client->set($key, 'value');
+            $this->assertEquals(ValkeyGlideCluster::FAILOVER_NONE, $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER));
+            $this->assertEquals(['master' => 20, 'slave' => 0], $this->readCallsByRole($client, $key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testOptSlaveFailoverRejected()
+    {
+        $client = $this->newInstance();
+
+        try {
+            // Unknown mode
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, 4));
+            $this->assertNotNull($client->getLastError());
+            $this->assertEquals(ValkeyGlideCluster::FAILOVER_NONE, $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER));
+
+            // Current mode is a no-op
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+
+            // Recreating the client would drop the queued commands
+            $client->multi();
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $client->discard();
+            $this->assertEquals(ValkeyGlideCluster::FAILOVER_NONE, $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER));
+            $this->assertTrue($client->ping(['type' => 'primarySlotKey', 'key' => 'test']));
+
+            // Recreating the client would drop the WATCH, so a later EXEC would not abort
+            $key = 'test_opt_slave_failover_watch_' . uniqid();
+            $this->assertTrue($client->watch($key));
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->unwatch());
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+
+            // A WATCH or UNWATCH sent through rawcommand() is tracked too
+            $this->assertTrue($client->rawcommand($key, 'watch', $key));
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            // An UNWATCH routed to one node may leave a watch on another primary in place
+            $this->assertTrue($client->rawcommand($key, 'UNWATCH'));
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertTrue($client->rawcommand('allPrimaries', 'UNWATCH'));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertTrue($client->rawcommand($key, 'WATCH', $key));
+            $this->assertTrue($client->rawcommand('allNodes', 'unwatch'));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+
+            // discard() and an empty exec() of a MULTI send UNWATCH to every primary
+            $this->assertTrue($client->watch($key));
+            $client->multi();
+            $client->unwatch();
+            $this->assertTrue($client->discard());
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertTrue($client->watch($key));
+            $client->multi();
+            $this->assertEquals([], $client->exec());
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+
+            // A transaction rejected before EXEC leaves the WATCH in place
+            $this->assertTrue($client->watch($key));
+            $client->multi();
+            $client->set('{slot_a}' . $key, 'value');
+            $client->set('{slot_b}' . $key, 'value');
+            try {
+                $this->assertFalse($client->exec());
+            } catch (ValkeyGlideException $e) {
+            }
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertTrue($client->unwatch());
+
+            // A queued WATCH that is discarded never reaches the server
+            $client->multi();
+            $client->watch($key);
+            $client->discard();
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+
+            // EXEC ends the WATCH only on the node it ran on, so the change waits for unwatch()
+            $this->assertTrue($client->watch($key));
+            $client->multi();
+            $client->set($key, 'value');
+            $this->assertEquals([true], $client->exec());
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertStringContains('unwatch()', $client->getLastError());
+            $this->assertTrue($client->unwatch());
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $client->del($key);
+        } finally {
+            $client->close();
+        }
+
+        // Closed, even for the current mode
+        $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+        $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+        $this->assertTrue(str_contains($client->getLastError(), 'closed'));
+    }
+
+
+    public function testOptSlaveFailoverKeepsWatchOnOtherPrimaries()
+    {
+        $client = $this->newInstance();
+        $other = $this->newInstance();
+        // Hash tags in slots served by different primaries ({a} is slot 15495, {b} slot 3300)
+        $keyA = '{a}test_opt_slave_failover_' . uniqid();
+        $keyB = '{b}test_opt_slave_failover_' . uniqid();
+
+        try {
+            // WATCH reaches both primaries; EXEC of a transaction on {a} ends only that watch
+            $this->assertTrue($client->watch($keyA, $keyB));
+            $client->multi();
+            $client->set($keyA, 'value');
+            $this->assertEquals([true], $client->exec());
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+
+            // The watch on {b} is still active: a concurrent write aborts the next transaction
+            $this->assertTrue($other->set($keyB, 'other'));
+            $client->multi();
+            $client->set($keyB, 'mine');
+            $this->assertFalse($client->exec());
+            $this->assertEquals('other', $other->get($keyB));
+
+            $this->assertTrue($client->unwatch());
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+        } finally {
+            $other->del($keyA, $keyB);
+            $other->close();
+            $client->close();
+        }
+    }
+    public function testOptSlaveFailoverRejectedAfterRawSubscribe()
+    {
+        $client = $this->newInstance();
+        $admin = $this->newInstance();
+        $channel = 'test_opt_slave_failover_raw_sub_' . uniqid();
+
+        try {
+            // A SUBSCRIBE without a channel is rejected by the server and subscribes to nothing
+            try {
+                $client->rawcommand($channel, 'SUBSCRIBE');
+            } catch (ValkeyGlideException $e) {
+            }
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+
+            // A raw SUBSCRIBE subscribes on the server even though the call reports false, and
+            // recreating the client would drop that subscription
+            try {
+                $client->rawcommand($channel, 'SUBSCRIBE', $channel);
+            } catch (ValkeyGlideException $e) {
+            }
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertEquals(ValkeyGlideCluster::FAILOVER_NONE, $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER));
+
+            // The call can return before the server registers the subscription
+            $deadline = microtime(true) + 5;
+            $numsub = $admin->rawcommand('allPrimaries', 'PUBSUB', 'NUMSUB', $channel);
+            while ($numsub[1] == 0 && microtime(true) < $deadline) {
+                usleep(10000);
+                $numsub = $admin->rawcommand('allPrimaries', 'PUBSUB', 'NUMSUB', $channel);
+            }
+            $this->assertEquals([$channel, 1], $numsub);
+        } finally {
+            $client->close();
+            $admin->close();
+        }
+    }
+
+    public function testOptSlaveFailoverAfterReconstruct()
+    {
+        $client = $this->newInstance();
+        $key = 'test_opt_slave_failover_reconstruct_' . uniqid();
+        $reconstruct = fn () => $client->__construct(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            credentials: $this->getAuth(),
+            read_from: ValkeyGlide::READ_FROM_PRIMARY
+        );
+
+        try {
+            // close() ends the WATCH, so the client constructed again can change the routing
+            $this->assertTrue($client->watch($key));
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $client->close();
+            $reconstruct();
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+
+            // Likewise for a raw SUBSCRIBE, which otherwise blocks the change for good
+            try {
+                $client->rawcommand($key, 'SUBSCRIBE', $key);
+            } catch (ValkeyGlideException $e) {
+            }
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $client->close();
+            $reconstruct();
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+        } finally {
+            $client->close();
+        }
+    }
+
+    public function testOptSlaveFailoverRejectedOnPersistentClient()
+    {
+        // Later requests reuse a persistent client expecting the routing it was created with. The
+        // second pass reuses the client the first pass kept, which has no saved request.
+        $client = null;
+        try {
+            for ($pass = 0; $pass < 2; $pass++) {
+                $client = null; // keep the client for the next pass
+                $client = new ValkeyGlideCluster(
+                    addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                    credentials: $this->getAuth(),
+                    persistent: true,
+                );
+                $this->assertEquals(ValkeyGlideCluster::FAILOVER_NONE, $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER));
+                $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_ERROR));
+                $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+                $this->assertStringContains('persistent', $client->getLastError());
+                $this->assertTrue($client->ping(['type' => 'primarySlotKey', 'key' => 'test']));
+            }
+        } finally {
+            $client?->close();
+        }
+    }
+
+    public function testOptSlaveFailoverRejectedOnPersistentAzClient()
+    {
+        // AZ affinity reports the nearest mode, but setting it would have to replace the routing
+        $client = new ValkeyGlideCluster(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            credentials: $this->getAuth(),
+            read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY,
+            client_az: 'us-east-1a',
+            persistent: true,
+        );
+        try {
+            $this->assertEquals(ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES, $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER));
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertStringContains('persistent', $client->getLastError());
+        } finally {
+            $client->close();
+        }
+    }
+
+    public function testOptSlaveFailoverUsesUpdatedPassword()
+    {
+        // A user that accepts only the new password once updateConnectionPassword() has run, so a
+        // client recreated with the constructor's password would fail to authenticate
+        $user = 'failover_test_' . uniqid();
+        $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'on', '>old_password', '~*', '&*', '+@all');
+        $client = null;
+
+        try {
+            $client = new ValkeyGlideCluster(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                credentials: ['username' => $user, 'password' => 'old_password'],
+            );
+            $this->assertEquals('OK', $client->updateConnectionPassword('new_password', false));
+            $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'resetpass', '>new_password');
+
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->ping(['type' => 'primarySlotKey', 'key' => 'test']));
+        } finally {
+            $client?->close();
+            $this->valkey_glide->rawcommand('allNodes', 'ACL', 'DELUSER', $user);
+        }
+    }
+
+    public function testOptSlaveFailoverUsesPasswordFromFailedImmediateAuth()
+    {
+        // updateConnectionPassword() with immediate auth stores the password in the core before it
+        // authenticates, so a recreated client must use it even though that authentication failed
+        $user = 'failover_test_' . uniqid();
+        $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'on', '>old_password', '~*', '&*', '+@all');
+        $client = null;
+
+        try {
+            $client = new ValkeyGlideCluster(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                credentials: ['username' => $user, 'password' => 'old_password'],
+            );
+            try {
+                $client->updateConnectionPassword('new_password', true);
+                $this->fail('Immediate auth with a password the server does not accept yet must fail');
+            } catch (ValkeyGlideException $e) {
+            }
+            $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'resetpass', '>new_password');
+
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->ping(['type' => 'primarySlotKey', 'key' => 'test']));
+        } finally {
+            $client?->close();
+            $this->valkey_glide->rawcommand('allNodes', 'ACL', 'DELUSER', $user);
+        }
+    }
+
+    public function testOptSlaveFailoverReplacesAzAffinity()
+    {
+        $client = new ValkeyGlideCluster(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            credentials: $this->getAuth(),
+            read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY,
+            client_az: 'us-east-1a'
+        );
+
+        try {
+            // AZ affinity reports the nearest mode, and setting that mode still replaces it
+            $this->assertEquals(ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES, $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $key = 'test_opt_slave_failover_az_' . uniqid();
+            $client->set($key, 'value');
+            $this->assertEquals(['master' => 20, 'slave' => 0], $this->readCallsByRole($client, $key));
+            $client->del($key);
+        } finally {
+            $client->close();
+        }
+    }
+
+    public function testOptSlaveFailoverKeepsSelectedDatabase()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Multi-database operations in cluster mode require Valkey 9.0.0+');
+        }
+
+        $client = $this->newInstance();
+        $key    = 'test_opt_slave_failover_db_' . uniqid();
+
+        try {
+            $this->assertTrue($client->select(2));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE));
+
+            // The recreated client writes to the selected database, not the constructor's
+            $this->assertTrue($client->set($key, 'db2'));
+            $this->assertFalse($this->valkey_glide->get($key));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertEquals('db2', $client->get($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    public function testOptSlaveFailoverKeepsRawConnectionState()
+    {
+        // AUTH, CLIENT SETNAME, HELLO and RESET are kept by the core for its reconnects, so the
+        // recreated client must start with the user and name they set, not the constructor's
+        $user   = 'failover_state_' . uniqid();
+        $key    = 'test_opt_slave_failover_state_' . uniqid();
+        $client = null;
+        $default_password_set = false;
+        $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'on', '>state_password', '~*', '&*', '+@all');
+
+        try {
+            $client = $this->newInstance();
+            $this->assertTrue($client->rawcommand('allNodes', 'AUTH', $user, 'state_password'));
+            $this->assertTrue($client->rawcommand('allNodes', 'client', 'setname', 'raw_name'));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE));
+            $this->assertEquals($user, $client->rawcommand($key, 'ACL', 'WHOAMI'));
+            $this->assertEquals('raw_name', $client->rawcommand($key, 'CLIENT', 'GETNAME'));
+
+            $this->assertIsArray($client->rawcommand('allNodes', 'HELLO', '3', 'SETNAME', 'hello_name'));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+            $this->assertEquals('hello_name', $client->rawcommand($key, 'CLIENT', 'GETNAME'));
+            $this->assertEquals($user, $client->rawcommand($key, 'ACL', 'WHOAMI'));
+
+            // RESET drops the name; the core keeps the credentials
+            $this->assertTrue($client->reset());
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE));
+            $this->assertFalse($client->rawcommand($key, 'CLIENT', 'GETNAME'));
+            $this->assertEquals($user, $client->rawcommand($key, 'ACL', 'WHOAMI'));
+
+            // AUTH with only a password switches to the default user. The default user has no
+            // password on the test servers, and AUTH needs one, so add it for this check. With
+            // --auth it has one already, and the restore below would remove it: skip the check
+            if (!$this->getAuth()) {
+                $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', 'default', '>default_password');
+                $default_password_set = true;
+                $this->assertTrue($client->rawcommand('allNodes', 'AUTH', 'default_password'));
+                $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+                $this->assertEquals('default', $client->rawcommand($key, 'ACL', 'WHOAMI'));
+            }
+        } finally {
+            $client?->close();
+            if ($default_password_set) {
+                $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', 'default', 'nopass');
+            }
+            $this->valkey_glide->rawcommand('allNodes', 'ACL', 'DELUSER', $user);
+        }
+    }
+
+    public function testOptSlaveFailoverKeepsRawSelectedDatabase()
+    {
+        if (version_compare($this->version, '9.0.0') < 0) {
+            $this->markTestSkipped('Multi-database operations in cluster mode require Valkey 9.0.0+');
+        }
+
+        $client = $this->newInstance();
+        $key    = 'test_opt_slave_failover_raw_db_' . uniqid();
+
+        try {
+            $this->assertTrue($client->rawcommand('allPrimaries', 'select', 3));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE));
+
+            $this->assertTrue($client->set($key, 'db3'));
+            $this->assertFalse($this->valkey_glide->get($key));
+            $this->assertTrue($client->select(3));
+            $this->assertEquals('db3', $client->get($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
     // ==================== Compression Tests for Supported Commands ====================
 
     /**
