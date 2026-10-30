@@ -580,7 +580,8 @@ void valkey_glide_update_saved_request_database(valkey_glide_object* valkey_glid
 #define ARG_IS(i, literal) zend_string_equals_literal_ci(args[i], literal)
 
 /* Mirror a successful AUTH, HELLO, CLIENT SETNAME, SELECT or RESET into the saved connection
- * request, parsing it the way glide-core does when it keeps the change for its reconnects.
+ * request, parsing it the way glide-core does when it keeps the change for its reconnects. Unlike
+ * the core, AUTH with only a password clears the saved username, to match the live connection.
  * args are the command's words, starting with its name. */
 void valkey_glide_track_connection_command(valkey_glide_object* valkey_glide,
                                            zend_string**        args,
@@ -599,8 +600,10 @@ void valkey_glide_track_connection_command(valkey_glide_object* valkey_glide,
         return;
     }
     if (ARG_IS(0, "AUTH")) {
-        /* AUTH password, or AUTH username password */
+        /* AUTH password, or AUTH username password. AUTH password authenticates as the
+         * default user, so clear a saved username */
         if (argc == 2) {
+            update.username = "";
             update.password = ZSTR_VAL(args[1]);
         } else if (argc > 2) {
             update.username = ZSTR_VAL(args[1]);

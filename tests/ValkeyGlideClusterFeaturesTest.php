@@ -2161,6 +2161,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $user   = 'failover_state_' . uniqid();
         $key    = 'test_opt_slave_failover_state_' . uniqid();
         $client = null;
+        $default_password_set = false;
         $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'on', '>state_password', '~*', '&*', '+@all');
 
         try {
@@ -2181,8 +2182,22 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE));
             $this->assertFalse($client->rawcommand($key, 'CLIENT', 'GETNAME'));
             $this->assertEquals($user, $client->rawcommand($key, 'ACL', 'WHOAMI'));
+
+            // AUTH with only a password switches to the default user. The default user has no
+            // password on the test servers, and AUTH needs one, so add it for this check. With
+            // --auth it has one already, and the restore below would remove it: skip the check
+            if (!$this->getAuth()) {
+                $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', 'default', '>default_password');
+                $default_password_set = true;
+                $this->assertTrue($client->rawcommand('allNodes', 'AUTH', 'default_password'));
+                $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+                $this->assertEquals('default', $client->rawcommand($key, 'ACL', 'WHOAMI'));
+            }
         } finally {
             $client?->close();
+            if ($default_password_set) {
+                $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', 'default', 'nopass');
+            }
             $this->valkey_glide->rawcommand('allNodes', 'ACL', 'DELUSER', $user);
         }
     }
