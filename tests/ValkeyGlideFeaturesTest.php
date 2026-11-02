@@ -2460,6 +2460,30 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         }
     }
 
+    public function testCompressionBlockedDelIfEq()
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('DELIFEQ requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $client = $this->getCompressedClient();
+        // Keep the value below the compression threshold so a regression that removes the
+        // compression guard would make DELIFEQ match and delete the key.
+        $data = 'delifeq_data';
+        $key = 'compression_blocked_delifeq_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+            $this->assertTrue($client->clearLastError());
+            $result = $client->delIfEq($key, $data);
+            $this->assertFalse($result, 'DELIFEQ should return false when compression is enabled');
+            $this->assertStringContains('incompatible with compression', (string) $client->getLastError());
+            $this->assertEquals($data, $client->get($key), 'DELIFEQ should not delete the key when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
     public function testCompressionBlockedGetrange()
     {
         $client = $this->getCompressedClient();

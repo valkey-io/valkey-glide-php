@@ -743,6 +743,11 @@ class ValkeyGlideCluster
     public function del(array|string $key, string ...$other_keys): ValkeyGlideCluster|int|false;
 
     /**
+     * @see ValkeyGlide::delIfEq()
+     */
+    public function delIfEq(string $key, string $value): ValkeyGlideCluster|bool;
+
+    /**
      * @see ValkeyGlide::discard
      */
     public function discard(): bool;

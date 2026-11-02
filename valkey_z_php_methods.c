@@ -747,6 +747,10 @@ TYPE_METHOD_IMPL(ValkeyGlide)
 APPEND_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto bool ValkeyGlide::delIfEq(string key, string value) */
+DELIFEQ_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 /* {{{ proto string ValkeyGlide::getRange(string key, long start, long end) */
 GETRANGE_METHOD_IMPL(ValkeyGlide)
 /* }}} */

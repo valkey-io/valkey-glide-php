@@ -5581,6 +5581,32 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals('not_a_hash', $this->valkey_glide->get($key));
     }
 
+    public function testDelIfEq(): void
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('DELIFEQ requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $key        = $this->createRandomString(16);
+        $value      = $this->createRandomString(16);
+        $wrongValue = $this->createRandomString(16);
+
+        $this->valkey_glide->del($key);
+
+        // Key does not exist yet - nothing to delete.
+        $this->assertFalse($this->valkey_glide->delIfEq($key, $value));
+
+        $this->assertTrue($this->valkey_glide->set($key, $value));
+
+        // Value does not match - key remains untouched.
+        $this->assertFalse($this->valkey_glide->delIfEq($key, $wrongValue));
+        $this->assertEquals($value, $this->valkey_glide->get($key));
+
+        // Value matches exactly - key is deleted.
+        $this->assertTrue($this->valkey_glide->delIfEq($key, $value));
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
+    }
+
     public function testHashFieldExpirationCommandValidation(): void
     {
         if (!$this->compare_major_version_number(9)) {
@@ -10290,6 +10316,30 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->assertGT(0, $raw->ttl("{$p}str"));
 
         $raw->del("{$p}str", "{$p}hash", "{$p}list", "{$p}set", "{$p}zset");
+        $client->close();
+    }
+
+    public function testPrefixDelIfEq()
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('DELIFEQ requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}delifeq", 'delifeq');
+
+        $client = $this->newPrefixedInstance();
+
+        // The prefix is applied to the key, so only the prefixed key is compared and deleted.
+        $this->assertTrue($raw->set("{$p}delifeq", 'value'));
+        $this->assertTrue($raw->set('delifeq', 'value'));
+        $this->assertFalse($client->delIfEq('delifeq', 'wrong_value'));
+        $this->assertTrue($client->delIfEq('delifeq', 'value'));
+        $this->assertKeyMissing("{$p}delifeq", $raw);
+        $this->assertKeyEquals('value', 'delifeq', $raw);
+
+        $raw->del("{$p}delifeq", 'delifeq');
         $client->close();
     }
 
