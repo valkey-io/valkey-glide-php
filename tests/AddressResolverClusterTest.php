@@ -355,6 +355,63 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
         $this->assertFalse(@$client->ping('allPrimaries'), 'The client must stay closed');
     }
 
+    /**
+     * Closing the clients a failover's resolver closed can run a destructor
+     * that closes the failing-over client. That close must also close its new
+     * client, not leave it installed on the resolver the close frees.
+     */
+    public function testCloseClientFromDestructorDuringSlaveFailover()
+    {
+        $this->skipIfTlsEnabled();
+
+        $realHost = $this->getHost();
+        $realPort = $this->getPort();
+        $holder = new stdClass();
+        $holder->client = null;
+        $sentinel = new class ($holder) {
+            public function __construct(private stdClass $holder)
+            {
+            }
+
+            public function __destruct()
+            {
+                $this->holder->client?->close();
+            }
+        };
+        $resolverB = function (string $host, int $port) use ($realHost, $realPort, $sentinel): array {
+            return ['host' => $realHost, 'port' => $realPort];
+        };
+        unset($sentinel);
+        $clientB = new ValkeyGlideCluster(
+            addresses: [['host' => 'fake-b.nonexistent', 'port' => 9999]],
+            credentials: $this->getAuth(),
+            address_resolver: $resolverB,
+        );
+        unset($resolverB);
+
+        $armed = false;
+        $resolverA = function (string $host, int $port) use ($realHost, $realPort, &$clientB, &$armed): array {
+            if ($armed) {
+                $armed = false;
+                $clientB->close();
+                $clientB = null;
+            }
+            return ['host' => $realHost, 'port' => $realPort];
+        };
+        $clientA = new ValkeyGlideCluster(
+            addresses: [['host' => 'fake-a.nonexistent', 'port' => 9998]],
+            credentials: $this->getAuth(),
+            address_resolver: $resolverA,
+        );
+        $holder->client = $clientA;
+        $this->assertConnected($clientA);
+
+        $armed = true;
+        $clientA->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE);
+        $this->assertNull($clientB, 'Resolver A must have closed client B');
+        $this->assertFalse(@$clientA->ping('allPrimaries'), 'B\'s destructor must have closed client A');
+    }
+
     public function testNullAddressResolverConnectsNormally()
     {
         $this->skipIfTlsEnabled();

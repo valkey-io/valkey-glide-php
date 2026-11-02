@@ -781,14 +781,16 @@ bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
         valkey_glide_set_last_error(valkey_glide, "OPT_SLAVE_FAILOVER: client is closed");
         return false;
     }
-    /* The resolver may have closed other clients while it ran */
-    valkey_glide_run_deferred_closes();
 
+    /* The resolver may have closed other clients while it ran. Closing them releases their
+     * callables, whose destructors can close this client, so only close them once the new
+     * client is installed or gone: that close then also closes it before freeing the resolver */
     if (!conn_resp) {
         valkey_glide_set_last_error(valkey_glide,
                                     "OPT_SLAVE_FAILOVER: failed to create client: no connection "
                                     "response");
         efree(request_bytes);
+        valkey_glide_run_deferred_closes();
         return false;
     }
     if (conn_resp->connection_error_message) {
@@ -796,6 +798,7 @@ bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
         valkey_glide_set_last_error(valkey_glide, conn_resp->connection_error_message);
         free_connection_response((ConnectionResponse*) conn_resp);
         efree(request_bytes);
+        valkey_glide_run_deferred_closes();
         return false;
     }
 
@@ -810,6 +813,7 @@ bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
     valkey_glide->connection_request_len = request_len;
     valkey_glide->opt_slave_failover     = failover;
     valkey_glide->read_from_az           = false;
+    valkey_glide_run_deferred_closes();
     return true;
 }
 
