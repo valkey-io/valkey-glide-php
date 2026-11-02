@@ -231,15 +231,36 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
 
         $realHost = $this->getHost();
         $realPort = $this->getPort();
-        $resolver = fn (string $host, int $port): array => ['host' => $realHost, 'port' => $realPort];
         $nameB = 'resolver_closed_' . uniqid();
+
+        /* Every GLIDE command closes the deferred clients once it returns, so a
+         * command cannot observe whether they were already closed. Resolver B's
+         * callable is released right after client B is closed: its sentinel
+         * reports that without a command */
+        $state = new stdClass();
+        $state->released = false;
+        $sentinel = new class ($state) {
+            public function __construct(private stdClass $state)
+            {
+            }
+
+            public function __destruct()
+            {
+                $this->state->released = true;
+            }
+        };
+        $resolverB = function (string $host, int $port) use ($realHost, $realPort, $sentinel): array {
+            return ['host' => $realHost, 'port' => $realPort];
+        };
+        unset($sentinel);
 
         $clientB = new ValkeyGlideCluster(
             addresses: [['host' => 'fake-b.nonexistent', 'port' => 9999]],
             credentials: $this->getAuth(),
             client_name: $nameB,
-            address_resolver: $resolver,
+            address_resolver: $resolverB,
         );
+        unset($resolverB);
         $this->assertConnected($clientB);
 
         $resolverA = function (string $host, int $port) use ($realHost, $realPort, &$clientB): array {
@@ -256,8 +277,14 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
             address_resolver: $resolverA,
         );
 
+        if (!$lazy) {
+            $this->assertNull($clientB, 'Resolver A must have closed client B');
+            $this->assertTrue($state->released, 'Client B must be closed when the constructor returns');
+        }
+        /* A lazy client runs resolver A from this first command */
         $this->assertConnected($clientA);
         $this->assertNull($clientB, 'Resolver A must have closed client B');
+        $this->assertTrue($state->released, 'Client B must be closed when the call that ran resolver A returns');
 
         /* The server sees B's connections go once they are closed */
         $deadline = microtime(true) + 2;
