@@ -319,11 +319,9 @@ cleanup:
 
 // Unified parameter preparation with configurable components
 typedef struct {
-    bool        needs_expiry;
-    bool        needs_condition;
-    bool        needs_fields_keyword;
-    bool        field_value_pairs;  // true for HSETEX, false for HEXPIRE/HTTL
-    const char* condition_prefix;   // "F" for HSETEX (FNX/FXX), NULL for HEXPIRE (NX/XX)
+    bool needs_expiry;
+    bool needs_condition;
+    bool needs_fields_keyword;
 } h_arg_config_t;
 
 static int prepare_h_args_unified(h_command_args_t*     args,
@@ -335,10 +333,7 @@ static int prepare_h_args_unified(h_command_args_t*     args,
     if (!args->key)
         return 0;
 
-    // Calculate field count and validate
-    int field_count = config->field_value_pairs ? args->fv_count / 2 : args->fv_count;
-    if (config->field_value_pairs && args->fv_count % 2 != 0)
-        return 0;
+    int field_count = args->fv_count;
 
     // Calculate argument count
     int arg_count = 1;  // key
@@ -365,16 +360,8 @@ static int prepare_h_args_unified(h_command_args_t*     args,
 
     // Add condition
     if (config->needs_condition && args->mode) {
-        const char* condition = args->mode;
-        if (config->condition_prefix) {
-            // Convert NX/XX to FNX/FXX for HSETEX
-            static char condition_buf[4];
-            snprintf(
-                condition_buf, sizeof(condition_buf), "%s%s", config->condition_prefix, args->mode);
-            condition = condition_buf;
-        }
-        (*args_out)[arg_idx]     = (uintptr_t) condition;
-        (*args_len_out)[arg_idx] = strlen(condition);
+        (*args_out)[arg_idx]     = (uintptr_t) args->mode;
+        (*args_len_out)[arg_idx] = strlen(args->mode);
         arg_idx++;
     }
 
@@ -625,9 +612,7 @@ int prepare_h_field_only_args(h_command_args_t* args,
                               int*              allocated_count) {
     h_arg_config_t config = {.needs_expiry         = false,
                              .needs_condition      = false,
-                             .needs_fields_keyword = true,
-                             .field_value_pairs    = false,
-                             .condition_prefix     = NULL};
+                             .needs_fields_keyword = true};
     return prepare_h_args_unified(
         args, args_out, args_len_out, allocated_strings, allocated_count, &config);
 }
@@ -2392,8 +2377,8 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
     return 0;
 }
 
-// Helper function for all hSetEx variants with conditions
-// Unified helper function for all hash field expiration variants
+// Shared helper for the hExpire-family variants (positional arguments:
+// key, expiry, condition, fields...). hSetEx has its own executor below.
 static int execute_hash_expiry_command(zval*             object,
                                        int               argc,
                                        zval*             return_value,
@@ -2432,9 +2417,7 @@ static int execute_hash_expiry_command(zval*             object,
     const char* final_condition = condition_str ? condition_str : condition;
 
     // Validate field count based on command type
-    if (cmd_type == HSetEx && (num_args < 2 || num_args % 2 != 0)) {
-        return 0;  // HSetEx needs field-value pairs
-    } else if (cmd_type == HExpire && num_args < 1) {
+    if (cmd_type == HExpire && num_args < 1) {
         return 0;  // HExpire needs at least one field
     }
 
