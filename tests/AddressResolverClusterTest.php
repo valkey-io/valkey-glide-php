@@ -412,6 +412,35 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
         $this->assertFalse(@$clientA->ping('allPrimaries'), 'B\'s destructor must have closed client A');
     }
 
+    /**
+     * updateConnectionPassword() with immediate auth makes two core calls. If
+     * the first runs a resolver that closes the client, the second must not
+     * get a closed handle.
+     */
+    public function testCloseClientFromLazyClientResolverOnUpdateConnectionPassword()
+    {
+        $this->skipIfTlsEnabled();
+
+        $realHost = $this->getHost();
+        $realPort = $this->getPort();
+        $client = null;
+        $resolver = function (string $host, int $port) use ($realHost, $realPort, &$client): array {
+            $client?->close();
+            return ['host' => $realHost, 'port' => $realPort];
+        };
+        $client = new ValkeyGlideCluster(
+            addresses: [['host' => 'fake.nonexistent', 'port' => 9999]],
+            credentials: $this->getAuth(),
+            lazy_connect: true,
+            address_resolver: $resolver,
+        );
+
+        $this->assertThrows(
+            ValkeyGlideException::class,
+            fn () => $client->updateConnectionPassword('resolver_closed', true)
+        );
+    }
+
     public function testNullAddressResolverConnectsNormally()
     {
         $this->skipIfTlsEnabled();

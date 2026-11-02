@@ -2828,6 +2828,13 @@ void execute_update_connection_password(zval*             object,
         }
         if (stored)
             free_command_result(stored);
+        /* The resolver may also have closed this client */
+        if (!valkey_glide->glide_client) {
+            zend_throw_exception(get_valkey_glide_exception_ce(),
+                                 "Invalid client object or client connection handle is NULL",
+                                 0);
+            return;
+        }
     }
 
     /* Call FFI function */
