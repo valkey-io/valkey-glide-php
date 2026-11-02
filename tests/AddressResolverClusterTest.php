@@ -225,7 +225,19 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
         $this->closeClientFromResolver(true);
     }
 
-    private function closeClientFromResolver(bool $lazy): void
+    /**
+     * Pub/sub commands call the core directly, not through the command
+     * helpers, and must close them too.
+     */
+    public function testCloseClientFromLazyClientResolverOnPublish()
+    {
+        $this->closeClientFromResolver(
+            true,
+            fn (ValkeyGlideCluster $client) => $this->assertIsInt($client->publish('resolver_closed_' . uniqid(), 'x'))
+        );
+    }
+
+    private function closeClientFromResolver(bool $lazy, ?callable $firstCommand = null): void
     {
         $this->skipIfTlsEnabled();
 
@@ -281,10 +293,16 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
             $this->assertNull($clientB, 'Resolver A must have closed client B');
             $this->assertTrue($state->released, 'Client B must be closed when the constructor returns');
         }
-        /* A lazy client runs resolver A from this first command */
-        $this->assertConnected($clientA);
+        /* A lazy client runs resolver A from this first command; check before
+         * another command closes B anyway */
+        if ($firstCommand) {
+            $firstCommand($clientA);
+        } else {
+            $this->assertConnected($clientA);
+        }
         $this->assertNull($clientB, 'Resolver A must have closed client B');
         $this->assertTrue($state->released, 'Client B must be closed when the call that ran resolver A returns');
+        $this->assertConnected($clientA);
 
         /* The server sees B's connections go once they are closed */
         $deadline = microtime(true) + 2;

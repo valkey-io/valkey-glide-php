@@ -466,14 +466,19 @@ struct CommandResult* pubsub_command(const void*          connection,
                                      const uintptr_t*     args,
                                      const unsigned long* args_len) {
     valkey_glide_prefixed_args_t prefixed;
+    struct CommandResult*        result;
     if (valkey_glide_prefix_client_args(
             connection, command_type, arg_count, args, args_len, &prefixed)) {
-        struct CommandResult* result = command(
+        result = command(
             connection, 0, command_type, arg_count, prefixed.args, prefixed.args_len, NULL, 0, 0);
         valkey_glide_prefixed_args_free(&prefixed);
-        return result;
+    } else {
+        result = command(connection, 0, command_type, arg_count, args, args_len, NULL, 0, 0);
     }
-    return command(connection, 0, command_type, arg_count, args, args_len, NULL, 0, 0);
+    /* A lazy client's resolver may have closed clients while it ran; drain before a
+     * subscribe() blocks */
+    valkey_glide_run_deferred_closes();
+    return result;
 }
 
 // Common subscribe blocking loop

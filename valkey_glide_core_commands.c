@@ -2799,6 +2799,8 @@ void execute_update_connection_password(zval*             object,
     if (immediate_auth) {
         CommandResult* stored =
             update_connection_password(valkey_glide->glide_client, 0, password, false);
+        /* A lazy client's resolver may have closed clients while it ran */
+        valkey_glide_run_deferred_closes();
         if (stored && !stored->command_error && stored->response &&
             stored->response->response_type == Ok) {
             update_saved_request_password(valkey_glide, password);
@@ -2813,6 +2815,8 @@ void execute_update_connection_password(zval*             object,
                                    0, /* request_id - using 0 for synchronous call */
                                    password,
                                    immediate_auth);
+    /* A lazy client's resolver may have closed clients while it ran */
+    valkey_glide_run_deferred_closes();
 
     /* Check result */
     if (!result) {
@@ -2889,6 +2893,8 @@ void execute_refresh_iam_token(zval* object, zval* return_value, zend_class_entr
     /* Call FFI function */
     CommandResult* result = refresh_iam_token(valkey_glide->glide_client,
                                               0); /* request_id - using 0 for synchronous call */
+    /* A lazy client's resolver may have closed clients while it ran */
+    valkey_glide_run_deferred_closes();
 
     /* Check result */
     if (!result) {
