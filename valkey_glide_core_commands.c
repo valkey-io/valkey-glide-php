@@ -767,6 +767,23 @@ bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
                                                         valkey_glide->resolver_cb,
                                                         0);
 
+    /* The resolver may have closed this client while it ran, queueing the resolver the new
+     * client uses: close the new client before the queue frees it */
+    if (!valkey_glide->glide_client) {
+        if (conn_resp && !conn_resp->connection_error_message) {
+            close_glide_client(conn_resp->conn_ptr);
+        }
+        if (conn_resp) {
+            free_connection_response((ConnectionResponse*) conn_resp);
+        }
+        efree(request_bytes);
+        valkey_glide_run_deferred_closes();
+        valkey_glide_set_last_error(valkey_glide, "OPT_SLAVE_FAILOVER: client is closed");
+        return false;
+    }
+    /* The resolver may have closed other clients while it ran */
+    valkey_glide_run_deferred_closes();
+
     if (!conn_resp) {
         valkey_glide_set_last_error(valkey_glide,
                                     "OPT_SLAVE_FAILOVER: failed to create client: no connection "

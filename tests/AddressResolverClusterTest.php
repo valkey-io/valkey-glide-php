@@ -319,6 +319,42 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
         $clientA->close();
     }
 
+    /**
+     * OPT_SLAVE_FAILOVER creates a new core client with the object's resolver.
+     * If that resolver closes the object, the new client must not stay open on
+     * the resolver the close frees.
+     */
+    public function testCloseClientFromResolverDuringSlaveFailover()
+    {
+        $this->skipIfTlsEnabled();
+
+        $realHost = $this->getHost();
+        $realPort = $this->getPort();
+        $client = null;
+        $armed = false;
+        $resolver = function (string $host, int $port) use ($realHost, $realPort, &$client, &$armed): array {
+            if ($armed) {
+                $armed = false;
+                $client->close();
+            }
+            return ['host' => $realHost, 'port' => $realPort];
+        };
+        $client = new ValkeyGlideCluster(
+            addresses: [['host' => 'fake.nonexistent', 'port' => 9999]],
+            credentials: $this->getAuth(),
+            address_resolver: $resolver,
+        );
+        $this->assertConnected($client);
+
+        $armed = true;
+        $this->assertFalse(
+            $client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE)
+        );
+        $this->assertFalse($armed, 'The resolver must have run');
+        $this->assertEquals('OPT_SLAVE_FAILOVER: client is closed', $client->getLastError());
+        $this->assertFalse(@$client->ping('allPrimaries'), 'The client must stay closed');
+    }
+
     public function testNullAddressResolverConnectsNormally()
     {
         $this->skipIfTlsEnabled();
