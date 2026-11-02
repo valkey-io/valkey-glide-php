@@ -511,12 +511,8 @@ int prepare_h_hfe_args(h_command_args_t* args,
                    allocated_count);
 
     // field => value pairs; numeric keys are sent as their string form
-    int end_idx = process_field_value_pairs(args->field_values,
-                                            *args_out,
-                                            *args_len_out,
-                                            arg_idx,
-                                            *allocated_strings,
-                                            allocated_count);
+    int end_idx = process_field_value_pairs(
+        args->field_values, *args_out, *args_len_out, arg_idx, *allocated_strings, allocated_count);
     if (end_idx != arg_count) {
         // Caller frees the arrays and tracked strings on failure
         return 0;
@@ -610,9 +606,8 @@ int prepare_h_field_only_args(h_command_args_t* args,
                               unsigned long**   args_len_out,
                               char***           allocated_strings,
                               int*              allocated_count) {
-    h_arg_config_t config = {.needs_expiry         = false,
-                             .needs_condition      = false,
-                             .needs_fields_keyword = true};
+    h_arg_config_t config = {
+        .needs_expiry = false, .needs_condition = false, .needs_fields_keyword = true};
     return prepare_h_args_unified(
         args, args_out, args_len_out, allocated_strings, allocated_count, &config);
 }
@@ -2558,8 +2553,7 @@ int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_clas
     zval*                z_expiry = NULL;
 
     if (zend_parse_method_parameters(
-            argc, object, "Osa|a!", &object, ce, &key, &key_len, &z_fields, &z_expiry) ==
-        FAILURE) {
+            argc, object, "Osa|a!", &object, ce, &key, &key_len, &z_fields, &z_expiry) == FAILURE) {
         return 0;
     }
 
