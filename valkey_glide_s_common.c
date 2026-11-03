@@ -1870,6 +1870,8 @@ int execute_cluster_scan_command(const void* glide_client,
     /* Call request_cluster_scan FFI function directly */
     CommandResult* result =
         request_cluster_scan(glide_client, 0, *cursor, arg_count, args, args_len);
+    /* A lazy client's resolver may have closed clients while it ran */
+    valkey_glide_run_deferred_closes();
 
     int success = 0;
 
