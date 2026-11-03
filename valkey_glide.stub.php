@@ -3543,15 +3543,26 @@ class ValkeyGlide
      * ['KEEPTTL' => true]            ValkeyGlide will not update the key's current TTL.
      * ['XX']                         Only set the key if it already exists.
      * ['NX']                         Only set the key if it doesn't exist.
+     * ['IFEQ' => 'old']              Only set the key if its current value equals 'old'
+     *                                (Valkey 8.1+). Does not set a missing key.
+     * ['IFNE' => 'old']              Only set the key if its current value differs from 'old'
+     *                                (Valkey 9.2+). A missing key is set.
      * ['GET']                        Instead of returning `+OK` return the previous value of the
      *                                key or NULL if the key didn't exist.
+     *
+     * IFEQ and IFNE are mutually exclusive with each other (the last one given is used) and
+     * with NX/XX (a warning is raised and false is returned), as in PHPRedis. They can be
+     * combined with GET and the expiry options. The comparison value may be a string or any
+     * scalar, which is converted to a string. They are not supported with compression enabled.
      *
      * @return ValkeyGlide|string|bool True if the key was set or false on failure.
      *
      * @see https://valkey.io/commands/set
      * @see https://valkey.io/commands/setex
+     * @see https://glide.valkey.io/concepts/client-features/compression/
      *
      * @example $valkey_glide->set('key', 'value');
+     * @example $valkey_glide->set('key', 'new', ['IFNE' => 'old']);
      * @example $valkey_glide->set('key', 'expires_in_60_seconds', 60);
      */
     public function set(string $key, mixed $value, mixed $options = null): ValkeyGlide|string|bool;

@@ -1261,6 +1261,9 @@ int execute_set_command_internal(valkey_glide_object* valkey_glide,
     if (opts) {
         if (parse_set_options(opts, &args.options) == 0) {
             /* If parsing failed, return error */
+            if (args.options.if_value_owned) {
+                zend_string_release(args.options.if_value_owned);
+            }
             return 0;
         }
     }
@@ -1275,7 +1278,16 @@ int execute_set_command_internal(valkey_glide_object* valkey_glide,
     struct set_result_data* result_data = emalloc(sizeof(struct set_result_data));
     result_data->has_get                = args.options.get_old_value;
 
-    return execute_core_command(valkey_glide, &args, result_data, process_set_result, return_value);
+    int set_result =
+        execute_core_command(valkey_glide, &args, result_data, process_set_result, return_value);
+
+    /* The command arguments have been consumed (batch mode copies them), so the converted
+     * IFEQ/IFNE comparison value can be released now. */
+    if (args.options.if_value_owned) {
+        zend_string_release(args.options.if_value_owned);
+    }
+
+    return set_result;
 }
 
 /* Execute a SETEX command using the Valkey Glide client */

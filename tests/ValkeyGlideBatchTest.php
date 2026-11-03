@@ -250,6 +250,35 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals(0, $this->valkey_glide->exists($key));
     }
 
+    public function testSetIfNeBatch()
+    {
+        if (!$this->minVersionCheck('9.2.0')) {
+            $this->markTestSkipped('SET IFNE requires Valkey 9.2.0+ (current: ' . $this->version . ')');
+        }
+
+        $key = '{xyz}batch_setifne_' . uniqid();
+        $missingKey = '{xyz}batch_setifne_missing_' . uniqid();
+
+        $this->valkey_glide->set($key, 'value');
+
+        // Equal (not set), different (set), different with GET, non-string scalar, missing key (set)
+        $results = $this->valkey_glide->multi()
+            ->set($key, 'new1', ['IFNE' => 'value'])
+            ->set($key, 'new1', ['IFNE' => 'other'])
+            ->set($key, 'new2', ['IFNE' => 'other', 'GET'])
+            ->set($key, '7', ['IFNE' => 7])
+            ->set($missingKey, 'created', ['IFNE' => 'other'])
+            ->exec();
+
+        $this->assertEquals([false, true, 'new1', true, true], $results);
+
+        // Verify server-side effects
+        $this->assertEquals('7', $this->valkey_glide->get($key));
+        $this->assertEquals('created', $this->valkey_glide->get($missingKey));
+
+        $this->valkey_glide->del($key, $missingKey);
+    }
+
     // ===================================================================
     // HASH OPERATIONS BATCH TESTS
     // ===================================================================

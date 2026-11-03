@@ -860,6 +860,73 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals('bar2', $this->valkey_glide->set('foo', 'bar3', ['IFEQ' => 'bar2', 'GET']));
     }
 
+    /* Test Valkey >= 9.2 IFNE SET option */
+    public function testValkeyIfNe()
+    {
+        if (! $this->is_valkey || ! $this->minVersionCheck('9.2.0')) {
+            $this->markTestSkipped();
+        }
+
+        $this->valkey_glide->del('foo');
+
+        // Missing key: IFNE matches, so the key is set (unlike IFEQ)
+        $this->assertTrue($this->valkey_glide->set('foo', 'bar', ['IFNE' => 'other']));
+        $this->assertEquals('bar', $this->valkey_glide->get('foo'));
+
+        // Equal value: not set
+        $this->assertFalse($this->valkey_glide->set('foo', 'bar2', ['IFNE' => 'bar']));
+        $this->assertEquals('bar', $this->valkey_glide->get('foo'));
+
+        // Different value: set
+        $this->assertTrue($this->valkey_glide->set('foo', 'bar2', ['IFNE' => 'bar3']));
+        $this->assertEquals('bar2', $this->valkey_glide->get('foo'));
+
+        // Lower-case option name, as with the other options
+        $this->assertTrue($this->valkey_glide->set('foo', 'bar4', ['ifne' => 'bar3']));
+
+        // GET returns the previous value
+        $this->assertEquals('bar4', $this->valkey_glide->set('foo', 'bar5', ['IFNE' => 'bar3', 'GET']));
+        $this->assertEquals('bar5', $this->valkey_glide->get('foo'));
+
+        // Expiry options can be combined
+        $this->assertTrue($this->valkey_glide->set('foo', 'bar6', ['IFNE' => 'bar', 'EX' => 100]));
+        $ttl = $this->valkey_glide->ttl('foo');
+        $this->assertTrue($ttl > 0 && $ttl <= 100);
+
+        // Non-string scalar comparison values are converted to strings (PHPRedis behaviour)
+        $this->assertTrue($this->valkey_glide->set('num', '1'));
+        $this->assertFalse($this->valkey_glide->set('num', '2', ['IFNE' => 1]));
+        $this->assertTrue($this->valkey_glide->set('num', '2', ['IFNE' => 2]));
+
+        $this->valkey_glide->del('foo');
+        $this->valkey_glide->del('num');
+    }
+
+    /* IFEQ/IFNE can't be combined with NX/XX or with array comparison values */
+    public function testValkeyIfEqIfNeInvalidCombinations()
+    {
+        if (! $this->is_valkey || ! $this->minVersionCheck('8.1.0')) {
+            $this->markTestSkipped();
+        }
+
+        $this->valkey_glide->del('foo');
+        $this->assertTrue($this->valkey_glide->set('foo', 'bar'));
+
+        foreach (['IFEQ', 'IFNE'] as $cond) {
+            foreach (['NX', 'XX'] as $flag) {
+                $this->assertFalse(@$this->valkey_glide->set('foo', 'baz', [$cond => 'x', $flag]));
+            }
+            $this->assertFalse(@$this->valkey_glide->set('foo', 'baz', [$cond => ['x']]));
+        }
+
+        // IFEQ with a non-string scalar is converted to a string
+        $this->assertTrue($this->valkey_glide->set('foo', '42'));
+        $this->assertTrue($this->valkey_glide->set('foo', 'baz', ['IFEQ' => 42]));
+
+        $this->assertEquals('baz', $this->valkey_glide->get('foo'));
+        $this->valkey_glide->del('foo');
+    }
+
     public function testGetSet()
     {
         $this->valkey_glide->del('key');
