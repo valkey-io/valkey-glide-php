@@ -69,31 +69,35 @@ typedef struct {
 
 /* Common command options */
 typedef struct {
-    char*  ifeq_value; /* IFEQ comparison value */
-    size_t ifeq_len;   /* IFEQ value length */
-    long   expire_seconds;
-    long   expire_milliseconds;
-    long   expire_at_seconds;      /* EXAT - expire at unix timestamp in seconds */
-    long   expire_at_milliseconds; /* PXAT - expire at unix timestamp in milliseconds */
-    long   start;
-    long   end;
-    long   offset;
-    long   count;
-    int    has_expire;
-    int    has_pexpire;
-    int    has_exat;
-    int    has_pxat;
-    int    nx; /* Only if not exists */
-    int    xx; /* Only if exists */
-    int    ch; /* Changed flag */
-    int    has_range;
-    int    has_limit;
-    int    get_old_value; /* GET flag for SET commands */
-    int    keep_ttl;      /* KEEPTTL flag for SET commands */
-    int    bybit;         /* BYBIT flag for bit commands */
-    int    approximate;   /* ~ flag for approximate operations */
-    int    persist;       /* PERSIST flag for GETEX commands */
-    int    has_ifeq;      /* IFEQ flag */
+    char*  if_value; /* IFEQ/IFNE comparison value */
+    size_t if_len;   /* IFEQ/IFNE value length */
+    /* Owned copy of the comparison value when the PHP value is not a string. Released by the
+     * caller of parse_set_options(); NULL when if_value points into the PHP string. */
+    zend_string* if_value_owned;
+    long         expire_seconds;
+    long         expire_milliseconds;
+    long         expire_at_seconds;      /* EXAT - expire at unix timestamp in seconds */
+    long         expire_at_milliseconds; /* PXAT - expire at unix timestamp in milliseconds */
+    long         start;
+    long         end;
+    long         offset;
+    long         count;
+    int          has_expire;
+    int          has_pexpire;
+    int          has_exat;
+    int          has_pxat;
+    int          nx; /* Only if not exists */
+    int          xx; /* Only if exists */
+    int          ch; /* Changed flag */
+    int          has_range;
+    int          has_limit;
+    int          get_old_value; /* GET flag for SET commands */
+    int          keep_ttl;      /* KEEPTTL flag for SET commands */
+    int          bybit;         /* BYBIT flag for bit commands */
+    int          approximate;   /* ~ flag for approximate operations */
+    int          persist;       /* PERSIST flag for GETEX commands */
+    int          has_ifeq;      /* IFEQ flag: SET only if the current value equals if_value */
+    int          has_ifne;      /* IFNE flag: SET only if the current value differs from if_value */
 } core_options_t;
 
 /* Argument allocation type */
