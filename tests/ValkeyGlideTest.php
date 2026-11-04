@@ -988,7 +988,17 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         foreach (['IFEQ', 'IFNE'] as $cond) {
             foreach (['NX', 'XX'] as $flag) {
-                $this->assertFalse(@$this->valkey_glide->set('foo', 'baz', [$cond => 'x', $flag]));
+                $warning = '';
+                set_error_handler(function (int $errno, string $errstr) use (&$warning): bool {
+                    $warning = $errstr;
+                    return true;
+                }, E_WARNING);
+                $result = $this->valkey_glide->set('foo', 'baz', [$cond => 'x', $flag]);
+                restore_error_handler();
+
+                $this->assertFalse($result, "$cond $flag");
+                $this->assertTrue(str_contains($warning, "IF clauses can't be combined with NX/XX"), "$cond $flag");
+                $this->assertEquals('bar', $this->valkey_glide->get('foo'), "$cond $flag");
             }
             $this->assertFalse(@$this->valkey_glide->set('foo', 'baz', [$cond => ['x']]));
         }
