@@ -2050,7 +2050,58 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     public function testOptReplyLiteralConstant()
     {
         $this->assertTrue(defined('ValkeyGlide::OPT_REPLY_LITERAL'));
-        $this->assertEquals(1, ValkeyGlide::OPT_REPLY_LITERAL);
+        $this->assertEquals(8, ValkeyGlide::OPT_REPLY_LITERAL); // Same as PHPRedis
+    }
+
+    public function testOptReplyLiteralLegacyValue()
+    {
+        // 1 was OPT_REPLY_LITERAL before it moved to the PHPRedis value 8. setOption() still accepts it
+        // with a bool value and emits E_DEPRECATED; an int value is PHPRedis OPT_SERIALIZER and is
+        // rejected. getOption(1) stays quiet, since PHPRedis code reads OPT_SERIALIZER that way.
+        $deprecations = [];
+        set_error_handler(function (int $errno, string $errstr) use (&$deprecations): bool {
+            $deprecations[] = $errstr;
+            return true;
+        }, E_DEPRECATED);
+
+        try {
+            $this->assertTrue($this->valkey_glide->setOption(1, true));
+            $this->assertTrue($this->valkey_glide->getOption(ValkeyGlide::OPT_REPLY_LITERAL));
+            $this->assertTrue($this->valkey_glide->getOption(1));
+            $this->assertEquals(1, count($deprecations));
+
+            $this->assertFalse($this->valkey_glide->setOption(1, 1)); // Redis::SERIALIZER_PHP
+            $this->assertFalse($this->valkey_glide->setOption(1, 0)); // Redis::SERIALIZER_NONE
+            $this->assertTrue($this->valkey_glide->getOption(ValkeyGlide::OPT_REPLY_LITERAL));
+            $this->assertEquals(1, count($deprecations));
+
+            $this->assertTrue($this->valkey_glide->setOption(1, false));
+            $this->assertFalse($this->valkey_glide->getOption(ValkeyGlide::OPT_REPLY_LITERAL));
+            $this->assertFalse($this->valkey_glide->getOption(1));
+            $this->assertEquals(2, count($deprecations));
+        } finally {
+            restore_error_handler();
+            $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+        }
+    }
+
+    public function testOptReplyLiteralLegacyValueThrowingHandler()
+    {
+        // An error handler that throws on the deprecation notice makes setOption(1, ...) throw, and the
+        // setting must stay as it was.
+        set_error_handler(function (int $errno, string $errstr): bool {
+            throw new ErrorException($errstr, 0, $errno);
+        }, E_DEPRECATED);
+
+        try {
+            $this->assertThrowsMatch($this->valkey_glide, function (ValkeyGlide $client) {
+                $client->setOption(1, true);
+            }, '/Option 1 is deprecated/');
+            $this->assertFalse($this->valkey_glide->getOption(ValkeyGlide::OPT_REPLY_LITERAL));
+        } finally {
+            restore_error_handler();
+            $this->valkey_glide->setOption(ValkeyGlide::OPT_REPLY_LITERAL, false);
+        }
     }
 
     public function testSetOptionGetOption()
@@ -2404,6 +2455,30 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $client->set($key, $data);
             $result = $client->append($key, ' suffix');
             $this->assertFalse($result, 'APPEND should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionBlockedDelIfEq()
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('DELIFEQ requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $client = $this->getCompressedClient();
+        // Keep the value below the compression threshold so a regression that removes the
+        // compression guard would make DELIFEQ match and delete the key.
+        $data = 'delifeq_data';
+        $key = 'compression_blocked_delifeq_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+            $this->assertTrue($client->clearLastError());
+            $result = $client->delIfEq($key, $data);
+            $this->assertFalse($result, 'DELIFEQ should return false when compression is enabled');
+            $this->assertStringContains('incompatible with compression', (string) $client->getLastError());
+            $this->assertEquals($data, $client->get($key), 'DELIFEQ should not delete the key when compression is enabled');
         } finally {
             $client->del($key);
         }

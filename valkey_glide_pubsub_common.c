@@ -7,6 +7,7 @@
 #include <zend_exceptions.h>
 
 #include "logger.h"
+#include "valkey_glide_prefix.h"
 
 // PubSub message type constants (from PushKind enum)
 #define PUBSUB_KIND_MESSAGE 3
@@ -264,7 +265,7 @@ void pubsub_callback_handler(uintptr_t      client_ptr,
 
     mutex_lock(&pubsub_callbacks_mutex);
     pubsub_callback_info* info = zend_hash_str_find_ptr(&pubsub_callbacks, client_key, key_len);
-    if (!info || !info->is_active) {
+    if (!info) {
         mutex_unlock(&pubsub_callbacks_mutex);
         return;
     }
@@ -278,6 +279,12 @@ void pubsub_callback_handler(uintptr_t      client_ptr,
     size_t size =
         (size_t) channel_len + (size_t) message_len + (has_pattern ? (size_t) pattern_len : 0);
     mutex_lock(&info->queue_mutex);
+    // is_active is written by the PHP thread under queue_mutex
+    if (!info->is_active) {
+        mutex_unlock(&info->queue_mutex);
+        mutex_unlock(&pubsub_callbacks_mutex);
+        return;
+    }
     bool room = info->queue_depth == 0 || (info->queue_depth < PUBSUB_QUEUE_MAX_DEPTH &&
                                            info->queue_bytes <= PUBSUB_QUEUE_MAX_BYTES &&
                                            size <= PUBSUB_QUEUE_MAX_BYTES - info->queue_bytes);
@@ -375,9 +382,12 @@ void php_register_pubsub_callback(uintptr_t client_ptr, zval* callback, zval* cl
     info->client_closed     = false;
     info->owner_thread      = current_thread_id();
 
-    // Store the pointer, replacing (and then freeing) any earlier entry
-    pubsub_callback_info* previous = take_pubsub_callback(client_key, key_len);
+    // Store the pointer, replacing any earlier entry in the same critical
+    // section (so the push callback never finds the key missing in between),
+    // then free the old entry outside the mutex
+    pubsub_callbacks_after_fork();
     mutex_lock(&pubsub_callbacks_mutex);
+    pubsub_callback_info* previous = zend_hash_str_find_ptr(&pubsub_callbacks, client_key, key_len);
     zend_hash_str_update_ptr(&pubsub_callbacks, client_key, key_len, info);
     mutex_unlock(&pubsub_callbacks_mutex);
     cleanup_callback_info(previous);
@@ -446,6 +456,29 @@ bool is_client_in_subscribe_mode(uintptr_t client_ptr) {
 
     pubsub_callback_info* info = find_pubsub_callback(client_key);
     return info ? info->in_subscribe_mode : false;
+}
+
+// Send a pub/sub command with the client's OPT_PREFIX applied to its channels,
+// as PHPRedis does; these commands call the FFI directly, not execute_command()
+struct CommandResult* pubsub_command(const void*          connection,
+                                     enum RequestType     command_type,
+                                     unsigned long        arg_count,
+                                     const uintptr_t*     args,
+                                     const unsigned long* args_len) {
+    valkey_glide_prefixed_args_t prefixed;
+    struct CommandResult*        result;
+    if (valkey_glide_prefix_client_args(
+            connection, command_type, arg_count, args, args_len, &prefixed)) {
+        result = command(
+            connection, 0, command_type, arg_count, prefixed.args, prefixed.args_len, NULL, 0, 0);
+        valkey_glide_prefixed_args_free(&prefixed);
+    } else {
+        result = command(connection, 0, command_type, arg_count, args, args_len, NULL, 0, 0);
+    }
+    /* A lazy client's resolver may have closed clients while it ran; drain before a
+     * subscribe() blocks */
+    valkey_glide_run_deferred_closes();
+    return result;
 }
 
 // Common subscribe blocking loop
@@ -603,7 +636,7 @@ static int execute_subscribe_command(const void*      connection,
     args_len[item_count] = timeout_len;
 
     struct CommandResult* result =
-        command(connection, 0, subscribe_type, total_args, args, args_len, NULL, 0, 0);
+        pubsub_command(connection, subscribe_type, total_args, args, args_len);
 
     efree(args);
     efree(args_len);
@@ -675,7 +708,7 @@ static void execute_unsubscribe_command(const void*      connection,
         args_len[item_count] = 1;
 
         struct CommandResult* result =
-            command(connection, 0, unsubscribe_type, total_args, args, args_len, NULL, 0, 0);
+            pubsub_command(connection, unsubscribe_type, total_args, args, args_len);
 
         efree(args);
         efree(args_len);
@@ -701,8 +734,10 @@ static void execute_unsubscribe_command(const void*      connection,
             ZEND_HASH_FOREACH_END();
 
             if (zend_hash_num_elements(info->subscribed_channels) == 0) {
+                mutex_lock(&info->queue_mutex);
                 info->is_active = false;
                 cond_signal(&info->queue_cond);
+                mutex_unlock(&info->queue_mutex);
             }
         }
     } else {
@@ -710,7 +745,7 @@ static void execute_unsubscribe_command(const void*      connection,
         unsigned long args_len[1] = {1};
 
         struct CommandResult* result =
-            command(connection, 0, unsubscribe_type, 1, args, args_len, NULL, 0, 0);
+            pubsub_command(connection, unsubscribe_type, 1, args, args_len);
         if (result) {
             if (result->command_error && result->command_error->command_error_message) {
                 VALKEY_LOG_ERROR(command_name, result->command_error->command_error_message);
@@ -724,8 +759,10 @@ static void execute_unsubscribe_command(const void*      connection,
         pubsub_callback_info* info = find_pubsub_callback(client_key);
         if (info) {
             zend_hash_clean(info->subscribed_channels);
+            mutex_lock(&info->queue_mutex);
             info->is_active = false;
             cond_signal(&info->queue_cond);
+            mutex_unlock(&info->queue_mutex);
         }
     }
 }
@@ -850,7 +887,7 @@ void valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connect
 
     // Call FFI command
     struct CommandResult* result =
-        command(connection, 0, REQUEST_TYPE_PUBLISH, 2, args, args_len, NULL, 0, 0);
+        pubsub_command(connection, REQUEST_TYPE_PUBLISH, 2, args, args_len);
 
     if (result) {
         if (result->response && !result->command_error) {

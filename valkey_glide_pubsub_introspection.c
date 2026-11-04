@@ -8,6 +8,7 @@
 #include "logger.h"
 #include "php.h"
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_pubsub_common.h"
 #include "zend_exceptions.h"
 
 void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection) {
@@ -45,6 +46,8 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
                     NULL,
                     0,
                     0);
+        /* A lazy client's resolver may have closed clients while it ran */
+        valkey_glide_run_deferred_closes();
         if (args)
             efree(args);
         if (args_len)
@@ -90,15 +93,11 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
         ZEND_HASH_FOREACH_END();
 
         struct CommandResult* result =
-            command(connection,
-                    0,
-                    (enum RequestType) COMMAND_REQUEST__REQUEST_TYPE__PubSubNumSub,
-                    argc,
-                    args,
-                    args_len,
-                    NULL,
-                    0,
-                    0);
+            pubsub_command(connection,
+                           (enum RequestType) COMMAND_REQUEST__REQUEST_TYPE__PubSubNumSub,
+                           argc,
+                           args,
+                           args_len);
         efree(args);
         efree(args_len);
 
@@ -141,6 +140,8 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
                     NULL,
                     0,
                     0);
+        /* A lazy client's resolver may have closed clients while it ran */
+        valkey_glide_run_deferred_closes();
         if (args)
             efree(args);
         if (args_len)
@@ -180,6 +181,8 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
                     NULL,
                     0,
                     0);
+        /* A lazy client's resolver may have closed clients while it ran */
+        valkey_glide_run_deferred_closes();
 
         if (result && result->response && !result->command_error) {
             command_response_to_zval(result->response, return_value, 0, false);

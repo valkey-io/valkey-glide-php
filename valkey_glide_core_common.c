@@ -242,6 +242,7 @@ int prepare_core_args(core_command_args_t* args,
         case Copy:
         case Decr:
         case DecrBy:
+        case DelIfEq:
         case GetEx:
         case GetSet:
         case Incr:
@@ -261,7 +262,7 @@ int prepare_core_args(core_command_args_t* args,
         case Del:
         case Unlink:
             /* Check if single key or multi-key operation */
-            if (args->key && args->key_len > 0 && args->arg_count == 0) {
+            if (args->key && args->arg_count == 0) {
                 /* Single key: DEL key */
 
                 return prepare_key_only_args(args, cmd_args, cmd_args_len);
@@ -279,7 +280,7 @@ int prepare_core_args(core_command_args_t* args,
         case Touch:
         case Watch:
             /* Check if single key or multi-key operation */
-            if (args->key && args->key_len > 0 && args->arg_count == 0) {
+            if (args->key && args->arg_count == 0) {
                 /* Single key: PFCOUNT key */
                 return prepare_key_only_args(args, cmd_args, cmd_args_len);
             } else if (args->arg_count > 0 && args->args[0].type == CORE_ARG_TYPE_ARRAY) {
@@ -388,7 +389,7 @@ int prepare_zero_args(core_command_args_t* args,
 int prepare_key_only_args(core_command_args_t* args,
                           uintptr_t**          cmd_args,
                           unsigned long**      cmd_args_len) {
-    if (!args->key || args->key_len == 0) {
+    if (!args->key) {
         return 0;
     }
 
@@ -410,7 +411,7 @@ int prepare_key_value_args(core_command_args_t* args,
                            unsigned long**      cmd_args_len,
                            char***              allocated_strings,
                            int*                 allocated_count) {
-    if (!args->key || args->key_len == 0) {
+    if (!args->key) {
         return 0;
     }
     /* Calculate total argument count */
@@ -847,7 +848,7 @@ int prepare_bit_operation_args(core_command_args_t* args,
                                unsigned long**      cmd_args_len,
                                char***              allocated_strings,
                                int*                 allocated_count) {
-    if (!args->key || args->key_len == 0) {
+    if (!args->key) {
         return 0;
     }
 
@@ -999,7 +1000,7 @@ int prepare_expire_args(core_command_args_t* args,
                         unsigned long**      cmd_args_len,
                         char***              allocated_strings,
                         int*                 allocated_count) {
-    if (!args->key || args->key_len == 0 || args->arg_count == 0) {
+    if (!args->key || args->arg_count == 0) {
         return 0;
     }
 
@@ -1055,7 +1056,7 @@ int prepare_range_args(core_command_args_t* args,
                        unsigned long**      cmd_args_len,
                        char***              allocated_strings,
                        int*                 allocated_count) {
-    if (!args->key || args->key_len == 0) {
+    if (!args->key) {
         return 0;
     }
 

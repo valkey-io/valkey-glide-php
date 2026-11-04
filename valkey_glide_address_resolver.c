@@ -3,9 +3,24 @@
 #include "valkey_glide_address_resolver.h"
 
 #include <ffi.h>
+#include <pthread.h>
 #include <stdatomic.h>
+#include <stdlib.h>
 #include <string.h>
 #include <zend_exceptions.h>
+
+/* Upper bound on cached resolutions per client; a cluster has far fewer nodes */
+#define RESOLVER_CACHE_MAX 1024
+
+/* An address the PHP callable resolved, replayed for calls from other threads */
+typedef struct resolver_cache_entry {
+    char*    host;
+    size_t   host_len;
+    uint16_t port;
+    char*    resolved_host;
+    size_t   resolved_host_len;
+    uint16_t resolved_port;
+} resolver_cache_entry_t;
 
 typedef struct resolver_closure {
     zval                     callable;
@@ -13,10 +28,24 @@ typedef struct resolver_closure {
     ffi_closure*             closure;
     void*                    fn_ptr;
     atomic_int               closed; /* 1 = client closed, callback becomes no-op */
+    pthread_t                owner;  /* PHP thread that created the client */
+    pthread_mutex_t          cache_lock;
+    resolver_cache_entry_t*  cache;
+    size_t                   cache_len;
+    size_t                   cache_cap;
     struct resolver_closure* next;
 } resolver_closure_t;
 
-static resolver_closure_t* g_closures = NULL;
+/* Closures of this thread's clients (per thread under ZTS) */
+ZEND_TLS resolver_closure_t* g_closures = NULL;
+
+/* PHP resolver callables running on this thread. They run inside the core's
+ * block_on(), where dropping a client does not wait for its threads */
+ZEND_TLS int g_resolver_depth = 0;
+
+bool valkey_glide_resolver_in_callable(void) {
+    return g_resolver_depth > 0;
+}
 
 static ffi_type* arg_types[7] = {
     &ffi_type_pointer, /* usize client_id - using pointer type for ABI compat (same size on 64-bit)
@@ -29,6 +58,194 @@ static ffi_type* arg_types[7] = {
     &ffi_type_pointer, /* uintptr_t *resolved_host_len */
 };
 
+/* Caller holds cache_lock */
+static resolver_cache_entry_t* resolver_cache_find(resolver_closure_t* ctx,
+                                                   const uint8_t*      host,
+                                                   size_t              host_len,
+                                                   uint16_t            port) {
+    for (size_t i = 0; i < ctx->cache_len; i++) {
+        resolver_cache_entry_t* entry = &ctx->cache[i];
+        if (entry->port == port && entry->host_len == host_len &&
+            memcmp(entry->host, host, host_len) == 0) {
+            return entry;
+        }
+    }
+    return NULL;
+}
+
+/* Record a resolution made on the owner thread. Uses malloc, not the Zend
+ * allocator, because other threads read the cache. */
+static void resolver_cache_store(resolver_closure_t* ctx,
+                                 const uint8_t*      host,
+                                 size_t              host_len,
+                                 uint16_t            port,
+                                 const char*         resolved_host,
+                                 size_t              resolved_host_len,
+                                 uint16_t            resolved_port) {
+    char* resolved_copy = malloc(resolved_host_len);
+    if (!resolved_copy)
+        return;
+    memcpy(resolved_copy, resolved_host, resolved_host_len);
+
+    pthread_mutex_lock(&ctx->cache_lock);
+    resolver_cache_entry_t* entry = resolver_cache_find(ctx, host, host_len, port);
+    if (entry) {
+        free(entry->resolved_host);
+        entry->resolved_host     = resolved_copy;
+        entry->resolved_host_len = resolved_host_len;
+        entry->resolved_port     = resolved_port;
+        pthread_mutex_unlock(&ctx->cache_lock);
+        return;
+    }
+
+    char* host_copy = NULL;
+    if (ctx->cache_len < RESOLVER_CACHE_MAX && (host_copy = malloc(host_len ? host_len : 1))) {
+        if (ctx->cache_len == ctx->cache_cap) {
+            size_t                  cap   = ctx->cache_cap ? ctx->cache_cap * 2 : 8;
+            resolver_cache_entry_t* grown = realloc(ctx->cache, cap * sizeof(*grown));
+            if (grown) {
+                ctx->cache     = grown;
+                ctx->cache_cap = cap;
+            }
+        }
+        if (ctx->cache_len < ctx->cache_cap) {
+            memcpy(host_copy, host, host_len);
+            ctx->cache[ctx->cache_len++] = (resolver_cache_entry_t){
+                .host              = host_copy,
+                .host_len          = host_len,
+                .port              = port,
+                .resolved_host     = resolved_copy,
+                .resolved_host_len = resolved_host_len,
+                .resolved_port     = resolved_port,
+            };
+            pthread_mutex_unlock(&ctx->cache_lock);
+            return;
+        }
+    }
+    pthread_mutex_unlock(&ctx->cache_lock);
+    free(host_copy);
+    free(resolved_copy);
+}
+
+/* Answer a call from a thread other than the owner from the cache. Returns the
+ * resolved port, or 0 (use the original address) when the address is not cached. */
+static uint16_t resolver_cache_lookup(resolver_closure_t* ctx,
+                                      const uint8_t*      host,
+                                      size_t              host_len,
+                                      uint16_t            port,
+                                      uint8_t*            out_buf,
+                                      size_t              buf_len,
+                                      uintptr_t*          written) {
+    uint16_t resolved_port = 0;
+    pthread_mutex_lock(&ctx->cache_lock);
+    resolver_cache_entry_t* entry = resolver_cache_find(ctx, host, host_len, port);
+    /* Always true today: entries are only stored when they fit the buffer the
+     * owner thread was given, and the core always passes 1024 bytes. Kept in
+     * case the core ever passes buffers of different sizes. */
+    if (entry && entry->resolved_host_len < buf_len) {
+        memcpy(out_buf, entry->resolved_host, entry->resolved_host_len);
+        *written      = entry->resolved_host_len;
+        resolved_port = entry->resolved_port;
+    }
+    pthread_mutex_unlock(&ctx->cache_lock);
+    return resolved_port;
+}
+
+/* Free the cache. Only safe once no core thread can call this resolver: a
+ * background thread could otherwise read freed entries, and destroying
+ * cache_lock while another thread holds it is undefined.
+ *
+ * Nothing here enforces that. Callers rely on the core having dropped the
+ * client (close_client() returned, or create_client() failed), which drops its
+ * Tokio runtime, and that Drop blocks until the runtime's worker threads have
+ * stopped (https://docs.rs/tokio/latest/tokio/runtime/struct.Runtime.html#shutdown).
+ * close_client() does not document that it joins the background threads; it
+ * is a side effect, and it only holds while all of these do:
+ * - close_client() releases the last reference to the core's ClientAdapter.
+ *   It only decrements the strong count; the client and its runtimes are
+ *   dropped there only when nothing else holds one. In the core today the
+ *   other references are taken per call (execute_command(), batch() and the
+ *   like) and, for a sync client, dropped before that call returns, which is
+ *   before this PHP thread can call close_client(). The pub/sub task keeps a
+ *   raw pointer, not a reference, and the periodic checks and reconnects are
+ *   tasks on the runtimes, not owners of them.
+ * - ClientAdapter's Drop is not running inside a Tokio runtime, and the client
+ *   has no credential provider callback (PHP passes none). Otherwise the core
+ *   uses shutdown_background(), which does not wait. A PHP resolver callable
+ *   runs inside the core's block_on(), so closing or destroying another client
+ *   from inside one would not wait for that client's threads.
+ *   valkey_glide_close_client() defers such a close until no callable runs,
+ *   and valkey_glide_resolver_release() keeps the resolver of a client whose
+ *   creation failed inside one.
+ * If any of these stops holding, a background thread can still be inside
+ * resolver_cache_lookup() reading the memory freed here. */
+static void resolver_cache_free(resolver_closure_t* ctx) {
+    for (size_t i = 0; i < ctx->cache_len; i++) {
+        free(ctx->cache[i].host);
+        free(ctx->cache[i].resolved_host);
+    }
+    free(ctx->cache);
+    pthread_mutex_destroy(&ctx->cache_lock);
+}
+
+/* Call the PHP callable on the thread that owns it. Returns the resolved port,
+ * or 0 to keep the original address */
+static uint16_t resolve_with_callable(resolver_closure_t* ctx,
+                                      const uint8_t*      host,
+                                      uintptr_t           host_len,
+                                      uint16_t            port,
+                                      uint8_t*            out_buf,
+                                      uintptr_t           buf_len,
+                                      uintptr_t*          written) {
+    zval args_z[2], retval;
+    ZVAL_UNDEF(&retval); /* Initialize retval before use */
+    ZVAL_STRINGL(&args_z[0], (const char*) host, host_len);
+    ZVAL_LONG(&args_z[1], port);
+
+    int call_result = call_user_function(NULL, NULL, &ctx->callable, &retval, 2, args_z);
+    zval_ptr_dtor(&args_z[0]);
+    zval_ptr_dtor(&args_z[1]);
+
+    if (EG(exception)) {
+        zend_clear_exception();
+        zval_ptr_dtor(&retval); /* Safe to call on ZVAL_UNDEF */
+        return 0;
+    }
+    if (call_result != SUCCESS || Z_TYPE(retval) != IS_ARRAY) {
+        zval_ptr_dtor(&retval);
+        return 0;
+    }
+
+    zval* host_zv = zend_hash_str_find(Z_ARRVAL(retval), "host", 4);
+    if (!host_zv)
+        host_zv = zend_hash_index_find(Z_ARRVAL(retval), 0);
+    zval* port_zv = zend_hash_str_find(Z_ARRVAL(retval), "port", 4);
+    if (!port_zv)
+        port_zv = zend_hash_index_find(Z_ARRVAL(retval), 1);
+
+    if (!host_zv || !port_zv || Z_TYPE_P(host_zv) != IS_STRING) {
+        zval_ptr_dtor(&retval);
+        return 0;
+    }
+
+    size_t rlen = Z_STRLEN_P(host_zv);
+    if (rlen == 0 || rlen >= buf_len) {
+        zval_ptr_dtor(&retval);
+        return 0;
+    }
+
+    memcpy(out_buf, Z_STRVAL_P(host_zv), rlen);
+    *written = rlen;
+
+    zend_long rport = zval_get_long(port_zv);
+    zval_ptr_dtor(&retval);
+    if (rport <= 0 || rport > 65535)
+        return 0;
+
+    resolver_cache_store(ctx, host, host_len, port, (const char*) out_buf, rlen, (uint16_t) rport);
+    return (uint16_t) rport;
+}
+
 static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void* userdata) {
     resolver_closure_t* ctx = (resolver_closure_t*) userdata;
 
@@ -40,15 +257,6 @@ static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void
         *(uint16_t*) ret = 0;
         return;
     }
-
-    /*
-     * THREAD SAFETY: The Rust FFI layer invokes this callback synchronously
-     * during create_client() and during reconnection attempts. PHP's Zend Engine
-     * is not thread-safe; all Zend API calls here (call_user_function, EG, etc.)
-     * must only execute on the PHP request thread. This is guaranteed by the
-     * Glide sync client (SyncClient type) which blocks the calling thread for
-     * all operations including reconnects.
-     */
 
     /* client_id is args[0] but we don't need it - PHP uses closure userdata for routing */
     const uint8_t* host     = *(const uint8_t**) args[1];
@@ -63,52 +271,25 @@ static void generic_resolver_callback(ffi_cif* cif, void* ret, void** args, void
     if (buf_len == 0 || !written)
         return;
 
-    zval args_z[2], retval;
-    ZVAL_UNDEF(&retval); /* Initialize retval before use */
-    ZVAL_STRINGL(&args_z[0], (const char*) host, host_len);
-    ZVAL_LONG(&args_z[1], port);
-
-    int call_result = call_user_function(NULL, NULL, &ctx->callable, &retval, 2, args_z);
-    zval_ptr_dtor(&args_z[0]);
-    zval_ptr_dtor(&args_z[1]);
-
-    if (EG(exception)) {
-        zend_clear_exception();
-        zval_ptr_dtor(&retval); /* Safe to call on ZVAL_UNDEF */
-        return;
-    }
-    if (call_result != SUCCESS || Z_TYPE(retval) != IS_ARRAY) {
-        zval_ptr_dtor(&retval);
+    /*
+     * THREAD SAFETY: The core calls this during create_client() on the PHP
+     * thread, but cluster clients also call it from background threads (the
+     * periodic topology check, reconnects). PHP's Zend Engine is not
+     * thread-safe, so the PHP callable (call_user_function, EG, the Zend
+     * allocator) only runs on the thread that created the client. Other
+     * threads get the result the callable last returned for the same address,
+     * or the original address if it was never resolved on the PHP thread.
+     */
+    if (!pthread_equal(pthread_self(), ctx->owner)) {
+        *(uint16_t*) ret =
+            resolver_cache_lookup(ctx, host, host_len, port, out_buf, buf_len, written);
         return;
     }
 
-    zval* host_zv = zend_hash_str_find(Z_ARRVAL(retval), "host", 4);
-    if (!host_zv)
-        host_zv = zend_hash_index_find(Z_ARRVAL(retval), 0);
-    zval* port_zv = zend_hash_str_find(Z_ARRVAL(retval), "port", 4);
-    if (!port_zv)
-        port_zv = zend_hash_index_find(Z_ARRVAL(retval), 1);
-
-    if (!host_zv || !port_zv || Z_TYPE_P(host_zv) != IS_STRING) {
-        zval_ptr_dtor(&retval);
-        return;
-    }
-
-    size_t rlen = Z_STRLEN_P(host_zv);
-    if (rlen == 0 || rlen >= buf_len) {
-        zval_ptr_dtor(&retval);
-        return;
-    }
-
-    memcpy(out_buf, Z_STRVAL_P(host_zv), rlen);
-    *written = rlen;
-
-    zend_long rport = zval_get_long(port_zv);
-    zval_ptr_dtor(&retval);
-    if (rport <= 0 || rport > 65535)
-        return;
-
-    *(uint16_t*) ret = (uint16_t) rport;
+    /* Count until every PHP value is freed, since freeing one can close a client too */
+    g_resolver_depth++;
+    *(uint16_t*) ret = resolve_with_callable(ctx, host, host_len, port, out_buf, buf_len, written);
+    g_resolver_depth--;
 }
 
 AddressResolverCallback valkey_glide_resolver_acquire(zval* callable) {
@@ -119,6 +300,8 @@ AddressResolverCallback valkey_glide_resolver_acquire(zval* callable) {
 
     ZVAL_COPY(&ctx->callable, callable);
     atomic_init(&ctx->closed, 0);
+    ctx->owner = pthread_self();
+    pthread_mutex_init(&ctx->cache_lock, NULL);
 
     ctx->closure = ffi_closure_alloc(sizeof(ffi_closure), &ctx->fn_ptr);
     if (!ctx->closure)
@@ -139,6 +322,7 @@ AddressResolverCallback valkey_glide_resolver_acquire(zval* callable) {
 fail:
     if (ctx->closure)
         ffi_closure_free(ctx->closure);
+    resolver_cache_free(ctx);
     zval_ptr_dtor(&ctx->callable);
     pefree(ctx, 1);
     return NULL;
@@ -166,8 +350,18 @@ void valkey_glide_resolver_release(AddressResolverCallback cb) {
     while (*pp) {
         resolver_closure_t* cur = *pp;
         if ((AddressResolverCallback) cur->fn_ptr == cb) {
+            /* Inside a resolver callable the core drops a client whose
+             * creation failed with shutdown_background(), so its threads can
+             * still be in this resolver. Nothing reports when they stop: keep
+             * the closure and cache for the life of the process. It stays
+             * closed, and request shutdown drops its callable. Closes are
+             * deferred instead, see valkey_glide_close_client() */
+            if (g_resolver_depth > 0)
+                return;
             *pp = cur->next;
             ffi_closure_free(cur->closure);
+            /* Relies on the core having stopped its threads; see resolver_cache_free() */
+            resolver_cache_free(cur);
             zval_ptr_dtor(&cur->callable);
             pefree(cur, 1);
             return;
@@ -176,14 +370,28 @@ void valkey_glide_resolver_release(AddressResolverCallback cb) {
     }
 }
 
-void valkey_glide_resolver_shutdown(void) {
+void valkey_glide_resolver_request_shutdown(void) {
+    /* A bailout out of a callable skips its decrement, and none runs now */
+    g_resolver_depth = 0;
+
+    /* A client still open here (a static property, for example) is closed
+     * later, by shutdown_executor(), and its core threads may call the
+     * resolver until then: keep the closure, but make it fall back to the
+     * original address and drop the callable while the request is alive.
+     * The client's close frees the rest. */
+    /* Releasing a callable can free a client it captured, which releases that
+     * client's closure: restart from the head after each one */
     resolver_closure_t* cur = g_closures;
     while (cur) {
-        resolver_closure_t* next = cur->next;
-        ffi_closure_free(cur->closure);
-        zval_ptr_dtor(&cur->callable);
-        pefree(cur, 1);
-        cur = next;
+        atomic_store(&cur->closed, 1);
+        if (Z_ISUNDEF(cur->callable)) {
+            cur = cur->next;
+            continue;
+        }
+        zval callable;
+        ZVAL_COPY_VALUE(&callable, &cur->callable);
+        ZVAL_UNDEF(&cur->callable);
+        zval_ptr_dtor(&callable);
+        cur = g_closures;
     }
-    g_closures = NULL;
 }

@@ -22,6 +22,7 @@
 #include "ext/standard/md5.h"
 #include "logger.h"
 #include "valkey_glide_commands_common.h"
+#include "valkey_glide_prefix.h"
 #include "zend_smart_str.h"
 
 #define VALKEY_GLIDE_PERSISTENT_RESOURCE_NAME "Valkey GLIDE persistent client"
@@ -151,6 +152,8 @@ bool valkey_glide_persistent_begin(valkey_glide_object*                      val
             valkey_glide->persistent_dirty    = false;
             valkey_glide->persistent_watching = false;
             valkey_glide->persistent_selected = false;
+            /* Commands look the object (and its OPT_PREFIX) up from the handle */
+            valkey_glide_prefix_track_client(entry->client, valkey_glide);
             VALKEY_LOG_DEBUG("persistent_client", "Reusing persistent client");
             return true;
         }
@@ -300,6 +303,10 @@ void valkey_glide_release_client(valkey_glide_object* valkey_glide, bool closing
     if (!valkey_glide->glide_client) {
         return;
     }
+
+    /* The object no longer answers for the handle; a kept client is tracked
+     * again by the object that reuses it */
+    valkey_glide_prefix_untrack_client(valkey_glide->glide_client);
 
     if (valkey_glide->persistent) {
         persistent_release(valkey_glide, closing || valkey_glide->persistent_dirty);

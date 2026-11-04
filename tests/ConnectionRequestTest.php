@@ -562,8 +562,30 @@ class ConnectionRequestTest extends \TestSuite
             periodic_checks: ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS
         );
 
+        // Neither oneof member is set, so the core applies its default interval.
+        // Sending a manual interval of 0 seconds made the core run topology checks
+        // back-to-back (issue #344).
         $this->assertFalse($request->hasPeriodicChecksDisabled());
-        $this->assertTrue($request->hasPeriodicChecksManualInterval());
+        $this->assertFalse($request->hasPeriodicChecksManualInterval());
+        $this->assertEquals('', $request->getPeriodicChecks());
+    }
+
+    public function testClusterPeriodicChecksNull()
+    {
+        $request = ClientConstructorMock::simulate_cluster_constructor(periodic_checks: null);
+
+        $this->assertFalse($request->hasPeriodicChecksDisabled());
+        $this->assertFalse($request->hasPeriodicChecksManualInterval());
+        $this->assertEquals('', $request->getPeriodicChecks());
+    }
+
+    public function testStandalonePeriodicChecksNotSet()
+    {
+        $request = ClientConstructorMock::simulate_standalone_constructor();
+
+        $this->assertFalse($request->hasPeriodicChecksDisabled());
+        $this->assertFalse($request->hasPeriodicChecksManualInterval());
+        $this->assertEquals('', $request->getPeriodicChecks());
     }
 
     public function testClusterRefreshTopologyFromInitialNodesDefault()

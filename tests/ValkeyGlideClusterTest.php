@@ -74,6 +74,7 @@ defined('VALKEY_GLIDE_PHP_TESTRUN') or die("Use TestValkeyGlide.php to run tests
 
 require_once __DIR__ . "/ValkeyGlideTest.php";
 require_once __DIR__ . '/TestConstants.php';
+require_once __DIR__ . "/ValkeyGlideClusterClientTrait.php";
 
 /**
  * Most ValkeyGlideCluster tests should work the same as the standard ValkeyGlide object
@@ -82,6 +83,8 @@ require_once __DIR__ . '/TestConstants.php';
  */
 class ValkeyGlideClusterTest extends ValkeyGlideTest
 {
+    use ValkeyGlideClusterClientTrait;
+
     private array $valkey_glide_types = [
         ValkeyGlide::VALKEY_GLIDE_STRING,
         ValkeyGlide::VALKEY_GLIDE_SET,
@@ -426,30 +429,10 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
-    /* Override newInstance as we want a ValkeyGlideCluster object */
+    /* Override newInstance as we want a ValkeyGlideCluster object with multi-database support */
     protected function newInstance(): ValkeyGlideCluster
     {
-        try {
-            return new ValkeyGlideCluster(
-                addresses: [['host' => '127.0.0.1', 'port' => 7001]],
-                use_tls: false,
-                credentials: $this->getAuth(),
-                read_from: ValkeyGlide::READ_FROM_PRIMARY,
-                request_timeout: null,
-                reconnect_strategy: null,
-                client_name: null,
-                periodic_checks: null,
-                client_az: null,
-                advanced_config: null,
-                lazy_connect: null,
-                database_id: 0 // enable multi-database support
-            );
-        } catch (Exception $ex) {
-            TestSuite::errorMessage("Fatal error: %s\n", $ex->getMessage());
-            //TestSuite::errorMessage("Seeds: %s\n", implode(' ', self::$seeds));
-            TestSuite::errorMessage("Seed source: %s\n", self::$seed_source);
-            exit(1);
-        }
+        return $this->newClusterInstance(0);
     }
 
     /* Override getPort to return cluster port */
@@ -504,6 +487,29 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->valkey_glide->del('some-prefix:some-item');
     }
 
+    /* A key route is prefixed like a key, so the command reaches the node that owns the prefixed key */
+    public function testPrefixRouteKey()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $node = fn ($client, $route) => $client->rawcommand($route, 'CLUSTER', 'MYID');
+
+        /* A key whose own slot lives on a different node than its prefixed form */
+        $key = null;
+        for ($i = 0; $i < 100 && $key === null; $i++) {
+            if ($node($raw, "route_{$i}") !== $node($raw, "{$p}route_{$i}")) {
+                $key = "route_{$i}";
+            }
+        }
+        $this->assertNotNull($key);
+
+        $client = $this->newPrefixedInstance();
+        $expected = $node($raw, "{$p}{$key}");
+        $this->assertEquals($expected, $node($client, $key));
+        $this->assertEquals($expected, $node($client, ['type' => 'primarySlotKey', 'key' => $key]));
+        $client->close();
+    }
+
     public function testDBSize()
     {
         for ($i = 0; $i < 10; $i++) {
@@ -544,6 +550,14 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             }
         }
         return false;
+    }
+
+    /**
+     * Override for cluster - cancel pending/in-progress saves on every node.
+     */
+    protected function cancelBgSave(): mixed
+    {
+        return @$this->valkey_glide->bgSave('allNodes', 'CANCEL');
     }
 
     public function testBgSave()
@@ -669,7 +683,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         });
 
         if ($this->minVersionCheck('8.1.0')) {
-            $this->waitForSaveNotInProgress();
+            $this->waitForNoPendingSave();
 
             $this->withOptReplyLiteralEnabled(function () {
                 $this->assertBgSaveCancelReturnsFalse('allPrimaries');
@@ -706,7 +720,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
 
         if ($this->minVersionCheck('8.1.0')) {
-            $this->waitForSaveNotInProgress();
+            $this->waitForNoPendingSave();
 
             $this->valkey_glide->pipeline();
             $this->valkey_glide->bgSave('allPrimaries', 'CANCEL');
@@ -803,6 +817,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
     }
 
     public function testMigrateEmptyKeys()
+    {
+        $this->markTestSkipped('Multi-key migration not supported in cluster mode');
+    }
+
+    public function testPrefixMigrateMultiKey()
     {
         $this->markTestSkipped('Multi-key migration not supported in cluster mode');
     }
@@ -2272,6 +2291,47 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }, '/already connected/');
         $this->assertTrue($client->ping('{key}'));
         $client->close();
+    }
+
+    public function testEmptyOrDiscardedMultiReportsFailedUnwatch()
+    {
+        $this->markTestSkipped('Needs the same ACL user on every node');
+    }
+
+    /* Collect every key matching $pattern across all primaries using cluster SCAN */
+    /* A failed SCAN (here an unknown cursor id) returns false; it used to
+     * corrupt the heap by freeing a string literal */
+    public function testScanInvalidCursor()
+    {
+        $this->assertFalse($this->valkey_glide->scan(new ClusterScanCursor('no-such-cursor-id')));
+        $this->assertTrue($this->valkey_glide->ping('{key}'));
+    }
+
+    protected function scanPages($client, string $pattern, int $count): array
+    {
+        $pages = [];
+        $cursor = new ClusterScanCursor();
+        do {
+            $batch = $client->scan($cursor, $pattern, $count);
+            $pages[] = is_array($batch) ? $batch : [];
+            $cursor = new ClusterScanCursor($cursor->getNextCursor());
+        } while (!$cursor->isFinished());
+        return $pages;
+    }
+
+    protected function scanAllKeys($client, ?string $pattern): array
+    {
+        $keys = [];
+        $cursor = new ClusterScanCursor();
+        do {
+            $batch = $client->scan($cursor, $pattern, 1000);
+            if (is_array($batch)) {
+                $keys = array_merge($keys, $batch);
+            }
+            $cursor = new ClusterScanCursor($cursor->getNextCursor());
+        } while (!$cursor->isFinished());
+        sort($keys);
+        return $keys;
     }
 
     /* Test that rawCommand and EVAL can be configured to return simple string values */

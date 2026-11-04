@@ -27,6 +27,7 @@
 #include "valkey_glide_core_common.h"
 #include "valkey_glide_hash_common.h"
 #include "valkey_glide_persistent.h"
+#include "valkey_glide_prefix.h"
 #include "valkey_glide_z_common.h"
 
 /* Helper functions for batch state management */
@@ -212,6 +213,14 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
         }
     }
 
+    /* Apply OPT_PREFIX now; the prefixed arguments are copied below */
+    valkey_glide_prefixed_args_t prefixed;
+    if (valkey_glide_prefix_command_args(
+            valkey_glide, cmd_type, arg_count, args, arg_lengths, &prefixed)) {
+        args        = prefixed.args;
+        arg_lengths = prefixed.args_len;
+    }
+
     struct batch_command* cmd = &valkey_glide->buffered_commands[valkey_glide->command_count];
 
     /* Store command details */
@@ -228,24 +237,22 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
 
         uintptr_t i;
         for (i = 0; i < arg_count; i++) {
-            if (args[i] && arg_lengths[i] > 0) {
-                cmd->args[i] = (uint8_t*) emalloc(arg_lengths[i] + 1);
-                if (cmd->args[i]) {
-                    memcpy(cmd->args[i], ((uint8_t**) args)[i], arg_lengths[i]);
-                    cmd->args[i][arg_lengths[i]] = '\0';
-                    cmd->arg_lengths[i]          = arg_lengths[i];
-                } else {
-                    cmd->arg_lengths[i] = 0;
-                }
-            } else {
-                cmd->args[i]        = NULL;
-                cmd->arg_lengths[i] = 0;
+            /* Allocate even for empty arguments: the FFI builds a slice from each
+             * pointer, and Rust requires a non-null pointer even for length 0 */
+            uintptr_t len       = args[i] ? arg_lengths[i] : 0;
+            cmd->args[i]        = (uint8_t*) emalloc(len + 1);
+            cmd->arg_lengths[i] = len;
+            if (len > 0) {
+                memcpy(cmd->args[i], ((uint8_t**) args)[i], len);
             }
+            cmd->args[i][len] = '\0';
         }
     } else {
         cmd->args        = NULL;
         cmd->arg_lengths = NULL;
     }
+
+    valkey_glide_prefixed_args_free(&prefixed);
 
     valkey_glide->command_count++;
     return 1;
@@ -600,7 +607,7 @@ int execute_function_command(zval* object, int argc, zval* return_value, zend_cl
 
             /* Use shared internal helper */
             return execute_function_load_internal(
-                valkey_glide, library_code, library_code_len, replace, return_value);
+                object, valkey_glide, library_code, library_code_len, replace, return_value);
         } else if (strcasecmp(operation, "DELETE") == 0) {
             /* DELETE expects: library_name */
             if (args_count < 1) {
@@ -893,7 +900,65 @@ int execute_pipeline_command(zval* object, int argc, zval* return_value, zend_cl
     return initialize_batch_mode(valkey_glide, PIPELINE, object, return_value);
 }
 
+/* Track whether the server may still hold a WATCH after a batch executes. The flag is
+ * only cleared once the server has ended the watch, since OPT_SLAVE_FAILOVER relies on it
+ * to avoid dropping the watched connection. */
+static void update_watch_state(valkey_glide_object*  valkey_glide,
+                               bool                  is_atomic,
+                               bool                  is_cluster,
+                               struct CommandResult* result) {
+    bool executed = result && !result->command_error;
+
+    if (is_atomic) {
+        /* The server ends every WATCH when it runs EXEC, including EXEC aborted by a watched
+         * key. A batch rejected before EXEC (a cross-slot transaction, a connection error)
+         * leaves the watch in place. In a cluster EXEC runs on one node, while WATCH went to
+         * the primary of each watched key's slot: the others keep theirs until unwatch(). */
+        if (executed && !is_cluster)
+            valkey_glide->is_watching = false;
+        return;
+    }
+
+    /* Pipeline commands run in order: the last WATCH or UNWATCH to execute decides */
+    bool have_responses = executed && result->response &&
+                          result->response->response_type == Array &&
+                          result->response->array_value_len == valkey_glide->command_count;
+    for (size_t i = 0; i < valkey_glide->command_count; i++) {
+        enum RequestType type = valkey_glide->buffered_commands[i].request_type;
+        if (type == Watch) {
+            valkey_glide->is_watching = true;
+        } else if (type == UnWatch && have_responses &&
+                   result->response->array_value[i].response_type != Error) {
+            valkey_glide->is_watching = false;
+        }
+    }
+}
+
 /* Execute a DISCARD command using the Valkey Glide client - UPDATED FOR BUFFERING */
+/* MULTI is buffered client-side, so a transaction that never reaches the server
+ * (empty, or discarded) must clear WATCH itself, as the server's EXEC/DISCARD would.
+ * UNWATCH is routed to all primaries in cluster mode. Returns false if it failed;
+ * the error is available from getLastError(). */
+static bool unwatch_for_client_side_transaction(valkey_glide_object* valkey_glide) {
+    CommandResult* result = execute_command(valkey_glide->glide_client, UnWatch, 0, NULL, NULL);
+    bool           ok     = result && !result->command_error;
+    if (ok) {
+        /* No primary holds a watch any more, so OPT_SLAVE_FAILOVER may recreate the client */
+        valkey_glide->persistent_watching = false;
+        valkey_glide->is_watching         = false;
+    } else {
+        if (result) {
+            valkey_glide_record_command_error(valkey_glide, result);
+        } else {
+            valkey_glide_set_last_error(valkey_glide, "UNWATCH failed");
+        }
+    }
+    if (result) {
+        free_command_result(result);
+    }
+    return ok;
+}
+
 int execute_discard_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
 
@@ -911,7 +976,12 @@ int execute_discard_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Clear batch state if we're in batch mode */
     if (valkey_glide->is_in_batch_mode) {
+        bool is_multi = valkey_glide->batch_type == MULTI;
         valkey_glide_clear_batch_state(valkey_glide);
+        if (is_multi && !unwatch_for_client_side_transaction(valkey_glide)) {
+            ZVAL_FALSE(return_value);
+            return 0;
+        }
         ZVAL_TRUE(return_value);
         return 1;
     } else {
@@ -937,9 +1007,21 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     }
 
     /* Check if we're in batch mode and have buffered commands */
-    if (!valkey_glide->is_in_batch_mode || valkey_glide->command_count == 0) {
+    if (!valkey_glide->is_in_batch_mode) {
         ZVAL_FALSE(return_value);
         return 0;
+    }
+
+    /* An empty multi()/pipeline() returns an empty array and leaves batch mode, as in PHPRedis */
+    if (valkey_glide->command_count == 0) {
+        bool is_multi = valkey_glide->batch_type == MULTI;
+        valkey_glide_clear_batch_state(valkey_glide);
+        if (is_multi && !unwatch_for_client_side_transaction(valkey_glide)) {
+            ZVAL_FALSE(return_value);
+            return 0;
+        }
+        array_init(return_value);
+        return 1;
     }
 
     /* Convert buffered commands to FFI BatchInfo structure */
@@ -989,6 +1071,11 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
                                          NULL,  /* options */
                                          0      /* span_ptr */
     );
+    /* A lazy client's resolver may have closed clients while it ran */
+    valkey_glide_run_deferred_closes();
+
+    update_watch_state(
+        valkey_glide, batch_info.is_atomic, ce == get_valkey_glide_cluster_ce(), result);
 
     /* Free CmdInfo structures */
     for (i = 0; i < valkey_glide->command_count; i++) {
@@ -1293,7 +1380,7 @@ int execute_restore_command(zval* object, int argc, zval* return_value, zend_cla
     /* If we have a Glide client, use it */
     if (valkey_glide->glide_client) {
         /* Check if key and serialized value are valid */
-        if (!key || key_len <= 0 || !serialized || serialized_len <= 0) {
+        if (!key || !serialized || serialized_len <= 0) {
             return 0;
         }
 
@@ -2080,6 +2167,17 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
     return 0;
 }
 
+/* Whether a rawcommand() route sends the command to every primary. A cluster UNWATCH routed
+ * to one node leaves the watches held on the other primaries in place. */
+static bool rawcommand_route_reaches_all_primaries(zval* route) {
+    if (!route)
+        return true; /* Standalone: the single connection holds every watch */
+
+    return Z_TYPE_P(route) == IS_STRING &&
+           (zend_string_equals_literal_ci(Z_STR_P(route), "allPrimaries") ||
+            zend_string_equals_literal_ci(Z_STR_P(route), "allNodes"));
+}
+
 /* Execute rawcommand command */
 int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -2143,10 +2241,42 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
         }
     }
 
+    /* A raw (P|S)SUBSCRIBE can subscribe on the server even when the call reports failure, and
+     * nothing records it for OPT_SLAVE_FAILOVER to refuse recreating the client. Without a
+     * channel the server rejects it, so there is nothing to record */
+    if (arg_count > 1 && Z_TYPE(z_args[0]) == IS_STRING &&
+        (zend_string_equals_literal_ci(Z_STR(z_args[0]), "SUBSCRIBE") ||
+         zend_string_equals_literal_ci(Z_STR(z_args[0]), "PSUBSCRIBE") ||
+         zend_string_equals_literal_ci(Z_STR(z_args[0]), "SSUBSCRIBE")))
+        valkey_glide->raw_subscribed = true;
+
     /* Execute the raw command using the Glide client */
     if (execute_rawcommand_command_internal(
             valkey_glide->glide_client, z_args, arg_count, return_value, route)) {
-        /* Return value already set in execute_rawcommand_command */
+        /* Return value already set in execute_rawcommand_command. A raw WATCH or UNWATCH
+         * changes the watch state just like watch() and unwatch() */
+        if (Z_TYPE(z_args[0]) == IS_STRING) {
+            if (zend_string_equals_literal_ci(Z_STR(z_args[0]), "WATCH"))
+                valkey_glide->is_watching = true;
+            else if (zend_string_equals_literal_ci(Z_STR(z_args[0]), "UNWATCH") &&
+                     rawcommand_route_reaches_all_primaries(route))
+                valkey_glide->is_watching = false;
+            /* The core keeps the state these set, on any route, for its reconnects, so a
+             * client recreated by OPT_SLAVE_FAILOVER must keep it too */
+            else if (zend_string_equals_literal_ci(Z_STR(z_args[0]), "SELECT") ||
+                     zend_string_equals_literal_ci(Z_STR(z_args[0]), "AUTH") ||
+                     zend_string_equals_literal_ci(Z_STR(z_args[0]), "HELLO") ||
+                     zend_string_equals_literal_ci(Z_STR(z_args[0]), "CLIENT") ||
+                     zend_string_equals_literal_ci(Z_STR(z_args[0]), "RESET")) {
+                zend_string** words = safe_emalloc(arg_count, sizeof(zend_string*), 0);
+                for (int i = 0; i < arg_count; i++)
+                    words[i] = zval_get_string(&z_args[i]);
+                valkey_glide_track_connection_command(valkey_glide, words, arg_count);
+                for (int i = 0; i < arg_count; i++)
+                    zend_string_release(words[i]);
+                efree(words);
+            }
+        }
         return 1;
     }
 

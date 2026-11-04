@@ -18,7 +18,7 @@ on:
 jobs:
   validate-version:
     name: Validate Version Consistency
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -27,7 +27,7 @@ jobs:
         uses: ./.github/workflows/validate-version
 
   get-matrices:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       engine-matrix-output: ${{ steps.get-matrices.outputs.engine-matrix-output }}
       host-matrix-output: ${{ steps.get-matrices.outputs.host-matrix-output }}
@@ -351,7 +351,7 @@ jobs:
   test-pie-install-from-packagist:
     name: PIE Install from Packagist
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

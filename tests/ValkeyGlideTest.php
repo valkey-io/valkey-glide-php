@@ -105,6 +105,20 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     ];
 
     /**
+     * Lua script that returns the value of the key passed as KEYS[1].
+     */
+    protected const GET_KEY_SCRIPT = "return redis.call('GET', KEYS[1])";
+
+    /**
+     * Function library ECHO_ARG_LIBRARY_NAME registering ECHO_ARG_FUNCTION_NAME,
+     * which returns its first argument.
+     */
+    protected const ECHO_ARG_LIBRARY_NAME = 'echoarglib';
+    protected const ECHO_ARG_FUNCTION_NAME = 'echo_arg';
+    protected const ECHO_ARG_LIBRARY_CODE = "#!lua name=echoarglib\n" .
+        "redis.register_function('echo_arg', function(keys, args) return args[1] end)";
+
+    /**
      * Shared destination client for migrate tests.
      */
     protected ?ValkeyGlide $migrateDestClient = null;
@@ -112,6 +126,27 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     protected function getMigrateDestClient(): ValkeyGlide
     {
         if ($this->migrateDestClient === null) {
+            $this->waitFor(function () {
+                @exec('valkey-cli -p ' . self::MIGRATE_DEST_PORT . ' REPLICAOF NO ONE 2>/dev/null');
+                $c = new ValkeyGlide();
+                try {
+                    $c->connect(
+                        addresses: [['host' => '127.0.0.1', 'port' => self::MIGRATE_DEST_PORT]],
+                        node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STATIC
+                    );
+                    $info = @$c->info('REPLICATION');
+                    if (!is_array($info) || ($info['role'] ?? '') !== 'master') {
+                        @$c->replicaof();
+                        return false;
+                    }
+                    return true;
+                } catch (Throwable) {
+                    return false;
+                } finally {
+                    @$c->close();
+                }
+            }, 15, "Destination server on port " . self::MIGRATE_DEST_PORT . " is not ready as primary");
+
             $this->migrateDestClient = new ValkeyGlide();
             $this->migrateDestClient->connect(
                 addresses: [['host' => '127.0.0.1', 'port' => self::MIGRATE_DEST_PORT]]
@@ -839,6 +874,91 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($this->valkey_glide->set('key', 'iexist'));
         $this->assertEquals('iexist', $this->valkey_glide->getDel('key'));
         $this->assertEquals(0, $this->valkey_glide->exists('key'));
+    }
+
+    /**
+     * An empty string is a valid key, value, member and list element, and must be
+     * sent to the server rather than treated as a missing argument.
+     * https://github.com/valkey-io/valkey-glide-php/issues/392
+     */
+    public function testEmptyStringKeysAndValues()
+    {
+        $r = $this->valkey_glide;
+        $r->del('', '{e}a', '{e}b');
+
+        /* Strings, and key-only, bit, range and expire commands on the empty key */
+        $this->assertTrue($r->set('', 'v'));
+        $this->assertEquals('v', $r->get(''));
+        $this->assertEquals(1, $r->exists(''));
+        $this->assertEquals(2, $r->append('', 'w'));
+        $this->assertEquals(2, $r->strlen(''));
+        $this->assertEquals('v', $r->getRange('', 0, 0));
+        $this->assertEquals(1, $r->getBit('', 1));
+        $this->assertTrue($r->expire('', 100));
+        $this->assertBetween($r->ttl(''), 1, 100);
+        $this->assertTrue($r->persist(''));
+        $this->assertEquals('vw', $r->getSet('', ''));
+        $this->assertEquals('', $r->get(''));
+        $dump = $r->dump('');
+        $this->assertEquals(1, $r->del(''));
+        $this->assertTrue($r->restore('', 0, $dump));
+        $this->assertEquals('', $r->getDel(''));
+        $this->assertEquals(1, $r->incr(''));
+        $this->assertEquals(1, $r->del(''));
+
+        /* Lists: empty key, empty elements, empty pivot */
+        $this->assertEquals(2, $r->rPush('', '', 'a'));
+        $this->assertEquals(0, $r->lPos('', ''));
+        $this->assertEquals(3, $r->lInsert('', 'AFTER', '', ''));
+        $this->assertEquals(['', '', 'a'], $r->lRange('', 0, -1));
+        $this->assertEquals(2, $r->lRem('', '', 0));
+        $this->assertEquals('a', $r->lMove('', '', 'LEFT', 'RIGHT'));
+        $this->assertEquals(1, $r->lLen(''));
+        $this->assertEquals('a', $r->lPop(''));
+
+        /* Sets: empty key, empty members */
+        $this->assertEquals(2, $r->sAdd('', '', 'm'));
+        $this->assertTrue($r->sIsMember('', ''));
+        $this->assertEquals(2, $r->sCard(''));
+        $it = null;
+        $members = $r->sscan('', $it);
+        sort($members);
+        $this->assertEquals(['', 'm'], $members);
+        $this->assertEquals(2, $r->sInterStore('', ''));
+        $this->assertEquals(1, $r->sRem('', 'm'));
+        $this->assertEquals(1, $r->del(''));
+        $r->sAdd('{e}a', '');
+        $this->assertTrue($r->sMove('{e}a', '{e}b', ''));
+        $this->assertEquals([''], $r->sMembers('{e}b'));
+
+        /* Hashes: empty key, empty fields and values */
+        $this->assertEquals(2, $r->hSet('', '', '', 'f', 'v'));
+        $this->assertEquals('', $r->hGet('', ''));
+        /* hMGet() skips empty fields, as PHPRedis does (see testHashes) */
+        $this->assertEquals(['f' => 'v'], $r->hMGet('', ['f']));
+        $this->assertTrue($r->hExists('', ''));
+        $this->assertEquals(1, $r->hDel('', ''));
+        $this->assertEquals(1, $r->del(''));
+
+        /* Batches queue the empty arguments too */
+        $this->assertEquals($r, $r->multi());
+        $r->set('', '');
+        $r->get('');
+        $r->del('');
+        $r->sAdd('', '');
+        $r->sIsMember('', '');
+        $r->del('');
+        $this->assertEquals([true, '', 1, 1, true, 1], $r->exec());
+
+        /* Streams on the empty key */
+        $id = $r->xAdd('', '*', ['' => '']);
+        $this->assertIsString($id);
+        $this->assertEquals(1, $r->xLen(''));
+        $this->assertEquals([$id => ['' => '']], $r->xRange('', '-', '+'));
+        $this->assertEquals(1, $r->xDel('', [$id]));
+        $this->assertEquals(0, $r->xTrim('', 0));
+
+        $r->del('', '{e}a', '{e}b');
     }
 
     public function testSetEXAT()
@@ -2749,7 +2869,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         });
 
         if ($this->minVersionCheck('8.1.0')) {
-            $this->waitForSaveNotInProgress();
+            $this->waitForNoPendingSave();
 
             $this->withOptReplyLiteralEnabled(function () {
                 $result = $this->valkey_glide->bgSave('CANCEL');
@@ -2780,7 +2900,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($result[0]);
 
         if ($this->minVersionCheck('8.1.0')) {
-            $this->waitForSaveNotInProgress();
+            $this->waitForNoPendingSave();
 
             $this->valkey_glide->pipeline();
             $this->valkey_glide->bgSave('CANCEL');
@@ -3503,8 +3623,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     protected function isSaveInProgress(): bool
     {
         $info = $this->valkey_glide->info('persistence');
-        return $info['rdb_bgsave_in_progress'] == '1'
-            || $info['aof_rewrite_in_progress'] == '1';
+        return ($info['rdb_bgsave_in_progress'] ?? '0') == '1'
+            || ($info['aof_rewrite_in_progress'] ?? '0') == '1';
     }
 
     /**
@@ -3516,6 +3636,37 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             fn() => !$this->isSaveInProgress(),
             10,
             'Timed out waiting for background save to complete'
+        );
+    }
+
+    /**
+     * Issue BGSAVE CANCEL and return its result. Clears a pending scheduled save
+     * and aborts an in-progress one (returning non-false), or returns false when
+     * there is nothing to cancel. Requires Valkey 8.1.0+.
+     */
+    protected function cancelBgSave(): mixed
+    {
+        return @$this->valkey_glide->bgSave('CANCEL');
+    }
+
+    /**
+     * Wait until no background save is in progress AND none is scheduled.
+     *
+     * A save queued by BGSAVE SCHEDULE is not visible in INFO persistence, so
+     * waiting on INFO alone is not enough: a leftover scheduled save makes a later
+     * BGSAVE CANCEL succeed instead of failing. Poll CANCEL until it reports
+     * there is nothing left to cancel (false). Same approach as testBgSaveCancel,
+     * for tests that must issue CANCEL themselves afterwards.
+     */
+    protected function waitForNoPendingSave(): void
+    {
+        $this->waitFor(
+            function () {
+                $this->waitForSaveNotInProgress();
+                return $this->cancelBgSave() === false;
+            },
+            15,
+            'Pending background save did not settle (BGSAVE CANCEL kept succeeding)'
         );
     }
 
@@ -3666,26 +3817,64 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->assertTrue($result);
 
             // Wait for 6382 to become slave (failover completed)
-            $this->waitForRole($client, 'slave');
+            $this->waitForRole($client, 'slave', 30);
         } finally {
             // 6382 reports the slave role before the failover finishes, and
-            // REPLICAOF is rejected until it has
-            $this->waitForFailoverState($client, 'no-failover');
+            // REPLICAOF is rejected until it has. Defer any timeout so the
+            // restore below still runs.
+            $failoverError = null;
+            try {
+                $this->waitForFailoverState($client, 'no-failover', 30);
+            } catch (Throwable $e) {
+                $failoverError = $e;
+            }
+            $client->close();
 
-            // Restore: promote 6382 back to primary
-            $this->assertTrue($client->replicaof());
-            $this->waitForRole($client, 'master');
+            // Run valkey-cli as immediate fallback to trigger failback
+            @exec('valkey-cli -p 6382 REPLICAOF NO ONE 2>/dev/null');
+
+            // Restore: promote 6382 back to primary (retry replicaof with STATIC mode)
+            $this->waitFor(function () {
+                @exec('valkey-cli -p 6382 REPLICAOF NO ONE 2>/dev/null');
+                $restoreClient = new ValkeyGlide();
+                try {
+                    $restoreClient->connect(
+                        addresses: [['host' => '127.0.0.1', 'port' => 6382]],
+                        node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STATIC
+                    );
+                    @$restoreClient->replicaof();
+                    $info = @$restoreClient->info('REPLICATION');
+                    return is_array($info) && ($info['role'] ?? '') === 'master';
+                } catch (Throwable) {
+                    return false;
+                } finally {
+                    @$restoreClient->close();
+                }
+            }, 30, "Timed out promoting 6382 back to master");
 
             // Restore 6383 as replica of 6382 (6383 became primary during failover)
-            $replica = new ValkeyGlide();
-            $replica->connect(
-                addresses: [['host' => '127.0.0.1', 'port' => 6383]]
-            );
-            $replica->replicaof('127.0.0.1', 6382);
-            $replica->close();
-        }
+            $this->waitFor(function () {
+                @exec('valkey-cli -p 6383 REPLICAOF 127.0.0.1 6382 2>/dev/null');
+                $replica = new ValkeyGlide();
+                try {
+                    $replica->connect(
+                        addresses: [['host' => '127.0.0.1', 'port' => 6383]],
+                        node_discovery_mode: ValkeyGlide::NODE_DISCOVERY_MODE_STATIC
+                    );
+                    @$replica->replicaof('127.0.0.1', 6382);
+                    $info = @$replica->info('REPLICATION');
+                    return is_array($info) && ($info['role'] ?? '') === 'slave';
+                } catch (Throwable) {
+                    return false;
+                } finally {
+                    @$replica->close();
+                }
+            }, 30, "Timed out restoring 6383 as replica of 6382");
 
-        $client->close();
+            if ($failoverError !== null) {
+                throw $failoverError;
+            }
+        }
     }
 
     /**
@@ -3701,7 +3890,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     /**
      * Poll until a server reaches the expected role, or fail after timeout.
      */
-    protected function waitForRole(ValkeyGlide $client, string $expectedRole, int $timeoutSeconds = 5): void
+    protected function waitForRole(ValkeyGlide $client, string $expectedRole, int $timeoutSeconds = 15): void
     {
         $this->waitFor(
             function () use ($client, $expectedRole) {
@@ -5390,6 +5579,32 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->set($key, 'not_a_hash');
         $this->assertFalse($this->valkey_glide->hGetDel($key, ['field']));
         $this->assertEquals('not_a_hash', $this->valkey_glide->get($key));
+    }
+
+    public function testDelIfEq(): void
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('DELIFEQ requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $key        = $this->createRandomString(16);
+        $value      = $this->createRandomString(16);
+        $wrongValue = $this->createRandomString(16);
+
+        $this->valkey_glide->del($key);
+
+        // Key does not exist yet - nothing to delete.
+        $this->assertFalse($this->valkey_glide->delIfEq($key, $value));
+
+        $this->assertTrue($this->valkey_glide->set($key, $value));
+
+        // Value does not match - key remains untouched.
+        $this->assertFalse($this->valkey_glide->delIfEq($key, $wrongValue));
+        $this->assertEquals($value, $this->valkey_glide->get($key));
+
+        // Value matches exactly - key is deleted.
+        $this->assertTrue($this->valkey_glide->delIfEq($key, $value));
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
     }
 
     public function testHashFieldExpirationCommandValidation(): void
@@ -9551,6 +9766,33 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $this->assertNotEquals($first, $plain1);
             $this->assertNotEquals($plain1, $plain2);
 
+            if (!$is_cluster) {
+                /* An empty persistent_id is ignored, as in PHPRedis: a new connection per request */
+                $empty1 = $id(['empty_id' => '1']);
+                $this->assertNotEquals($first, $empty1);
+                $this->assertNotEquals($empty1, $id(['empty_id' => '1']));
+
+                /* pconnect() without a persistent_id keeps its own client */
+                $pconnected = $id(['pconnect' => '1']);
+                $this->assertNotEquals($first, $pconnected);
+                $this->assertEquals($pconnected, $id(['pconnect' => '1']));
+                /* pconnect() without an ID is persistent, connect(persistent_id: '') is not */
+                $this->assertNotEquals($pconnected, $empty1);
+
+                /* PHPRedis-style positional pconnect($host, $port, $timeout, $persistent_id):
+                 * one client per ID */
+                $id_a = $id(['pconnect' => '1', 'pconnect_id' => 'a']);
+                $id_b = $id(['pconnect' => '1', 'pconnect_id' => 'b']);
+                $this->assertNotEquals($id_a, $id_b);
+                $this->assertNotEquals($pconnected, $id_a);
+                $this->assertEquals($id_a, $id(['pconnect' => '1', 'pconnect_id' => 'a']));
+                $this->assertEquals($id_b, $id(['pconnect' => '1', 'pconnect_id' => 'b']));
+                /* PHPRedis-style positional retry_interval and read_timeout after the ID:
+                 * still persistent_id 'a', so the same client */
+                $this->assertEquals($id_a, $id(['pconnect' => '1', 'pconnect_id' => 'a', 'pconnect_all' => '1']));
+                $this->assertEquals($first, $id());
+            }
+
             /* A second object with the same configuration in one request gets its own connection */
             $two = $get(['action' => 'two']);
             $this->assertEquals($first, $two['id']);
@@ -9642,6 +9884,14 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $this->assertNotEquals($kept, $replacement);
             $this->assertEquals($replacement, $id($other));
             $this->assertNotEquals($kept, $id());
+
+            /* With valkey_glide.max_persistent_clients=0 nothing is kept, not even by pconnect() */
+            $stop($server);
+            $server = $start(['valkey_glide.max_persistent_clients=0']);
+            $this->assertNotEquals($id(), $id());
+            if (!$is_cluster) {
+                $this->assertNotEquals($id(['pconnect' => '1']), $id(['pconnect' => '1']));
+            }
         } finally {
             $stop($server);
         }
@@ -9673,5 +9923,814 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $this->markTestSkipped('pcntl is not available');
         }
         $this->assertEquals(['child_exited_cleanly' => true, 'parent_reused' => true], json_decode($out, true));
+    }
+
+    public function testEmptyMultiExec()
+    {
+        $this->valkey_glide->del('{empty}key');
+
+        /* An empty transaction returns [] and leaves multi mode, so later commands run normally */
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->multi());
+        $this->assertEquals([], $this->valkey_glide->exec());
+        $this->assertTrue($this->valkey_glide->set('{empty}key', 'v'));
+        $this->assertEquals('v', $this->valkey_glide->get('{empty}key'));
+
+        $this->valkey_glide->del('{empty}key');
+    }
+
+    public function testEmptyPipelineExec()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped();
+        }
+
+        $this->valkey_glide->del('{empty}key');
+
+        $this->valkey_glide->pipeline();
+        $this->assertEquals([], $this->valkey_glide->exec());
+        $this->assertTrue($this->valkey_glide->set('{empty}key', 'v'));
+        $this->assertEquals('v', $this->valkey_glide->get('{empty}key'));
+
+        $this->valkey_glide->del('{empty}key');
+    }
+
+    /* MULTI is buffered client-side, so an empty or discarded transaction must still clear WATCH */
+    public function testEmptyOrDiscardedMultiClearsWatch()
+    {
+        $other = $this->newInstance();
+
+        foreach (['exec', 'discard'] as $end) {
+            $this->valkey_glide->del('{watch}key', '{watch}other');
+
+            $this->assertTrue($this->valkey_glide->watch('{watch}key'));
+            $this->valkey_glide->multi();
+            $this->valkey_glide->$end();
+
+            /* A change to the formerly watched key must not abort the next transaction */
+            $other->set('{watch}key', 'changed');
+            $this->valkey_glide->multi();
+            $this->valkey_glide->set('{watch}other', 'v');
+            $this->assertEquals([true], $this->valkey_glide->exec());
+            $this->assertEquals('v', $this->valkey_glide->get('{watch}other'));
+        }
+
+        $this->valkey_glide->del('{watch}key', '{watch}other');
+        $other->close();
+    }
+
+    /* If the UNWATCH for an empty or discarded MULTI fails, report the failure */
+    public function testEmptyOrDiscardedMultiReportsFailedUnwatch()
+    {
+        $user = 'glide_no_unwatch';
+        $this->assertTrue($this->valkey_glide->rawCommand('ACL', 'SETUSER', $user, 'reset', 'on', '>pw', '~*', '&*', '+@all', '-unwatch'));
+
+        $client = new ValkeyGlide();
+        try {
+            $client->connect(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                use_tls: $this->getTLS(),
+                credentials: ['username' => $user, 'password' => 'pw'],
+                advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null
+            );
+
+            foreach (['exec', 'discard'] as $end) {
+                $client->clearLastError();
+                $client->multi();
+                $this->assertFalse(@$client->$end());
+                $this->assertStringContains('unwatch', strtolower((string) $client->getLastError()));
+
+                /* The client left batch mode, so later commands run normally */
+                $this->assertTrue($client->set('{watch}unwatch_fail', 'v'));
+            }
+        } finally {
+            $this->valkey_glide->del('{watch}unwatch_fail');
+            $client->close();
+            $this->valkey_glide->rawCommand('ACL', 'DELUSER', $user);
+        }
+    }
+
+    public function testEvalNilInBatch()
+    {
+        /* A Lua nil is returned as null in a batch, as outside one */
+        $this->assertNull($this->valkey_glide->eval('return nil'));
+
+        $this->valkey_glide->multi();
+        $this->valkey_glide->eval('return nil');
+        $this->valkey_glide->eval('return 1');
+        $this->assertEquals([null, 1], $this->valkey_glide->exec());
+
+        if ($this->havePipeline()) {
+            $this->valkey_glide->pipeline();
+            $this->valkey_glide->eval('return nil');
+            $this->assertEquals([null], $this->valkey_glide->exec());
+        }
+    }
+
+    public function testEvalInMulti()
+    {
+        $this->valkey_glide->del('{eval}key');
+
+        /* EVAL / EVALSHA are queued and return the client, so they see writes
+         * made earlier in the same transaction */
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->multi());
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->set('{eval}key', 'v'));
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->eval(self::GET_KEY_SCRIPT, ['{eval}key'], 1));
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->evalsha(sha1(self::GET_KEY_SCRIPT), ['{eval}key'], 1));
+        $this->assertEquals(
+            $this->valkey_glide,
+            $this->valkey_glide->eval("return {KEYS[1], ARGV[1]}", ['{eval}key', 'arg'], 1)
+        );
+        $this->assertEquals([true, 'v', 'v', ['{eval}key', 'arg']], $this->valkey_glide->exec());
+
+        /* Empty arguments are queued as empty strings, not dropped */
+        $this->valkey_glide->multi();
+        $this->valkey_glide->set('{eval}key', '');
+        $this->valkey_glide->eval("return {ARGV[1], ARGV[2]}", ['', 'x'], 0);
+        $this->assertEquals([true, ['', 'x']], $this->valkey_glide->exec());
+        $this->assertEquals('', $this->valkey_glide->get('{eval}key'));
+
+        $this->valkey_glide->del('{eval}key');
+    }
+
+    public function testEvalInPipeline()
+    {
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped();
+        }
+
+        $this->valkey_glide->del('{eval}key');
+
+        $this->valkey_glide->pipeline();
+        $this->valkey_glide->set('{eval}key', 'v');
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->eval(self::GET_KEY_SCRIPT, ['{eval}key'], 1));
+        $this->assertEquals([true, 'v'], $this->valkey_glide->exec());
+
+        $this->valkey_glide->del('{eval}key');
+    }
+
+    public function testFunctionLoadReplace()
+    {
+        if (!$this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('FUNCTION LOAD requires 7.0.0+');
+        }
+
+        $replaceLibCode = function (string $reply) {
+            return "#!lua name=replacelib\n" .
+                "redis.register_function('replace_fn', function(keys, args) return '$reply' end)";
+        };
+
+        /* FCALL gets a key so cluster mode routes it to a primary; a keyless FCALL may reach a read-only replica */
+        $this->valkey_glide->functionLoad($replaceLibCode('v1'), true);
+        $this->assertEquals('v1', $this->valkey_glide->fcall('replace_fn', ['{fn}key']));
+
+        /* Loading an existing library without REPLACE fails */
+        $this->assertFalse(@$this->valkey_glide->functionLoad($replaceLibCode('v2')));
+        $this->assertEquals('v1', $this->valkey_glide->fcall('replace_fn', ['{fn}key']));
+
+        /* With REPLACE the library is overwritten, via both entry points */
+        $this->assertEquals('replacelib', $this->valkey_glide->functionLoad($replaceLibCode('v2'), true));
+        $this->assertEquals('v2', $this->valkey_glide->fcall('replace_fn', ['{fn}key']));
+
+        $this->assertEquals('replacelib', $this->valkey_glide->function('load', $replaceLibCode('v3'), true));
+        $this->assertEquals('v3', $this->valkey_glide->fcall('replace_fn', ['{fn}key']));
+
+        $this->assertTrue($this->valkey_glide->functionDelete('replacelib'));
+    }
+
+    public function testFunctionLoadInMulti()
+    {
+        if (!$this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('FUNCTION LOAD requires 7.0.0+');
+        }
+
+        /* FUNCTION LOAD is queued, so FCALL later in the transaction can use it */
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->multi());
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->functionLoad(self::ECHO_ARG_LIBRARY_CODE, true));
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->function('load', self::ECHO_ARG_LIBRARY_CODE, true));
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->fcall(self::ECHO_ARG_FUNCTION_NAME, ['{fn}key'], ['arg']));
+        $this->assertEquals([self::ECHO_ARG_LIBRARY_NAME, self::ECHO_ARG_LIBRARY_NAME, 'arg'], $this->valkey_glide->exec());
+
+        $this->valkey_glide->functionDelete(self::ECHO_ARG_LIBRARY_NAME);
+    }
+
+    public function testFunctionLoadInPipeline()
+    {
+        if (!$this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('FUNCTION LOAD requires 7.0.0+');
+        }
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped();
+        }
+
+        $this->valkey_glide->pipeline();
+        $this->assertEquals($this->valkey_glide, $this->valkey_glide->functionLoad(self::ECHO_ARG_LIBRARY_CODE, true));
+        $this->valkey_glide->fcall(self::ECHO_ARG_FUNCTION_NAME, ['{fn}key'], ['arg']);
+        $this->assertEquals([self::ECHO_ARG_LIBRARY_NAME, 'arg'], $this->valkey_glide->exec());
+
+        $this->valkey_glide->functionDelete(self::ECHO_ARG_LIBRARY_NAME);
+    }
+
+    /* A PHPRedis-style integer or numeric-string timeout is applied as seconds, not dropped */
+    public function testConnectWithIntegerTimeout()
+    {
+        if ($this->valkey_glide instanceof ValkeyGlideCluster) {
+            $this->markTestSkipped('connect() is standalone only');
+        }
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The PHPRedis-style connect() connects without TLS or auth');
+        }
+        if (!$this->minVersionCheck('6.2.0')) {
+            $this->markTestSkipped('CLIENT PAUSE WRITE requires 6.2+');
+        }
+
+        foreach ([1, '1'] as $timeout) {
+            $client = new ValkeyGlide();
+            $client->connect($this->getHost(), $this->getPort(), $timeout);
+
+            /* The write blocks longer than the 1 second timeout but shorter than the
+             * 5 second default, which an ignored timeout falls back to */
+            $this->valkey_glide->rawCommand('CLIENT', 'PAUSE', '3000', 'WRITE');
+            try {
+                $this->assertFalse($client->set('connect_timeout:key', 'value'));
+            } finally {
+                $this->valkey_glide->rawCommand('CLIENT', 'UNPAUSE');
+                $client->close();
+            }
+        }
+    }
+
+    /* ===== OPT_PREFIX ===== */
+
+    /* Hash-tagged so every prefixed key maps to one slot in cluster mode */
+    protected const KEY_PREFIX = '{pfx}:';
+
+    /* Return a new client with OPT_PREFIX set; $this->valkey_glide stays unprefixed */
+    protected function newPrefixedInstance(string $prefix = self::KEY_PREFIX)
+    {
+        $client = $this->newInstance();
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, $prefix));
+        return $client;
+    }
+
+    /* A persistent client with this suite's address (no TLS or auth) */
+    protected function newPersistentInstance()
+    {
+        if ($this->valkey_glide instanceof ValkeyGlideCluster) {
+            return new ValkeyGlideCluster(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                read_from: ValkeyGlide::READ_FROM_PRIMARY,
+                persistent: true
+            );
+        }
+        $client = new ValkeyGlide();
+        $client->connect(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            persistent_id: 'prefix_test'
+        );
+        return $client;
+    }
+
+    /* Collect every key matching $pattern using SCAN */
+    protected function scanAllKeys($client, ?string $pattern): array
+    {
+        $keys = [];
+        $it = null;
+        do {
+            $batch = $client->scan($it, $pattern, 1000);
+            if (is_array($batch)) {
+                $keys = array_merge($keys, $batch);
+            }
+        } while ($it != 0);
+        sort($keys);
+        return $keys;
+    }
+
+    /* Every page one SCAN pass returns, in order (false counts as an empty page) */
+    protected function scanPages($client, string $pattern, int $count): array
+    {
+        $pages = [];
+        $it = null;
+        do {
+            $batch = $client->scan($it, $pattern, $count);
+            $pages[] = is_array($batch) ? $batch : [];
+        } while ($it != 0);
+        return $pages;
+    }
+
+    /* Every page one SSCAN pass returns, in order (false counts as an empty page) */
+    protected function sscanPages($client, string $key, string $pattern, int $count): array
+    {
+        $pages = [];
+        $it = null;
+        do {
+            $batch = $client->sscan($key, $it, $pattern, $count);
+            $pages[] = is_array($batch) ? $batch : [];
+        } while ($it != 0);
+        return $pages;
+    }
+
+    /* With SCAN_RETRY only the last page of a pass may be empty */
+    protected function assertNoEmptyPageBeforeLast(array $pages): void
+    {
+        foreach (array_slice($pages, 0, -1) as $page) {
+            $this->assertNotEquals([], $page, 'SCAN_RETRY must not return an empty page mid-scan');
+        }
+    }
+
+    public function testPrefixOption()
+    {
+        $client = $this->newInstance();
+
+        $this->assertNull($client->getOption(ValkeyGlide::OPT_PREFIX));
+        $this->assertEquals('key', $client->_prefix('key'));
+
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, self::KEY_PREFIX));
+        $this->assertEquals(self::KEY_PREFIX, $client->getOption(ValkeyGlide::OPT_PREFIX));
+        $this->assertEquals(self::KEY_PREFIX . 'key', $client->_prefix('key'));
+        $this->assertEquals(self::KEY_PREFIX, $client->_prefix(''));
+
+        /* An empty prefix clears the option, as in PHPRedis */
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, ''));
+        $this->assertNull($client->getOption(ValkeyGlide::OPT_PREFIX));
+        $this->assertEquals('key', $client->_prefix('key'));
+
+        /* A value that fails to convert leaves the current prefix in place */
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, self::KEY_PREFIX));
+        $throwing = new class () {
+            public function __toString(): string
+            {
+                throw new RuntimeException('no string');
+            }
+        };
+        $this->assertThrowsMatch($throwing, function ($value) use ($client) {
+            $client->setOption(ValkeyGlide::OPT_PREFIX, $value);
+        }, '/no string/');
+        $this->assertEquals(self::KEY_PREFIX, $client->getOption(ValkeyGlide::OPT_PREFIX));
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, ''));
+
+        /* OPT_SCAN is a bitmask of independent RETRY and PREFIX bits, as in PHPRedis */
+        $this->assertEquals(ValkeyGlide::SCAN_NORETRY, $client->getOption(ValkeyGlide::OPT_SCAN));
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_PREFIX));
+        $this->assertEquals(ValkeyGlide::SCAN_PREFIX, $client->getOption(ValkeyGlide::OPT_SCAN));
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_RETRY));
+        $this->assertEquals(
+            ValkeyGlide::SCAN_RETRY | ValkeyGlide::SCAN_PREFIX,
+            $client->getOption(ValkeyGlide::OPT_SCAN)
+        );
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_NOPREFIX));
+        $this->assertEquals(ValkeyGlide::SCAN_RETRY, $client->getOption(ValkeyGlide::OPT_SCAN));
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_NORETRY));
+        $this->assertEquals(ValkeyGlide::SCAN_NORETRY, $client->getOption(ValkeyGlide::OPT_SCAN));
+        $this->assertFalse($client->setOption(ValkeyGlide::OPT_SCAN, 99));
+
+        $client->close();
+    }
+
+    public function testPrefixSingleKeyCommands()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}str", "{$p}hash", "{$p}list", "{$p}set", "{$p}zset", 'str');
+
+        $client = $this->newPrefixedInstance();
+
+        $this->assertTrue($client->set('str', 'value'));
+        $this->assertEquals('value', $client->get('str'));
+        $this->assertKeyEquals('value', "{$p}str", $raw);
+        $this->assertKeyMissing('str', $raw);
+
+        $this->assertEquals(1, $client->hSet('hash', 'f', 'v'));
+        $this->assertEquals('v', $raw->hGet("{$p}hash", 'f'));
+
+        $this->assertEquals(2, $client->rPush('list', 'a', 'b'));
+        $this->assertEquals(['a', 'b'], $raw->lRange("{$p}list", 0, -1));
+
+        $this->assertEquals(1, $client->sAdd('set', 'm'));
+        $this->assertTrue($raw->sIsMember("{$p}set", 'm'));
+
+        $this->assertEquals(1, $client->zAdd('zset', 1, 'm'));
+        $this->assertEquals(1.0, $raw->zScore("{$p}zset", 'm'));
+
+        $this->assertEquals(1, $client->exists('str'));
+        $this->assertTrue($client->expire('str', 100));
+        $this->assertGT(0, $raw->ttl("{$p}str"));
+
+        $raw->del("{$p}str", "{$p}hash", "{$p}list", "{$p}set", "{$p}zset");
+        $client->close();
+    }
+
+    public function testPrefixDelIfEq()
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('DELIFEQ requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}delifeq", 'delifeq');
+
+        $client = $this->newPrefixedInstance();
+
+        // The prefix is applied to the key, so only the prefixed key is compared and deleted.
+        $this->assertTrue($raw->set("{$p}delifeq", 'value'));
+        $this->assertTrue($raw->set('delifeq', 'value'));
+        $this->assertFalse($client->delIfEq('delifeq', 'wrong_value'));
+        $this->assertTrue($client->delIfEq('delifeq', 'value'));
+        $this->assertKeyMissing("{$p}delifeq", $raw);
+        $this->assertKeyEquals('value', 'delifeq', $raw);
+
+        $raw->del("{$p}delifeq", 'delifeq');
+        $client->close();
+    }
+
+    public function testPrefixMultiKeyCommands()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $names = ['a', 'b', 'c', 'renamed', 's1', 's2', 'sdst', 'z1', 'z2', 'zdst', 'l1', 'l2', 'missing'];
+        $raw->del(array_map(fn ($k) => $p . $k, $names));
+
+        $client = $this->newPrefixedInstance();
+
+        /* MSET / MGET / EXISTS / DEL / UNLINK take only keys (or key-value pairs) */
+        $this->assertTrue($client->mset(['a' => '1', 'b' => '2', 'c' => '3']));
+        $this->assertEquals(['1', '2', '3'], $raw->mget(["{$p}a", "{$p}b", "{$p}c"]));
+        $this->assertEquals(['1', '2', false], $client->mget(['a', 'b', 'missing']));
+        $this->assertEquals(2, $client->exists('a', 'b', 'missing'));
+
+        $this->assertTrue($client->rename('c', 'renamed'));
+        $this->assertKeyEquals('3', "{$p}renamed", $raw);
+
+        $this->assertEquals(2, $client->del('a', 'missing', 'renamed'));
+        $this->assertEquals(1, $client->unlink('b'));
+        $this->assertKeyMissing("{$p}a", $raw);
+        $this->assertKeyMissing("{$p}b", $raw);
+
+        /* Set and sorted-set store commands: destination and sources */
+        $client->sAdd('s1', 'x', 'y');
+        $client->sAdd('s2', 'y', 'z');
+        $this->assertEquals(1, $client->sInterStore('sdst', 's1', 's2'));
+        $this->assertEquals(['y'], $raw->sMembers("{$p}sdst"));
+
+        $client->zAdd('z1', 1, 'x');
+        $client->zAdd('z2', 2, 'x');
+        $this->assertEquals(1, $client->zUnionStore('zdst', ['z1', 'z2']));
+        $this->assertEquals(3.0, $raw->zScore("{$p}zdst", 'x'));
+
+        /* Source and destination keys */
+        $client->rPush('l1', 'v');
+        $this->assertEquals('v', $client->lMove('l1', 'l2', 'LEFT', 'RIGHT'));
+        $this->assertEquals(['v'], $raw->lRange("{$p}l2", 0, -1));
+
+        /* Blocking pops return the key name as stored, with the prefix */
+        $this->assertEquals(["{$p}l2", 'v'], $client->blPop(['l1', 'l2'], 1));
+
+        $raw->del(array_map(fn ($k) => $p . $k, $names));
+        $client->close();
+    }
+
+    public function testPrefixMigrate()
+    {
+        $raw = $this->valkey_glide;
+        $dest = $this->getMigrateDestClient();
+        $p = self::KEY_PREFIX;
+        $key = 'migrate_' . $this->createRandomString();
+        $raw->del("{$p}{$key}", $p);
+
+        $client = $this->newPrefixedInstance();
+
+        $client->set($key, 'v1');
+        $this->assertTrue($client->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, $key, 0, 5000));
+        $this->assertKeyMissing("{$p}{$key}", $raw);
+        $this->assertEquals('v1', $dest->get("{$p}{$key}"));
+
+        /* An empty key on its own is a real key, named exactly the prefix. It is
+         * created without the prefix because an empty key argument does not
+         * reach the server yet, with or without OPT_PREFIX */
+        $raw->set($p, 'v2');
+        $this->assertTrue($client->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, '', 0, 5000));
+        $this->assertKeyMissing($p, $raw);
+        $this->assertEquals('v2', $dest->get($p));
+
+        $client->close();
+    }
+
+    public function testPrefixMigrateMultiKey()
+    {
+        $raw = $this->valkey_glide;
+        $dest = $this->getMigrateDestClient();
+        $p = self::KEY_PREFIX;
+        $key1 = 'migrate_multi1_' . $this->createRandomString();
+        $key2 = 'migrate_multi2_' . $this->createRandomString();
+
+        $client = $this->newPrefixedInstance();
+        $client->set($key1, 'v1');
+        $client->set($key2, 'v2');
+
+        /* The keys after KEYS get the prefix, the empty placeholder before them does not */
+        $this->assertTrue($client->migrate('127.0.0.1', self::MIGRATE_DEST_PORT, [$key1, $key2], 0, 5000));
+        $this->assertKeyMissing("{$p}{$key1}", $raw);
+        $this->assertKeyMissing("{$p}{$key2}", $raw);
+        $this->assertEquals('v1', $dest->get("{$p}{$key1}"));
+        $this->assertEquals('v2', $dest->get("{$p}{$key2}"));
+
+        $client->close();
+    }
+
+    public function testPrefixEval()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}k1", "{$p}k2");
+
+        $client = $this->newPrefixedInstance();
+        $client->set('k1', 'v1');
+
+        /* KEYS are prefixed, ARGV is not */
+        $script = "return {KEYS[1], KEYS[2], ARGV[1], redis.call('GET', KEYS[1])}";
+        $this->assertEquals(
+            ["{$p}k1", "{$p}k2", 'arg', 'v1'],
+            $client->eval($script, ['k1', 'k2', 'arg'], 2)
+        );
+
+        $sha = sha1($script);
+        $this->assertEquals(
+            ["{$p}k1", "{$p}k2", 'arg', 'v1'],
+            $client->evalsha($sha, ['k1', 'k2', 'arg'], 2)
+        );
+
+        $raw->del("{$p}k1", "{$p}k2");
+        $client->close();
+    }
+
+    public function testPrefixFcall()
+    {
+        if (!$this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('FCALL requires 7.0.0+');
+        }
+
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $lib = "#!lua name=prefixlib\n" .
+            "redis.register_function('prefix_echo', function(keys, args) return {keys[1], args[1]} end)";
+        $this->assertEquals('prefixlib', $raw->functionLoad($lib, true));
+
+        $client = $this->newPrefixedInstance();
+        $this->assertEquals(["{$p}k", 'arg'], $client->fcall('prefix_echo', ['k'], ['arg']));
+
+        $raw->functionDelete('prefixlib');
+        $client->close();
+    }
+
+    public function testPrefixEvalInMulti()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}ek");
+
+        $client = $this->newPrefixedInstance();
+        $client->multi();
+        $client->set('ek', 'v');
+        $client->eval("return {KEYS[1], redis.call('GET', KEYS[1])}", ['ek'], 1);
+        $this->assertEquals([true, ["{$p}ek", 'v']], $client->exec());
+
+        $raw->del("{$p}ek");
+        $client->close();
+    }
+
+    public function testPrefixMulti()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}t1", "{$p}t2", "{$p}cnt");
+
+        $client = $this->newPrefixedInstance();
+
+        /* Several keys in one transaction: with a hash-tagged prefix this is
+         * valid in cluster mode as well */
+        $client->multi();
+        $client->set('t1', 'a');
+        $client->set('t2', 'b');
+        $client->mget(['t1', 't2']);
+        $client->incr('cnt');
+        $client->del('t1');
+        $this->assertEquals([true, true, ['a', 'b'], 1, 1], $client->exec());
+
+        $this->assertKeyMissing("{$p}t1", $raw);
+        $this->assertKeyEquals('b', "{$p}t2", $raw);
+        $this->assertKeyEquals('1', "{$p}cnt", $raw);
+
+        $raw->del("{$p}t1", "{$p}t2", "{$p}cnt");
+        $client->close();
+    }
+
+    public function testPrefixPipeline()
+    {
+        $p = self::KEY_PREFIX;
+        $raw = $this->valkey_glide;
+        if (!$this->havePipeline()) {
+            $this->markTestSkipped();
+        }
+        $raw->del("{$p}p1", "{$p}p2");
+
+        $client = $this->newPrefixedInstance();
+
+        $client->pipeline();
+        $client->set('p1', 'x');
+        $client->rPush('p2', 'y');
+        $client->get('p1');
+        $client->lRange('p2', 0, -1);
+        $this->assertEquals([true, 1, 'x', ['y']], $client->exec());
+
+        $this->assertKeyEquals('x', "{$p}p1", $raw);
+
+        $raw->del("{$p}p1", "{$p}p2");
+        $client->close();
+    }
+
+    public function testPrefixSortAndStreams()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}nums", "{$p}sorted", "{$p}stream");
+
+        $client = $this->newPrefixedInstance();
+
+        /* SORT prefixes the key and the STORE destination */
+        $client->rPush('nums', '3', '1', '2');
+        $this->assertEquals(['1', '2', '3'], $client->sort('nums'));
+        $this->assertEquals(3, $client->sort('nums', ['store' => 'sorted']));
+        $this->assertEquals(['1', '2', '3'], $raw->lRange("{$p}sorted", 0, -1));
+
+        /* XREAD prefixes the stream keys, not the IDs; replies use stored names */
+        $id = $client->xAdd('stream', '*', ['f' => 'v']);
+        $this->assertIsString($id);
+        $this->assertEquals(1, $raw->xLen("{$p}stream"));
+        $this->assertEquals(["{$p}stream" => [$id => ['f' => 'v']]], $client->xRead(['stream' => '0']));
+
+        $raw->del("{$p}nums", "{$p}sorted", "{$p}stream");
+        $client->close();
+    }
+
+    public function testPrefixScan()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}scan_a", "{$p}scan_b");
+
+        $client = $this->newPrefixedInstance();
+        $client->set('scan_a', '1');
+        $client->set('scan_b', '2');
+
+        /* Default (SCAN_NOPREFIX): MATCH pattern is sent unchanged, as in PHPRedis */
+        $this->assertEquals([], $this->scanAllKeys($client, 'scan_*'));
+        $this->assertEquals(["{$p}scan_a", "{$p}scan_b"], $this->scanAllKeys($client, "{$p}scan_*"));
+
+        /* SCAN_PREFIX: MATCH pattern is prefixed; key names are returned as stored */
+        $client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_PREFIX);
+        $this->assertEquals(["{$p}scan_a", "{$p}scan_b"], $this->scanAllKeys($client, 'scan_*'));
+
+        $raw->del("{$p}scan_a", "{$p}scan_b");
+        $client->close();
+    }
+
+    /* SCAN_PREFIX also prefixes the MATCH of HSCAN, SSCAN and ZSCAN, as in PHPRedis */
+    public function testPrefixScanMatchOfKeyedScans()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del("{$p}hscan", "{$p}sscan", "{$p}zscan");
+        $raw->hset("{$p}hscan", 'f1', 'v', "{$p}f1", 'v');
+        $raw->sadd("{$p}sscan", 'f1', "{$p}f1");
+        $raw->zadd("{$p}zscan", 1, 'f1', 2, "{$p}f1");
+
+        $client = $this->newPrefixedInstance();
+        $matches = function () use ($client) {
+            $it = null;
+            $h = $client->hscan('hscan', $it, 'f*', 100);
+            $it = null;
+            $s = $client->sscan('sscan', $it, 'f*', 100);
+            $it = null;
+            $z = $client->zscan('zscan', $it, 'f*', 100);
+            return [array_keys($h ?: []), $s ?: [], array_keys($z ?: [])];
+        };
+
+        /* Default (SCAN_NOPREFIX): the pattern is sent unchanged */
+        $this->assertEquals([['f1'], ['f1'], ['f1']], $matches());
+
+        $client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_PREFIX);
+        $this->assertEquals([["{$p}f1"], ["{$p}f1"], ["{$p}f1"]], $matches());
+
+        $raw->del("{$p}hscan", "{$p}sscan", "{$p}zscan");
+        $client->close();
+    }
+
+    /* OPT_SCAN SCAN_RETRY: SCAN and SSCAN keep going past empty pages, as in PHPRedis */
+    public function testScanRetry()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+
+        /* One matching key among many, so most COUNT 10 pages match nothing */
+        $fill = [];
+        for ($i = 0; $i < 300; $i++) {
+            $fill["{$p}retry_fill_{$i}"] = 'v';
+        }
+        $raw->mset($fill);
+        $raw->set("{$p}retry_match", 'v');
+
+        /* A set large enough not to be returned in a single page */
+        $raw->del("{$p}retry_set");
+        $raw->sadd("{$p}retry_set", ...array_merge(range(0, 499), ['retry_member']));
+
+        $client = $this->newInstance();
+
+        /* Default (SCAN_NORETRY): empty pages are returned to the caller */
+        $this->assertContains([], $this->scanPages($client, "{$p}retry_match", 10));
+        $this->assertContains([], $this->sscanPages($client, "{$p}retry_set", 'retry_*', 10));
+
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_RETRY));
+
+        $pages = $this->scanPages($client, "{$p}retry_match", 10);
+        $this->assertNoEmptyPageBeforeLast($pages);
+        $this->assertEquals(["{$p}retry_match"], array_merge(...$pages));
+
+        $pages = $this->sscanPages($client, "{$p}retry_set", 'retry_*', 10);
+        $this->assertNoEmptyPageBeforeLast($pages);
+        $this->assertEquals(['retry_member'], array_merge(...$pages));
+
+        $raw->del(...array_merge(array_keys($fill), ["{$p}retry_match", "{$p}retry_set"]));
+        $client->close();
+    }
+
+    public function testPrefixNotAppliedToRawCommand()
+    {
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del('rawkey', "{$p}rawkey");
+
+        /* rawCommand sends arguments unchanged, as in PHPRedis */
+        $client = $this->newPrefixedInstance();
+        $args = ['SET', 'rawkey', 'v'];
+        if ($client instanceof ValkeyGlideCluster) {
+            /* The route key is prefixed, as in PHPRedis, so the server redirects
+             * the unprefixed SET to the node that owns it */
+            array_unshift($args, 'rawkey');
+        }
+        $this->assertTrue($client->rawCommand(...$args));
+        $this->assertKeyEquals('v', 'rawkey', $raw);
+        $this->assertKeyMissing("{$p}rawkey", $raw);
+
+        $raw->del('rawkey');
+        $client->close();
+    }
+
+    /* OPT_PREFIX belongs to the object, not to a kept persistent client: the next
+     * object that reuses the client starts without the prefix and applies its own */
+    public function testPrefixWithPersistentClientReuse()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The persistent client connects without TLS or auth');
+        }
+
+        $raw = $this->valkey_glide;
+        $p = self::KEY_PREFIX;
+        $raw->del('ppkey', "{$p}ppkey", 'other:ppkey');
+        $client_id = function ($client) {
+            return $client instanceof ValkeyGlideCluster
+                ? $client->rawCommand('ppkey', 'CLIENT', 'ID')
+                : $client->rawCommand('CLIENT', 'ID');
+        };
+
+        $client = $this->newPersistentInstance();
+        $id = $client_id($client);
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, $p));
+        $this->assertTrue($client->set('ppkey', 'first'));
+        $this->assertKeyEquals('first', "{$p}ppkey", $raw);
+        /* Releases the client to the persistent list without closing it */
+        $client = null;
+
+        /* Same configuration: the kept client is reused, without the old prefix */
+        $client = $this->newPersistentInstance();
+        $this->assertEquals($id, $client_id($client));
+        $this->assertNull($client->getOption(ValkeyGlide::OPT_PREFIX));
+        $this->assertTrue($client->set('ppkey', 'second'));
+        $this->assertKeyEquals('second', 'ppkey', $raw);
+        $this->assertKeyEquals('first', "{$p}ppkey", $raw);
+
+        /* Its own prefix applies */
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, 'other:'));
+        $this->assertTrue($client->set('ppkey', 'third'));
+        $this->assertKeyEquals('third', 'other:ppkey', $raw);
+
+        /* close() ends the kept client; the next object gets a new one and its prefix */
+        $client->close();
+        $client = $this->newPersistentInstance();
+        $this->assertNotEquals($id, $client_id($client));
+        $this->assertTrue($client->setOption(ValkeyGlide::OPT_PREFIX, $p));
+        $this->assertEquals('first', $client->get('ppkey'));
+
+        $client->close();
+        $raw->del('ppkey', "{$p}ppkey", 'other:ppkey');
     }
 }

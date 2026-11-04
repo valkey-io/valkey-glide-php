@@ -100,6 +100,25 @@ if ($pid === 0) {
     } catch (Throwable $e) {
         exit(5);
     }
+    /* A new read routing would replace the inherited client, so it throws like a client call;
+     * the current routing only updates the option */
+    if ($is_cluster) {
+        $current = $client->getOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER);
+        $other = $current === ValkeyGlideCluster::FAILOVER_NONE
+            ? ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES
+            : ValkeyGlideCluster::FAILOVER_NONE;
+        try {
+            $client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, $other);
+            exit(6);
+        } catch (ValkeyGlideException $e) {
+            if (!str_contains($e->getMessage(), 'fork()')) {
+                exit(6);
+            }
+        }
+        if (!$client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, $current)) {
+            exit(7);
+        }
+    }
     /* Allowed: forgets the handle without closing the parent's client */
     $client->close();
     $monitor?->close();

@@ -126,7 +126,7 @@ try {
             'exponent_base' => 2
         ],
         client_name: 'cluster-example-client',
-        periodic_checks: 500,
+        periodic_checks: ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS,
         client_az: null,
         advanced_config: [
             'connection_timeout' => 10000,

@@ -25,18 +25,30 @@ runs:
         echo "engine-version: $ENGINE_VERSION"
         echo "github-token: [REDACTED]"
 
+    # Callers run on more than one Ubuntu release, and the cached apt lists and Cargo
+    # target directories are release-specific, so the cache keys name the release
+    - name: Identify the runner image
+      id: runner-image
+      shell: bash
+      run: |
+        . /etc/os-release
+        echo "id=${ID}-${VERSION_ID}" >> "$GITHUB_OUTPUT"
+
     - name: Cache APT packages
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: |
           /var/cache/apt/archives
           /var/lib/apt/lists
-        key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/apt-packages.txt') }}
+        key: apt-${{ runner.os }}-${{ steps.runner-image.outputs.id }}-${{ hashFiles('.github/workflows/apt-packages.txt') }}
         restore-keys: |
-          apt-${{ runner.os }}-
+          apt-${{ runner.os }}-${{ steps.runner-image.outputs.id }}-
 
     - name: Configure APT retries
       uses: ./.github/actions/configure-apt-retries
+
+    - name: Add PHP APT repository
+      uses: ./.github/actions/add-php-apt-repo
 
     - name: Install system dependencies (cached)
       shell: bash
@@ -46,13 +58,6 @@ runs:
         # Skip update if cache hit and recent
         if [ ! -f "$HOME/.apt-cache-updated" ] || [ $(find "$HOME/.apt-cache-updated" -mmin +60 2>/dev/null) ]; then
           echo "Updating APT cache..."
-          
-          # Add PHP repository for older PHP versions on Ubuntu 24.04
-          if [ "$PHP_VERSION" != "8.3" ]; then
-            echo "Adding PHP repository for PHP $PHP_VERSION..."
-            sudo add-apt-repository ppa:ondrej/php -y
-          fi
-          
           sudo apt-get update
           touch "$HOME/.apt-cache-updated"
         else
@@ -80,9 +85,9 @@ runs:
           ~/.cargo/git/db/
           valkey-glide/ffi/target/
           valkey-glide/glide-core/target/
-        key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+        key: cargo-${{ runner.os }}-${{ steps.runner-image.outputs.id }}-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
-          cargo-${{ runner.os }}-
+          cargo-${{ runner.os }}-${{ steps.runner-image.outputs.id }}-
 
     - name: Configure Cargo for speed
       shell: bash

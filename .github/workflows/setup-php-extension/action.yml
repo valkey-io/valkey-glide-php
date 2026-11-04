@@ -29,19 +29,20 @@ runs:
         engine-version: ${{ inputs.engine-version }}
 
     - name: Setup PHP
-      uses: shivammathur/setup-php@728c6c6b8cf02c2e48117716a91ee48313958a19 # v2
+      uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
       with:
         php-version: ${{ inputs.php-version }}
         extensions: none
         tools: pie, jq
+
+    - name: Add PHP APT repository
+      uses: ./.github/actions/add-php-apt-repo
 
     - name: Install system dependencies
       shell: bash
       env:
         PHP_VERSION: ${{ inputs.php-version }}
       run: |
-        # Add ondrej/php PPA for PHP versions not in default Ubuntu repos
-        sudo add-apt-repository -y ppa:ondrej/php || true
         sudo apt-get update
         sudo apt-get install -y \
             "php${PHP_VERSION}-dev" \

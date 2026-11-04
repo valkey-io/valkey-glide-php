@@ -189,12 +189,134 @@ class ValkeyGlideCluster
      * Runtime option: Return "OK" string instead of true for OK responses
      * When enabled, commands that return "+OK" from Valkey will return the string "OK"
      * instead of boolean true (the default behavior).
+     * The value is 8, the same as PHPRedis. The previous value 1 (PHPRedis OPT_SERIALIZER) is
+     * deprecated: setOption() still accepts it with a bool value and emits E_DEPRECATED.
      *
      * @var int
      * @cvalue VALKEY_GLIDE_OPT_REPLY_LITERAL
      *
      */
     public const OPT_REPLY_LITERAL = UNKNOWN;
+
+    /**
+     * Runtime option: Key prefix (PHPRedis OPT_PREFIX).
+     * When set, the prefix is prepended to every key argument, including keys of
+     * multi-key commands, the KEYS portion of FCALL/EVAL/EVALSHA, the KEYS
+     * pattern, and commands queued in multi() or pipeline(). Replies are not
+     * changed, so key names returned by the server include the prefix.
+     * Setting an empty string removes the prefix.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_OPT_PREFIX
+     *
+     */
+    public const OPT_PREFIX = UNKNOWN;
+
+    /**
+     * Runtime option: SCAN behaviour (PHPRedis OPT_SCAN).
+     * Accepts SCAN_RETRY, SCAN_NORETRY, SCAN_PREFIX or SCAN_NOPREFIX; the
+     * retry and prefix settings are independent. getOption() returns a
+     * bitmask of SCAN_RETRY and SCAN_PREFIX (0 by default).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_OPT_SCAN
+     *
+     */
+    public const OPT_SCAN = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: return empty SCAN pages to the caller (default).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_NORETRY
+     *
+     */
+    public const SCAN_NORETRY = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: keep scanning until a page has elements or the scan
+     * completes, so SCAN, SSCAN, HSCAN and ZSCAN never return an empty page
+     * mid-scan.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_RETRY
+     *
+     */
+    public const SCAN_RETRY = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: prefix the SCAN MATCH pattern with OPT_PREFIX.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_PREFIX
+     *
+     */
+    public const SCAN_PREFIX = UNKNOWN;
+
+    /**
+     * OPT_SCAN value: send the SCAN MATCH pattern unchanged (default).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_SCAN_NOPREFIX
+     *
+     */
+    public const SCAN_NOPREFIX = UNKNOWN;
+
+    /**
+     * Runtime option: read routing, same as PHPRedis RedisCluster::OPT_SLAVE_FAILOVER. Takes one
+     * of the FAILOVER_* constants. GLIDE fixes read routing when the client is created, so
+     * changing the mode recreates the client (a reconnect unless `lazy_connect` is set).
+     * The database, credentials, client name and protocol set by select(), reset(),
+     * updateConnectionPassword() or a raw SELECT, AUTH, HELLO, CLIENT SETNAME or RESET are carried
+     * over. Other connection state is not, so the change fails (returns false, see
+     * getLastError()) while keys are watched, inside MULTI or a
+     * pipeline, while subscribed, and on a persistent client (`$persistent`), which later requests
+     * reuse with the routing it was created with. EXEC only ends the watch on the node it ran on,
+     * so call unwatch() after a transaction before changing the mode. Setting a mode whose routing
+     * is already in use does nothing. Overrides the constructor's `read_from`: an AZ affinity
+     * strategy reports the nearest mode (FAILOVER_DISTRIBUTE_SLAVES or FAILOVER_DISTRIBUTE), and
+     * any change replaces it.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_OPT_SLAVE_FAILOVER
+     */
+    public const OPT_SLAVE_FAILOVER = UNKNOWN;
+
+    /**
+     * OPT_SLAVE_FAILOVER mode: read from the primary (read_from PRIMARY).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_FAILOVER_NONE
+     */
+    public const FAILOVER_NONE = UNKNOWN;
+
+    /**
+     * OPT_SLAVE_FAILOVER mode: read from the primary (read_from PRIMARY). This approximates the
+     * PHPRedis behaviour: PHPRedis retries a failed read on a replica, while GLIDE retries on the
+     * new primary once the topology refresh finds it, so this behaves as FAILOVER_NONE.
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_FAILOVER_ERROR
+     */
+    public const FAILOVER_ERROR = UNKNOWN;
+
+    /**
+     * OPT_SLAVE_FAILOVER mode: spread reads across the primary and replicas (core ReadFrom
+     * AllNodes).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_FAILOVER_DISTRIBUTE
+     */
+    public const FAILOVER_DISTRIBUTE = UNKNOWN;
+
+    /**
+     * OPT_SLAVE_FAILOVER mode: read from replicas, falling back to the primary when a shard has
+     * none (read_from PREFER_REPLICA).
+     *
+     * @var int
+     * @cvalue VALKEY_GLIDE_FAILOVER_DISTRIBUTE_SLAVES
+     */
+    public const FAILOVER_DISTRIBUTE_SLAVES = UNKNOWN;
 
     /**
      * Create a new ValkeyGlideCluster instance with the provided configuration.
@@ -228,7 +350,7 @@ class ValkeyGlideCluster
      *                                              ValkeyGlide::IAM_CONFIG_REFRESH_INTERVAL => 300 // optional, defaults to 300
      *                                            ]]
      *                                          Note: username is REQUIRED for IAM authentication.
-     * @param int|null $read_from               Read strategy for the client.
+     * @param int|null $read_from               Read strategy for the client (default: READ_FROM_PRIMARY).
      * @param int|null $request_timeout         Request timeout in milliseconds.
      * @param array|null $reconnect_strategy    Reconnection strategy ['num_of_retries' => 3, 'factor' => 2,
      *                                          'exponent_base' => 10, 'jitter_percent' => 15].
@@ -276,7 +398,14 @@ class ValkeyGlideCluster
      * @param array|null $client_side_cache     Client-side cache configuration array from ClientSideCache::toArray():
      *                                          ['cache_id' => string, 'max_cache_kb' => int, 'entry_ttl_ms' => int,
      *                                          'eviction_policy' => ?int, 'enable_metrics' => bool]
-     * @param callable|null $address_resolver   Custom address resolver callback
+     * @param callable|null $address_resolver   Custom address resolver callback:
+     *                                          fn(string $host, int $port): array returning
+     *                                          ['host' => string, 'port' => int]. It is only called
+     *                                          on the PHP thread, while the client is constructed.
+     *                                          Reconnects and topology refreshes in the background
+     *                                          reuse those results; an address first seen later
+     *                                          (for example a node added after construction) is
+     *                                          used unresolved until the client is recreated.
      * @param array|null $circuit_breaker       Circuit breaker configuration:
      *                                          ['window_size_ms' => int, 'failure_rate_threshold' => float,
      *                                           'min_errors' => int, 'open_timeout_ms' => int,
@@ -330,7 +459,8 @@ class ValkeyGlideCluster
     /**
      * Set a client option.
      *
-     * @param int $option The option to set (e.g., ValkeyGlideCluster::OPT_REPLY_LITERAL)
+     * @param int $option The option to set: ValkeyGlideCluster::OPT_REPLY_LITERAL or
+     *                    ValkeyGlideCluster::OPT_SLAVE_FAILOVER
      * @param mixed $value The value to set for the option
      * @return bool True on success, false on failure
      */
@@ -339,10 +469,19 @@ class ValkeyGlideCluster
     /**
      * Get a client option value.
      *
-     * @param int $option The option to get (e.g., ValkeyGlideCluster::OPT_REPLY_LITERAL)
+     * @param int $option The option to get: ValkeyGlideCluster::OPT_REPLY_LITERAL or
+     *                    ValkeyGlideCluster::OPT_SLAVE_FAILOVER
      * @return mixed The option value, or false if the option is not set or invalid
      */
     public function getOption(int $option): mixed;
+
+    /**
+     * Prepend the OPT_PREFIX key prefix to a key.
+     *
+     * @param string $key The key to prefix
+     * @return string The prefixed key, or the key unchanged when no prefix is set
+     */
+    public function _prefix(string $key): string; // phpcs:ignore PSR2.Methods.MethodDeclaration.Underscore
 
     /**
      * @see ValkeyGlide::getLastError()
@@ -602,6 +741,11 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::del()
      */
     public function del(array|string $key, string ...$other_keys): ValkeyGlideCluster|int|false;
+
+    /**
+     * @see ValkeyGlide::delIfEq()
+     */
+    public function delIfEq(string $key, string $value): ValkeyGlideCluster|bool;
 
     /**
      * @see ValkeyGlide::discard

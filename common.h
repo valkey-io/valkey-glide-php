@@ -413,11 +413,32 @@ struct batch_command {
 
 /* Client runtime options - matching PHPRedis behavior */
 typedef enum {
-    VALKEY_GLIDE_OPT_REPLY_LITERAL = 1 /* Return "OK" string instead of true for Ok responses */
+    /* Deprecated value of OPT_REPLY_LITERAL. PHPRedis uses 1 for OPT_SERIALIZER, so it is only
+     * accepted with a bool value. Remove in the next major release. */
+    VALKEY_GLIDE_OPT_REPLY_LITERAL_LEGACY = 1,
+    VALKEY_GLIDE_OPT_PREFIX               = 2, /* Key prefix applied to every key argument */
+    VALKEY_GLIDE_OPT_SCAN                 = 4, /* SCAN behaviour: SCAN_RETRY and SCAN_PREFIX bits */
+    VALKEY_GLIDE_OPT_SLAVE_FAILOVER       = 5, /* Cluster read routing; same value as PHPRedis */
+    VALKEY_GLIDE_OPT_REPLY_LITERAL = 8 /* Return "OK" string instead of true for Ok responses */
 } valkey_glide_option_t;
 
 /* Persistent client entry (valkey_glide_persistent.c) */
 typedef struct valkey_glide_persistent_client valkey_glide_persistent_client_t;
+
+/* OPT_SCAN values, numerically identical to PHPRedis. RETRY and PREFIX are
+ * independent bits; NORETRY and NOPREFIX clear them. */
+#define VALKEY_GLIDE_SCAN_NORETRY 0  /* Return empty pages to the caller (default) */
+#define VALKEY_GLIDE_SCAN_RETRY 1    /* Keep scanning past empty pages */
+#define VALKEY_GLIDE_SCAN_PREFIX 2   /* Prefix the SCAN MATCH pattern with OPT_PREFIX */
+#define VALKEY_GLIDE_SCAN_NOPREFIX 3 /* Send the SCAN MATCH pattern unchanged (default) */
+
+/* OPT_SLAVE_FAILOVER modes - same values as PHPRedis RedisCluster::FAILOVER_* */
+typedef enum {
+    VALKEY_GLIDE_FAILOVER_NONE              = 0,
+    VALKEY_GLIDE_FAILOVER_ERROR             = 1,
+    VALKEY_GLIDE_FAILOVER_DISTRIBUTE        = 2,
+    VALKEY_GLIDE_FAILOVER_DISTRIBUTE_SLAVES = 3
+} valkey_glide_failover_t;
 
 typedef struct {
     const void*           glide_client; /* Valkey Glide client pointer */
@@ -426,9 +447,21 @@ typedef struct {
     size_t                command_capacity;
     int                   batch_type; /* ATOMIC, MULTI, or PIPELINE */
     bool                  is_in_batch_mode;
+    bool                  is_watching; /* WATCH sent and not yet ended by EXEC or UNWATCH */
+    bool raw_subscribed; /* SUBSCRIBE sent through rawcommand(), which keeps no unsubscribe count */
 
     /* Runtime options (like PHPRedis OPT_* settings) */
-    bool opt_reply_literal; /* OPT_REPLY_LITERAL: return "OK" string instead of true */
+    bool         opt_reply_literal;  /* OPT_REPLY_LITERAL: return "OK" string instead of true */
+    zend_string* prefix;             /* OPT_PREFIX: key prefix, NULL if unset */
+    bool         scan_prefix;        /* OPT_SCAN SCAN_PREFIX: prefix the SCAN MATCH pattern */
+    bool         scan_retry;         /* OPT_SCAN SCAN_RETRY: skip empty SCAN pages */
+    zend_long    opt_slave_failover; /* OPT_SLAVE_FAILOVER: cluster only, FAILOVER_* mode */
+    bool read_from_az; /* read_from is an AZ strategy, which no FAILOVER_* mode matches exactly */
+
+    /* Serialized connection request, kept so OPT_SLAVE_FAILOVER can recreate the client with a
+     * different read_from. Cluster only; NULL for standalone clients. */
+    uint8_t* connection_request;
+    size_t   connection_request_len;
 
     AddressResolverCallback resolver_cb; /* NULL if no address resolver */
 

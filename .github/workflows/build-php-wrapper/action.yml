@@ -25,7 +25,7 @@ runs:
       uses: ./.github/actions/configure-apt-retries
 
     - name: Setup PHP
-      uses: shivammathur/setup-php@728c6c6b8cf02c2e48117716a91ee48313958a19 # v2
+      uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
       with:
         php-version: ${{ inputs.php-version }}
         extensions: tokenizer, json, ctype, iconv, mbstring, simplexml

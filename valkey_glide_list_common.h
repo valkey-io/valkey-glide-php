@@ -289,7 +289,7 @@ int execute_list_mpop_command(
     }
 
 #define VALIDATE_LIST_KEY(key, key_len) \
-    if (!(key) || (key_len) <= 0) {     \
+    if (!(key)) {                       \
         return 0;                       \
     }
 
