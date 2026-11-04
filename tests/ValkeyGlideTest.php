@@ -845,6 +845,80 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals('bar', $this->valkey_glide->set('foo', 'baz', ['GET']));
     }
 
+    /* SET options passed by reference are applied like the same options passed by value */
+    public function testSetReferencedOptions()
+    {
+        $nx = 'NX';
+        $xx = 'XX';
+        $ex = 100;
+        $px = 100000;
+
+        /* Referenced flags: NX must not overwrite an existing key, XX must not create one */
+        $this->valkey_glide->del('foo');
+        $this->assertTrue($this->valkey_glide->set('foo', 'bar', [&$nx]));
+        $this->assertFalse($this->valkey_glide->set('foo', 'baz', [&$nx]));
+        $this->assertKeyEquals('bar', 'foo');
+
+        $this->assertTrue($this->valkey_glide->set('foo', 'baz', [&$xx]));
+        $this->assertKeyEquals('baz', 'foo');
+        $this->valkey_glide->del('foo');
+        $this->assertFalse($this->valkey_glide->set('foo', 'bar', [&$xx]));
+        $this->assertKeyMissing('foo');
+
+        /* Referenced expiry values */
+        $this->assertTrue($this->valkey_glide->set('foo', 'bar', ['EX' => &$ex]));
+        $this->assertEquals(100, $this->valkey_glide->ttl('foo'));
+
+        $this->assertTrue($this->valkey_glide->set('foo', 'bar', ['PX' => &$px]));
+        $this->assertBetween($this->valkey_glide->pttl('foo'), 99000, 100001);
+
+        $exat = time() + 100;
+        $this->assertTrue($this->valkey_glide->set('foo', 'bar', ['EXAT' => &$exat]));
+        $this->assertBetween($this->valkey_glide->ttl('foo'), 98, 100);
+
+        $pxat = (time() + 100) * 1000;
+        $this->assertTrue($this->valkey_glide->set('foo', 'bar', ['PXAT' => &$pxat]));
+        $this->assertBetween($this->valkey_glide->ttl('foo'), 98, 100);
+
+        /* A referenced flag and a referenced expiry together */
+        $this->valkey_glide->del('foo');
+        $this->assertTrue($this->valkey_glide->set('foo', 'bar', [&$nx, 'EX' => &$ex]));
+        $this->assertEquals(100, $this->valkey_glide->ttl('foo'));
+        $this->assertFalse($this->valkey_glide->set('foo', 'baz', [&$nx, 'EX' => &$ex]));
+        $this->assertKeyEquals('bar', 'foo');
+
+        /* A referenced invalid expiry is still rejected */
+        $invalid = [];
+        $this->assertFalse(@$this->valkey_glide->set('foo', 'baz', ['EX' => &$invalid]));
+        $this->assertKeyEquals('bar', 'foo');
+
+        if (version_compare($this->version, '6.2.0') >= 0) {
+            /* Referenced KEEPTTL and GET flags */
+            $keepttl = 'KEEPTTL';
+            $get = 'GET';
+            $this->assertTrue($this->valkey_glide->set('foo', 'bar', ['EX' => 100]));
+            $this->assertTrue($this->valkey_glide->set('foo', 'baz', [&$keepttl]));
+            $this->assertBetween($this->valkey_glide->ttl('foo'), 90, 100);
+            $this->assertEquals('baz', $this->valkey_glide->set('foo', 'qux', [&$get]));
+        }
+
+        if ($this->is_valkey && $this->minVersionCheck('8.1.0')) {
+            /* Referenced string comparison value for IFEQ */
+            $cmp = 'qux';
+            $this->assertTrue($this->valkey_glide->set('foo', 'bar', ['IFEQ' => &$cmp]));
+            $this->assertKeyEquals('bar', 'foo');
+        }
+
+        if ($this->is_valkey && $this->minVersionCheck('9.2.0')) {
+            /* Referenced string comparison value for IFNE */
+            $cmp = 'bar';
+            $this->assertFalse($this->valkey_glide->set('foo', 'baz', ['IFNE' => &$cmp]));
+            $this->assertKeyEquals('bar', 'foo');
+        }
+
+        $this->valkey_glide->del('foo');
+    }
+
     /* Test Valkey >= 8.1 IFEQ SET option */
     public function testValkeyIfEq()
     {
@@ -902,7 +976,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del('num');
     }
 
-    /* IFEQ/IFNE can't be combined with NX/XX or with array comparison values */
+    /* IFEQ/IFNE can't be combined with NX/XX or with array, object or resource comparison values */
     public function testValkeyIfEqIfNeInvalidCombinations()
     {
         if (! $this->is_valkey || ! $this->minVersionCheck('8.1.0')) {
@@ -918,6 +992,23 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             }
             $this->assertFalse(@$this->valkey_glide->set('foo', 'baz', [$cond => ['x']]));
         }
+
+        // Unsupported comparison values are rejected without sending, also when passed by reference
+        $resource = tmpfile();
+        $unsupported = ['array' => ['x'], 'object' => new stdClass(), 'resource' => $resource];
+        foreach (['IFEQ', 'IFNE'] as $cond) {
+            foreach ($unsupported as $type => $value) {
+                // Store the string the value would convert to for IFEQ (arrays and resources), and
+                // another value for IFNE, so a SET that reached the server would overwrite the key
+                $current = ($cond === 'IFEQ' && $type !== 'object') ? @strval($value) : 'current';
+                $this->assertTrue($this->valkey_glide->set('foo', $current));
+
+                $this->assertFalse(@$this->valkey_glide->set('foo', 'baz', [$cond => $value]), "$cond $type");
+                $this->assertFalse(@$this->valkey_glide->set('foo', 'baz', [$cond => &$value]), "$cond &$type");
+                $this->assertEquals($current, $this->valkey_glide->get('foo'), "$cond $type");
+            }
+        }
+        fclose($resource);
 
         // IFEQ with a non-string scalar is converted to a string
         $this->assertTrue($this->valkey_glide->set('foo', '42'));

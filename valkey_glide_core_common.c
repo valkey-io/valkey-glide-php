@@ -1429,6 +1429,10 @@ int parse_set_options(zval* options, core_options_t* opts) {
 
     /* Iterate through all options */
     ZEND_HASH_FOREACH_KEY_VAL(options_ht, num_key, option_key, z_option) {
+        /* Follow a reference ([&$flag], ['EX' => &$ttl], ['IFNE' => &$cmp]) so the type
+         * checks below see the referenced value */
+        ZVAL_DEREF(z_option);
+
         if (option_key == NULL) {
             /* Handle numeric keys - these are option flags without values */
             if (Z_TYPE_P(z_option) == IS_STRING) {
