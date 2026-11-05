@@ -415,9 +415,14 @@ class FtHybridBuilder
     }
 
     /**
-     * Set query parameters (key => value pairs), referenced from the
-     * SEARCH query, a `$name` VSIM vector reference, or any clause's
-     * expression text.
+     * Set query parameters (key => value pairs), referenced as a `$name`
+     * VSIM vector reference or from an aggregate-clause expression (FILTER,
+     * APPLY). Not substituted in the SEARCH arm's query text: that arm goes
+     * through the same query pipeline as FT.SEARCH, where `$name`
+     * substitutes only inside a KNN vector clause, which the SEARCH arm
+     * does not have. A `$name` written directly into the SEARCH query is
+     * either rejected outright or, for a TAG filter like `@tag:{$t}`,
+     * silently matched against the literal text `$t`.
      */
     public function params(array $params): self
     {
