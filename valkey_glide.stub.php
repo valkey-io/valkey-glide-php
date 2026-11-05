@@ -1990,7 +1990,8 @@ class ValkeyGlide
      * @param array $fields Array of field names to retrieve.
      * @param array|null $options Optional expiration settings.
      *
-     * @return ValkeyGlide|array|false Returns an associative array of field-value pairs, or false on failure.
+     * @return ValkeyGlide|array|false Returns an associative array of field-value pairs, with false for a
+     *                                 field that does not exist, or false on failure.
      */
     public function hGetEx(string $key, array $fields, ?array $options = null): ValkeyGlide|array|false;
 
