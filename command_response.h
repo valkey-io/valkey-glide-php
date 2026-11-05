@@ -89,11 +89,17 @@ int command_response_to_zval(CommandResponse* response,
 char* long_to_string(long value, size_t* len);
 
 /*
- * Helper function to convert a double value to a string
- * Returns a newly allocated string or NULL on error
- * The caller is responsible for freeing the string using efree()
+ * Convert a double that a command takes as a number (an increment, a score, a weight, a
+ * coordinate, a timeout) to a string with 17 significant digits, independent of the locale.
+ * Returns a newly allocated string; the caller frees it with efree()
  */
 char* double_to_string(double value, size_t* len);
+
+/*
+ * Convert a double that a command takes as a value, member or field to a string as PHP does
+ * ((string) $float). Returns a newly allocated string; the caller frees it with efree()
+ */
+char* double_to_php_string(double value, size_t* len);
 
 /*
  * Helper function to convert a CommandResponse to a PHP stream format
