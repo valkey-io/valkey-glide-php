@@ -1878,7 +1878,11 @@ class ValkeyGlide
      *                        ];
      *                        </code>
      *
-     * @return ValkeyGlide|array|string One or more random fields (and possibly values).
+     * @return ValkeyGlide|array|string|false Without a count (or with a count of 0), one random
+     *                                       field, or false if the hash doesn't exist. With a
+     *                                       count, a list of fields (an empty array if the hash
+     *                                       doesn't exist), or an associative array of fields and
+     *                                       values with WITHVALUES.
      *
      * @see https://valkey.io/commands/hrandfield
      *
