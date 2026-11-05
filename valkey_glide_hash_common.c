@@ -1095,10 +1095,10 @@ static int process_h_getex_result(CommandResponse* response, void* output, zval*
     int               ret  = 0;
 
     if (response) {
-        // First get the array of values
+        // First get the array of values; a missing field is false, as in hMget() and hGetDel()
         zval temp_array;
         if (!command_response_to_zval(
-                response, &temp_array, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false)) {
+                response, &temp_array, COMMAND_RESPONSE_NOT_ASSOSIATIVE, true)) {
             ZVAL_FALSE(return_value);
         } else {
             // Create associative array mapping fields to values
