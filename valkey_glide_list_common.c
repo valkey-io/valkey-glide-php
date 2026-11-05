@@ -312,18 +312,15 @@ char* alloc_list_number_string(long value, size_t* len_out) {
 }
 
 /**
- * Allocate a string representation of a double
+ * Allocate a string representation of a double (a blocking timeout). Uses the locale-independent
+ * shortest exact form: %.6f printed a decimal comma under some locales and turned a timeout below
+ * 0.0000005 into 0, which blocks forever
  */
 char* alloc_list_double_string(double value, size_t* len_out) {
-    char   temp[64];
-    size_t len    = snprintf(temp, sizeof(temp), "%.6f", value);
-    char*  result = emalloc(len + 1);
-    if (result) {
-        memcpy(result, temp, len);
-        result[len] = '\0';
-        if (len_out)
-            *len_out = len;
-    }
+    size_t len;
+    char*  result = double_to_string(value, &len);
+    if (len_out)
+        *len_out = len;
     return result;
 }
 
@@ -476,7 +473,7 @@ int prepare_list_key_values_args(list_command_args_t* args,
         } else if (Z_TYPE_P(value) == IS_DOUBLE) {
             /* Convert double to string */
             size_t str_len;
-            char*  str_val = alloc_list_double_string(Z_DVAL_P(value), &str_len);
+            char*  str_val = double_to_php_string(Z_DVAL_P(value), &str_len);
 
             (*allocated_strings)[*allocated_count] = str_val;
             (*allocated_count)++;
@@ -507,7 +504,7 @@ int prepare_list_key_values_args(list_command_args_t* args,
                 } else if (Z_TYPE_P(z_item) == IS_DOUBLE) {
                     /* Convert double to string */
                     size_t str_len;
-                    char*  str_val = alloc_list_double_string(Z_DVAL_P(z_item), &str_len);
+                    char*  str_val = double_to_php_string(Z_DVAL_P(z_item), &str_len);
 
                     (*allocated_strings)[*allocated_count] = str_val;
                     (*allocated_count)++;

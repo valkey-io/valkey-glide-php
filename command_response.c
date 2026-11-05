@@ -23,6 +23,7 @@
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_otel.h"
 #include "valkey_glide_prefix.h"
+#include "zend_strtod.h"
 
 #define DEBUG_COMMAND_RESPONSE_TO_ZVAL 0
 
@@ -737,16 +738,29 @@ char* long_to_string(long value, size_t* len) {
     return str;
 }
 
-/* Convert a double value to a string */
+/* Convert a double that a command takes as a number (an increment, a score, a coordinate) to the
+ * shortest string that reads back as the same double, with the digits var_export() prints,
+ * independent of the locale: 0.1 -> "0.1", 0.1 + 0.2 -> "0.30000000000000004", 1e20 ->
+ * "1.0e+20", INF -> "INF".
+ *
+ * Difference from PHPRedis: PHPRedis sends these with 17 significant digits ("2.8599999999999999"
+ * for 2.86). Both read back as the same double, but the server adds INCRBYFLOAT and HINCRBYFLOAT
+ * in long double, where 17 digits show: '3.14' + 2.86 stores "5.9999999999999999" with PHPRedis
+ * and "6" here */
 char* double_to_string(double value, size_t* len) {
     char buffer[64];
-    /* Use %.6g format to get a more user-friendly representation */
-    *len      = snprintf(buffer, sizeof(buffer), "%.6g", value);
-    char* str = (char*) emalloc(*len + 1);
-    if (str) {
-        memcpy(str, buffer, *len);
-        str[*len] = '\0';
-    }
+    zend_gcvt(value, -1, '.', 'e', buffer);
+    *len = strlen(buffer);
+    return estrndup(buffer, *len);
+}
+
+/* Convert a double that a command takes as a value, member or field to a string as PHP does
+ * ((string) $float, which follows the precision INI setting): 1.23456789 -> "1.23456789" */
+char* double_to_php_string(double value, size_t* len) {
+    zend_string* zstr = zend_double_to_str(value);
+    char*        str  = estrndup(ZSTR_VAL(zstr), ZSTR_LEN(zstr));
+    *len              = ZSTR_LEN(zstr);
+    zend_string_release(zstr);
     return str;
 }
 /* Helper function to convert a CommandResponse to a PHP stream format
@@ -884,7 +898,7 @@ char* zval_to_string_safe(zval* z, size_t* len, int* need_free) {
             break;
 
         case IS_DOUBLE:
-            str        = double_to_string(Z_DVAL_P(z), len);
+            str        = double_to_php_string(Z_DVAL_P(z), len);
             *need_free = 1;
             break;
 
