@@ -7374,16 +7374,30 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
             $this->valkey_glide->multi($mode);
-            $it = null;
-            $this->assertThrows(ValkeyGlideException::class, fn() => $this->valkey_glide->sScan('{scanbatch}s', $it));
-            $this->assertThrows(ValkeyGlideException::class, fn() => $this->valkey_glide->hScan('{scanbatch}h', $it));
-            $this->assertThrows(ValkeyGlideException::class, fn() => $this->valkey_glide->zScan('{scanbatch}z', $it));
-            if ($this->valkey_glide instanceof ValkeyGlideCluster) {
-                $this->assertThrows(ValkeyGlideException::class, fn() => $this->valkey_glide->scan(new ClusterScanCursor()));
-            } else {
-                $this->assertThrows(ValkeyGlideException::class, fn() => $this->valkey_glide->scan($it));
+
+            /* The closures take the iterator by reference, so a write to it would show */
+            foreach (['sScan' => '{scanbatch}s', 'hScan' => '{scanbatch}h', 'zScan' => '{scanbatch}z'] as $cmd => $key) {
+                $it = null;
+                $this->assertThrows(ValkeyGlideException::class, function () use ($cmd, $key, &$it) {
+                    $this->valkey_glide->$cmd($key, $it);
+                });
+                $this->assertNull($it);
             }
-            $this->assertNull($it);
+            if ($this->valkey_glide instanceof ValkeyGlideCluster) {
+                $cursor = new ClusterScanCursor();
+                $before = $cursor->getCursor();
+                $this->assertThrows(ValkeyGlideException::class, function () use ($cursor) {
+                    $this->valkey_glide->scan($cursor);
+                });
+                $this->assertEquals($before, $cursor->getCursor());
+                $this->assertFalse($cursor->isFinished());
+            } else {
+                $it = null;
+                $this->assertThrows(ValkeyGlideException::class, function () use (&$it) {
+                    $this->valkey_glide->scan($it);
+                });
+                $this->assertNull($it);
+            }
 
             /* The batch is still usable */
             $this->valkey_glide->sMembers('{scanbatch}s');
