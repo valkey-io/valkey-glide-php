@@ -919,6 +919,19 @@ static void update_watch_state(valkey_glide_object*  valkey_glide,
                                struct CommandResult* result) {
     bool executed = result && !result->command_error;
 
+    /* A queued raw (P|S)SUBSCRIBE can subscribe on the server once the batch is sent, even if
+     * it reports failure, as the immediate rawcommand() path assumes. Without a channel the
+     * server rejects it */
+    if (result) {
+        for (size_t i = 0; i < valkey_glide->command_count; i++) {
+            const struct batch_command* cmd = &valkey_glide->buffered_commands[i];
+            if (cmd->arg_count > 1 && (batch_command_is_raw(cmd, "SUBSCRIBE", 9) ||
+                                       batch_command_is_raw(cmd, "PSUBSCRIBE", 10) ||
+                                       batch_command_is_raw(cmd, "SSUBSCRIBE", 10)))
+                valkey_glide->raw_subscribed = true;
+        }
+    }
+
     if (is_atomic) {
         /* The server ends every WATCH when it runs EXEC, including EXEC aborted by a watched
          * key. A batch rejected before EXEC (a cross-slot transaction, a connection error)
@@ -2273,19 +2286,15 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
         }
     }
 
-    /* A raw (P|S)SUBSCRIBE can subscribe on the server even when the call reports failure, and
-     * nothing records it for OPT_SLAVE_FAILOVER to refuse recreating the client. Without a
-     * channel the server rejects it, so there is nothing to record */
-    if (arg_count > 1 && Z_TYPE(z_args[0]) == IS_STRING &&
-        (zend_string_equals_literal_ci(Z_STR(z_args[0]), "SUBSCRIBE") ||
-         zend_string_equals_literal_ci(Z_STR(z_args[0]), "PSUBSCRIBE") ||
-         zend_string_equals_literal_ci(Z_STR(z_args[0]), "SSUBSCRIBE")))
-        valkey_glide->raw_subscribed = true;
-
     /* In multi()/pipeline() the command is queued like any other and its reply is part of
-     * exec()'s result. A batch routes each command by its keys, so a cluster route must be a
-     * key. Commands whose connection state the client mirrors for OPT_SLAVE_FAILOVER
-     * (SELECT, AUTH, ...) are refused, as select() is: the batch cannot mirror them */
+     * exec()'s result. A queued raw (P|S)SUBSCRIBE is recorded when the batch is sent
+     * (update_watch_state()), so a discarded one is not.
+     *
+     * Differences from PHPRedis, which queues these: a batch routes each command by its keys, so
+     * a cluster route must be a key, and a node route (randomNode, allPrimaries, allNodes,
+     * [host, port]) is refused instead of being ignored. SELECT, AUTH, HELLO, CLIENT SETNAME and
+     * RESET are refused, as select() is, because the client mirrors their state for
+     * OPT_SLAVE_FAILOVER and cannot mirror a queued command */
     if (valkey_glide->is_in_batch_mode) {
         if (route && !rawcommand_route_is_key(route)) {
             valkey_glide_set_last_error(
@@ -2304,6 +2313,15 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
         }
         return 0;
     }
+
+    /* A raw (P|S)SUBSCRIBE can subscribe on the server even when the call reports failure, and
+     * nothing records it for OPT_SLAVE_FAILOVER to refuse recreating the client. Without a
+     * channel the server rejects it, so there is nothing to record */
+    if (arg_count > 1 && Z_TYPE(z_args[0]) == IS_STRING &&
+        (zend_string_equals_literal_ci(Z_STR(z_args[0]), "SUBSCRIBE") ||
+         zend_string_equals_literal_ci(Z_STR(z_args[0]), "PSUBSCRIBE") ||
+         zend_string_equals_literal_ci(Z_STR(z_args[0]), "SSUBSCRIBE")))
+        valkey_glide->raw_subscribed = true;
 
     /* Execute the raw command using the Glide client */
     if (execute_rawcommand_command_internal(
