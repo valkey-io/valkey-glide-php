@@ -12,11 +12,11 @@
 #include "config.h"
 #endif
 
+#include <math.h>
 #include <zend.h>
 #include <zend_API.h>
 #include <zend_exceptions.h>
 #include <zend_strtod.h>
-#include <math.h>
 
 #include "valkey_glide_ft_common.h"
 
@@ -200,11 +200,11 @@ static void ft_buf_add_double_py_str(ft_arg_buf_t* buf, double val) {
         return;
     }
 
-    int    decpt;
-    bool   sign;
-    char*  rve;
-    char*  digits = zend_dtoa(val, 0, 0, &decpt, &sign, &rve);
-    int    ndigits = (int) (rve - digits);
+    int   decpt;
+    bool  sign;
+    char* rve;
+    char* digits  = zend_dtoa(val, 0, 0, &decpt, &sign, &rve);
+    int   ndigits = (int) (rve - digits);
 
     if (sign) {
         tmp[out_len++] = '-';
@@ -227,7 +227,7 @@ static void ft_buf_add_double_py_str(ft_arg_buf_t* buf, double val) {
             }
         }
         tmp[out_len++] = 'e';
-        int exp = decpt - 1;
+        int exp        = decpt - 1;
         tmp[out_len++] = (exp < 0) ? '-' : '+';
         char expbuf[8];
         int  explen = snprintf(expbuf, sizeof(expbuf), "%d", exp < 0 ? -exp : exp);
@@ -1034,11 +1034,13 @@ static void ft_hybrid_build_search_arm(ft_arg_buf_t* buf, HashTable* search_ht) 
  * reference. The generated param's raw value is written to
  * *out_generated_value (borrowed from the input zval; not copied).
  */
-static int ft_hybrid_build_vsim_arm(ft_arg_buf_t* buf, HashTable* vsim_ht, zval** out_generated_value) {
-    zval* z_field = ft_find(vsim_ht, "field");
-    zval* z_vector = ft_find(vsim_ht, "vector");
+static int ft_hybrid_build_vsim_arm(ft_arg_buf_t* buf,
+                                    HashTable*    vsim_ht,
+                                    zval**        out_generated_value) {
+    zval* z_field        = ft_find(vsim_ht, "field");
+    zval* z_vector       = ft_find(vsim_ht, "vector");
     zval* z_is_param_ref = ft_find(vsim_ht, "isParamRef");
-    int   is_param_ref = z_is_param_ref && zend_is_true(z_is_param_ref);
+    int   is_param_ref   = z_is_param_ref && zend_is_true(z_is_param_ref);
 
     FT_BUF_LIT(buf, "VSIM");
 
@@ -1046,7 +1048,7 @@ static int ft_hybrid_build_vsim_arm(ft_arg_buf_t* buf, HashTable* vsim_ht, zval*
      * bare identifier without it). */
     if (z_field && Z_TYPE_P(z_field) == IS_STRING) {
         char* at_field = emalloc(Z_STRLEN_P(z_field) + 2);
-        at_field[0] = '@';
+        at_field[0]    = '@';
         memcpy(at_field + 1, Z_STRVAL_P(z_field), Z_STRLEN_P(z_field));
         size_t at_len = Z_STRLEN_P(z_field) + 1;
         ft_buf_add_copy(buf, at_field, at_len);
@@ -1069,9 +1071,9 @@ static int ft_hybrid_build_vsim_arm(ft_arg_buf_t* buf, HashTable* vsim_ht, zval*
     }
 
     zval* z_k           = ft_find(vsim_ht, "k");
-    zval* z_ef_runtime   = ft_find(vsim_ht, "efRuntime");
-    zval* z_shard_ratio  = ft_find(vsim_ht, "shardKRatio");
-    int has_knn = (z_k && Z_TYPE_P(z_k) != IS_NULL) ||
+    zval* z_ef_runtime  = ft_find(vsim_ht, "efRuntime");
+    zval* z_shard_ratio = ft_find(vsim_ht, "shardKRatio");
+    int   has_knn       = (z_k && Z_TYPE_P(z_k) != IS_NULL) ||
                   (z_ef_runtime && Z_TYPE_P(z_ef_runtime) != IS_NULL) ||
                   (z_shard_ratio && Z_TYPE_P(z_shard_ratio) != IS_NULL);
     if (has_knn) {
@@ -1255,9 +1257,8 @@ int build_ft_hybrid_args(const char*   index_name,
 
     zval* z_search = ft_find(options_ht, "search");
     if (!z_search || Z_TYPE_P(z_search) != IS_ARRAY) {
-        zend_throw_exception(get_valkey_glide_exception_ce(),
-                             "ftHybrid: options must include a 'search' array",
-                             0);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "ftHybrid: options must include a 'search' array", 0);
         ft_buf_destroy(&buf);
         return 0;
     }
@@ -1265,14 +1266,14 @@ int build_ft_hybrid_args(const char*   index_name,
 
     zval* z_vsim = ft_find(options_ht, "vsim");
     if (!z_vsim || Z_TYPE_P(z_vsim) != IS_ARRAY) {
-        zend_throw_exception(get_valkey_glide_exception_ce(),
-                             "ftHybrid: options must include a 'vsim' array",
-                             0);
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "ftHybrid: options must include a 'vsim' array", 0);
         ft_buf_destroy(&buf);
         return 0;
     }
     zval* generated_vsim_value = NULL;
-    int   needs_generated_param = ft_hybrid_build_vsim_arm(&buf, Z_ARRVAL_P(z_vsim), &generated_vsim_value);
+    int   needs_generated_param =
+        ft_hybrid_build_vsim_arm(&buf, Z_ARRVAL_P(z_vsim), &generated_vsim_value);
 
     zval* z_combine = ft_find(options_ht, "combine");
     if (z_combine && Z_TYPE_P(z_combine) == IS_ARRAY) {
@@ -1284,11 +1285,12 @@ int build_ft_hybrid_args(const char*   index_name,
         FT_BUF_LIT(&buf, "LOCALONLY");
     }
 
-    zval* z_load_all = ft_find(options_ht, "loadAll");
+    zval* z_load_all    = ft_find(options_ht, "loadAll");
     zval* z_load_fields = ft_find(options_ht, "loadFields");
-    ft_hybrid_build_load(&buf,
-                         z_load_all,
-                         (z_load_fields && Z_TYPE_P(z_load_fields) == IS_ARRAY) ? Z_ARRVAL_P(z_load_fields) : NULL);
+    ft_hybrid_build_load(
+        &buf,
+        z_load_all,
+        (z_load_fields && Z_TYPE_P(z_load_fields) == IS_ARRAY) ? Z_ARRVAL_P(z_load_fields) : NULL);
 
     zval* z_timeout = ft_find(options_ht, "timeout");
     if (z_timeout && Z_TYPE_P(z_timeout) != IS_NULL) {
@@ -1300,13 +1302,15 @@ int build_ft_hybrid_args(const char*   index_name,
      * (if needed). A name collision between the generated name and a
      * caller-supplied entry is an error, mirroring Python's
      * _merge_params(). */
-    zval*      z_params    = ft_find(options_ht, "params");
-    HashTable* params_ht   = (z_params && Z_TYPE_P(z_params) == IS_ARRAY) ? Z_ARRVAL_P(z_params) : NULL;
-    int        nparams     = params_ht ? zend_hash_num_elements(params_ht) : 0;
-    int        total_pairs = nparams + (needs_generated_param ? 1 : 0);
+    zval*      z_params = ft_find(options_ht, "params");
+    HashTable* params_ht =
+        (z_params && Z_TYPE_P(z_params) == IS_ARRAY) ? Z_ARRVAL_P(z_params) : NULL;
+    int nparams     = params_ht ? zend_hash_num_elements(params_ht) : 0;
+    int total_pairs = nparams + (needs_generated_param ? 1 : 0);
 
     if (needs_generated_param && params_ht &&
-        zend_hash_str_exists(params_ht, FT_HYBRID_GENERATED_VSIM_PARAM_NAME,
+        zend_hash_str_exists(params_ht,
+                             FT_HYBRID_GENERATED_VSIM_PARAM_NAME,
                              sizeof(FT_HYBRID_GENERATED_VSIM_PARAM_NAME) - 1)) {
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "ftHybrid: params contains a name that collides with "

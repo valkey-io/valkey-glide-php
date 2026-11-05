@@ -586,8 +586,8 @@ int execute_ft_hybrid_command(zval* object, int argc, zval* return_value, zend_c
     /* CustomCommand requires argv[0] to be the literal command name. */
     const char** full_args = emalloc((count + 1) * sizeof(const char*));
     size_t*      full_lens = emalloc((count + 1) * sizeof(size_t));
-    full_args[0] = "FT.HYBRID";
-    full_lens[0] = sizeof("FT.HYBRID") - 1;
+    full_args[0]           = "FT.HYBRID";
+    full_lens[0]           = sizeof("FT.HYBRID") - 1;
     memcpy(full_args + 1, args, count * sizeof(const char*));
     memcpy(full_lens + 1, lens, count * sizeof(size_t));
 
@@ -614,13 +614,16 @@ int execute_ft_hybrid_command(zval* object, int argc, zval* return_value, zend_c
  * docstring for why (typed RequestType.FtCursorRead is not reachable in
  * this submodule's pinned glide-core commit).
  * ==================================================================== */
-int execute_ft_cursor_read_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+int execute_ft_cursor_read_command(zval*             object,
+                                   int               argc,
+                                   zval*             return_value,
+                                   zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                index_name     = NULL;
-    size_t                index_name_len = 0;
-    zend_long             cursor_id      = 0;
-    zend_long             count          = 0;
-    zend_bool             count_is_null  = 1;
+    size_t               index_name_len = 0;
+    zend_long            cursor_id      = 0;
+    zend_long            count          = 0;
+    zend_bool            count_is_null  = 1;
 
     if (zend_parse_method_parameters(argc,
                                      object,
@@ -689,14 +692,18 @@ int execute_ft_cursor_read_command(zval* object, int argc, zval* return_value, z
  * Dispatched via CustomCommand -- see execute_ft_hybrid_command()'s
  * docstring for why.
  * ==================================================================== */
-int execute_ft_cursor_del_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+int execute_ft_cursor_del_command(zval*             object,
+                                  int               argc,
+                                  zval*             return_value,
+                                  zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                index_name     = NULL;
-    size_t                index_name_len = 0;
-    zend_long             cursor_id      = 0;
+    size_t               index_name_len = 0;
+    zend_long            cursor_id      = 0;
 
     if (zend_parse_method_parameters(
-            argc, object, "Osl", &object, ce, &index_name, &index_name_len, &cursor_id) == FAILURE) {
+            argc, object, "Osl", &object, ce, &index_name, &index_name_len, &cursor_id) ==
+        FAILURE) {
         return 0;
     }
 

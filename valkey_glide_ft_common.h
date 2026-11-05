@@ -153,7 +153,10 @@ int execute_ft_aliasupdate_command(zval*             object,
                                    zend_class_entry* ce);
 int execute_ft_aliaslist_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_ft_hybrid_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_ft_cursor_read_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_ft_cursor_read_command(zval*             object,
+                                   int               argc,
+                                   zval*             return_value,
+                                   zend_class_entry* ce);
 int execute_ft_cursor_del_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 /* ====================================================================
@@ -340,33 +343,33 @@ int execute_ft_cursor_del_command(zval* object, int argc, zval* return_value, ze
         RETURN_FALSE;                                                                \
     }
 
-#define FT_CURSOR_READ_METHOD_IMPL(class_name)                                       \
-    PHP_METHOD(class_name, ftCursorRead) {                                           \
-        if (execute_ft_cursor_read_command(getThis(),                                \
-                                           ZEND_NUM_ARGS(),                          \
-                                           return_value,                             \
+#define FT_CURSOR_READ_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, ftCursorRead) {                                                \
+        if (execute_ft_cursor_read_command(getThis(),                                     \
+                                           ZEND_NUM_ARGS(),                               \
+                                           return_value,                                  \
                                            strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                               ? get_valkey_glide_cluster_ce()       \
-                                               : get_valkey_glide_ce())) {           \
-            return;                                                                  \
-        }                                                                            \
-        zval_dtor(return_value);                                                     \
-        RETURN_FALSE;                                                                \
+                                               ? get_valkey_glide_cluster_ce()            \
+                                               : get_valkey_glide_ce())) {                \
+            return;                                                                       \
+        }                                                                                 \
+        zval_dtor(return_value);                                                          \
+        RETURN_FALSE;                                                                     \
     }
 
-#define FT_CURSOR_DEL_METHOD_IMPL(class_name)                                        \
-    PHP_METHOD(class_name, ftCursorDel) {                                            \
-        if (execute_ft_cursor_del_command(getThis(),                                 \
-                                          ZEND_NUM_ARGS(),                          \
-                                          return_value,                             \
+#define FT_CURSOR_DEL_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, ftCursorDel) {                                                \
+        if (execute_ft_cursor_del_command(getThis(),                                     \
+                                          ZEND_NUM_ARGS(),                               \
+                                          return_value,                                  \
                                           strcmp(#class_name, "ValkeyGlideCluster") == 0 \
-                                              ? get_valkey_glide_cluster_ce()        \
-                                              : get_valkey_glide_ce())) {           \
-            APPLY_REPLY_LITERAL(return_value);                                       \
-            return;                                                                  \
-        }                                                                            \
-        zval_dtor(return_value);                                                     \
-        RETURN_FALSE;                                                                \
+                                              ? get_valkey_glide_cluster_ce()            \
+                                              : get_valkey_glide_ce())) {                \
+            APPLY_REPLY_LITERAL(return_value);                                           \
+            return;                                                                      \
+        }                                                                                \
+        zval_dtor(return_value);                                                         \
+        RETURN_FALSE;                                                                    \
     }
 
 #endif /* VALKEY_GLIDE_FT_COMMON_H */
