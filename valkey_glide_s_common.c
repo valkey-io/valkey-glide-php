@@ -563,6 +563,15 @@ typedef struct {
     char*            cursor;
     zval*            scan_iter;
 } scan_data_t;
+/* free_result for a buffered SCAN: the context owns its cursor copy, as the processor does */
+static void free_scan_data(void* output) {
+    scan_data_t* args = (scan_data_t*) output;
+    if (args->cursor) {
+        efree(args->cursor);
+    }
+    efree(args);
+}
+
 /* Replace the caller's cursor with "0" after a failed SCAN. The caller owns
  * and later frees the cursor, so it must stay an allocated string. */
 static void scan_cursor_done(scan_data_t* args) {
@@ -833,7 +842,7 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
         status = buffer_command_for_batch(
             valkey_glide, cmd_type, cmd_args, args_len, arg_count, scan_data, process_result);
         if (status) {
-            valkey_glide_batch_own_result(valkey_glide, scan_data, valkey_glide_batch_efree_result);
+            valkey_glide_batch_own_result(valkey_glide, scan_data, free_scan_data);
         }
 
 
