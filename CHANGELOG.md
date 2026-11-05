@@ -9,6 +9,8 @@
 
 ### Fixes
 
+* `zAdd()` with more than 20 numeric scores, and `zUnionStore()`, `zInterStore()`, `zDiffStore()`, `zUnion()` and `zInter()` with more than 19 numeric weights (18 with an aggregate), no longer write past a fixed 20-entry buffer and corrupt the heap ([#379](https://github.com/valkey-io/valkey-glide-php/issues/379))
+* `zAdd()` now converts non-string members (int, float, bool) with PHP's string conversion, as `sAdd()` and PHPRedis do. It rejected them and freed the argument buffers twice, which aborted the process with `zend_mm_heap corrupted`. The same double free is removed from the other zset argument error paths ([#380](https://github.com/valkey-io/valkey-glide-php/issues/380))
 * IAM authentication now requires TLS: configuring IAM auth without TLS is rejected at client creation instead of sending the IAM token over a plaintext connection ([#391](https://github.com/valkey-io/valkey-glide-php/pull/391))
 * Fix a crash at the end of a request for a cluster client with an `address_resolver` that is still open at that point (for example, held in a static property). Request shutdown freed the resolver while the client's background threads could still call it. It is now freed when the client is closed. Under ZTS, one request ending also no longer frees the resolvers of other threads' clients ([#394](https://github.com/valkey-io/valkey-glide-php/issues/394))
 * `ValkeyGlideCluster::__construct()` on an already connected object now throws instead of replacing (and leaking) the existing client ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))
