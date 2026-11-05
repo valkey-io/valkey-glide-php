@@ -158,27 +158,19 @@ class ValkeyGlideClusterBatchTest extends ValkeyGlideBatchTest
         $this->valkey_glide->sadd($key1, 'member1', 'member2', 'member3');
         $this->valkey_glide->hset($key2, 'field1', 'value1', 'field2', 'value2');
 
-        // Execute SSCAN, HSCAN in multi/exec batch
-        $sscan_it = null;
-        $hscan_it = null;
-
-        $results = $this->valkey_glide->multi()
-            ->sscan($key1, $sscan_it)
-            ->hscan($key2, $hscan_it)
-            ->exec();
-
-        // Verify transaction results
-        $this->assertIsArray($results);
-        $this->assertCount(2, $results);
-        $this->assertIsArray($results[0]); // SSCAN result [cursor, members]
-        $sscan_it = null;
-        $this->assertEquals($results[0], $this->valkey_glide->sscan($key1, $sscan_it));
-        $this->assertIsArray($results[1]); // HSCAN result [cursor, fields_values]
-        $hscan_it = null;
-        $this->assertEquals($results[1], $this->valkey_glide->hscan($key2, $hscan_it));
-        // Verify server-side effects (scan operations don't modify data)
-        $this->assertEquals(3, $this->valkey_glide->scard($key1));
-        $this->assertEquals(2, $this->valkey_glide->hlen($key2));
+        // SSCAN and HSCAN can't be queued (their iterator is only updated after exec()); each
+        // throws and the rest of the transaction still runs
+        $it = null;
+        $this->valkey_glide->multi();
+        $this->assertThrows(ValkeyGlideException::class, function () use ($key1, &$it) {
+            $this->valkey_glide->sscan($key1, $it);
+        });
+        $this->assertThrows(ValkeyGlideException::class, function () use ($key2, &$it) {
+            $this->valkey_glide->hscan($key2, $it);
+        });
+        $this->assertNull($it);
+        $results = $this->valkey_glide->scard($key1)->hlen($key2)->exec();
+        $this->assertEquals([3, 2], $results);
 
         // Cleanup
         $this->valkey_glide->del($key1, $key2);
