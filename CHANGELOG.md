@@ -9,6 +9,7 @@
 
 ### Fixes
 
+* `rawcommand()` inside `multi()` or `pipeline()` is now queued, and its reply is part of `exec()`'s result, as in PHPRedis. It ran immediately, outside the transaction. In a batch, a cluster route must be a key, and SELECT, AUTH, HELLO, CLIENT SETNAME and RESET are refused, as `select()` is ([#413](https://github.com/valkey-io/valkey-glide-php/issues/413))
 * IAM authentication now requires TLS: configuring IAM auth without TLS is rejected at client creation instead of sending the IAM token over a plaintext connection ([#391](https://github.com/valkey-io/valkey-glide-php/pull/391))
 * Fix a crash at the end of a request for a cluster client with an `address_resolver` that is still open at that point (for example, held in a static property). Request shutdown freed the resolver while the client's background threads could still call it. It is now freed when the client is closed. Under ZTS, one request ending also no longer frees the resolvers of other threads' clients ([#394](https://github.com/valkey-io/valkey-glide-php/issues/394))
 * `ValkeyGlideCluster::__construct()` on an already connected object now throws instead of replacing (and leaking) the existing client ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))

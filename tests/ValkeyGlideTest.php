@@ -8433,6 +8433,44 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(0, count($result));
     }
 
+    /* In multi() and pipeline(), rawcommand() is queued and its reply is part of exec() (#413) */
+    public function testRawCommandInBatch()
+    {
+        $key = '{rawbatch}key';
+        $list = '{rawbatch}list';
+        $other = $this->newInstance();
+
+        foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+            $this->valkey_glide->del($key, $list);
+
+            $this->assertTrue($this->valkey_glide->multi($mode) === $this->valkey_glide);
+            $this->assertTrue($this->rawCommandArray($key, ['SET', $key, 'v']) === $this->valkey_glide);
+            /* Not sent before exec() */
+            $this->assertEquals(0, $other->exists($key));
+            $this->rawCommandArray($key, ['GET', $key]);
+            $this->rawCommandArray($key, ['GET', '{rawbatch}missing']);
+            $this->rawCommandArray($list, ['RPUSH', $list, 1, 2.5]);
+            $this->rawCommandArray($list, ['LRANGE', $list, 0, -1]);
+            /* A command that fails on the server is false, as for other commands */
+            $this->rawCommandArray($key, ['INCR', $key]);
+
+            $this->assertEquals(
+                [true, 'v', false, 2, ['1', '2.5'], false],
+                $this->valkey_glide->exec()
+            );
+        }
+
+        /* Commands whose connection state the client mirrors are refused, as select() is */
+        $this->valkey_glide->multi();
+        $this->assertFalse($this->rawCommandArray($key, ['SELECT', '0']));
+        $this->assertStringContains('SELECT', (string) $this->valkey_glide->getLastError());
+        $this->assertFalse($this->rawCommandArray($key, ['CLIENT', 'SETNAME', 'x']));
+        $this->valkey_glide->discard();
+
+        $this->valkey_glide->del($key, $list);
+        $other->close();
+    }
+
     /* Test a 'raw' command */
     public function testRawCommand()
     {
