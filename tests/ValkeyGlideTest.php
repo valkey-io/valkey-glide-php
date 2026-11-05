@@ -2300,8 +2300,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     public function testSIsMemberIfExists()
     {
-        // SISMEMBER ... XX is Valkey 9.2+. The '-rc1' suffix lets 9.2 release candidates run it.
-        if (!$this->is_valkey || !$this->minVersionCheck('9.2.0-rc1')) {
+        // SISMEMBER ... XX is Valkey 9.2+.
+        if (!$this->is_valkey || !$this->minVersionCheck('9.2.0')) {
             $this->markTestSkipped('SISMEMBER XX requires Valkey 9.2.0+ (current: ' . $this->version . ')');
         }
 
