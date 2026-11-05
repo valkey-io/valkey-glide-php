@@ -3207,7 +3207,9 @@ class ValkeyGlideClusterSearchTest extends ValkeyGlideClusterBaseTest
                 $candidate = "{$docPrefix}{$suffix}";
                 $slot = (int) $client->rawcommand('randomNode', 'CLUSTER', 'KEYSLOT', $candidate);
                 if ($shardIndexForSlot($slot) === $indexOwningShard) {
-                    $onOwningShard[] = $candidate;
+                    if (count($onOwningShard) < $docCount - 1) {
+                        $onOwningShard[] = $candidate;
+                    }
                 } elseif (count($elsewhere) < $docCount - 1) {
                     $elsewhere[] = $candidate;
                 }
