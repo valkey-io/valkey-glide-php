@@ -4146,6 +4146,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         /* Score bounds keep their precision */
         $this->assertEquals(['in', 'a'], $this->valkey_glide->zRangeByScore("$k:z", 1.23456789, '+inf'));
         $this->assertEquals(['in', 'a'], $this->valkey_glide->zRange("$k:z", 1.23456789, '+inf', ['byscore' => true]));
+        $this->assertEquals(1, $this->valkey_glide->zAdd("$k:b", 0.1 + 0.2, 'b'));
+        $this->assertEquals(['b'], $this->valkey_glide->zRangeByScore("$k:b", 0, 0.1 + 0.2));
+        $this->assertEquals(['b'], $this->valkey_glide->zRange("$k:b", 0, 0.1 + 0.2, ['byscore' => true]));
+        $this->assertEquals(1, $this->valkey_glide->zRangeStore("$k:bd", "$k:b", 0, 0.1 + 0.2, ['byscore' => true]));
+        $this->valkey_glide->del("$k:b", "$k:bd");
 
         /* Weights are numbers too: 0.1 + 0.2 is not 0.3 */
         $this->valkey_glide->del("$k:w");
@@ -4167,6 +4172,20 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
          * false, a timeout that expires is null */
         $this->assertNull($this->valkey_glide->blPop(["$k:none"], 0.1));
         $this->assertEquals(0, $this->valkey_glide->exists("$k:none"));
+
+        /* Both forms ignore the locale: under a locale with a decimal comma, %.6f/%.6g sent "1,5" */
+        $locale = setlocale(LC_NUMERIC, 0);
+        if (setlocale(LC_NUMERIC, 'de_DE.UTF-8', 'de_DE', 'de_DE.utf8') !== false) {
+            try {
+                $this->assertTrue($this->valkey_glide->set("$k:s", 1.5));
+                $this->assertEquals('1.5', $this->valkey_glide->get("$k:s"));
+                $this->assertEquals(1.5, $this->valkey_glide->incrByFloat("$k:li", 1.5));
+                $this->assertNull($this->valkey_glide->blPop(["$k:none"], 0.1));
+            } finally {
+                setlocale(LC_NUMERIC, $locale);
+                $this->valkey_glide->del("$k:li");
+            }
+        }
 
         /* Geo coordinates and radius: Palermo is 166.2742 km from the centre */
         $this->valkey_glide->geoadd("$k:g", 13.361389, 38.115556, 'Palermo', 15.087269, 37.502669, 'Catania');
