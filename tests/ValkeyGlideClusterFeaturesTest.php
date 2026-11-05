@@ -1941,6 +1941,27 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $client->close();
         }
     }
+    /* A raw SUBSCRIBE that is queued and then discarded, or refused for its route, subscribes
+     * to nothing, so it doesn't block OPT_SLAVE_FAILOVER (#413) */
+    public function testOptSlaveFailoverAfterDiscardedRawSubscribe()
+    {
+        $client = $this->newInstance();
+        $channel = 'test_opt_slave_failover_queued_sub_' . uniqid();
+
+        try {
+            foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+                $client->multi($mode);
+                $this->assertTrue($client->rawcommand($channel, 'SUBSCRIBE', $channel) === $client);
+                $this->assertFalse($client->rawcommand('allPrimaries', 'SUBSCRIBE', $channel));
+                $this->assertTrue($client->discard());
+            }
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+        } finally {
+            $client->close();
+        }
+    }
+
     public function testOptSlaveFailoverRejectedAfterRawSubscribe()
     {
         $client = $this->newInstance();
