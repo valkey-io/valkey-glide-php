@@ -7144,8 +7144,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // The response size scales with the requested canvas, so a larger
         // canvas must produce a longer reply. This proves the numeric
         // parameters actually reach the server rather than being dropped.
-        $small = $this->valkey_glide->lolwut(null, [10, 2]);
-        $large = $this->valkey_glide->lolwut(null, [100, 20]);
+        // Version 5 is pinned: before Valkey 9 the default version ignores
+        // the parameters and only returns the server version. For version 5
+        // the first parameter is the column count, so the reply grows with it.
+        $small = $this->valkey_glide->lolwut(5, [10, 2]);
+        $large = $this->valkey_glide->lolwut(5, [100, 20]);
 
         $this->assertIsString($small);
         $this->assertIsString($large);
