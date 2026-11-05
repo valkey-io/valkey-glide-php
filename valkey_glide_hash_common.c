@@ -262,10 +262,6 @@ int execute_h_simple_command(valkey_glide_object* valkey_glide,
             arg_count = prepare_h_field_only_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
-        case HGetEx:
-            arg_count = prepare_h_getex_args(
-                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
-            break;
         case HGetDel:
             arg_count = prepare_h_getdel_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
@@ -1092,7 +1088,9 @@ int process_h_map_result_async(CommandResponse* response, void* output, zval* re
 /**
  * Custom processor for HGETEX that maps field names to values
  */
-int process_h_getex_result_async(CommandResponse* response, void* output, zval* return_value) {
+static int process_h_getex_result_async(CommandResponse* response,
+                                        void*            output,
+                                        zval*            return_value) {
     h_command_args_t* args = (h_command_args_t*) output;
 
     if (!response || !args || !args->fields) {
@@ -1139,6 +1137,23 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
 }
 
 /**
+ * HGETEX processor that owns its heap-allocated args: maps the reply like
+ * process_h_getex_result_async(), then frees the copied fields and the args.
+ * A NULL response only frees them.
+ */
+static int process_h_getex_result(CommandResponse* response, void* output, zval* return_value) {
+    h_command_args_t* args = (h_command_args_t*) output;
+    int ret = response ? process_h_getex_result_async(response, args, return_value) : 0;
+
+    for (int j = 0; j < args->field_count; j++) {
+        zval_ptr_dtor(&args->fields[j]);
+    }
+    efree(args->fields);
+    efree(args);
+    return ret;
+}
+
+/**
  * Batch-compatible wrapper for OK responses
  */
 int process_h_ok_result_async(CommandResponse* response, void* output, zval* return_value) {
@@ -1168,8 +1183,6 @@ z_result_processor_t get_processor_for_response_type(int response_type) {
             return process_h_array_result_async;
         case H_RESPONSE_MAP:
             return process_h_map_result_async;
-        case H_RESPONSE_GETEX:
-            return process_h_getex_result_async;
         case H_RESPONSE_OK:
             return process_h_ok_result_async;
         default:
@@ -3147,13 +3160,16 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
         return 0;
     }
 
-    h_command_args_t args = {0};
-    args.key              = key;
-    args.key_len          = key_len;
+    /* Heap-allocate the args and fields: in a batch they are read at exec(), after this
+     * function returns. Ownership passes to process_h_getex_result, which frees them. */
+    h_command_args_t* args = ecalloc(1, sizeof(h_command_args_t));
+    args->glide_client     = valkey_glide->glide_client;
+    args->key              = key;
+    args->key_len          = key_len;
 
     // Extract fields from the array parameter
     int   field_count = zend_array_count(Z_ARRVAL_P(fields));
-    zval* field_array = emalloc(field_count * sizeof(zval));
+    zval* field_array = safe_emalloc(field_count, sizeof(zval), 0);
 
     // Copy fields from the PHP array to our zval array
     HashTable* fields_ht = Z_ARRVAL_P(fields);
@@ -3165,8 +3181,8 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
     }
     ZEND_HASH_FOREACH_END();
 
-    args.fields      = field_array;
-    args.field_count = field_count;
+    args->fields      = field_array;
+    args->field_count = field_count;
 
     // Parse options array if provided (consistent with getEx)
     if (options && Z_TYPE_P(options) == IS_ARRAY) {
@@ -3175,38 +3191,32 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
 
         // Check for EX (seconds)
         if ((z_val = zend_hash_str_find(opts_ht, "EX", 2)) != NULL) {
-            args.expiry      = (int) zval_get_long(z_val);
-            args.expiry_type = "EX";
+            args->expiry      = (int) zval_get_long(z_val);
+            args->expiry_type = "EX";
         }
         // Check for PX (milliseconds)
         else if ((z_val = zend_hash_str_find(opts_ht, "PX", 2)) != NULL) {
-            args.expiry      = (int) zval_get_long(z_val);
-            args.expiry_type = "PX";
+            args->expiry      = (int) zval_get_long(z_val);
+            args->expiry_type = "PX";
         }
         // Check for EXAT (unix timestamp)
         else if ((z_val = zend_hash_str_find(opts_ht, "EXAT", 4)) != NULL) {
-            args.expiry      = (int) zval_get_long(z_val);
-            args.expiry_type = "EXAT";
+            args->expiry      = (int) zval_get_long(z_val);
+            args->expiry_type = "EXAT";
         }
         // Check for PXAT (unix timestamp in milliseconds)
         else if ((z_val = zend_hash_str_find(opts_ht, "PXAT", 4)) != NULL) {
-            args.expiry      = (int) zval_get_long(z_val);
-            args.expiry_type = "PXAT";
+            args->expiry      = (int) zval_get_long(z_val);
+            args->expiry_type = "PXAT";
         }
         // Check for PERSIST
         else if (zend_hash_str_exists(opts_ht, "PERSIST", 7)) {
-            args.expiry_type = "PERSIST";
+            args->expiry_type = "PERSIST";
         }
     }
 
-    int result = execute_h_simple_command(
-        valkey_glide, HGetEx, &args, &args, H_RESPONSE_GETEX, return_value);
-
-    // Cleanup allocated field array
-    for (int j = 0; j < field_count; j++) {
-        zval_dtor(&field_array[j]);
-    }
-    efree(field_array);
+    int result = execute_h_generic_command(
+        valkey_glide, HGetEx, args, args, process_h_getex_result, return_value);
 
     if (result) {
         if (valkey_glide->is_in_batch_mode) {
