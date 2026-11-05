@@ -1100,9 +1100,9 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
         return 0;
     }
 
-    // First get the array of values
+    // First get the array of values; a missing field is false, as in hMget() and hGetDel()
     zval temp_array;
-    if (!command_response_to_zval(response, &temp_array, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false)) {
+    if (!command_response_to_zval(response, &temp_array, COMMAND_RESPONSE_NOT_ASSOSIATIVE, true)) {
         ZVAL_FALSE(return_value);
         return 0;
     }
