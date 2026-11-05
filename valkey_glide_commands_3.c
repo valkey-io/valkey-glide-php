@@ -921,7 +921,9 @@ static void update_watch_state(valkey_glide_object*  valkey_glide,
 
     /* A queued raw (P|S)SUBSCRIBE can subscribe on the server once the batch is sent, even if
      * it reports failure, as the immediate rawcommand() path assumes. Without a channel the
-     * server rejects it */
+     * server rejects it. A result does not tell a batch the core rejected before sending, or an
+     * aborted EXEC, from one that ran, so those are counted too: refusing OPT_SLAVE_FAILOVER
+     * needlessly is safe, dropping a subscription is not */
     if (result) {
         for (size_t i = 0; i < valkey_glide->command_count; i++) {
             const struct batch_command* cmd = &valkey_glide->buffered_commands[i];
@@ -2290,11 +2292,12 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
      * exec()'s result. A queued raw (P|S)SUBSCRIBE is recorded when the batch is sent
      * (update_watch_state()), so a discarded one is not.
      *
-     * Differences from PHPRedis, which queues these: a batch routes each command by its keys, so
-     * a cluster route must be a key, and a node route (randomNode, allPrimaries, allNodes,
-     * [host, port]) is refused instead of being ignored. SELECT, AUTH, HELLO, CLIENT SETNAME and
-     * RESET are refused, as select() is, because the client mirrors their state for
-     * OPT_SLAVE_FAILOVER and cannot mirror a queued command */
+     * Differences from PHPRedis: a batch routes each command by its keys, so a cluster route
+     * must be a key. A [host, port] route, which PHPRedis queues, is refused here, as are the
+     * named routes randomNode, allPrimaries and allNodes (which PHPRedis does not have), rather
+     * than sending the command somewhere other than asked. SELECT, AUTH, HELLO, CLIENT SETNAME
+     * and RESET, which PHPRedis queues, are refused, as select() is, because the client mirrors
+     * their state for OPT_SLAVE_FAILOVER and cannot mirror a queued command */
     if (valkey_glide->is_in_batch_mode) {
         if (route && !rawcommand_route_is_key(route)) {
             valkey_glide_set_last_error(

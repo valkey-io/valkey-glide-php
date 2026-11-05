@@ -1941,6 +1941,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $client->close();
         }
     }
+
     /* A raw SUBSCRIBE that is queued and then discarded, or refused for its route, subscribes
      * to nothing, so it doesn't block OPT_SLAVE_FAILOVER (#413) */
     public function testOptSlaveFailoverAfterDiscardedRawSubscribe()
@@ -1957,6 +1958,23 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             }
             $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
             $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+        } finally {
+            $client->close();
+        }
+    }
+
+    /* A queued raw SUBSCRIBE that is sent blocks OPT_SLAVE_FAILOVER, as an immediate one does */
+    public function testOptSlaveFailoverRejectedAfterQueuedRawSubscribe()
+    {
+        $client = $this->newInstance();
+        $channel = 'test_opt_slave_failover_sent_sub_' . uniqid();
+
+        try {
+            $client->multi(ValkeyGlide::PIPELINE);
+            $client->rawcommand($channel, 'SUBSCRIBE', $channel);
+            $client->exec();
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertStringContains('subscribed', (string) $client->getLastError());
         } finally {
             $client->close();
         }
