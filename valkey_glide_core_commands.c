@@ -1275,7 +1275,12 @@ int execute_set_command_internal(valkey_glide_object* valkey_glide,
     struct set_result_data* result_data = emalloc(sizeof(struct set_result_data));
     result_data->has_get                = args.options.get_old_value;
 
-    return execute_core_command(valkey_glide, &args, result_data, process_set_result, return_value);
+    int status =
+        execute_core_command(valkey_glide, &args, result_data, process_set_result, return_value);
+    if (status && valkey_glide->is_in_batch_mode) {
+        valkey_glide_batch_own_result(valkey_glide, result_data, valkey_glide_batch_efree_result);
+    }
+    return status;
 }
 
 /* Execute a SETEX command using the Valkey Glide client */
@@ -1650,6 +1655,7 @@ int execute_ping_command(zval* object, int argc, zval* return_value, zend_class_
     /* Execute using unified core framework */
     if (execute_core_command(valkey_glide, &core_args, output, process_ping_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
+            valkey_glide_batch_own_result(valkey_glide, output, valkey_glide_batch_efree_result);
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
             return 1;

@@ -832,6 +832,9 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
         /* Buffer command for batch execution */
         status = buffer_command_for_batch(
             valkey_glide, cmd_type, cmd_args, args_len, arg_count, scan_data, process_result);
+        if (status) {
+            valkey_glide_batch_own_result(valkey_glide, scan_data, valkey_glide_batch_efree_result);
+        }
 
 
         goto cleanup;

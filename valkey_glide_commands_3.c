@@ -155,6 +155,11 @@ void valkey_glide_clear_batch_state(valkey_glide_object* valkey_glide) {
             if (cmd->arg_lengths) {
                 efree(cmd->arg_lengths);
             }
+
+            /* Free result state that exec() did not hand to the processor */
+            if (cmd->result_ptr && cmd->free_result) {
+                cmd->free_result(cmd->result_ptr);
+            }
         }
 
         efree(valkey_glide->buffered_commands);
@@ -165,6 +170,26 @@ void valkey_glide_clear_batch_state(valkey_glide_object* valkey_glide) {
     valkey_glide->is_in_batch_mode = false;
     valkey_glide->batch_type       = MULTI;
     valkey_glide->command_count    = 0;
+}
+
+/* Let the command just buffered with result_ptr free it if exec() never processes it. Call this
+ * right after buffering a command whose result_ptr the caller allocated and its processor frees */
+void valkey_glide_batch_own_result(valkey_glide_object* valkey_glide,
+                                   void*                result_ptr,
+                                   void (*free_result)(void* result_ptr)) {
+    if (!valkey_glide || !result_ptr || valkey_glide->command_count == 0) {
+        return;
+    }
+
+    struct batch_command* cmd = &valkey_glide->buffered_commands[valkey_glide->command_count - 1];
+    if (cmd->result_ptr == result_ptr) {
+        cmd->free_result = free_result;
+    }
+}
+
+/* free_result for a result_ptr that is a single emalloc'd block */
+void valkey_glide_batch_efree_result(void* result_ptr) {
+    efree(result_ptr);
 }
 
 /* Expand command buffer capacity */
@@ -228,6 +253,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
     cmd->arg_count      = arg_count;
     cmd->result_ptr     = result_ptr;
     cmd->process_result = process_result;
+    cmd->free_result    = NULL;
 
 
     /* Copy arguments */
@@ -1117,6 +1143,8 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
                     &result->response->array_value[idx],
                     valkey_glide->buffered_commands[idx].result_ptr,
                     &value);
+                /* The processor consumed result_ptr; clearing the batch must not free it */
+                valkey_glide->buffered_commands[idx].result_ptr = NULL;
 
                 if (process_status) {
                     /* Add the processed result to return array */
@@ -1805,6 +1833,8 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
 
                                          command_type_ptr,
                                          process_config_command_respose)) {
+                valkey_glide_batch_own_result(
+                    valkey_glide, command_type_ptr, valkey_glide_batch_efree_result);
                 /* Return $this */
                 ZVAL_COPY(return_value, object);
                 status = 1;
@@ -2127,6 +2157,7 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
             efree(args_len);
         cleanup_allocated_strings(allocated_strings, allocated_count);
         if (buffer_result) {
+            valkey_glide_batch_own_result(valkey_glide, output, valkey_glide_batch_efree_result);
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
             return 1;

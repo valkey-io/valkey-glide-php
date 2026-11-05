@@ -407,8 +407,11 @@ struct batch_command {
     uintptr_t*           arg_lengths; /* FFI expects uintptr_t* */
     void*                result_ptr;  /* Pointer to store result */
     z_result_processor_t process_result;
-    uintptr_t            arg_count; /* FFI expects uintptr_t */
-    enum RequestType     request_type;
+    /* Frees result_ptr when exec() does not pass it to process_result (discard(), a failed
+     * exec(), close()). NULL when the command does not own result_ptr */
+    void (*free_result)(void* result_ptr);
+    uintptr_t        arg_count; /* FFI expects uintptr_t */
+    enum RequestType request_type;
 };
 
 /* Client runtime options - matching PHPRedis behavior */
@@ -481,6 +484,10 @@ typedef struct {
 } valkey_glide_object;
 
 void valkey_glide_clear_batch_state(valkey_glide_object* valkey_glide);
+void valkey_glide_batch_own_result(valkey_glide_object* valkey_glide,
+                                   void*                result_ptr,
+                                   void (*free_result)(void* result_ptr));
+void valkey_glide_batch_efree_result(void* result_ptr);
 void valkey_glide_set_last_error(valkey_glide_object* valkey_glide, const char* msg);
 void valkey_glide_clear_last_error(valkey_glide_object* valkey_glide);
 void valkey_glide_record_command_error(valkey_glide_object* valkey_glide, CommandResult* result);

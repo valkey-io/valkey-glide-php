@@ -6269,6 +6269,49 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
     }
 
+    /* Commands whose results keep state until exec() free it when the batch is discarded (#345) */
+    public function testDiscardFreesQueuedResultState()
+    {
+        $this->valkey_glide->del('{discard}h', '{discard}z');
+        $this->valkey_glide->hSet('{discard}h', 'a', '1');
+        $this->valkey_glide->zAdd('{discard}z', 1, 'm');
+        $fields = array_map(fn($i) => "field$i", range(1, 20));
+
+        $queue = function () use ($fields) {
+            $this->valkey_glide->set('{discard}s', 'v');
+            $this->valkey_glide->hMget('{discard}h', $fields);
+            $this->valkey_glide->hRandField('{discard}h', ['count' => 1]);
+            $this->valkey_glide->zRandMember('{discard}z', ['count' => 1]);
+        };
+
+        foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+            for ($i = 0; $i < 20; $i++) {
+                $this->valkey_glide->multi($mode);
+                $queue();
+                $this->valkey_glide->discard();
+            }
+
+            /* Each round leaked at least 1 KiB before the fix */
+            $before = memory_get_usage();
+            for ($i = 0; $i < 200; $i++) {
+                $this->valkey_glide->multi($mode);
+                $queue();
+                $this->assertTrue($this->valkey_glide->discard());
+            }
+            $this->assertLT(4096, memory_get_usage() - $before);
+        }
+
+        /* A batch that is executed still returns every result */
+        $this->valkey_glide->multi();
+        $queue();
+        $result = $this->valkey_glide->exec();
+        $this->assertEquals(true, $result[0]);
+        $this->assertEquals(array_fill_keys($fields, false), $result[1]);
+        $this->assertEquals(4, count($result));
+
+        $this->valkey_glide->del('{discard}h', '{discard}z', '{discard}s');
+    }
+
     public function testDifferentTypeString()
     {
 

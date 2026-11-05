@@ -1182,6 +1182,18 @@ z_result_processor_t get_processor_for_response_type(int response_type) {
  * ==================================================================== */
 
 /**
+ * Free a heap h_command_args_t that owns its copied field zvals (HMGET, HGETDEL)
+ */
+static void free_h_fields_args(void* output) {
+    h_command_args_t* args = (h_command_args_t*) output;
+    for (int j = 0; j < args->field_count; j++) {
+        zval_ptr_dtor(&args->fields[j]);
+    }
+    efree(args->fields);
+    efree(args);
+}
+
+/**
  * Process results for HMGET (associative field mapping) - legacy version
  */
 int process_h_mget_result(CommandResponse* response, void* output, zval* return_value) {
@@ -1572,8 +1584,12 @@ int execute_h_mget_command(valkey_glide_object* valkey_glide,
     args->fields           = fields;
     args->field_count      = fields_count;
 
-    return execute_h_generic_command(
+    int status = execute_h_generic_command(
         valkey_glide, HMGet, args, args, process_h_mget_result, return_value);
+    if (status && valkey_glide->is_in_batch_mode) {
+        valkey_glide_batch_own_result(valkey_glide, args, free_h_fields_args);
+    }
+    return status;
 }
 
 
@@ -1596,8 +1612,13 @@ int execute_h_randfield_command(valkey_glide_object* valkey_glide,
     bool* withvalues_ptr = emalloc(sizeof(bool));
     *withvalues_ptr      = withvalues ? true : false;
 
-    return execute_h_generic_command(
+    int status = execute_h_generic_command(
         valkey_glide, HRandField, &args, withvalues_ptr, process_h_randfield_result, return_value);
+    if (status && valkey_glide->is_in_batch_mode) {
+        valkey_glide_batch_own_result(
+            valkey_glide, withvalues_ptr, valkey_glide_batch_efree_result);
+    }
+    return status;
 }
 
 /* ====================================================================
@@ -3320,6 +3341,7 @@ int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Handle batch mode */
     if (result && valkey_glide->is_in_batch_mode) {
+        valkey_glide_batch_own_result(valkey_glide, args, free_h_fields_args);
         /* In batch mode, return $this for method chaining */
         ZVAL_COPY(return_value, object);
     }
