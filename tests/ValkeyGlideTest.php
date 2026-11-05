@@ -4134,7 +4134,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals([1.0], $this->valkey_glide->zMscore("$k:z", 1.23456789));
         $this->assertEquals(1, $this->valkey_glide->zRem("$k:z", 1.23456789));
 
-        /* Numbers taken as doubles are sent with 17 significant digits */
+        /* Numbers taken as doubles are sent in their shortest exact form */
         $this->assertEquals(1.23456789, $this->valkey_glide->incrByFloat("$k:i", 1.23456789));
         $this->assertEquals(1234568.23456789, $this->valkey_glide->incrByFloat("$k:i", 1234567));
         $this->assertEquals(1.23456789, $this->valkey_glide->hIncrByFloat("$k:h", 'n', 1.23456789));
@@ -4152,10 +4152,21 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->zAdd("$k:w", 10, 'm');
         $this->assertEquals(1, $this->valkey_glide->zUnionStore("$k:wd", ["$k:w"], [0.1 + 0.2]));
         $this->assertEquals(3.0000000000000004, $this->valkey_glide->zScore("$k:wd", 'm'));
+        $w = 0.1 + 0.2;
+        $this->assertEquals(1, $this->valkey_glide->zUnionStore("$k:wd", ["$k:w"], [&$w]));
+        $this->assertEquals(3.0000000000000004, $this->valkey_glide->zScore("$k:wd", 'm'));
+
+        /* An increment the server adds as a long double keeps its decimal value */
+        $this->valkey_glide->set("$k:i2", '3.14');
+        $this->assertEquals(6.0, $this->valkey_glide->incrByFloat("$k:i2", 2.86));
+        $this->assertEquals('6', $this->valkey_glide->get("$k:i2"));
+        $this->valkey_glide->del("$k:i2");
         $this->valkey_glide->del("$k:w", "$k:wd");
 
-        /* Blocking timeouts are sent as numbers too */
-        $this->assertEquals([], $this->valkey_glide->blPop(["$k:none"], 0.1) ?: []);
+        /* Blocking timeouts are sent as numbers too: a timeout the server rejected would be
+         * false, a timeout that expires is null */
+        $this->assertNull($this->valkey_glide->blPop(["$k:none"], 0.1));
+        $this->assertEquals(0, $this->valkey_glide->exists("$k:none"));
 
         /* Geo coordinates and radius: Palermo is 166.2742 km from the centre */
         $this->valkey_glide->geoadd("$k:g", 13.361389, 38.115556, 'Palermo', 15.087269, 37.502669, 'Catania');

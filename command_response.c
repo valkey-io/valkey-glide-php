@@ -738,12 +738,18 @@ char* long_to_string(long value, size_t* len) {
     return str;
 }
 
-/* Convert a double that a command takes as a number (an increment, a score, a coordinate) to a
- * string with 17 significant digits, so it reaches the server unchanged. Like PHPRedis, this
- * ignores the locale: 0.1 -> "0.10000000000000001", 1e20 -> "1.0e+20", INF -> "INF" */
+/* Convert a double that a command takes as a number (an increment, a score, a coordinate) to the
+ * shortest string that reads back as the same double, with the digits var_export() prints,
+ * independent of the locale: 0.1 -> "0.1", 0.1 + 0.2 -> "0.30000000000000004", 1e20 ->
+ * "1.0e+20", INF -> "INF".
+ *
+ * Difference from PHPRedis: PHPRedis sends these with 17 significant digits ("2.8599999999999999"
+ * for 2.86). Both read back as the same double, but the server adds INCRBYFLOAT and HINCRBYFLOAT
+ * in long double, where 17 digits show: '3.14' + 2.86 stores "5.9999999999999999" with PHPRedis
+ * and "6" here */
 char* double_to_string(double value, size_t* len) {
     char buffer[64];
-    zend_gcvt(value, 17, '.', 'e', buffer);
+    zend_gcvt(value, -1, '.', 'e', buffer);
     *len = strlen(buffer);
     return estrndup(buffer, *len);
 }

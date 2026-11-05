@@ -1045,7 +1045,9 @@ int prepare_z_store_args(z_command_args_t* args,
             size_t weight_len = 0;
             int    need_free  = 0;
 
-            /* A float weight is a number: 17 significant digits, as PHPRedis sends it */
+            /* A float weight is a number, sent in its shortest exact form. A weight passed by
+             * reference is dereferenced first, or it would take the value path */
+            ZVAL_DEREF(weight);
             if (Z_TYPE_P(weight) == IS_DOUBLE) {
                 weight_str = double_to_string(Z_DVAL_P(weight), &weight_len);
                 need_free  = 1;
@@ -1251,7 +1253,9 @@ int prepare_z_union_args(z_command_args_t* args,
             size_t weight_len = 0;
             int    need_free  = 0;
 
-            /* A float weight is a number: 17 significant digits, as PHPRedis sends it */
+            /* A float weight is a number, sent in its shortest exact form. A weight passed by
+             * reference is dereferenced first, or it would take the value path */
+            ZVAL_DEREF(weight);
             if (Z_TYPE_P(weight) == IS_DOUBLE) {
                 weight_str = double_to_string(Z_DVAL_P(weight), &weight_len);
                 need_free  = 1;
