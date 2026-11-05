@@ -9,6 +9,7 @@
 
 ### Fixes
 
+* `hRandField()` handles its options and replies as PHPRedis does, which changes some return shapes: `count => 1` returns an array, as every other count does (it returned a single field as a string); `count => 0` means no count and returns a single field (it returned `false`); option keys are case-insensitive and `WITHVALUES` can be given as a plain value (`['COUNT' => 2]`, `['WITHVALUES']`), which were ignored; and a missing hash with a count returns `[]` instead of `false` ([#421](https://github.com/valkey-io/valkey-glide-php/issues/421))
 * IAM authentication now requires TLS: configuring IAM auth without TLS is rejected at client creation instead of sending the IAM token over a plaintext connection ([#391](https://github.com/valkey-io/valkey-glide-php/pull/391))
 * Fix a crash at the end of a request for a cluster client with an `address_resolver` that is still open at that point (for example, held in a static property). Request shutdown freed the resolver while the client's background threads could still call it. It is now freed when the client is closed. Under ZTS, one request ending also no longer frees the resolvers of other threads' clients ([#394](https://github.com/valkey-io/valkey-glide-php/issues/394))
 * `ValkeyGlideCluster::__construct()` on an already connected object now throws instead of replacing (and leaking) the existing client ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))
