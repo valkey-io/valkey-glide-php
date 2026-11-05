@@ -26,14 +26,20 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SCRATCH_DIR="${REPO_ROOT}/.module-ci-local-scratch"
-mkdir -p "$SCRATCH_DIR"
 
 IMAGE="${IMAGE:-valkey/valkey-bundle:9.2.0-rc2}"
 ENGINE_VERSION="${ENGINE_VERSION:-9.0}"
 CLUSTER_PORT_START="${CLUSTER_PORT_START:-8101}"
 STANDALONE_PORT="${STANDALONE_PORT:-6489}"
 EMULATE_RELEASE="${EMULATE_RELEASE-1.3.0}"
+
+# Unique per invocation (keyed by the ports this run actually uses), so two
+# runs -- even under different ports, run back-to-back or (if the caller
+# ever bypasses the with-ci-lock.sh serialization) concurrently -- never
+# share standalone.conf or env-capture. Removed on exit alongside the
+# module containers.
+SCRATCH_DIR="${REPO_ROOT}/.module-ci-local-scratch/run-${STANDALONE_PORT}-${CLUSTER_PORT_START}-$$"
+mkdir -p "$SCRATCH_DIR"
 
 if [ -n "$EMULATE_RELEASE" ] && ! [[ "$EMULATE_RELEASE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     echo "ERROR: EMULATE_RELEASE must be X.Y.Z (e.g. 1.3.0) or empty, got: ${EMULATE_RELEASE}" >&2
@@ -46,6 +52,7 @@ cleanup() {
     for port in $(seq "$CLUSTER_PORT_START" "$((CLUSTER_PORT_START + 5))"); do
         docker rm -f "valkey-modules-cluster-${port}" >/dev/null 2>&1 || true
     done
+    rm -rf "$SCRATCH_DIR"
 }
 trap cleanup EXIT
 

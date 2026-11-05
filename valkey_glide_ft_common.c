@@ -283,6 +283,9 @@ static void ft_buf_add_zval_py_float(ft_arg_buf_t* buf, zval* z) {
     }
 }
 
+/* Serialize a zval of any scalar type as an argv token: strings and
+ * already-stringified longs/doubles are added directly; any other type goes
+ * through convert_to_string() first (PHP's own scalar-to-string rules). */
 static void ft_buf_add_zval(ft_arg_buf_t* buf, zval* z) {
     if (Z_TYPE_P(z) == IS_STRING) {
         ft_buf_add(buf, Z_STRVAL_P(z), Z_STRLEN_P(z));
@@ -299,6 +302,8 @@ static void ft_buf_add_zval(ft_arg_buf_t* buf, zval* z) {
     }
 }
 
+/* Free every allocation ft_buf_add_zval()/ft_buf_add_double_py_str() made into
+ * buf->allocated, then the buffer's own arrays. Does not free buf itself. */
 static void ft_buf_destroy(ft_arg_buf_t* buf) {
     for (int i = 0; i < buf->alloc_count; i++) {
         efree(buf->allocated[i]);
@@ -323,6 +328,9 @@ static zval* ft_find(HashTable* ht, const char* key) {
  *   ['name' => 'title', 'type' => 'TEXT', 'sortable' => true, ...]
  * ==================================================================== */
 
+/* Serialize one FT.CREATE SCHEMA field entry (name, optional AS alias, type,
+ * and type-specific options) into buf. Returns 0 and throws if 'name' or
+ * 'type' is missing or not a string; returns 1 on success. */
 static int ft_build_field(ft_arg_buf_t* buf, HashTable* field) {
     zval* z;
 
@@ -488,6 +496,8 @@ static int ft_build_field(ft_arg_buf_t* buf, HashTable* field) {
  * ];
  * ==================================================================== */
 
+/* Serialize the FT.CREATE options array (ON, PREFIX, FILTER, LANGUAGE,
+ * SCORE_FIELD, NOHL, and the FT 1.2-era text-indexing flags) into buf. */
 static void ft_build_create_options(ft_arg_buf_t* buf, HashTable* opts) {
     zval* z;
 
@@ -593,6 +603,9 @@ static void ft_build_create_options(ft_arg_buf_t* buf, HashTable* opts) {
  * ];
  * ==================================================================== */
 
+/* Serialize the FT.SEARCH options array (NOCONTENT, VERBATIM, INORDER,
+ * SLOP, INKEYS, WITHSCORES, SCORER, and the other FT.SEARCH flags) into
+ * buf. */
 static void ft_build_search_options(ft_arg_buf_t* buf, HashTable* opts) {
     zval* z;
 
@@ -750,6 +763,8 @@ static void ft_build_search_options(ft_arg_buf_t* buf, HashTable* opts) {
  * ]
  * ==================================================================== */
 
+/* Serialize the FT.INFO options array (scope, ALLSHARDS/SOMESHARDS,
+ * CONSISTENT/INCONSISTENT) into buf. */
 static void ft_build_info_options(ft_arg_buf_t* buf, HashTable* opts) {
     zval* z;
 

@@ -1949,7 +1949,7 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
             $sampleIdx = array_search('sample', $resultRandomSample[0]);
             $this->assertTrue($sampleIdx !== false);
             $sample = $resultRandomSample[0][$sampleIdx + 1];
-            $this->assertTrue(count($sample) > 0);
+            $this->assertCount(3, $sample);
             foreach ($sample as $v) {
                 $this->assertTrue(in_array($v, ['10', '30'], true));
             }
@@ -2080,7 +2080,6 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
                 $this->assertTrue($distIdx !== false);
                 $distances[] = (float) $row[$distIdx + 1];
             }
-            sort($distances);
             $this->assertEquals([0.0, 1.0], $distances);
         } finally {
             $this->getClient()->ftDropIndex($idx);

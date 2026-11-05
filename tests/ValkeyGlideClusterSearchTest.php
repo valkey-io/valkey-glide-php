@@ -2098,7 +2098,6 @@ class ValkeyGlideClusterSearchTest extends ValkeyGlideClusterBaseTest
                 $this->assertTrue($distIdx !== false);
                 $distances[] = (float) $row[$distIdx + 1];
             }
-            sort($distances);
             $this->assertEquals([0.0, 1.0], $distances);
         } finally {
             $this->getClient()->ftDropIndex($idx);
@@ -3403,6 +3402,124 @@ class ValkeyGlideClusterSearchTest extends ValkeyGlideClusterBaseTest
             $keys = [];
             for ($i = 1; $i <= 20; $i++) {
                 $keys[] = $prefix . 'd' . $i;
+            }
+            $this->getClient()->del(...$keys);
+        }
+    }
+
+    /**
+     * Companion to testFtCursorAffinityPreferReplicaClient(): that test only
+     * exercises rawcommand(), so the typed APIs (ftAggregate(), ftCursorRead(),
+     * ftCursorDel(), ftHybrid()) never ran under a READ_FROM_PREFER_REPLICA
+     * client. Opens a cursor through each typed entry point, pages it to
+     * exhaustion through ftCursorRead(), and deletes it through
+     * ftCursorDel() -- the full typed lifecycle, under the same client
+     * configuration that would otherwise spread reads across replicas.
+     */
+    public function testFtTypedCursorLifecyclePreferReplicaClient()
+    {
+        $this->skipIfModuleNotAvailable();
+        if (!$this->requiresSearch13()) {
+            throw new TestSkippedException('valkey-search 1.3+ required.');
+        }
+        $prefix = '{' . uniqid('phptest_') . '}:';
+        $idx = $prefix . 'index';
+        $preferReplica = new ValkeyGlideCluster(
+            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+            read_from: ValkeyGlide::READ_FROM_PREFER_REPLICA
+        );
+        try {
+            $this->getClient()->ftCreate(
+                (new FtCreateBuilder())
+                    ->index($idx)
+                    ->on('HASH')
+                    ->prefix([$prefix])
+                    ->addField(new FtNumericField('n'))
+            );
+            for ($i = 1; $i <= 20; $i++) {
+                $this->getClient()->hSet($prefix . 'd' . $i, ['n' => (string) $i]);
+            }
+            usleep(self::INDEX_SYNC_DELAY_US);
+
+            // ftAggregate()->withCursor() under PREFER_REPLICA, paged to
+            // exhaustion through ftCursorRead().
+            $page = $preferReplica->ftAggregate(
+                (new FtAggregateBuilder())
+                    ->index($idx)
+                    ->query('*')
+                    ->load(['n'])
+                    ->withCursor(count: 5)
+            );
+            $cursorId = $page[1];
+            $this->assertIsInt($cursorId);
+            $totalRows = count($page[0]);
+            $pagesRead = 1;
+            while ($cursorId !== 0) {
+                $next = $preferReplica->ftCursorRead($idx, $cursorId, 5);
+                $totalRows += count($next[0]);
+                $cursorId = $next[1];
+                $pagesRead++;
+                $this->assertTrue($pagesRead <= 10, 'paging did not terminate as expected');
+            }
+            $this->assertEquals(20, $totalRows);
+
+            // ftCursorDel() on a still-open typed cursor, also under
+            // PREFER_REPLICA.
+            $page = $preferReplica->ftAggregate(
+                (new FtAggregateBuilder())
+                    ->index($idx)
+                    ->query('*')
+                    ->load(['n'])
+                    ->withCursor(count: 5)
+            );
+            $openCursorId = $page[1];
+            $this->assertTrue($preferReplica->ftCursorDel($idx, $openCursorId));
+
+            // ftHybrid()->withCursor(), same lifecycle, same client.
+            $this->getClient()->ftCreate(
+                (new FtCreateBuilder())
+                    ->index($idx . '-hybrid')
+                    ->on('HASH')
+                    ->prefix([$prefix . 'hy:'])
+                    ->addField(new FtTextField('title'))
+                    ->addField(FtVectorField::flat('vec', 2, 'L2'))
+            );
+            for ($i = 1; $i <= 20; $i++) {
+                $this->getClient()->hSet($prefix . 'hy:' . $i, [
+                    'title' => 'hello world',
+                    'vec' => pack('f*', (float) $i, (float) $i),
+                ]);
+            }
+            usleep(self::INDEX_SYNC_DELAY_US);
+
+            $hybridPage = $preferReplica->ftHybrid(
+                (new \ValkeyGlide\Search\FtHybridBuilder())
+                    ->index($idx . '-hybrid')
+                    ->search('hello')
+                    ->vsim('vec', vector: pack('f*', 1.0, 1.0), k: 20)
+                    ->limit(0, 20)
+                    ->withCursor(count: 5)
+            );
+            $hybridCursorId = $hybridPage[1];
+            $this->assertIsInt($hybridCursorId);
+            $hybridRows = count($hybridPage[0]);
+            $hybridPagesRead = 1;
+            while ($hybridCursorId !== 0) {
+                $next = $preferReplica->ftCursorRead($idx . '-hybrid', $hybridCursorId, 5);
+                $hybridRows += count($next[0]);
+                $hybridCursorId = $next[1];
+                $hybridPagesRead++;
+                $this->assertTrue($hybridPagesRead <= 10, 'hybrid paging did not terminate as expected');
+            }
+            $this->assertEquals(20, $hybridRows);
+        } finally {
+            $preferReplica->close();
+            $this->getClient()->ftDropIndex($idx);
+            $this->getClient()->ftDropIndex($idx . '-hybrid');
+            $keys = [];
+            for ($i = 1; $i <= 20; $i++) {
+                $keys[] = $prefix . 'd' . $i;
+                $keys[] = $prefix . 'hy:' . $i;
             }
             $this->getClient()->del(...$keys);
         }
