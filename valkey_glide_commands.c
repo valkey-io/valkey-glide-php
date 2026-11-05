@@ -1708,6 +1708,8 @@ int execute_object_command_impl(valkey_glide_object* valkey_glide,
             valkey_glide, req_type, args, args_len, 1, subcommand_copy, process_object_result);
 
         if (result) {
+            valkey_glide_batch_own_result(
+                valkey_glide, subcommand_copy, valkey_glide_batch_efree_result);
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
             return 1;

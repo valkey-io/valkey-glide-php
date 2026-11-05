@@ -9,6 +9,7 @@
 
 ### Fixes
 
+* Discarding a batch, a failed `exec()`, or closing a client in batch mode now frees the result state of queued `set()`, `ping()`, `hMget()`, `hGetDel()`, `hRandField()`, `xClaim()`, `zRandMember()`, `geoSearch()`, `object()`, `config()`, `client()` and SCAN-family commands. It leaked until the end of the request ([#345](https://github.com/valkey-io/valkey-glide-php/issues/345))
 * IAM authentication now requires TLS: configuring IAM auth without TLS is rejected at client creation instead of sending the IAM token over a plaintext connection ([#391](https://github.com/valkey-io/valkey-glide-php/pull/391))
 * Fix a crash at the end of a request for a cluster client with an `address_resolver` that is still open at that point (for example, held in a static property). Request shutdown freed the resolver while the client's background threads could still call it. It is now freed when the client is closed. Under ZTS, one request ending also no longer frees the resolvers of other threads' clients ([#394](https://github.com/valkey-io/valkey-glide-php/issues/394))
 * `ValkeyGlideCluster::__construct()` on an already connected object now throws instead of replacing (and leaking) the existing client ([#361](https://github.com/valkey-io/valkey-glide-php/issues/361))

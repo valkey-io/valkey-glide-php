@@ -6269,6 +6269,75 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
     }
 
+    /* Commands whose results keep state until exec() free it when the batch is discarded (#345) */
+    public function testDiscardFreesQueuedResultState()
+    {
+        $this->valkey_glide->del('{discard}h', '{discard}z', '{discard}g');
+        $this->valkey_glide->hSet('{discard}h', 'a', '1');
+        $this->valkey_glide->zAdd('{discard}z', 1, 'm');
+        $this->valkey_glide->geoadd('{discard}g', 13.361389, 38.115556, 'Palermo');
+        $fields = array_map(fn($i) => "field$i", range(1, 20));
+
+        $queue = function () use ($fields) {
+            $this->valkey_glide->set('{discard}s', 'v');
+            $this->valkey_glide->hMget('{discard}h', $fields);
+            $this->valkey_glide->hRandField('{discard}h', ['count' => 2]);
+            $this->valkey_glide->zRandMember('{discard}z', ['count' => 1]);
+            $this->valkey_glide->geosearch('{discard}g', [13.36, 38.11], 10, 'km');
+        };
+
+        foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+            for ($i = 0; $i < 20; $i++) {
+                $this->valkey_glide->multi($mode);
+                $queue();
+                $this->valkey_glide->discard();
+            }
+
+            /* A command that leaks even its smallest allocation (16 bytes) per round exceeds the
+             * bound; hMget() leaked about 1 KiB per round before the fix */
+            $before = memory_get_usage();
+            for ($i = 0; $i < 1000; $i++) {
+                $this->valkey_glide->multi($mode);
+                $queue();
+                $this->assertTrue($this->valkey_glide->discard());
+            }
+            $this->assertLT(4096, memory_get_usage() - $before);
+        }
+
+        /* The same holds for a transaction that fails: a watched key changed by another client
+         * makes exec() return false without running the queued commands */
+        $other = $this->newInstance();
+        $failed = function () use ($queue, $other) {
+            $this->valkey_glide->watch('{discard}s');
+            $other->set('{discard}s', 'changed');
+            $this->valkey_glide->multi();
+            $queue();
+            return $this->valkey_glide->exec();
+        };
+        for ($i = 0; $i < 20; $i++) {
+            $failed();
+        }
+        $before = memory_get_usage();
+        for ($i = 0; $i < 300; $i++) {
+            $this->assertFalse($failed());
+        }
+        $this->assertLT(4096, memory_get_usage() - $before);
+        $other->close();
+
+        /* A batch that is executed still returns every result */
+        $this->valkey_glide->multi();
+        $queue();
+        $result = $this->valkey_glide->exec();
+        $this->assertEquals(true, $result[0]);
+        $this->assertEquals(array_fill_keys($fields, false), $result[1]);
+        $this->assertEquals(['a'], $result[2]);
+        $this->assertEquals(['m'], $result[3]);
+        $this->assertEquals(['Palermo'], $result[4]);
+        $this->assertEquals(5, count($result));
+
+        $this->valkey_glide->del('{discard}h', '{discard}z', '{discard}s', '{discard}g');
+    }
+
     public function testDifferentTypeString()
     {
 
