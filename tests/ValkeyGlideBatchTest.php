@@ -1573,7 +1573,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
     public function testSIsMemberIfExistsBatch()
     {
-        if (!$this->is_valkey || !$this->minVersionCheck('9.2.0-rc1')) {
+        if (!$this->is_valkey || !$this->minVersionCheck('9.2.0')) {
             $this->markTestSkipped('SISMEMBER XX requires Valkey 9.2.0+ (current: ' . $this->version . ')');
         }
 
