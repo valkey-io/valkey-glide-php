@@ -39,7 +39,29 @@
 #   SEARCH_MODULE_PATH      The in-container path baked into the generated
 #                           conf's loadmodule line. Defaults, unchanged, to
 #                           the bundle image's own
-#                           /usr/lib/valkey/libsearch.so.
+#                           /usr/lib/valkey/libsearch.so. Setting this to
+#                           anything else requires SEARCH_MODULE_HOST_PATH
+#                           to also be set (enforced below) -- the bundle
+#                           entrypoint's auto-discovery
+#                           (bundle-docker-entrypoint.sh) decides whether
+#                           to skip appending its own --loadmodule for a
+#                           module by grep'ing the conf for the EXACT
+#                           string "loadmodule <default path>"; a conf
+#                           naming any other path doesn't match that grep,
+#                           so the entrypoint still auto-appends the
+#                           bundled module too, and the server aborts at
+#                           startup with "module name is busy" (confirmed
+#                           live: valkey-bundle:9.2.0-rc2, a conf naming
+#                           /opt/custom/libsearch.so -- the server loads
+#                           search from /opt/custom/libsearch.so first,
+#                           then aborts trying to also load
+#                           /usr/lib/valkey/libsearch.so). With
+#                           SEARCH_MODULE_HOST_PATH set, SEARCH_MODULE_PATH
+#                           is only safe to override because at that point
+#                           the host .so is what's actually mounted and
+#                           loaded -- see that variable's own doc for why
+#                           the two are typically left at their defaults
+#                           together.
 #   SEARCH_MODULE_HOST_PATH A host .so to bind-mount read-only at
 #                           SEARCH_MODULE_PATH on every container this
 #                           script starts (standalone + every cluster
@@ -53,7 +75,12 @@
 #                           still ships rc1 -- confirmed via the #1407
 #                           unreferenced-PARAMS behavioral probe, not the
 #                           MODULE LIST version number, which is identical
-#                           -- 66304 -- for both).
+#                           -- 66304 -- for both). Leave SEARCH_MODULE_PATH
+#                           at its default when setting this: the bind
+#                           mount then replaces the bundle's own file at
+#                           the exact path its auto-discovery grep expects
+#                           to see named in the conf, so only one copy of
+#                           search ever loads.
 #   SCRATCH_DIR         Directory for generated .conf files. MUST be under
 #                       $HOME on macOS Docker Desktop (shares /Users by
 #                       default, not /tmp -- a bind-mounted file staged
@@ -75,6 +102,14 @@ STANDALONE_PORT="${STANDALONE_PORT:-6389}"
 SEARCH_MODULE_ARGS="${SEARCH_MODULE_ARGS:-}"
 SEARCH_MODULE_PATH="${SEARCH_MODULE_PATH:-/usr/lib/valkey/libsearch.so}"
 SEARCH_MODULE_HOST_PATH="${SEARCH_MODULE_HOST_PATH:-}"
+if [ "$SEARCH_MODULE_PATH" != "/usr/lib/valkey/libsearch.so" ] && [ -z "$SEARCH_MODULE_HOST_PATH" ]; then
+    echo "ERROR: SEARCH_MODULE_PATH is set to a non-default path ('${SEARCH_MODULE_PATH}') without" >&2
+    echo "SEARCH_MODULE_HOST_PATH. The bundle image's own module auto-discovery only skips" >&2
+    echo "appending its own --loadmodule for the module it finds already named in the conf at the" >&2
+    echo "EXACT default path; naming any other path there still gets the bundled module appended" >&2
+    echo "too, and the server aborts at startup with 'module name is busy' (confirmed live)." >&2
+    exit 1
+fi
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRATCH_DIR="${SCRATCH_DIR:-${REPO_ROOT}/.module-ci-local-scratch}"
 mkdir -p "$SCRATCH_DIR"
