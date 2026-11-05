@@ -230,7 +230,7 @@ static void ft_buf_add_double_py_str(ft_arg_buf_t* buf, double val) {
         int exp        = decpt - 1;
         tmp[out_len++] = (exp < 0) ? '-' : '+';
         char expbuf[8];
-        int  explen = snprintf(expbuf, sizeof(expbuf), "%d", exp < 0 ? -exp : exp);
+        int  explen = snprintf(expbuf, sizeof(expbuf), "%02d", exp < 0 ? -exp : exp);
         memcpy(tmp + out_len, expbuf, (size_t) explen);
         out_len += explen;
     } else if (decpt <= 0) {
@@ -1262,6 +1262,13 @@ int build_ft_hybrid_args(const char*   index_name,
         ft_buf_destroy(&buf);
         return 0;
     }
+    if (!ft_find(Z_ARRVAL_P(z_search), "query")) {
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "ftHybrid: 'search' array must include a 'query' string",
+                             0);
+        ft_buf_destroy(&buf);
+        return 0;
+    }
     ft_hybrid_build_search_arm(&buf, Z_ARRVAL_P(z_search));
 
     zval* z_vsim = ft_find(options_ht, "vsim");
@@ -1325,11 +1332,14 @@ int build_ft_hybrid_args(const char*   index_name,
     FT_BUF_LIT(&buf, "PARAMS");
     ft_buf_add_long(&buf, total_pairs * 2);
     if (params_ht) {
+        zend_ulong   num_key;
         zend_string* key;
         zval*        val;
-        ZEND_HASH_FOREACH_STR_KEY_VAL(params_ht, key, val) {
+        ZEND_HASH_FOREACH_KEY_VAL(params_ht, num_key, key, val) {
             if (key) {
                 ft_buf_add(&buf, ZSTR_VAL(key), ZSTR_LEN(key));
+            } else {
+                ft_buf_add_long(&buf, (zend_long) num_key);
             }
             ft_buf_add_zval(&buf, val);
         }

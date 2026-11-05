@@ -39,9 +39,8 @@ class FtTagField
     }
 
     /**
-     * Keep the sorted value in its original (un-normalized) form, e.g.
-     * preserving case for TAG fields that would otherwise be lowercased
-     * for sorting (valkey-search 1.3.0, src/commands/ft_create_parser.cc).
+     * Adds the UNF attribute alongside SORTABLE. valkey-search stores and
+     * reports UNF through FT.INFO but does not change the TAG sort order.
      * Requires sortable() to also be set; toArray() throws otherwise.
      */
     public function unf(bool $unf = true): self

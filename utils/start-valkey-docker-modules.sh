@@ -36,6 +36,24 @@
 #                       stripping, confirmed empirically against both a
 #                       local build and this image). SCRATCH_DIR (below)
 #                       controls where the generated .conf files are staged.
+#   SEARCH_MODULE_PATH      The in-container path baked into the generated
+#                           conf's loadmodule line. Defaults, unchanged, to
+#                           the bundle image's own
+#                           /usr/lib/valkey/libsearch.so.
+#   SEARCH_MODULE_HOST_PATH A host .so to bind-mount read-only at
+#                           SEARCH_MODULE_PATH on every container this
+#                           script starts (standalone + every cluster
+#                           node). Unset by default -- no extra mount, so
+#                           CI's behavior is byte-identical to before these
+#                           variables existed. Use this to run against a
+#                           source-built module instead of the one baked
+#                           into IMAGE (the bundle's own
+#                           valkey/valkey-bundle:9.2.0-rc2 tag predates
+#                           valkey-search's real 1.3.0-rc2 release and
+#                           still ships rc1 -- confirmed via the #1407
+#                           unreferenced-PARAMS behavioral probe, not the
+#                           MODULE LIST version number, which is identical
+#                           -- 66304 -- for both).
 #   SCRATCH_DIR         Directory for generated .conf files. MUST be under
 #                       $HOME on macOS Docker Desktop (shares /Users by
 #                       default, not /tmp -- a bind-mounted file staged
@@ -55,6 +73,8 @@ set -euo pipefail
 CLUSTER_PORT_START="${CLUSTER_PORT_START:-8001}"
 STANDALONE_PORT="${STANDALONE_PORT:-6389}"
 SEARCH_MODULE_ARGS="${SEARCH_MODULE_ARGS:-}"
+SEARCH_MODULE_PATH="${SEARCH_MODULE_PATH:-/usr/lib/valkey/libsearch.so}"
+SEARCH_MODULE_HOST_PATH="${SEARCH_MODULE_HOST_PATH:-}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRATCH_DIR="${SCRATCH_DIR:-${REPO_ROOT}/.module-ci-local-scratch}"
 mkdir -p "$SCRATCH_DIR"
@@ -144,16 +164,28 @@ gen_conf() {
         if [ -n "$extra_lines" ]; then
             echo "$extra_lines"
         fi
-        echo "loadmodule /usr/lib/valkey/libsearch.so ${SEARCH_MODULE_ARGS}"
+        echo "loadmodule ${SEARCH_MODULE_PATH} ${SEARCH_MODULE_ARGS}"
     } > "$conf_path"
 }
 
+# Bind-mount SEARCH_MODULE_HOST_PATH (if set) read-only at SEARCH_MODULE_PATH
+# on every container. Safe on both bash 3.2 (macOS system bash, which
+# predates bash 4.4's fix for expanding an empty array under set -u) and
+# bash 5.x: ${MODULE_MOUNT_ARGS[@]+"${MODULE_MOUNT_ARGS[@]}"} rather than a
+# bare "${MODULE_MOUNT_ARGS[@]}" expansion.
+MODULE_MOUNT_ARGS=()
+if [ -n "$SEARCH_MODULE_HOST_PATH" ]; then
+    MODULE_MOUNT_ARGS=(-v "${SEARCH_MODULE_HOST_PATH}:${SEARCH_MODULE_PATH}:ro")
+fi
+
 echo "=== Starting standalone Valkey server with modules on port ${STANDALONE_PORT} ==="
-docker rm -f valkey-modules-standalone >/dev/null 2>&1 || true
+STANDALONE_CONTAINER="valkey-modules-standalone-${STANDALONE_PORT}"
+docker rm -f "$STANDALONE_CONTAINER" >/dev/null 2>&1 || true
 STANDALONE_CONF="${SCRATCH_DIR}/standalone.conf"
 gen_conf "$STANDALONE_PORT" "" "$STANDALONE_CONF"
-docker run -d --name valkey-modules-standalone --network host \
+docker run -d --name "$STANDALONE_CONTAINER" --network host \
     -v "${STANDALONE_CONF}:/tmp/valkey.conf" \
+    ${MODULE_MOUNT_ARGS[@]+"${MODULE_MOUNT_ARGS[@]}"} \
     "$IMAGE" valkey-server /tmp/valkey.conf
 
 READY=false
@@ -167,7 +199,7 @@ for _ in $(seq 1 30); do
 done
 if [ "$READY" != "true" ]; then
     echo "ERROR: Standalone module server on port ${STANDALONE_PORT} failed to start"
-    docker logs valkey-modules-standalone 2>&1 || true
+    docker logs "$STANDALONE_CONTAINER" 2>&1 || true
     macos_host_network_hint
     exit 1
 fi
@@ -193,6 +225,7 @@ appendonly no
 ${EXTRA_ARGS}" "$NODE_CONF"
     docker run -d --name "valkey-modules-cluster-${port}" --network host \
         -v "${NODE_CONF}:/tmp/valkey.conf" \
+        ${MODULE_MOUNT_ARGS[@]+"${MODULE_MOUNT_ARGS[@]}"} \
         "$IMAGE" valkey-server /tmp/valkey.conf
 done
 

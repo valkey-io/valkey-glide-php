@@ -365,7 +365,6 @@ int execute_ft_cursor_del_command(zval* object, int argc, zval* return_value, ze
                                           strcmp(#class_name, "ValkeyGlideCluster") == 0 \
                                               ? get_valkey_glide_cluster_ce()            \
                                               : get_valkey_glide_ce())) {                \
-            APPLY_REPLY_LITERAL(return_value);                                           \
             return;                                                                      \
         }                                                                                \
         zval_dtor(return_value);                                                         \

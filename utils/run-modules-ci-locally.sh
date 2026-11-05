@@ -42,7 +42,7 @@ fi
 
 cleanup() {
     echo "=== Tearing down module containers ==="
-    docker rm -f valkey-modules-standalone >/dev/null 2>&1 || true
+    docker rm -f "valkey-modules-standalone-${STANDALONE_PORT}" >/dev/null 2>&1 || true
     for port in $(seq "$CLUSTER_PORT_START" "$((CLUSTER_PORT_START + 5))"); do
         docker rm -f "valkey-modules-cluster-${port}" >/dev/null 2>&1 || true
     done

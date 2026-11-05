@@ -223,7 +223,7 @@ class ValkeyGlideClusterSearchTest extends ValkeyGlideClusterBaseTest
     {
         $level = $this->emulateReleaseLevel();
         if ($level === null) {
-            return false;
+            throw new \RuntimeException('search.emulate-release could not be read on a valkey-search 1.3 module.');
         }
         return version_compare($level, $minVersion, '>=');
     }
@@ -3113,6 +3113,7 @@ class ValkeyGlideClusterSearchTest extends ValkeyGlideClusterBaseTest
         $client = $this->getClient();
         $idx = 'ft-multishard-' . uniqid();
         $docPrefix = $idx . '-doc';
+        $keyNames = [];
         try {
             $client->ftCreate(
                 (new FtCreateBuilder())
@@ -3205,7 +3206,7 @@ class ValkeyGlideClusterSearchTest extends ValkeyGlideClusterBaseTest
             ) {
                 $candidate = "{$docPrefix}{$suffix}";
                 $slot = (int) $client->rawcommand('randomNode', 'CLUSTER', 'KEYSLOT', $candidate);
-                if ($shardIndexForSlot($slot) === $indexOwningShard && empty($onOwningShard)) {
+                if ($shardIndexForSlot($slot) === $indexOwningShard) {
                     $onOwningShard[] = $candidate;
                 } elseif (count($elsewhere) < $docCount - 1) {
                     $elsewhere[] = $candidate;
@@ -3230,11 +3231,14 @@ class ValkeyGlideClusterSearchTest extends ValkeyGlideClusterBaseTest
             $observedCount = $searchResult[0];
             $observedKeys = array_keys($this->flatPairs($searchResult[1]));
             foreach ($observedKeys as $k) {
-                $this->assertTrue(in_array($k, $keyNames, true));
+                $this->assertTrue(in_array($k, $onOwningShard, true));
             }
             $this->assertTrue($observedCount > 0 && $observedCount < count($keyNames));
         } finally {
             $client->ftDropIndex($idx);
+            if (!empty($keyNames)) {
+                $client->del($keyNames);
+            }
         }
     }
 

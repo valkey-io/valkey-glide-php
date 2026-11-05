@@ -215,7 +215,7 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
     {
         $level = $this->emulateReleaseLevel();
         if ($level === null) {
-            return false;
+            throw new \RuntimeException('search.emulate-release is unreadable on a valkey-search 1.3 module.');
         }
         return version_compare($level, $minVersion, '>=');
     }

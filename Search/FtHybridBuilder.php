@@ -162,6 +162,9 @@ class FtHybridBuilder
                 'FtHybridBuilder::vsim: exactly one of $vector or $paramRef must be given'
             );
         }
+        if ($shardKRatio !== null && !is_finite($shardKRatio)) {
+            throw new \ValkeyGlideException('FtHybridBuilder::vsim: shardKRatio must be a finite number');
+        }
         $this->vsimField = $field;
         if ($paramRef !== null) {
             $this->vsimVector = $paramRef;
@@ -211,6 +214,9 @@ class FtHybridBuilder
      */
     public function combineRrf(?float $constant = null, ?int $window = null, ?string $yieldScoreAs = null): self
     {
+        if ($constant !== null && !is_finite($constant)) {
+            throw new \ValkeyGlideException('FtHybridBuilder::combineRrf: constant must be a finite number');
+        }
         if ($constant !== null && $constant < 0) {
             throw new \ValkeyGlideException('FtHybridBuilder::combineRrf: constant must not be negative');
         }
@@ -239,6 +245,12 @@ class FtHybridBuilder
             throw new \ValkeyGlideException(
                 'FtHybridBuilder::combineLinear: alpha and beta must both be set, or both left unset'
             );
+        }
+        if ($alpha !== null && !is_finite($alpha)) {
+            throw new \ValkeyGlideException('FtHybridBuilder::combineLinear: alpha must be a finite number');
+        }
+        if ($beta !== null && !is_finite($beta)) {
+            throw new \ValkeyGlideException('FtHybridBuilder::combineLinear: beta must be a finite number');
         }
         $this->combine = [
             'method' => 'LINEAR',
@@ -276,6 +288,9 @@ class FtHybridBuilder
     public function loadAll(bool $loadAll = true): self
     {
         $this->loadAll = $loadAll;
+        if ($loadAll) {
+            $this->loadFields = null;
+        }
         return $this;
     }
 
@@ -300,13 +315,14 @@ class FtHybridBuilder
                 $tokens = $field->toTokens();
                 $normalized[] = [
                     'field' => $tokens[0],
-                    'as' => $tokens[1] ?? null,
+                    'as' => $tokens[2] ?? null,
                 ];
             } else {
                 $normalized[] = $field;
             }
         }
         $this->loadFields = $normalized;
+        $this->loadAll = false;
         return $this;
     }
 
