@@ -7384,13 +7384,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
                 $this->assertNull($it);
             }
             if ($this->valkey_glide instanceof ValkeyGlideCluster) {
+                /* A scan that ran would store the next cursor id */
                 $cursor = new ClusterScanCursor();
-                $before = $cursor->getCursor();
                 $this->assertThrows(ValkeyGlideException::class, function () use ($cursor) {
                     $this->valkey_glide->scan($cursor);
                 });
-                $this->assertEquals($before, $cursor->getCursor());
-                $this->assertFalse($cursor->isFinished());
+                $this->assertEquals('0', $cursor->getNextCursor());
             } else {
                 $it = null;
                 $this->assertThrows(ValkeyGlideException::class, function () use (&$it) {
