@@ -6799,6 +6799,15 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->assertStringContains('WRONGTYPE', $err);
         }
 
+        // rawcommand() records errors too, and a successful one keeps the last error (#381)
+        $this->assertTrue($this->valkey_glide->clearLastError());
+        $this->assertFalse($this->rawCommandArray('{lasterror}str', ['LPUSH', '{lasterror}str', 'x']));
+        $err = $this->valkey_glide->getLastError();
+        $this->assertIsString($err);
+        $this->assertStringContains('WRONGTYPE', $err);
+        $this->assertEquals('v', $this->rawCommandArray('{lasterror}str', ['GET', '{lasterror}str']));
+        $this->assertEquals($err, $this->valkey_glide->getLastError());
+
         // A new error overwrites the previous one
         $this->assertFalse($this->valkey_glide->eval('return redis.call("NOSUCHCOMMAND")'));
         $this->assertNotEquals($err, $this->valkey_glide->getLastError());
