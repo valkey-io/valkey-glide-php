@@ -7363,6 +7363,36 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         set_time_limit(0);  // Reset to unlimited (or default) at the end
     }
 
+    /* SCAN commands throw in multi() and pipeline(): a queued one returned corrupted data at
+     * exec() (#414) */
+    public function testScanRefusedInBatch()
+    {
+        $this->valkey_glide->del('{scanbatch}s', '{scanbatch}h', '{scanbatch}z');
+        $this->valkey_glide->sAdd('{scanbatch}s', 'a');
+        $this->valkey_glide->hSet('{scanbatch}h', 'f', 'v');
+        $this->valkey_glide->zAdd('{scanbatch}z', 1, 'm');
+
+        foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+            $this->valkey_glide->multi($mode);
+            $it = null;
+            $this->assertThrows(ValkeyGlideException::class, fn() => $this->valkey_glide->sScan('{scanbatch}s', $it));
+            $this->assertThrows(ValkeyGlideException::class, fn() => $this->valkey_glide->hScan('{scanbatch}h', $it));
+            $this->assertThrows(ValkeyGlideException::class, fn() => $this->valkey_glide->zScan('{scanbatch}z', $it));
+            if ($this->valkey_glide instanceof ValkeyGlideCluster) {
+                $this->assertThrows(ValkeyGlideException::class, fn() => $this->valkey_glide->scan(new ClusterScanCursor()));
+            } else {
+                $this->assertThrows(ValkeyGlideException::class, fn() => $this->valkey_glide->scan($it));
+            }
+            $this->assertNull($it);
+
+            /* The batch is still usable */
+            $this->valkey_glide->sMembers('{scanbatch}s');
+            $this->assertEquals([['a']], $this->valkey_glide->exec());
+        }
+
+        $this->valkey_glide->del('{scanbatch}s', '{scanbatch}h', '{scanbatch}z');
+    }
+
     public function testSScan()
     {
         set_time_limit(getenv("VALGRIND_TEST") ? 300 : 10); // Enforce a 10-second limit on this test
