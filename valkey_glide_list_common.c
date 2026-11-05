@@ -313,7 +313,7 @@ char* alloc_list_number_string(long value, size_t* len_out) {
 
 /**
  * Allocate a string representation of a double (a blocking timeout). Uses the locale-independent
- * 17-digit form: %.6f printed a decimal comma under some locales and turned a timeout below
+ * shortest exact form: %.6f printed a decimal comma under some locales and turned a timeout below
  * 0.0000005 into 0, which blocks forever
  */
 char* alloc_list_double_string(double value, size_t* len_out) {

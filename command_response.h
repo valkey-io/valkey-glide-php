@@ -90,7 +90,8 @@ char* long_to_string(long value, size_t* len);
 
 /*
  * Convert a double that a command takes as a number (an increment, a score, a weight, a
- * coordinate, a timeout) to a string with 17 significant digits, independent of the locale.
+ * coordinate, a timeout) to the shortest string that reads back as the same double, independent
+ * of the locale.
  * Returns a newly allocated string; the caller frees it with efree()
  */
 char* double_to_string(double value, size_t* len);
