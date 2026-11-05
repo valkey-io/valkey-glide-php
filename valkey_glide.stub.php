@@ -5630,7 +5630,7 @@ class ValkeyGlide
      *
      * @return ValkeyGlide|array|false `[rows, cursor_id]`; `cursor_id` is `0` once exhausted.
      *
-     * @see https://valkey.io/commands/ft.cursor-read/
+     * @see https://valkey.io/commands/ft.cursor/
      */
     public function ftCursorRead(string $index, int $cursorId, ?int $count = null): ValkeyGlide|array|false;
 
@@ -5644,7 +5644,7 @@ class ValkeyGlide
      *
      * @return bool True on success.
      *
-     * @see https://valkey.io/commands/ft.cursor-del/
+     * @see https://valkey.io/commands/ft.cursor/
      */
     public function ftCursorDel(string $index, int $cursorId): bool;
 }
