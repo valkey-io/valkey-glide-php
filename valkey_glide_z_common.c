@@ -421,10 +421,8 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             arg_lens[0]   = args->key_len;
 
             /* Add increment parameter */
-            char increment_str[64];
-            int  increment_str_len =
-                snprintf(increment_str, sizeof(increment_str), "%.6g", args->increment);
-            char* increment_str_copy = estrndup(increment_str, increment_str_len);
+            size_t increment_str_len;
+            char*  increment_str_copy = double_to_string(args->increment, &increment_str_len);
 
             arg_values[1]        = (uintptr_t) increment_str_copy;
             arg_lens[1]          = increment_str_len;
@@ -1047,7 +1045,13 @@ int prepare_z_store_args(z_command_args_t* args,
             size_t weight_len = 0;
             int    need_free  = 0;
 
-            weight_str = zval_to_string_safe(weight, &weight_len, &need_free);
+            /* A float weight is a number: 17 significant digits, as PHPRedis sends it */
+            if (Z_TYPE_P(weight) == IS_DOUBLE) {
+                weight_str = double_to_string(Z_DVAL_P(weight), &weight_len);
+                need_free  = 1;
+            } else {
+                weight_str = zval_to_string_safe(weight, &weight_len, &need_free);
+            }
 
             if (!weight_str) {
                 /* Cleanup on error */
@@ -1247,7 +1251,13 @@ int prepare_z_union_args(z_command_args_t* args,
             size_t weight_len = 0;
             int    need_free  = 0;
 
-            weight_str = zval_to_string_safe(weight, &weight_len, &need_free);
+            /* A float weight is a number: 17 significant digits, as PHPRedis sends it */
+            if (Z_TYPE_P(weight) == IS_DOUBLE) {
+                weight_str = double_to_string(Z_DVAL_P(weight), &weight_len);
+                need_free  = 1;
+            } else {
+                weight_str = zval_to_string_safe(weight, &weight_len, &need_free);
+            }
 
             if (!weight_str) {
                 /* Cleanup on error */

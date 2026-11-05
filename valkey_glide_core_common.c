@@ -1282,14 +1282,8 @@ char* core_long_to_string(long value, size_t* len) {
  * Convert double to string
  */
 char* core_double_to_string(double value, size_t* len) {
-    char buffer[64];
-    *len      = snprintf(buffer, sizeof(buffer), "%.6g", value);
-    char* str = (char*) emalloc(*len + 1);
-    if (str) {
-        memcpy(str, buffer, *len);
-        str[*len] = '\0';
-    }
-    return str;
+    /* 17 significant digits, as for every number a command takes as a double */
+    return double_to_string(value, len);
 }
 
 /* ====================================================================
