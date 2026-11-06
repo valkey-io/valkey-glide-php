@@ -56,7 +56,8 @@ int execute_core_command(valkey_glide_object* valkey_glide,
     /* Check if client is in subscribe mode - only unsubscribe allowed */
     if (is_client_in_subscribe_mode((uintptr_t) args->glide_client)) {
         if (args->cmd_type != REQUEST_TYPE_UNSUBSCRIBE &&
-            args->cmd_type != REQUEST_TYPE_PUNSUBSCRIBE) {
+            args->cmd_type != REQUEST_TYPE_PUNSUBSCRIBE &&
+            args->cmd_type != REQUEST_TYPE_SUNSUBSCRIBE) {
             zend_throw_exception(
                 get_valkey_glide_exception_ce(),
                 "Client is in subscribe mode. Only unsubscribe commands are allowed.",
