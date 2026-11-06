@@ -2293,6 +2293,19 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $client->close();
     }
 
+    /* A batch routes by keys, so a node route is refused for a queued rawcommand() (#413) */
+    public function testRawCommandNodeRouteRefusedInBatch()
+    {
+        foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+            $this->valkey_glide->multi($mode);
+            $this->assertFalse($this->valkey_glide->rawcommand('allPrimaries', 'PING'));
+            $this->assertStringContains('key route', (string) $this->valkey_glide->getLastError());
+            $this->assertFalse($this->valkey_glide->rawcommand(['127.0.0.1', $this->getPort()], 'PING'));
+            $this->assertTrue($this->valkey_glide->rawcommand('{k}', 'PING') === $this->valkey_glide);
+            $this->assertEquals(['PONG'], $this->valkey_glide->exec());
+        }
+    }
+
     public function testEmptyOrDiscardedMultiReportsFailedUnwatch()
     {
         $this->markTestSkipped('Needs the same ACL user on every node');
