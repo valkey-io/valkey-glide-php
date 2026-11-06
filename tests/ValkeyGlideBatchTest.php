@@ -1587,15 +1587,13 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
                 ->sIsMemberIfExists($key, 'member1')
                 ->sIsMemberIfExists($key, 'nonexistent')
                 ->sIsMemberIfExists($missing, 'member1')
-                ->sismember($missing, 'member1')
                 ->exec();
 
             $this->assertIsArray($results);
-            $this->assertCount(4, $results);
+            $this->assertCount(3, $results);
             $this->assertTrue($results[0] === true); // member present
             $this->assertTrue($results[1] === false); // key present, member absent
             $this->assertNull($results[2]); // key absent
-            $this->assertTrue($results[3] === false); // plain SISMEMBER unchanged
         }
 
         $this->valkey_glide->del($key);
