@@ -81,19 +81,26 @@ $result_file = $argv[6];
 $error_file = $result_file . '.error';
 // Optional: "all" calls sunsubscribe() with no arguments instead of naming the channel.
 $unsubscribe_all = ($argv[7] ?? '') === 'all';
+// Optional: OPT_PREFIX for the subscriber. The callback then gets the channel as
+// the server sends it, prefix included, as in PHPRedis; sunsubscribe() takes the
+// unprefixed name passed to ssubscribe().
+$prefix = $argv[8] ?? '';
 
 try {
     $client = new ValkeyGlideCluster(addresses: [['host' => $host, 'port' => $port]]);
+    if ($prefix !== '') {
+        $client->setOption(ValkeyGlideCluster::OPT_PREFIX, $prefix);
+    }
 
     file_put_contents($sync_file, '1');
 
-    $callback = function ($client, $ch, $msg) use ($expected_message, $result_file, $unsubscribe_all) {
+    $callback = function ($client, $ch, $msg) use ($channel, $expected_message, $result_file, $unsubscribe_all) {
         if ($msg === $expected_message) {
             file_put_contents($result_file, $ch);
             if ($unsubscribe_all) {
                 $client->sunsubscribe();
             } else {
-                $client->sunsubscribe([$ch]);
+                $client->sunsubscribe([$channel]);
             }
         }
     };

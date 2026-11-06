@@ -687,10 +687,11 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
      * Start a PHP-native ssubscribe() subscriber in a background process. The
      * subscriber exits after receiving $message on $channel and unsubscribing,
      * either from the channel or, when $mode is 'all', via sunsubscribe().
+     * A non-empty $prefix sets OPT_PREFIX on the subscriber.
      *
      * @return array{proc: resource, pipes: array, sync_file: string, result_file: string}
      */
-    private function startNativeShardSubscriber(string $channel, string $message, string $mode = '')
+    private function startNativeShardSubscriber(string $channel, string $message, string $mode = '', string $prefix = '')
     {
         $sync_file   = tempnam(sys_get_temp_dir(), 'sync_');
         $result_file = tempnam(sys_get_temp_dir(), 'result_');
@@ -705,7 +706,8 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             $message,
             $sync_file,
             $result_file,
-            $mode
+            $mode,
+            $prefix
         );
 
         $proc = proc_open($cmd, [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
@@ -886,6 +888,66 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
                 'ssubscribe() loop should exit after sunsubscribe()'
             );
         } finally {
+            $this->stopNativeShardSubscriber($handle);
+        }
+    }
+
+    /**
+     * OPT_PREFIX applies to SSUBSCRIBE, SPUBLISH, PUBSUB SHARDNUMSUB and
+     * SUNSUBSCRIBE channels, as in PHPRedis. The callback gets the channel as
+     * the server sends it (prefix included), and sunsubscribe() with the
+     * unprefixed name ends the loop.
+     */
+    public function testPubSubShardPrefix()
+    {
+        if (! $this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('Sharded pub/sub requires Valkey/Redis 7.0+');
+            return;
+        }
+
+        $prefix  = 'pfx_' . uniqid() . ':';
+        $channel = 'test_shard_prefix_' . uniqid();
+        $message = 'shard_prefix_quit';
+
+        $handle = $this->startNativeShardSubscriber($channel, $message, '', $prefix);
+        $pub    = null;
+        try {
+            // The unprefixed fixture client sees the subscriber on the prefixed channel only
+            $this->assertEquals(
+                1,
+                $this->waitForShardNumSub($prefix . $channel, 1),
+                'Subscriber should be registered on the prefixed shard channel'
+            );
+            $map = $this->numsubToMap($this->valkey_glide->pubsub('shardnumsub', [$channel]));
+            $this->assertEquals(0, $map[$channel] ?? null, 'Unprefixed shard channel should have no subscribers');
+
+            // A prefixed client counts and publishes on the prefixed channel too
+            $pub = $this->newInstance();
+            $pub->setOption(ValkeyGlideCluster::OPT_PREFIX, $prefix);
+            $this->assertEquals([$prefix . $channel, 1], $pub->pubsub('shardnumsub', [$channel]));
+            $this->assertEquals(1, $pub->spublish($channel, $message));
+
+            $this->assertTrue($this->waitForFile($handle['result_file']), 'Subscriber should receive the message');
+            $this->assertEquals(
+                $prefix . $channel,
+                file_get_contents($handle['result_file']),
+                'Callback should receive the prefixed channel name'
+            );
+
+            // sunsubscribe() with the unprefixed name drops the subscription and ends the loop
+            $this->assertEquals(0, $this->waitForShardNumSub($prefix . $channel, 0));
+            $deadline = time() + 5;
+            while (proc_get_status($handle['proc'])['running'] && time() < $deadline) {
+                usleep(100000);
+            }
+            $this->assertFalse(
+                proc_get_status($handle['proc'])['running'],
+                'ssubscribe() loop should exit after sunsubscribe() with the unprefixed channel'
+            );
+        } finally {
+            if ($pub) {
+                $pub->close();
+            }
             $this->stopNativeShardSubscriber($handle);
         }
     }
