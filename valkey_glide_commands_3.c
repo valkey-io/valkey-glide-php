@@ -2288,7 +2288,6 @@ int execute_dbsize_command(zval* object, int argc, zval* return_value, zend_clas
     valkey_glide_object* valkey_glide;
     zval*                args       = NULL;
     int                  args_count = 0;
-    long                 dbsize;
     zend_bool            is_cluster = (ce == get_valkey_glide_cluster_ce());
 
     /* Get ValkeyGlide object */
@@ -2330,7 +2329,7 @@ int execute_dbsize_command(zval* object, int argc, zval* return_value, zend_clas
     }
     /* Execute using unified core framework */
     if (execute_core_command(
-            valkey_glide, &core_args, &dbsize, process_core_int_result, return_value)) {
+            valkey_glide, &core_args, NULL, process_core_int_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
