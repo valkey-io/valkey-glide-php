@@ -1581,7 +1581,7 @@ class ValkeyGlideCluster
      *
      * With OPT_PREFIX set, the prefix is added to each channel, and the callback receives the
      * channel as the server sends it, prefix included. To unsubscribe, pass the unprefixed
-     * channel names to sunsubscribe(), as in PHPRedis.
+     * channel names to sunsubscribe().
      *
      * @param array    $channels One or more shard channel names.
      * @param callable $cb       The callback invoked when a message arrives on one of the
