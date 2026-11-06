@@ -978,6 +978,7 @@ PHP_MSHUTDOWN_FUNCTION(valkey_glide) {
     UNREGISTER_INI_ENTRIES();
     valkey_glide_pubsub_shutdown();
     valkey_glide_monitor_shutdown();
+    valkey_glide_otel_shutdown();
     return SUCCESS;
 }
 

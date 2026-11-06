@@ -1238,6 +1238,89 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         }
     }
 
+    /**
+     * The OpenTelemetry configuration is created once per process, so requests after
+     * the one that created it must still be able to read and change it. The PHP
+     * built-in web server runs each HTTP request as a separate PHP request in one
+     * process. With the system allocator and allocation tracking, a silent request
+     * shutdown frees (and scribbles over) request memory, so a configuration held in
+     * request memory is read back as garbage or crashes the server.
+     */
+    public function testOtelConfigSurvivesRequestEnd()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The helper script connects without TLS or auth');
+        }
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped('proc_open is not available');
+        }
+
+        $extension_path = __DIR__ . '/../modules/valkey_glide.so';
+        $extension = file_exists($extension_path) ? $extension_path : 'valkey_glide';
+        /* The core treats a file:// path without an extension as a directory */
+        $tracesFile = sys_get_temp_dir() . '/valkey_glide_otel_multi_request_' . getmypid() . '.json';
+        /* These must override inherited values: with Zend MM, or without tracking,
+         * request memory stays readable after shutdown and the test cannot fail */
+        $env = array_merge(getenv(), ['USE_ZEND_ALLOC' => '0', 'USE_TRACKED_ALLOC' => '1',
+                                      'MallocScribble' => '1', 'MALLOC_PERTURB_' => '85']);
+
+        /* Start the server on a free port. Another process can take the port
+         * between the probe and php -S, so retry on a new port if this server
+         * does not answer the readiness check */
+        $request = function (int $port, int $step, int $timeout = 10) use ($tracesFile) {
+            $query = http_build_query(['step' => $step, 'host' => $this->getHost(),
+                                       'port' => $this->getPort(), 'traces' => $tracesFile]);
+            $context = stream_context_create(['http' => ['timeout' => $timeout, 'ignore_errors' => true]]);
+            return @file_get_contents("http://127.0.0.1:$port/?$query", false, $context);
+        };
+        $proc = null;
+        $serverPort = 0;
+        for ($attempt = 0; $attempt < 5 && !$proc; $attempt++) {
+            $probe = stream_socket_server('tcp://127.0.0.1:0');
+            $serverPort = (int) substr(strrchr(stream_socket_get_name($probe, false), ':'), 1);
+            fclose($probe);
+
+            /* report_memleaks=0 makes request shutdown "silent", which is when the
+             * tracked allocator frees the request's remaining allocations */
+            $cmd = [PHP_BINARY, '-n', '-d', 'report_memleaks=0', '-d', "extension=$extension",
+                    '-S', "127.0.0.1:$serverPort", __DIR__ . '/scripts/otel_multi_request.php'];
+            $candidate = proc_open($cmd, [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, null, $env);
+            if (!is_resource($candidate)) {
+                continue;
+            }
+
+            /* Wait until it answers, or exits because the port was taken */
+            for ($wait = 0; $wait < 50; $wait++) {
+                if (!proc_get_status($candidate)['running']) {
+                    break;
+                }
+                if ($request($serverPort, 0, 1) === 'ready') {
+                    $proc = $candidate;
+                    break;
+                }
+                usleep(100000);
+            }
+            if (!$proc) {
+                proc_terminate($candidate);
+                proc_close($candidate);
+            }
+        }
+        if (!$proc) {
+            $this->fail('The PHP built-in web server did not start');
+            return;
+        }
+
+        try {
+            $this->assertEquals('percentage=42', $request($serverPort, 1));
+            $this->assertEquals('before=42 percentage=100', $request($serverPort, 2));
+            $this->assertEquals('percentage=100', $request($serverPort, 3));
+        } finally {
+            proc_terminate($proc);
+            proc_close($proc);
+            @unlink($tracesFile);
+        }
+    }
+
     public function testOtelArrayConfigurationRejected()
     {
         // Test that array-based OpenTelemetry configuration is rejected
