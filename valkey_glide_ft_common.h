@@ -106,6 +106,35 @@ int build_ft_info_args(const char*   index_name,
                        char***       out_allocated,
                        int*          out_alloc_count);
 
+/**
+ * Build the argument list for FT.HYBRID.
+ *
+ * $options is an associative array with (at minimum) 'search' and 'vsim'
+ * sub-arrays describing the two mandatory arms, plus any of the optional
+ * FT.HYBRID keys (COMBINE, LOAD, clauses, WITHCURSOR, LOCALONLY, TIMEOUT,
+ * PARAMS, DIALECT). See valkey_glide_ft_common.c's ft_hybrid_build_vsim_arm()
+ * for the full shape FtHybridBuilder::toArray() produces.
+ *
+ * Unlike the other FT.* builders, a raw (non-$-prefixed) VSIM vector value
+ * requires the builder to synthesize an internal PARAMS entry; that
+ * synthesis happens here (in C), reading the 'isParamRef' flag the PHP
+ * builder already decided (FtHybridBuilder::vsim() sets it based on
+ * which of its two mutually exclusive parameters the caller passed),
+ * rather than inspecting the zval's content -- a raw vector's packed
+ * binary representation can legitimately start with the byte 0x24
+ * ('$') by coincidence, so a "does this string start with $" content
+ * check would misclassify it as a parameter reference. See
+ * ft_hybrid_build_vsim_arm() in valkey_glide_ft_common.c.
+ */
+int build_ft_hybrid_args(const char*   index_name,
+                         size_t        index_name_len,
+                         HashTable*    options_ht,
+                         const char*** out_strings,
+                         size_t**      out_lengths,
+                         int*          out_count,
+                         char***       out_allocated,
+                         int*          out_alloc_count);
+
 /* ====================================================================
  * COMMAND EXECUTION FUNCTIONS
  * ==================================================================== */
@@ -123,6 +152,12 @@ int execute_ft_aliasupdate_command(zval*             object,
                                    zval*             return_value,
                                    zend_class_entry* ce);
 int execute_ft_aliaslist_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_ft_hybrid_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_ft_cursor_read_command(zval*             object,
+                                   int               argc,
+                                   zval*             return_value,
+                                   zend_class_entry* ce);
+int execute_ft_cursor_del_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 /* ====================================================================
  * CONVENIENCE MACROS
@@ -292,6 +327,48 @@ int execute_ft_aliaslist_command(zval* object, int argc, zval* return_value, zen
         }                                                                               \
         zval_dtor(return_value);                                                        \
         RETURN_FALSE;                                                                   \
+    }
+
+#define FT_HYBRID_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, ftHybrid) {                                               \
+        if (execute_ft_hybrid_command(getThis(),                                     \
+                                      ZEND_NUM_ARGS(),                               \
+                                      return_value,                                  \
+                                      strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                          ? get_valkey_glide_cluster_ce()            \
+                                          : get_valkey_glide_ce())) {                \
+            return;                                                                  \
+        }                                                                            \
+        zval_dtor(return_value);                                                     \
+        RETURN_FALSE;                                                                \
+    }
+
+#define FT_CURSOR_READ_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, ftCursorRead) {                                                \
+        if (execute_ft_cursor_read_command(getThis(),                                     \
+                                           ZEND_NUM_ARGS(),                               \
+                                           return_value,                                  \
+                                           strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                               ? get_valkey_glide_cluster_ce()            \
+                                               : get_valkey_glide_ce())) {                \
+            return;                                                                       \
+        }                                                                                 \
+        zval_dtor(return_value);                                                          \
+        RETURN_FALSE;                                                                     \
+    }
+
+#define FT_CURSOR_DEL_METHOD_IMPL(class_name)                                            \
+    PHP_METHOD(class_name, ftCursorDel) {                                                \
+        if (execute_ft_cursor_del_command(getThis(),                                     \
+                                          ZEND_NUM_ARGS(),                               \
+                                          return_value,                                  \
+                                          strcmp(#class_name, "ValkeyGlideCluster") == 0 \
+                                              ? get_valkey_glide_cluster_ce()            \
+                                              : get_valkey_glide_ce())) {                \
+            return;                                                                      \
+        }                                                                                \
+        zval_dtor(return_value);                                                         \
+        RETURN_FALSE;                                                                    \
     }
 
 #endif /* VALKEY_GLIDE_FT_COMMON_H */

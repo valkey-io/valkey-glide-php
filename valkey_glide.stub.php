@@ -5590,6 +5590,64 @@ class ValkeyGlide
      * @see https://valkey.io/commands/ft._aliaslist/
      */
     public function ftAliasList(): ValkeyGlide|array|false;
+
+    /**
+     * Run a fused text + vector similarity query against an index (valkey-search 1.3.0).
+     *
+     * Dispatched via the client's raw-command path pending the upstream RequestType core
+     * PR (valkey-glide#7456); see this port's PR description's Limitations section.
+     *
+     * @param \ValkeyGlide\Search\FtHybridBuilder $builder A configured hybrid builder.
+     *
+     * @return ValkeyGlide|array|false The hybrid result, or `[rows, cursor_id]` when
+     *                                 the builder requests a paged reply via withCursor().
+     *
+     * @see \ValkeyGlide\Search\FtHybridBuilder
+     * @see https://valkey.io/commands/ft.hybrid/
+     *
+     * @example
+     * use ValkeyGlide\Search\FtHybridBuilder;
+     *
+     * $client->ftHybrid(
+     *     (new FtHybridBuilder())
+     *         ->index('idx')
+     *         ->search('@title:wireless')
+     *         ->vsim('vec', vector: $queryVectorBytes, k: 10)
+     *         ->combineRrf(constant: 60.0)
+     *         ->limit(0, 10)
+     * );
+     */
+    public function ftHybrid(\ValkeyGlide\Search\FtHybridBuilder $builder): ValkeyGlide|array|false;
+
+    /**
+     * Fetch the next page of a cursor opened by `ftAggregate()`/`ftHybrid()`'s
+     * `withCursor()` option (valkey-search 1.3.0). Always routed to the PRIMARY of the
+     * index's slot, regardless of the client's ReadFrom configuration.
+     *
+     * @param string   $index    The index the cursor was opened against.
+     * @param int      $cursorId The cursor ID returned by the paged query.
+     * @param int|null $count    Rows to return from this page; defaults to the cursor's
+     *                           own COUNT if omitted.
+     *
+     * @return ValkeyGlide|array|false `[rows, cursor_id]`; `cursor_id` is `0` once exhausted.
+     *
+     * @see https://valkey.io/commands/ft.cursor/
+     */
+    public function ftCursorRead(string $index, int $cursorId, ?int $count = null): ValkeyGlide|array|false;
+
+    /**
+     * Discard a cursor opened by `ftAggregate()`/`ftHybrid()`'s `withCursor()` option
+     * before it would otherwise expire (valkey-search 1.3.0). Always routed to the
+     * PRIMARY of the index's slot.
+     *
+     * @param string $index    The index the cursor was opened against.
+     * @param int    $cursorId The cursor ID to discard.
+     *
+     * @return bool True on success.
+     *
+     * @see https://valkey.io/commands/ft.cursor/
+     */
+    public function ftCursorDel(string $index, int $cursorId): bool;
 }
 
 class ValkeyGlideException extends RuntimeException

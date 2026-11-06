@@ -39,6 +39,9 @@ class FtCreateBuilder
     private bool $noStopWords = false;
     private ?array $stopWords = null;
     private ?string $punctuation = null;
+    private ?string $filter = null;
+    private ?string $scoreField = null;
+    private bool $noHighlight = false;
 
     /** @var array<FtTextField|FtNumericField|FtTagField|FtVectorField> */
     private array $fields = [];
@@ -125,6 +128,50 @@ class FtCreateBuilder
     }
 
     /**
+     * Set a filter expression limiting which documents the index applies
+     * to (valkey-search 1.3.0, src/commands/ft_create_parser.cc). A
+     * document that doesn't match this expression is excluded from the
+     * index even if its key matches a configured prefix. The expression
+     * cannot be empty; toArray() throws if it is.
+     */
+    public function filter(string $filter): self
+    {
+        $this->filter = $filter;
+        return $this;
+    }
+
+    /**
+     * Name a document field whose numeric value is used as the
+     * document's custom score, multiplying into the final relevance
+     * score (valkey-search 1.3.0, src/commands/ft_create_parser.cc).
+     * Only one per index. The field must already exist in the document;
+     * it is not itself a schema definition. FT.INFO only reports this
+     * option back under index_definition's score_field key when
+     * search.emulate-release is at least 1.3.0; below that level the
+     * pair is omitted entirely and default_score reports the literal
+     * string "1" regardless of this option. The scoring behavior itself
+     * is unaffected by that gate -- only FT.INFO's reporting of it is.
+     */
+    public function scoreField(string $field): self
+    {
+        $this->scoreField = $field;
+        return $this;
+    }
+
+    /**
+     * Emit NOHL. valkey-search does not support highlighting at all, so
+     * this is a genuine no-op on this engine -- the token is accepted
+     * but not even stored for FT.INFO to report, unlike SORTABLE UNF
+     * which IS stored and reported despite also being a no-op.
+     * Implemented for wire compatibility with RediSearch clients.
+     */
+    public function noHighlight(bool $noHighlight = true): self
+    {
+        $this->noHighlight = $noHighlight;
+        return $this;
+    }
+
+    /**
      * Add a field to the schema.
      *
      * @param FtTextField|FtNumericField|FtTagField|FtVectorField $field
@@ -142,7 +189,8 @@ class FtCreateBuilder
      *
      * @internal Called by the C layer via ftCreate().
      * @return array
-     * @throws \ValkeyGlideException if index name is not set or no fields are defined.
+     * @throws \ValkeyGlideException if index name is not set, no fields are
+     *         defined, or filter() was called with an empty string.
      */
     public function toArray(): array
     {
@@ -151,6 +199,9 @@ class FtCreateBuilder
         }
         if (empty($this->fields)) {
             throw new \ValkeyGlideException('FtCreateBuilder: at least one field is required');
+        }
+        if ($this->filter !== null && $this->filter === '') {
+            throw new \ValkeyGlideException('FtCreateBuilder: filter() cannot be empty');
         }
 
         $schema = [];
@@ -200,6 +251,15 @@ class FtCreateBuilder
         }
         if ($this->punctuation !== null) {
             $options['PUNCTUATION'] = $this->punctuation;
+        }
+        if ($this->filter !== null) {
+            $options['FILTER'] = $this->filter;
+        }
+        if ($this->scoreField !== null) {
+            $options['SCORE_FIELD'] = $this->scoreField;
+        }
+        if ($this->noHighlight) {
+            $options['NOHL'] = true;
         }
         return $options;
     }

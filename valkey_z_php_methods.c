@@ -1088,3 +1088,15 @@ FT_ALIASUPDATE_METHOD_IMPL(ValkeyGlide)
 /* {{{ proto array|false ValkeyGlide::ftAliasList() */
 FT_ALIASLIST_METHOD_IMPL(ValkeyGlide)
 /* }}} */
+
+/* {{{ proto array|false ValkeyGlide::ftHybrid(\ValkeyGlide\Search\FtHybridBuilder $builder) */
+FT_HYBRID_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto array|false ValkeyGlide::ftCursorRead(string index, int cursorId, ?int count = null) */
+FT_CURSOR_READ_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
+/* {{{ proto bool ValkeyGlide::ftCursorDel(string index, int cursorId) */
+FT_CURSOR_DEL_METHOD_IMPL(ValkeyGlide)
+/* }}} */

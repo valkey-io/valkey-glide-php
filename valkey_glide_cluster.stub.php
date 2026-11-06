@@ -2158,4 +2158,19 @@ class ValkeyGlideCluster
      * @see ValkeyGlide::ftAliasList
      */
     public function ftAliasList(): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::ftHybrid
+     */
+    public function ftHybrid(\ValkeyGlide\Search\FtHybridBuilder $builder): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::ftCursorRead
+     */
+    public function ftCursorRead(string $index, int $cursorId, ?int $count = null): ValkeyGlideCluster|array|false;
+
+    /**
+     * @see ValkeyGlide::ftCursorDel
+     */
+    public function ftCursorDel(string $index, int $cursorId): bool;
 }
