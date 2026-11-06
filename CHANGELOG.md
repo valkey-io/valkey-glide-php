@@ -27,6 +27,7 @@
 * `fcall()` and `fcall_ro()` given non-string keys or arguments (int, float, bool) no longer send strings that were already freed, so the server could receive wrong values ([#426](https://github.com/valkey-io/valkey-glide-php/issues/426))
 * List commands (`lPush()`, `rPush()`, ...) given a float whose `%.6f` form is longer than 63 characters (for example `1e300`) now send the whole number; previously the value was cut short and padded with bytes read past a 64-byte stack buffer ([#426](https://github.com/valkey-io/valkey-glide-php/issues/426))
 * `hRandField()` with `withvalues` no longer treats a non-string value in the reply as a string when adding a reference to it ([#426](https://github.com/valkey-io/valkey-glide-php/issues/426))
+* The OpenTelemetry configuration, which is created once per process, is no longer allocated in request memory. In PHP-FPM and other workers that serve several requests, later requests read freed memory on every command and `setOtelSamplePercentage()` wrote into it, which could crash the worker or corrupt memory ([#426](https://github.com/valkey-io/valkey-glide-php/issues/426))
 
 ### Changes
 
