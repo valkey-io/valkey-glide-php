@@ -1508,6 +1508,11 @@ class ValkeyGlideCluster
     public function sismember(string $key, mixed $value): ValkeyGlideCluster|bool;
 
     /**
+     * @see ValkeyGlide::sIsMemberIfExists
+     */
+    public function sIsMemberIfExists(string $key, mixed $value): ValkeyGlideCluster|bool|null;
+
+    /**
      * @see ValkeyGlide::smismember
      */
     public function sMisMember(string $key, string $member, string ...$other_members): ValkeyGlideCluster|array|false;
