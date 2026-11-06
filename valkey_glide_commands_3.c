@@ -1203,10 +1203,14 @@ static int execute_fcall_command_internal(zval*                object,
     /* Process args array */
     process_array_to_args(args_array, cmd_args, args_len, &arg_index, converted, &converted_count);
 
+    /* A value that cannot be converted to a string (e.g. an object without
+     * __toString) throws; do not send or queue the command in that case */
+    bool conversion_failed = EG(exception) != NULL;
 
     CommandResult* result = NULL;
-    /* Check for batch mode */
-    if (valkey_glide->is_in_batch_mode) {
+    if (conversion_failed) {
+        /* Nothing to send; fall through to the cleanup below */
+    } else if (valkey_glide->is_in_batch_mode) {
         /* Create batch-compatible processor wrapper */
         int res = buffer_command_for_batch(valkey_glide,
                                            command_type,
@@ -1228,11 +1232,15 @@ static int execute_fcall_command_internal(zval*                object,
     /* Free the argument arrays and the converted strings they pointed into */
     efree(cmd_args);
     efree(args_len);
-    for (unsigned long i = 0; i < converted_count; i++) {
-        zend_string_release(converted[i]);
+    for (unsigned long converted_index = 0; converted_index < converted_count; converted_index++) {
+        zend_string_release(converted[converted_index]);
     }
     if (converted) {
         efree(converted);
+    }
+
+    if (conversion_failed) {
+        return 0;
     }
 
     /* Handle the result directly */

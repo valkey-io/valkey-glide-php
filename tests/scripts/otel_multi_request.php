@@ -6,7 +6,7 @@
  * separate PHP request in the same process, so the process-wide OpenTelemetry
  * configuration created by the first one is used by the later ones.
  *
- * Query parameters: step (1, 2 or 3), host, port, traces (file path).
+ * Query parameters: step (0 = readiness check, 1, 2 or 3), host, port, traces (file path).
  */
 
 use ValkeyGlide\OpenTelemetry\OpenTelemetryConfig;
@@ -27,6 +27,11 @@ $connect = function (array $advancedConfig = []) use ($host, $port) {
 };
 
 try {
+    if ($step === 0) {
+        /* Readiness check: only this script answers it */
+        echo 'ready';
+        return;
+    }
     if ($step === 1) {
         /* Initializes OTel for the whole process */
         $otelConfig = OpenTelemetryConfig::builder()
@@ -48,6 +53,6 @@ try {
         echo "before=$before ";
     }
     echo 'percentage=' . ValkeyGlide::getOtelSamplePercentage();
-} catch (Throwable $e) {
-    echo 'error=' . get_class($e) . ': ' . $e->getMessage();
+} catch (Throwable $exception) {
+    echo 'error=' . get_class($exception) . ': ' . $exception->getMessage();
 }

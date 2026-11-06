@@ -1728,7 +1728,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->llen('list'));// not a list returns FALSE
     }
 
-    /* Doubles whose "%.6f" form is longer than 64 bytes are pushed whole, without stack bytes */
+    /* Doubles whose "%.6f" form is longer than 63 characters are pushed whole. The old
+     * 64-byte buffer held at most 63 characters plus the terminating NUL. */
     public function testListPushLargeDouble()
     {
         $this->valkey_glide->del('list');
@@ -1737,8 +1738,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(3, $this->valkey_glide->rPush('list', ...$values));
         $this->assertEquals(4, $this->valkey_glide->lPush('list', 1e100));
 
-        $expected = array_map(fn ($v) => sprintf('%.6f', $v), array_merge([1e100], $values));
-        $this->assertGT(64, strlen($expected[1])); // guard: longer than the old 64-byte buffer
+        $expected = array_map(fn ($value) => sprintf('%.6f', $value), array_merge([1e100], $values));
+        $this->assertGT(63, strlen($expected[1])); // guard: too long for the old buffer
         $this->assertEquals($expected, $this->valkey_glide->lRange('list', 0, -1));
 
         $this->valkey_glide->del('list');
@@ -10187,16 +10188,25 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
         $code = "#!lua name=echoalllib\n" .
             "redis.register_function('echo_all', function(keys, args) " .
-            "local out = {} for i, v in ipairs(keys) do out[#out + 1] = v end " .
-            "for i, v in ipairs(args) do out[#out + 1] = v end return out end)\n" .
+            "local out = {} for _, key in ipairs(keys) do out[#out + 1] = key end " .
+            "for _, arg in ipairs(args) do out[#out + 1] = arg end return out end)\n" .
             "redis.register_function{function_name = 'echo_all_ro', flags = {'no-writes'}, " .
             "callback = function(keys, args) local out = {} " .
-            "for i, v in ipairs(args) do out[#out + 1] = v end return out end}";
+            "for _, arg in ipairs(args) do out[#out + 1] = arg end return out end}\n" .
+            "redis.register_function('mark_ran', function(keys, args) " .
+            "redis.call('SET', keys[1], 'ran') return 'ok' end)";
         $this->assertEquals('echoalllib', $this->valkey_glide->functionLoad($code, true));
 
+        $stringable = new class {
+            public function __toString(): string
+            {
+                return 'stringable';
+            }
+        };
+
         /* Values above 9 avoid PHP's interned single-digit strings */
-        $args = [1234567, 7654321, 42.5, true];
-        $expected = ['1234567', '7654321', '42.5', '1'];
+        $args = [1234567, 7654321, 42.5, true, null, $stringable];
+        $expected = ['1234567', '7654321', '42.5', '1', '', 'stringable'];
 
         /* The key gives cluster mode a primary to route to */
         $this->assertEquals(array_merge(['{fn}key'], $expected), $this->valkey_glide->fcall('echo_all', ['{fn}key'], $args));
@@ -10206,6 +10216,23 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $this->valkey_glide->pipeline();
             $this->valkey_glide->fcall('echo_all', ['{fn}key'], $args);
             $this->assertEquals([array_merge(['{fn}key'], $expected)], $this->valkey_glide->exec());
+        }
+
+        /* An argument that cannot be converted to a string throws, and the
+         * function is neither run nor queued */
+        $this->valkey_glide->del('{fn}marker');
+        $this->assertThrows(Error::class, function () {
+            $this->valkey_glide->fcall('mark_ran', ['{fn}marker'], [new stdClass()]);
+        });
+        $this->assertFalse($this->valkey_glide->get('{fn}marker'));
+
+        if ($this->havePipeline()) {
+            $this->valkey_glide->pipeline();
+            $this->assertThrows(Error::class, function () {
+                $this->valkey_glide->fcall('mark_ran', ['{fn}marker'], [new stdClass()]);
+            });
+            $this->assertEquals([], $this->valkey_glide->exec());
+            $this->assertFalse($this->valkey_glide->get('{fn}marker'));
         }
 
         $this->valkey_glide->functionDelete('echoalllib');

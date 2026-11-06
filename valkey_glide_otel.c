@@ -15,6 +15,7 @@
 
 #include "valkey_glide_otel.h"
 
+#include <pthread.h>
 #include <string.h>
 #include <zend_API.h>
 #include <zend_exceptions.h>
@@ -24,6 +25,7 @@
 
 /* Forward declarations for static functions */
 static void                               cleanup_otel_config(void);
+static void                               free_otel_config(struct OpenTelemetryConfig* config);
 static bool                               valkey_glide_otel_should_sample(void);
 static struct OpenTelemetryConfig*        parse_otel_config(zval* config_obj);
 static struct OpenTelemetryTracesConfig*  parse_traces_config_object(zval* traces_obj);
@@ -32,6 +34,10 @@ static struct OpenTelemetryMetricsConfig* parse_metrics_config_object(zval* metr
 /* Global OTEL configuration. It is initialized once per process and used by
  * later requests, so it and its strings are allocated persistently */
 struct OpenTelemetryConfig* g_otel_config = NULL;
+
+/* Serializes initialization, so concurrent threads (ZTS) install only one
+ * configuration */
+static pthread_mutex_t g_otel_init_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  * Initialize OpenTelemetry with the given configuration
@@ -44,21 +50,37 @@ int valkey_glide_otel_init(zval* config_obj) {
         return 1; /* Success - already initialized */
     }
 
-    /* Parse configuration - caller has validated it's a non-null object */
-    g_otel_config = parse_otel_config(config_obj);
-    if (!g_otel_config) {
+    /* Parse configuration - caller has validated it's a non-null object. This
+     * calls PHP methods, so it runs outside the lock (a bailout would leave it
+     * held) */
+    struct OpenTelemetryConfig* config = parse_otel_config(config_obj);
+    if (!config) {
         VALKEY_LOG_ERROR("otel_init", "Failed to parse OTEL configuration");
         return 0;
     }
 
-    /* Initialize OTEL with Rust FFI */
-    const char* error = init_open_telemetry(g_otel_config);
+    pthread_mutex_lock(&g_otel_init_lock);
+    if (g_otel_config) {
+        /* Another thread initialized it meanwhile */
+        pthread_mutex_unlock(&g_otel_init_lock);
+        free_otel_config(config);
+        VALKEY_LOG_WARN("otel_init",
+                        "OpenTelemetry already initialized, ignoring subsequent calls");
+        return 1;
+    }
+
+    /* Initialize OTEL with Rust FFI; publish the configuration only once the
+     * core accepted it, so other threads never see one that is freed below */
+    const char* error = init_open_telemetry(config);
     if (error) {
+        free_otel_config(config);
+        pthread_mutex_unlock(&g_otel_init_lock);
         VALKEY_LOG_ERROR_FMT("otel_init", "Failed to initialize OTEL: %s", error);
         free_c_string((char*) error);
-        cleanup_otel_config();
         return 0;
     }
+    g_otel_config = config;
+    pthread_mutex_unlock(&g_otel_init_lock);
 
     VALKEY_LOG_INFO("otel_init", "OpenTelemetry initialized successfully");
     return 1;
@@ -299,6 +321,27 @@ static struct OpenTelemetryMetricsConfig* parse_metrics_config_object(zval* metr
 }
 
 /**
+ * Free an OTEL configuration and its strings
+ */
+static void free_otel_config(struct OpenTelemetryConfig* config) {
+    if (config->traces) {
+        if (config->traces->endpoint) {
+            pefree((void*) config->traces->endpoint, 1);
+        }
+        pefree((void*) config->traces, 1);
+    }
+
+    if (config->metrics) {
+        if (config->metrics->endpoint) {
+            pefree((void*) config->metrics->endpoint, 1);
+        }
+        pefree((void*) config->metrics, 1);
+    }
+
+    pefree(config, 1);
+}
+
+/**
  * Cleanup OTEL configuration
  */
 static void cleanup_otel_config(void) {
@@ -306,21 +349,7 @@ static void cleanup_otel_config(void) {
         return;
     }
 
-    if (g_otel_config->traces) {
-        if (g_otel_config->traces->endpoint) {
-            pefree((void*) g_otel_config->traces->endpoint, 1);
-        }
-        pefree((void*) g_otel_config->traces, 1);
-    }
-
-    if (g_otel_config->metrics) {
-        if (g_otel_config->metrics->endpoint) {
-            pefree((void*) g_otel_config->metrics->endpoint, 1);
-        }
-        pefree((void*) g_otel_config->metrics, 1);
-    }
-
-    pefree(g_otel_config, 1);
+    free_otel_config(g_otel_config);
     g_otel_config = NULL;
 }
 
