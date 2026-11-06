@@ -37,7 +37,9 @@ static void expand_command_buffer(valkey_glide_object* valkey_glide);
 static void process_array_to_args(zval*          array,
                                   uintptr_t*     cmd_args,
                                   unsigned long* args_len,
-                                  unsigned long* arg_index);
+                                  unsigned long* arg_index,
+                                  zend_string**  converted,
+                                  unsigned long* converted_count);
 
 /* Helper function for function LIST command with pre-parsed arguments */
 static int execute_function_list_command_with_args(zval*             object,
@@ -259,21 +261,24 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
 }
 
 
-/* Helper function to process array arguments for FCALL commands */
+/* Helper function to process array arguments for FCALL commands. Non-string
+ * values are converted to strings that are stored in `converted`; the caller
+ * must release them with zend_string_release() after the command is sent,
+ * because cmd_args points into them. */
 static void process_array_to_args(zval*          array,
                                   uintptr_t*     cmd_args,
                                   unsigned long* args_len,
-                                  unsigned long* arg_index) {
+                                  unsigned long* arg_index,
+                                  zend_string**  converted,
+                                  unsigned long* converted_count) {
     if (array && Z_TYPE_P(array) == IS_ARRAY) {
         zval* val;
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(array), val) {
             if (Z_TYPE_P(val) != IS_STRING) {
-                zval temp;
-                ZVAL_COPY(&temp, val);
-                convert_to_string(&temp);
-                cmd_args[*arg_index] = (uintptr_t) Z_STRVAL(temp);
-                args_len[*arg_index] = Z_STRLEN(temp);
-                zval_dtor(&temp);
+                zend_string* str                = zval_get_string(val);
+                converted[(*converted_count)++] = str;
+                cmd_args[*arg_index]            = (uintptr_t) ZSTR_VAL(str);
+                args_len[*arg_index]            = ZSTR_LEN(str);
             } else {
                 cmd_args[*arg_index] = (uintptr_t) Z_STRVAL_P(val);
                 args_len[*arg_index] = Z_STRLEN_P(val);
@@ -1184,11 +1189,19 @@ static int execute_fcall_command_internal(zval*                object,
 
     unsigned long arg_index = 2;
 
+    /* Strings converted from non-string keys/args; they back cmd_args entries
+     * and must outlive the execute/buffer call below */
+    zend_string** converted       = NULL;
+    unsigned long converted_count = 0;
+    if (numkeys + args_count > 0) {
+        converted = (zend_string**) emalloc((numkeys + args_count) * sizeof(zend_string*));
+    }
+
     /* Process keys array */
-    process_array_to_args(keys_array, cmd_args, args_len, &arg_index);
+    process_array_to_args(keys_array, cmd_args, args_len, &arg_index, converted, &converted_count);
 
     /* Process args array */
-    process_array_to_args(args_array, cmd_args, args_len, &arg_index);
+    process_array_to_args(args_array, cmd_args, args_len, &arg_index, converted, &converted_count);
 
 
     CommandResult* result = NULL;
@@ -1212,9 +1225,15 @@ static int execute_fcall_command_internal(zval*                object,
     }
 
 
-    /* Free the argument arrays */
+    /* Free the argument arrays and the converted strings they pointed into */
     efree(cmd_args);
     efree(args_len);
+    for (unsigned long i = 0; i < converted_count; i++) {
+        zend_string_release(converted[i]);
+    }
+    if (converted) {
+        efree(converted);
+    }
 
     /* Handle the result directly */
     int status = 0;

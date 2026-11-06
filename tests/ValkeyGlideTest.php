@@ -1728,6 +1728,22 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->llen('list'));// not a list returns FALSE
     }
 
+    /* Doubles whose "%.6f" form is longer than 64 bytes are pushed whole, without stack bytes */
+    public function testListPushLargeDouble()
+    {
+        $this->valkey_glide->del('list');
+
+        $values = [1e300, -1.5e200, 0.25];
+        $this->assertEquals(3, $this->valkey_glide->rPush('list', ...$values));
+        $this->assertEquals(4, $this->valkey_glide->lPush('list', 1e100));
+
+        $expected = array_map(fn ($v) => sprintf('%.6f', $v), array_merge([1e100], $values));
+        $this->assertGT(64, strlen($expected[1])); // guard: longer than the old 64-byte buffer
+        $this->assertEquals($expected, $this->valkey_glide->lRange('list', 0, -1));
+
+        $this->valkey_glide->del('list');
+    }
+
     public function testlPopx()
     {
         $this->valkey_glide->del('keyNotExists');
@@ -1915,6 +1931,38 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // SORT list ALPHA → [abc, def, ghi]
         $this->assertEquals(['ghi', 'def', 'abc'], $this->valkey_glide->sort('list', ['sort' => 'desc', 'alpha' => true]));
+    }
+
+    /* Each GET pattern takes two argument slots; many patterns must not overflow the argument buffer.
+     * Keys share a hash tag so the patterns are valid in cluster mode too. */
+    public function testSortManyGetPatterns()
+    {
+        $people = [1 => ['Alice', '27'], 2 => ['Bob', '34'], 3 => ['Carol', '25'], 4 => ['Dave', '41']];
+        $this->valkey_glide->del('{sort}id');
+        $keys = ['{sort}id'];
+        foreach ($people as $id => [$name, $age]) {
+            $this->valkey_glide->set("{sort}name_$id", $name);
+            $this->valkey_glide->set("{sort}age_$id", $age);
+            $this->valkey_glide->rPush('{sort}id', $id);
+            array_push($keys, "{sort}name_$id", "{sort}age_$id");
+        }
+
+        $options = [
+            'by' => '{sort}age_*',
+            'get' => array_merge(['#', '{sort}name_*'], array_fill(0, 30, '{sort}age_*')),
+            'limit' => [0, 4],
+            'sort' => 'asc',
+            'alpha' => true,
+        ];
+
+        $expected = [];
+        foreach ([3, 1, 2, 4] as $id) {
+            $expected = array_merge($expected, [(string)$id, $people[$id][0]], array_fill(0, 30, $people[$id][1]));
+        }
+        $this->assertEquals($expected, $this->valkey_glide->sort('{sort}id', $options));
+        $this->assertEquals($expected, $this->valkey_glide->sort_ro('{sort}id', $options));
+
+        $this->valkey_glide->del($keys);
     }
 
     /* This test is just to make sure SORT and SORT_RO are both callable */
@@ -10128,6 +10176,39 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->assertEquals([self::ECHO_ARG_LIBRARY_NAME, 'arg'], $this->valkey_glide->exec());
 
         $this->valkey_glide->functionDelete(self::ECHO_ARG_LIBRARY_NAME);
+    }
+
+    /* Non-string FCALL keys and args are converted to strings that stay valid until the command is sent */
+    public function testFcallNonStringArgs()
+    {
+        if (!$this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('FCALL requires 7.0.0+');
+        }
+
+        $code = "#!lua name=echoalllib\n" .
+            "redis.register_function('echo_all', function(keys, args) " .
+            "local out = {} for i, v in ipairs(keys) do out[#out + 1] = v end " .
+            "for i, v in ipairs(args) do out[#out + 1] = v end return out end)\n" .
+            "redis.register_function{function_name = 'echo_all_ro', flags = {'no-writes'}, " .
+            "callback = function(keys, args) local out = {} " .
+            "for i, v in ipairs(args) do out[#out + 1] = v end return out end}";
+        $this->assertEquals('echoalllib', $this->valkey_glide->functionLoad($code, true));
+
+        /* Values above 9 avoid PHP's interned single-digit strings */
+        $args = [1234567, 7654321, 42.5, true];
+        $expected = ['1234567', '7654321', '42.5', '1'];
+
+        /* The key gives cluster mode a primary to route to */
+        $this->assertEquals(array_merge(['{fn}key'], $expected), $this->valkey_glide->fcall('echo_all', ['{fn}key'], $args));
+        $this->assertEquals($expected, $this->valkey_glide->fcall_ro('echo_all_ro', ['{fn}key'], $args));
+
+        if ($this->havePipeline()) {
+            $this->valkey_glide->pipeline();
+            $this->valkey_glide->fcall('echo_all', ['{fn}key'], $args);
+            $this->assertEquals([array_merge(['{fn}key'], $expected)], $this->valkey_glide->exec());
+        }
+
+        $this->valkey_glide->functionDelete('echoalllib');
     }
 
     /* A PHPRedis-style integer or numeric-string timeout is applied as seconds, not dropped */
