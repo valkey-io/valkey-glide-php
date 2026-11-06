@@ -1579,6 +1579,10 @@ class ValkeyGlideCluster
      * in one call must hash to the same slot (use a hash tag such as <code>{news}.a</code>);
      * otherwise the server rejects the command with CROSSSLOT.
      *
+     * With OPT_PREFIX set, the prefix is added to each channel, and the callback receives the
+     * channel as the server sends it, prefix included. To unsubscribe, pass the unprefixed
+     * channel names to sunsubscribe(), as in PHPRedis.
+     *
      * @param array    $channels One or more shard channel names.
      * @param callable $cb       The callback invoked when a message arrives on one of the
      *                           subscribed shard channels, called as
@@ -1633,7 +1637,9 @@ class ValkeyGlideCluster
      * if none are given. Intended to be called from within an ssubscribe() callback.
      *
      * @param array|null $channels One or more shard channels to unsubscribe from, or null
-     *                             for all shard channels.
+     *                             for all shard channels. With OPT_PREFIX set, pass the
+     *                             unprefixed names given to ssubscribe(); the prefix is
+     *                             added to each one.
      *
      * @return bool True on success.
      *
