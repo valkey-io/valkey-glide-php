@@ -319,11 +319,9 @@ cleanup:
 
 // Unified parameter preparation with configurable components
 typedef struct {
-    bool        needs_expiry;
-    bool        needs_condition;
-    bool        needs_fields_keyword;
-    bool        field_value_pairs;  // true for HSETEX, false for HEXPIRE/HTTL
-    const char* condition_prefix;   // "F" for HSETEX (FNX/FXX), NULL for HEXPIRE (NX/XX)
+    bool needs_expiry;
+    bool needs_condition;
+    bool needs_fields_keyword;
 } h_arg_config_t;
 
 static int prepare_h_args_unified(h_command_args_t*     args,
@@ -335,10 +333,7 @@ static int prepare_h_args_unified(h_command_args_t*     args,
     if (!args->key)
         return 0;
 
-    // Calculate field count and validate
-    int field_count = config->field_value_pairs ? args->fv_count / 2 : args->fv_count;
-    if (config->field_value_pairs && args->fv_count % 2 != 0)
-        return 0;
+    int field_count = args->fv_count;
 
     // Calculate argument count
     int arg_count = 1;  // key
@@ -365,16 +360,8 @@ static int prepare_h_args_unified(h_command_args_t*     args,
 
     // Add condition
     if (config->needs_condition && args->mode) {
-        const char* condition = args->mode;
-        if (config->condition_prefix) {
-            // Convert NX/XX to FNX/FXX for HSETEX
-            static char condition_buf[4];
-            snprintf(
-                condition_buf, sizeof(condition_buf), "%s%s", config->condition_prefix, args->mode);
-            condition = condition_buf;
-        }
-        (*args_out)[arg_idx]     = (uintptr_t) condition;
-        (*args_len_out)[arg_idx] = strlen(condition);
+        (*args_out)[arg_idx]     = (uintptr_t) args->mode;
+        (*args_len_out)[arg_idx] = strlen(args->mode);
         arg_idx++;
     }
 
@@ -445,14 +432,93 @@ int prepare_h_hfe_args(h_command_args_t* args,
                        unsigned long**   args_len_out,
                        char***           allocated_strings,
                        int*              allocated_count) {
-    h_arg_config_t config = {
-        .needs_expiry         = true,
-        .needs_condition      = true,
-        .needs_fields_keyword = true,
-        .field_value_pairs    = true,
-        .condition_prefix     = "F"};  // Correct: F prefix for HSETEX (NX->FNX, XX->FXX)
-    return prepare_h_args_unified(
-        args, args_out, args_len_out, allocated_strings, allocated_count, &config);
+    if (!args->key || !args->field_values || Z_TYPE_P(args->field_values) != IS_ARRAY)
+        return 0;
+
+    int field_count = zend_hash_num_elements(Z_ARRVAL_P(args->field_values));
+    if (field_count == 0)
+        return 0;
+
+    bool keepttl    = args->expiry_type && strcmp(args->expiry_type, "KEEPTTL") == 0;
+    bool has_expiry = args->expiry_type && !keepttl;
+
+    // key [NX|XX] [FNX|FXX] [EX n|PX n|EXAT n|PXAT n|KEEPTTL] FIELDS count field value ...
+    int arg_count = 1;
+    if (args->key_mode)
+        arg_count++;
+    if (args->mode)
+        arg_count++;
+    if (keepttl)
+        arg_count++;
+    if (has_expiry)
+        arg_count += 2;
+    arg_count += 2 + field_count * 2;
+
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    // expiry value + field count + up to one string per field name and value
+    *allocated_strings = (char**) emalloc((2 + field_count * 2) * sizeof(char*));
+    *allocated_count   = 0;
+
+    int arg_idx = 0;
+
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
+    (*args_len_out)[arg_idx] = args->key_len;
+    arg_idx++;
+
+    // Key-level condition precedes the field-level condition
+    if (args->key_mode) {
+        (*args_out)[arg_idx]     = (uintptr_t) args->key_mode;
+        (*args_len_out)[arg_idx] = strlen(args->key_mode);
+        arg_idx++;
+    }
+    if (args->mode) {
+        (*args_out)[arg_idx]     = (uintptr_t) args->mode;
+        (*args_len_out)[arg_idx] = strlen(args->mode);
+        arg_idx++;
+    }
+
+    if (args->expiry_type) {
+        (*args_out)[arg_idx]     = (uintptr_t) args->expiry_type;
+        (*args_len_out)[arg_idx] = strlen(args->expiry_type);
+        arg_idx++;
+
+        if (has_expiry) {
+            size_t expiry_len;
+            char*  expiry_str = safe_format_long_long(args->expiry, &expiry_len);
+            add_string_arg(expiry_str,
+                           expiry_len,
+                           args_out,
+                           args_len_out,
+                           &arg_idx,
+                           allocated_strings,
+                           allocated_count);
+        }
+    }
+
+    (*args_out)[arg_idx]     = (uintptr_t) "FIELDS";
+    (*args_len_out)[arg_idx] = 6;
+    arg_idx++;
+
+    size_t field_count_len;
+    char*  field_count_str = safe_format_int(field_count, &field_count_len);
+    add_string_arg(field_count_str,
+                   field_count_len,
+                   args_out,
+                   args_len_out,
+                   &arg_idx,
+                   allocated_strings,
+                   allocated_count);
+
+    // field => value pairs; numeric keys are sent as their string form
+    int end_idx = process_field_value_pairs(
+        args->field_values, *args_out, *args_len_out, arg_idx, *allocated_strings, allocated_count);
+    if (end_idx != arg_count) {
+        // Caller frees the arrays and tracked strings on failure
+        return 0;
+    }
+
+    return arg_count;
 }
 
 int prepare_h_expire_args(h_command_args_t* args,
@@ -540,11 +606,8 @@ int prepare_h_field_only_args(h_command_args_t* args,
                               unsigned long**   args_len_out,
                               char***           allocated_strings,
                               int*              allocated_count) {
-    h_arg_config_t config = {.needs_expiry         = false,
-                             .needs_condition      = false,
-                             .needs_fields_keyword = true,
-                             .field_value_pairs    = false,
-                             .condition_prefix     = NULL};
+    h_arg_config_t config = {
+        .needs_expiry = false, .needs_condition = false, .needs_fields_keyword = true};
     return prepare_h_args_unified(
         args, args_out, args_len_out, allocated_strings, allocated_count, &config);
 }
@@ -2309,8 +2372,8 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
     return 0;
 }
 
-// Helper function for all hSetEx variants with conditions
-// Unified helper function for all hash field expiration variants
+// Shared helper for the hExpire-family variants (positional arguments:
+// key, expiry, condition, fields...). hSetEx has its own executor below.
 static int execute_hash_expiry_command(zval*             object,
                                        int               argc,
                                        zval*             return_value,
@@ -2349,9 +2412,7 @@ static int execute_hash_expiry_command(zval*             object,
     const char* final_condition = condition_str ? condition_str : condition;
 
     // Validate field count based on command type
-    if (cmd_type == HSetEx && (num_args < 2 || num_args % 2 != 0)) {
-        return 0;  // HSetEx needs field-value pairs
-    } else if (cmd_type == HExpire && num_args < 1) {
+    if (cmd_type == HExpire && num_args < 1) {
         return 0;  // HExpire needs at least one field
     }
 
@@ -2381,17 +2442,6 @@ static int execute_hash_expiry_command(zval*             object,
     return 0;
 }
 
-// Helper function for hSetEx variants with conditions
-static int execute_hsetex_with_condition(zval*             object,
-                                         int               argc,
-                                         zval*             return_value,
-                                         zend_class_entry* ce,
-                                         const char*       expiry_type,
-                                         const char*       condition) {
-    return execute_hash_expiry_command(
-        object, argc, return_value, ce, HSetEx, expiry_type, condition, H_RESPONSE_INT, 2);
-}
-
 // Helper function for hExpire variants with conditions
 static int execute_hexpire_with_condition(zval*             object,
                                           int               argc,
@@ -2403,31 +2453,138 @@ static int execute_hexpire_with_condition(zval*             object,
         object, argc, return_value, ce, HExpire, expiry_type, condition, H_RESPONSE_ARRAY, 1);
 }
 
-// Unified hash field expiration command execution
-#define DEFINE_HSETEX_COMMAND(name, expiry_type, condition)                 \
-    int execute_##name##_command(                                           \
-        zval* object, int argc, zval* return_value, zend_class_entry* ce) { \
-        return execute_hsetex_with_condition(                               \
-            object, argc, return_value, ce, expiry_type, condition);        \
+/*
+ * Parse the PHPRedis-style hSetEx $expiry array into hargs.
+ *
+ * Accepted entries (names are case-insensitive, as in PHPRedis):
+ *   'EX' | 'PX' | 'EXAT' | 'PXAT' => int   expiry (non-negative)
+ *   'KEEPTTL'                             keep the existing TTL
+ *   'FNX' | 'FXX'                         field-level condition
+ *   'NX'  | 'XX'                          key-level condition (Valkey 9.1+)
+ *
+ * Unlike PHPRedis, which silently ignores entries it doesn't recognize, any
+ * unknown, malformed, negative, or conflicting entry is rejected. Ignoring
+ * one would turn a conditional write into an unconditional one.
+ *
+ * Returns 1 on success, 0 if the array is invalid.
+ */
+static int parse_hsetex_expiry_options(HashTable* opts, h_command_args_t* hargs) {
+    zend_string* name;
+    zval*        zv;
+
+    ZEND_HASH_FOREACH_STR_KEY_VAL(opts, name, zv) {
+        ZVAL_DEREF(zv);
+
+        if (name) {
+            // Keyed entry: an expiry type with a numeric value
+            const char* type;
+            if (zend_string_equals_literal_ci(name, "EX")) {
+                type = "EX";
+            } else if (zend_string_equals_literal_ci(name, "PX")) {
+                type = "PX";
+            } else if (zend_string_equals_literal_ci(name, "EXAT")) {
+                type = "EXAT";
+            } else if (zend_string_equals_literal_ci(name, "PXAT")) {
+                type = "PXAT";
+            } else {
+                return 0;
+            }
+
+            zend_long value;
+            if (Z_TYPE_P(zv) == IS_LONG) {
+                value = Z_LVAL_P(zv);
+            } else if (Z_TYPE_P(zv) != IS_STRING ||
+                       is_numeric_string(Z_STRVAL_P(zv), Z_STRLEN_P(zv), &value, NULL, 0) !=
+                           IS_LONG) {
+                return 0;
+            }
+
+            if (value < 0 || hargs->expiry_type) {
+                return 0;  // negative timeout, or a second expiry option
+            }
+            hargs->expiry_type = type;
+            hargs->expiry      = (long long) value;
+            continue;
+        }
+
+        // List entry: a flag
+        if (Z_TYPE_P(zv) != IS_STRING) {
+            return 0;
+        }
+        zend_string* flag = Z_STR_P(zv);
+
+        if (zend_string_equals_literal_ci(flag, "KEEPTTL")) {
+            if (hargs->expiry_type) {
+                return 0;
+            }
+            hargs->expiry_type = "KEEPTTL";
+        } else if (zend_string_equals_literal_ci(flag, "FNX") ||
+                   zend_string_equals_literal_ci(flag, "FXX")) {
+            if (hargs->mode) {
+                return 0;
+            }
+            hargs->mode = zend_string_equals_literal_ci(flag, "FNX") ? "FNX" : "FXX";
+        } else if (zend_string_equals_literal_ci(flag, "NX") ||
+                   zend_string_equals_literal_ci(flag, "XX")) {
+            if (hargs->key_mode) {
+                return 0;
+            }
+            hargs->key_mode = zend_string_equals_literal_ci(flag, "NX") ? "NX" : "XX";
+        } else {
+            return 0;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+
+    return 1;
+}
+
+/*
+ * hSetEx(string $key, array $fields, ?array $expiry = null): int|false
+ *
+ * Matches the PHPRedis signature. $fields is field => value; $expiry is
+ * described in parse_hsetex_expiry_options().
+ */
+int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key     = NULL;
+    size_t               key_len = 0;
+    zval*                z_fields;
+    zval*                z_expiry = NULL;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Osa|a!", &object, ce, &key, &key_len, &z_fields, &z_expiry) == FAILURE) {
+        return 0;
     }
 
-// Base variants
-DEFINE_HSETEX_COMMAND(hsetex, NULL, NULL)
-DEFINE_HSETEX_COMMAND(hpsetex, "PX", NULL)
-DEFINE_HSETEX_COMMAND(hsetexat, "EXAT", NULL)
-DEFINE_HSETEX_COMMAND(hpsetexat, "PXAT", NULL)
+    if (zend_hash_num_elements(Z_ARRVAL_P(z_fields)) == 0) {
+        php_error_docref(NULL, E_WARNING, "Must pass at least one field");
+        return 0;
+    }
 
-// NX variants
-DEFINE_HSETEX_COMMAND(hsetexnx, NULL, "NX")
-DEFINE_HSETEX_COMMAND(hpsetexnx, "PX", "NX")
-DEFINE_HSETEX_COMMAND(hsetexatnx, "EXAT", "NX")
-DEFINE_HSETEX_COMMAND(hpsetexatnx, "PXAT", "NX")
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
 
-// XX variants
-DEFINE_HSETEX_COMMAND(hsetexxx, NULL, "XX")
-DEFINE_HSETEX_COMMAND(hpsetexxx, "PX", "XX")
-DEFINE_HSETEX_COMMAND(hsetexatxx, "EXAT", "XX")
-DEFINE_HSETEX_COMMAND(hpsetexatxx, "PXAT", "XX")
+    h_command_args_t hargs = {0};
+    hargs.key              = key;
+    hargs.key_len          = key_len;
+    hargs.field_values     = z_fields;
+
+    if (z_expiry && !parse_hsetex_expiry_options(Z_ARRVAL_P(z_expiry), &hargs)) {
+        return 0;
+    }
+
+    if (execute_h_simple_command(
+            valkey_glide, HSetEx, &hargs, NULL, H_RESPONSE_INT, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+        }
+        return 1;
+    }
+    return 0;
+}
 
 // hExpire NX/XX variants - reuse existing hExpire infrastructure with conditions
 int execute_hexpirenx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
