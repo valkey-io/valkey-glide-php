@@ -451,8 +451,8 @@ int prepare_key_value_args(core_command_args_t* args,
     if (args->options.keep_ttl) {
         total_args++; /* KEEPTTL */
     }
-    if (args->options.has_ifeq) {
-        total_args += 2; /* IFEQ + value */
+    if (args->options.has_ifeq || args->options.has_ifne) {
+        total_args += 2; /* IFEQ/IFNE + value */
     }
     if (args->options.persist) {
         total_args++; /* PERSIST */
@@ -628,13 +628,13 @@ int prepare_key_value_args(core_command_args_t* args,
         arg_idx++;
     }
 
-    if (args->options.has_ifeq) {
-        (*cmd_args)[arg_idx]     = (uintptr_t) "IFEQ";
+    if (args->options.has_ifeq || args->options.has_ifne) {
+        (*cmd_args)[arg_idx]     = (uintptr_t) (args->options.has_ifeq ? "IFEQ" : "IFNE");
         (*cmd_args_len)[arg_idx] = 4;
         arg_idx++;
 
-        (*cmd_args)[arg_idx]     = (uintptr_t) args->options.ifeq_value;
-        (*cmd_args_len)[arg_idx] = args->options.ifeq_len;
+        (*cmd_args)[arg_idx]     = (uintptr_t) args->options.if_value;
+        (*cmd_args_len)[arg_idx] = args->options.if_len;
         arg_idx++;
     }
 
@@ -1430,6 +1430,10 @@ int parse_set_options(zval* options, core_options_t* opts) {
 
     /* Iterate through all options */
     ZEND_HASH_FOREACH_KEY_VAL(options_ht, num_key, option_key, z_option) {
+        /* Follow a reference ([&$flag], ['EX' => &$ttl], ['IFNE' => &$cmp]) so the type
+         * checks below see the referenced value */
+        ZVAL_DEREF(z_option);
+
         if (option_key == NULL) {
             /* Handle numeric keys - these are option flags without values */
             if (Z_TYPE_P(z_option) == IS_STRING) {
@@ -1530,21 +1534,44 @@ int parse_set_options(zval* options, core_options_t* opts) {
                     return 0;
                 }
             }
-            /* IFEQ option */
-            else if (strcasecmp(opt, "IFEQ") == 0) {
-                /* IFEQ option - comparison value */
-                if (Z_TYPE_P(z_option) == IS_STRING) {
-                    opts->ifeq_value = Z_STRVAL_P(z_option);
-                    opts->ifeq_len   = Z_STRLEN_P(z_option);
-                    opts->has_ifeq   = 1;
-                } else {
-                    /* Invalid value type for IFEQ option - should be string */
+            /* IFEQ / IFNE options - comparison value */
+            else if (strcasecmp(opt, "IFEQ") == 0 || strcasecmp(opt, "IFNE") == 0) {
+                int is_ifeq = (strcasecmp(opt, "IFEQ") == 0);
+
+                /* Like PHPRedis, accept any scalar (string, int, float, bool) or null. Strings
+                 * are used in place; other types are converted to an owned string. */
+                if (Z_TYPE_P(z_option) == IS_ARRAY || Z_TYPE_P(z_option) == IS_OBJECT ||
+                    Z_TYPE_P(z_option) == IS_RESOURCE) {
                     return 0;
                 }
+
+                /* A later IFEQ/IFNE replaces an earlier one (last wins, as in PHPRedis) */
+                if (opts->if_value_owned) {
+                    zend_string_release(opts->if_value_owned);
+                    opts->if_value_owned = NULL;
+                }
+
+                if (Z_TYPE_P(z_option) == IS_STRING) {
+                    opts->if_value = Z_STRVAL_P(z_option);
+                    opts->if_len   = Z_STRLEN_P(z_option);
+                } else {
+                    opts->if_value_owned = zval_get_string(z_option);
+                    opts->if_value       = ZSTR_VAL(opts->if_value_owned);
+                    opts->if_len         = ZSTR_LEN(opts->if_value_owned);
+                }
+
+                opts->has_ifeq = is_ifeq;
+                opts->has_ifne = !is_ifeq;
             }
         }
     }
     ZEND_HASH_FOREACH_END();
+
+    /* IFEQ/IFNE are mutually exclusive with NX/XX (PHPRedis rejects this combination too) */
+    if ((opts->has_ifeq || opts->has_ifne) && (opts->nx || opts->xx)) {
+        php_error_docref(NULL, E_WARNING, "IF clauses can't be combined with NX/XX");
+        return 0;
+    }
 
     return 1;
 }
