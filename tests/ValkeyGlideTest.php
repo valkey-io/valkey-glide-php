@@ -6022,16 +6022,16 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $fields = array_map(fn($i) => "field$i", range(1, 20));
 
         $calls = [
-            'server error' => fn() => @$this->valkey_glide->hGetEx($key, $fields, ['EX' => 60]),
-            'no fields' => fn() => @$this->valkey_glide->hGetEx($key, [], ['EX' => 60]),
+            'server error' => fn() => $this->valkey_glide->hGetEx($key, $fields, ['EX' => 60]),
+            'no fields' => fn() => $this->valkey_glide->hGetEx($key, [], ['EX' => 60]),
         ];
         foreach ($calls as $call) {
             for ($i = 0; $i < 20; $i++) {
                 $this->assertFalse($call());
             }
 
-            /* Leaking the args struct alone (its smallest allocation) every call exceeds the
-             * bound; a double free would abort the process */
+            /* Leaking even the smallest allocation (the 8-byte fields block on the no-fields
+             * path) every call exceeds the bound; a double free would corrupt the allocator */
             $before = memory_get_usage();
             for ($i = 0; $i < 1000; $i++) {
                 $this->assertFalse($call());
