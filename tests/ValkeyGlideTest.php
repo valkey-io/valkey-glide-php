@@ -1728,6 +1728,22 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->llen('list'));// not a list returns FALSE
     }
 
+    /* Large doubles are pushed whole. Their "%.6f" form, longer than 63 characters, overflowed
+     * the old 64-byte buffer; list values are now converted as PHP converts floats to strings. */
+    public function testListPushLargeDouble()
+    {
+        $this->valkey_glide->del('list');
+
+        $values = [1e300, -1.5e200, 0.25];
+        $this->assertEquals(3, $this->valkey_glide->rPush('list', ...$values));
+        $this->assertEquals(4, $this->valkey_glide->lPush('list', 1e100));
+
+        $expected = array_map(fn ($value) => (string) $value, array_merge([1e100], $values));
+        $this->assertEquals($expected, $this->valkey_glide->lRange('list', 0, -1));
+
+        $this->valkey_glide->del('list');
+    }
+
     public function testlPopx()
     {
         $this->valkey_glide->del('keyNotExists');
@@ -1915,6 +1931,38 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // SORT list ALPHA → [abc, def, ghi]
         $this->assertEquals(['ghi', 'def', 'abc'], $this->valkey_glide->sort('list', ['sort' => 'desc', 'alpha' => true]));
+    }
+
+    /* Each GET pattern takes two argument slots; many patterns must not overflow the argument buffer.
+     * Keys share a hash tag so the patterns are valid in cluster mode too. */
+    public function testSortManyGetPatterns()
+    {
+        $people = [1 => ['Alice', '27'], 2 => ['Bob', '34'], 3 => ['Carol', '25'], 4 => ['Dave', '41']];
+        $this->valkey_glide->del('{sort}id');
+        $keys = ['{sort}id'];
+        foreach ($people as $id => [$name, $age]) {
+            $this->valkey_glide->set("{sort}name_$id", $name);
+            $this->valkey_glide->set("{sort}age_$id", $age);
+            $this->valkey_glide->rPush('{sort}id', $id);
+            array_push($keys, "{sort}name_$id", "{sort}age_$id");
+        }
+
+        $options = [
+            'by' => '{sort}age_*',
+            'get' => array_merge(['#', '{sort}name_*'], array_fill(0, 30, '{sort}age_*')),
+            'limit' => [0, 4],
+            'sort' => 'asc',
+            'alpha' => true,
+        ];
+
+        $expected = [];
+        foreach ([3, 1, 2, 4] as $id) {
+            $expected = array_merge($expected, [(string)$id, $people[$id][0]], array_fill(0, 30, $people[$id][1]));
+        }
+        $this->assertEquals($expected, $this->valkey_glide->sort('{sort}id', $options));
+        $this->assertEquals($expected, $this->valkey_glide->sort_ro('{sort}id', $options));
+
+        $this->valkey_glide->del($keys);
     }
 
     /* This test is just to make sure SORT and SORT_RO are both callable */
@@ -2782,6 +2830,36 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertTrue($this->valkey_glide->flushDB());
         $this->valkey_glide->set('x', 'y');
         $this->assertEquals(1, $this->valkey_glide->dbSize());
+    }
+
+    /* A failed DBSIZE or PEXPIRETIME returns false instead of freeing a stack buffer (#384) */
+    public function testDbSizeAndPExpireTimeFailure()
+    {
+        $user = 'glide_no_dbsize';
+        $this->assertTrue($this->valkey_glide->rawCommand('ACL', 'SETUSER', $user, 'reset', 'on', '>pw', '~*', '&*', '+@all', '-dbsize', '-pexpiretime'));
+
+        $client = new ValkeyGlide();
+        try {
+            $client->connect(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                use_tls: $this->getTLS(),
+                credentials: ['username' => $user, 'password' => 'pw'],
+                advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null
+            );
+
+            for ($i = 0; $i < 3; $i++) {
+                $client->clearLastError();
+                $this->assertFalse(@$client->dbSize());
+                $this->assertStringContains('dbsize', strtolower((string) $client->getLastError()));
+                $this->assertFalse(@$client->pExpireTime('key'));
+                $this->assertStringContains('pexpiretime', strtolower((string) $client->getLastError()));
+            }
+            $this->assertTrue($client->set('key', 'v'));
+        } finally {
+            $this->valkey_glide->del('key');
+            $client->close();
+            $this->valkey_glide->rawCommand('ACL', 'DELUSER', $user);
+        }
     }
 
     public function testFlushDB()
@@ -7235,8 +7313,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // The response size scales with the requested canvas, so a larger
         // canvas must produce a longer reply. This proves the numeric
         // parameters actually reach the server rather than being dropped.
-        $small = $this->valkey_glide->lolwut(null, [10, 2]);
-        $large = $this->valkey_glide->lolwut(null, [100, 20]);
+        // Version 5 is pinned: before Valkey 9 the default version ignores
+        // the parameters and only returns the server version. For version 5
+        // the first parameter is the column count, so the reply grows with it.
+        $small = $this->valkey_glide->lolwut(5, [10, 2]);
+        $large = $this->valkey_glide->lolwut(5, [100, 20]);
 
         $this->assertIsString($small);
         $this->assertIsString($large);
@@ -10219,6 +10300,65 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->assertEquals([self::ECHO_ARG_LIBRARY_NAME, 'arg'], $this->valkey_glide->exec());
 
         $this->valkey_glide->functionDelete(self::ECHO_ARG_LIBRARY_NAME);
+    }
+
+    /* Non-string FCALL keys and args are converted to strings that stay valid until the command is sent */
+    public function testFcallNonStringArgs()
+    {
+        if (!$this->minVersionCheck('7.0.0')) {
+            $this->markTestSkipped('FCALL requires 7.0.0+');
+        }
+
+        $code = "#!lua name=echoalllib\n" .
+            "redis.register_function('echo_all', function(keys, args) " .
+            "local out = {} for _, key in ipairs(keys) do out[#out + 1] = key end " .
+            "for _, arg in ipairs(args) do out[#out + 1] = arg end return out end)\n" .
+            "redis.register_function{function_name = 'echo_all_ro', flags = {'no-writes'}, " .
+            "callback = function(keys, args) local out = {} " .
+            "for _, arg in ipairs(args) do out[#out + 1] = arg end return out end}\n" .
+            "redis.register_function('mark_ran', function(keys, args) " .
+            "redis.call('SET', keys[1], 'ran') return 'ok' end)";
+        $this->assertEquals('echoalllib', $this->valkey_glide->functionLoad($code, true));
+
+        $stringable = new class {
+            public function __toString(): string
+            {
+                return 'stringable';
+            }
+        };
+
+        /* Values above 9 avoid PHP's interned single-digit strings */
+        $args = [1234567, 7654321, 42.5, true, null, $stringable];
+        $expected = ['1234567', '7654321', '42.5', '1', '', 'stringable'];
+
+        /* The key gives cluster mode a primary to route to */
+        $this->assertEquals(array_merge(['{fn}key'], $expected), $this->valkey_glide->fcall('echo_all', ['{fn}key'], $args));
+        $this->assertEquals($expected, $this->valkey_glide->fcall_ro('echo_all_ro', ['{fn}key'], $args));
+
+        if ($this->havePipeline()) {
+            $this->valkey_glide->pipeline();
+            $this->valkey_glide->fcall('echo_all', ['{fn}key'], $args);
+            $this->assertEquals([array_merge(['{fn}key'], $expected)], $this->valkey_glide->exec());
+        }
+
+        /* An argument that cannot be converted to a string throws, and the
+         * function is neither run nor queued */
+        $this->valkey_glide->del('{fn}marker');
+        $this->assertThrows(Error::class, function () {
+            $this->valkey_glide->fcall('mark_ran', ['{fn}marker'], [new stdClass()]);
+        });
+        $this->assertFalse($this->valkey_glide->get('{fn}marker'));
+
+        if ($this->havePipeline()) {
+            $this->valkey_glide->pipeline();
+            $this->assertThrows(Error::class, function () {
+                $this->valkey_glide->fcall('mark_ran', ['{fn}marker'], [new stdClass()]);
+            });
+            $this->assertEquals([], $this->valkey_glide->exec());
+            $this->assertFalse($this->valkey_glide->get('{fn}marker'));
+        }
+
+        $this->valkey_glide->functionDelete('echoalllib');
     }
 
     /* A PHPRedis-style integer or numeric-string timeout is applied as seconds, not dropped */

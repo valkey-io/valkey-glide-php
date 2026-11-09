@@ -603,7 +603,9 @@ int command_response_to_zval(CommandResponse* response,
 
                         if (key_zval && val_zval && Z_TYPE_P(key_zval) == IS_STRING) {
                             zend_string* key = Z_STR_P(key_zval);
-                            GC_TRY_ADDREF(Z_STR_P(val_zval));
+                            /* The value may be any type (a server can send a non-string),
+                             * so use the type-checked addref */
+                            Z_TRY_ADDREF_P(val_zval);
                             zend_hash_update(Z_ARRVAL_P(output), key, val_zval);
                         }
                         zval_ptr_dtor(&field);
