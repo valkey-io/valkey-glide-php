@@ -531,8 +531,9 @@ int process_s_bool_result_async(CommandResponse* response, void* output, zval* r
 /**
  * Batch-compatible async result processor for integer responses.
  * Maps 1 to true, 0 to false and a negative value (-1) to null (e.g. SISMEMBER ... XX).
- * A missing or unexpected response (command error) maps to false, the PHPRedis failure
- * value, so an error stays distinguishable from a null result.
+ * A missing or unexpected response returns 0 without setting return_value; the callers
+ * then report false (the PHPRedis failure value), so an error stays distinguishable from
+ * a null result.
  */
 int process_s_bool_or_null_result_async(CommandResponse* response,
                                         void*            output,
@@ -546,7 +547,6 @@ int process_s_bool_or_null_result_async(CommandResponse* response,
         return 1;
     }
 
-    ZVAL_FALSE(return_value);
     return 0;
 }
 
