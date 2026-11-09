@@ -536,9 +536,9 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             /* Unsupported command type */
             return 0;
     }
-    /* The prepare functions only allocate. This function frees the argument arrays and the
-     * allocated strings on every path below, including when preparation fails. */
-    /* Check if argument preparation was successful */
+    /* Check if argument preparation was successful. The prepare functions only allocate: this
+     * function frees the argument arrays and the allocated strings on every path below,
+     * including when preparation fails. */
     if (arg_count <= 0) {
         if (arg_values)
             efree(arg_values);
