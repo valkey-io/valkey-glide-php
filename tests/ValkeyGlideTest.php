@@ -2833,6 +2833,36 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $this->valkey_glide->dbSize());
     }
 
+    /* A failed DBSIZE or PEXPIRETIME returns false instead of freeing a stack buffer (#384) */
+    public function testDbSizeAndPExpireTimeFailure()
+    {
+        $user = 'glide_no_dbsize';
+        $this->assertTrue($this->valkey_glide->rawCommand('ACL', 'SETUSER', $user, 'reset', 'on', '>pw', '~*', '&*', '+@all', '-dbsize', '-pexpiretime'));
+
+        $client = new ValkeyGlide();
+        try {
+            $client->connect(
+                addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                use_tls: $this->getTLS(),
+                credentials: ['username' => $user, 'password' => 'pw'],
+                advanced_config: $this->getTLS() ? ['tls_config' => ['use_insecure_tls' => true]] : null
+            );
+
+            for ($i = 0; $i < 3; $i++) {
+                $client->clearLastError();
+                $this->assertFalse(@$client->dbSize());
+                $this->assertStringContains('dbsize', strtolower((string) $client->getLastError()));
+                $this->assertFalse(@$client->pExpireTime('key'));
+                $this->assertStringContains('pexpiretime', strtolower((string) $client->getLastError()));
+            }
+            $this->assertTrue($client->set('key', 'v'));
+        } finally {
+            $this->valkey_glide->del('key');
+            $client->close();
+            $this->valkey_glide->rawCommand('ACL', 'DELUSER', $user);
+        }
+    }
+
     public function testFlushDB()
     {
         $this->assertTrue($this->valkey_glide->flushdb());

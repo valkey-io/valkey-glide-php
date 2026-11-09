@@ -362,9 +362,8 @@ int execute_pexpiretime_command(zval* object, int argc, zval* return_value, zend
         args.key_len             = key_len;
         args.arg_count           = 0; /* No additional arguments for PEXPIRETIME */
 
-        long output_value;
         if (execute_core_command(
-                valkey_glide, &args, &output_value, process_core_int_result, return_value)) {
+                valkey_glide, &args, NULL, process_core_int_result, return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 /* In batch mode, return $this for method chaining */
                 ZVAL_COPY(return_value, object);
