@@ -315,15 +315,18 @@ char* alloc_list_number_string(long value, size_t* len_out) {
  * Allocate a string representation of a double
  */
 char* alloc_list_double_string(double value, size_t* len_out) {
-    char   temp[64];
-    size_t len    = snprintf(temp, sizeof(temp), "%.6f", value);
-    char*  result = emalloc(len + 1);
-    if (result) {
-        memcpy(result, temp, len);
-        result[len] = '\0';
+    /* Size the buffer from the formatted length: "%.6f" of a large double
+     * (e.g. 1e300) is longer than any fixed-size stack buffer */
+    int len = snprintf(NULL, 0, "%.6f", value);
+    if (len < 0) {
         if (len_out)
-            *len_out = len;
+            *len_out = 0;
+        return NULL;
     }
+    char* result = emalloc((size_t) len + 1);
+    snprintf(result, (size_t) len + 1, "%.6f", value);
+    if (len_out)
+        *len_out = (size_t) len;
     return result;
 }
 
