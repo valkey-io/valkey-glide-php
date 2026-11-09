@@ -505,7 +505,7 @@ A kept client is reused only by a request that uses the same configuration (and,
 
 - One object uses it at a time; another object with the same configuration in the same request gets its own client.
 - After `select()`, the configured database is selected again at the end of the request. A `WATCH` still active at the end of the request is cleared with `UNWATCH`. If either fails, the client is closed instead of kept.
-- The client is closed, not kept, after the request changes other connection state: `reset()`, `client('SETNAME', ...)` and other `CLIENT` subcommands that change the connection, `subscribe()`/`psubscribe()`, `updateConnectionPassword()`, or `SELECT`, `AUTH`, `HELLO`, `MULTI`, `WATCH` and similar commands sent through `rawCommand()`.
+- The client is closed, not kept, after the request changes other connection state: `reset()`, `client('SETNAME', ...)` and other `CLIENT` subcommands that change the connection, `subscribe()`/`psubscribe()`/`ssubscribe()`, `updateConnectionPassword()`, or `SELECT`, `AUTH`, `HELLO`, `MULTI`, `WATCH` and similar commands sent through `rawCommand()`.
 - `close()` closes it.
 - It is never reused or closed by a process other than the one that created it (`fork()`).
 - It is not kept when an `address_resolver` is configured.

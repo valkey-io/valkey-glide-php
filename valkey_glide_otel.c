@@ -15,6 +15,7 @@
 
 #include "valkey_glide_otel.h"
 
+#include <pthread.h>
 #include <string.h>
 #include <zend_API.h>
 #include <zend_exceptions.h>
@@ -24,13 +25,19 @@
 
 /* Forward declarations for static functions */
 static void                               cleanup_otel_config(void);
+static void                               free_otel_config(struct OpenTelemetryConfig* config);
 static bool                               valkey_glide_otel_should_sample(void);
 static struct OpenTelemetryConfig*        parse_otel_config(zval* config_obj);
 static struct OpenTelemetryTracesConfig*  parse_traces_config_object(zval* traces_obj);
 static struct OpenTelemetryMetricsConfig* parse_metrics_config_object(zval* metrics_obj);
 
-/* Global OTEL configuration */
+/* Global OTEL configuration. It is initialized once per process and used by
+ * later requests, so it and its strings are allocated persistently */
 struct OpenTelemetryConfig* g_otel_config = NULL;
+
+/* Serializes initialization, so concurrent threads (ZTS) install only one
+ * configuration */
+static pthread_mutex_t g_otel_init_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  * Initialize OpenTelemetry with the given configuration
@@ -43,21 +50,37 @@ int valkey_glide_otel_init(zval* config_obj) {
         return 1; /* Success - already initialized */
     }
 
-    /* Parse configuration - caller has validated it's a non-null object */
-    g_otel_config = parse_otel_config(config_obj);
-    if (!g_otel_config) {
+    /* Parse configuration - caller has validated it's a non-null object. This
+     * calls PHP methods, so it runs outside the lock (a bailout would leave it
+     * held) */
+    struct OpenTelemetryConfig* config = parse_otel_config(config_obj);
+    if (!config) {
         VALKEY_LOG_ERROR("otel_init", "Failed to parse OTEL configuration");
         return 0;
     }
 
-    /* Initialize OTEL with Rust FFI */
-    const char* error = init_open_telemetry(g_otel_config);
+    pthread_mutex_lock(&g_otel_init_lock);
+    if (g_otel_config) {
+        /* Another thread initialized it meanwhile */
+        pthread_mutex_unlock(&g_otel_init_lock);
+        free_otel_config(config);
+        VALKEY_LOG_WARN("otel_init",
+                        "OpenTelemetry already initialized, ignoring subsequent calls");
+        return 1;
+    }
+
+    /* Initialize OTEL with Rust FFI; publish the configuration only once the
+     * core accepted it, so other threads never see one that is freed below */
+    const char* error = init_open_telemetry(config);
     if (error) {
+        free_otel_config(config);
+        pthread_mutex_unlock(&g_otel_init_lock);
         VALKEY_LOG_ERROR_FMT("otel_init", "Failed to initialize OTEL: %s", error);
         free_c_string((char*) error);
-        cleanup_otel_config();
         return 0;
     }
+    g_otel_config = config;
+    pthread_mutex_unlock(&g_otel_init_lock);
 
     VALKEY_LOG_INFO("otel_init", "OpenTelemetry initialized successfully");
     return 1;
@@ -106,10 +129,9 @@ int valkey_glide_otel_get_sample_percentage(uint32_t* percentage) {
 }
 
 /**
- * Shutdown OpenTelemetry and cleanup configuration.
- * For testing purposes only - allows resetting OTEL state between tests.
+ * Shutdown OpenTelemetry and cleanup configuration. Called at module shutdown
  */
-static void valkey_glide_otel_shutdown(void) {
+void valkey_glide_otel_shutdown(void) {
     if (g_otel_config) {
         cleanup_otel_config();
         VALKEY_LOG_INFO("otel_shutdown", "OpenTelemetry shutdown complete");
@@ -190,9 +212,9 @@ static struct OpenTelemetryConfig* parse_otel_config(zval* config_obj) {
             if (!metrics_config) {
                 if (traces_config) {
                     if (traces_config->endpoint) {
-                        efree((void*) traces_config->endpoint);
+                        pefree((void*) traces_config->endpoint, 1);
                     }
-                    efree(traces_config);
+                    pefree(traces_config, 1);
                 }
                 zval_dtor(&retval);
                 return NULL;
@@ -220,7 +242,7 @@ static struct OpenTelemetryConfig* parse_otel_config(zval* config_obj) {
     }
 
     // Create main FFI config struct
-    struct OpenTelemetryConfig* main_config = emalloc(sizeof(struct OpenTelemetryConfig));
+    struct OpenTelemetryConfig* main_config = pemalloc(sizeof(struct OpenTelemetryConfig), 1);
     main_config->traces                     = traces_config;
     main_config->metrics                    = metrics_config;
     main_config->has_flush_interval_ms      = has_flush_interval;
@@ -241,7 +263,7 @@ static struct OpenTelemetryTracesConfig* parse_traces_config_object(zval* traces
     // Get endpoint
     if (call_method(traces_obj, "getEndpoint", &retval)) {
         if (Z_TYPE(retval) == IS_STRING) {
-            endpoint = estrdup(Z_STRVAL(retval));
+            endpoint = pestrdup(Z_STRVAL(retval), 1);
         }
         zval_dtor(&retval);
     }
@@ -262,7 +284,7 @@ static struct OpenTelemetryTracesConfig* parse_traces_config_object(zval* traces
 
     // Allocate and populate FFI traces config struct
     struct OpenTelemetryTracesConfig* traces_config =
-        emalloc(sizeof(struct OpenTelemetryTracesConfig));
+        pemalloc(sizeof(struct OpenTelemetryTracesConfig), 1);
     traces_config->endpoint              = endpoint;  // Transfer ownership
     traces_config->has_sample_percentage = has_sample_percentage;
     traces_config->sample_percentage     = (uint32_t) sample_percentage;
@@ -280,7 +302,7 @@ static struct OpenTelemetryMetricsConfig* parse_metrics_config_object(zval* metr
     // Get endpoint
     if (call_method(metrics_obj, "getEndpoint", &retval)) {
         if (Z_TYPE(retval) == IS_STRING) {
-            endpoint = estrdup(Z_STRVAL(retval));
+            endpoint = pestrdup(Z_STRVAL(retval), 1);
         }
         zval_dtor(&retval);
     }
@@ -292,10 +314,31 @@ static struct OpenTelemetryMetricsConfig* parse_metrics_config_object(zval* metr
 
     // Allocate and populate FFI metrics config struct
     struct OpenTelemetryMetricsConfig* metrics_config =
-        emalloc(sizeof(struct OpenTelemetryMetricsConfig));
+        pemalloc(sizeof(struct OpenTelemetryMetricsConfig), 1);
     metrics_config->endpoint = endpoint;  // Transfer ownership
 
     return metrics_config;
+}
+
+/**
+ * Free an OTEL configuration and its strings
+ */
+static void free_otel_config(struct OpenTelemetryConfig* config) {
+    if (config->traces) {
+        if (config->traces->endpoint) {
+            pefree((void*) config->traces->endpoint, 1);
+        }
+        pefree((void*) config->traces, 1);
+    }
+
+    if (config->metrics) {
+        if (config->metrics->endpoint) {
+            pefree((void*) config->metrics->endpoint, 1);
+        }
+        pefree((void*) config->metrics, 1);
+    }
+
+    pefree(config, 1);
 }
 
 /**
@@ -306,21 +349,7 @@ static void cleanup_otel_config(void) {
         return;
     }
 
-    if (g_otel_config->traces) {
-        if (g_otel_config->traces->endpoint) {
-            efree((void*) g_otel_config->traces->endpoint);
-        }
-        efree((void*) g_otel_config->traces);
-    }
-
-    if (g_otel_config->metrics) {
-        if (g_otel_config->metrics->endpoint) {
-            efree((void*) g_otel_config->metrics->endpoint);
-        }
-        efree((void*) g_otel_config->metrics);
-    }
-
-    efree(g_otel_config);
+    free_otel_config(g_otel_config);
     g_otel_config = NULL;
 }
 
