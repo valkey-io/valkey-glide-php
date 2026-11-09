@@ -2002,7 +2002,7 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
     zval*                z_iter;
     char *               pattern = NULL, *type = NULL;
     size_t               pattern_len = 0, type_len = 0;
-    int                  has_pattern = 0, has_type = 0;
+    bool                 has_pattern = false, has_type = false;
     zend_long            count     = 0;
     int                  has_count = 0;
 

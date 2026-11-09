@@ -17,6 +17,7 @@
 #ifndef VALKEY_GLIDE_S_COMMON_H
 #define VALKEY_GLIDE_S_COMMON_H
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -90,10 +91,10 @@ typedef struct _s_command_args_t {
     long        limit;             /* LIMIT parameter */
     int         keys_count;        /* Number of keys */
     int         members_count;     /* Number of members */
-    int         has_count;         /* Whether count is specified */
-    int         has_limit;         /* Whether limit is specified */
-    int         has_type;          /* Whether type filter is specified */
-    int         has_xx;            /* Append the XX flag (SISMEMBER, Valkey 9.2+) */
+    bool        has_count;         /* Whether count is specified */
+    bool        has_limit;         /* Whether limit is specified */
+    bool        has_type;          /* Whether type filter is specified */
+    bool        has_xx;            /* Append the XX flag (SISMEMBER, Valkey 9.2+) */
 } s_command_args_t;
 
 /**
