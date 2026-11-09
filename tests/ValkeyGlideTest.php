@@ -1185,10 +1185,18 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1000 * ($now + 10), $this->valkey_glide->pexpiretime('key1'));
 
         // Test pexpire (new)
+        // Bound the expiry by the clock around the call: time() drops the fraction of a second,
+        // so bounds from $now failed when the call landed late in that second (e.g. under Valgrind)
         $this->assertTrue($this->valkey_glide->set('key2', 'value'));
+        $before_ms = (int) floor(microtime(true) * 1000);
         $this->assertTrue($this->valkey_glide->pexpire('key2', 15000)); // 15 seconds in ms
-        $this->assertBetween($this->valkey_glide->expiretime('key2'), $now + 14, $now + 16);
-        $this->assertBetween($this->valkey_glide->pexpiretime('key2'), ($now + 14) * 1000, ($now + 16) * 1000);
+        $after_ms = (int) ceil(microtime(true) * 1000);
+        $this->assertBetween(
+            $this->valkey_glide->expiretime('key2'),
+            intdiv($before_ms + 15000, 1000),
+            intdiv($after_ms + 15000, 1000) + 1
+        );
+        $this->assertBetween($this->valkey_glide->pexpiretime('key2'), $before_ms + 15000, $after_ms + 15000);
 
         // Test pexpireat (new)
         $future_ms = ($now + 20) * 1000;
