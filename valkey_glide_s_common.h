@@ -48,12 +48,12 @@ typedef enum {
  * S command response types
  */
 typedef enum {
-    S_RESPONSE_INT,      /* Integer response */
-    S_RESPONSE_BOOL,     /* Boolean response (0/1) */
-    S_RESPONSE_TRISTATE, /* Integer 1/0/-1 mapped to true/false/null (SISMEMBER XX) */
-    S_RESPONSE_SET,      /* Set/Array response */
-    S_RESPONSE_MIXED,    /* Mixed response (string or array) */
-    S_RESPONSE_SCAN      /* Scan response (cursor + array) */
+    S_RESPONSE_INT,          /* Integer response */
+    S_RESPONSE_BOOL,         /* Boolean response (0/1) */
+    S_RESPONSE_BOOL_OR_NULL, /* Integer 1/0/-1 mapped to true/false/null */
+    S_RESPONSE_SET,          /* Set/Array response */
+    S_RESPONSE_MIXED,        /* Mixed response (string or array) */
+    S_RESPONSE_SCAN          /* Scan response (cursor + array) */
 } s_response_type_t;
 
 /* ====================================================================
@@ -369,6 +369,7 @@ int execute_scan_command_generic(
         zval_dtor(return_value);                                                               \
         RETURN_FALSE;                                                                          \
     }
+
 #define SMEMBERS_METHOD_IMPL(class_name)                                            \
     PHP_METHOD(class_name, sMembers) {                                              \
         if (execute_smembers_command(getThis(),                                     \

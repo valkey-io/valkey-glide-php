@@ -198,7 +198,6 @@ int prepare_s_key_member_args(s_command_args_t* args,
     (*args_len_out)[1] = args->member_len;
 
     if (args->has_xx) {
-        /* String literal: static storage, nothing to track or free */
         (*args_out)[2]     = (uintptr_t) "XX";
         (*args_len_out)[2] = 2;
     }
@@ -530,35 +529,25 @@ int process_s_bool_result_async(CommandResponse* response, void* output, zval* r
 }
 
 /**
- * Batch-compatible async result processor for SISMEMBER ... XX.
- * The server replies 1 (member), 0 (key exists, not a member) or -1 (no such key);
- * these map to true, false and null. A missing response (command error) maps to
- * false, the PHPRedis failure value, so it stays distinguishable from null.
+ * Batch-compatible async result processor for integer responses.
+ * Maps 1 to true, 0 to false and a negative value (-1) to null (e.g. SISMEMBER ... XX).
+ * A missing or unexpected response (command error) maps to false, the PHPRedis failure
+ * value, so an error stays distinguishable from a null result.
  */
-int process_s_tristate_result_async(CommandResponse* response, void* output, zval* return_value) {
-    if (!response) {
-        ZVAL_FALSE(return_value);
-        return 0;
+int process_s_bool_or_null_result_async(CommandResponse* response,
+                                        void*            output,
+                                        zval*            return_value) {
+    if (response && response->response_type == Int) {
+        if (response->int_value < 0) {
+            ZVAL_NULL(return_value);
+        } else {
+            ZVAL_BOOL(return_value, response->int_value != 0);
+        }
+        return 1;
     }
 
-    switch (response->response_type) {
-        case Int:
-            if (response->int_value < 0) {
-                ZVAL_NULL(return_value);
-            } else {
-                ZVAL_BOOL(return_value, response->int_value != 0);
-            }
-            return 1;
-        case Bool:
-            ZVAL_BOOL(return_value, response->bool_value);
-            return 1;
-        case Null:
-            ZVAL_NULL(return_value);
-            return 1;
-        default:
-            ZVAL_FALSE(return_value);
-            return 0;
-    }
+    ZVAL_FALSE(return_value);
+    return 0;
 }
 
 /**
@@ -846,8 +835,8 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
         case S_RESPONSE_BOOL:
             process_result = process_s_bool_result_async;
             break;
-        case S_RESPONSE_TRISTATE:
-            process_result = process_s_tristate_result_async;
+        case S_RESPONSE_BOOL_OR_NULL:
+            process_result = process_s_bool_or_null_result_async;
             break;
         case S_RESPONSE_SET:
             process_result = process_s_set_result_async;
@@ -1077,7 +1066,7 @@ static int execute_sismember_impl(
         if (execute_s_generic_command(valkey_glide,
                                       SIsMember,
                                       S_CMD_KEY_MEMBER,
-                                      with_xx ? S_RESPONSE_TRISTATE : S_RESPONSE_BOOL,
+                                      with_xx ? S_RESPONSE_BOOL_OR_NULL : S_RESPONSE_BOOL,
                                       &args,
                                       return_value)) {
             if (valkey_glide->is_in_batch_mode) {

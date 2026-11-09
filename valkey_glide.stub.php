@@ -3642,8 +3642,7 @@ class ValkeyGlide
      * @param mixed  $value The value to test.
      *
      * @return ValkeyGlide|bool|null True if the member exists, false if the key exists but the
-     *                               member does not, null if the key does not exist, or false
-     *                               on error.
+     *                               member does not, null if the key does not exist.
      *
      * @example $valkey_glide->sIsMemberIfExists('myset', 'mem1');
      */
