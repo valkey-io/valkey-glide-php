@@ -6008,6 +6008,40 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key);
     }
 
+    /* hGetEx() frees its copied fields and arguments exactly once on its failure paths: a
+     * server error (wrong key type) and an argument preparation failure (no fields) */
+    public function testHGetExFailurePathsFreeArgs(): void
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('HGETEX requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $key = '{hgetex}notahash';
+        $this->valkey_glide->del($key);
+        $this->valkey_glide->set($key, 'v');
+        $fields = array_map(fn($i) => "field$i", range(1, 20));
+
+        $calls = [
+            'server error' => fn() => @$this->valkey_glide->hGetEx($key, $fields, ['EX' => 60]),
+            'no fields' => fn() => @$this->valkey_glide->hGetEx($key, [], ['EX' => 60]),
+        ];
+        foreach ($calls as $call) {
+            for ($i = 0; $i < 20; $i++) {
+                $this->assertFalse($call());
+            }
+
+            /* Leaking the args struct alone (its smallest allocation) every call exceeds the
+             * bound; a double free would abort the process */
+            $before = memory_get_usage();
+            for ($i = 0; $i < 1000; $i++) {
+                $this->assertFalse($call());
+            }
+            $this->assertLT(4096, memory_get_usage() - $before);
+        }
+
+        $this->valkey_glide->del($key);
+    }
+
     public function testHashFieldExpirationModeParameters(): void
     {
         if (!$this->compare_major_version_number(9)) {

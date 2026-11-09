@@ -1086,64 +1086,53 @@ int process_h_map_result_async(CommandResponse* response, void* output, zval* re
 }
 
 /**
- * Custom processor for HGETEX that maps field names to values
- */
-static int process_h_getex_result_async(CommandResponse* response,
-                                        void*            output,
-                                        zval*            return_value) {
-    h_command_args_t* args = (h_command_args_t*) output;
-
-    if (!response || !args || !args->fields) {
-        ZVAL_FALSE(return_value);
-        return 0;
-    }
-
-    // First get the array of values
-    zval temp_array;
-    if (!command_response_to_zval(response, &temp_array, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false)) {
-        ZVAL_FALSE(return_value);
-        return 0;
-    }
-
-    // Create associative array mapping fields to values
-    array_init(return_value);
-
-    if (Z_TYPE(temp_array) == IS_ARRAY) {
-        HashTable* values_ht = Z_ARRVAL(temp_array);
-        int        value_idx = 0;
-
-        for (int i = 0; i < args->field_count && value_idx < zend_hash_num_elements(values_ht);
-             i++) {
-            zval* value = zend_hash_index_find(values_ht, value_idx);
-            if (value) {
-                // Convert field zval to string key
-                zval*        field_zval = &args->fields[i];
-                zend_string* field_str  = zval_get_string(field_zval);
-
-                // Add to associative array
-                zval value_copy;
-                ZVAL_COPY(&value_copy, value);
-                add_assoc_zval_ex(
-                    return_value, ZSTR_VAL(field_str), ZSTR_LEN(field_str), &value_copy);
-
-                zend_string_release(field_str);
-                value_idx++;
-            }
-        }
-    }
-
-    zval_dtor(&temp_array);
-    return 1;
-}
-
-/**
- * HGETEX processor that owns its heap-allocated args: maps the reply like
- * process_h_getex_result_async(), then frees the copied fields and the args.
- * A NULL response only frees them.
+ * Custom processor for HGETEX that maps field names to values. It owns its heap-allocated
+ * args: after mapping the reply it frees the copied fields and the args. A NULL response only
+ * frees them.
  */
 static int process_h_getex_result(CommandResponse* response, void* output, zval* return_value) {
     h_command_args_t* args = (h_command_args_t*) output;
-    int ret = response ? process_h_getex_result_async(response, args, return_value) : 0;
+    int               ret  = 0;
+
+    if (response) {
+        // First get the array of values
+        zval temp_array;
+        if (!command_response_to_zval(
+                response, &temp_array, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false)) {
+            ZVAL_FALSE(return_value);
+        } else {
+            // Create associative array mapping fields to values
+            array_init(return_value);
+
+            if (Z_TYPE(temp_array) == IS_ARRAY) {
+                HashTable* values_ht = Z_ARRVAL(temp_array);
+                int        value_idx = 0;
+
+                for (int i = 0;
+                     i < args->field_count && value_idx < zend_hash_num_elements(values_ht);
+                     i++) {
+                    zval* value = zend_hash_index_find(values_ht, value_idx);
+                    if (value) {
+                        // Convert field zval to string key
+                        zval*        field_zval = &args->fields[i];
+                        zend_string* field_str  = zval_get_string(field_zval);
+
+                        // Add to associative array
+                        zval value_copy;
+                        ZVAL_COPY(&value_copy, value);
+                        add_assoc_zval_ex(
+                            return_value, ZSTR_VAL(field_str), ZSTR_LEN(field_str), &value_copy);
+
+                        zend_string_release(field_str);
+                        value_idx++;
+                    }
+                }
+            }
+
+            zval_dtor(&temp_array);
+            ret = 1;
+        }
+    }
 
     for (int j = 0; j < args->field_count; j++) {
         zval_ptr_dtor(&args->fields[j]);
