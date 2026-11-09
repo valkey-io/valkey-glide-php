@@ -1209,7 +1209,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // PEXPIRE NX -- Set expiry only when the key has no expiry
         $this->assertTrue($this->valkey_glide->set('pexpire_nx_key', 'value'));
+        $nx_before_ms = (int) floor(microtime(true) * 1000);
         $this->assertTrue($this->valkey_glide->pexpire('pexpire_nx_key', 10000, 'NX')); // Success - no expiry
+        $nx_after_ms = (int) ceil(microtime(true) * 1000);
         $this->assertFalse($this->valkey_glide->pexpire('pexpire_nx_key', 15000, 'NX')); // Fail - has expiry
 
         // PEXPIRE XX -- Set expiry only when the key has an existing expiry
@@ -1257,8 +1259,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->pexpireat('pexpireat_lt_key', $now_ms + 12000, 'LT')); // Fail - not less
 
         // Verify expiry times are set correctly with options
-        $this->assertBetween($this->valkey_glide->pexpiretime('pexpire_nx_key'), $now_ms + 8000, $now_ms + 12000);
-        $this->assertBetween($this->valkey_glide->pexpiretime('pexpireat_gt_key'), $now_ms + 12000, $now_ms + 16000);
+        $this->assertBetween($this->valkey_glide->pexpiretime('pexpire_nx_key'), $nx_before_ms + 10000, $nx_after_ms + 10000);
+        $this->assertEquals($now_ms + 15000, $this->valkey_glide->pexpiretime('pexpireat_gt_key'));
 
         // Clean up all test keys
         $this->valkey_glide->del(
