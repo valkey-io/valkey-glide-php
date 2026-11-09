@@ -1657,7 +1657,6 @@ int execute_hlen_command(zval* object, int argc, zval* return_value, zend_class_
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
-    long                 result_value;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(argc, object, "Os", &object, ce, &key, &key_len) == FAILURE) {
@@ -1676,8 +1675,7 @@ int execute_hlen_command(zval* object, int argc, zval* return_value, zend_class_
     args.key_len          = key_len;
 
     /* Execute with batch support */
-    if (execute_h_simple_command(
-            valkey_glide, HLen, &args, &result_value, H_RESPONSE_INT, return_value)) {
+    if (execute_h_simple_command(valkey_glide, HLen, &args, NULL, H_RESPONSE_INT, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -1698,7 +1696,6 @@ int execute_hexists_command(zval* object, int argc, zval* return_value, zend_cla
     valkey_glide_object* valkey_glide;
     char *               key = NULL, *field = NULL;
     size_t               key_len, field_len;
-    int                  result;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
@@ -1721,7 +1718,7 @@ int execute_hexists_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Execute with batch support */
     if (execute_h_simple_command(
-            valkey_glide, HExists, &args, &result, H_RESPONSE_BOOL, return_value)) {
+            valkey_glide, HExists, &args, NULL, H_RESPONSE_BOOL, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
