@@ -4173,6 +4173,30 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key);
     }
 
+    /* zAdd(), zScore(), zMscore() and zRem() convert a non-string member the same way, so a
+     * member added with one is found and removed with the others */
+    public function testZsetNonStringMemberRoundTrip()
+    {
+        $key = '{zbuf}roundtrip';
+        $this->valkey_glide->del($key);
+
+        foreach ([false, true, 42, 1.5, 1234567.0] as $member) {
+            $this->assertEquals(1, $this->valkey_glide->zAdd($key, 2, $member));
+            $this->assertEquals(2.0, $this->valkey_glide->zScore($key, $member));
+            $this->assertEquals([2.0], $this->valkey_glide->zMscore($key, $member));
+            $this->assertEquals(1, $this->valkey_glide->zRem($key, $member));
+            $this->assertEquals(0, $this->valkey_glide->zCard($key));
+        }
+
+        /* A member whose conversion throws is not sent */
+        $this->valkey_glide->zAdd($key, 1, 'a');
+        $this->assertThrows(Error::class, fn() => $this->valkey_glide->zRem($key, 'a', new stdClass()));
+        $this->assertThrows(Error::class, fn() => $this->valkey_glide->zMscore($key, 'a', new stdClass()));
+        $this->assertEquals(1, $this->valkey_glide->zCard($key));
+
+        $this->valkey_glide->del($key);
+    }
+
     /**
      * Test ZADD with CH option to cover line 178
      */
