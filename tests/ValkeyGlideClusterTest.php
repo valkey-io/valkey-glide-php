@@ -2293,6 +2293,11 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $client->close();
     }
 
+    public function testDbSizeAndPExpireTimeFailure()
+    {
+        $this->markTestSkipped('Needs the same ACL user on every node');
+    }
+
     public function testEmptyOrDiscardedMultiReportsFailedUnwatch()
     {
         $this->markTestSkipped('Needs the same ACL user on every node');
