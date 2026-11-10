@@ -20,21 +20,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        ## Language and Version
+        ## PHP Version
 
   - type: input
-    id: language
+    id: php-version
     attributes:
-      label: Language
-      description: Optional - Specify the programming language
-      placeholder: e.g., Python, Java
-
-  - type: input
-    id: language-version
-    attributes:
-      label: Language Version
-      description: Optional - Specify the version of the language
-      placeholder: e.g., 3.8, 11
+      label: PHP Version
+      description: Optional - Specify your PHP version
+      placeholder: e.g., 8.5.12
 
   - type: markdown
     attributes:
@@ -46,7 +39,7 @@ body:
     attributes:
       label: Engine Version
       description: Optional - Specify the engine version
-      placeholder: e.g., ValKey 8.0.1, Redis-OSS 6.2.14
+      placeholder: e.g., Valkey 8.0.1, Redis-OSS 6.2.14
 
   - type: markdown
     attributes:

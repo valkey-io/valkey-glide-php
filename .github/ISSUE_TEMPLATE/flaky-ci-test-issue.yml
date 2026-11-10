@@ -65,11 +65,11 @@ body:
       placeholder: e.g., Ubuntu 20.04, GitHub Actions
 
   - type: input
-    id: language-and-version
+    id: php-version
     attributes:
-      label: Language and Version
-      description: Programming language and its version
-      placeholder: e.g., Python 3.8
+      label: PHP Version
+      description: PHP version of the failing CI job
+      placeholder: e.g., 8.5.12
 
   - type: input
     id: engine-version

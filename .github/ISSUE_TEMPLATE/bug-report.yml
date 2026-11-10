@@ -87,28 +87,23 @@ body:
     validations:
       required: true
 
-  - type: dropdown
-    id: language
+  - type: input
+    id: php-version
     attributes:
-      label: Language
-      multiple: true
-      options:
-        - TypeScript
-        - Python
-        - Java
-        - Rust
-        - Go
-        - .Net
+      label: PHP version
+      description: Output of `php -v`, including thread safety (NTS/ZTS) if known. E.g. PHP 8.4.1 (NTS)
     validations:
       required: true
 
   - type: input
-    id: language-version
+    id: build-environment
     attributes:
-      label: Language Version
-      description: E.g. TypeScript (5.2.2) | Python (3.9)
+      label: Build environment (if relevant)
+      description: |
+        Only for build, install, or crash issues. Include the install method (PIE, PECL, source),
+        compiler and version, and protobuf-c version. E.g. PIE, gcc 13.2, protobuf-c 1.4.1
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: cluster-info
