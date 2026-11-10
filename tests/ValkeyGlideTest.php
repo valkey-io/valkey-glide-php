@@ -2347,6 +2347,30 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->sismember('set', 'val2'));
     }
 
+    public function testSIsMemberIfExists()
+    {
+        if (!$this->is_valkey || !$this->minVersionCheck('9.2.0')) {
+            $this->markTestSkipped('SISMEMBER XX requires Valkey 9.2.0+ (current: ' . $this->version . ')');
+        }
+
+        $this->valkey_glide->del('set');
+
+        // Key does not exist: null, not false
+        $this->assertNull($this->valkey_glide->sIsMemberIfExists('set', 'val'));
+
+        $this->valkey_glide->sAdd('set', 'val');
+
+        // Key exists: strictly true / false
+        $this->assertTrue($this->valkey_glide->sIsMemberIfExists('set', 'val') === true);
+        $this->assertTrue($this->valkey_glide->sIsMemberIfExists('set', 'val2') === false);
+
+        // A non-string member is converted like in sAdd(), even under strict_types
+        $client = $this->valkey_glide;
+        $client->sAdd('set', 5);
+        $this->assertTrue(eval('declare(strict_types=1); return $client->sIsMemberIfExists("set", 5);') === true);
+        $this->assertTrue(eval('declare(strict_types=1); return $client->sIsMemberIfExists("set", 6);') === false);
+    }
+
     public function testSMembers()
     {
         $this->valkey_glide->del('set');
