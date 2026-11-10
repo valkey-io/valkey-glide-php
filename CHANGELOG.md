@@ -10,6 +10,7 @@
 ### Fixes
 
 * `hGetEx()` inside `multi()` or `pipeline()` no longer crashes at `exec()`. It queued a pointer to its stack arguments and freed its field array before `exec()` read them ([#428](https://github.com/valkey-io/valkey-glide-php/issues/428))
+* A failed `rawcommand()` now records its error for `getLastError()`, as other commands do ([#381](https://github.com/valkey-io/valkey-glide-php/issues/381))
 * `dbSize()` and `pExpireTime()` now return `false` when the command fails, for example on a timeout or an ACL denial. They freed a stack variable on that path and aborted the process with `zend_mm_heap corrupted` ([#384](https://github.com/valkey-io/valkey-glide-php/issues/384))
 * IAM authentication now requires TLS: configuring IAM auth without TLS is rejected at client creation instead of sending the IAM token over a plaintext connection ([#391](https://github.com/valkey-io/valkey-glide-php/pull/391))
 * Fix a crash at the end of a request for a cluster client with an `address_resolver` that is still open at that point (for example, held in a static property). Request shutdown freed the resolver while the client's background threads could still call it. It is now freed when the client is closed. Under ZTS, one request ending also no longer frees the resolvers of other threads' clients ([#394](https://github.com/valkey-io/valkey-glide-php/issues/394))
