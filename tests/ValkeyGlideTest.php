@@ -291,6 +291,40 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(['child' => 'ok', 'parent_works' => true], json_decode($out, true));
     }
 
+    /* A forked child can create and use a new client after the parent used one */
+    public function testNewClientInChildAfterFork()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The fork helper connects without TLS or auth');
+        }
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped('proc_open is not available');
+        }
+
+        foreach (['new_client', 'persistent', 'parent_closed'] as $case) {
+            $cmd = $this->phpSubprocessCommand(
+                __DIR__ . '/scripts/fork_new_client.php',
+                $this->valkey_glide instanceof ValkeyGlideCluster ? '1' : '0',
+                $this->getHost(),
+                (string) $this->getPort(),
+                $case
+            );
+            $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
+            $this->assertTrue(is_resource($proc));
+            $out = stream_get_contents($pipes[1]);
+            fclose($pipes[1]);
+            proc_close($proc);
+
+            if (str_contains($out, 'pcntl_fork')) {
+                $this->markTestSkipped('pcntl is not available');
+            }
+            $this->assertEquals(
+                [$case => ['child' => 'ok', 'parent_works' => true]],
+                [$case => json_decode($out, true)]
+            );
+        }
+    }
+
     public function testPing()
     {
         /* Reply literal off */
