@@ -1037,7 +1037,7 @@ int execute_srandmember_command(zval* object, int argc, zval* return_value, zend
  * parsed as true/false/null (null: the key does not exist); without it, as true/false.
  */
 static int execute_sismember_impl(
-    zval* object, int argc, zval* return_value, zend_class_entry* ce, int with_xx) {
+    zval* object, int argc, zval* return_value, zend_class_entry* ce, bool with_xx) {
     valkey_glide_object* valkey_glide;
     char *               key = NULL, *member = NULL;
     size_t               key_len, member_len;
@@ -1083,7 +1083,7 @@ static int execute_sismember_impl(
  * Execute SISMEMBER command using the new signature pattern
  */
 int execute_sismember_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
-    return execute_sismember_impl(object, argc, return_value, ce, 0);
+    return execute_sismember_impl(object, argc, return_value, ce, false);
 }
 
 /**
@@ -1093,7 +1093,7 @@ int execute_sismember_if_exists_command(zval*             object,
                                         int               argc,
                                         zval*             return_value,
                                         zend_class_entry* ce) {
-    return execute_sismember_impl(object, argc, return_value, ce, 1);
+    return execute_sismember_impl(object, argc, return_value, ce, true);
 }
 
 /**
