@@ -1041,10 +1041,28 @@ static int execute_sismember_impl(
     valkey_glide_object* valkey_glide;
     char *               key = NULL, *member = NULL;
     size_t               key_len, member_len;
+    zval*                z_member   = NULL;
+    zend_string*         member_str = NULL;
+    int                  result     = 0;
 
-    /* Parse parameters */
-    if (zend_parse_method_parameters(
-            argc, object, "Oss", &object, ce, &key, &key_len, &member, &member_len) == FAILURE) {
+    /* Parse parameters. sismember() keeps its string-typed member; sIsMemberIfExists() takes
+     * the member as a zval, like sAdd(), so mixed values are converted instead of rejected. */
+    if (with_xx) {
+        if (zend_parse_method_parameters(
+                argc, object, "Osz", &object, ce, &key, &key_len, &z_member) == FAILURE) {
+            return 0;
+        }
+
+        member_str = zval_get_string(z_member);
+        if (EG(exception)) {
+            zend_string_release(member_str);
+            return 0;
+        }
+        member     = ZSTR_VAL(member_str);
+        member_len = ZSTR_LEN(member_str);
+    } else if (zend_parse_method_parameters(
+                   argc, object, "Oss", &object, ce, &key, &key_len, &member, &member_len) ==
+               FAILURE) {
         return 0;
     }
 
@@ -1072,11 +1090,16 @@ static int execute_sismember_impl(
             if (valkey_glide->is_in_batch_mode) {
                 ZVAL_COPY(return_value, object);
             }
-            return 1;
+            result = 1;
         }
     }
 
-    return 0;
+    /* Batch mode copies the arguments, so the converted member can be released here */
+    if (member_str) {
+        zend_string_release(member_str);
+    }
+
+    return result;
 }
 
 /**

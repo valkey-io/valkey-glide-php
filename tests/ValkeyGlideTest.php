@@ -2363,6 +2363,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Key exists: strictly true / false
         $this->assertTrue($this->valkey_glide->sIsMemberIfExists('set', 'val') === true);
         $this->assertTrue($this->valkey_glide->sIsMemberIfExists('set', 'val2') === false);
+
+        // A non-string member is converted like in sAdd(), even under strict_types
+        $client = $this->valkey_glide;
+        $client->sAdd('set', 5);
+        $this->assertTrue(eval('declare(strict_types=1); return $client->sIsMemberIfExists("set", 5);') === true);
+        $this->assertTrue(eval('declare(strict_types=1); return $client->sIsMemberIfExists("set", 6);') === false);
     }
 
     public function testSMembers()
