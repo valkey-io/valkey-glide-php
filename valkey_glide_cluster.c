@@ -657,15 +657,8 @@ HKEYS_METHOD_IMPL(ValkeyGlideCluster)
 HVALS_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
-/* {{{ proto long ValkeyGlideCluster::hSetEx(string key, long seconds, string field, string value,
- * ...) */
+/* {{{ proto int ValkeyGlideCluster::hSetEx(string key, array fields, ?array expiry = null) */
 HSETEX_METHOD_IMPL(ValkeyGlideCluster)
-/* }}} */
-
-/* {{{ proto long ValkeyGlideCluster::hPSetEx(string key, long milliseconds, string field, string
- * value,
- * ...) */
-HPSETEX_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
 /* {{{ proto array ValkeyGlideCluster::hExpire(string key, long time_value, string time_unit, string
