@@ -6,10 +6,12 @@
 
 * `ValkeyGlideCluster` constructed with PHPRedis-style parameters (`$seeds`, `$auth`, ...) now reads from primaries when `read_from` is not given, matching PHPRedis `RedisCluster`. It previously defaulted to `READ_FROM_PREFER_REPLICA`. Pass `read_from: ValkeyGlide::READ_FROM_PREFER_REPLICA` or set `OPT_SLAVE_FAILOVER` to `FAILOVER_DISTRIBUTE_SLAVES` to keep replica reads ([#369](https://github.com/valkey-io/valkey-glide-php/issues/369))
 * An AZ-affinity read strategy (`READ_FROM_AZ_AFFINITY`, `READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY`, or `READ_FROM_AZ_AFFINITY_ALL_NODES`) configured without a valid `client_az` now throws at client creation. Previously the core logged a warning and downgraded the strategy to `PreferReplica`, so reads silently went to arbitrary nodes. A `client_az` that is empty, whitespace-only, contains a NUL byte, or has leading/trailing whitespace is rejected ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
+* `hGetEx()` now returns `false` for a field that does not exist, as `hMget()`, `hGetDel()` and PHPRedis do. It returned `null`, so code that tests a field with `=== null` or `is_null()` must test `=== false` ([#415](https://github.com/valkey-io/valkey-glide-php/issues/415))
 
 ### Fixes
 
-* `hGetEx()` now returns `false` for a field that does not exist, as `hMget()`, `hGetDel()` and PHPRedis do. It returned `null`, so code that tests a field with `=== null` or `is_null()` must test `=== false` ([#415](https://github.com/valkey-io/valkey-glide-php/issues/415))
+* `hGetEx()` inside `multi()` or `pipeline()` no longer crashes at `exec()`. It queued a pointer to its stack arguments and freed its field array before `exec()` read them ([#428](https://github.com/valkey-io/valkey-glide-php/issues/428))
+* A failed `rawcommand()` now records its error for `getLastError()`, as other commands do ([#381](https://github.com/valkey-io/valkey-glide-php/issues/381))
 * `dbSize()` and `pExpireTime()` now return `false` when the command fails, for example on a timeout or an ACL denial. They freed a stack variable on that path and aborted the process with `zend_mm_heap corrupted` ([#384](https://github.com/valkey-io/valkey-glide-php/issues/384))
 * IAM authentication now requires TLS: configuring IAM auth without TLS is rejected at client creation instead of sending the IAM token over a plaintext connection ([#391](https://github.com/valkey-io/valkey-glide-php/pull/391))
 * Fix a crash at the end of a request for a cluster client with an `address_resolver` that is still open at that point (for example, held in a static property). Request shutdown freed the resolver while the client's background threads could still call it. It is now freed when the client is closed. Under ZTS, one request ending also no longer frees the resolvers of other threads' clients ([#394](https://github.com/valkey-io/valkey-glide-php/issues/394))
@@ -64,6 +66,7 @@
 * Add `SAVE` command for standalone and cluster clients ([#272](https://github.com/valkey-io/valkey-glide-php/pull/272))
 * Add `BGREWRITEAOF` command for standalone and cluster clients ([#271](https://github.com/valkey-io/valkey-glide-php/pull/271))
 * Add `BGSAVE`, `BGSAVE SCHEDULE`, and `BGSAVE CANCEL` commands for standalone and cluster clients ([#236](https://github.com/valkey-io/valkey-glide-php/issues/236))
+* Add `XX` option for `SISMEMBER` command ([#401](https://github.com/valkey-io/valkey-glide-php/issues/401))
 * Fix pie install from Packagist using PIE pre-packaged-source download method ([#233](https://github.com/valkey-io/valkey-glide-php/pull/233))
 * Fix pie install from Packagist by setting preferred-install to source for submodule resolution ([#232](https://github.com/valkey-io/valkey-glide-php/pull/232))
 * Fix pie install ([#229](https://github.com/valkey-io/valkey-glide-php/pull/229))
