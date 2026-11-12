@@ -309,14 +309,20 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
                 (string) $this->getPort(),
                 $case
             );
-            $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
+            $err_file = tempnam(sys_get_temp_dir(), 'fork_new_client');
+            $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', $err_file, 'w']], $pipes);
             $this->assertTrue(is_resource($proc));
             $out = stream_get_contents($pipes[1]);
             fclose($pipes[1]);
-            proc_close($proc);
+            $status = proc_close($proc);
+            $err = file_get_contents($err_file);
+            unlink($err_file);
 
             if (str_contains($out, 'pcntl_fork')) {
                 $this->markTestSkipped('pcntl is not available');
+            }
+            if ($status !== 0) {
+                $this->assert("%s: helper exited with %d\nstdout: %s\nstderr: %s", $case, $status, $out, $err);
             }
             $this->assertEquals(
                 [$case => ['child' => 'ok', 'parent_works' => true]],
