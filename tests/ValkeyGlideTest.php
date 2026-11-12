@@ -6023,7 +6023,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             unset($filler);
 
             $this->assertEquals(
-                [['a' => '1', 'b' => '2', 'missing' => null], '1'],
+                [['a' => '1', 'b' => '2', 'missing' => false], '1'],
                 $this->valkey_glide->exec()
             );
         }
@@ -6062,6 +6062,29 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             }
             $this->assertLT(4096, memory_get_usage() - $before);
         }
+
+        $this->valkey_glide->del($key);
+    }
+
+    /* A missing field is false in hGetEx(), as in hMget() and hGetDel() (#415) */
+    public function testHGetExMissingFieldIsFalse(): void
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('HGETEX requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $key = '{hgetex}missing';
+        $this->valkey_glide->del($key);
+        $this->valkey_glide->hSet($key, 'a', '1');
+
+        $expected = ['a' => '1', 'missing' => false];
+        $this->assertEquals($expected, $this->valkey_glide->hMget($key, ['a', 'missing']));
+        $this->assertEquals($expected, $this->valkey_glide->hGetEx($key, ['a', 'missing']));
+        $this->assertEquals($expected, $this->valkey_glide->hGetEx($key, ['a', 'missing'], ['EX' => 60]));
+
+        /* A missing key gives false for each field, not false for the whole reply */
+        $this->valkey_glide->del('{hgetex}nokey');
+        $this->assertEquals(['a' => false], $this->valkey_glide->hGetEx('{hgetex}nokey', ['a']));
 
         $this->valkey_glide->del($key);
     }
