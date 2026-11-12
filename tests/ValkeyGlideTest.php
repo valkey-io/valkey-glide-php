@@ -1728,8 +1728,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->llen('list'));// not a list returns FALSE
     }
 
-    /* Doubles whose "%.6f" form is longer than 63 characters are pushed whole. The old
-     * 64-byte buffer held at most 63 characters plus the terminating NUL. */
+    /* Large doubles are pushed whole. Their "%.6f" form, longer than 63 characters, overflowed
+     * the old 64-byte buffer; list values are now converted as PHP converts floats to strings. */
     public function testListPushLargeDouble()
     {
         $this->valkey_glide->del('list');
@@ -1738,8 +1738,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(3, $this->valkey_glide->rPush('list', ...$values));
         $this->assertEquals(4, $this->valkey_glide->lPush('list', 1e100));
 
-        $expected = array_map(fn ($value) => sprintf('%.6f', $value), array_merge([1e100], $values));
-        $this->assertGT(63, strlen($expected[1])); // guard: too long for the old buffer
+        $expected = array_map(fn ($value) => (string) $value, array_merge([1e100], $values));
         $this->assertEquals($expected, $this->valkey_glide->lRange('list', 0, -1));
 
         $this->valkey_glide->del('list');
@@ -4206,6 +4205,97 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $this->valkey_glide->zAdd($zsetName, 1, 'val1'));
 
         $this->assertEquals(['val0', 'val1'], $this->valkey_glide->zRange($zsetName, 0, -1));
+    }
+
+    /* Float arguments reach the server without being rounded to six significant digits (#382) */
+    public function testFloatArgumentsKeepPrecision()
+    {
+        if (version_compare($this->version, '6.2.0') < 0) {
+            $this->markTestSkipped('ZMSCORE, GEOSEARCH and ZRANGE BYSCORE need 6.2.0+');
+        }
+
+        $k = '{float}';
+        $this->valkey_glide->del("$k:s", "$k:i", "$k:h", "$k:l", "$k:z", "$k:g");
+
+        /* Values, members and fields are converted as PHP converts floats to strings */
+        $this->assertTrue($this->valkey_glide->set("$k:s", 19.999999));
+        $this->assertEquals('19.999999', $this->valkey_glide->get("$k:s"));
+        $this->assertTrue($this->valkey_glide->set("$k:s", 1.23456789, ['EX' => 60]));
+        $this->assertEquals('1.23456789', $this->valkey_glide->get("$k:s"));
+
+        $this->assertEquals(1, $this->valkey_glide->hSet("$k:h", 'f', 1.23456789));
+        $this->assertEquals('1.23456789', $this->valkey_glide->hGet("$k:h", 'f'));
+        $this->assertTrue($this->valkey_glide->hMset("$k:h", ['g' => 0.1]));
+        $this->assertEquals('0.1', $this->valkey_glide->hGet("$k:h", 'g'));
+
+        $this->assertEquals(2, $this->valkey_glide->rPush("$k:l", 1.5, 1.23456789));
+        $this->assertEquals(3, $this->valkey_glide->lPush("$k:l", 2.0));
+        $this->assertEquals(['2', '1.5', '1.23456789'], $this->valkey_glide->lRange("$k:l", 0, -1));
+
+        $this->assertEquals(1, $this->valkey_glide->zAdd("$k:z", 1, '1.23456789'));
+        $this->assertEquals([1.0], $this->valkey_glide->zMscore("$k:z", 1.23456789));
+        $this->assertEquals(1, $this->valkey_glide->zRem("$k:z", 1.23456789));
+
+        /* Numbers taken as doubles are sent in their shortest exact form */
+        $this->assertEquals(1.23456789, $this->valkey_glide->incrByFloat("$k:i", 1.23456789));
+        $this->assertEquals(1234568.23456789, $this->valkey_glide->incrByFloat("$k:i", 1234567));
+        $this->assertEquals(1.23456789, $this->valkey_glide->hIncrByFloat("$k:h", 'n', 1.23456789));
+
+        $this->assertEquals(2, $this->valkey_glide->zAdd("$k:z", 1.23456789, 'a', '1.234567891', 'in'));
+        $this->assertEquals(1.23456789, $this->valkey_glide->zScore("$k:z", 'a'));
+        $this->assertEquals(2.46913578, $this->valkey_glide->zIncrBy("$k:z", 1.23456789, 'a'));
+
+        /* Score bounds keep their precision */
+        $this->assertEquals(['in', 'a'], $this->valkey_glide->zRangeByScore("$k:z", 1.23456789, '+inf'));
+        $this->assertEquals(['in', 'a'], $this->valkey_glide->zRange("$k:z", 1.23456789, '+inf', ['byscore' => true]));
+        $this->assertEquals(1, $this->valkey_glide->zAdd("$k:b", 0.1 + 0.2, 'b'));
+        $this->assertEquals(['b'], $this->valkey_glide->zRangeByScore("$k:b", 0, 0.1 + 0.2));
+        $this->assertEquals(['b'], $this->valkey_glide->zRange("$k:b", 0, 0.1 + 0.2, ['byscore' => true]));
+        $this->assertEquals(1, $this->valkey_glide->zRangeStore("$k:bd", "$k:b", 0, 0.1 + 0.2, ['byscore' => true]));
+        $this->valkey_glide->del("$k:b", "$k:bd");
+
+        /* Weights are numbers too: 0.1 + 0.2 is not 0.3 */
+        $this->valkey_glide->del("$k:w");
+        $this->valkey_glide->zAdd("$k:w", 10, 'm');
+        $this->assertEquals(1, $this->valkey_glide->zUnionStore("$k:wd", ["$k:w"], [0.1 + 0.2]));
+        $this->assertEquals(3.0000000000000004, $this->valkey_glide->zScore("$k:wd", 'm'));
+        $w = 0.1 + 0.2;
+        $this->assertEquals(1, $this->valkey_glide->zUnionStore("$k:wd", ["$k:w"], [&$w]));
+        $this->assertEquals(3.0000000000000004, $this->valkey_glide->zScore("$k:wd", 'm'));
+
+        /* An increment the server adds as a long double keeps its decimal value */
+        $this->valkey_glide->set("$k:i2", '3.14');
+        $this->assertEquals(6.0, $this->valkey_glide->incrByFloat("$k:i2", 2.86));
+        $this->assertEquals('6', $this->valkey_glide->get("$k:i2"));
+        $this->valkey_glide->del("$k:i2");
+        $this->valkey_glide->del("$k:w", "$k:wd");
+
+        /* Blocking timeouts are sent as numbers too: a timeout the server rejected would be
+         * false, a timeout that expires is null */
+        $this->assertNull($this->valkey_glide->blPop(["$k:none"], 0.1));
+        $this->assertEquals(0, $this->valkey_glide->exists("$k:none"));
+
+        /* Both forms ignore the locale: under a locale with a decimal comma, %.6f/%.6g sent "1,5" */
+        $locale = setlocale(LC_NUMERIC, 0);
+        if (setlocale(LC_NUMERIC, 'de_DE.UTF-8', 'de_DE', 'de_DE.utf8') !== false) {
+            try {
+                $this->assertTrue($this->valkey_glide->set("$k:s", 1.5));
+                $this->assertEquals('1.5', $this->valkey_glide->get("$k:s"));
+                $this->assertEquals(1.5, $this->valkey_glide->incrByFloat("$k:li", 1.5));
+                $this->assertNull($this->valkey_glide->blPop(["$k:none"], 0.1));
+            } finally {
+                setlocale(LC_NUMERIC, $locale);
+                $this->valkey_glide->del("$k:li");
+            }
+        }
+
+        /* Geo coordinates and radius: Palermo is 166.2742 km from the centre */
+        $this->valkey_glide->geoadd("$k:g", 13.361389, 38.115556, 'Palermo', 15.087269, 37.502669, 'Catania');
+        $found = $this->valkey_glide->geosearch("$k:g", [15.087269, 37.502669], 166.27449, 'km');
+        sort($found);
+        $this->assertEquals(['Catania', 'Palermo'], $found);
+
+        $this->valkey_glide->del("$k:s", "$k:i", "$k:h", "$k:l", "$k:z", "$k:g");
     }
 
     public function testZaddIncr()

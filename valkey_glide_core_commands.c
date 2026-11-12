@@ -1167,8 +1167,8 @@ int execute_set_command(zval* object, int argc, zval* return_value, zend_class_e
             free_val = 1;  // We'll need to free this
             break;
         case IS_DOUBLE:
-            /* Convert float to string */
-            val      = double_to_string(Z_DVAL_P(z_value), &val_len);
+            /* Convert float to string as PHP does */
+            val      = double_to_php_string(Z_DVAL_P(z_value), &val_len);
             free_val = 1;  // We'll need to free this
             break;
         case IS_TRUE:

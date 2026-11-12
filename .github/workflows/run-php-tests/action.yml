@@ -102,6 +102,19 @@ runs:
         ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
         echo "=== Valkey servers startup completed ==="
 
+    - name: Generate the de_DE locale for the decimal-comma tests
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        # Without it setlocale() fails and the decimal-comma assertions are skipped
+        SUDO=$([ "$(id -u)" = 0 ] || echo sudo)
+        if command -v locale-gen >/dev/null; then
+          $SUDO locale-gen de_DE.UTF-8
+        elif command -v dnf >/dev/null; then
+          $SUDO dnf install -y glibc-langpack-de
+        fi
+        locale -a | grep -i '^de_DE'
+
     - name: Run PHP extension tests
       shell: bash
       env:
