@@ -6283,6 +6283,45 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals([1], $result);
     }
 
+    /* As in PHPRedis, any count is sent and gives an array, a count of 1 included; no count or
+     * a count of 0 gives a single field (#421) */
+    public function testHRandFieldCount()
+    {
+        if (version_compare($this->version, '6.2.0') < 0) {
+            $this->markTestSkipped();
+        }
+
+        $key = '{hrand}count';
+        $this->valkey_glide->del($key);
+        $this->valkey_glide->hSet($key, 'a', '1');
+
+        $this->assertEquals('a', $this->valkey_glide->hRandField($key));
+        $this->assertEquals('a', $this->valkey_glide->hRandField($key, ['count' => 0]));
+        $this->assertEquals(['a'], $this->valkey_glide->hRandField($key, ['count' => 1]));
+        $this->assertEquals(['a'], $this->valkey_glide->hRandField($key, ['count' => 2]));
+        $this->assertEquals(['a', 'a'], $this->valkey_glide->hRandField($key, ['count' => -2]));
+        $this->assertEquals(['a' => '1'], $this->valkey_glide->hRandField($key, ['withvalues' => true]));
+        $this->assertEquals(['a' => '1'], $this->valkey_glide->hRandField($key, ['count' => 1, 'withvalues' => true]));
+        $this->assertEquals(['a' => '1'], $this->valkey_glide->hRandField($key, ['count' => 0, 'withvalues' => true]));
+
+        /* Option keys are case-insensitive, and WITHVALUES can be a plain value, as in PHPRedis */
+        $this->assertEquals(['a'], $this->valkey_glide->hRandField($key, ['COUNT' => 1]));
+        $this->assertEquals(['a' => '1'], $this->valkey_glide->hRandField($key, ['WithValues' => true]));
+        $this->assertEquals(['a' => '1'], $this->valkey_glide->hRandField($key, ['WITHVALUES']));
+
+        /* A missing key: false without a count, [] with one or with WITHVALUES (which sends COUNT 1) */
+        $this->assertFalse($this->valkey_glide->hRandField('{hrand}missing', ['count' => 0]));
+        $this->assertEquals([], $this->valkey_glide->hRandField('{hrand}missing', ['count' => 1]));
+        $this->assertEquals([], $this->valkey_glide->hRandField('{hrand}missing', ['withvalues' => true]));
+
+        $this->valkey_glide->multi();
+        $this->valkey_glide->hRandField($key, ['count' => 1]);
+        $this->valkey_glide->hRandField($key);
+        $this->assertEquals([['a'], 'a'], $this->valkey_glide->exec());
+
+        $this->valkey_glide->del($key);
+    }
+
     public function testHRandField()
     {
         if (version_compare($this->version, '6.2.0') < 0) {
@@ -6312,11 +6351,11 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         $this->assertEquals(1, count($result));
 
-        /* We can return false if the key doesn't exist */
+        /* A missing key gives false without a count and [] with one, as in PHPRedis */
         $this->assertIsInt($this->valkey_glide->del('notahash'));
         $this->assertFalse($this->valkey_glide->hRandField('notahash'));
-        $this->assertFalse($this->valkey_glide->hRandField('notahash', ['count' => 2, 'withvalues' => true]));
-        $this->assertFalse($this->valkey_glide->hRandField('notahash', ['withvalues' => true]));
+        $this->assertEquals([], $this->valkey_glide->hRandField('notahash', ['count' => 2, 'withvalues' => true]));
+        $this->assertEquals([], $this->valkey_glide->hRandField('notahash', ['withvalues' => true]));
     }
 
     public function testSetRange()

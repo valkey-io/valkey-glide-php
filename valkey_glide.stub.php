@@ -1873,12 +1873,23 @@ class ValkeyGlide
      *
      *                        <code>
      *                        $options = [
-     *                            'COUNT'      => int  # An optional number of fields to return.
+     *                            'COUNT'      => int  # An optional number of fields to return. A
+     *                                                 # negative count may return the same field
+     *                                                 # more than once (not with WITHVALUES, as
+     *                                                 # fields are array keys), and 0 means no
+     *                                                 # count.
      *                            'WITHVALUES' => bool # Also return the field values.
      *                        ];
      *                        </code>
      *
-     * @return ValkeyGlide|array|string One or more random fields (and possibly values).
+     *                        Option names are case-insensitive, and 'WITHVALUES' can also be
+     *                        passed on its own, e.g. ['WITHVALUES'].
+     *
+     * @return ValkeyGlide|array|string|false A single random field if there is no COUNT (or a
+     *                                       COUNT of 0) and WITHVALUES is not set, or false if
+     *                                       the hash doesn't exist. Otherwise an array of fields, or of field =>
+     *                                       value pairs with WITHVALUES, which is empty if the
+     *                                       hash doesn't exist.
      *
      * @see https://valkey.io/commands/hrandfield
      *
