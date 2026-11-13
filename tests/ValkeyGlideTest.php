@@ -7590,6 +7590,38 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del('{scanbatch}s', '{scanbatch}h', '{scanbatch}z');
     }
 
+    /* A SCAN command that gets an error reply releases its iterator's previous cursor string
+     * when it resets the iterator (#414) */
+    public function testScanErrorDoesNotLeakIterator()
+    {
+        $key = '{scanleak}' . uniqid();
+        $this->valkey_glide->set($key, 'not a collection');
+
+        foreach (['sScan', 'hScan', 'zScan'] as $cmd) {
+            $call = function (int $i) use ($cmd, $key) {
+                /* A cursor string built at run time, so it is not interned */
+                $it = (string) (1000 + $i);
+                try {
+                    $this->valkey_glide->$cmd($key, $it);
+                } catch (ValkeyGlideException $e) {
+                }
+                return $it;
+            };
+            for ($i = 0; $i < 20; $i++) {
+                $call($i);
+            }
+            $this->assertEquals('0', $call(0));
+
+            $before = memory_get_usage();
+            for ($i = 0; $i < 2000; $i++) {
+                $call($i);
+            }
+            $this->assertLT(4096, memory_get_usage() - $before);
+        }
+
+        $this->valkey_glide->del($key);
+    }
+
     public function testSScan()
     {
         set_time_limit(getenv("VALGRIND_TEST") ? 300 : 10); // Enforce a 10-second limit on this test

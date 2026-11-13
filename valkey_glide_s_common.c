@@ -2039,7 +2039,6 @@ static int scan_rejected_in_batch(valkey_glide_object* valkey_glide) {
 /**
  * Execute SCAN command with unified signature
  */
-
 int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     zval*                z_iter;
@@ -2052,9 +2051,6 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
     /* Get ValkeyGlide object first */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide || !valkey_glide->glide_client) {
-        return 0;
-    }
-    if (scan_rejected_in_batch(valkey_glide)) {
         return 0;
     }
 
@@ -2082,6 +2078,9 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
                                          &count,
                                          &type,
                                          &type_len) == FAILURE) {
+            return 0;
+        }
+        if (scan_rejected_in_batch(valkey_glide)) {
             return 0;
         }
 
@@ -2172,6 +2171,9 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
                                          &count,
                                          &type,
                                          &type_len) == FAILURE) {
+            return 0;
+        }
+        if (scan_rejected_in_batch(valkey_glide)) {
             return 0;
         }
 
