@@ -2327,16 +2327,26 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
         $this->assertIsArray($routeNode);
 
+        /* A command sent to the route's node would be redirected there, so the key would still
+         * end up on its own node: check that the route's node replied no MOVED */
+        $movedOnRouteNode = function () use ($routeNode) {
+            $stats = $this->valkey_glide->rawcommand($routeNode, 'INFO', 'errorstats');
+            return preg_match('/errorstat_MOVED:count=(\d+)/', $stats, $m) ? (int) $m[1] : 0;
+        };
+
         try {
             foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
                 $this->valkey_glide->del($keyB);
+                $keysInSlotB = $this->valkey_glide->rawcommand($keyB, 'CLUSTER', 'COUNTKEYSINSLOT', $slotB);
+                $moved = $movedOnRouteNode();
+
                 $this->valkey_glide->multi($mode);
                 $this->assertTrue($this->valkey_glide->rawcommand($route, 'SET', $keyB, 'x') === $this->valkey_glide);
                 $this->assertEquals([true], $this->valkey_glide->exec());
 
                 $this->assertEquals('x', $this->valkey_glide->get($keyB));
-                $this->assertEquals(1, $this->valkey_glide->rawcommand($keyB, 'CLUSTER', 'COUNTKEYSINSLOT', $slotB));
-                $this->assertEquals(0, $this->valkey_glide->rawcommand($routeNode, 'CLUSTER', 'COUNTKEYSINSLOT', $slotB));
+                $this->assertEquals($keysInSlotB + 1, $this->valkey_glide->rawcommand($keyB, 'CLUSTER', 'COUNTKEYSINSLOT', $slotB));
+                $this->assertEquals($moved, $movedOnRouteNode());
             }
         } finally {
             $this->valkey_glide->del($keyB);
