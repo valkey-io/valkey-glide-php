@@ -6309,9 +6309,10 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(['a' => '1'], $this->valkey_glide->hRandField($key, ['WithValues' => true]));
         $this->assertEquals(['a' => '1'], $this->valkey_glide->hRandField($key, ['WITHVALUES']));
 
-        /* A missing key: false without a count, [] with one */
+        /* A missing key: false without a count, [] with one or with WITHVALUES (which sends COUNT 1) */
         $this->assertFalse($this->valkey_glide->hRandField('{hrand}missing', ['count' => 0]));
         $this->assertEquals([], $this->valkey_glide->hRandField('{hrand}missing', ['count' => 1]));
+        $this->assertEquals([], $this->valkey_glide->hRandField('{hrand}missing', ['withvalues' => true]));
 
         $this->valkey_glide->multi();
         $this->valkey_glide->hRandField($key, ['count' => 1]);
