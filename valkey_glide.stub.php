@@ -1875,7 +1875,9 @@ class ValkeyGlide
      *                        $options = [
      *                            'COUNT'      => int  # An optional number of fields to return. A
      *                                                 # negative count may return the same field
-     *                                                 # more than once, and 0 means no count.
+     *                                                 # more than once (not with WITHVALUES, as
+     *                                                 # fields are array keys), and 0 means no
+     *                                                 # count.
      *                            'WITHVALUES' => bool # Also return the field values.
      *                        ];
      *                        </code>
@@ -1883,9 +1885,9 @@ class ValkeyGlide
      *                        Option names are case-insensitive, and 'WITHVALUES' can also be
      *                        passed on its own, e.g. ['WITHVALUES'].
      *
-     * @return ValkeyGlide|array|string|false A single random field if neither COUNT nor
-     *                                       WITHVALUES is given, or false if the hash doesn't
-     *                                       exist. Otherwise an array of fields, or of field =>
+     * @return ValkeyGlide|array|string|false A single random field if there is no COUNT (or a
+     *                                       COUNT of 0) and WITHVALUES is not set, or false if
+     *                                       the hash doesn't exist. Otherwise an array of fields, or of field =>
      *                                       value pairs with WITHVALUES, which is empty if the
      *                                       hash doesn't exist.
      *
