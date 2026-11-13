@@ -663,8 +663,6 @@ void valkey_glide_track_connection_command(valkey_glide_object* valkey_glide,
         update.database_id  = 0;
         update.set_protocol = true;
         update.protocol     = CONNECTION_REQUEST__PROTOCOL_VERSION__RESP2;
-    } else {
-        return;
     }
     update_saved_request(valkey_glide, &update);
 }

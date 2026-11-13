@@ -2325,8 +2325,10 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
      *
      * Differences from PHPRedis: a batch routes each command by its own keys (the core's batch
      * API has no per-command route), so a cluster route must be a key, and even that is not
-     * used: a keyless command (CLUSTER ..., INFO, CONFIG, ...) can go to any node, where
-     * PHPRedis sends it to the route's node. A [host, port] route, which PHPRedis queues, is
+     * used, where PHPRedis sends the command to the route's node. A keyless command takes the
+     * core's default routing for it: all primaries or all nodes for some (INFO, UNWATCH,
+     * CONFIG SET, ...), a random node for others (CLUSTER ..., CONFIG GET, ...). In multi() the
+     * whole transaction goes to one node. A [host, port] route, which PHPRedis queues, is
      * refused here, as are the named routes randomNode, allPrimaries and allNodes (which
      * PHPRedis does not have), rather than sending the command somewhere other than asked. SELECT,
      * AUTH, HELLO, CLIENT SETNAME and RESET, which PHPRedis queues, are refused, as select() is,
