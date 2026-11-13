@@ -156,6 +156,7 @@ zend_long valkey_glide_read_from_to_failover(valkey_glide_read_from_t read_from)
 bool      valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value);
 void      valkey_glide_update_saved_request_database(valkey_glide_object* valkey_glide,
                                                      zend_long            dbindex);
+bool      valkey_glide_is_tracked_connection_command(zend_string* name, zend_string* sub);
 void      valkey_glide_track_connection_command(valkey_glide_object* valkey_glide,
                                                 zend_string**        args,
                                                 int                  argc);

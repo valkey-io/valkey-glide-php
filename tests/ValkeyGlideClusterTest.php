@@ -2293,6 +2293,66 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $client->close();
     }
 
+    /* A batch routes by keys, so a node route is refused for a queued rawcommand() (#413) */
+    public function testRawCommandNodeRouteRefusedInBatch()
+    {
+        foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+            $this->valkey_glide->multi($mode);
+            $this->assertFalse($this->valkey_glide->rawcommand('allPrimaries', 'PING'));
+            $this->assertStringContains('key route', (string) $this->valkey_glide->getLastError());
+            $this->assertFalse($this->valkey_glide->rawcommand(['127.0.0.1', $this->getPort()], 'PING'));
+            $this->assertTrue($this->valkey_glide->rawcommand('{k}', 'PING') === $this->valkey_glide);
+            $this->assertEquals(['PONG'], $this->valkey_glide->exec());
+        }
+    }
+
+    /* A queued rawcommand() goes to the node owning its own key, not the route's (#413).
+     * Only the keyed case is checked: where a keyless command goes is up to the core */
+    public function testRawCommandInBatchRoutedByCommandKey()
+    {
+        // Hash tags in slots served by different primaries ({a} is slot 15495, {b} slot 3300)
+        $route = '{a}' . uniqid();
+        $keyB = '{b}test_raw_batch_route_' . uniqid();
+        $slotB = $this->valkey_glide->rawcommand($keyB, 'CLUSTER', 'KEYSLOT', $keyB);
+
+        // The address of the primary owning the route's slot
+        $routeNode = null;
+        $nodes = $this->valkey_glide->rawcommand($route, 'CLUSTER', 'NODES');
+        foreach (explode("\n", $nodes) as $line) {
+            $fields = explode(' ', $line);
+            if (count($fields) > 2 && strpos($fields[2], 'myself') !== false) {
+                [$host, $port] = explode(':', explode('@', $fields[1])[0]);
+                $routeNode = ['type' => 'routeByAddress', 'host' => $host, 'port' => (int) $port];
+            }
+        }
+        $this->assertIsArray($routeNode);
+
+        /* A command sent to the route's node would be redirected there, so the key would still
+         * end up on its own node: check that the route's node replied no MOVED */
+        $movedOnRouteNode = function () use ($routeNode) {
+            $stats = $this->valkey_glide->rawcommand($routeNode, 'INFO', 'errorstats');
+            return preg_match('/errorstat_MOVED:count=(\d+)/', $stats, $m) ? (int) $m[1] : 0;
+        };
+
+        try {
+            foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+                $this->valkey_glide->del($keyB);
+                $keysInSlotB = $this->valkey_glide->rawcommand($keyB, 'CLUSTER', 'COUNTKEYSINSLOT', $slotB);
+                $moved = $movedOnRouteNode();
+
+                $this->valkey_glide->multi($mode);
+                $this->assertTrue($this->valkey_glide->rawcommand($route, 'SET', $keyB, 'x') === $this->valkey_glide);
+                $this->assertEquals([true], $this->valkey_glide->exec());
+
+                $this->assertEquals('x', $this->valkey_glide->get($keyB));
+                $this->assertEquals($keysInSlotB + 1, $this->valkey_glide->rawcommand($keyB, 'CLUSTER', 'COUNTKEYSINSLOT', $slotB));
+                $this->assertEquals($moved, $movedOnRouteNode());
+            }
+        } finally {
+            $this->valkey_glide->del($keyB);
+        }
+    }
+
     public function testDbSizeAndPExpireTimeFailure()
     {
         $this->markTestSkipped('Needs the same ACL user on every node');

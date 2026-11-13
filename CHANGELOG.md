@@ -9,6 +9,7 @@
 
 ### Fixes
 
+* `rawcommand()` inside `multi()` or `pipeline()` is now queued, and its reply is part of `exec()`'s result, as in PHPRedis. It ran immediately, outside the transaction. Unlike PHPRedis, which queues them, a `[host, port]` cluster route and SELECT, AUTH, HELLO, CLIENT SETNAME and RESET are refused in a batch (returning `false`), as `select()` is; so are the named routes `randomNode`, `allPrimaries` and `allNodes`. A key route is accepted but not used, unlike PHPRedis, which sends the command to the route's node: a batch routes each command by its own keys. A keyless command takes the core's default routing for it: all primaries or all nodes for some (`INFO`, `UNWATCH`, `CONFIG SET`, ...), a random node for others (`CLUSTER ...`, `CONFIG GET`, ...); in `multi()` the whole transaction goes to one node ([#413](https://github.com/valkey-io/valkey-glide-php/issues/413))
 * `hGetEx()` inside `multi()` or `pipeline()` no longer crashes at `exec()`. It queued a pointer to its stack arguments and freed its field array before `exec()` read them ([#428](https://github.com/valkey-io/valkey-glide-php/issues/428))
 * A failed `rawcommand()` now records its error for `getLastError()`, as other commands do ([#381](https://github.com/valkey-io/valkey-glide-php/issues/381))
 * `dbSize()` and `pExpireTime()` now return `false` when the command fails, for example on a timeout or an ACL denial. They freed a stack variable on that path and aborted the process with `zend_mm_heap corrupted` ([#384](https://github.com/valkey-io/valkey-glide-php/issues/384))

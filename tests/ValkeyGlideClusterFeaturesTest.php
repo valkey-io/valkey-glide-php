@@ -1941,6 +1941,92 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $client->close();
         }
     }
+
+    /* A raw WATCH queued in a pipeline watches once the batch is sent, as watch() does, so it
+     * blocks OPT_SLAVE_FAILOVER; a discarded one watches nothing (#413) */
+    public function testOptSlaveFailoverAfterQueuedRawWatch()
+    {
+        $client = $this->newInstance();
+        $key = '{a}test_opt_slave_failover_raw_watch_' . uniqid();
+
+        try {
+            $client->multi(ValkeyGlide::PIPELINE);
+            $this->assertTrue($client->rawcommand($key, 'WATCH', $key) === $client);
+            $this->assertTrue($client->discard());
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+
+            $client->multi(ValkeyGlide::PIPELINE);
+            $client->rawcommand($key, 'WATCH', $key);
+            $this->assertEquals([true], $client->exec());
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertStringContains('watched', (string) $client->getLastError());
+        } finally {
+            $client->close();
+        }
+    }
+
+    /* A raw UNWATCH queued in a pipeline ends the watches on every primary, as unwatch() does,
+     * so OPT_SLAVE_FAILOVER is allowed again (#413) */
+    public function testOptSlaveFailoverAfterQueuedRawUnwatch()
+    {
+        $client = $this->newInstance();
+        // Hash tags in slots served by different primaries ({a} is slot 15495, {b} slot 3300)
+        $keyA = '{a}test_opt_slave_failover_raw_unwatch_' . uniqid();
+        $keyB = '{b}test_opt_slave_failover_raw_unwatch_' . uniqid();
+
+        try {
+            $this->assertTrue($client->watch($keyA, $keyB));
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+
+            $client->multi(ValkeyGlide::PIPELINE);
+            $this->assertTrue($client->rawcommand($keyA, 'UNWATCH') === $client);
+            $this->assertEquals([true], $client->exec());
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+        } finally {
+            $client->close();
+        }
+    }
+
+    /* A raw SUBSCRIBE that is queued and then discarded, or refused for its route, subscribes
+     * to nothing, so it doesn't block OPT_SLAVE_FAILOVER (#413) */
+    public function testOptSlaveFailoverAfterDiscardedRawSubscribe()
+    {
+        $client = $this->newInstance();
+        $channel = 'test_opt_slave_failover_queued_sub_' . uniqid();
+
+        try {
+            foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+                $client->multi($mode);
+                $this->assertTrue($client->rawcommand($channel, 'SUBSCRIBE', $channel) === $client);
+                $this->assertFalse($client->rawcommand('allPrimaries', 'SUBSCRIBE', $channel));
+                $this->assertTrue($client->discard());
+            }
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+        } finally {
+            $client->close();
+        }
+    }
+
+    /* A queued raw SUBSCRIBE that is sent blocks OPT_SLAVE_FAILOVER, as an immediate one does */
+    public function testOptSlaveFailoverRejectedAfterQueuedRawSubscribe()
+    {
+        $client = $this->newInstance();
+        $channel = 'test_opt_slave_failover_sent_sub_' . uniqid();
+
+        try {
+            $client->multi(ValkeyGlide::PIPELINE);
+            $client->rawcommand($channel, 'SUBSCRIBE', $channel);
+            $client->exec();
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertStringContains('subscribed', (string) $client->getLastError());
+        } finally {
+            $client->close();
+        }
+    }
+
     public function testOptSlaveFailoverRejectedAfterRawSubscribe()
     {
         $client = $this->newInstance();
