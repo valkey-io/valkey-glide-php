@@ -4218,6 +4218,88 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->zAdd('zset', ['incr'], 10, 'value', 20, 'value2'));
     }
 
+    /* Numeric scores and weights are tracked in a buffer that held only 20 entries (#379) */
+    public function testZsetManyNumericScoresAndWeights()
+    {
+        $key = '{zbuf}zset';
+        $this->valkey_glide->del($key);
+
+        $args = [];
+        for ($i = 0; $i < 256; $i++) {
+            $args[] = $i % 2 ? $i : $i + 0.5;
+            $args[] = "m$i";
+        }
+        $this->assertEquals(256, $this->valkey_glide->zAdd($key, ...$args));
+        $this->assertEquals(256, $this->valkey_glide->zCard($key));
+        $this->assertEquals(255.0, $this->valkey_glide->zScore($key, 'm255'));
+        $this->assertEquals(254.5, $this->valkey_glide->zScore($key, 'm254'));
+
+        $keys = [];
+        $weights = [];
+        for ($i = 0; $i < 40; $i++) {
+            $keys[] = "{zbuf}src$i";
+            $weights[] = $i + 1;
+            $this->valkey_glide->zAdd("{zbuf}src$i", 1, 'm');
+        }
+        $this->assertEquals(1, $this->valkey_glide->zUnionStore('{zbuf}dst', $keys, $weights));
+        $this->assertEquals(820.0, $this->valkey_glide->zScore('{zbuf}dst', 'm'));
+        $this->assertEquals(1, $this->valkey_glide->zInterStore('{zbuf}dst', $keys, $weights, 'SUM'));
+        $this->assertEquals(['m' => 820.0], $this->valkey_glide->zUnion($keys, $weights, ['withscores' => true]));
+        $this->assertEquals(['m' => 820.0], $this->valkey_glide->zInter($keys, $weights, ['withscores' => true]));
+
+        $this->valkey_glide->del($key, '{zbuf}dst', ...$keys);
+    }
+
+    /* Non-string members are converted as PHP converts them to strings, as in sAdd(); a member
+     * rejected after a numeric score was converted freed the argument buffers twice (#380) */
+    public function testZaddNonStringMembers()
+    {
+        $key = '{zbuf}members';
+        $this->valkey_glide->del($key);
+
+        $this->assertEquals(4, $this->valkey_glide->zAdd($key, 1, 123, 2, 4.5, 3, true, 4, 1234567.0));
+        $this->assertEquals(
+            ['123' => 1.0, '4.5' => 2.0, '1' => 3.0, '1234567' => 4.0],
+            $this->valkey_glide->zRange($key, 0, -1, ['withscores' => true])
+        );
+
+        /* A score that is not numeric or a string is rejected */
+        for ($i = 0; $i < 3; $i++) {
+            $this->assertFalse($this->valkey_glide->zAdd($key, 5, 'a', null, 'b'));
+        }
+        $this->assertEquals(4, $this->valkey_glide->zCard($key));
+
+        /* A member whose conversion throws is not sent */
+        $this->assertThrows(Error::class, fn() => $this->valkey_glide->zAdd($key, 5, new stdClass()));
+        $this->assertEquals(4, $this->valkey_glide->zCard($key));
+
+        $this->valkey_glide->del($key);
+    }
+
+    /* zAdd(), zScore(), zMscore() and zRem() convert a non-string member the same way, so a
+     * member added with one is found and removed with the others */
+    public function testZsetNonStringMemberRoundTrip()
+    {
+        $key = '{zbuf}roundtrip';
+        $this->valkey_glide->del($key);
+
+        foreach ([false, true, 42, 1.5, 1234567.0] as $member) {
+            $this->assertEquals(1, $this->valkey_glide->zAdd($key, 2, $member));
+            $this->assertEquals(2.0, $this->valkey_glide->zScore($key, $member));
+            $this->assertEquals([2.0], $this->valkey_glide->zMscore($key, $member));
+            $this->assertEquals(1, $this->valkey_glide->zRem($key, $member));
+            $this->assertEquals(0, $this->valkey_glide->zCard($key));
+        }
+
+        /* A member whose conversion throws is not sent */
+        $this->valkey_glide->zAdd($key, 1, 'a');
+        $this->assertThrows(Error::class, fn() => $this->valkey_glide->zRem($key, 'a', new stdClass()));
+        $this->assertThrows(Error::class, fn() => $this->valkey_glide->zMscore($key, 'a', new stdClass()));
+        $this->assertEquals(1, $this->valkey_glide->zCard($key));
+
+        $this->valkey_glide->del($key);
+    }
+
     /**
      * Test ZADD with CH option to cover line 178
      */

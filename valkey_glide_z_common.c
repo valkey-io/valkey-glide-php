@@ -471,9 +471,6 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
         case ZDiffStore:
         case ZInterStore:
         case ZUnionStore:
-            allocated_strings =
-                (char**) emalloc(20 * sizeof(char*)); /* Enough for store commands */
-
             arg_count = prepare_z_store_args(
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
@@ -486,8 +483,6 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             break;
 
         case ZUnion:
-            allocated_strings = (char**) emalloc(20 * sizeof(char*)); /* Enough for ZUNION */
-
             arg_count = prepare_z_union_args(
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
@@ -507,8 +502,6 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             break;
 
         case ZAdd:
-            allocated_strings = (char**) emalloc(20 * sizeof(char*)); /* Enough for ZADD */
-
             arg_count = prepare_z_zadd_args(
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
@@ -521,8 +514,6 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             break;
 
         case ZInter:
-            allocated_strings = (char**) emalloc(20 * sizeof(char*)); /* Enough for ZINTER */
-
             arg_count = prepare_z_union_args(
                 args, &arg_values, &arg_lens, &allocated_strings, &allocated_count);
             break;
@@ -545,7 +536,9 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             /* Unsupported command type */
             return 0;
     }
-    /* Check if argument preparation was successful */
+    /* Check if argument preparation was successful. The prepare functions only allocate: this
+     * function frees the argument arrays and the allocated strings on every path below,
+     * including when preparation fails. */
     if (arg_count <= 0) {
         if (arg_values)
             efree(arg_values);
@@ -750,6 +743,36 @@ int prepare_z_range_args(z_command_args_t* args,
 }
 
 /**
+ * Convert a zset member to a command argument with PHP's string conversion (false becomes "",
+ * 1.5 becomes "1.5"), as zScore() and PHPRedis do. zAdd(), zRem() and zMscore() all use it so a
+ * member added with one can be found and removed with the others. A converted copy is recorded
+ * in allocated_strings. Returns 0 if the conversion threw.
+ */
+static int z_member_to_arg(zval*          member,
+                           uintptr_t*     arg,
+                           unsigned long* arg_len,
+                           char**         allocated_strings,
+                           int*           allocated_count) {
+    ZVAL_DEREF(member);
+    if (Z_TYPE_P(member) == IS_STRING) {
+        *arg     = (uintptr_t) Z_STRVAL_P(member);
+        *arg_len = Z_STRLEN_P(member);
+        return 1;
+    }
+
+    zend_string* member_zstr = zval_try_get_string(member);
+    if (!member_zstr) {
+        return 0;
+    }
+    char* member_str = estrndup(ZSTR_VAL(member_zstr), ZSTR_LEN(member_zstr));
+    *arg             = (uintptr_t) member_str;
+    *arg_len         = ZSTR_LEN(member_zstr);
+    allocated_strings[(*allocated_count)++] = member_str;
+    zend_string_release(member_zstr);
+    return 1;
+}
+
+/**
  * Prepare multi-member Z-command arguments (key + multiple members)
  */
 int prepare_z_members_args(z_command_args_t* args,
@@ -777,25 +800,12 @@ int prepare_z_members_args(z_command_args_t* args,
     /* Add members as arguments */
     int i;
     for (i = 0; i < args->member_count; i++) {
-        zval* z_member = &args->members[i];
-
-        if (Z_TYPE_P(z_member) == IS_STRING) {
-            (*args_out)[i + 1]     = (uintptr_t) Z_STRVAL_P(z_member);
-            (*args_len_out)[i + 1] = Z_STRLEN_P(z_member);
-        } else {
-            /* Convert non-string values to string */
-            char*  str_val   = NULL;
-            size_t str_len   = 0;
-            int    need_free = 0;
-
-            str_val = zval_to_string_safe(z_member, &str_len, &need_free);
-
-            (*args_out)[i + 1]     = (uintptr_t) str_val;
-            (*args_len_out)[i + 1] = str_len;
-
-            if (need_free) {
-                (*allocated_strings)[(*allocated_count)++] = str_val;
-            }
+        if (!z_member_to_arg(&args->members[i],
+                             &(*args_out)[i + 1],
+                             &(*args_len_out)[i + 1],
+                             *allocated_strings,
+                             allocated_count)) {
+            return 0;
         }
     }
 
@@ -903,8 +913,6 @@ int prepare_z_complex_range_args(z_command_args_t* args,
                                     &((*args_len_out)[1]),
                                     allocated_strings,
                                     allocated_count)) {
-        efree(*args_out);
-        efree(*args_len_out);
         return 0;
     }
 
@@ -913,12 +921,6 @@ int prepare_z_complex_range_args(z_command_args_t* args,
                                     &((*args_len_out)[2]),
                                     allocated_strings,
                                     allocated_count)) {
-        int i;
-        for (i = 0; i < *allocated_count; i++) {
-            efree((*allocated_strings)[i]);
-        }
-        efree(*args_out);
-        efree(*args_len_out);
         return 0;
     }
 
@@ -996,6 +998,10 @@ int prepare_z_store_args(z_command_args_t* args,
         arg_count += 1 + weights_count; /* WEIGHTS + values */
     }
 
+    /* Room for every string allocated below: numkeys, each weight and the aggregate */
+    *allocated_strings =
+        (char**) safe_erealloc(*allocated_strings, 2 + weights_count, sizeof(char*), 0);
+
     if (store_opts.has_aggregate) {
         arg_count += 2; /* AGGREGATE + value */
     }
@@ -1050,13 +1056,6 @@ int prepare_z_store_args(z_command_args_t* args,
             weight_str = zval_to_string_safe(weight, &weight_len, &need_free);
 
             if (!weight_str) {
-                /* Cleanup on error */
-                int j;
-                for (j = 0; j < *allocated_count; j++) {
-                    efree((*allocated_strings)[j]);
-                }
-                efree(*args_out);
-                efree(*args_len_out);
                 return 0;
             }
 
@@ -1197,6 +1196,10 @@ int prepare_z_union_args(z_command_args_t* args,
         arg_count += 1 + weights_count; /* WEIGHTS + values */
     }
 
+    /* Room for every string allocated below: numkeys, each weight and the aggregate */
+    *allocated_strings =
+        (char**) safe_erealloc(*allocated_strings, 2 + weights_count, sizeof(char*), 0);
+
     if (union_opts.has_aggregate) {
         arg_count += 2; /* AGGREGATE + value */
     }
@@ -1250,13 +1253,6 @@ int prepare_z_union_args(z_command_args_t* args,
             weight_str = zval_to_string_safe(weight, &weight_len, &need_free);
 
             if (!weight_str) {
-                /* Cleanup on error */
-                int j;
-                for (j = 0; j < *allocated_count; j++) {
-                    efree((*allocated_strings)[j]);
-                }
-                efree(*args_out);
-                efree(*args_len_out);
                 return 0;
             }
 
@@ -1345,8 +1341,6 @@ int prepare_z_rangestore_args(z_command_args_t* args,
     size_t len       = 0;
     char*  str       = zval_to_string_safe(args->z_start, &len, &need_free);
     if (!str) {
-        efree(*args_out);
-        efree(*args_len_out);
         return 0;
     }
     (*args_out)[2]     = (uintptr_t) str;
@@ -1356,9 +1350,6 @@ int prepare_z_rangestore_args(z_command_args_t* args,
 
     str = zval_to_string_safe(args->z_end, &len, &need_free);
     if (!str) {
-        free_allocated_strings(*allocated_strings, *allocated_count);
-        efree(*args_out);
-        efree(*args_len_out);
         return 0;
     }
     (*args_out)[3]     = (uintptr_t) str;
@@ -1426,6 +1417,10 @@ int prepare_z_zadd_args(z_command_args_t* args,
         return 0;
     }
 
+    /* Room for a converted score and member in every pair */
+    *allocated_strings =
+        (char**) safe_erealloc(*allocated_strings, score_member_pairs, 2 * sizeof(char*), 0);
+
     /* Calculate number of option arguments */
     int num_options =
         zadd_opts.xx + zadd_opts.nx + zadd_opts.lt + zadd_opts.gt + zadd_opts.ch + zadd_opts.incr;
@@ -1486,10 +1481,6 @@ int prepare_z_zadd_args(z_command_args_t* args,
             score_str = Z_STRVAL_P(score);
             score_len = Z_STRLEN_P(score);
         } else {
-            /* Cleanup and return error */
-            free_allocated_strings(*allocated_strings, *allocated_count);
-            efree(*args_out);
-            efree(*args_len_out);
             return 0;
         }
 
@@ -1499,17 +1490,15 @@ int prepare_z_zadd_args(z_command_args_t* args,
             (*allocated_strings)[(*allocated_count)++] = score_str;
         }
 
-        /* Member - validate it's a string */
-        zval* member = &args->members[i + 1];
-        if (Z_TYPE_P(member) != IS_STRING) {
-            /* Cleanup and return error */
-            free_allocated_strings(*allocated_strings, *allocated_count);
-            efree(*args_out);
-            efree(*args_len_out);
+        /* Member */
+        if (!z_member_to_arg(&args->members[i + 1],
+                             &(*args_out)[arg_idx],
+                             &(*args_len_out)[arg_idx],
+                             *allocated_strings,
+                             allocated_count)) {
             return 0;
         }
-        (*args_out)[arg_idx]       = (uintptr_t) Z_STRVAL_P(member);
-        (*args_len_out)[arg_idx++] = Z_STRLEN_P(member);
+        arg_idx++;
     }
 
     return arg_count;
@@ -1714,8 +1703,6 @@ int prepare_z_bzpop_args(z_command_args_t* args,
     size_t timeout_len;
     char*  timeout_str = double_to_string(args->increment, &timeout_len);
     if (!timeout_str) {
-        efree(*args_out);
-        efree(*args_len_out);
         return 0;
     }
     (*args_out)[actual_key_count]              = (uintptr_t) timeout_str;
