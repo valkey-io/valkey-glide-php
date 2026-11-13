@@ -186,7 +186,9 @@ int prepare_s_key_member_args(s_command_args_t* args,
         return 0;
     }
 
-    if (!allocate_s_command_args(2, args_out, args_len_out)) {
+    unsigned long arg_count = args->has_xx ? 3 : 2;
+
+    if (!allocate_s_command_args(arg_count, args_out, args_len_out)) {
         return 0;
     }
 
@@ -195,7 +197,12 @@ int prepare_s_key_member_args(s_command_args_t* args,
     (*args_out)[1]     = (uintptr_t) args->member;
     (*args_len_out)[1] = args->member_len;
 
-    return 2;
+    if (args->has_xx) {
+        (*args_out)[2]     = (uintptr_t) "XX";
+        (*args_len_out)[2] = 2;
+    }
+
+    return arg_count;
 }
 
 /**
@@ -522,6 +529,28 @@ int process_s_bool_result_async(CommandResponse* response, void* output, zval* r
 }
 
 /**
+ * Batch-compatible async result processor for integer responses.
+ * Maps 1 to true, 0 to false and a negative value (-1) to null (e.g. SISMEMBER ... XX).
+ * A missing or unexpected response returns 0 without setting return_value; the callers
+ * then report false (the PHPRedis failure value), so an error stays distinguishable from
+ * a null result.
+ */
+int process_s_bool_or_null_result_async(CommandResponse* response,
+                                        void*            output,
+                                        zval*            return_value) {
+    if (response && response->response_type == Int) {
+        if (response->int_value < 0) {
+            ZVAL_NULL(return_value);
+        } else {
+            ZVAL_BOOL(return_value, response->int_value != 0);
+        }
+        return 1;
+    }
+
+    return 0;
+}
+
+/**
  * Batch-compatible async result processor for set/array responses
  */
 int process_s_set_result_async(CommandResponse* response, void* output, zval* return_value) {
@@ -815,6 +844,9 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
         case S_RESPONSE_BOOL:
             process_result = process_s_bool_result_async;
             break;
+        case S_RESPONSE_BOOL_OR_NULL:
+            process_result = process_s_bool_or_null_result_async;
+            break;
         case S_RESPONSE_SET:
             process_result = process_s_set_result_async;
             break;
@@ -1013,16 +1045,36 @@ int execute_srandmember_command(zval* object, int argc, zval* return_value, zend
 }
 
 /**
- * Execute SISMEMBER command using the new signature pattern
+ * Shared implementation of SISMEMBER and SISMEMBER ... XX. With `with_xx` the reply is
+ * parsed as true/false/null (null: the key does not exist); without it, as true/false.
  */
-int execute_sismember_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+static int execute_sismember_impl(
+    zval* object, int argc, zval* return_value, zend_class_entry* ce, bool with_xx) {
     valkey_glide_object* valkey_glide;
     char *               key = NULL, *member = NULL;
     size_t               key_len, member_len;
+    zval*                z_member   = NULL;
+    zend_string*         member_str = NULL;
+    int                  result     = 0;
 
-    /* Parse parameters */
-    if (zend_parse_method_parameters(
-            argc, object, "Oss", &object, ce, &key, &key_len, &member, &member_len) == FAILURE) {
+    /* Parse parameters. sismember() keeps its string-typed member; sIsMemberIfExists() takes
+     * the member as a zval, like sAdd(), so mixed values are converted instead of rejected. */
+    if (with_xx) {
+        if (zend_parse_method_parameters(
+                argc, object, "Osz", &object, ce, &key, &key_len, &z_member) == FAILURE) {
+            return 0;
+        }
+
+        member_str = zval_get_string(z_member);
+        if (EG(exception)) {
+            zend_string_release(member_str);
+            return 0;
+        }
+        member     = ZSTR_VAL(member_str);
+        member_len = ZSTR_LEN(member_str);
+    } else if (zend_parse_method_parameters(
+                   argc, object, "Oss", &object, ce, &key, &key_len, &member, &member_len) ==
+               FAILURE) {
         return 0;
     }
 
@@ -1039,17 +1091,44 @@ int execute_sismember_command(zval* object, int argc, zval* return_value, zend_c
         args.key_len      = key_len;
         args.member       = member;
         args.member_len   = member_len;
+        args.has_xx       = with_xx;
 
-        if (execute_s_generic_command(
-                valkey_glide, SIsMember, S_CMD_KEY_MEMBER, S_RESPONSE_BOOL, &args, return_value)) {
+        if (execute_s_generic_command(valkey_glide,
+                                      SIsMember,
+                                      S_CMD_KEY_MEMBER,
+                                      with_xx ? S_RESPONSE_BOOL_OR_NULL : S_RESPONSE_BOOL,
+                                      &args,
+                                      return_value)) {
             if (valkey_glide->is_in_batch_mode) {
                 ZVAL_COPY(return_value, object);
             }
-            return 1;
+            result = 1;
         }
     }
 
-    return 0;
+    /* Batch mode copies the arguments, so the converted member can be released here */
+    if (member_str) {
+        zend_string_release(member_str);
+    }
+
+    return result;
+}
+
+/**
+ * Execute SISMEMBER command using the new signature pattern
+ */
+int execute_sismember_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    return execute_sismember_impl(object, argc, return_value, ce, false);
+}
+
+/**
+ * Execute SISMEMBER key member XX (Valkey 9.2+): true, false, or null if the key is missing
+ */
+int execute_sismember_if_exists_command(zval*             object,
+                                        int               argc,
+                                        zval*             return_value,
+                                        zend_class_entry* ce) {
+    return execute_sismember_impl(object, argc, return_value, ce, true);
 }
 
 /**
@@ -1807,10 +1886,10 @@ int execute_cluster_scan_command(const void* glide_client,
                                  const char* pattern,
                                  size_t      pattern_len,
                                  long        count,
-                                 int         has_count,
+                                 bool        has_count,
                                  const char* type,
                                  size_t      type_len,
-                                 int         has_type,
+                                 bool        has_type,
                                  zval*       return_value) {
     if (!glide_client || !cursor || !return_value) {
         return 0;
@@ -1958,7 +2037,7 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
     zval*                z_iter;
     char *               pattern = NULL, *type = NULL;
     size_t               pattern_len = 0, type_len = 0;
-    int                  has_pattern = 0, has_type = 0;
+    bool                 has_pattern = false, has_type = false;
     zend_long            count     = 0;
     int                  has_count = 0;
 

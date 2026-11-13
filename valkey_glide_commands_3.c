@@ -2003,12 +2003,16 @@ int execute_client_command_internal(
 }
 
 /* Execute a RAWCOMMAND command using the Valkey Glide client */
-int execute_rawcommand_command_internal(
-    const void* glide_client, zval* args, int args_count, zval* return_value, zval* route) {
+static int execute_rawcommand_command_internal(valkey_glide_object* valkey_glide,
+                                               zval*                args,
+                                               int                  args_count,
+                                               zval*                return_value,
+                                               zval*                route) {
     /* Check if client and args are valid */
-    if (!glide_client || !args || args_count <= 0 || !return_value) {
+    if (!valkey_glide || !valkey_glide->glide_client || !args || args_count <= 0 || !return_value) {
         return 0;
     }
+    const void* glide_client = valkey_glide->glide_client;
 
     /* Create argument arrays */
     unsigned long  arg_count = args_count;
@@ -2086,6 +2090,7 @@ int execute_rawcommand_command_internal(
     if (result) {
         if (result->command_error) {
             /* Command failed - return false to maintain PHPRedis compatibility */
+            valkey_glide_record_command_error(valkey_glide, result);
             free_command_result(result);
             ZVAL_FALSE(return_value);
             return 0;
@@ -2309,8 +2314,7 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
         valkey_glide->raw_subscribed = true;
 
     /* Execute the raw command using the Glide client */
-    if (execute_rawcommand_command_internal(
-            valkey_glide->glide_client, z_args, arg_count, return_value, route)) {
+    if (execute_rawcommand_command_internal(valkey_glide, z_args, arg_count, return_value, route)) {
         /* Return value already set in execute_rawcommand_command. A raw WATCH or UNWATCH
          * changes the watch state just like watch() and unwatch() */
         if (Z_TYPE(z_args[0]) == IS_STRING) {

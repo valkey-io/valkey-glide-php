@@ -3631,6 +3631,24 @@ class ValkeyGlide
     public function sismember(string $key, mixed $value): ValkeyGlide|bool;
 
     /**
+     * Returns whether a given value is a member of a set,
+     * or null if the key does not exist.
+     *
+     * @see https://valkey.io/commands/sismember/
+     *
+     * @since Valkey 9.2
+     *
+     * @param string $key   The Valkey set to check.
+     * @param mixed  $value The value to test.
+     *
+     * @return ValkeyGlide|bool|null True if the member exists, false if the key exists but the
+     *                               member does not, null if the key does not exist.
+     *
+     * @example $valkey_glide->sIsMemberIfExists('myset', 'mem1');
+     */
+    public function sIsMemberIfExists(string $key, mixed $value): ValkeyGlide|bool|null;
+
+    /**
      * Update one or more keys last modified metadata.
      *
      * @see https://valkey.io/commands/touch/
