@@ -8651,6 +8651,25 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->rawCommandArray($key, ['CLIENT', 'SETNAME', 'x']));
         $this->valkey_glide->discard();
 
+        /* An argument whose __toString() throws queues nothing */
+        $throwing = new class {
+            public function __toString(): string
+            {
+                throw new Exception('toString failed');
+            }
+        };
+        foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+            $this->valkey_glide->multi($mode);
+            $this->rawCommandArray($key, ['SET', $key, 'v']);
+            try {
+                $this->rawCommandArray($key, ['SET', $key, $throwing]);
+                $this->fail('expected __toString() to throw');
+            } catch (Exception $e) {
+                $this->assertEquals('toString failed', $e->getMessage());
+            }
+            $this->assertEquals([true], $this->valkey_glide->exec());
+        }
+
         $this->valkey_glide->del($key, $list);
         $other->close();
     }

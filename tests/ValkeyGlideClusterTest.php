@@ -2306,6 +2306,43 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
     }
 
+    /* A queued rawcommand() goes to the node owning its own key, not the route's (#413).
+     * Only the keyed case is checked: where a keyless command goes is up to the core */
+    public function testRawCommandInBatchRoutedByCommandKey()
+    {
+        // Hash tags in slots served by different primaries ({a} is slot 15495, {b} slot 3300)
+        $route = '{a}' . uniqid();
+        $keyB = '{b}test_raw_batch_route_' . uniqid();
+        $slotB = $this->valkey_glide->rawcommand($keyB, 'CLUSTER', 'KEYSLOT', $keyB);
+
+        // The address of the primary owning the route's slot
+        $routeNode = null;
+        $nodes = $this->valkey_glide->rawcommand($route, 'CLUSTER', 'NODES');
+        foreach (explode("\n", $nodes) as $line) {
+            $fields = explode(' ', $line);
+            if (count($fields) > 2 && strpos($fields[2], 'myself') !== false) {
+                [$host, $port] = explode(':', explode('@', $fields[1])[0]);
+                $routeNode = ['type' => 'routeByAddress', 'host' => $host, 'port' => (int) $port];
+            }
+        }
+        $this->assertIsArray($routeNode);
+
+        try {
+            foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+                $this->valkey_glide->del($keyB);
+                $this->valkey_glide->multi($mode);
+                $this->assertTrue($this->valkey_glide->rawcommand($route, 'SET', $keyB, 'x') === $this->valkey_glide);
+                $this->assertEquals([true], $this->valkey_glide->exec());
+
+                $this->assertEquals('x', $this->valkey_glide->get($keyB));
+                $this->assertEquals(1, $this->valkey_glide->rawcommand($keyB, 'CLUSTER', 'COUNTKEYSINSLOT', $slotB));
+                $this->assertEquals(0, $this->valkey_glide->rawcommand($routeNode, 'CLUSTER', 'COUNTKEYSINSLOT', $slotB));
+            }
+        } finally {
+            $this->valkey_glide->del($keyB);
+        }
+    }
+
     public function testDbSizeAndPExpireTimeFailure()
     {
         $this->markTestSkipped('Needs the same ACL user on every node');

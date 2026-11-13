@@ -582,6 +582,17 @@ void valkey_glide_update_saved_request_database(valkey_glide_object* valkey_glid
 
 #define ARG_IS(i, literal) zend_string_equals_literal_ci(args[i], literal)
 
+/* Whether valkey_glide_track_connection_command() mirrors this command: AUTH, HELLO,
+ * CLIENT SETNAME, SELECT or RESET. sub is the command's second word, or NULL */
+bool valkey_glide_is_tracked_connection_command(zend_string* name, zend_string* sub) {
+    return zend_string_equals_literal_ci(name, "SELECT") ||
+           zend_string_equals_literal_ci(name, "AUTH") ||
+           zend_string_equals_literal_ci(name, "HELLO") ||
+           zend_string_equals_literal_ci(name, "RESET") ||
+           (zend_string_equals_literal_ci(name, "CLIENT") && sub &&
+            zend_string_equals_literal_ci(sub, "SETNAME"));
+}
+
 /* Mirror a successful AUTH, HELLO, CLIENT SETNAME, SELECT or RESET into the saved connection
  * request, parsing it the way glide-core does when it keeps the change for its reconnects. Unlike
  * the core, AUTH with only a password clears the saved username, to match the live connection.
@@ -591,7 +602,8 @@ void valkey_glide_track_connection_command(valkey_glide_object* valkey_glide,
                                            int                  argc) {
     saved_request_update_t update = {0};
 
-    if (!valkey_glide->connection_request || argc < 1) {
+    if (!valkey_glide->connection_request || argc < 1 ||
+        !valkey_glide_is_tracked_connection_command(args[0], argc > 1 ? args[1] : NULL)) {
         return;
     }
     if (ARG_IS(0, "SELECT")) {

@@ -909,19 +909,28 @@ int execute_pipeline_command(zval* object, int argc, zval* return_value, zend_cl
     return initialize_batch_mode(valkey_glide, PIPELINE, object, return_value);
 }
 
+/* Whether a raw command is a (P|S)SUBSCRIBE with a channel, which can subscribe on the server
+ * even when it reports failure. Without a channel the server rejects it */
+static bool raw_command_is_subscribe(const char* name, size_t len, size_t arg_count) {
+    return arg_count > 1 && ((len == 9 && strncasecmp(name, "SUBSCRIBE", 9) == 0) ||
+                             (len == 10 && (strncasecmp(name, "PSUBSCRIBE", 10) == 0 ||
+                                            strncasecmp(name, "SSUBSCRIBE", 10) == 0)));
+}
+
 /* Whether a buffered command is the raw command (rawcommand()) with this name */
 static bool batch_command_is_raw(const struct batch_command* cmd, const char* name, size_t len) {
     return cmd->request_type == CustomCommand && cmd->arg_count > 0 && cmd->args &&
            cmd->arg_lengths[0] == len && strncasecmp((const char*) cmd->args[0], name, len) == 0;
 }
 
-/* Track whether the server may still hold a WATCH after a batch executes. The flag is
+/* Track whether the server may still hold a WATCH, or a raw subscription, after a batch
+ * executes. The watch flag is
  * only cleared once the server has ended the watch, since OPT_SLAVE_FAILOVER relies on it
  * to avoid dropping the watched connection. */
-static void update_watch_state(valkey_glide_object*  valkey_glide,
-                               bool                  is_atomic,
-                               bool                  is_cluster,
-                               struct CommandResult* result) {
+static void update_batch_connection_state(valkey_glide_object*  valkey_glide,
+                                          bool                  is_atomic,
+                                          bool                  is_cluster,
+                                          struct CommandResult* result) {
     bool executed = result && !result->command_error;
 
     /* A queued raw (P|S)SUBSCRIBE can subscribe on the server once the batch is sent, even if
@@ -932,9 +941,9 @@ static void update_watch_state(valkey_glide_object*  valkey_glide,
     if (result) {
         for (size_t i = 0; i < valkey_glide->command_count; i++) {
             const struct batch_command* cmd = &valkey_glide->buffered_commands[i];
-            if (cmd->arg_count > 1 && (batch_command_is_raw(cmd, "SUBSCRIBE", 9) ||
-                                       batch_command_is_raw(cmd, "PSUBSCRIBE", 10) ||
-                                       batch_command_is_raw(cmd, "SSUBSCRIBE", 10)))
+            if (cmd->request_type == CustomCommand && cmd->arg_count > 0 && cmd->args &&
+                raw_command_is_subscribe(
+                    (const char*) cmd->args[0], cmd->arg_lengths[0], cmd->arg_count))
                 valkey_glide->raw_subscribed = true;
         }
     }
@@ -1105,7 +1114,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     /* A lazy client's resolver may have closed clients while it ran */
     valkey_glide_run_deferred_closes();
 
-    update_watch_state(
+    update_batch_connection_state(
         valkey_glide, batch_info.is_atomic, ce == get_valkey_glide_cluster_ce(), result);
 
     /* Free CmdInfo structures */
@@ -2245,18 +2254,6 @@ static bool rawcommand_route_is_key(zval* route) {
            !zend_string_equals_literal_ci(Z_STR_P(route), "allNodes");
 }
 
-/* The raw commands valkey_glide_track_connection_command() mirrors. z_args[0] and z_args[1] are
- * already strings */
-static bool rawcommand_sets_tracked_state(zval* z_args, int arg_count) {
-    zend_string* name = Z_STR(z_args[0]);
-    return zend_string_equals_literal_ci(name, "SELECT") ||
-           zend_string_equals_literal_ci(name, "AUTH") ||
-           zend_string_equals_literal_ci(name, "HELLO") ||
-           zend_string_equals_literal_ci(name, "RESET") ||
-           (zend_string_equals_literal_ci(name, "CLIENT") && arg_count > 1 &&
-            zend_string_equals_literal_ci(Z_STR(z_args[1]), "SETNAME"));
-}
-
 /* Execute rawcommand command */
 int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -2302,7 +2299,9 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
 
     /* SELECT, AUTH, CLIENT SETNAME, SUBSCRIBE, ... change the connection's state.
      * Convert the name and subcommand in place first, so the check sees the
-     * bytes that are sent (a Stringable converts once). */
+     * bytes that are sent (a Stringable converts once). The client is marked before the
+     * batch branch below on purpose: a command refused there, or queued and then discarded,
+     * still stops a persistent client from being reused, which is the safe direction. */
     for (int i = 0; i < arg_count && i < 2; i++) {
         if (Z_TYPE(z_args[i]) != IS_STRING) {
             convert_to_string(&z_args[i]);
@@ -2322,21 +2321,25 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
 
     /* In multi()/pipeline() the command is queued like any other and its reply is part of
      * exec()'s result. A queued raw (P|S)SUBSCRIBE is recorded when the batch is sent
-     * (update_watch_state()), so a discarded one is not.
+     * (update_batch_connection_state()), so a discarded one is not.
      *
-     * Differences from PHPRedis: a batch routes each command by its keys, so a cluster route
-     * must be a key. A [host, port] route, which PHPRedis queues, is refused here, as are the
-     * named routes randomNode, allPrimaries and allNodes (which PHPRedis does not have), rather
-     * than sending the command somewhere other than asked. SELECT, AUTH, HELLO, CLIENT SETNAME
-     * and RESET, which PHPRedis queues, are refused, as select() is, because the client mirrors
-     * their state for OPT_SLAVE_FAILOVER and cannot mirror a queued command */
+     * Differences from PHPRedis: a batch routes each command by its own keys (the core's batch
+     * API has no per-command route), so a cluster route must be a key, and even that is not
+     * used: a keyless command (CLUSTER ..., INFO, CONFIG, ...) can go to any node, where
+     * PHPRedis sends it to the route's node. A [host, port] route, which PHPRedis queues, is
+     * refused here, as are the named routes randomNode, allPrimaries and allNodes (which
+     * PHPRedis does not have), rather than sending the command somewhere other than asked. SELECT,
+     * AUTH, HELLO, CLIENT SETNAME and RESET, which PHPRedis queues, are refused, as select() is,
+     * because the client mirrors their state for OPT_SLAVE_FAILOVER and cannot mirror a queued
+     * command */
     if (valkey_glide->is_in_batch_mode) {
         if (route && !rawcommand_route_is_key(route)) {
             valkey_glide_set_last_error(
                 valkey_glide, "rawcommand() can only be queued in a batch with a key route");
             return 0;
         }
-        if (rawcommand_sets_tracked_state(z_args, arg_count)) {
+        if (valkey_glide_is_tracked_connection_command(Z_STR(z_args[0]),
+                                                       arg_count > 1 ? Z_STR(z_args[1]) : NULL)) {
             valkey_glide_set_last_error(
                 valkey_glide,
                 "rawcommand() can't queue SELECT, AUTH, HELLO, CLIENT SETNAME or RESET in a batch");
@@ -2350,12 +2353,8 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
     }
 
     /* A raw (P|S)SUBSCRIBE can subscribe on the server even when the call reports failure, and
-     * nothing records it for OPT_SLAVE_FAILOVER to refuse recreating the client. Without a
-     * channel the server rejects it, so there is nothing to record */
-    if (arg_count > 1 && Z_TYPE(z_args[0]) == IS_STRING &&
-        (zend_string_equals_literal_ci(Z_STR(z_args[0]), "SUBSCRIBE") ||
-         zend_string_equals_literal_ci(Z_STR(z_args[0]), "PSUBSCRIBE") ||
-         zend_string_equals_literal_ci(Z_STR(z_args[0]), "SSUBSCRIBE")))
+     * nothing records it for OPT_SLAVE_FAILOVER to refuse recreating the client */
+    if (raw_command_is_subscribe(Z_STRVAL(z_args[0]), Z_STRLEN(z_args[0]), arg_count))
         valkey_glide->raw_subscribed = true;
 
     /* Execute the raw command using the Glide client */
@@ -2370,11 +2369,8 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
                 valkey_glide->is_watching = false;
             /* The core keeps the state these set, on any route, for its reconnects, so a
              * client recreated by OPT_SLAVE_FAILOVER must keep it too */
-            else if (zend_string_equals_literal_ci(Z_STR(z_args[0]), "SELECT") ||
-                     zend_string_equals_literal_ci(Z_STR(z_args[0]), "AUTH") ||
-                     zend_string_equals_literal_ci(Z_STR(z_args[0]), "HELLO") ||
-                     zend_string_equals_literal_ci(Z_STR(z_args[0]), "CLIENT") ||
-                     zend_string_equals_literal_ci(Z_STR(z_args[0]), "RESET")) {
+            else if (valkey_glide_is_tracked_connection_command(
+                         Z_STR(z_args[0]), arg_count > 1 ? Z_STR(z_args[1]) : NULL)) {
                 zend_string** words = safe_emalloc(arg_count, sizeof(zend_string*), 0);
                 for (int i = 0; i < arg_count; i++)
                     words[i] = zval_get_string(&z_args[i]);
