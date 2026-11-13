@@ -903,6 +903,8 @@ int execute_xclaim_command(zval* object, int argc, zval* return_value, zend_clas
         int res = execute_x_generic_command(
             valkey_glide, XClaim, &args, result_context, process_x_claim_result, return_value);
         if (res && valkey_glide->is_in_batch_mode) {
+            valkey_glide_batch_own_result(
+                valkey_glide, result_context, valkey_glide_batch_efree_result);
             ZVAL_COPY(return_value, object);
         }
         return res;
