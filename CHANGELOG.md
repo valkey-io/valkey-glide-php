@@ -10,7 +10,7 @@
 
 ### Fixes
 
-* A SCAN command (`ValkeyGlide::scan()`, `sScan()`, `hScan()`, `zScan()`) that gets an error reply no longer leaks the previous cursor string of its iterator ([#414](https://github.com/valkey-io/valkey-glide-php/issues/414))
+* `sScan()`, `hScan()`, `zScan()` or standalone `scan()` getting an error reply no longer leaks the previous cursor string of its iterator ([#414](https://github.com/valkey-io/valkey-glide-php/issues/414))
 * `hGetEx()` inside `multi()` or `pipeline()` no longer crashes at `exec()`. It queued a pointer to its stack arguments and freed its field array before `exec()` read them ([#428](https://github.com/valkey-io/valkey-glide-php/issues/428))
 * A failed `rawcommand()` now records its error for `getLastError()`, as other commands do ([#381](https://github.com/valkey-io/valkey-glide-php/issues/381))
 * `dbSize()` and `pExpireTime()` now return `false` when the command fails, for example on a timeout or an ACL denial. They freed a stack variable on that path and aborted the process with `zend_mm_heap corrupted` ([#384](https://github.com/valkey-io/valkey-glide-php/issues/384))

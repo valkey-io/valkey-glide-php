@@ -7597,20 +7597,28 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $key = '{scanleak}' . uniqid();
         $this->valkey_glide->set($key, 'not a collection');
 
+        /* WRONGTYPE on a string key; standalone scan() gets an invalid cursor error instead */
+        $calls = [];
         foreach (['sScan', 'hScan', 'zScan'] as $cmd) {
-            $call = function (int $i) use ($cmd, $key) {
+            $calls[$cmd] = function (int $i) use ($cmd, $key) {
                 /* A cursor string built at run time, so it is not interned */
                 $it = (string) (1000 + $i);
-                try {
-                    $this->valkey_glide->$cmd($key, $it);
-                } catch (ValkeyGlideException $e) {
-                }
-                return $it;
+                return [$this->valkey_glide->$cmd($key, $it), $it];
             };
+        }
+        if (!($this->valkey_glide instanceof ValkeyGlideCluster)) {
+            $calls['scan'] = function (int $i) {
+                $it = 'x' . $i;
+                return [$this->valkey_glide->scan($it), $it];
+            };
+        }
+
+        foreach ($calls as $call) {
             for ($i = 0; $i < 20; $i++) {
                 $call($i);
             }
-            $this->assertEquals('0', $call(0));
+            /* The error path ran: the call failed and reset the iterator */
+            $this->assertEquals([false, '0'], $call(0));
 
             $before = memory_get_usage();
             for ($i = 0; $i < 2000; $i++) {
