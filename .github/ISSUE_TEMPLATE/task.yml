@@ -2,14 +2,7 @@ name: Task
 description: Create a task to manage work
 title: "[Task]"
 labels: ["task"]
-assignees: []
-
 body:
-  - type: markdown
-    attributes:
-      value: |
-        ## Task Description
-
   - type: textarea
     attributes:
       label: Description

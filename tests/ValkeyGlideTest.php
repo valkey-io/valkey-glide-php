@@ -2347,6 +2347,30 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->sismember('set', 'val2'));
     }
 
+    public function testSIsMemberIfExists()
+    {
+        if (!$this->is_valkey || !$this->minVersionCheck('9.2.0')) {
+            $this->markTestSkipped('SISMEMBER XX requires Valkey 9.2.0+ (current: ' . $this->version . ')');
+        }
+
+        $this->valkey_glide->del('set');
+
+        // Key does not exist: null, not false
+        $this->assertNull($this->valkey_glide->sIsMemberIfExists('set', 'val'));
+
+        $this->valkey_glide->sAdd('set', 'val');
+
+        // Key exists: strictly true / false
+        $this->assertTrue($this->valkey_glide->sIsMemberIfExists('set', 'val') === true);
+        $this->assertTrue($this->valkey_glide->sIsMemberIfExists('set', 'val2') === false);
+
+        // A non-string member is converted like in sAdd(), even under strict_types
+        $client = $this->valkey_glide;
+        $client->sAdd('set', 5);
+        $this->assertTrue(eval('declare(strict_types=1); return $client->sIsMemberIfExists("set", 5);') === true);
+        $this->assertTrue(eval('declare(strict_types=1); return $client->sIsMemberIfExists("set", 6);') === false);
+    }
+
     public function testSMembers()
     {
         $this->valkey_glide->del('set');
@@ -5973,6 +5997,75 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals([-1], $ttl_after_persist); // Should have no expiration
     }
 
+    /* In a batch, hGetEx() kept a pointer to its stack arguments and freed its field array
+     * before exec() read them, which crashed at exec() */
+    public function testHGetExInBatch(): void
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('HGETEX requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $key = '{hgetex}batch';
+        $this->valkey_glide->del($key);
+        $this->valkey_glide->hSet($key, 'a', '1', 'b', '2');
+
+        foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+            $this->valkey_glide->multi($mode);
+            /* Queue from a separate frame, then reuse the stack and heap before exec() */
+            (function ($key) {
+                $this->valkey_glide->hGetEx($key, ['a', 'b', 'missing'], ['EX' => 60]);
+            })($key);
+            $this->valkey_glide->hGet($key, 'a');
+            $filler = [];
+            for ($i = 0; $i < 1000; $i++) {
+                $filler[] = str_repeat('x', $i % 200);
+            }
+            unset($filler);
+
+            $this->assertEquals(
+                [['a' => '1', 'b' => '2', 'missing' => null], '1'],
+                $this->valkey_glide->exec()
+            );
+        }
+
+        $this->assertGT(0, $this->valkey_glide->hTtl($key, 'a')[0]);
+        $this->valkey_glide->del($key);
+    }
+
+    /* hGetEx() frees its copied fields and arguments exactly once on its failure paths: a
+     * server error (wrong key type) and an argument preparation failure (no fields) */
+    public function testHGetExFailurePathsFreeArgs(): void
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('HGETEX requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $key = '{hgetex}notahash';
+        $this->valkey_glide->del($key);
+        $this->valkey_glide->set($key, 'v');
+        $fields = array_map(fn($i) => "field$i", range(1, 20));
+
+        $calls = [
+            'server error' => fn() => $this->valkey_glide->hGetEx($key, $fields, ['EX' => 60]),
+            'no fields' => fn() => $this->valkey_glide->hGetEx($key, [], ['EX' => 60]),
+        ];
+        foreach ($calls as $call) {
+            for ($i = 0; $i < 20; $i++) {
+                $this->assertFalse($call());
+            }
+
+            /* Leaking even the smallest allocation (the 8-byte fields block on the no-fields
+             * path) every call exceeds the bound; a double free would corrupt the allocator */
+            $before = memory_get_usage();
+            for ($i = 0; $i < 1000; $i++) {
+                $this->assertFalse($call());
+            }
+            $this->assertLT(4096, memory_get_usage() - $before);
+        }
+
+        $this->valkey_glide->del($key);
+    }
+
     public function testHashFieldExpirationModeParameters(): void
     {
         if (!$this->compare_major_version_number(9)) {
@@ -6877,6 +6970,15 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->assertIsString($err);
             $this->assertStringContains('WRONGTYPE', $err);
         }
+
+        // rawcommand() records errors too, and a successful one keeps the last error (#381)
+        $this->assertTrue($this->valkey_glide->clearLastError());
+        $this->assertFalse($this->rawCommandArray('{lasterror}str', ['LPUSH', '{lasterror}str', 'x']));
+        $err = $this->valkey_glide->getLastError();
+        $this->assertIsString($err);
+        $this->assertStringContains('WRONGTYPE', $err);
+        $this->assertEquals('v', $this->rawCommandArray('{lasterror}str', ['GET', '{lasterror}str']));
+        $this->assertEquals($err, $this->valkey_glide->getLastError());
 
         // A new error overwrites the previous one
         $this->assertFalse($this->valkey_glide->eval('return redis.call("NOSUCHCOMMAND")'));
