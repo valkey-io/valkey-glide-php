@@ -2,20 +2,15 @@ name: Flaky CI Test Issue
 description: Report a flaky test in the CI pipeline
 title: "[Flaky Test] <test-name>"
 labels: ["bug", "flaky-test"]
-assignees: []
-
 body:
-  - type: markdown
-    attributes:
-      value: |
-        ## Description of the Flaky Test
-
   - type: input
     id: test-name
     attributes:
       label: Test Name
       description: Name of the test that is flaky
       placeholder: e.g., test_example
+    validations:
+      required: true
 
   - type: input
     id: test-location
@@ -30,6 +25,8 @@ body:
       label: Failure Permlink
       description: Permlink to the failure line in the test run
       placeholder: e.g., https://ci.example.com/build/123
+    validations:
+      required: true
 
   - type: input
     id: frequency
@@ -38,24 +35,15 @@ body:
       description: How often does the test fail?
       placeholder: e.g., 1 in 10 runs
 
-  - type: markdown
-    attributes:
-      value: |
-        ## Steps to Reproduce
-
   - type: textarea
     id: steps-to-reproduce
     attributes:
       label: Steps to Reproduce
       description: List the steps required to reproduce the flaky test
-      placeholder: 1. Step 1
+      placeholder: |
+        1. Step 1
         2. Step 2
         3. Step 3
-
-  - type: markdown
-    attributes:
-      value: |
-        ## Additional Context
 
   - type: input
     id: system-information
@@ -65,11 +53,11 @@ body:
       placeholder: e.g., Ubuntu 20.04, GitHub Actions
 
   - type: input
-    id: language-and-version
+    id: php-version
     attributes:
-      label: Language and Version
-      description: Programming language and its version
-      placeholder: e.g., Python 3.8
+      label: PHP Version
+      description: PHP version of the failing CI job
+      placeholder: e.g., 8.5.12
 
   - type: input
     id: engine-version
@@ -99,11 +87,6 @@ body:
       description: Glide version used
       placeholder: e.g., 1.2.3
 
-  - type: markdown
-    attributes:
-      value: |
-        ## Expected Behavior
-
   - type: textarea
     id: expected-behavior
     attributes:
@@ -111,22 +94,14 @@ body:
       description: Describe what you expected to happen
       placeholder: Describe the expected behavior...
 
-  - type: markdown
-    attributes:
-      value: |
-        ## Actual Behavior
-
   - type: textarea
     id: actual-behavior
     attributes:
       label: Actual Behavior
       description: Describe what actually happened
       placeholder: Describe the actual behavior...
-
-  - type: markdown
-    attributes:
-      value: |
-        ## Possible Fixes
+    validations:
+      required: true
 
   - type: textarea
     id: possible-fixes

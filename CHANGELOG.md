@@ -11,6 +11,7 @@
 
 * `zAdd()` with more than 20 numeric scores, and `zUnionStore()`, `zInterStore()`, `zDiffStore()`, `zUnion()` and `zInter()` with more than 19 numeric weights (18 with an aggregate), no longer write past a fixed 20-entry buffer and corrupt the heap ([#379](https://github.com/valkey-io/valkey-glide-php/issues/379))
 * `zAdd()` now converts non-string members (int, float, bool) with PHP's string conversion, as `sAdd()` and PHPRedis do. `zRem()` and `zMscore()` use the same conversion, so a member added as `false` or a float is found and removed with the same value; they sent `false` as `"0"` and floats with six significant digits. `zAdd()` rejected non-string members and freed the argument buffers twice, which aborted the process with `zend_mm_heap corrupted`. The same double free is removed from the other zset argument error paths ([#380](https://github.com/valkey-io/valkey-glide-php/issues/380))
+* `hGetEx()` inside `multi()` or `pipeline()` no longer crashes at `exec()`. It queued a pointer to its stack arguments and freed its field array before `exec()` read them ([#428](https://github.com/valkey-io/valkey-glide-php/issues/428))
 * A failed `rawcommand()` now records its error for `getLastError()`, as other commands do ([#381](https://github.com/valkey-io/valkey-glide-php/issues/381))
 * `dbSize()` and `pExpireTime()` now return `false` when the command fails, for example on a timeout or an ACL denial. They freed a stack variable on that path and aborted the process with `zend_mm_heap corrupted` ([#384](https://github.com/valkey-io/valkey-glide-php/issues/384))
 * IAM authentication now requires TLS: configuring IAM auth without TLS is rejected at client creation instead of sending the IAM token over a plaintext connection ([#391](https://github.com/valkey-io/valkey-glide-php/pull/391))
@@ -66,6 +67,7 @@
 * Add `SAVE` command for standalone and cluster clients ([#272](https://github.com/valkey-io/valkey-glide-php/pull/272))
 * Add `BGREWRITEAOF` command for standalone and cluster clients ([#271](https://github.com/valkey-io/valkey-glide-php/pull/271))
 * Add `BGSAVE`, `BGSAVE SCHEDULE`, and `BGSAVE CANCEL` commands for standalone and cluster clients ([#236](https://github.com/valkey-io/valkey-glide-php/issues/236))
+* Add `XX` option for `SISMEMBER` command ([#401](https://github.com/valkey-io/valkey-glide-php/issues/401))
 * Fix pie install from Packagist using PIE pre-packaged-source download method ([#233](https://github.com/valkey-io/valkey-glide-php/pull/233))
 * Fix pie install from Packagist by setting preferred-install to source for submodule resolution ([#232](https://github.com/valkey-io/valkey-glide-php/pull/232))
 * Fix pie install ([#229](https://github.com/valkey-io/valkey-glide-php/pull/229))
