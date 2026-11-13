@@ -7547,6 +7547,89 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         set_time_limit(0);  // Reset to unlimited (or default) at the end
     }
 
+    /* SCAN commands throw in multi() and pipeline(): a queued one returned corrupted data at
+     * exec() (#414) */
+    public function testScanRefusedInBatch()
+    {
+        $this->valkey_glide->del('{scanbatch}s', '{scanbatch}h', '{scanbatch}z');
+        $this->valkey_glide->sAdd('{scanbatch}s', 'a');
+        $this->valkey_glide->hSet('{scanbatch}h', 'f', 'v');
+        $this->valkey_glide->zAdd('{scanbatch}z', 1, 'm');
+
+        foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+            $this->valkey_glide->multi($mode);
+
+            /* The closures take the iterator by reference, so a write to it would show */
+            foreach (['sScan' => '{scanbatch}s', 'hScan' => '{scanbatch}h', 'zScan' => '{scanbatch}z'] as $cmd => $key) {
+                $it = null;
+                $this->assertThrows(ValkeyGlideException::class, function () use ($cmd, $key, &$it) {
+                    $this->valkey_glide->$cmd($key, $it);
+                });
+                $this->assertNull($it);
+            }
+            if ($this->valkey_glide instanceof ValkeyGlideCluster) {
+                /* A scan that ran would store the next cursor id */
+                $cursor = new ClusterScanCursor();
+                $this->assertThrows(ValkeyGlideException::class, function () use ($cursor) {
+                    $this->valkey_glide->scan($cursor);
+                });
+                $this->assertEquals('0', $cursor->getNextCursor());
+            } else {
+                $it = null;
+                $this->assertThrows(ValkeyGlideException::class, function () use (&$it) {
+                    $this->valkey_glide->scan($it);
+                });
+                $this->assertNull($it);
+            }
+
+            /* The batch is still usable */
+            $this->valkey_glide->sMembers('{scanbatch}s');
+            $this->assertEquals([['a']], $this->valkey_glide->exec());
+        }
+
+        $this->valkey_glide->del('{scanbatch}s', '{scanbatch}h', '{scanbatch}z');
+    }
+
+    /* A SCAN command that gets an error reply releases its iterator's previous cursor string
+     * when it resets the iterator (#414) */
+    public function testScanErrorDoesNotLeakIterator()
+    {
+        $key = '{scanleak}' . uniqid();
+        $this->valkey_glide->set($key, 'not a collection');
+
+        /* WRONGTYPE on a string key; standalone scan() gets an invalid cursor error instead */
+        $calls = [];
+        foreach (['sScan', 'hScan', 'zScan'] as $cmd) {
+            $calls[$cmd] = function (int $i) use ($cmd, $key) {
+                /* A cursor string built at run time, so it is not interned */
+                $it = (string) (1000 + $i);
+                return [$this->valkey_glide->$cmd($key, $it), $it];
+            };
+        }
+        if (!($this->valkey_glide instanceof ValkeyGlideCluster)) {
+            $calls['scan'] = function (int $i) {
+                $it = 'x' . $i;
+                return [$this->valkey_glide->scan($it), $it];
+            };
+        }
+
+        foreach ($calls as $call) {
+            for ($i = 0; $i < 20; $i++) {
+                $call($i);
+            }
+            /* The error path ran: the call failed and reset the iterator */
+            $this->assertEquals([false, '0'], $call(0));
+
+            $before = memory_get_usage();
+            for ($i = 0; $i < 2000; $i++) {
+                $call($i);
+            }
+            $this->assertLT(4096, memory_get_usage() - $before);
+        }
+
+        $this->valkey_glide->del($key);
+    }
+
     public function testSScan()
     {
         set_time_limit(getenv("VALGRIND_TEST") ? 300 : 10); // Enforce a 10-second limit on this test

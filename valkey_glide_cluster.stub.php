@@ -964,6 +964,9 @@ class ValkeyGlideCluster
 
     /**
      * @see ValkeyGlide::hscan
+     *
+     * @throws ValkeyGlideException In multi() or pipeline(), where SCAN commands can't be
+     *                              queued. The batch stays open: call exec() or discard().
      */
     public function hscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): array|bool;
 
@@ -1439,6 +1442,9 @@ class ValkeyGlideCluster
 
     /**
      * @see ValkeyGlide::scan
+     *
+     * @throws ValkeyGlideException In multi() or pipeline(), where SCAN commands can't be
+     *                              queued. The batch stays open: call exec() or discard().
      */
     public function scan(ClusterScanCursor $iterator, ?string $pattern = null, int $count = 0, ?string $type = null): bool|array;
 
@@ -1574,6 +1580,9 @@ class ValkeyGlideCluster
 
     /**
      * @see ValkeyGlide::sscan
+     *
+     * @throws ValkeyGlideException In multi() or pipeline(), where SCAN commands can't be
+     *                              queued. The batch stays open: call exec() or discard().
      */
     public function sscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): array|false;
 
@@ -1903,8 +1912,11 @@ class ValkeyGlideCluster
 
     /**
      * @see ValkeyGlide::zscan
+     *
+     * @throws ValkeyGlideException In multi() or pipeline(), where SCAN commands can't be
+     *                              queued. The batch stays open: call exec() or discard().
      */
-    public function zscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): ValkeyGlideCluster|bool|array;
+    public function zscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): bool|array;
 
     /**
      * @see ValkeyGlide::zScore

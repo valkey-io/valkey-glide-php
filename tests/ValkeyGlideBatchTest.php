@@ -1291,32 +1291,28 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->hset($key2, 'field1', 'value1', 'field2', 'value2');
         $this->valkey_glide->zadd($key3, 1, 'zmember1', 2, 'zmember2');
 
-        // Execute SCAN, SSCAN, HSCAN in multi/exec batch
+        // SCAN, SSCAN and HSCAN can't be queued (their iterator is only updated after exec());
+        // each throws and the rest of the transaction still runs
         $it = null;
-        $sscan_it = null;
-        $hscan_it = null;
+        $this->valkey_glide->multi();
+        $this->assertThrows(ValkeyGlideException::class, function () use (&$it) {
+            $this->valkey_glide->scan($it);
+        });
+        $this->assertThrows(ValkeyGlideException::class, function () use ($key1, &$it) {
+            $this->valkey_glide->sscan($key1, $it);
+        });
+        $this->assertThrows(ValkeyGlideException::class, function () use ($key2, &$it) {
+            $this->valkey_glide->hscan($key2, $it);
+        });
+        $this->assertNull($it);
+        $results = $this->valkey_glide->scard($key1)->hlen($key2)->exec();
+        $this->assertEquals([3, 2], $results);
 
-        $results = $this->valkey_glide->multi()
-            ->scan($it)
-            ->sscan($key1, $sscan_it)
-            ->hscan($key2, $hscan_it)
-            ->exec();
-
-        // Verify transaction results
-        $this->assertIsArray($results);
-        $this->assertCount(3, $results);
-        $this->assertIsArray($results[0]); // SCAN result [cursor, keys]
-        $temp_it = null;
-        $this->assertEquals($this->valkey_glide->scan($temp_it), $results[0]);
-        $this->assertIsArray($results[1]); // SSCAN result [cursor, members]
+        // Outside a batch they work as usual
         $sscan_it = null;
-        $this->assertEquals($results[1], $this->valkey_glide->sscan($key1, $sscan_it));
-        $this->assertIsArray($results[2]); // HSCAN result [cursor, fields_values]
-        $hscan_it = null;
-        $this->assertEquals($results[2], $this->valkey_glide->hscan($key2, $hscan_it));
-        // Verify server-side effects (scan operations don't modify data)
-        $this->assertEquals(3, $this->valkey_glide->scard($key1));
-        $this->assertEquals(2, $this->valkey_glide->hlen($key2));
+        $members = $this->valkey_glide->sscan($key1, $sscan_it);
+        sort($members);
+        $this->assertEquals(['member1', 'member2', 'member3'], $members);
 
         // Cleanup
         $this->valkey_glide->del($key1, $key2, $key3);
@@ -1330,22 +1326,25 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         // Setup test data
         $this->valkey_glide->zadd($key1, 1, 'a', 2, 'b', 3, 'c', 4, 'd', 5, 'e');
 
-        // Execute ZSCAN, ZLEXCOUNT, ZRANDMEMBER in multi/exec batch
+        // ZSCAN can't be queued (its iterator is only updated after exec()); it throws and
+        // the rest of the transaction still runs
         $it = null;
-        $results = $this->valkey_glide->multi()
-            ->zscan($key1, $it)
+        $this->valkey_glide->multi();
+        $this->assertThrows(ValkeyGlideException::class, function () use ($key1, &$it) {
+            $this->valkey_glide->zscan($key1, $it);
+        });
+        $this->assertNull($it);
+        $results = $this->valkey_glide
             ->zlexcount($key1, '-', '+')
             ->zrandmember($key1, ['count' => 2])
             ->exec();
 
         // Verify transaction results
         $this->assertIsArray($results);
-        $this->assertCount(3, $results);
-        $this->assertIsArray($results[0]); // ZSCAN result [cursor, members_scores]
-        $this->assertCount(5, $results[0]);
-        $this->assertEquals(5, $results[1]); // ZLEXCOUNT result
-        $this->assertIsArray($results[2]); // ZRANDMEMBER result
-        $this->assertCount(2, $results[2]);
+        $this->assertCount(2, $results);
+        $this->assertEquals(5, $results[0]); // ZLEXCOUNT result
+        $this->assertIsArray($results[1]); // ZRANDMEMBER result
+        $this->assertCount(2, $results[1]);
 
         // Verify server-side effects (no modifications)
         $this->assertEquals(5, $this->valkey_glide->zcard($key1));

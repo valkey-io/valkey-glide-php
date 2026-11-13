@@ -15,6 +15,8 @@
 */
 #include "valkey_glide_s_common.h"
 
+#include <zend_exceptions.h>
+
 #include "cluster_scan_cursor.h"
 #include "command_response.h"
 #include "common.h"
@@ -608,6 +610,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
 
     if (!response) {
         if (args->scan_iter) {
+            zval_ptr_dtor(args->scan_iter);
             ZVAL_STRINGL(args->scan_iter, "0", 1);
             efree(args->cursor);
             efree(args);
@@ -623,6 +626,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
 
     if (response->response_type != Array || response->array_value_len < 2) {
         if (args->scan_iter) {
+            zval_ptr_dtor(args->scan_iter);
             ZVAL_STRINGL(args->scan_iter, "0", 1);
             efree(args->cursor);
             efree(args);
@@ -643,6 +647,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
         /* Handle unexpected cursor type */
 
         if (args->scan_iter) {
+            zval_ptr_dtor(args->scan_iter);
             ZVAL_STRINGL(args->scan_iter, "0", 1);
             efree(args->cursor);
             efree(args);
@@ -658,6 +663,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
     if (elements_resp->response_type != Array) {
         array_init(return_value);
         if (args->scan_iter) {
+            zval_ptr_dtor(args->scan_iter);
             ZVAL_STRINGL(args->scan_iter, "0", 1);
             efree(args->cursor);
             efree(args);
@@ -2017,6 +2023,19 @@ static void scan_discard_page(zval* return_value) {
     ZVAL_NULL(return_value);
 }
 
+/* A SCAN command updates its iterator from the reply, which a queued command only gets at exec(),
+ * after the iterator may be gone. Refuse SCAN commands in multi()/pipeline() with an exception, so
+ * the caller cannot miss that the command is not part of the batch. PHPRedis refuses them too
+ * (a fatal error on Redis, a RedisClusterException on RedisCluster) */
+static int scan_rejected_in_batch(valkey_glide_object* valkey_glide) {
+    if (!valkey_glide->is_in_batch_mode) {
+        return 0;
+    }
+    zend_throw_exception(
+        get_valkey_glide_exception_ce(), "Can't call SCAN commands in multi or pipeline mode", 0);
+    return 1;
+}
+
 /**
  * Execute SCAN command with unified signature
  */
@@ -2059,6 +2078,9 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
                                          &count,
                                          &type,
                                          &type_len) == FAILURE) {
+            return 0;
+        }
+        if (scan_rejected_in_batch(valkey_glide)) {
             return 0;
         }
 
@@ -2149,6 +2171,9 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
                                          &count,
                                          &type,
                                          &type_len) == FAILURE) {
+            return 0;
+        }
+        if (scan_rejected_in_batch(valkey_glide)) {
             return 0;
         }
 
@@ -2303,6 +2328,9 @@ int execute_scan_command_generic(
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+    if (scan_rejected_in_batch(valkey_glide)) {
         return 0;
     }
 
