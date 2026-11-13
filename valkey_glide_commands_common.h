@@ -285,10 +285,10 @@ int execute_cluster_scan_command(const void* glide_client,
                                  const char* pattern,
                                  size_t      pattern_len,
                                  long        count,
-                                 int         has_count,
+                                 bool        has_count,
                                  const char* type,
                                  size_t      type_len,
-                                 int         has_type,
+                                 bool        has_type,
                                  zval*       return_value);
 int execute_sscan_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_copy_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
