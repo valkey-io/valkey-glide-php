@@ -37,6 +37,16 @@
 
 ### Changes
 
+* Add valkey-search 1.3.0 support: typed API parity with the Python/Node/Java/Go ports --
+  `FT.CREATE` `FILTER`, `SCORE_FIELD`, `NOHL`, `SORTABLE UNF`, and FLOAT16/BFLOAT16 vector types
+  (`FtVectorField::hnsw()`/`flat()`'s `$vectorType` parameter); `FT.AGGREGATE`/`FT.HYBRID`
+  `LOAD ... AS` field aliasing (`LoadField`); `FT.SEARCH` `INKEYS`, `WITHSCORES` and `SCORER`;
+  `FT.AGGREGATE` `ADDSCORES`, `SCORER` and `WITHCURSOR` paging (`ftCursorRead()`/`ftCursorDel()`);
+  `FT.HYBRID` (`ftHybrid()`), fusing a text/tag/numeric query with a vector similarity search via
+  RRF, linear or a custom fusion expression. `FT.HYBRID` and the cursor commands are dispatched
+  through the client's raw-command path pending an upstream core change; see this port's PR
+  description Limitations for details
+* Add `FtReducer::toList()`, `firstValue()` and `randomSample()` reducers
 * At most 10,000 messages or 64 MiB of payload are queued per pub/sub subscriber (a single larger message is still delivered when the queue is empty). When a slow callback falls behind, newer messages are dropped and a warning with the drop count is logged (at most once per second); previously every message was queued, without a limit ([#363](https://github.com/valkey-io/valkey-glide-php/issues/363))
 * Add persistent clients for PHP-FPM and other long-lived worker processes: `connect(persistent_id: ...)` and `new ValkeyGlideCluster(persistent: true)` keep the client open after the request and reuse it in later requests that use the same configuration, instead of connecting (and, for clusters, discovering the topology) on every request. New ini setting `valkey_glide.max_persistent_clients` (default 32) caps kept clients per process (per thread under ZTS). See "Persistent Clients" in the README ([#219](https://github.com/valkey-io/valkey-glide-php/issues/219))
 * Add `ValkeyGlide::pconnect()`, which takes the same arguments as `connect()` and keeps the client as a persistent client, even without a `persistent_id`, unless `valkey_glide.max_persistent_clients` is `0` (PHPRedis compatible). It is standalone only; for the cluster client use `new ValkeyGlideCluster(persistent: true)`
