@@ -1728,8 +1728,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->llen('list'));// not a list returns FALSE
     }
 
-    /* Doubles whose "%.6f" form is longer than 63 characters are pushed whole. The old
-     * 64-byte buffer held at most 63 characters plus the terminating NUL. */
+    /* Large doubles are pushed whole, in PHP's string form ((string) $float), as other values
+     * are. Their old "%.6f" form was longer than the 64-byte buffer that once held it. */
     public function testListPushLargeDouble()
     {
         $this->valkey_glide->del('list');
@@ -1738,8 +1738,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(3, $this->valkey_glide->rPush('list', ...$values));
         $this->assertEquals(4, $this->valkey_glide->lPush('list', 1e100));
 
-        $expected = array_map(fn ($value) => sprintf('%.6f', $value), array_merge([1e100], $values));
-        $this->assertGT(63, strlen($expected[1])); // guard: too long for the old buffer
+        $expected = array_map(fn ($value) => (string) $value, array_merge([1e100], $values));
         $this->assertEquals($expected, $this->valkey_glide->lRange('list', 0, -1));
 
         $this->valkey_glide->del('list');
