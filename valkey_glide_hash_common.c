@@ -3227,6 +3227,7 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
 
     if (result) {
         if (valkey_glide->is_in_batch_mode) {
+            valkey_glide_batch_own_result(valkey_glide, args, free_h_fields_args);
             ZVAL_COPY(return_value, object);
             return 1;
         }
