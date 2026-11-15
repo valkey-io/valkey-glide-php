@@ -6611,6 +6611,66 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del('{discard}h', '{discard}z', '{discard}s', '{discard}g');
     }
 
+    /* Freeing a queued hGetEx() field can release the last reference to an object whose
+     * destructor calls the client again. That nested call must find no batch: it used to
+     * free the commands the outer discard(), exec() or close() was still freeing */
+    public function testBatchCleanupReentryFromFieldDestructor()
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('HGETEX requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $key = '{reentry}h';
+        $this->valkey_glide->del($key);
+        $this->valkey_glide->hSet($key, 'f', 'v');
+
+        /* Queues hGetEx() with a field object only the batch references */
+        $queue = function ($client, $on_destruct) use ($key) {
+            $client->hGetEx($key, [new class ($on_destruct) {
+                public function __construct(private $on_destruct)
+                {
+                }
+                public function __toString(): string
+                {
+                    return 'f';
+                }
+                public function __destruct()
+                {
+                    ($this->on_destruct)();
+                }
+            }]);
+        };
+
+        foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+            $client = $this->newInstance();
+
+            /* discard() frees the field; its destructor calls discard() and queues a new batch */
+            $client->multi($mode);
+            $queue($client, function () use ($client) {
+                $client->discard();
+                $client->multi();
+                $client->get('{reentry}x');
+            });
+            $client->set('{reentry}x', 'queued');
+            $this->assertTrue($client->discard());
+            $this->assertEquals([false], $client->exec());
+
+            /* exec()'s result processor frees the field; its destructor calls discard() */
+            $client->multi($mode);
+            $queue($client, fn() => $client->discard());
+            $client->hGet($key, 'f');
+            $this->assertEquals([['f' => 'v'], 'v'], $client->exec());
+            $this->assertEquals('v', $client->hGet($key, 'f'));
+
+            /* close() frees the field; its destructor calls close() */
+            $client->multi($mode);
+            $queue($client, fn() => $client->close());
+            $client->close();
+        }
+
+        $this->valkey_glide->del($key, '{reentry}x');
+    }
+
     public function testDiscardAndCloseFreeQueuedCommandState()
     {
         $is_cluster = $this->valkey_glide instanceof ValkeyGlideCluster;
