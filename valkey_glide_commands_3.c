@@ -2245,13 +2245,25 @@ static bool rawcommand_route_reaches_all_primaries(zval* route) {
             zend_string_equals_literal_ci(Z_STR_P(route), "allNodes"));
 }
 
-/* A cluster route that names a key, not a node ("randomNode", "allPrimaries", "allNodes" or
- * [host, port]) */
+/* A cluster route that names a key: a key string, or ['type' => 'primarySlotKey' or 'slotKey',
+ * 'key' => ...]. Not a node route ("randomNode", "allPrimaries", "allNodes", [host, port] or
+ * ['type' => 'routeByAddress', ...]) */
 static bool rawcommand_route_is_key(zval* route) {
-    return Z_TYPE_P(route) == IS_STRING &&
-           !zend_string_equals_literal_ci(Z_STR_P(route), "randomNode") &&
-           !zend_string_equals_literal_ci(Z_STR_P(route), "allPrimaries") &&
-           !zend_string_equals_literal_ci(Z_STR_P(route), "allNodes");
+    if (Z_TYPE_P(route) == IS_STRING) {
+        return !zend_string_equals_literal_ci(Z_STR_P(route), "randomNode") &&
+               !zend_string_equals_literal_ci(Z_STR_P(route), "allPrimaries") &&
+               !zend_string_equals_literal_ci(Z_STR_P(route), "allNodes");
+    }
+    if (Z_TYPE_P(route) != IS_ARRAY) {
+        return false;
+    }
+
+    zval* type = zend_hash_str_find(Z_ARRVAL_P(route), "type", sizeof("type") - 1);
+    zval* key  = zend_hash_str_find(Z_ARRVAL_P(route), "key", sizeof("key") - 1);
+    return type && Z_TYPE_P(type) == IS_STRING &&
+           (zend_string_equals_literal_ci(Z_STR_P(type), "primarySlotKey") ||
+            zend_string_equals_literal_ci(Z_STR_P(type), "slotKey")) &&
+           key && (Z_TYPE_P(key) == IS_STRING || Z_TYPE_P(key) == IS_LONG);
 }
 
 /* Execute rawcommand command */

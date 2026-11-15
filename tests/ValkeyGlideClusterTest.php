@@ -2306,8 +2306,18 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
             $this->assertFalse($this->valkey_glide->rawcommand('allPrimaries', 'PING'));
             $this->assertStringContains('key route', (string) $this->valkey_glide->getLastError());
             $this->assertFalse($this->valkey_glide->rawcommand(['127.0.0.1', $this->getPort()], 'PING'));
+            $this->assertFalse($this->valkey_glide->rawcommand(
+                ['type' => 'routeByAddress', 'host' => '127.0.0.1', 'port' => $this->getPort()],
+                'PING'
+            ));
+            /* Key routes queue, as a key string or as an array */
             $this->assertTrue($this->valkey_glide->rawcommand('{k}', 'PING') === $this->valkey_glide);
-            $this->assertEquals(['PONG'], $this->valkey_glide->exec());
+            foreach (['primarySlotKey', 'slotKey'] as $type) {
+                $this->assertTrue(
+                    $this->valkey_glide->rawcommand(['type' => $type, 'key' => '{k}'], 'PING') === $this->valkey_glide
+                );
+            }
+            $this->assertEquals(['PONG', 'PONG', 'PONG'], $this->valkey_glide->exec());
         }
     }
 
