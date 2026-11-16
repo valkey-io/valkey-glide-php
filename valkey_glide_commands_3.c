@@ -78,6 +78,10 @@ static enum RequestType determine_client_command_type(zval* args, int args_count
 
 static void cleanup_allocated_strings(char** allocated_strings, int allocated_count);
 
+static int buffer_rawcommand_for_batch(valkey_glide_object* valkey_glide,
+                                       zval*                z_args,
+                                       int                  arg_count);
+
 static int command_response_to_zval_wrapper(CommandResponse* response,
                                             void*            output,
                                             zval*            return_value);
@@ -131,42 +135,83 @@ int execute_wait_command(zval* object, int argc, zval* return_value, zend_class_
 
 /* Helper function implementations */
 
+/* Free an array of buffered commands that is no longer attached to a client */
+static void free_batch_commands(struct batch_command* cmds, size_t count) {
+    if (!cmds) {
+        return;
+    }
+
+    size_t i, j;
+    for (i = 0; i < count; i++) {
+        struct batch_command* cmd = &cmds[i];
+
+        /* Free argument arrays */
+        if (cmd->args) {
+            for (j = 0; j < cmd->arg_count; j++) {
+                if (cmd->args[j]) {
+                    efree(cmd->args[j]);
+                }
+            }
+            efree(cmd->args);
+        }
+
+        if (cmd->arg_lengths) {
+            efree(cmd->arg_lengths);
+        }
+
+        /* Free result state that exec() did not hand to the processor */
+        if (cmd->result_ptr && cmd->free_result) {
+            cmd->free_result(cmd->result_ptr);
+        }
+    }
+    efree(cmds);
+}
+
+/* Leave batch mode and take the buffered commands away from the client. Freeing them, or running
+ * their result processors, can release the last reference to a PHP object whose destructor
+ * calls this client again (discard(), close(), multi()): it must find no batch, not the one
+ * being freed */
+static struct batch_command* detach_batch(valkey_glide_object* valkey_glide, size_t* count) {
+    struct batch_command* cmds = valkey_glide->buffered_commands;
+    *count                     = valkey_glide->command_count;
+
+    valkey_glide->buffered_commands = NULL;
+    valkey_glide->command_capacity  = 0;
+    valkey_glide->command_count     = 0;
+    valkey_glide->is_in_batch_mode  = false;
+    valkey_glide->batch_type        = MULTI;
+    return cmds;
+}
+
 /* Clear batch state and free buffered commands */
 void valkey_glide_clear_batch_state(valkey_glide_object* valkey_glide) {
     if (!valkey_glide) {
         return;
     }
 
+    size_t                count;
+    struct batch_command* cmds = detach_batch(valkey_glide, &count);
+    free_batch_commands(cmds, count);
+}
 
-    if (valkey_glide->buffered_commands) {
-        /* Free each buffered command */
-        size_t i, j;
-        for (i = 0; i < valkey_glide->command_count; i++) {
-            struct batch_command* cmd = &valkey_glide->buffered_commands[i];
-
-            /* Free argument arrays */
-            if (cmd->args) {
-                for (j = 0; j < cmd->arg_count; j++) {
-                    if (cmd->args[j]) {
-                        efree(cmd->args[j]);
-                    }
-                }
-                efree(cmd->args);
-            }
-
-            if (cmd->arg_lengths) {
-                efree(cmd->arg_lengths);
-            }
-        }
-
-        efree(valkey_glide->buffered_commands);
-        valkey_glide->buffered_commands = NULL;
-        valkey_glide->command_capacity  = 0;
+/* Let the command just buffered with result_ptr free it if exec() never processes it. Call this
+ * right after buffering a command whose result_ptr the caller allocated and its processor frees */
+void valkey_glide_batch_own_result(valkey_glide_object* valkey_glide,
+                                   void*                result_ptr,
+                                   void (*free_result)(void* result_ptr)) {
+    if (!valkey_glide || !result_ptr || valkey_glide->command_count == 0) {
+        return;
     }
 
-    valkey_glide->is_in_batch_mode = false;
-    valkey_glide->batch_type       = MULTI;
-    valkey_glide->command_count    = 0;
+    struct batch_command* cmd = &valkey_glide->buffered_commands[valkey_glide->command_count - 1];
+    if (cmd->result_ptr == result_ptr) {
+        cmd->free_result = free_result;
+    }
+}
+
+/* free_result for a result_ptr that is a single emalloc'd block */
+void valkey_glide_batch_efree_result(void* result_ptr) {
+    efree(result_ptr);
 }
 
 /* Expand command buffer capacity */
@@ -230,6 +275,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
     cmd->arg_count      = arg_count;
     cmd->result_ptr     = result_ptr;
     cmd->process_result = process_result;
+    cmd->free_result    = NULL;
 
 
     /* Copy arguments */
@@ -905,14 +951,44 @@ int execute_pipeline_command(zval* object, int argc, zval* return_value, zend_cl
     return initialize_batch_mode(valkey_glide, PIPELINE, object, return_value);
 }
 
-/* Track whether the server may still hold a WATCH after a batch executes. The flag is
+/* Whether a raw command is a (P|S)SUBSCRIBE with a channel, which can subscribe on the server
+ * even when it reports failure. Without a channel the server rejects it */
+static bool raw_command_is_subscribe(const char* name, size_t len, size_t arg_count) {
+    return arg_count > 1 && ((len == 9 && strncasecmp(name, "SUBSCRIBE", 9) == 0) ||
+                             (len == 10 && (strncasecmp(name, "PSUBSCRIBE", 10) == 0 ||
+                                            strncasecmp(name, "SSUBSCRIBE", 10) == 0)));
+}
+
+/* Whether a buffered command is the raw command (rawcommand()) with this name */
+static bool batch_command_is_raw(const struct batch_command* cmd, const char* name, size_t len) {
+    return cmd->request_type == CustomCommand && cmd->arg_count > 0 && cmd->args &&
+           cmd->arg_lengths[0] == len && strncasecmp((const char*) cmd->args[0], name, len) == 0;
+}
+
+/* Track whether the server may still hold a WATCH, or a raw subscription, after a batch
+ * executes. The watch flag is
  * only cleared once the server has ended the watch, since OPT_SLAVE_FAILOVER relies on it
  * to avoid dropping the watched connection. */
-static void update_watch_state(valkey_glide_object*  valkey_glide,
-                               bool                  is_atomic,
-                               bool                  is_cluster,
-                               struct CommandResult* result) {
+static void update_batch_connection_state(valkey_glide_object*  valkey_glide,
+                                          bool                  is_atomic,
+                                          bool                  is_cluster,
+                                          struct CommandResult* result) {
     bool executed = result && !result->command_error;
+
+    /* A queued raw (P|S)SUBSCRIBE can subscribe on the server once the batch is sent, even if
+     * it reports failure, as the immediate rawcommand() path assumes. Without a channel the
+     * server rejects it. A result does not tell a batch the core rejected before sending, or an
+     * aborted EXEC, from one that ran, so those are counted too: refusing OPT_SLAVE_FAILOVER
+     * needlessly is safe, dropping a subscription is not */
+    if (result) {
+        for (size_t i = 0; i < valkey_glide->command_count; i++) {
+            const struct batch_command* cmd = &valkey_glide->buffered_commands[i];
+            if (cmd->request_type == CustomCommand && cmd->arg_count > 0 && cmd->args &&
+                raw_command_is_subscribe(
+                    (const char*) cmd->args[0], cmd->arg_lengths[0], cmd->arg_count))
+                valkey_glide->raw_subscribed = true;
+        }
+    }
 
     if (is_atomic) {
         /* The server ends every WATCH when it runs EXEC, including EXEC aborted by a watched
@@ -929,10 +1005,11 @@ static void update_watch_state(valkey_glide_object*  valkey_glide,
                           result->response->response_type == Array &&
                           result->response->array_value_len == valkey_glide->command_count;
     for (size_t i = 0; i < valkey_glide->command_count; i++) {
-        enum RequestType type = valkey_glide->buffered_commands[i].request_type;
-        if (type == Watch) {
+        const struct batch_command* cmd  = &valkey_glide->buffered_commands[i];
+        enum RequestType            type = cmd->request_type;
+        if (type == Watch || batch_command_is_raw(cmd, "WATCH", 5)) {
             valkey_glide->is_watching = true;
-        } else if (type == UnWatch && have_responses &&
+        } else if ((type == UnWatch || batch_command_is_raw(cmd, "UNWATCH", 7)) && have_responses &&
                    result->response->array_value[i].response_type != Error) {
             valkey_glide->is_watching = false;
         }
@@ -1079,7 +1156,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     /* A lazy client's resolver may have closed clients while it ran */
     valkey_glide_run_deferred_closes();
 
-    update_watch_state(
+    update_batch_connection_state(
         valkey_glide, batch_info.is_atomic, ce == get_valkey_glide_cluster_ce(), result);
 
     /* Free CmdInfo structures */
@@ -1088,14 +1165,20 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     }
     efree(cmd_infos);
 
-    /* Process results and clear batch state */
+    /* Result processors can run PHP destructors that call this client again; they must not see
+     * the batch being processed */
+    bool                  is_multi = valkey_glide->batch_type == MULTI;
+    size_t                cmd_count;
+    struct batch_command* cmds = detach_batch(valkey_glide, &cmd_count);
+
+    /* Process results and free the commands */
     int status = 0;
     if (result) {
         if (result->command_error) {
             /* Command failed */
             valkey_glide_record_command_error(valkey_glide, result);
             free_command_result(result);
-            valkey_glide_clear_batch_state(valkey_glide);
+            free_batch_commands(cmds, cmd_count);
             ZVAL_FALSE(return_value);
             return 0;
         }
@@ -1103,25 +1186,25 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
         /* EXEC ran on the server, which clears WATCH. In a cluster it ran on
          * one node only, while WATCH may cover others: keep the flag so the
          * release-time UNWATCH (sent to all primaries) clears them */
-        if (valkey_glide->batch_type == MULTI && ce != get_valkey_glide_cluster_ce()) {
+        if (is_multi && ce != get_valkey_glide_cluster_ce()) {
             valkey_glide->persistent_watching = false;
         }
         if (result->response) {
             if (result->response->response_type != Array ||
-                result->response->array_value_len != valkey_glide->command_count) {
+                result->response->array_value_len != (long) cmd_count) {
                 ZVAL_FALSE(return_value);
                 status = 0;
                 free_command_result(result);
-                valkey_glide_clear_batch_state(valkey_glide);
+                free_batch_commands(cmds, cmd_count);
                 return status;
             }
             array_init(return_value);
             for (int64_t idx = 0; idx < result->response->array_value_len; idx++) {
                 zval value;
-                int  process_status = valkey_glide->buffered_commands[idx].process_result(
-                    &result->response->array_value[idx],
-                    valkey_glide->buffered_commands[idx].result_ptr,
-                    &value);
+                int  process_status = cmds[idx].process_result(
+                    &result->response->array_value[idx], cmds[idx].result_ptr, &value);
+                /* The processor consumed result_ptr; freeing the commands must not free it */
+                cmds[idx].result_ptr = NULL;
 
                 if (process_status) {
                     /* Add the processed result to return array */
@@ -1142,7 +1225,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     }
 
     free_command_result(result);
-    valkey_glide_clear_batch_state(valkey_glide);
+    free_batch_commands(cmds, cmd_count);
     return status;
 }
 
@@ -1832,6 +1915,8 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
 
                                          command_type_ptr,
                                          process_config_command_respose)) {
+                valkey_glide_batch_own_result(
+                    valkey_glide, command_type_ptr, valkey_glide_batch_efree_result);
                 /* Return $this */
                 ZVAL_COPY(return_value, object);
                 status = 1;
@@ -2159,6 +2244,7 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
             efree(args_len);
         cleanup_allocated_strings(allocated_strings, allocated_count);
         if (buffer_result) {
+            valkey_glide_batch_own_result(valkey_glide, output, valkey_glide_batch_efree_result);
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2210,6 +2296,27 @@ static bool rawcommand_route_reaches_all_primaries(zval* route) {
             zend_string_equals_literal_ci(Z_STR_P(route), "allNodes"));
 }
 
+/* A cluster route that names a key: a key string, or ['type' => 'primarySlotKey' or 'slotKey',
+ * 'key' => ...]. Not a node route ("randomNode", "allPrimaries", "allNodes", [host, port] or
+ * ['type' => 'routeByAddress', ...]) */
+static bool rawcommand_route_is_key(zval* route) {
+    if (Z_TYPE_P(route) == IS_STRING) {
+        return !zend_string_equals_literal_ci(Z_STR_P(route), "randomNode") &&
+               !zend_string_equals_literal_ci(Z_STR_P(route), "allPrimaries") &&
+               !zend_string_equals_literal_ci(Z_STR_P(route), "allNodes");
+    }
+    if (Z_TYPE_P(route) != IS_ARRAY) {
+        return false;
+    }
+
+    zval* type = zend_hash_str_find(Z_ARRVAL_P(route), "type", sizeof("type") - 1);
+    zval* key  = zend_hash_str_find(Z_ARRVAL_P(route), "key", sizeof("key") - 1);
+    return type && Z_TYPE_P(type) == IS_STRING &&
+           (zend_string_equals_literal_ci(Z_STR_P(type), "primarySlotKey") ||
+            zend_string_equals_literal_ci(Z_STR_P(type), "slotKey")) &&
+           key && (Z_TYPE_P(key) == IS_STRING || Z_TYPE_P(key) == IS_LONG);
+}
+
 /* Execute rawcommand command */
 int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -2255,7 +2362,9 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
 
     /* SELECT, AUTH, CLIENT SETNAME, SUBSCRIBE, ... change the connection's state.
      * Convert the name and subcommand in place first, so the check sees the
-     * bytes that are sent (a Stringable converts once). */
+     * bytes that are sent (a Stringable converts once). The client is marked before the
+     * batch branch below on purpose: a command refused there, or queued and then discarded,
+     * still stops a persistent client from being reused, which is the safe direction. */
     for (int i = 0; i < arg_count && i < 2; i++) {
         if (Z_TYPE(z_args[i]) != IS_STRING) {
             convert_to_string(&z_args[i]);
@@ -2273,13 +2382,44 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
         }
     }
 
+    /* In multi()/pipeline() the command is queued like any other and its reply is part of
+     * exec()'s result. A queued raw (P|S)SUBSCRIBE is recorded when the batch is sent
+     * (update_batch_connection_state()), so a discarded one is not.
+     *
+     * Differences from PHPRedis: a batch routes each command by its own keys (the core's batch
+     * API has no per-command route), so a cluster route must be a key, and even that is not
+     * used, where PHPRedis sends the command to the route's node. A keyless command takes the
+     * core's default routing for it: all primaries or all nodes for some (INFO, UNWATCH,
+     * CONFIG SET, ...), a random node for others (CLUSTER ..., CONFIG GET, ...). In multi() the
+     * whole transaction goes to one node. A [host, port] route, which PHPRedis queues, is
+     * refused here, as are the named routes randomNode, allPrimaries and allNodes (which
+     * PHPRedis does not have), rather than sending the command somewhere other than asked. SELECT,
+     * AUTH, HELLO, CLIENT SETNAME and RESET, which PHPRedis queues, are refused, as select() is,
+     * because the client mirrors their state for OPT_SLAVE_FAILOVER and cannot mirror a queued
+     * command */
+    if (valkey_glide->is_in_batch_mode) {
+        if (route && !rawcommand_route_is_key(route)) {
+            valkey_glide_set_last_error(
+                valkey_glide, "rawcommand() can only be queued in a batch with a key route");
+            return 0;
+        }
+        if (valkey_glide_is_tracked_connection_command(Z_STR(z_args[0]),
+                                                       arg_count > 1 ? Z_STR(z_args[1]) : NULL)) {
+            valkey_glide_set_last_error(
+                valkey_glide,
+                "rawcommand() can't queue SELECT, AUTH, HELLO, CLIENT SETNAME or RESET in a batch");
+            return 0;
+        }
+        if (buffer_rawcommand_for_batch(valkey_glide, z_args, arg_count)) {
+            ZVAL_COPY(return_value, object);
+            return 1;
+        }
+        return 0;
+    }
+
     /* A raw (P|S)SUBSCRIBE can subscribe on the server even when the call reports failure, and
-     * nothing records it for OPT_SLAVE_FAILOVER to refuse recreating the client. Without a
-     * channel the server rejects it, so there is nothing to record */
-    if (arg_count > 1 && Z_TYPE(z_args[0]) == IS_STRING &&
-        (zend_string_equals_literal_ci(Z_STR(z_args[0]), "SUBSCRIBE") ||
-         zend_string_equals_literal_ci(Z_STR(z_args[0]), "PSUBSCRIBE") ||
-         zend_string_equals_literal_ci(Z_STR(z_args[0]), "SSUBSCRIBE")))
+     * nothing records it for OPT_SLAVE_FAILOVER to refuse recreating the client */
+    if (raw_command_is_subscribe(Z_STRVAL(z_args[0]), Z_STRLEN(z_args[0]), arg_count))
         valkey_glide->raw_subscribed = true;
 
     /* Execute the raw command using the Glide client */
@@ -2294,11 +2434,8 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
                 valkey_glide->is_watching = false;
             /* The core keeps the state these set, on any route, for its reconnects, so a
              * client recreated by OPT_SLAVE_FAILOVER must keep it too */
-            else if (zend_string_equals_literal_ci(Z_STR(z_args[0]), "SELECT") ||
-                     zend_string_equals_literal_ci(Z_STR(z_args[0]), "AUTH") ||
-                     zend_string_equals_literal_ci(Z_STR(z_args[0]), "HELLO") ||
-                     zend_string_equals_literal_ci(Z_STR(z_args[0]), "CLIENT") ||
-                     zend_string_equals_literal_ci(Z_STR(z_args[0]), "RESET")) {
+            else if (valkey_glide_is_tracked_connection_command(
+                         Z_STR(z_args[0]), arg_count > 1 ? Z_STR(z_args[1]) : NULL)) {
                 zend_string** words = safe_emalloc(arg_count, sizeof(zend_string*), 0);
                 for (int i = 0; i < arg_count; i++)
                     words[i] = zval_get_string(&z_args[i]);
@@ -2312,6 +2449,47 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
     }
 
     return 0;
+}
+
+/* Convert a queued raw command's reply as rawcommand() does outside a batch */
+static int process_rawcommand_batch_result(CommandResponse* response,
+                                           void*            output,
+                                           zval*            return_value) {
+    if (!response) {
+        return 0;
+    }
+    return command_response_to_zval(
+        response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+}
+
+/* Queue a raw command in the current multi()/pipeline() */
+static int buffer_rawcommand_for_batch(valkey_glide_object* valkey_glide,
+                                       zval*                z_args,
+                                       int                  arg_count) {
+    uintptr_t*     cmd_args          = NULL;
+    unsigned long* args_len          = NULL;
+    char**         allocated_strings = NULL;
+    int            allocated_count   = 0;
+    int            status            = 0;
+
+    if (convert_zval_args_to_strings(
+            z_args, arg_count, &cmd_args, &args_len, &allocated_strings, &allocated_count) &&
+        !EG(exception)) {
+        status = buffer_command_for_batch(valkey_glide,
+                                          CustomCommand,
+                                          cmd_args,
+                                          args_len,
+                                          arg_count,
+                                          NULL,
+                                          process_rawcommand_batch_result);
+    }
+
+    if (cmd_args)
+        efree(cmd_args);
+    if (args_len)
+        efree(args_len);
+    cleanup_allocated_strings(allocated_strings, allocated_count);
+    return status;
 }
 
 /* Execute dbSize command */

@@ -496,7 +496,7 @@ int prepare_key_value_args(core_command_args_t* args,
 
             case CORE_ARG_TYPE_DOUBLE: {
                 size_t len;
-                char*  str = core_double_to_string(args->args[i].data.double_arg.value, &len);
+                char*  str = double_to_string(args->args[i].data.double_arg.value, &len);
                 if (str) {
                     (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
@@ -710,7 +710,7 @@ int prepare_message_args(core_command_args_t* args,
 
             case CORE_ARG_TYPE_DOUBLE: {
                 size_t len;
-                char*  str = core_double_to_string(arg_array[i].data.double_arg.value, &len);
+                char*  str = double_to_string(arg_array[i].data.double_arg.value, &len);
                 if (str) {
                     (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
@@ -1271,20 +1271,6 @@ void free_tracked_strings(char** tracker, int count) {
 char* core_long_to_string(long value, size_t* len) {
     char buffer[32];
     *len      = snprintf(buffer, sizeof(buffer), "%ld", value);
-    char* str = (char*) emalloc(*len + 1);
-    if (str) {
-        memcpy(str, buffer, *len);
-        str[*len] = '\0';
-    }
-    return str;
-}
-
-/**
- * Convert double to string
- */
-char* core_double_to_string(double value, size_t* len) {
-    char buffer[64];
-    *len      = snprintf(buffer, sizeof(buffer), "%.6g", value);
     char* str = (char*) emalloc(*len + 1);
     if (str) {
         memcpy(str, buffer, *len);

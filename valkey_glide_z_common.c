@@ -421,10 +421,8 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             arg_lens[0]   = args->key_len;
 
             /* Add increment parameter */
-            char increment_str[64];
-            int  increment_str_len =
-                snprintf(increment_str, sizeof(increment_str), "%.6g", args->increment);
-            char* increment_str_copy = estrndup(increment_str, increment_str_len);
+            size_t increment_str_len;
+            char*  increment_str_copy = double_to_string(args->increment, &increment_str_len);
 
             arg_values[1]        = (uintptr_t) increment_str_copy;
             arg_lens[1]          = increment_str_len;
@@ -812,6 +810,21 @@ int prepare_z_members_args(z_command_args_t* args,
     return arg_count;
 }
 
+/* Convert a score bound to a string. A float bound is a number, sent in its shortest exact form
+ * like a ZADD score, so that 0.1 + 0.2 stays 0.30000000000000004 instead of becoming 0.3 and
+ * excluding that score. PHPRedis converts a float bound as PHP does ((string) $float, 14
+ * digits); both give the same value for a float with 14 or fewer significant digits.
+ * zCount(), zRemRangeByScore() and zLexCount() take their bounds as string parameters, so PHP
+ * has already converted a float bound there and these are not affected */
+static char* z_bound_to_string(zval* z_value, size_t* len, int* need_free) {
+    ZVAL_DEREF(z_value);
+    if (Z_TYPE_P(z_value) == IS_DOUBLE) {
+        *need_free = 1;
+        return double_to_string(Z_DVAL_P(z_value), len);
+    }
+    return zval_to_string_safe(z_value, len, need_free);
+}
+
 /**
  * Convert a zval to a string argument
  */
@@ -830,7 +843,7 @@ static int convert_zval_to_string_arg(zval*          z_value,
         size_t str_len   = 0;
         int    need_free = 0;
 
-        str_val = zval_to_string_safe(z_value, &str_len, &need_free);
+        str_val = z_bound_to_string(z_value, &str_len, &need_free);
 
         *arg_ptr     = (uintptr_t) str_val;
         *arg_len_ptr = str_len;
@@ -1053,7 +1066,15 @@ int prepare_z_store_args(z_command_args_t* args,
             size_t weight_len = 0;
             int    need_free  = 0;
 
-            weight_str = zval_to_string_safe(weight, &weight_len, &need_free);
+            /* A float weight is a number, sent in its shortest exact form. A weight passed by
+             * reference is dereferenced first, or it would take the value path */
+            ZVAL_DEREF(weight);
+            if (Z_TYPE_P(weight) == IS_DOUBLE) {
+                weight_str = double_to_string(Z_DVAL_P(weight), &weight_len);
+                need_free  = 1;
+            } else {
+                weight_str = zval_to_string_safe(weight, &weight_len, &need_free);
+            }
 
             if (!weight_str) {
                 return 0;
@@ -1250,7 +1271,15 @@ int prepare_z_union_args(z_command_args_t* args,
             size_t weight_len = 0;
             int    need_free  = 0;
 
-            weight_str = zval_to_string_safe(weight, &weight_len, &need_free);
+            /* A float weight is a number, sent in its shortest exact form. A weight passed by
+             * reference is dereferenced first, or it would take the value path */
+            ZVAL_DEREF(weight);
+            if (Z_TYPE_P(weight) == IS_DOUBLE) {
+                weight_str = double_to_string(Z_DVAL_P(weight), &weight_len);
+                need_free  = 1;
+            } else {
+                weight_str = zval_to_string_safe(weight, &weight_len, &need_free);
+            }
 
             if (!weight_str) {
                 return 0;
@@ -1339,7 +1368,7 @@ int prepare_z_rangestore_args(z_command_args_t* args,
     /* Add start and end using framework helper */
     int    need_free = 0;
     size_t len       = 0;
-    char*  str       = zval_to_string_safe(args->z_start, &len, &need_free);
+    char*  str       = z_bound_to_string(args->z_start, &len, &need_free);
     if (!str) {
         return 0;
     }
@@ -1348,7 +1377,7 @@ int prepare_z_rangestore_args(z_command_args_t* args,
     if (need_free)
         (*allocated_strings)[(*allocated_count)++] = str;
 
-    str = zval_to_string_safe(args->z_end, &len, &need_free);
+    str = z_bound_to_string(args->z_end, &len, &need_free);
     if (!str) {
         return 0;
     }
