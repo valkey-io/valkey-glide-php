@@ -135,42 +135,83 @@ int execute_wait_command(zval* object, int argc, zval* return_value, zend_class_
 
 /* Helper function implementations */
 
+/* Free an array of buffered commands that is no longer attached to a client */
+static void free_batch_commands(struct batch_command* cmds, size_t count) {
+    if (!cmds) {
+        return;
+    }
+
+    size_t i, j;
+    for (i = 0; i < count; i++) {
+        struct batch_command* cmd = &cmds[i];
+
+        /* Free argument arrays */
+        if (cmd->args) {
+            for (j = 0; j < cmd->arg_count; j++) {
+                if (cmd->args[j]) {
+                    efree(cmd->args[j]);
+                }
+            }
+            efree(cmd->args);
+        }
+
+        if (cmd->arg_lengths) {
+            efree(cmd->arg_lengths);
+        }
+
+        /* Free result state that exec() did not hand to the processor */
+        if (cmd->result_ptr && cmd->free_result) {
+            cmd->free_result(cmd->result_ptr);
+        }
+    }
+    efree(cmds);
+}
+
+/* Leave batch mode and take the buffered commands away from the client. Freeing them, or running
+ * their result processors, can release the last reference to a PHP object whose destructor
+ * calls this client again (discard(), close(), multi()): it must find no batch, not the one
+ * being freed */
+static struct batch_command* detach_batch(valkey_glide_object* valkey_glide, size_t* count) {
+    struct batch_command* cmds = valkey_glide->buffered_commands;
+    *count                     = valkey_glide->command_count;
+
+    valkey_glide->buffered_commands = NULL;
+    valkey_glide->command_capacity  = 0;
+    valkey_glide->command_count     = 0;
+    valkey_glide->is_in_batch_mode  = false;
+    valkey_glide->batch_type        = MULTI;
+    return cmds;
+}
+
 /* Clear batch state and free buffered commands */
 void valkey_glide_clear_batch_state(valkey_glide_object* valkey_glide) {
     if (!valkey_glide) {
         return;
     }
 
+    size_t                count;
+    struct batch_command* cmds = detach_batch(valkey_glide, &count);
+    free_batch_commands(cmds, count);
+}
 
-    if (valkey_glide->buffered_commands) {
-        /* Free each buffered command */
-        size_t i, j;
-        for (i = 0; i < valkey_glide->command_count; i++) {
-            struct batch_command* cmd = &valkey_glide->buffered_commands[i];
-
-            /* Free argument arrays */
-            if (cmd->args) {
-                for (j = 0; j < cmd->arg_count; j++) {
-                    if (cmd->args[j]) {
-                        efree(cmd->args[j]);
-                    }
-                }
-                efree(cmd->args);
-            }
-
-            if (cmd->arg_lengths) {
-                efree(cmd->arg_lengths);
-            }
-        }
-
-        efree(valkey_glide->buffered_commands);
-        valkey_glide->buffered_commands = NULL;
-        valkey_glide->command_capacity  = 0;
+/* Let the command just buffered with result_ptr free it if exec() never processes it. Call this
+ * right after buffering a command whose result_ptr the caller allocated and its processor frees */
+void valkey_glide_batch_own_result(valkey_glide_object* valkey_glide,
+                                   void*                result_ptr,
+                                   void (*free_result)(void* result_ptr)) {
+    if (!valkey_glide || !result_ptr || valkey_glide->command_count == 0) {
+        return;
     }
 
-    valkey_glide->is_in_batch_mode = false;
-    valkey_glide->batch_type       = MULTI;
-    valkey_glide->command_count    = 0;
+    struct batch_command* cmd = &valkey_glide->buffered_commands[valkey_glide->command_count - 1];
+    if (cmd->result_ptr == result_ptr) {
+        cmd->free_result = free_result;
+    }
+}
+
+/* free_result for a result_ptr that is a single emalloc'd block */
+void valkey_glide_batch_efree_result(void* result_ptr) {
+    efree(result_ptr);
 }
 
 /* Expand command buffer capacity */
@@ -234,6 +275,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
     cmd->arg_count      = arg_count;
     cmd->result_ptr     = result_ptr;
     cmd->process_result = process_result;
+    cmd->free_result    = NULL;
 
 
     /* Copy arguments */
@@ -1123,14 +1165,20 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     }
     efree(cmd_infos);
 
-    /* Process results and clear batch state */
+    /* Result processors can run PHP destructors that call this client again; they must not see
+     * the batch being processed */
+    bool                  is_multi = valkey_glide->batch_type == MULTI;
+    size_t                cmd_count;
+    struct batch_command* cmds = detach_batch(valkey_glide, &cmd_count);
+
+    /* Process results and free the commands */
     int status = 0;
     if (result) {
         if (result->command_error) {
             /* Command failed */
             valkey_glide_record_command_error(valkey_glide, result);
             free_command_result(result);
-            valkey_glide_clear_batch_state(valkey_glide);
+            free_batch_commands(cmds, cmd_count);
             ZVAL_FALSE(return_value);
             return 0;
         }
@@ -1138,25 +1186,25 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
         /* EXEC ran on the server, which clears WATCH. In a cluster it ran on
          * one node only, while WATCH may cover others: keep the flag so the
          * release-time UNWATCH (sent to all primaries) clears them */
-        if (valkey_glide->batch_type == MULTI && ce != get_valkey_glide_cluster_ce()) {
+        if (is_multi && ce != get_valkey_glide_cluster_ce()) {
             valkey_glide->persistent_watching = false;
         }
         if (result->response) {
             if (result->response->response_type != Array ||
-                result->response->array_value_len != valkey_glide->command_count) {
+                result->response->array_value_len != (long) cmd_count) {
                 ZVAL_FALSE(return_value);
                 status = 0;
                 free_command_result(result);
-                valkey_glide_clear_batch_state(valkey_glide);
+                free_batch_commands(cmds, cmd_count);
                 return status;
             }
             array_init(return_value);
             for (int64_t idx = 0; idx < result->response->array_value_len; idx++) {
                 zval value;
-                int  process_status = valkey_glide->buffered_commands[idx].process_result(
-                    &result->response->array_value[idx],
-                    valkey_glide->buffered_commands[idx].result_ptr,
-                    &value);
+                int  process_status = cmds[idx].process_result(
+                    &result->response->array_value[idx], cmds[idx].result_ptr, &value);
+                /* The processor consumed result_ptr; freeing the commands must not free it */
+                cmds[idx].result_ptr = NULL;
 
                 if (process_status) {
                     /* Add the processed result to return array */
@@ -1177,7 +1225,7 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     }
 
     free_command_result(result);
-    valkey_glide_clear_batch_state(valkey_glide);
+    free_batch_commands(cmds, cmd_count);
     return status;
 }
 
@@ -1867,6 +1915,8 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
 
                                          command_type_ptr,
                                          process_config_command_respose)) {
+                valkey_glide_batch_own_result(
+                    valkey_glide, command_type_ptr, valkey_glide_batch_efree_result);
                 /* Return $this */
                 ZVAL_COPY(return_value, object);
                 status = 1;
@@ -2194,6 +2244,7 @@ int execute_client_command(zval* object, int argc, zval* return_value, zend_clas
             efree(args_len);
         cleanup_allocated_strings(allocated_strings, allocated_count);
         if (buffer_result) {
+            valkey_glide_batch_own_result(valkey_glide, output, valkey_glide_batch_efree_result);
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
             return 1;

@@ -964,6 +964,11 @@ int execute_geosearch_unified(
                                               arg_count,
                                               result_ptr,
                                               (z_result_processor_t) processor);
+        if (status) {
+            /* NULL for the STORE variant, where the helper does nothing */
+            valkey_glide_batch_own_result(
+                valkey_glide, result_ptr, valkey_glide_batch_efree_result);
+        }
 
         /* Cleanup */
         for (int i = 0; i < allocated_count; i++) {
