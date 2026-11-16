@@ -485,6 +485,7 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         }
         parent::testSortManyGetPatterns();
     }
+
     public function testSortPrefix()
     {
         $this->valkey_glide->del('some-prefix:some-item');
