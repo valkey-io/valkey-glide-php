@@ -964,6 +964,202 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         }
     }
 
+    /**
+     * Run a PHP snippet against the built extension in a separate process, so that a
+     * crash in the logger cannot take the test runner down. Returns [exit code, output].
+     */
+    private function runLoggerScript(string $code, array $env = []): array
+    {
+        $so = dirname(__DIR__) . '/modules/valkey_glide.so';
+        if (!is_file($so)) {
+            $this->markTestSkipped('modules/valkey_glide.so not built');
+            return [0, ''];
+        }
+
+        $script = tempnam(sys_get_temp_dir(), 'glide_logger_');
+        file_put_contents($script, "<?php\n" . $code);
+        $envPrefix = '';
+        foreach ($env as $k => $v) {
+            $envPrefix .= $k . '=' . escapeshellarg($v) . ' ';
+        }
+        $cmd = $envPrefix . escapeshellarg(PHP_BINARY) . ' -n -d extension=' . escapeshellarg($so)
+            . ' ' . escapeshellarg($script) . ' 2>&1';
+        exec($cmd, $lines, $exit);
+        unlink($script);
+
+        return [$exit, implode("\n", $lines)];
+    }
+
+    public function testLoggerSetConfigUnwritablePathReturnsFalse()
+    {
+        // A regular file used as a directory component makes the log directory uncreatable.
+        $blocker = $this->createTempLogFile();
+        file_put_contents($blocker, 'x');
+
+        try {
+            $path = $blocker . '/x.log';
+            [$exit, $out] = $this->runLoggerScript(
+                '$r = valkey_glide_logger_set_config("error", ' . var_export($path, true) . ');'
+                . 'echo "RESULT:" . var_export($r, true) . "\n";'
+                . 'echo "INIT:" . var_export(valkey_glide_logger_is_initialized(), true) . "\n";'
+                . 'valkey_glide_logger_error("t", "first line after failed config");'
+                . 'valkey_glide_logger_error("t", "second line after failed config");'
+                . 'echo "ALIVE\n";'
+            );
+
+            $this->assertEquals(0, $exit);
+            $this->assertStringContains('RESULT:false', $out);
+            $this->assertStringContains('ALIVE', $out);
+            $this->assertFalse(strpos($out, 'panicked') !== false);
+        } finally {
+            @unlink($blocker);
+        }
+    }
+
+    public function testLoggerSetConfigRejectsBadPaths()
+    {
+        $dir = sys_get_temp_dir() . '/valkey-glide-test-dir-' . uniqid();
+        mkdir($dir);
+
+        try {
+            $roDir = $dir . '/ro';
+            mkdir($roDir, 0555);
+            // Root ignores directory permissions, so only assert the read-only case when the
+            // runner is confirmed to be non-root (unknown counts as possibly root).
+            $confirmedNonRoot = function_exists('posix_geteuid') && posix_geteuid() !== 0;
+
+            $cases = [
+                'empty name' => '',
+                'trailing slash' => $dir . '/sub/',
+            ];
+            if ($confirmedNonRoot) {
+                $cases['read-only dir'] = $roDir . '/x.log';
+            }
+
+            foreach ($cases as $label => $path) {
+                [$exit, $out] = $this->runLoggerScript(
+                    '$r = valkey_glide_logger_set_config("error", ' . var_export($path, true) . ');'
+                    . 'echo "RESULT:" . var_export($r, true);'
+                    . 'valkey_glide_logger_error("t", "line");'
+                    . 'echo "|ALIVE";'
+                );
+                $this->assertEquals(0, $exit);
+                $this->assertStringContains('RESULT:false', $out);
+                $this->assertStringContains('ALIVE', $out);
+            }
+            @chmod($roDir, 0755);
+        } finally {
+            @chmod($dir . '/ro', 0755);
+            @rmdir($dir . '/ro');
+            @rmdir($dir . '/sub');
+            @rmdir($dir);
+        }
+    }
+
+    public function testLoggerSetConfigRejectsReadOnlyExistingLogFile()
+    {
+        // The directory is writable, but the dated log file the core opens already exists
+        // without write permission (e.g. owned by another user).
+        if (!function_exists('posix_geteuid') || posix_geteuid() === 0) {
+            $this->markTestSkipped('needs a confirmed non-root user (root ignores file permissions)');
+            return;
+        }
+
+        $dir = sys_get_temp_dir() . '/valkey-glide-test-rofile-' . uniqid();
+        mkdir($dir);
+        $path = $dir . '/x.log';
+
+        // The core names the file <path>.<UTC Y-m-d-H>; cover the next hour in case
+        // the hour rolls over while the test runs.
+        $files = [];
+        foreach ([0, 3600] as $offset) {
+            $f = $path . '.' . gmdate('Y-m-d-H', time() + $offset);
+            file_put_contents($f, "existing\n");
+            chmod($f, 0444);
+            $files[] = $f;
+        }
+
+        try {
+            [$exit, $out] = $this->runLoggerScript(
+                '$r = valkey_glide_logger_set_config("error", ' . var_export($path, true) . ');'
+                . 'echo "RESULT:" . var_export($r, true);'
+                . 'valkey_glide_logger_error("t", "line");'
+                . 'echo "|ALIVE";'
+            );
+            $this->assertEquals(0, $exit);
+            $this->assertStringContains('RESULT:false', $out);
+            $this->assertStringContains('ALIVE', $out);
+            $this->assertFalse(strpos($out, 'panicked') !== false);
+            // The existing file must be left untouched.
+            $this->assertEquals("existing\n", file_get_contents($files[0]));
+        } finally {
+            foreach ($files as $f) {
+                @chmod($f, 0644);
+                @unlink($f);
+            }
+            @rmdir($dir);
+        }
+    }
+
+    public function testLoggerSetConfigCreatesMissingDirectory()
+    {
+        // A not-yet-existing directory is still valid: the core creates it, so we must accept it.
+        $dir = sys_get_temp_dir() . '/valkey-glide-test-new-' . uniqid() . '/nested';
+        $path = $dir . '/x.log';
+
+        try {
+            [$exit, $out] = $this->runLoggerScript(
+                '$r = valkey_glide_logger_set_config("error", ' . var_export($path, true) . ');'
+                . 'echo "RESULT:" . var_export($r, true);'
+                . 'valkey_glide_logger_error("t", "hello");'
+                . 'echo "|ALIVE";'
+            );
+            $this->assertEquals(0, $exit);
+            $this->assertStringContains('RESULT:true', $out);
+            $this->assertStringContains('ALIVE', $out);
+            $this->assertTrue(is_dir($dir));
+        } finally {
+            foreach (glob($dir . '/*') ?: [] as $f) {
+                @unlink($f);
+            }
+            @rmdir($dir);
+            @rmdir(dirname($dir));
+        }
+    }
+
+    public function testLoggerFailedSetConfigKeepsPreviousConfig()
+    {
+        $good = $this->createTempLogFile();
+        $blocker = $this->createTempLogFile();
+        file_put_contents($blocker, 'x');
+        $bad = $blocker . '/x.log';
+
+        try {
+            [$exit, $out] = $this->runLoggerScript(
+                'valkey_glide_logger_set_config("info", ' . var_export($good, true) . ');'
+                . '$r = valkey_glide_logger_set_config("error", ' . var_export($bad, true) . ');'
+                . 'echo "RESULT:" . var_export($r, true);'
+                . 'echo "|INIT:" . var_export(valkey_glide_logger_is_initialized(), true);'
+                . 'echo "|LEVEL:" . valkey_glide_logger_get_level();'
+                . 'valkey_glide_logger_info("t", "still-logging-to-good-file");'
+                . 'usleep(200000);'
+            );
+            $this->assertEquals(0, $exit);
+            $this->assertStringContains('RESULT:false', $out);
+            $this->assertStringContains('INIT:true', $out);
+            $this->assertStringContains('LEVEL:2', $out);
+
+            $logged = false;
+            foreach (glob($good . '*') ?: [] as $f) {
+                $logged = $logged || strpos(file_get_contents($f), 'still-logging-to-good-file') !== false;
+                @unlink($f);
+            }
+            $this->assertTrue($logged);
+        } finally {
+            @unlink($blocker);
+        }
+    }
+
     public function testLoggerWithValkeyGlideIntegration()
     {
         // Test that ValkeyGlide client integration works with logger system
