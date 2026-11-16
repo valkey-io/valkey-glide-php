@@ -1185,10 +1185,19 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1000 * ($now + 10), $this->valkey_glide->pexpiretime('key1'));
 
         // Test pexpire (new)
+        // Bound the expiry by the clock around the call: time() drops the fraction of a second,
+        // so bounds from $now failed when the call landed late in that second (e.g. under Valgrind).
+        // The 1000 ms slack allows for a server whose clock differs slightly from this one
         $this->assertTrue($this->valkey_glide->set('key2', 'value'));
+        $before_ms = (int) floor(microtime(true) * 1000);
         $this->assertTrue($this->valkey_glide->pexpire('key2', 15000)); // 15 seconds in ms
-        $this->assertBetween($this->valkey_glide->expiretime('key2'), $now + 14, $now + 16);
-        $this->assertBetween($this->valkey_glide->pexpiretime('key2'), ($now + 14) * 1000, ($now + 16) * 1000);
+        $after_ms = (int) ceil(microtime(true) * 1000);
+        $this->assertBetween(
+            $this->valkey_glide->expiretime('key2'),
+            intdiv($before_ms + 14000, 1000),
+            intdiv($after_ms + 16000, 1000) + 1
+        );
+        $this->assertBetween($this->valkey_glide->pexpiretime('key2'), $before_ms + 14000, $after_ms + 16000);
 
         // Test pexpireat (new)
         $future_ms = ($now + 20) * 1000;
@@ -1201,7 +1210,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // PEXPIRE NX -- Set expiry only when the key has no expiry
         $this->assertTrue($this->valkey_glide->set('pexpire_nx_key', 'value'));
+        $nx_before_ms = (int) floor(microtime(true) * 1000);
         $this->assertTrue($this->valkey_glide->pexpire('pexpire_nx_key', 10000, 'NX')); // Success - no expiry
+        $nx_after_ms = (int) ceil(microtime(true) * 1000);
         $this->assertFalse($this->valkey_glide->pexpire('pexpire_nx_key', 15000, 'NX')); // Fail - has expiry
 
         // PEXPIRE XX -- Set expiry only when the key has an existing expiry
@@ -1249,8 +1260,8 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->pexpireat('pexpireat_lt_key', $now_ms + 12000, 'LT')); // Fail - not less
 
         // Verify expiry times are set correctly with options
-        $this->assertBetween($this->valkey_glide->pexpiretime('pexpire_nx_key'), $now_ms + 8000, $now_ms + 12000);
-        $this->assertBetween($this->valkey_glide->pexpiretime('pexpireat_gt_key'), $now_ms + 12000, $now_ms + 16000);
+        $this->assertBetween($this->valkey_glide->pexpiretime('pexpire_nx_key'), $nx_before_ms + 9000, $nx_after_ms + 11000);
+        $this->assertEquals($now_ms + 15000, $this->valkey_glide->pexpiretime('pexpireat_gt_key'));
 
         // Clean up all test keys
         $this->valkey_glide->del(
@@ -6560,6 +6571,237 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             /* next call fails because mode is ATOMIC */
             $this->assertFalse($this->valkey_glide->discard());
         }
+    }
+
+    /* Commands whose results keep state until exec() free it when the batch is discarded (#345) */
+    public function testDiscardFreesQueuedResultState()
+    {
+        $this->valkey_glide->del('{discard}h', '{discard}z', '{discard}g');
+        $this->valkey_glide->hSet('{discard}h', 'a', '1');
+        $this->valkey_glide->zAdd('{discard}z', 1, 'm');
+        $this->valkey_glide->geoadd('{discard}g', 13.361389, 38.115556, 'Palermo');
+        $fields = array_map(fn($i) => "field$i", range(1, 20));
+        $hgetex = $this->compare_major_version_number(9);
+
+        $queue = function () use ($fields, $hgetex) {
+            $this->valkey_glide->set('{discard}s', 'v');
+            $this->valkey_glide->hMget('{discard}h', $fields);
+            $this->valkey_glide->hRandField('{discard}h', ['count' => 2]);
+            $this->valkey_glide->zRandMember('{discard}z', ['count' => 1]);
+            $this->valkey_glide->geosearch('{discard}g', [13.36, 38.11], 10, 'km');
+            if ($hgetex) {
+                $this->valkey_glide->hGetEx('{discard}h', $fields, ['EX' => 60]);
+            }
+        };
+
+        foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+            for ($i = 0; $i < 20; $i++) {
+                $this->valkey_glide->multi($mode);
+                $queue();
+                $this->valkey_glide->discard();
+            }
+
+            /* A command that leaks even its smallest allocation (16 bytes) per round exceeds the
+             * bound; hMget() leaked about 1 KiB per round before the fix */
+            $before = memory_get_usage();
+            for ($i = 0; $i < 1000; $i++) {
+                $this->valkey_glide->multi($mode);
+                $queue();
+                $this->assertTrue($this->valkey_glide->discard());
+            }
+            $this->assertLT(4096, memory_get_usage() - $before);
+        }
+
+        /* The same holds for a transaction that fails: a watched key changed by another client
+         * makes exec() return false without running the queued commands */
+        $other = $this->newInstance();
+        $failed = function () use ($queue, $other) {
+            $this->valkey_glide->watch('{discard}s');
+            $other->set('{discard}s', 'changed');
+            $this->valkey_glide->multi();
+            $queue();
+            return $this->valkey_glide->exec();
+        };
+        for ($i = 0; $i < 20; $i++) {
+            $failed();
+        }
+        $before = memory_get_usage();
+        for ($i = 0; $i < 300; $i++) {
+            $this->assertFalse($failed());
+        }
+        $this->assertLT(4096, memory_get_usage() - $before);
+        $other->close();
+
+        /* A batch that is executed still returns every result */
+        $this->valkey_glide->multi();
+        $queue();
+        $result = $this->valkey_glide->exec();
+        $this->assertEquals(true, $result[0]);
+        $this->assertEquals(array_fill_keys($fields, false), $result[1]);
+        $this->assertEquals(['a'], $result[2]);
+        $this->assertEquals(['m'], $result[3]);
+        $this->assertEquals(['Palermo'], $result[4]);
+        if ($hgetex) {
+            /* Only the keys: whether a missing field is false or null is #417's concern */
+            $this->assertEquals($fields, array_keys($result[5]));
+        }
+        $this->assertEquals($hgetex ? 6 : 5, count($result));
+
+        $this->valkey_glide->del('{discard}h', '{discard}z', '{discard}s', '{discard}g');
+    }
+
+    /* Freeing a queued hGetEx() field can release the last reference to an object whose
+     * destructor calls the client again. That nested call must find no batch: it used to
+     * free the commands the outer discard(), exec() or close() was still freeing */
+    public function testBatchCleanupReentryFromFieldDestructor()
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('HGETEX requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $key = '{reentry}h';
+        $this->valkey_glide->del($key);
+        $this->valkey_glide->hSet($key, 'f', 'v');
+
+        /* Queues hGetEx() with a field object only the batch references */
+        $queue = function ($client, $on_destruct) use ($key) {
+            $client->hGetEx($key, [new class ($on_destruct) {
+                public function __construct(private $on_destruct)
+                {
+                }
+                public function __toString(): string
+                {
+                    return 'f';
+                }
+                public function __destruct()
+                {
+                    ($this->on_destruct)();
+                }
+            }]);
+        };
+
+        foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+            $client = $this->newInstance();
+
+            /* discard() frees the field; its destructor calls discard() and queues a new batch */
+            $client->multi($mode);
+            $queue($client, function () use ($client) {
+                $client->discard();
+                $client->multi();
+                $client->get('{reentry}x');
+            });
+            $client->set('{reentry}x', 'queued');
+            $this->assertTrue($client->discard());
+            $this->assertEquals([false], $client->exec());
+
+            /* exec()'s result processor frees the field; its destructor calls discard() */
+            $client->multi($mode);
+            $queue($client, fn() => $client->discard());
+            $client->hGet($key, 'f');
+            $this->assertEquals([['f' => 'v'], 'v'], $client->exec());
+            $this->assertEquals('v', $client->hGet($key, 'f'));
+
+            /* close() frees the field; its destructor calls close() */
+            $client->multi($mode);
+            $queue($client, fn() => $client->close());
+            $client->close();
+        }
+
+        $this->valkey_glide->del($key, '{reentry}x');
+    }
+
+    public function testDiscardAndCloseFreeQueuedCommandState()
+    {
+        $is_cluster = $this->valkey_glide instanceof ValkeyGlideCluster;
+        $route = ['type' => 'primarySlotKey', 'key' => '{discard}x'];
+        $hgetex = $this->compare_major_version_number(9);
+        $hgetdel = $this->minVersionCheck('9.1.0');
+
+        $this->valkey_glide->del('{discard}h', '{discard}x', '{discard}stream');
+        $this->valkey_glide->hSet('{discard}h', 'a', '1');
+        $this->valkey_glide->set('{discard}x', 'v');
+        $this->valkey_glide->xGroup('CREATE', '{discard}stream', 'group', '0', true);
+
+        /* Each of these hands its result processor heap state that exec() would free. A cluster
+         * batch does not queue ping() or client(), so only the standalone client covers them */
+        $queue = function ($client) use ($is_cluster, $route, $hgetex, $hgetdel) {
+            if (!$is_cluster) {
+                $client->ping();
+                $client->client('id');
+            }
+            $client->object('encoding', '{discard}x');
+            $is_cluster ? $client->config($route, 'GET', 'timeout') : $client->config('GET', 'timeout');
+            $client->xClaim('{discard}stream', 'group', 'consumer', 0, ['0-1'], []);
+            if ($hgetex) {
+                $client->hGetEx('{discard}h', ['a', 'missing'], ['EX' => 60]);
+            }
+            if ($hgetdel) {
+                $client->hGetDel('{discard}h', ['missing']);
+            }
+        };
+
+        foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+            for ($i = 0; $i < 20; $i++) {
+                $this->valkey_glide->multi($mode);
+                $queue($this->valkey_glide);
+                $this->valkey_glide->discard();
+            }
+            $before = memory_get_usage();
+            for ($i = 0; $i < 1000; $i++) {
+                $this->valkey_glide->multi($mode);
+                $queue($this->valkey_glide);
+                $this->assertTrue($this->valkey_glide->discard());
+            }
+            $this->assertLT(4096, memory_get_usage() - $before);
+        }
+
+        /* close() in batch mode frees the queued state too. Each round needs its own client, so
+         * compare against rounds that open and close a client without queuing anything */
+        $round = function ($with_batch) use ($queue) {
+            $client = $this->newInstance();
+            if ($with_batch) {
+                $client->multi();
+                $queue($client);
+            }
+            $client->close();
+        };
+        for ($i = 0; $i < 10; $i++) {
+            $round(true);
+            $round(false);
+        }
+        $before = memory_get_usage();
+        for ($i = 0; $i < 100; $i++) {
+            $round(false);
+        }
+        $baseline = memory_get_usage() - $before;
+        $before = memory_get_usage();
+        for ($i = 0; $i < 100; $i++) {
+            $round(true);
+        }
+        $this->assertLT($baseline + 2048, memory_get_usage() - $before);
+
+        /* An executed batch still returns every result */
+        $this->valkey_glide->multi();
+        $queue($this->valkey_glide);
+        $result = $this->valkey_glide->exec();
+        $i = 0;
+        if (!$is_cluster) {
+            $this->assertTrue($result[$i++]);
+            $this->assertGT(0, $result[$i++]);
+        }
+        $this->assertEquals('embstr', $result[$i++]);
+        $this->assertArrayKey($result[$i++], 'timeout');
+        $this->assertEquals([], $result[$i++]);
+        if ($hgetex) {
+            $this->assertEquals(['a', 'missing'], array_keys($result[$i]));
+            $this->assertEquals('1', $result[$i++]['a']);
+        }
+        if ($hgetdel) {
+            $this->assertEquals(['missing' => false], $result[$i++]);
+        }
+        $this->assertEquals($i, count($result));
+
+        $this->valkey_glide->del('{discard}h', '{discard}x', '{discard}stream');
     }
 
     public function testDifferentTypeString()
