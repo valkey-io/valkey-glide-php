@@ -250,7 +250,6 @@ void   free_tracked_strings(char** tracker, int count);
 
 /* Convert various types to string arguments */
 char* core_long_to_string(long value, size_t* len);
-char* core_double_to_string(double value, size_t* len);
 
 /* ====================================================================
  * OPTION PARSING UTILITIES
