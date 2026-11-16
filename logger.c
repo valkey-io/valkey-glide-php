@@ -4,6 +4,7 @@
 #include "logger.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -11,6 +12,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "include/glide_bindings.h"
@@ -169,7 +171,8 @@ static int logger_mkdir_p(const char* path) {
  * The core writes to <dir>/<filename>.<date>, where <dir> is $GLIDE_LOG_DIR (when it
  * is non-empty and can be created) or "glide-logs", and an absolute <filename>
  * replaces <dir>. This mirrors that rule, creates the target directory as the core
- * would, and requires it to be writable.
+ * would, requires it to be writable, and opens the current hour's log file for
+ * append (creating it), which is what the core does when it builds the appender.
  *
  * Returns 0 if the path is usable, -1 otherwise (and sets *reason).
  */
@@ -209,6 +212,10 @@ static int validate_log_path(const char* filename, const char** reason) {
         return -1;
     }
 
+    /* Keep the full prefix path: the dated file name is built from it below. */
+    char file[PATH_MAX];
+    memcpy(file, full, strlen(full) + 1);
+
     /* Directory part of the target file. */
     if (last_slash == NULL) {
         strcpy(full, ".");
@@ -226,6 +233,33 @@ static int validate_log_path(const char* filename, const char** reason) {
         *reason = "log directory is not writable";
         return -1;
     }
+
+    /*
+     * A writable directory can still hold today's log file with no write permission
+     * (for example owned by another user). Open the file the core will open now,
+     * <prefix>.<YYYY-MM-DD-HH> in UTC, the same way it does (append, create).
+     */
+    char      suffix[24];
+    time_t    now = time(NULL);
+    struct tm utc;
+    if (gmtime_r(&now, &utc) == NULL ||
+        strftime(suffix, sizeof(suffix), ".%Y-%m-%d-%H", &utc) == 0) {
+        *reason = "cannot compute the log file name";
+        return -1;
+    }
+    size_t file_len = strlen(file);
+    if (file_len + strlen(suffix) >= sizeof(file)) {
+        *reason = "log file path is too long";
+        return -1;
+    }
+    memcpy(file + file_len, suffix, strlen(suffix) + 1);
+
+    int fd = open(file, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, 0666);
+    if (fd < 0) {
+        *reason = "log file cannot be opened for writing";
+        return -1;
+    }
+    close(fd);
     return 0;
 }
 

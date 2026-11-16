@@ -1024,14 +1024,15 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         try {
             $roDir = $dir . '/ro';
             mkdir($roDir, 0555);
-            // Root ignores directory permissions, so only assert the read-only case otherwise.
-            $asRoot = function_exists('posix_geteuid') && posix_geteuid() === 0;
+            // Root ignores directory permissions, so only assert the read-only case when the
+            // runner is confirmed to be non-root (unknown counts as possibly root).
+            $confirmedNonRoot = function_exists('posix_geteuid') && posix_geteuid() !== 0;
 
             $cases = [
                 'empty name' => '',
                 'trailing slash' => $dir . '/sub/',
             ];
-            if (!$asRoot) {
+            if ($confirmedNonRoot) {
                 $cases['read-only dir'] = $roDir . '/x.log';
             }
 
@@ -1051,6 +1052,51 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             @chmod($dir . '/ro', 0755);
             @rmdir($dir . '/ro');
             @rmdir($dir . '/sub');
+            @rmdir($dir);
+        }
+    }
+
+    public function testLoggerSetConfigRejectsReadOnlyExistingLogFile()
+    {
+        // The directory is writable, but the dated log file the core opens already exists
+        // without write permission (e.g. owned by another user).
+        if (!function_exists('posix_geteuid') || posix_geteuid() === 0) {
+            $this->markTestSkipped('needs a confirmed non-root user (root ignores file permissions)');
+            return;
+        }
+
+        $dir = sys_get_temp_dir() . '/valkey-glide-test-rofile-' . uniqid();
+        mkdir($dir);
+        $path = $dir . '/x.log';
+
+        // The core names the file <path>.<UTC Y-m-d-H>; cover the next hour in case
+        // the hour rolls over while the test runs.
+        $files = [];
+        foreach ([0, 3600] as $offset) {
+            $f = $path . '.' . gmdate('Y-m-d-H', time() + $offset);
+            file_put_contents($f, "existing\n");
+            chmod($f, 0444);
+            $files[] = $f;
+        }
+
+        try {
+            [$exit, $out] = $this->runLoggerScript(
+                '$r = valkey_glide_logger_set_config("error", ' . var_export($path, true) . ');'
+                . 'echo "RESULT:" . var_export($r, true);'
+                . 'valkey_glide_logger_error("t", "line");'
+                . 'echo "|ALIVE";'
+            );
+            $this->assertEquals(0, $exit);
+            $this->assertStringContains('RESULT:false', $out);
+            $this->assertStringContains('ALIVE', $out);
+            $this->assertFalse(strpos($out, 'panicked') !== false);
+            // The existing file must be left untouched.
+            $this->assertEquals("existing\n", file_get_contents($files[0]));
+        } finally {
+            foreach ($files as $f) {
+                @chmod($f, 0644);
+                @unlink($f);
+            }
             @rmdir($dir);
         }
     }
