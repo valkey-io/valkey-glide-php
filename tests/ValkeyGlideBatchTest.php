@@ -758,8 +758,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         // Execute HFE operations in batch
         $this->valkey_glide->multi();
-        $this->valkey_glide->hSetEx($key1, 60, null, 'expire_field', 'expire_value');
-        $this->valkey_glide->hPSetEx($key1, 30000, null, 'pexpire_field', 'pexpire_value');
+        $this->valkey_glide->hSetEx($key1, ['expire_field' => 'expire_value'], ['EX' => 60]);
+        $this->valkey_glide->hSetEx($key1, ['pexpire_field' => 'pexpire_value'], ['PX' => 30000]);
         $this->valkey_glide->hExpire($key1, 120, null, 'field1', 'field2');
         $this->valkey_glide->hPExpire($key1, 90000, null, 'field3');
         $this->valkey_glide->hTtl($key1, 'field1');
@@ -769,7 +769,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         // Verify results
         $this->assertEquals(1, $results[0]); // hSetEx
-        $this->assertEquals(1, $results[1]); // hPSetEx
+        $this->assertEquals(1, $results[1]); // hSetEx with PX
         $this->assertEquals([1, 1], $results[2]); // hExpire
         $this->assertEquals([1], $results[3]); // hPExpire
         $this->assertIsArray($results[4]); // hTtl
@@ -782,6 +782,32 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         // Cleanup
         $this->valkey_glide->del($key1);
+    }
+
+    public function testHSetExKeyConditionsBatch()
+    {
+        if (!$this->minVersionCheck('9.1.0')) {
+            $this->markTestSkipped('HSETEX key-level NX/XX requires Valkey 9.1.0+');
+            return;
+        }
+
+        $key = 'batch_hsetex_keycond_' . uniqid();
+
+        $this->valkey_glide->multi();
+        $this->valkey_glide->hSetEx($key, ['f1' => 'v1'], ['NX', 'EX' => 60]);
+        $this->valkey_glide->hSetEx($key, ['f1' => 'v2'], ['NX', 'EX' => 60]);
+        $this->valkey_glide->hSetEx($key, ['f1' => 'v3'], ['XX', 'EX' => 60]);
+        $this->valkey_glide->hSetEx($key, ['f1' => 'v4'], ['XX', 'FNX', 'PX' => 60000]);
+        $this->valkey_glide->hGet($key, 'f1');
+        $results = $this->valkey_glide->exec();
+
+        $this->assertEquals(1, $results[0]); // NX, key absent
+        $this->assertEquals(0, $results[1]); // NX, key exists
+        $this->assertEquals(1, $results[2]); // XX, key exists
+        $this->assertEquals(0, $results[3]); // XX + FNX, f1 exists
+        $this->assertEquals('v3', $results[4]);
+
+        $this->valkey_glide->del($key);
     }
 
     // ===================================================================

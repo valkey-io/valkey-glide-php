@@ -5,9 +5,14 @@
 ### Breaking Changes
 
 * `ValkeyGlideCluster` constructed with PHPRedis-style parameters (`$seeds`, `$auth`, ...) now reads from primaries when `read_from` is not given, matching PHPRedis `RedisCluster`. It previously defaulted to `READ_FROM_PREFER_REPLICA`. Pass `read_from: ValkeyGlide::READ_FROM_PREFER_REPLICA` or set `OPT_SLAVE_FAILOVER` to `FAILOVER_DISTRIBUTE_SLAVES` to keep replica reads ([#369](https://github.com/valkey-io/valkey-glide-php/issues/369))
+* `hSetEx` now uses the PHPRedis signature `hSetEx(string $key, array $fields, ?array $expiry = null)`, replacing `hSetEx($key, $seconds, $mode, $field, $value, ...$fields_and_vals)`. `hPSetEx` is removed; pass `['PX' => $ms]` instead. A field-level condition is now `'FNX'`/`'FXX'` in `$expiry` (previously `$mode` of `NX`/`XX`). Unknown, malformed, negative, or conflicting `$expiry` entries return `false` without sending the command ([#399](https://github.com/valkey-io/valkey-glide-php/issues/399))
 * An AZ-affinity read strategy (`READ_FROM_AZ_AFFINITY`, `READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY`, or `READ_FROM_AZ_AFFINITY_ALL_NODES`) configured without a valid `client_az` now throws at client creation. Previously the core logged a warning and downgraded the strategy to `PreferReplica`, so reads silently went to arbitrary nodes. A `client_az` that is empty, whitespace-only, contains a NUL byte, or has leading/trailing whitespace is rejected ([#316](https://github.com/valkey-io/valkey-glide-php/issues/316))
 * `zRem()` and `zMscore()` now convert non-string members with PHP's string conversion, as `zAdd()` and PHPRedis do, so a member added as `false` or a float is found with the same value. They sent `false` as `"0"` and floats with six significant digits (`%.6g`), so `zRem($key, false)` now removes the member `""` instead of `"0"`, and `zRem($key, 1.23456789)` removes `"1.23456789"` instead of `"1.23457"`. To keep matching a member stored under the old form, pass that string, for example `zRem($key, '0')` ([#380](https://github.com/valkey-io/valkey-glide-php/issues/380))
 * `hRandField()` handles its options and replies as PHPRedis does, which changes some return shapes: `count => 1` returns an array, as every other count does (it returned a single field as a string); `count => 0` means no count: it returns a single field, or one field => value pair with `WITHVALUES` (it returned `false`); option keys are case-insensitive and `WITHVALUES` can be given as a plain value (`['COUNT' => 2]`, `['WITHVALUES']`), which were ignored; and a missing hash with a count or `WITHVALUES` returns `[]` instead of `false` ([#421](https://github.com/valkey-io/valkey-glide-php/issues/421))
+
+### Features
+
+* Add key-level `NX`/`XX` (Valkey 9.1+), `EXAT`, `PXAT`, and `KEEPTTL` support to `hSetEx` through the `$expiry` array, e.g. `['XX', 'FNX', 'EX' => 60]` ([#399](https://github.com/valkey-io/valkey-glide-php/issues/399))
 
 ### Fixes
 
