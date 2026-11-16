@@ -1599,6 +1599,12 @@ int execute_unwatch_command(zval* object, int argc, zval* return_value, zend_cla
     }
 }
 
+/* Exact, case-insensitive match of an OBJECT subcommand. A prefix match would accept
+ * "REF" or "" as REFCOUNT */
+static bool object_subcommand_is(const char* subcommand, size_t subcommand_len, const char* name) {
+    return subcommand_len == strlen(name) && strncasecmp(subcommand, name, subcommand_len) == 0;
+}
+
 /* Shared utility function to process OBJECT command results */
 static int process_object_command_result(CommandResponse* response,
                                          const char*      subcommand,
@@ -1609,9 +1615,9 @@ static int process_object_command_result(CommandResponse* response,
     }
 
     /* Handle different result types based on the subcommand */
-    if (strncasecmp(subcommand, "REFCOUNT", subcommand_len) == 0 ||
-        strncasecmp(subcommand, "IDLETIME", subcommand_len) == 0 ||
-        strncasecmp(subcommand, "FREQ", subcommand_len) == 0) {
+    if (object_subcommand_is(subcommand, subcommand_len, "REFCOUNT") ||
+        object_subcommand_is(subcommand, subcommand_len, "IDLETIME") ||
+        object_subcommand_is(subcommand, subcommand_len, "FREQ")) {
         /* These subcommands return integers */
         if (response->response_type == Int) {
             /* Success, set return value */
@@ -1622,7 +1628,7 @@ static int process_object_command_result(CommandResponse* response,
             ZVAL_FALSE(return_value);
             return 0;
         }
-    } else if (strncasecmp(subcommand, "ENCODING", subcommand_len) == 0) {
+    } else if (object_subcommand_is(subcommand, subcommand_len, "ENCODING")) {
         /* ENCODING returns a string */
         if (response->response_type == String) {
             /* Success, set return value */
@@ -1683,19 +1689,25 @@ int execute_object_command_impl(valkey_glide_object* valkey_glide,
     args[0]     = (uintptr_t) key;
     args_len[0] = key_len;
 
-    /* Select appropriate request type based on subcommand */
-    enum RequestType req_type = CustomCommand; /* Default to CustomCommand */
+    /* Only these subcommands are sent, as PHPRedis does. Anything else would make the key the
+     * command name of a CustomCommand and run it on the server */
+    enum RequestType req_type = InvalidRequest;
 
-    if (strncasecmp(subcommand, "REFCOUNT", subcommand_len) == 0) {
+    if (object_subcommand_is(subcommand, subcommand_len, "REFCOUNT")) {
         req_type = ObjectRefCount;
-    } else if (strncasecmp(subcommand, "IDLETIME", subcommand_len) == 0) {
+    } else if (object_subcommand_is(subcommand, subcommand_len, "IDLETIME")) {
         req_type = ObjectIdleTime;
-    } else if (strncasecmp(subcommand, "FREQ", subcommand_len) == 0) {
+    } else if (object_subcommand_is(subcommand, subcommand_len, "FREQ")) {
         req_type = ObjectFreq;
-    } else if (strncasecmp(subcommand, "ENCODING", subcommand_len) == 0) {
+    } else if (object_subcommand_is(subcommand, subcommand_len, "ENCODING")) {
         req_type = ObjectEncoding;
     }
-    /* For HELP and other subcommands, use CustomCommand (default) */
+
+    if (req_type == InvalidRequest) {
+        /* Same warning and false return as PHPRedis */
+        php_error_docref(NULL, E_WARNING, "Invalid subcommand sent to OBJECT");
+        return -1;
+    }
 
 
     /* Check for batch mode */

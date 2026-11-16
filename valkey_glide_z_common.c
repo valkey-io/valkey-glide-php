@@ -1812,9 +1812,7 @@ int process_z_rank_result(CommandResponse* response, void* output, zval* return_
 }
 
 int process_z_array_zrand_result(CommandResponse* response, void* output, zval* return_value) {
-    struct {
-        int withscores;
-    }* array_data = output;
+    z_rand_result_t* array_data = output;
     if (!response || !array_data || !return_value) {
         return 0;
     }
@@ -1839,7 +1837,10 @@ int process_z_array_zrand_result(CommandResponse* response, void* output, zval* 
         /* Use common helper to flatten withscores array */
         flatten_withscores_array(return_value);
     }
-    efree(output);
+    /* Only the batch path hands over a heap copy; otherwise the caller owns the data */
+    if (array_data->heap_allocated) {
+        efree(array_data);
+    }
     return success;
 }
 

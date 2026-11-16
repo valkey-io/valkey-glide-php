@@ -120,21 +120,25 @@ int execute_zrandmember_command(zval* object, int argc, zval* return_value, zend
     args.start            = count; /* reuse start field for count */
     args.withscores       = withscores;
 
-    typedef struct {
-        int withscores;
-    } array_data_t;
+    /* In a batch the processor runs later and frees the heap copy it is handed; otherwise the
+     * data lives on the stack and nothing is freed, whether or not the processor ran */
+    z_rand_result_t  stack_data = {.withscores = withscores, .heap_allocated = 0};
+    z_rand_result_t* array_data = &stack_data;
 
-    array_data_t* array_data = emalloc(sizeof(array_data_t));
-    array_data->withscores   = withscores;
+    if (valkey_glide->is_in_batch_mode) {
+        array_data  = emalloc(sizeof(z_rand_result_t));
+        *array_data = (z_rand_result_t){.withscores = withscores, .heap_allocated = 1};
+    }
 
     int res = execute_z_generic_command(
         valkey_glide, ZRandMember, &args, array_data, process_z_array_zrand_result, return_value);
-
 
     if (valkey_glide->is_in_batch_mode) {
         if (res) {
             valkey_glide_batch_own_result(
                 valkey_glide, array_data, valkey_glide_batch_efree_result);
+        } else {
+            efree(array_data);
         }
         /* In batch mode, return $this for method chaining */
         ZVAL_COPY(return_value, object);
@@ -143,7 +147,6 @@ int execute_zrandmember_command(zval* object, int argc, zval* return_value, zend
 
     if (res == 0) {
         /* On empty set, return NULL */
-        efree(array_data);
         ZVAL_NULL(return_value);
         return 0;
     }

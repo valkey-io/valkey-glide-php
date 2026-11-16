@@ -208,12 +208,15 @@ int execute_xadd_command(zval* object, int argc, zval* return_value, zend_class_
             z_options = emalloc(sizeof(zval));
             array_init(z_options);
 
-            /* Add MAXLEN option */
-            add_assoc_long(z_options, "MAXLEN", maxlen);
+            /* Add MAXLEN only when positive, like PHPRedis: 0 means "do not trim" and would
+             * otherwise empty the stream */
+            if (maxlen > 0) {
+                add_assoc_long(z_options, "MAXLEN", maxlen);
 
-            /* Add APPROXIMATE option if true */
-            if (approximate) {
-                add_assoc_bool(z_options, "APPROXIMATE", 1);
+                /* Add APPROXIMATE option if true */
+                if (approximate) {
+                    add_assoc_bool(z_options, "APPROXIMATE", 1);
+                }
             }
 
             /* Flag that we created this and will need to free it later */

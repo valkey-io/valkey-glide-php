@@ -2182,6 +2182,40 @@ int execute_setbit_command(zval* object, int argc, zval* return_value, zend_clas
     return 0;
 }
 
+/* Point keys_array at the keys for DEL/UNLINK without writing to the caller's array, which may be
+ * immutable (an opcache literal). An all-string array is borrowed as is. Otherwise the keys are
+ * copied into a new array of strings, because argument preparation converts non-string keys in
+ * place. Returns true when keys_array owns that copy and must be destroyed. A key that cannot be
+ * converted (an object without __toString()) leaves an exception pending; the caller then sends
+ * nothing */
+static bool borrow_keys_as_strings(HashTable* keys_hash, zval* keys_array) {
+    zval* key;
+    bool  all_strings = true;
+
+    ZEND_HASH_FOREACH_VAL(keys_hash, key) {
+        if (Z_TYPE_P(key) != IS_STRING) {
+            all_strings = false;
+            break;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+
+    if (all_strings) {
+        ZVAL_ARR(keys_array, keys_hash);
+        return false;
+    }
+
+    array_init_size(keys_array, zend_hash_num_elements(keys_hash));
+    ZEND_HASH_FOREACH_VAL(keys_hash, key) {
+        add_next_index_str(keys_array, zval_get_string(key));
+        if (EG(exception)) {
+            break;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+    return true;
+}
+
 /* Helper function to execute del_command with arrays - MIGRATED TO CORE FRAMEWORK */
 int execute_del_array(const void* glide_client,
                       HashTable*  keys_hash,
@@ -2192,11 +2226,14 @@ int execute_del_array(const void* glide_client,
         return 0;
     }
 
-    /* Create temporary zval array from HashTable */
+    /* The caller's array may be immutable (an opcache literal) and must not be written to,
+     * refcounted or destroyed */
     zval keys_array;
-    ZVAL_ARR(&keys_array, keys_hash);
-    /* Bump refcount so it stays alive while you pass it down */
-    GC_TRY_ADDREF(keys_hash);
+    bool owns_keys = borrow_keys_as_strings(keys_hash, &keys_array);
+    if (EG(exception)) {
+        zval_ptr_dtor(&keys_array);
+        return 0;
+    }
 
     /* Use core framework with converted array */
     core_command_args_t args = {0};
@@ -2226,7 +2263,9 @@ int execute_del_array(const void* glide_client,
             free_command_result(cmd_result);
         }
     }
-    zval_ptr_dtor(&keys_array);
+    if (owns_keys) {
+        zval_ptr_dtor(&keys_array);
+    }
     free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
     return result;
 }
@@ -2280,10 +2319,14 @@ int execute_unlink_array(const void* glide_client,
         return 0;
     }
 
-    /* Create temporary zval array from HashTable */
+    /* The caller's array may be immutable (an opcache literal) and must not be written to,
+     * refcounted or destroyed */
     zval keys_array;
-    ZVAL_ARR(&keys_array, keys_hash);
-    GC_TRY_ADDREF(keys_hash);  // keep alive
+    bool owns_keys = borrow_keys_as_strings(keys_hash, &keys_array);
+    if (EG(exception)) {
+        zval_ptr_dtor(&keys_array);
+        return 0;
+    }
 
     /* Use core framework with converted array */
     core_command_args_t args = {0};
@@ -2313,7 +2356,9 @@ int execute_unlink_array(const void* glide_client,
             free_command_result(cmd_result);
         }
     }
-    zval_ptr_dtor(&keys_array);
+    if (owns_keys) {
+        zval_ptr_dtor(&keys_array);
+    }
     free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
     return result;
 }
