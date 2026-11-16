@@ -1206,6 +1206,12 @@ int prepare_x_add_args(x_command_args_t* args,
             zval temp;
             ZVAL_COPY(&temp, z_value);
             convert_to_string(&temp);
+            if (EG(exception)) {
+                /* A value that cannot be converted (an object without __toString()) is not sent;
+                 * the caller frees what was allocated so far */
+                zval_ptr_dtor(&temp);
+                return 0;
+            }
 
             /* Create persistent copy of the string */
             char* str_copy = estrndup(Z_STRVAL(temp), Z_STRLEN(temp));

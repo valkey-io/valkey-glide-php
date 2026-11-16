@@ -11594,15 +11594,22 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $this->getHost(),
             (string) $this->getPort()
         );
-        array_splice($cmd, 1, 0, ['-d', 'opcache.enable_cli=1', '-d', 'opcache.file_update_protection=0',
-                                  '-d', 'opcache.protect_memory=1']);
+        $opcache = ['-d', 'opcache.enable_cli=1', '-d', 'opcache.file_update_protection=0',
+                    '-d', 'opcache.protect_memory=1'];
+        /* -n skips the INI files, so load opcache when it is a shared extension (PHP < 8.5) */
+        $shared = ini_get('extension_dir') . '/opcache.' . PHP_SHLIB_SUFFIX;
+        if (file_exists($shared)) {
+            array_unshift($opcache, '-d', "zend_extension=$shared");
+        }
+        array_splice($cmd, 1, 0, $opcache);
         $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
         $this->assertTrue(is_resource($proc));
         $out = stream_get_contents($pipes[1]);
         fclose($pipes[1]);
         proc_close($proc);
 
-        $this->assertEquals([2, 2, 2, 2, 2, 2], json_decode($out, true));
+        /* String-key del and unlink, then integer-key del and unlink (one key left), three times */
+        $this->assertEquals(array_merge(...array_fill(0, 3, [2, 2, 2, 1])), json_decode($out, true));
     }
 
     public function testSubscribeEmptyChannelsMessage()
@@ -11669,6 +11676,11 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         /* A list is stored with its positions as the field names */
         $this->assertEquals('2-1', $this->valkey_glide->xAdd($key, '2-1', ['x', 'y']));
         $this->assertEquals([0 => 'x', 1 => 'y'], $this->valkey_glide->xRange($key, '2-1', '2-1')['2-1']);
+
+        /* A value that cannot be converted to a string throws, and nothing is added */
+        $this->assertThrows(Error::class, fn () => $this->valkey_glide->xAdd($key, '3-1', [7 => new stdClass()]));
+        $this->assertThrows(Error::class, fn () => $this->valkey_glide->xAdd($key, '3-1', ['a' => new stdClass()]));
+        $this->assertEquals(2, $this->valkey_glide->xLen($key));
 
         $this->valkey_glide->del($key);
     }

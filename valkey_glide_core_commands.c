@@ -2182,6 +2182,35 @@ int execute_setbit_command(zval* object, int argc, zval* return_value, zend_clas
     return 0;
 }
 
+/* Point keys_array at the keys for DEL/UNLINK without writing to the caller's array, which may be
+ * immutable (an opcache literal). An all-string array is borrowed as is. Otherwise the keys are
+ * copied into a new array of strings, because argument preparation converts non-string keys in
+ * place. Returns true when keys_array owns that copy and must be destroyed */
+static bool borrow_keys_as_strings(HashTable* keys_hash, zval* keys_array) {
+    zval* key;
+    bool  all_strings = true;
+
+    ZEND_HASH_FOREACH_VAL(keys_hash, key) {
+        if (Z_TYPE_P(key) != IS_STRING) {
+            all_strings = false;
+            break;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+
+    if (all_strings) {
+        ZVAL_ARR(keys_array, keys_hash);
+        return false;
+    }
+
+    array_init_size(keys_array, zend_hash_num_elements(keys_hash));
+    ZEND_HASH_FOREACH_VAL(keys_hash, key) {
+        add_next_index_str(keys_array, zval_get_string(key));
+    }
+    ZEND_HASH_FOREACH_END();
+    return true;
+}
+
 /* Helper function to execute del_command with arrays - MIGRATED TO CORE FRAMEWORK */
 int execute_del_array(const void* glide_client,
                       HashTable*  keys_hash,
@@ -2192,10 +2221,10 @@ int execute_del_array(const void* glide_client,
         return 0;
     }
 
-    /* Borrow the caller's array without touching its refcount: it stays alive for this call, and
-     * it may be immutable (an opcache literal), which must never be destroyed or refcounted */
+    /* The caller's array may be immutable (an opcache literal) and must not be written to,
+     * refcounted or destroyed */
     zval keys_array;
-    ZVAL_ARR(&keys_array, keys_hash);
+    bool owns_keys = borrow_keys_as_strings(keys_hash, &keys_array);
 
     /* Use core framework with converted array */
     core_command_args_t args = {0};
@@ -2224,6 +2253,9 @@ int execute_del_array(const void* glide_client,
             result = process_core_int_result(cmd_result->response, output_value, return_value);
             free_command_result(cmd_result);
         }
+    }
+    if (owns_keys) {
+        zval_ptr_dtor(&keys_array);
     }
     free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
     return result;
@@ -2278,10 +2310,10 @@ int execute_unlink_array(const void* glide_client,
         return 0;
     }
 
-    /* Borrow the caller's array without touching its refcount: it stays alive for this call, and
-     * it may be immutable (an opcache literal), which must never be destroyed or refcounted */
+    /* The caller's array may be immutable (an opcache literal) and must not be written to,
+     * refcounted or destroyed */
     zval keys_array;
-    ZVAL_ARR(&keys_array, keys_hash);
+    bool owns_keys = borrow_keys_as_strings(keys_hash, &keys_array);
 
     /* Use core framework with converted array */
     core_command_args_t args = {0};
@@ -2310,6 +2342,9 @@ int execute_unlink_array(const void* glide_client,
             result = process_core_int_result(cmd_result->response, output_value, return_value);
             free_command_result(cmd_result);
         }
+    }
+    if (owns_keys) {
+        zval_ptr_dtor(&keys_array);
     }
     free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
     return result;
