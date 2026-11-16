@@ -2185,7 +2185,9 @@ int execute_setbit_command(zval* object, int argc, zval* return_value, zend_clas
 /* Point keys_array at the keys for DEL/UNLINK without writing to the caller's array, which may be
  * immutable (an opcache literal). An all-string array is borrowed as is. Otherwise the keys are
  * copied into a new array of strings, because argument preparation converts non-string keys in
- * place. Returns true when keys_array owns that copy and must be destroyed */
+ * place. Returns true when keys_array owns that copy and must be destroyed. A key that cannot be
+ * converted (an object without __toString()) leaves an exception pending; the caller then sends
+ * nothing */
 static bool borrow_keys_as_strings(HashTable* keys_hash, zval* keys_array) {
     zval* key;
     bool  all_strings = true;
@@ -2206,6 +2208,9 @@ static bool borrow_keys_as_strings(HashTable* keys_hash, zval* keys_array) {
     array_init_size(keys_array, zend_hash_num_elements(keys_hash));
     ZEND_HASH_FOREACH_VAL(keys_hash, key) {
         add_next_index_str(keys_array, zval_get_string(key));
+        if (EG(exception)) {
+            break;
+        }
     }
     ZEND_HASH_FOREACH_END();
     return true;
@@ -2225,6 +2230,10 @@ int execute_del_array(const void* glide_client,
      * refcounted or destroyed */
     zval keys_array;
     bool owns_keys = borrow_keys_as_strings(keys_hash, &keys_array);
+    if (EG(exception)) {
+        zval_ptr_dtor(&keys_array);
+        return 0;
+    }
 
     /* Use core framework with converted array */
     core_command_args_t args = {0};
@@ -2314,6 +2323,10 @@ int execute_unlink_array(const void* glide_client,
      * refcounted or destroyed */
     zval keys_array;
     bool owns_keys = borrow_keys_as_strings(keys_hash, &keys_array);
+    if (EG(exception)) {
+        zval_ptr_dtor(&keys_array);
+        return 0;
+    }
 
     /* Use core framework with converted array */
     core_command_args_t args = {0};

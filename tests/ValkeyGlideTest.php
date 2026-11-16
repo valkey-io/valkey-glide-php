@@ -11503,20 +11503,23 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->assertEquals(['{blpop}1', 'one'], $this->valkey_glide->blPop(['{blpop}1', '{blpop}2'], 0.1));
         $this->assertEquals(1, $this->valkey_glide->lLen('{blpop}2'));
 
-        /* A key that cannot be sent fails cleanly and leaves the client usable */
-        $this->assertFalse($this->valkey_glide->blPop(['{blpop}2', ['nested']], 0.1));
-        $this->assertFalse($this->valkey_glide->brPop(['{blpop}2', new stdClass()], 0.1));
+        /* Other scalars are converted the same way */
+        $this->valkey_glide->rPush('1.5', 'float');
+        $this->assertEquals(['1.5', 'float'], $this->valkey_glide->blPop([1.5], 0.1));
+
+        /* A key that cannot be converted throws, sends nothing and leaves the client usable */
+        $this->assertThrows(Error::class, fn () => $this->valkey_glide->brPop(['{blpop}2', new stdClass()], 0.1));
         $this->assertEquals(1, $this->valkey_glide->lLen('{blpop}2'));
         $this->assertTrue($this->valkey_glide->set('{blpop}ok', '1'));
 
         if (version_compare($this->version, '7.0.0') >= 0) {
             $this->valkey_glide->rPush('7', 'seven');
             $this->assertEquals(['7', ['seven']], $this->valkey_glide->lmpop([7], 'LEFT'));
-            $this->assertFalse($this->valkey_glide->lmpop(['{blpop}2', ['nested']], 'LEFT'));
+            $this->assertThrows(Error::class, fn () => $this->valkey_glide->lmpop(['{blpop}2', new stdClass()], 'LEFT'));
             $this->assertEquals(1, $this->valkey_glide->lLen('{blpop}2'));
         }
 
-        $this->valkey_glide->del('{blpop}1', '{blpop}2', '{blpop}ok', '5', '6', '7');
+        $this->valkey_glide->del('{blpop}1', '{blpop}2', '{blpop}ok', '5', '6', '7', '1.5');
     }
 
     public function testZRandMemberMissingKey()
@@ -11610,6 +11613,18 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
         /* String-key del and unlink, then integer-key del and unlink (one key left), three times */
         $this->assertEquals(array_merge(...array_fill(0, 3, [2, 2, 2, 1])), json_decode($out, true));
+    }
+
+    public function testDelUnlinkUnconvertibleKey()
+    {
+        $this->valkey_glide->set('{delobj}k', '1');
+
+        /* Nothing is sent: before, the object became an empty key and the command still ran */
+        $this->assertThrows(Error::class, fn () => $this->valkey_glide->del(['{delobj}k', new stdClass()]));
+        $this->assertThrows(Error::class, fn () => $this->valkey_glide->unlink(['{delobj}k', new stdClass()]));
+        $this->assertEquals('1', $this->valkey_glide->get('{delobj}k'));
+
+        $this->assertEquals(1, $this->valkey_glide->del(['{delobj}k']));
     }
 
     public function testSubscribeEmptyChannelsMessage()
@@ -11797,11 +11812,13 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->valkey_glide->set('{object}k', '1');
         $this->valkey_glide->set('{object}marker', '1');
 
-        /* Nothing is sent for an unknown subcommand. Before, the key became the command name */
-        $this->assertFalse($this->valkey_glide->object('HELP', '{object}k'));
-        $this->assertFalse($this->valkey_glide->object('REF', '{object}k'));
-        $this->assertFalse($this->valkey_glide->object('', '{object}k'));
-        $this->assertFalse($this->valkey_glide->object('FLUSHALL', '{object}k'));
+        /* Nothing is sent for an unknown subcommand. Before, the key became the command name.
+         * As in PHPRedis, it warns and returns false */
+        foreach (['HELP', 'REF', '', 'FLUSHALL'] as $subcommand) {
+            error_clear_last();
+            $this->assertFalse(@$this->valkey_glide->object($subcommand, '{object}k'));
+            $this->assertStringContains('Invalid subcommand sent to OBJECT', error_get_last()['message'] ?? '');
+        }
         $this->assertEquals('1', $this->valkey_glide->get('{object}marker'));
 
         $this->assertEquals(1, $this->valkey_glide->object('refcount', '{object}k'));

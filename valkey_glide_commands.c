@@ -1704,6 +1704,8 @@ int execute_object_command_impl(valkey_glide_object* valkey_glide,
     }
 
     if (req_type == InvalidRequest) {
+        /* Same warning and false return as PHPRedis */
+        php_error_docref(NULL, E_WARNING, "Invalid subcommand sent to OBJECT");
         return -1;
     }
 

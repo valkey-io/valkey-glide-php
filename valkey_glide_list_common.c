@@ -574,6 +574,39 @@ int prepare_list_key_count_args(list_command_args_t* args,
 }
 
 /**
+ * Add one key to an argument array. A string key is used as is. Any other key is converted with
+ * PHP's string conversion, as PHPRedis does (5 -> "5", 1.5 -> "1.5"), and the copy is added to
+ * allocated_strings, which needs a free slot for it. Returns 0, adding nothing, when the
+ * conversion throws (an object without __toString())
+ */
+static int list_add_key_arg(zval*          z_key,
+                            uintptr_t*     args,
+                            unsigned long* args_len,
+                            int            arg_idx,
+                            char**         allocated_strings,
+                            int*           allocated_count) {
+    if (Z_TYPE_P(z_key) == IS_STRING) {
+        args[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_key);
+        args_len[arg_idx] = Z_STRLEN_P(z_key);
+        return 1;
+    }
+
+    zend_string* key = zval_get_string(z_key);
+    if (EG(exception)) {
+        zend_string_release(key);
+        return 0;
+    }
+
+    char* key_copy    = estrndup(ZSTR_VAL(key), ZSTR_LEN(key));
+    args_len[arg_idx] = ZSTR_LEN(key);
+    zend_string_release(key);
+
+    allocated_strings[(*allocated_count)++] = key_copy;
+    args[arg_idx]                           = (uintptr_t) key_copy;
+    return 1;
+}
+
+/**
  * Prepare arguments for blocking commands (BLPOP, BRPOP)
  */
 int prepare_list_blocking_args(list_command_args_t* args,
@@ -606,7 +639,7 @@ int prepare_list_blocking_args(list_command_args_t* args,
     }
 
     /* Initialize allocated strings tracking */
-    /* One slot per key (integer keys are converted to strings) plus the timeout */
+    /* One slot per converted (non-string) key plus the timeout */
     *allocated_strings = (char**) emalloc(arg_count * sizeof(char*));
     if (!*allocated_strings) {
         return 0;
@@ -615,23 +648,17 @@ int prepare_list_blocking_args(list_command_args_t* args,
 
     int arg_idx = 0;
 
-    /* Add keys. On any failure the caller (execute_list_generic_command) frees
-     * the argument arrays and the converted strings; do not free them here. */
+    /* Add keys */
     if (args->keys && Z_TYPE_P(args->keys) == IS_ARRAY) {
         HashTable* ht = Z_ARRVAL_P(args->keys);
         zval*      z_key;
         ZEND_HASH_FOREACH_VAL(ht, z_key) {
-            if (Z_TYPE_P(z_key) == IS_STRING) {
-                (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_key);
-                (*args_len_out)[arg_idx] = Z_STRLEN_P(z_key);
-            } else if (Z_TYPE_P(z_key) == IS_LONG) {
-                size_t key_len;
-                char*  key_str = alloc_list_number_string(Z_LVAL_P(z_key), &key_len);
-
-                (*allocated_strings)[(*allocated_count)++] = key_str;
-                (*args_out)[arg_idx]                       = (uintptr_t) key_str;
-                (*args_len_out)[arg_idx]                   = key_len;
-            } else {
+            if (!list_add_key_arg(z_key,
+                                  *args_out,
+                                  *args_len_out,
+                                  arg_idx,
+                                  *allocated_strings,
+                                  allocated_count)) {
                 return 0;
             }
             arg_idx++;
@@ -1268,7 +1295,7 @@ int prepare_list_mpop_args(list_command_args_t* args,
     }
 
     /* Initialize allocated strings tracking */
-    /* timeout, numkeys, count, plus one slot per integer key converted to a string */
+    /* timeout, numkeys, count, plus one slot per converted (non-string) key */
     *allocated_strings = (char**) emalloc((3 + keys_count) * sizeof(char*));
     if (!*allocated_strings) {
         return 0;
@@ -1311,17 +1338,8 @@ int prepare_list_mpop_args(list_command_args_t* args,
     HashTable* ht = Z_ARRVAL_P(args->keys);
     zval*      z_key;
     ZEND_HASH_FOREACH_VAL(ht, z_key) {
-        if (Z_TYPE_P(z_key) == IS_STRING) {
-            (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_key);
-            (*args_len_out)[arg_idx] = Z_STRLEN_P(z_key);
-        } else if (Z_TYPE_P(z_key) == IS_LONG) {
-            size_t key_len;
-            char*  key_str = alloc_list_number_string(Z_LVAL_P(z_key), &key_len);
-
-            (*allocated_strings)[(*allocated_count)++] = key_str;
-            (*args_out)[arg_idx]                       = (uintptr_t) key_str;
-            (*args_len_out)[arg_idx]                   = key_len;
-        } else {
+        if (!list_add_key_arg(
+                z_key, *args_out, *args_len_out, arg_idx, *allocated_strings, allocated_count)) {
             return 0;
         }
         arg_idx++;
