@@ -421,10 +421,8 @@ int execute_z_generic_command(valkey_glide_object* valkey_glide,
             arg_lens[0]   = args->key_len;
 
             /* Add increment parameter */
-            char increment_str[64];
-            int  increment_str_len =
-                snprintf(increment_str, sizeof(increment_str), "%.6g", args->increment);
-            char* increment_str_copy = estrndup(increment_str, increment_str_len);
+            size_t increment_str_len;
+            char*  increment_str_copy = double_to_string(args->increment, &increment_str_len);
 
             arg_values[1]        = (uintptr_t) increment_str_copy;
             arg_lens[1]          = increment_str_len;
@@ -1783,9 +1781,7 @@ int process_z_rank_result(CommandResponse* response, void* output, zval* return_
 }
 
 int process_z_array_zrand_result(CommandResponse* response, void* output, zval* return_value) {
-    struct {
-        int withscores;
-    }* array_data = output;
+    z_rand_result_t* array_data = output;
     if (!response || !array_data || !return_value) {
         return 0;
     }
@@ -1810,7 +1806,10 @@ int process_z_array_zrand_result(CommandResponse* response, void* output, zval* 
         /* Use common helper to flatten withscores array */
         flatten_withscores_array(return_value);
     }
-    efree(output);
+    /* Only the batch path hands over a heap copy; otherwise the caller owns the data */
+    if (array_data->heap_allocated) {
+        efree(array_data);
+    }
     return success;
 }
 

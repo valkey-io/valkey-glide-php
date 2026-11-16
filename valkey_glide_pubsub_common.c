@@ -649,10 +649,10 @@ static int execute_subscribe_command(const void*      connection,
                 ? result->command_error->command_error_message
                 : error_prefix;
         VALKEY_LOG_ERROR(command_name, error_msg);
-        if (result)
-            free_command_result(result);
         php_unregister_pubsub_callback((uintptr_t) connection);
         zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
+        if (result)
+            free_command_result(result);
         ZVAL_FALSE(return_value);
         return 0;
     }

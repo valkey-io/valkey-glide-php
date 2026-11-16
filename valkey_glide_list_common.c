@@ -315,18 +315,10 @@ char* alloc_list_number_string(long value, size_t* len_out) {
  * Allocate a string representation of a double
  */
 char* alloc_list_double_string(double value, size_t* len_out) {
-    /* Size the buffer from the formatted length: "%.6f" of a large double
-     * (e.g. 1e300) is longer than any fixed-size stack buffer */
-    int len = snprintf(NULL, 0, "%.6f", value);
-    if (len < 0) {
-        if (len_out)
-            *len_out = 0;
-        return NULL;
-    }
-    char* result = emalloc((size_t) len + 1);
-    snprintf(result, (size_t) len + 1, "%.6f", value);
+    size_t len;
+    char*  result = double_to_string(value, &len);
     if (len_out)
-        *len_out = (size_t) len;
+        *len_out = len;
     return result;
 }
 
@@ -446,7 +438,6 @@ int prepare_list_key_values_args(list_command_args_t* args,
     /* Initialize allocated strings tracking */
     *allocated_strings = (char**) emalloc(total_args * sizeof(char*));
     if (!*allocated_strings) {
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
     *allocated_count = 0;
@@ -519,8 +510,6 @@ int prepare_list_key_values_args(list_command_args_t* args,
                     (*args_len_out)[arg_idx] = str_len;
                     arg_idx++;
                 } else {
-                    FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-                    free_list_command_args(*args_out, *args_len_out);
                     return 0;
                 }
             }
@@ -569,7 +558,6 @@ int prepare_list_key_count_args(list_command_args_t* args,
         *allocated_strings = (char**) emalloc(sizeof(char*));
         if (!*allocated_strings) {
             efree(count_str);
-            free_list_command_args(*args_out, *args_len_out);
             return 0;
         }
 
@@ -616,27 +604,34 @@ int prepare_list_blocking_args(list_command_args_t* args,
     }
 
     /* Initialize allocated strings tracking */
-    *allocated_strings = (char**) emalloc(sizeof(char*));
+    /* One slot per key (integer keys are converted to strings) plus the timeout */
+    *allocated_strings = (char**) emalloc(arg_count * sizeof(char*));
     if (!*allocated_strings) {
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
     *allocated_count = 0;
 
     int arg_idx = 0;
 
-    /* Add keys */
+    /* Add keys. On any failure the caller (execute_list_generic_command) frees
+     * the argument arrays and the converted strings; do not free them here. */
     if (args->keys && Z_TYPE_P(args->keys) == IS_ARRAY) {
         HashTable* ht = Z_ARRVAL_P(args->keys);
         zval*      z_key;
         ZEND_HASH_FOREACH_VAL(ht, z_key) {
-            if (Z_TYPE_P(z_key) != IS_STRING) {
-                FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-                free_list_command_args(*args_out, *args_len_out);
+            if (Z_TYPE_P(z_key) == IS_STRING) {
+                (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_key);
+                (*args_len_out)[arg_idx] = Z_STRLEN_P(z_key);
+            } else if (Z_TYPE_P(z_key) == IS_LONG) {
+                size_t key_len;
+                char*  key_str = alloc_list_number_string(Z_LVAL_P(z_key), &key_len);
+
+                (*allocated_strings)[(*allocated_count)++] = key_str;
+                (*args_out)[arg_idx]                       = (uintptr_t) key_str;
+                (*args_len_out)[arg_idx]                   = key_len;
+            } else {
                 return 0;
             }
-            (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_key);
-            (*args_len_out)[arg_idx] = Z_STRLEN_P(z_key);
             arg_idx++;
         }
         ZEND_HASH_FOREACH_END();
@@ -654,8 +649,6 @@ int prepare_list_blocking_args(list_command_args_t* args,
     size_t timeout_len;
     char*  timeout_str = alloc_list_double_string(args->blocking_opts.timeout, &timeout_len);
     if (!timeout_str) {
-        FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
 
@@ -832,7 +825,6 @@ int prepare_list_range_args(list_command_args_t* args,
     /* Initialize allocated strings tracking */
     *allocated_strings = (char**) emalloc(2 * sizeof(char*));
     if (!*allocated_strings) {
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
     *allocated_count = 0;
@@ -845,8 +837,6 @@ int prepare_list_range_args(list_command_args_t* args,
     size_t start_len;
     char*  start_str = alloc_list_number_string(args->start, &start_len);
     if (!start_str) {
-        FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
 
@@ -860,8 +850,6 @@ int prepare_list_range_args(list_command_args_t* args,
     size_t end_len;
     char*  end_str = alloc_list_number_string(args->end, &end_len);
     if (!end_str) {
-        FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
 
@@ -907,7 +895,6 @@ int prepare_list_position_args(list_command_args_t* args,
     /* Initialize allocated strings tracking */
     *allocated_strings = (char**) emalloc(3 * sizeof(char*));
     if (!*allocated_strings) {
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
     *allocated_count = 0;
@@ -929,8 +916,6 @@ int prepare_list_position_args(list_command_args_t* args,
         size_t rank_len;
         char*  rank_str = alloc_list_number_string(args->position_opts.rank, &rank_len);
         if (!rank_str) {
-            FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-            free_list_command_args(*args_out, *args_len_out);
             return 0;
         }
 
@@ -966,8 +951,6 @@ int prepare_list_position_args(list_command_args_t* args,
         size_t maxlen_len;
         char*  maxlen_str = alloc_list_number_string(args->position_opts.maxlen, &maxlen_len);
         if (!maxlen_str) {
-            FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-            free_list_command_args(*args_out, *args_len_out);
             return 0;
         }
 
@@ -1033,7 +1016,6 @@ int prepare_list_index_set_args(list_command_args_t* args,
     /* Initialize allocated strings tracking */
     *allocated_strings = (char**) emalloc(sizeof(char*));
     if (!*allocated_strings) {
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
     *allocated_count = 0;
@@ -1046,8 +1028,6 @@ int prepare_list_index_set_args(list_command_args_t* args,
     size_t index_len;
     char*  index_str = alloc_list_number_string(args->index, &index_len);
     if (!index_str) {
-        FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
 
@@ -1088,7 +1068,6 @@ int prepare_list_rem_args(list_command_args_t* args,
     /* Initialize allocated strings tracking */
     *allocated_strings = (char**) emalloc(sizeof(char*));
     if (!*allocated_strings) {
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
     *allocated_count = 0;
@@ -1132,7 +1111,6 @@ int prepare_list_trim_args(list_command_args_t* args,
     /* Initialize allocated strings tracking */
     *allocated_strings = (char**) emalloc(2 * sizeof(char*));
     if (!*allocated_strings) {
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
     *allocated_count = 0;
@@ -1145,8 +1123,6 @@ int prepare_list_trim_args(list_command_args_t* args,
     size_t start_len;
     char*  start_str = alloc_list_number_string(args->start, &start_len);
     if (!start_str) {
-        FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
 
@@ -1160,8 +1136,6 @@ int prepare_list_trim_args(list_command_args_t* args,
     size_t end_len;
     char*  end_str = alloc_list_number_string(args->end, &end_len);
     if (!end_str) {
-        FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
 
@@ -1210,7 +1184,6 @@ int prepare_list_move_args(list_command_args_t* args,
     /* Initialize allocated strings tracking */
     *allocated_strings = (char**) emalloc(sizeof(char*));
     if (!*allocated_strings) {
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
     *allocated_count = 0;
@@ -1243,8 +1216,6 @@ int prepare_list_move_args(list_command_args_t* args,
         size_t timeout_len;
         char*  timeout_str = alloc_list_double_string(args->move_opts.timeout, &timeout_len);
         if (!timeout_str) {
-            FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-            free_list_command_args(*args_out, *args_len_out);
             return 0;
         }
 
@@ -1295,9 +1266,9 @@ int prepare_list_mpop_args(list_command_args_t* args,
     }
 
     /* Initialize allocated strings tracking */
-    *allocated_strings = (char**) emalloc(3 * sizeof(char*)); /* timeout, numkeys, count */
+    /* timeout, numkeys, count, plus one slot per integer key converted to a string */
+    *allocated_strings = (char**) emalloc((3 + keys_count) * sizeof(char*));
     if (!*allocated_strings) {
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
     *allocated_count = 0;
@@ -1309,8 +1280,6 @@ int prepare_list_mpop_args(list_command_args_t* args,
         size_t timeout_len;
         char*  timeout_str = alloc_list_double_string(args->mpop_opts.timeout, &timeout_len);
         if (!timeout_str) {
-            FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-            free_list_command_args(*args_out, *args_len_out);
             return 0;
         }
 
@@ -1326,8 +1295,6 @@ int prepare_list_mpop_args(list_command_args_t* args,
     size_t numkeys_len;
     char*  numkeys_str = alloc_list_number_string(keys_count, &numkeys_len);
     if (!numkeys_str) {
-        FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-        free_list_command_args(*args_out, *args_len_out);
         return 0;
     }
 
@@ -1342,13 +1309,19 @@ int prepare_list_mpop_args(list_command_args_t* args,
     HashTable* ht = Z_ARRVAL_P(args->keys);
     zval*      z_key;
     ZEND_HASH_FOREACH_VAL(ht, z_key) {
-        if (Z_TYPE_P(z_key) != IS_STRING) {
-            FREE_LIST_ALLOCATED_STRINGS(*allocated_strings, *allocated_count);
-            free_list_command_args(*args_out, *args_len_out);
+        if (Z_TYPE_P(z_key) == IS_STRING) {
+            (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_key);
+            (*args_len_out)[arg_idx] = Z_STRLEN_P(z_key);
+        } else if (Z_TYPE_P(z_key) == IS_LONG) {
+            size_t key_len;
+            char*  key_str = alloc_list_number_string(Z_LVAL_P(z_key), &key_len);
+
+            (*allocated_strings)[(*allocated_count)++] = key_str;
+            (*args_out)[arg_idx]                       = (uintptr_t) key_str;
+            (*args_len_out)[arg_idx]                   = key_len;
+        } else {
             return 0;
         }
-        (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_key);
-        (*args_len_out)[arg_idx] = Z_STRLEN_P(z_key);
         arg_idx++;
     }
     ZEND_HASH_FOREACH_END();

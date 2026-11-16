@@ -2261,6 +2261,19 @@ static bool rawcommand_route_reaches_all_primaries(zval* route) {
             zend_string_equals_literal_ci(Z_STR_P(route), "allNodes"));
 }
 
+/* Convert the reply of a queued rawcommand() the same way the immediate path does */
+static int process_rawcommand_batch_result(CommandResponse* response,
+                                           void*            output,
+                                           zval*            return_value) {
+    (void) output;
+    if (!response) {
+        ZVAL_FALSE(return_value);
+        return 0;
+    }
+    return command_response_to_zval(
+        response, return_value, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false);
+}
+
 /* Execute rawcommand command */
 int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
@@ -2322,6 +2335,39 @@ int execute_rawcommand_command(zval* object, int argc, zval* return_value, zend_
                 Z_STRVAL(z_args[0]), Z_STRLEN(z_args[0]), sub, sub_len)) {
             valkey_glide_mark_connection_state_changed(valkey_glide);
         }
+    }
+
+    /* In a multi() or pipeline(), queue the command with the others (routing does not apply to a
+     * batch) and return $this, instead of running it immediately outside the transaction */
+    if (valkey_glide->is_in_batch_mode) {
+        uintptr_t*     cmd_args          = NULL;
+        unsigned long* args_len          = NULL;
+        char**         allocated_strings = NULL;
+        int            allocated_count   = 0;
+
+        if (!convert_zval_args_to_strings(
+                z_args, arg_count, &cmd_args, &args_len, &allocated_strings, &allocated_count)) {
+            return 0;
+        }
+
+        /* CustomCommand carries the command name as its first argument */
+        int buffered = buffer_command_for_batch(valkey_glide,
+                                                CustomCommand,
+                                                cmd_args,
+                                                args_len,
+                                                arg_count,
+                                                NULL,
+                                                process_rawcommand_batch_result);
+
+        efree(cmd_args);
+        efree(args_len);
+        cleanup_allocated_strings(allocated_strings, allocated_count);
+
+        if (!buffered) {
+            return 0;
+        }
+        ZVAL_COPY(return_value, object);
+        return 1;
     }
 
     /* A raw (P|S)SUBSCRIBE can subscribe on the server even when the call reports failure, and

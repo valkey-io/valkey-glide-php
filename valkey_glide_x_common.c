@@ -1123,7 +1123,8 @@ int prepare_x_add_args(x_command_args_t* args,
     *args_len_out           = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
 
     /* Allocate array to track temporary string allocations */
-    *allocated_strings = (char**) ecalloc(args->fv_count + 5, sizeof(char*));
+    /* Up to one converted string per field name and per value, plus the threshold copy */
+    *allocated_strings = (char**) ecalloc((args->fv_count * 2) + 5, sizeof(char*));
     *allocated_count   = 0;
 
     /* Set key as first argument */
@@ -1180,39 +1181,45 @@ int prepare_x_add_args(x_command_args_t* args,
 
     /* Add field-value pairs */
     HashTable*   ht = Z_ARRVAL_P(args->field_values);
+    zend_ulong   num_key;
     zend_string* field_str;
     zval*        z_value;
 
-    ZEND_HASH_FOREACH_STR_KEY_VAL(ht, field_str, z_value) {
-        /* Add field name */
+    ZEND_HASH_FOREACH_KEY_VAL(ht, num_key, field_str, z_value) {
+        /* Add field name. Integer keys are sent as their decimal string, like PHPRedis */
         if (field_str) {
             (*args_out)[arg_idx]     = (uintptr_t) ZSTR_VAL(field_str);
             (*args_len_out)[arg_idx] = ZSTR_LEN(field_str);
+        } else {
+            char   field_buf[32];
+            size_t field_len  = snprintf(field_buf, sizeof(field_buf), "%ld", (long) num_key);
+            char*  field_copy = estrndup(field_buf, field_len);
+
+            (*allocated_strings)[(*allocated_count)++] = field_copy;
+            (*args_out)[arg_idx]                       = (uintptr_t) field_copy;
+            (*args_len_out)[arg_idx]                   = field_len;
+        }
+        arg_idx++;
+
+        /* Add field value, convert to string if needed */
+        if (Z_TYPE_P(z_value) != IS_STRING) {
+            zval temp;
+            ZVAL_COPY(&temp, z_value);
+            convert_to_string(&temp);
+
+            /* Create persistent copy of the string */
+            char* str_copy = estrndup(Z_STRVAL(temp), Z_STRLEN(temp));
+
+            (*allocated_strings)[(*allocated_count)++] = str_copy;
+            (*args_out)[arg_idx]                       = (uintptr_t) str_copy;
+            (*args_len_out)[arg_idx]                   = Z_STRLEN(temp);
             arg_idx++;
 
-            /* Add field value, convert to string if needed */
-            if (Z_TYPE_P(z_value) != IS_STRING) {
-                zval temp;
-                ZVAL_COPY(&temp, z_value);
-                convert_to_string(&temp);
-
-                /* Create persistent copy of the string */
-                char* str_copy = estrndup(Z_STRVAL(temp), Z_STRLEN(temp));
-                if (str_copy) {
-                    (*allocated_strings)[*allocated_count] = str_copy;
-                    (*allocated_count)++;
-
-                    (*args_out)[arg_idx]     = (uintptr_t) str_copy;
-                    (*args_len_out)[arg_idx] = Z_STRLEN(temp);
-                    arg_idx++;
-                }
-
-                zval_dtor(&temp);
-            } else {
-                (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_value);
-                (*args_len_out)[arg_idx] = Z_STRLEN_P(z_value);
-                arg_idx++;
-            }
+            zval_dtor(&temp);
+        } else {
+            (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_value);
+            (*args_len_out)[arg_idx] = Z_STRLEN_P(z_value);
+            arg_idx++;
         }
     }
     ZEND_HASH_FOREACH_END();

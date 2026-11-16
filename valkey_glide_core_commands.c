@@ -2182,11 +2182,10 @@ int execute_del_array(const void* glide_client,
         return 0;
     }
 
-    /* Create temporary zval array from HashTable */
+    /* Borrow the caller's array without touching its refcount: it stays alive for this call, and
+     * it may be immutable (an opcache literal), which must never be destroyed or refcounted */
     zval keys_array;
     ZVAL_ARR(&keys_array, keys_hash);
-    /* Bump refcount so it stays alive while you pass it down */
-    GC_TRY_ADDREF(keys_hash);
 
     /* Use core framework with converted array */
     core_command_args_t args = {0};
@@ -2216,7 +2215,6 @@ int execute_del_array(const void* glide_client,
             free_command_result(cmd_result);
         }
     }
-    zval_ptr_dtor(&keys_array);
     free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
     return result;
 }
@@ -2270,10 +2268,10 @@ int execute_unlink_array(const void* glide_client,
         return 0;
     }
 
-    /* Create temporary zval array from HashTable */
+    /* Borrow the caller's array without touching its refcount: it stays alive for this call, and
+     * it may be immutable (an opcache literal), which must never be destroyed or refcounted */
     zval keys_array;
     ZVAL_ARR(&keys_array, keys_hash);
-    GC_TRY_ADDREF(keys_hash);  // keep alive
 
     /* Use core framework with converted array */
     core_command_args_t args = {0};
@@ -2303,7 +2301,6 @@ int execute_unlink_array(const void* glide_client,
             free_command_result(cmd_result);
         }
     }
-    zval_ptr_dtor(&keys_array);
     free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
     return result;
 }

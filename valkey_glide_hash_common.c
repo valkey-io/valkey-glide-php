@@ -2376,8 +2376,10 @@ static int execute_hash_expiry_command(zval*             object,
     // Validate field count based on command type
     if (cmd_type == HSetEx && (num_args < 2 || num_args % 2 != 0)) {
         return 0;  // HSetEx needs field-value pairs
-    } else if (cmd_type == HExpire && num_args < 1) {
-        return 0;  // HExpire needs at least one field
+    } else if ((cmd_type == HExpire || cmd_type == HPExpire || cmd_type == HExpireAt ||
+                cmd_type == HPExpireAt) &&
+               num_args < 1) {
+        return 0;  // The HEXPIRE family needs at least one field
     }
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
@@ -2424,8 +2426,21 @@ static int execute_hexpire_with_condition(zval*             object,
                                           zend_class_entry* ce,
                                           const char*       expiry_type,
                                           const char*       condition) {
+    /* expiry_type selects the command: NULL = HEXPIRE (relative seconds), "PX" = HPEXPIRE
+     * (relative ms), "EXAT" = HEXPIREAT (unix seconds), "PXAT" = HPEXPIREAT (unix ms) */
+    enum RequestType cmd_type = HExpire;
+    if (expiry_type) {
+        if (strcmp(expiry_type, "PX") == 0) {
+            cmd_type = HPExpire;
+        } else if (strcmp(expiry_type, "EXAT") == 0) {
+            cmd_type = HExpireAt;
+        } else if (strcmp(expiry_type, "PXAT") == 0) {
+            cmd_type = HPExpireAt;
+        }
+    }
+
     return execute_hash_expiry_command(
-        object, argc, return_value, ce, HExpire, expiry_type, condition, H_RESPONSE_ARRAY, 1);
+        object, argc, return_value, ce, cmd_type, expiry_type, condition, H_RESPONSE_ARRAY, 1);
 }
 
 // Unified hash field expiration command execution
