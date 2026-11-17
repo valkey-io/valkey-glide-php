@@ -149,6 +149,8 @@ Use conventional commit format:
 
 **Example:** `feat(php): implement cluster scan with routing options`
 
+The PR title uses the same format with a lowercase type; it is checked and becomes the release notes entry.
+
 ### Code Quality Requirements
 
 #### Running Linters
