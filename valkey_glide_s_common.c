@@ -594,15 +594,6 @@ typedef struct {
     char*            cursor;
     zval*            scan_iter;
 } scan_data_t;
-/* free_result for a buffered SCAN: the context owns its cursor copy, as the processor does */
-static void free_scan_data(void* output) {
-    scan_data_t* args = (scan_data_t*) output;
-    if (args->cursor) {
-        efree(args->cursor);
-    }
-    efree(args);
-}
-
 /* Replace the caller's cursor with "0" after a failed SCAN. The caller owns
  * and later frees the cursor, so it must stay an allocated string. */
 static void scan_cursor_done(scan_data_t* args) {
@@ -874,14 +865,12 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
     }
 
 
-    /* Check for batch mode */
+    /* Check for batch mode. SCAN commands never get here: scan_rejected_in_batch() refuses them
+     * first, so scan_data is NULL */
     if (valkey_glide && valkey_glide->is_in_batch_mode) {
         /* Buffer command for batch execution */
         status = buffer_command_for_batch(
             valkey_glide, cmd_type, cmd_args, args_len, arg_count, scan_data, process_result);
-        if (status) {
-            valkey_glide_batch_own_result(valkey_glide, scan_data, free_scan_data);
-        }
 
 
         goto cleanup;
@@ -2018,8 +2007,7 @@ int execute_cluster_scan_command(const void* glide_client,
 static bool scan_retry_needed(valkey_glide_object* valkey_glide,
                               zval*                return_value,
                               const char*          cursor) {
-    return valkey_glide->scan_retry && !valkey_glide->is_in_batch_mode &&
-           Z_TYPE_P(return_value) == IS_ARRAY &&
+    return valkey_glide->scan_retry && Z_TYPE_P(return_value) == IS_ARRAY &&
            zend_hash_num_elements(Z_ARRVAL_P(return_value)) == 0 && cursor &&
            strcmp(cursor, "0") != 0;
 }
@@ -2252,9 +2240,6 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
                  scan_retry_needed(valkey_glide, return_value, scan_iter_cursor(z_iter)));
 
         if (success) {
-            if (valkey_glide->is_in_batch_mode) {
-                ZVAL_COPY(return_value, object);
-            }
             /* Update iterator value */
             return 1;
         }
@@ -2396,10 +2381,6 @@ int execute_scan_command_generic(
     } while (success && scan_retry_needed(valkey_glide, return_value, scan_iter_cursor(z_iter)));
 
     if (success) {
-        if (valkey_glide->is_in_batch_mode) {
-            ZVAL_COPY(return_value, object);
-        }
-
         return 1;
     }
 
